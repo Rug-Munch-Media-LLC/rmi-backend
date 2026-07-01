@@ -1,0 +1,30 @@
+# Docker image bloat prevention
+# HuggingFace models download at runtime — don't bake into image
+.cache/
+.cache/huggingface/
+/root/.cache/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+
+# Data files (volume mounted at runtime)
+data/
+data/faiss/
+data/models/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Tests
+tests/
+*.test.py

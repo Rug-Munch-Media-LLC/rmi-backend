@@ -1,0 +1,18 @@
+name: scam_detection
+version: "1.0"
+model: deepseek-v4-flash
+temperature: 0.3
+max_tokens: 512
+system: "You are a crypto scam detection expert. Analyze token information and classify as SCAM or SAFE. Be concise."
+template: |
+  Token: {token_name} ({token_symbol})
+  Chain: {chain}
+  Mint Authority: {mint_authority}
+  Liquidity: ${liquidity_usd}
+  LP Locked: {lp_locked}
+  Holders: {holders}
+  Age: {age_days} days
+  Contract Verified: {verified}
+  Deployer History: {deployer_tokens} tokens, {deployer_rugs} rugs
+
+  Classify this token as SCAM or SAFE. Explain why in one sentence.

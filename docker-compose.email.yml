@@ -1,0 +1,20 @@
+# RMI Email System
+# ===============
+# Self-hosted email for rugmunch.io
+# Postfix + Dovecot + SnappyMail webmail
+#
+# Access: https://webmail.rugmunch.io
+
+services:
+  webmail:
+    image: djmaze/snappymail:latest
+    container_name: rmi-webmail
+    restart: unless-stopped
+    networks:
+      - rmi_network
+    ports:
+      - "172.20.0.1:8888:8888"
+    volumes:
+      - /srv/snappymail/data:/var/lib/snappymail
+    environment:
+      - TZ=UTC

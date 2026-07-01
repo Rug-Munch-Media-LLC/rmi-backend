@@ -1,0 +1,14 @@
+"""T28 RSS Ingest HTTP endpoint."""
+
+from fastapi import APIRouter
+
+from app.domain.news.ingest import ingest_all
+
+router = APIRouter(prefix="/api/v1/news/_admin", tags=["news-admin"])
+
+
+@router.post("/ingest")
+async def trigger_ingest() -> dict:
+    """Trigger RSS ingest now (synchronous). Returns counts."""
+    result = await ingest_all()
+    return result

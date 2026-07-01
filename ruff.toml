@@ -1,0 +1,16 @@
+# RMI Backend - Strict linting config
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = [
+    "E", "F", "I", "W", "UP", "B", "C4", "SIM", "RUF",
+]
+ignore = [
+    "E501",   # Line too long
+    "RUF006", # create_task result unused (fire-and-forget patterns)
+    "SIM102", # Nested if — existing code convention
+]
+
+[lint.per-file-ignores]
+"app/core/lifespan.py" = ["T20"]   # print() for startup logging is intentional

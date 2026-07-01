@@ -1,0 +1,105 @@
+name: rug-munch-intelligence-mcp
+display_name: Rug Munch Intelligence
+description: "201 crypto intelligence tools across 13 blockchains — Solana, Base, Ethereum, BSC, Arbitrum, Optimism, Polygon, Avalanche, Fantom, Gnosis, TRON, Bitcoin, SEPA. Scam detection, rug pull prevention, wallet forensics, whale tracking, contract auditing, market analysis, sentiment monitoring, arbitrage scanning, MEV protection. AI-native MCP server with x402 micropayments ($0.01–$0.40/call) and free trials (1–5 calls/tool). 8 facilitators: Coinbase CDP, PayAI, Cloudflare x402, EIP-7702, TRON Self-Verify, Bitcoin Self-Verify, AsterPay, x402-rs."
+version: 3.0.0
+author: CryptoRugMunch
+homepage: https://rugmunch.io
+repository: https://github.com/Rug-Munch-Media-LLC/rug-munch-intelligence-mcp
+license: Proprietary
+
+categories:
+  - Security
+  - Intelligence
+  - Market
+  - Analysis
+  - Social
+  - Launchpad
+  - Forensics
+  - DeFi
+  - NFT
+  - Premium
+  - API
+  - Bundle
+  - Variant
+
+commands:
+  start:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - mcp-remote@latest
+      - https://mcp.rugmunch.io/mcp
+
+environment:
+  RUG_MUNCH_API_BASE:
+    description: API base URL
+    default: https://mcp.rugmunch.io/api/v1
+    required: false
+  RUG_MUNCH_API_KEY:
+    description: API key for premium access (optional)
+    required: false
+
+tools_count: 201
+chains:
+  - solana
+  - base
+  - ethereum
+  - bsc
+  - arbitrum
+  - optimism
+  - polygon
+  - avalanche
+  - fantom
+  - gnosis
+  - tron
+  - bitcoin
+  - sepa
+
+facilitators:
+  - coinbase-cdp
+  - payai
+  - cloudflare-x402
+  - eip-7702
+  - tron-self-verify
+  - bitcoin-self-verify
+  - asterpay
+  - x402-rs
+
+x402:
+  enabled: true
+  discovery_url: https://mcp.rugmunch.io/.well-known/x402
+  network: base
+  token: USDC
+  pricing_per_call: $0.01–$0.40
+  free_trials: 1–5 calls per tool
+
+discovery:
+  mcp: https://mcp.rugmunch.io/.well-known/mcp.json
+  x402: https://mcp.rugmunch.io/.well-known/x402
+
+links:
+  homepage: https://rugmunch.io
+  documentation: https://mcp.rugmunch.io/docs/mcp
+  repository: https://github.com/Rug-Munch-Media-LLC/rug-munch-intelligence-mcp
+  smithery: https://smithery.ai/server/@cryptorugmuncher/rug-munch-intelligence
+  glama: https://glama.ai/mcp/servers/@cryptorugmuncher/rug-munch-intelligence
+  logo: https://rugmunch.io/logo.png
+  contact: mcp@rugmunch.io
+
+seo_keywords:
+  - crypto security mcp server
+  - scam detection ai tools
+  - rug pull prevention api
+  - blockchain forensics mcp
+  - wallet analysis claude
+  - defi security tools
+  - smart money tracking
+  - whale alert mcp
+  - token audit api
+  - x402 payment protocol
+  - multi-chain intelligence
+  - solana security scanner
+  - ethereum contract audit
+  - bitcoin forensics ai
+  - crypto sentiment analysis

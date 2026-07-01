@@ -1,0 +1,261 @@
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional, List
+
+from app.rag_service import RAGService
+from app.scanner import Scanner
+from app.blocklist import Blocklist
+from app.wallet_labels import WalletLabels
+from app.entity_intel import EntityIntel
+
+router = APIRouter(prefix="/api/v1/protect")
+
+# CORS configuration for browser extension access
+origins = [
+    "https://chrome-extension://*",
+    "https://extension://*",
+    "http://localhost:*",
+]
+
+router.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class URLCheckRequest(BaseModel):
+    url: str
+
+class URLCheckResponse(BaseModel):
+    safe: bool
+    risk: str
+    reason: str
+    source: str
+
+class WalletCheckRequest(BaseModel):
+    address: str
+    chain: str
+
+class WalletCheckResponse(BaseModel):
+    safe: bool
+    risk_score: int
+    flags: List[str]
+
+class TokenCheckRequest(BaseModel):
+    address: str
+    chain: str
+
+class TokenCheckResponse(BaseModel):
+    safe: bool
+    risk_score: int
+    flags: List[str]
+    details: dict
+
+@router.post("/check-url", response_model=URLCheckResponse)
+async def check_url(request: URLCheckRequest):
+    """Check if a URL is safe.
+
+    Args:
+        request: URLCheckRequest containing the URL to check
+
+    Returns:
+        URLCheckResponse with safety assessment
+    """
+    url = request.url
+
+    # Check against RAG known_scams database
+    rag_service = RAGService()
+    rag_result = await rag_service.check_url(url)
+
+    if rag_result:
+        return URLCheckResponse(
+            safe=False,
+            risk=rag_result['risk'],
+            reason=rag_result['reason'],
+            source="rag"
+        )
+
+    # Check against blocklist
+    blocklist = Blocklist()
+    blocklist_result = await blocklist.check_url(url)
+
+    if blocklist_result:
+        return URLCheckResponse(
+            safe=False,
+            risk=blocklist_result['risk'],
+            reason=blocklist_result['reason'],
+            source="blocklist"
+        )
+
+    # If new URL, scan it and feed back to RAG
+    scanner = Scanner()
+    scan_result = await scanner.scan_url(url)
+
+    if scan_result['risk'] != "low":
+        await rag_service.add_url_to_known_scams(url, scan_result)
+
+    return URLCheckResponse(
+        safe=scan_result['risk'] == "low",
+        risk=scan_result['risk'],
+        reason=scan_result['reason'],
+        source="scanner"
+    )
+
+@router.post("/check-wallet", response_model=WalletCheckResponse)
+async def check_wallet(request: WalletCheckRequest):
+    """Check the safety of a wallet address.
+
+    Args:
+        request: WalletCheckRequest containing wallet address and chain
+
+    Returns:
+        WalletCheckResponse with safety assessment
+    """
+    address = request.address
+    chain = request.chain
+
+    # Check against wallet labels
+    wallet_labels = WalletLabels()
+    labels_result = await wallet_labels.check_wallet(address, chain)
+
+    # Check entity intel
+    entity_intel = EntityIntel()
+    intel_result = await entity_intel.check_wallet(address, chain)
+
+    # Combine results
+    flags = []
+    risk_score = 0
+
+    if labels_result:
+        flags.extend(labels_result['flags'])
+        risk_score = max(risk_score, labels_result['risk_score'])
+
+    if intel_result:
+        flags.extend(intel_result['flags'])
+        risk_score = max(risk_score, intel_result['risk_score'])
+
+    # Flag known drainers, scammers, sanction lists
+    if "drainer" in flags or "scammer" in flags or "sanctioned" in flags:
+        risk_score = max(risk_score, 80)
+
+    return WalletCheckResponse(
+        safe=risk_score < 50,
+        risk_score=risk_score,
+        flags=flags
+    )
+
+@router.post("/check-token", response_model=TokenCheckResponse)
+async def check_token(request: TokenCheckRequest):
+    """Get a full safety report for a token.
+
+    Args:
+        request: TokenCheckRequest containing token address and chain
+
+    Returns:
+        TokenCheckResponse with full safety report
+    """
+    address = request.address
+    chain = request.chain
+
+    # Call existing scanner
+    scanner = Scanner()
+    scan_result = await scanner.scan_token(address, chain)
+
+    # Add protection-focused summary
+    flags = scan_result.get('flags', [])
+    risk_score = scan_result.get('risk_score', 0)
+
+    # Add additional protection checks
+    wallet_labels = WalletLabels()
+    labels_result = await wallet_labels.check_token(address, chain)
+
+    if labels_result:
+        flags.extend(labels_result.get('flags', []))
+        risk_score = max(risk_score, labels_result.get('risk_score', 0))
+
+    return TokenCheckResponse(
+        safe=risk_score < 50,
+        risk_score=risk_score,
+        flags=flags,
+        details=scan_result
+    )
+
+@router.get("/domains")
+async def get_domains():
+    """Get the domain blocklist for the browser extension.
+
+    Returns:
+        JSON blocklist containing malicious domains
+    """
+    blocklist = Blocklist()
+    domains = await blocklist.get_blocklist()
+
+    # Also include domains from RAG
+    rag_service = RAGService()
+    rag_domains = await rag_service.get_scams_domains()
+
+    # Combine and deduplicate
+    all_domains = list(set(domains + rag_domains))
+
+    return {"domains": all_domains}
+
+@router.get("/health")
+async def health_check():
+    """Check the health status of all protection modules.
+
+    Returns:
+        JSON object with health status of each module
+    """
+    health_status = {
+        "status": "ok",
+        "modules": {}
+    }
+
+    # Check RAG service
+    try:
+        rag_service = RAGService()
+        rag_health = await rag_service.health_check()
+        health_status["modules"]["rag"] = rag_health
+    except Exception as e:
+        health_status["modules"]["rag"] = {"status": "error", "message": str(e)}
+
+    # Check Blocklist
+    try:
+        blocklist = Blocklist()
+        blocklist_health = await blocklist.health_check()
+        health_status["modules"]["blocklist"] = blocklist_health
+    except Exception as e:
+        health_status["modules"]["blocklist"] = {"status": "error", "message": str(e)}
+
+    # Check Scanner
+    try:
+        scanner = Scanner()
+        scanner_health = await scanner.health_check()
+        health_status["modules"]["scanner"] = scanner_health
+    except Exception as e:
+        health_status["modules"]["scanner"] = {"status": "error", "message": str(e)}
+
+    # Check Wallet Labels
+    try:
+        wallet_labels = WalletLabels()
+        labels_health = await wallet_labels.health_check()
+        health_status["modules"]["wallet_labels"] = labels_health
+    except Exception as e:
+        health_status["modules"]["wallet_labels"] = {"status": "error", "message": str(e)}
+
+    # Check Entity Intel
+    try:
+        entity_intel = EntityIntel()
+        intel_health = await entity_intel.health_check()
+        health_status["modules"]["entity_intel"] = intel_health
+    except Exception as e:
+        health_status["modules"]["entity_intel"] = {"status": "error", "message": str(e)}
+
+    # Overall status
+    if any(module["status"] != "ok" for module in health_status["modules"].values()):
+        health_status["status"] = "degraded"
+
+    return health_status

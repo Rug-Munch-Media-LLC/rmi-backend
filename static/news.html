@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RMI News Network — Live Crypto Intelligence</title>
+<style>
+:root{--bg:#06060f;--fg:#e8e8f0;--accent:#7c6ff7;--green:#2ecc71;--red:#e74c3c;--card:#0f0f1d;--border:#1e1e35;--muted:#888;--yellow:#f1c40f;--orange:#e67e22;--surface:#121224;--glow:rgba(124,111,247,.15);--cyan:#06b6d4}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+.logo{font-size:20px;font-weight:800}.logo span:first-child{color:var(--accent)}.logo span:last-child{color:var(--fg)}
+nav{display:flex;gap:4px}
+nav a{color:var(--muted);text-decoration:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500}
+nav a:hover,nav a.active{color:var(--fg);background:rgba(255,255,255,.06)}
+nav a.active{color:var(--accent)}
+.market-ticker{display:flex;gap:16px;margin-left:auto;font-size:12px}
+.ticker-item{display:flex;align-items:center;gap:4px}
+.ticker-price{font-weight:700;font-family:monospace}
+.ticker-change{font-size:11px}
+main{max-width:1500px;margin:0 auto;padding:20px;display:grid;grid-template-columns:240px 1fr 340px;gap:20px}
+.sidebar{position:sticky;top:70px;height:fit-content;max-height:calc(100vh-90px);overflow-y:auto}
+.section-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px;font-weight:700}
+.filter-btn{display:block;width:100%;text-align:left;padding:7px 12px;border-radius:6px;color:var(--muted);font-size:12px;cursor:pointer;border:none;background:none;margin:1px 0}
+.filter-btn:hover{background:var(--surface);color:var(--fg)}
+.filter-btn.active{background:var(--accent);color:#fff;font-weight:600}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.panel h4{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.fear-greed-display{text-align:center;padding:12px 0}
+.fg-value{font-size:42px;font-weight:800;line-height:1}
+.fg-label{font-size:13px;margin-top:4px}
+.fg-bar{height:8px;border-radius:4px;margin-top:6px;background:linear-gradient(90deg,#ff0044,#ff8800,#ffd700,#88ff00,#00ff88)}
+.fg-marker{width:4px;height:14px;border-radius:2px;background:#fff;position:relative;top:-11px}
+.price-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.03)}
+.price-row:last-child{border:none}
+.price-name{color:var(--muted)}
+.price-value{font-weight:600;font-family:monospace}
+.article-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:8px;transition:.15s;cursor:pointer}
+.article-card:hover{border-color:var(--accent);box-shadow:0 4px 20px var(--glow)}
+.article-source{font-size:10px;color:var(--accent);font-weight:600;margin-bottom:4px}
+.article-title{font-size:15px;font-weight:700;line-height:1.4;margin-bottom:6px}
+.article-title a{color:var(--fg);text-decoration:none}
+.article-meta{font-size:10px;color:var(--muted)}
+.article-card.high-impact{border-left:3px solid var(--red)}
+.article-card.medium-impact{border-left:3px solid var(--orange)}
+.prediction-item{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:11px}
+.prediction-item:last-child{border:none}
+.prediction-title{color:var(--fg);margin-bottom:2px}
+.prediction-volume{color:var(--muted);font-size:10px}
+.loading{text-align:center;padding:40px;color:var(--muted)}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.brief-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--muted)}
+.brief-bar b{color:var(--fg)}
+.source-badge{display:inline-block;padding:2px 6px;border-radius:3px;font-size:9px;background:rgba(6,182,212,.1);color:var(--cyan);margin-right:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>RMI</span><span> News</span></div>
+  <nav>
+    <a href="/rugcharts">RugCharts</a>
+    <a href="/rugmaps">RugMaps</a>
+    <a href="/news" class="active">News</a>
+  </nav>
+  <div class="market-ticker" id="tickerBar">
+    <div class="spinner"></div>
+  </div>
+</header>
+
+<main>
+  <!-- Left Sidebar -->
+  <aside class="sidebar">
+    <div class="panel">
+      <h4>😨 Fear & Greed</h4>
+      <div id="fearGreedWidget"><div class="spinner"></div></div>
+    </div>
+
+    <div class="panel">
+      <h4>💰 Live Prices</h4>
+      <div id="pricesWidget"><div class="spinner"></div></div>
+    </div>
+
+    <div class="panel">
+      <h4>🔥 Trending</h4>
+      <div id="trendingWidget"><div class="spinner"></div></div>
+    </div>
+
+    <div class="section-title">Filters</div>
+    <button class="filter-btn active" onclick="filterNews('all')">All News</button>
+    <button class="filter-btn" onclick="filterNews('bitcoin')">Bitcoin</button>
+    <button class="filter-btn" onclick="filterNews('ethereum')">Ethereum</button>
+    <button class="filter-btn" onclick="filterNews('defi')">DeFi</button>
+    <button class="filter-btn" onclick="filterNews('regulation')">Regulation</button>
+    <button class="filter-btn" onclick="filterNews('security')">Security</button>
+  </aside>
+
+  <!-- Main Feed -->
+  <div>
+    <div class="brief-bar" id="briefBar"><div class="spinner"></div> Loading market data...</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="tabBar">
+      <button class="sort-btn active" onclick="switchTab('all')">📰 All News</button>
+      <button class="sort-btn" onclick="switchTab('ct')">𝕏 CT Rundown</button>
+      <button class="sort-btn" onclick="switchTab('weekly')">⭐ Weekly Best</button>
+      <button class="sort-btn" onclick="switchTab('academic')">📚 Academic</button>
+      <button class="sort-btn" onclick="switchTab('social')">💬 Social</button>
+    </div>
+    <div id="articles"><div class="loading"><div class="spinner"></div> Loading news...</div></div>
+    <div id="ctRundown" style="display:none"></div>
+    <div id="weeklyContent" style="display:none"></div>
+    <div id="academicContent" style="display:none"></div>
+    <div id="socialContent" style="display:none"></div>
+  </div>
+
+  <!-- Right Sidebar -->
+  <aside class="sidebar">
+    <div class="panel">
+      <h4>🎲 Prediction Markets</h4>
+      <div id="polyWidget"><div class="spinner"></div></div>
+    </div>
+
+    <div class="panel">
+      <h4>📡 Data Sources</h4>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6">
+        <span class="source-badge">CG</span> CoinGecko<br>
+        <span class="source-badge">FG</span> Fear & Greed<br>
+        <span class="source-badge">PM</span> Polymarket<br>
+        <span class="source-badge">RSS</span> 200+ RSS Feeds<br>
+        <span class="source-badge">DB</span> DataBus (56 chains)
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const DB = '/api/v1/databus';
+let allArticles = [];
+let currentFilter = 'all';
+
+async function loadAll() {
+  // Load market data and news in parallel
+  const [prices, fearGreed, trending, polymarket, brief, newsData] = await Promise.all([
+    fetch(DB+'/market/prices').then(r=>r.json()).catch(()=>null),
+    fetch(DB+'/market/fear-greed').then(r=>r.json()).catch(()=>null),
+    fetch(DB+'/market/trending').then(r=>r.json()).catch(()=>null),
+    fetch(DB+'/market/prediction-markets').then(r=>r.json()).catch(()=>null),
+    fetch(DB+'/market/brief').then(r=>r.json()).catch(()=>null),
+    fetch(DB+'/news/full?limit=30').then(r=>r.json()).catch(()=>null),
+  ]);
+
+  // Ticker bar
+  if (prices?.prices) {
+    let html = '';
+    for (const [coin, data] of Object.entries(prices.prices)) {
+      const change = data.usd_24h_change || 0;
+      const color = change < -3 ? 'var(--red)' : change < 0 ? 'var(--orange)' : 'var(--green)';
+      html += `<div class="ticker-item">
+        <span style="color:var(--muted)">${coin.toUpperCase().slice(0,4)}</span>
+        <span class="ticker-price">$${(data.usd||0).toLocaleString()}</span>
+        <span class="ticker-change" style="color:${color}">${change>=0?'+':''}${change.toFixed(1)}%</span>
+      </div>`;
+    }
+    document.getElementById('tickerBar').innerHTML = html;
+  }
+
+  // Fear & Greed
+  if (fearGreed) {
+    const v = fearGreed.value || 50;
+    document.getElementById('fearGreedWidget').innerHTML = `
+      <div class="fear-greed-display">
+        <div class="fg-value" style="color:${fearGreed.color}">${v}</div>
+        <div class="fg-label">${fearGreed.classification}</div>
+        <div class="fg-bar"><div class="fg-marker" style="left:${v}%"></div></div>
+      </div>`;
+  }
+
+  // Prices
+  if (prices?.prices) {
+    let html = '';
+    for (const [coin, data] of Object.entries(prices.prices)) {
+      const change = data.usd_24h_change || 0;
+      const color = change < 0 ? 'var(--red)' : 'var(--green)';
+      html += `<div class="price-row">
+        <span class="price-name">${coin.charAt(0).toUpperCase()+coin.slice(1)}</span>
+        <span class="price-value">$${(data.usd||0).toLocaleString()} <span style="color:${color};font-size:10px">${change>=0?'+':''}${change.toFixed(1)}%</span></span>
+      </div>`;
+    }
+    document.getElementById('pricesWidget').innerHTML = html;
+  }
+
+  // Trending
+  if (trending?.trending) {
+    document.getElementById('trendingWidget').innerHTML = trending.trending.slice(0,8).map(t =>
+      `<div class="price-row">
+        <span class="price-name">${t.name}</span>
+        <span style="font-size:10px;color:var(--muted)">${t.symbol} #${t.market_cap_rank||'?'}</span>
+      </div>`
+    ).join('');
+  }
+
+  // Polymarket
+  if (polymarket?.markets?.length) {
+    document.getElementById('polyWidget').innerHTML = polymarket.markets.map(m =>
+      `<div class="prediction-item">
+        <div class="prediction-title">${m.title.slice(0,80)}</div>
+        <div class="prediction-volume">Vol: $${(m.volume||0).toLocaleString()}</div>
+      </div>`
+    ).join('');
+  }
+
+  // Brief bar
+  if (brief?.brief || newsData?.market_brief?.brief) {
+    const b = brief?.brief || newsData?.market_brief?.brief || '';
+    document.getElementById('briefBar').innerHTML = `<b>Market:</b> ${b}`;
+  }
+
+  // News articles
+  const newsContent = newsData?.headlines;
+  if (newsContent?.articles) {
+    allArticles = newsContent.articles;
+  } else {
+    // Fallback to existing news endpoint
+    try {
+      const fallback = await fetch('/news/daily-data').then(r=>r.json());
+      allArticles = fallback?.articles || [];
+    } catch(e) { allArticles = []; }
+  }
+  renderArticles();
+}
+
+function filterNews(cat) {
+  currentFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderArticles();
+}
+
+function renderArticles() {
+  let filtered = allArticles;
+  if (currentFilter !== 'all') {
+    filtered = allArticles.filter(a => {
+      const text = (a.title + ' ' + (a.source||'') + ' ' + (a.category||'')).toLowerCase();
+      return text.includes(currentFilter.toLowerCase());
+    });
+  }
+
+  if (!filtered.length) {
+    document.getElementById('articles').innerHTML = '<div class="loading">No articles found. Try a different filter.</div>';
+    return;
+  }
+
+  document.getElementById('articles').innerHTML = filtered.map(a => {
+    const impact = a.impact || (a.category === 'security' ? 'high' : 'medium');
+    return `<div class="article-card ${impact}-impact">
+      <div class="article-source">${a.source||'Unknown'} · ${a.category||'General'} · ${a.published||''}</div>
+      <div class="article-title"><a href="${a.url||'#'}" target="_blank">${a.title||'Untitled'}</a></div>
+      <div class="article-meta">${a.summary||a.description||''.slice(0,150)}</div>
+    </div>`;
+  }).join('');
+}
+
+loadAll();
+// Refresh every 2 minutes
+setInterval(loadAll, 120000);
+</script>
+</body>
+</html>

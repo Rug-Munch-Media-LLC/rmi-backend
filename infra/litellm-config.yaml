@@ -1,0 +1,86 @@
+# LiteLLM — sovereign LLM router per v4.0 master stack
+# OpenRouter = universal provider (1 key, all models)
+# Direct DeepSeek + Groq as backups
+#
+# ACTIVE providers with real keys:
+#   - openrouter  → DeepSeek, MiniMax, Gemini, Mistral, Llama
+#   - deepseek    → direct
+#   - groq        → fast inference
+#
+# PLACEHOLDER (no real key, skipped): gemini, zai, minimax, mistral-direct, kimi
+
+model_list:
+  # PRIMARY: OpenRouter (universal)
+  - model_name: deepseek-v3
+    litellm_params:
+      model: openrouter/deepseek/deepseek-chat
+      api_key: os.environ/OPENROUTER_API_KEY
+      api_base: https://openrouter.ai/api/v1
+      rpm: 60
+      timeout: 60
+  - model_name: MiniMax-M3
+    litellm_params:
+      model: openrouter/MiniMax/MiniMax-M3
+      api_key: os.environ/OPENROUTER_API_KEY
+      api_base: https://openrouter.ai/api/v1
+      rpm: 60
+      timeout: 60
+  - model_name: gemini-2.5-flash
+    litellm_params:
+      model: openrouter/google/gemini-2.5-flash
+      api_key: os.environ/OPENROUTER_API_KEY
+      api_base: https://openrouter.ai/api/v1
+      rpm: 60
+      timeout: 60
+  - model_name: mistral-large
+    litellm_params:
+      model: openrouter/mistralai/mistral-large-latest
+      api_key: os.environ/OPENROUTER_API_KEY
+      api_base: https://openrouter.ai/api/v1
+      rpm: 60
+      timeout: 60
+  - model_name: llama-3-70b
+    litellm_params:
+      model: openrouter/meta-llama/llama-3-70b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+      api_base: https://openrouter.ai/api/v1
+      rpm: 60
+      timeout: 60
+
+  # BACKUP: direct DeepSeek
+  - model_name: deepseek-direct
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+      api_base: https://api.deepseek.com/v1
+      rpm: 60
+      timeout: 30
+
+  # DIRECT: Groq (fast inference)
+  - model_name: groq-llama-3.3-70b
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: os.environ/GROQ_API_KEY
+      rpm: 100
+      timeout: 30
+  - model_name: groq-llama-3.1-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: os.environ/GROQ_API_KEY
+      rpm: 100
+      timeout: 30
+
+  # FALLBACK: local Ollama
+  - model_name: ollama-llama
+    litellm_params:
+      model: ollama/llama3.2
+      api_base: http://host.docker.internal:11434
+      rpm: 30
+      timeout: 60
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  request_timeout: 60
+  num_retries: 2
+  telemetry: false

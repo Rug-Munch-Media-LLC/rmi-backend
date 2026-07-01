@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=800,height=800">
+<title>ChainVault AI — Logo Preview</title>
+<style>
+  body { margin:0; background:#0a0a0f; display:flex; align-items:center; justify-content:center; min-height:100vh; font-family:'Segoe UI',system-ui,sans-serif; }
+  .card { padding:60px; border-radius:24px; display:flex; flex-direction:column; align-items:center; gap:30px; }
+  .row { display:flex; gap:24px; flex-wrap:wrap; justify-content:center; }
+  h3 { color:#64748b; margin:0 0 8px 0; font-size:11px; text-transform:uppercase; letter-spacing:3px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="card">
+
+<h3>OPTION 1 — SHIELD + CHAIN</h3>
+<svg width="340" height="340" viewBox="0 0 340 340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a78bfa"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Hexagon shield -->
+  <polygon points="170,30 310,100 310,240 170,310 30,240 30,100" fill="none" stroke="url(#g1)" stroke-width="3" rx="8"/>
+  <!-- Inner shield -->
+  <polygon points="170,70 270,120 270,220 170,270 70,220 70,120" fill="rgba(99,102,241,0.08)" stroke="url(#g2)" stroke-width="1.5"/>
+  <!-- Chain links -->
+  <ellipse cx="130" cy="120" rx="24" ry="14" fill="none" stroke="#22d3ee" stroke-width="2.5" transform="rotate(-30 130 120)"/>
+  <ellipse cx="210" cy="120" rx="24" ry="14" fill="none" stroke="#6366f1" stroke-width="2.5" transform="rotate(30 210 120)"/>
+  <ellipse cx="170" cy="220" rx="24" ry="14" fill="none" stroke="#a78bfa" stroke-width="2.5"/>
+  <!-- Lock/keyhole -->
+  <rect x="147" y="155" width="46" height="36" rx="6" fill="url(#g1)" filter="url(#glow)"/>
+  <circle cx="170" cy="165" r="8" fill="#0a0a0f"/>
+  <rect x="167" y="165" width="6" height="14" fill="#0a0a0f"/>
+  <!-- AI sparkle dots -->
+  <circle cx="265" cy="95" r="3" fill="#22d3ee" opacity="0.8"/>
+  <circle cx="275" cy="245" r="2" fill="#a78bfa" opacity="0.6"/>
+  <circle cx="65" cy="245" r="2.5" fill="#6366f1" opacity="0.7"/>
+</svg>
+
+<h3>OPTION 2 — VAULT DOOR</h3>
+<svg width="340" height="340" viewBox="0 0 340 340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="v1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399"/>
+      <stop offset="50%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <filter id="glow2"><feGaussianBlur stdDeviation="2.5"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Outer ring -->
+  <circle cx="170" cy="170" r="130" fill="none" stroke="#334155" stroke-width="8"/>
+  <circle cx="170" cy="170" r="120" fill="none" stroke="url(#v1)" stroke-width="3"/>
+  <!-- Vault spokes -->
+  <line x1="170" y1="55" x2="170" y2="285" stroke="#1e293b" stroke-width="12"/>
+  <line x1="55" y1="170" x2="285" y2="170" stroke="#1e293b" stroke-width="12"/>
+  <line x1="88" y1="88" x2="252" y2="252" stroke="#1e293b" stroke-width="8"/>
+  <line x1="252" y1="88" x2="88" y2="252" stroke="#1e293b" stroke-width="8"/>
+  <!-- Center hub -->
+  <circle cx="170" cy="170" r="40" fill="#0f172a" stroke="url(#v1)" stroke-width="3" filter="url(#glow2)"/>
+  <!-- Keyhole -->
+  <circle cx="170" cy="162" r="9" fill="url(#v1)" filter="url(#glow2)"/>
+  <rect x="166" y="162" width="8" height="16" rx="2" fill="url(#v1)" filter="url(#glow2)"/>
+  <!-- Outer ring marks -->
+  <circle cx="170" cy="170" r="140" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="8 20"/>
+  <!-- Chain links around edge -->
+  <ellipse cx="170" cy="40" rx="10" ry="6" fill="none" stroke="#22d3ee" stroke-width="2"/>
+  <ellipse cx="290" cy="120" rx="10" ry="6" fill="none" stroke="#6366f1" stroke-width="2" transform="rotate(45 290 120)"/>
+  <ellipse cx="50" cy="120" rx="10" ry="6" fill="none" stroke="#34d399" stroke-width="2" transform="rotate(-45 50 120)"/>
+  <ellipse cx="290" cy="220" rx="10" ry="6" fill="none" stroke="#a78bfa" stroke-width="2" transform="rotate(-45 290 220)"/>
+</svg>
+
+<h3>OPTION 3 — MINIMAL HEX + KEY</h3>
+<svg width="340" height="340" viewBox="0 0 340 340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="h1" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="50%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#34d399"/>
+    </linearGradient>
+    <filter id="glow3"><feGaussianBlur stdDeviation="4"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Hex background -->
+  <polygon points="170,50 295,110 295,230 170,290 45,230 45,110" fill="rgba(99,102,241,0.05)" stroke="url(#h1)" stroke-width="2.5"/>
+  <!-- Key icon -->
+  <circle cx="170" cy="140" r="18" fill="none" stroke="url(#h1)" stroke-width="3" filter="url(#glow3)"/>
+  <rect x="170" y="145" width="40" height="8" rx="4" fill="url(#h1)" filter="url(#glow3)"/>
+  <rect x="220" y="190" width="14" height="20" rx="3" fill="none" stroke="url(#h1)" stroke-width="2.5"/>
+  <rect x="227" y="195" width="4" height="10" fill="url(#h1)"/>
+  <!-- Subtle chain dots -->
+  <circle cx="100" cy="110" r="3" fill="#22d3ee" opacity="0.5"/>
+  <circle cx="240" cy="110" r="3" fill="#34d399" opacity="0.5"/>
+  <circle cx="100" cy="230" r="3" fill="#a78bfa" opacity="0.5"/>
+  <circle cx="240" cy="230" r="3" fill="#6366f1" opacity="0.5"/>
+  <!-- AI dot -->
+  <circle cx="265" cy="270" r="4" fill="#22d3ee" opacity="0.9" filter="url(#glow3)"/>
+</svg>
+
+<h3>OPTION 4 — ABSTRACT BLOCKCHAIN CUBE</h3>
+<svg width="340" height="340" viewBox="0 0 340 340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="c1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#22d3ee"/><stop offset="100%" style="stop-color:#6366f1"/></linearGradient>
+    <linearGradient id="c2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#a78bfa"/><stop offset="100%" style="stop-color:#34d399"/></linearGradient>
+    <filter id="glow4"><feGaussianBlur stdDeviation="3"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Isometric cubes forming chain -->
+  <polygon points="60,120 110,95 160,120 110,145" fill="rgba(34,211,238,0.1)" stroke="#22d3ee" stroke-width="2"/>
+  <polygon points="110,145 160,120 160,170 110,195" fill="rgba(34,211,238,0.05)" stroke="#22d3ee" stroke-width="2"/>
+  <polygon points="60,120 110,145 110,195 60,170" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="2"/>
+
+  <polygon points="130,195 180,170 230,195 180,220" fill="rgba(99,102,241,0.12)" stroke="#6366f1" stroke-width="2"/>
+  <polygon points="180,220 230,195 230,245 180,270" fill="rgba(99,102,241,0.06)" stroke="#6366f1" stroke-width="2"/>
+  <polygon points="130,195 180,220 180,270 130,245" fill="rgba(99,102,241,0.09)" stroke="#6366f1" stroke-width="2"/>
+
+  <polygon points="200,120 250,95 300,120 250,145" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="2" filter="url(#glow4)"/>
+  <polygon points="250,145 300,120 300,170 250,195" fill="rgba(167,139,250,0.05)" stroke="#a78bfa" stroke-width="2"/>
+  <polygon points="200,120 250,145 250,195 200,170" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="2"/>
+
+  <!-- Connecting lines -->
+  <line x1="110" y1="145" x2="130" y2="195" stroke="#334155" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line x1="160" y1="120" x2="200" y2="120" stroke="#334155" stroke-width="1.5" stroke-dasharray="4 4"/>
+</svg>
+
+<h3>OPTION 5 — BOLD TYPOGRAPHY MARK</h3>
+<svg width="520" height="260" viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="t1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22d3ee"/>
+      <stop offset="40%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#a78bfa"/>
+    </linearGradient>
+    <filter id="glow5"><feGaussianBlur stdDeviation="5"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Geometric mark -->
+  <polygon points="30,80 70,60 110,80 70,100" fill="url(#t1)" filter="url(#glow5)"/>
+  <line x1="70" y1="80" x2="70" y2="180" stroke="url(#t1)" stroke-width="6" stroke-linecap="round" filter="url(#glow5)"/>
+  <line x1="40" y1="140" x2="100" y2="140" stroke="url(#t1)" stroke-width="4" stroke-linecap="round"/>
+  <line x1="55" y1="165" x2="85" y2="165" stroke="url(#t1)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Typography -->
+  <text x="140" y="95" font-family="'Segoe UI',system-ui" font-size="52" font-weight="800" letter-spacing="2">
+    <tspan fill="url(#t1)">CHAIN</tspan><tspan fill="#f8fafc">VAULT</tspan>
+  </text>
+  <text x="143" y="140" font-family="'Segoe UI',system-ui" font-size="14" fill="#94a3b8" letter-spacing="8" font-weight="600">AI WALLET FACTORY</text>
+  <line x1="140" y1="160" x2="440" y2="160" stroke="#334155" stroke-width="1"/>
+  <text x="143" y="185" font-family="'Segoe UI',system-ui" font-size="10" fill="#475569" letter-spacing="3">MULTI-CHAIN • SECURE • INTELLIGENT</text>
+</svg>
+
+</div>
+</body>
+</html>

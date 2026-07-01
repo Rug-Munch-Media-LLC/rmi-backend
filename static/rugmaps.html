@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RugMaps — Wallet Cluster Intelligence</title>
+<style>
+:root {
+  --bg: #0a0a0f; --panel: #12121a; --border: #1e1e2e;
+  --text: #e0e0e0; --dim: #8888aa; --accent: #7c3aed; --accent2: #06b6d4;
+  --green: #00ff88; --yellow: #ffd700; --orange: #ff8800; --red: #ff0044;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; min-height: 100vh; overflow-x: hidden; }
+header { background: var(--panel); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; }
+.logo { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; white-space: nowrap; }
+.logo span:first-child { color: var(--accent2); } .logo span:last-child { color: var(--text); }
+nav { display: flex; gap: 4px; }
+nav a { color: var(--dim); text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; }
+nav a:hover, nav a.active { color: var(--text); background: rgba(255,255,255,0.06); }
+nav a.active { color: var(--accent2); }
+.search-bar { flex: 1; max-width: 500px; display: flex; gap: 8px; margin-left: auto; }
+.search-bar input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; color: var(--text); font-size: 13px; outline: none; }
+.search-bar input:focus { border-color: var(--accent2); }
+.search-bar select { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text); font-size: 13px; }
+.search-bar button { background: var(--accent2); color: #000; border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.search-bar button:hover { opacity: 0.9; }
+.container { display: flex; height: calc(100vh - 57px); }
+#graphArea { flex: 1; position: relative; background: radial-gradient(ellipse at center, #12122a 0%, var(--bg) 70%); }
+#graphArea canvas { position: absolute; top: 0; left: 0; }
+#sidebar { width: 380px; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.sidebar-section { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.sidebar-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dim); margin-bottom: 10px; }
+.stat { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+.stat-label { color: var(--dim); }
+.stat-value { font-weight: 600; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin: 1px; }
+.tag.high { background: rgba(255,0,68,0.15); color: var(--red); }
+.tag.medium { background: rgba(255,136,0,0.15); color: var(--orange); }
+.tag.low { background: rgba(0,255,136,0.15); color: var(--green); }
+.tag.entity { background: rgba(6,182,212,0.15); color: var(--accent2); }
+.bundle-list { max-height: 250px; overflow-y: auto; }
+.bundle-item { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; border-radius: 4px; margin-bottom: 4px; font-size: 12px; }
+.bundle-item:hover { background: rgba(255,255,255,0.04); }
+.bundle-item.selected { background: rgba(6,182,212,0.1); border: 1px solid var(--accent2); }
+.wallet-badge { font-family: monospace; font-size: 11px; color: var(--dim); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; }
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+.tooltip { position: absolute; background: var(--panel); border: 1px solid var(--accent2); border-radius: 8px; padding: 10px 14px; font-size: 12px; pointer-events: none; display: none; z-index: 1000; max-width: 280px; }
+.tooltip .addr { font-family: monospace; font-size: 11px; color: var(--accent2); margin-bottom: 4px; }
+.tooltip .entity { color: var(--green); font-weight: 600; }
+.loading-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; color: var(--dim); }
+.spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-state { text-align: center; color: var(--dim); padding: 40px; }
+.empty-state h2 { color: var(--text); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>Rug</span><span>Maps</span></div>
+  <nav>
+    <a href="/rugcharts">RugCharts</a>
+    <a href="/rugmaps" class="active">RugMaps</a>
+    <a href="/news">News</a>
+  </nav>
+  <div class="search-bar">
+    <input id="tokenInput" type="text" placeholder="Token address for cluster analysis..." autofocus>
+    <select id="chainSelect">
+      <option value="solana">Solana</option>
+      <option value="ethereum">Ethereum</option>
+      <option value="base">Base</option>
+      <option value="bsc">BSC</option>
+    </select>
+    <button onclick="scanToken()">Map</button>
+  </div>
+</header>
+
+<div class="container">
+  <div id="graphArea">
+    <canvas id="graphCanvas"></canvas>
+    <div class="loading-overlay" id="loadingOverlay" style="display:none">
+      <div class="spinner"></div>
+      <div style="margin-top:12px" id="loadingText">Mapping wallet clusters...</div>
+    </div>
+    <div class="empty-state" id="emptyState">
+      <h2>RugMaps — Wallet Cluster Intelligence</h2>
+      <p>Paste a token address to visualize wallet clusters,<br>bundle detection, and entity relationships.</p>
+      <p style="margin-top:8px;font-size:12px;color:var(--dim)">Powered by DataBus: bundle_detect + cluster_map + Arkham</p>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <div id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">📊 Cluster Overview</div>
+      <div id="overviewStats">
+        <div class="stat"><span class="stat-label">Scanning...</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">🔗 Wallet Bundles</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>High Risk</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>Medium</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Entity</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--dim)"></div>Wallet</div>
+      </div>
+      <div class="bundle-list" id="bundleList"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">🏷️ Selected Wallet</div>
+      <div id="walletDetail" style="font-size:12px;color:var(--dim)">Click a node for details</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/v1/databus';
+
+let nodes = [], edges = [], bundles = [];
+let highlightedBundle = null;
+
+async function apiGet(path) {
+  try { const r = await fetch(API + path); return r.ok ? r.json() : null; }
+  catch(e) { return null; }
+}
+
+async function scanToken() {
+  const addr = document.getElementById('tokenInput').value.trim();
+  const chain = document.getElementById('chainSelect').value;
+  if (!addr) return;
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('loadingOverlay').style.display = 'block';
+  document.getElementById('loadingText').textContent = 'Detecting wallet bundles...';
+
+  const token = encodeURIComponent(addr);
+
+  // Fetch both bundle detection and cluster map from DataBus
+  const [bundleData, clusterData] = await Promise.all([
+    apiGet(`/premium/bundles/${token}?chain=${chain}`),
+    apiGet(`/premium/clusters/${token}?chain=${chain}&depth=3`),
+  ]);
+
+  bundles = bundleData?.bundles || [];
+  const clusterNodes = clusterData?.nodes || [];
+  const clusterEdges = clusterData?.edges || [];
+
+  document.getElementById('loadingText').textContent = 'Building graph...';
+
+  // Build graph from cluster data
+  nodes = [];
+  edges = [];
+  const nodeMap = new Map();
+  const bundleWallets = new Set();
+
+  // Mark bundle wallets
+  for (const b of bundles) {
+    for (const w of (b.wallets || [])) {
+      bundleWallets.add(w);
+    }
+  }
+
+  // Create nodes
+  for (const n of clusterNodes) {
+    const inBundle = bundleWallets.has(n.id);
+    const hasEntity = n.entity && n.entity.length > 0;
+    nodes.push({
+      id: n.id,
+      entity: n.entity || '',
+      type: hasEntity ? 'entity' : (inBundle ? 'bundle' : 'wallet'),
+      depth: n.depth || 0,
+      x: Math.random() * 600 + 100,
+      y: Math.random() * 400 + 100,
+      vx: 0, vy: 0,
+    });
+    nodeMap.set(n.id, nodes[nodes.length - 1]);
+  }
+
+  // Add bundle wallets not in cluster
+  for (const w of bundleWallets) {
+    if (!nodeMap.has(w)) {
+      nodes.push({
+        id: w,
+        entity: '',
+        type: 'bundle',
+        depth: 0,
+        x: Math.random() * 600 + 100,
+        y: Math.random() * 400 + 100,
+        vx: 0, vy: 0,
+      });
+      nodeMap.set(w, nodes[nodes.length - 1]);
+    }
+  }
+
+  // Create edges
+  for (const e of clusterEdges) {
+    if (nodeMap.has(e.from) && nodeMap.has(e.to)) {
+      edges.push({ from: e.from, to: e.to, value: e.value || 1 });
+    }
+  }
+
+  // Add bundle edges
+  for (const b of bundles) {
+    const wallets = b.wallets || [];
+    for (let i = 0; i < wallets.length; i++) {
+      for (let j = i + 1; j < wallets.length; j++) {
+        if (nodeMap.has(wallets[i]) && nodeMap.has(wallets[j])) {
+          const existingEdge = edges.find(e =>
+            (e.from === wallets[i] && e.to === wallets[j]) ||
+            (e.from === wallets[j] && e.to === wallets[i]));
+          if (!existingEdge) {
+            edges.push({ from: wallets[i], to: wallets[j], value: 2, bundle: true });
+          }
+        }
+      }
+    }
+  }
+
+  document.getElementById('loadingOverlay').style.display = 'none';
+
+  // Update sidebar
+  updateSidebar(bundleData, clusterData);
+
+  // Render graph
+  highlightedBundle = null;
+  renderGraph();
+
+  history.pushState({}, '', `?chain=${chain}&token=${addr}`);
+}
+
+function updateSidebar(bundleData, clusterData) {
+  const stats = document.getElementById('overviewStats');
+  const totalNodes = nodes.length;
+  const bundleNodes = nodes.filter(n => n.type === 'bundle').length;
+  const entityNodes = nodes.filter(n => n.type === 'entity').length;
+  const totalBundles = bundles.length;
+  const maxBundle = bundles.reduce((m, b) => Math.max(m, (b.wallets||[]).length), 0);
+
+  stats.innerHTML = `
+    <div class="stat"><span class="stat-label">Total Wallets</span><span class="stat-value">${totalNodes}</span></div>
+    <div class="stat"><span class="stat-label">Clusters Found</span><span class="stat-value">${totalBundles}</span></div>
+    <div class="stat"><span class="stat-label">Bundle Wallets</span><span class="stat-value" style="color:${bundleNodes>0?'var(--orange)':'var(--dim)'}">${bundleNodes}</span></div>
+    <div class="stat"><span class="stat-label">Known Entities</span><span class="stat-value" style="color:var(--accent2)">${entityNodes}</span></div>
+    <div class="stat"><span class="stat-label">Largest Bundle</span><span class="stat-value">${maxBundle} wallets</span></div>
+    <div class="stat"><span class="stat-label">Total Edges</span><span class="stat-value">${edges.length}</span></div>
+    <div class="stat"><span class="stat-label">Source</span><span class="stat-value" style="color:var(--accent2)">${clusterData?.source || 'databus'}</span></div>
+  `;
+
+  // Bundle list
+  const bl = document.getElementById('bundleList');
+  if (!bundles.length) {
+    bl.innerHTML = '<div style="color:var(--dim);font-size:12px;padding:8px">No coordinated bundles detected. Wallets appear independent.</div>';
+  } else {
+    bl.innerHTML = bundles.map((b, i) => `
+      <div class="bundle-item" onclick="highlightBundle(${i})" id="bundle-${i}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span>Bundle #${i+1}</span>
+          <span class="tag ${b.risk_level==='HIGH'?'high':'medium'}">${b.risk_level||'MEDIUM'}</span>
+        </div>
+        <div class="wallet-badge">${(b.wallets||[]).length} wallets · score: ${(b.coordination_score||0).toFixed(1)}</div>
+        ${b.pattern ? `<div style="color:var(--dim);font-size:10px">${b.pattern}</div>` : ''}
+      </div>
+    `).join('');
+  }
+}
+
+function highlightBundle(idx) {
+  highlightedBundle = highlightedBundle === idx ? null : idx;
+  document.querySelectorAll('.bundle-item').forEach(el => el.classList.remove('selected'));
+  if (highlightedBundle !== null) {
+    document.getElementById(`bundle-${idx}`)?.classList.add('selected');
+  }
+  renderGraph();
+}
+
+// ── Force-Directed Graph ──────────────────────────────────────────
+const canvas = document.getElementById('graphCanvas');
+const ctx = canvas.getContext('2d');
+let animationId;
+
+function resize() {
+  const area = document.getElementById('graphArea');
+  canvas.width = area.clientWidth;
+  canvas.height = area.clientHeight;
+}
+window.addEventListener('resize', () => { resize(); renderGraph(); });
+resize();
+
+function nodeColor(node) {
+  if (node.type === 'entity') return '#06b6d4';
+  if (node.type === 'bundle') return '#ff8800';
+  return '#555577';
+}
+
+function nodeRadius(node) {
+  if (node.type === 'entity') return 8;
+  if (node.type === 'bundle') return 6;
+  return 4;
+}
+
+function renderGraph() {
+  if (!nodes.length) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+
+  // Simulation
+  const iterations = 50;
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const repulsion = 5000;
+  const attraction = 0.005;
+  const damping = 0.85;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    // Repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+        const force = repulsion / (dist * dist);
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        nodes[i].vx += fx;
+        nodes[i].vy += fy;
+        nodes[j].vx -= fx;
+        nodes[j].vy -= fy;
+      }
+    }
+
+    // Attraction (edges)
+    for (const e of edges) {
+      const from = nodes.find(n => n.id === e.from);
+      const to = nodes.find(n => n.id === e.to);
+      if (!from || !to) continue;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      const force = dist * attraction * (e.value || 1);
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      from.vx += fx;
+      from.vy += fy;
+      to.vx -= fx;
+      to.vy -= fy;
+    }
+
+    // Center gravity
+    for (const n of nodes) {
+      n.vx += (centerX - n.x) * 0.001;
+      n.vy += (centerY - n.y) * 0.001;
+    }
+
+    // Apply velocity
+    for (const n of nodes) {
+      n.x += n.vx * damping;
+      n.y += n.vy * damping;
+      n.vx *= damping;
+      n.vy *= damping;
+
+      // Bounds
+      n.x = Math.max(20, Math.min(canvas.width - 20, n.x));
+      n.y = Math.max(20, Math.min(canvas.height - 20, n.y));
+    }
+  }
+
+  // Draw
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Highlighted bundle highlight area
+  if (highlightedBundle !== null && bundles[highlightedBundle]) {
+    const bw = bundles[highlightedBundle].wallets || [];
+    const bundleNodes = nodes.filter(n => bw.includes(n.id));
+    if (bundleNodes.length) {
+      const cx = bundleNodes.reduce((s, n) => s + n.x, 0) / bundleNodes.length;
+      const cy = bundleNodes.reduce((s, n) => s + n.y, 0) / bundleNodes.length;
+      const maxR = Math.max(...bundleNodes.map(n =>
+        Math.sqrt((n.x-cx)**2 + (n.y-cy)**2))) + 30;
+      ctx.beginPath();
+      ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,136,0,0.08)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,136,0,0.3)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // Edges
+  for (const e of edges) {
+    const from = nodes.find(n => n.id === e.from);
+    const to = nodes.find(n => n.id === e.to);
+    if (!from || !to) continue;
+
+    const isBundleEdge = e.bundle;
+    const isHighlighted = highlightedBundle !== null && bundles[highlightedBundle] &&
+      bundles[highlightedBundle].wallets?.includes(e.from) &&
+      bundles[highlightedBundle].wallets?.includes(e.to);
+
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.strokeStyle = isHighlighted ? 'rgba(255,136,0,0.6)' :
+                      isBundleEdge ? 'rgba(255,136,0,0.2)' : 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = isHighlighted ? 2 : (isBundleEdge ? 1.5 : 0.5);
+    ctx.stroke();
+  }
+
+  // Nodes
+  for (const n of nodes) {
+    const isHighlighted = highlightedBundle !== null && bundles[highlightedBundle] &&
+      bundles[highlightedBundle].wallets?.includes(n.id);
+
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, nodeRadius(n) * (isHighlighted ? 1.5 : 1), 0, Math.PI * 2);
+    ctx.fillStyle = isHighlighted ? '#ff8800' : nodeColor(n);
+    ctx.fill();
+
+    if (isHighlighted || n.type === 'entity') {
+      ctx.strokeStyle = isHighlighted ? '#fff' : 'rgba(6,182,212,0.5)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Entity label
+    if (n.entity && (n.type === 'entity' || isHighlighted)) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillText(n.entity.slice(0, 12), n.x + 10, n.y + 3);
+    }
+  }
+}
+
+// ── Interaction ───────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  let closest = null;
+  let closestDist = 25;
+
+  for (const n of nodes) {
+    const dx = n.x - mx;
+    const dy = n.y - my;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closest = n;
+    }
+  }
+
+  if (closest) {
+    canvas.style.cursor = 'pointer';
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX - rect.left + 15) + 'px';
+    tooltip.style.top = (e.clientY - rect.top - 10) + 'px';
+    tooltip.innerHTML = `
+      <div class="addr">${closest.id.slice(0,8)}...${closest.id.slice(-4)}</div>
+      ${closest.entity ? `<div class="entity">${closest.entity}</div>` : ''}
+      <div style="color:var(--dim)">Type: ${closest.type} · Depth: ${closest.depth}</div>
+    `;
+
+    document.getElementById('walletDetail').innerHTML = `
+      <div style="font-family:monospace;color:var(--accent2);margin-bottom:6px">${closest.id}</div>
+      ${closest.entity ? `<div class="tag entity">${closest.entity}</div>` : ''}
+      <div class="stat"><span class="stat-label">Type</span><span class="stat-value">${closest.type}</span></div>
+      <div class="stat"><span class="stat-label">Depth</span><span class="stat-value">${closest.depth}</span></div>
+      <div class="stat"><span class="stat-label">Connections</span><span class="stat-value">${edges.filter(e => e.from===closest.id || e.to===closest.id).length}</span></div>
+    `;
+  } else {
+    canvas.style.cursor = 'default';
+    tooltip.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  for (const n of nodes) {
+    const dx = n.x - mx;
+    const dy = n.y - my;
+    if (Math.sqrt(dx*dx + dy*dy) < nodeRadius(n) + 5) {
+      // Find which bundle this wallet belongs to
+      for (let i = 0; i < bundles.length; i++) {
+        if ((bundles[i].wallets||[]).includes(n.id)) {
+          highlightBundle(i);
+          return;
+        }
+      }
+      // If not in a bundle, clear highlight
+      highlightedBundle = null;
+      document.querySelectorAll('.bundle-item').forEach(el => el.classList.remove('selected'));
+      renderGraph();
+      return;
+    }
+  }
+});
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  const chain = params.get('chain');
+  if (token) {
+    document.getElementById('tokenInput').value = token;
+    if (chain) document.getElementById('chainSelect').value = chain;
+    scanToken();
+  }
+
+  document.getElementById('tokenInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') scanToken();
+  });
+}
+
+init();
+</script>
+</body>
+</html>

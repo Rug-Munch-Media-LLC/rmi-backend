@@ -1,0 +1,93 @@
+# x402-rs Facilitator Configuration
+# ==================================
+
+server:
+  host: "0.0.0.0"
+  port: 8090
+  log_level: "info"
+  rate_limit:
+    enabled: true
+    requests_per_second: 100
+    burst_size: 50
+
+chains:
+  ethereum:
+    chain_id: 1
+    rpc_url: "${ETH_RPC_URL:-https://eth.llamarpc.com}"
+    native_token: "ETH"
+    tokens:
+      USDC:
+        address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+        decimals: 6
+      USDT:
+        address: "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+        decimals: 6
+      DAI:
+        address: "0x6B175474E89094C44Da98b954EedeAC495271d0F"
+        decimals: 18
+  base:
+    chain_id: 8453
+    rpc_url: "${BASE_RPC_URL:-https://base.llamarpc.com}"
+    native_token: "ETH"
+    tokens:
+      USDC:
+        address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+        decimals: 6
+  bsc:
+    chain_id: 56
+    rpc_url: "${BSC_RPC_URL:-https://bsc-dataseed.binance.org}"
+    native_token: "BNB"
+    tokens:
+      USDC:
+        address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+        decimals: 18
+      USDT:
+        address: "0x55d398326f99059fF775485246999027B3197955"
+        decimals: 18
+  arbitrum:
+    chain_id: 42161
+    rpc_url: "${ARBITRUM_RPC_URL:-https://arb1.arbitrum.io/rpc}"
+    native_token: "ETH"
+    tokens:
+      USDC:
+        address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+        decimals: 6
+  optimism:
+    chain_id: 10
+    rpc_url: "${OPTIMISM_RPC_URL:-https://mainnet.optimism.io}"
+    native_token: "ETH"
+    tokens:
+      USDC:
+        address: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
+        decimals: 6
+  polygon:
+    chain_id: 137
+    rpc_url: "${POLYGON_RPC_URL:-https://polygon-rpc.com}"
+    native_token: "POL"
+    tokens:
+      USDC:
+        address: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
+        decimals: 6
+
+payment:
+  recipient: "${X402_EVM_PAY_TO:-0x1E3AC01d0fdb976179790BDD02823196A92705C9}"
+  settlement_mode: "instant"
+  max_verify_age_seconds: 300
+  min_confirmations:
+    ethereum: 12
+    base: 1
+    bsc: 10
+    arbitrum: 1
+    optimism: 1
+    polygon: 10
+
+verification:
+  eip712:
+    enabled: true
+    verify_signature: true
+    check_expiry: true
+  onchain:
+    enabled: true
+    check_receipt: true
+    decode_transfer_events: true
+    strict_amount: true

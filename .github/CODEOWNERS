@@ -1,0 +1,35 @@
+# CODEOWNERS for RMI Backend
+
+# Core team owns critical security files
+@crypto-rug-muncher/security-team @security-team *SECURITY.md *security* app/auth.py app/protection*.py
+
+# Domain owners
+@crypto-rug-muncher/backend-team app/routers/ app/domain/
+@crypto-rug-muncher/data-team app/databus/ app/data/
+@crypto-rug-muncher/frontend-team rmi-frontend/
+
+# Infrastructure
+@crypto-rug-muncher/infrastructure-team docker/ .github/workflows/ .pre-commit-config.yaml
+
+# Documentation
+@crypto-rug-muncher/docs-team docs/ *.md
+
+# Automated review requirements
+* @crypto-rug-muncher/backend-team @crypto-rug-muncher/security-team
+
+# Routers and domain files need review from domain owners
+app/routers/*.py @crypto-rug-muncher/backend-team
+app/domain/**/*.py @crypto-rug-muncher/backend-team
+
+# Security-critical files need security team review
+app/auth*.py @crypto-rug-muncher/security-team
+app/protection*.py @crypto-rug-muncher/security-team
+app/security*.py @crypto-rug-muncher/security-team
+
+# Databus files need data team review
+app/databus/*.py @crypto-rug-muncher/data-team
+app/data/*.py @crypto-rug-muncher/data-team
+
+# CI/CD files need infrastructure team review
+.github/workflows/*.yml @crypto-rug-muncher/infrastructure-team
+.pre-commit-config.yaml @crypto-rug-muncher/infrastructure-team

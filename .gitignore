@@ -1,0 +1,89 @@
+# Python
+*.egg
+*.egg-info/
+*.pyc
+*.pyo
+*.sock
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
+dist/
+
+# Env files — NEVER commit secrets
+.env
+*.env
+.env.*
+
+# Secrets and keys
+*.key
+*.pem
+
+# Data / cache / temp
+/cache/
+/logs/
+/tmp/
+n8n-data/
+
+# IDE
+*.json
+!*.example.json
+!actor.json
+!package*.jsondata/faiss/
+data/bm25_index.pkl
+data/faiss/
+data/models/
+data/faiss/
+data/bm25_index.pkl
+data/models/
+.env.bak
+# Large data files (excluded from HF mirror — 10+ MB each)
+tools/VarLifter/
+tools/VarLifter/
+data/wallet-labels-backups/
+sdks/python/rugmunch/
+sdks/typescript/node_modules/
+sdks/typescript/dist/
+
+# Training data (kaggle, labels, ML datasets)
+data/kaggle/
+data/wallet-labels/
+data/wallet-labels-clean/
+
+# Large binary data
+data/*.db
+data/*.sqlite
+*.parquet
+*.pkl
+data/papers/
+.envrc
+
+
+# === SECURITY: never commit secrets ===
+.secrets/
+*.pem
+*.key
+*.crt
+*.p12
+.env
+.env.*
+!.env.example
+
+# === DATA: don't commit binary data blobs ===
+*.zip
+*.tar.gz
+*.tar
+*.parquet
+*.duckdb
+*.sqlite
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.gguf
+*.h5
+*.hdf5

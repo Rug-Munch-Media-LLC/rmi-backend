@@ -1,0 +1,21 @@
+rules:
+  - id: rmi-print-prod
+    pattern: print(...)
+    message: "print() call - use logger.info() in production code"
+    languages: [python]
+    severity: WARNING
+    paths:
+      include: ["app/"]
+      exclude: ["app/core/lifespan.py"]
+
+  - id: rmi-os-system-call
+    pattern: os.system(...)
+    message: "os.system() is dangerous. Use subprocess.run() with shell=False"
+    languages: [python]
+    severity: ERROR
+
+  - id: rmi-eval-detected
+    pattern: eval(...)
+    message: "eval() is a security risk. Never use eval() on user input"
+    languages: [python]
+    severity: ERROR

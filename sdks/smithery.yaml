@@ -1,0 +1,56 @@
+---
+name: rugmunch-intelligence
+displayName: Rug Munch Intelligence
+description: 8 crypto intelligence tools for AI agents — real-time token risk, wallet analysis, deployer reputation, news sentiment, AI research reports, RAG search, similar tokens, cross-chain entity resolution. 13+ chains. x402 paid tier.
+author: RugMunchIntelligence
+homepage: https://rugmunch.io
+repository: https://github.com/Rug-Munch-Media-LLC/rug-munch-intelligence-mcp
+icon: https://rugmunch.io/favicon.ico
+tags:
+  - crypto
+  - blockchain
+  - intelligence
+  - risk-analysis
+  - mcp
+  - x402
+  - rag
+license: MIT
+categories:
+  - finance
+  - data
+tools:
+  - name: get_token_risk
+    description: Real-time risk score for any token across 13+ chains
+    pricing: free-tier-5-day-then-0.01-usd
+  - name: get_wallet_analysis
+    description: Wallet activity, balance, history, reputation
+    pricing: free-tier-5-day-then-0.01-usd
+  - name: get_deployer_reputation
+    description: Deployer reputation score 0-100, deterministic
+    pricing: 0.02-usd-per-call
+  - name: get_news_sentiment
+    description: Latest news + composite sentiment
+    pricing: free-tier-5-day-then-0.01-usd
+  - name: generate_report
+    description: 7-section LLM research report on token or wallet
+    pricing: 5.00-usd-per-call
+  - name: query_catalog
+    description: Natural language catalog query
+    pricing: 0.05-usd-per-call
+  - name: find_similar_tokens
+    description: Vector-similar tokens
+    pricing: 0.03-usd-per-call
+  - name: resolve_entity
+    description: Cross-chain entity resolution
+    pricing: 0.10-usd-per-call
+transports:
+  - type: streamable-http
+    url: https://mcp.rugmunch.io/mcp
+config:
+  apiBaseUrl: https://api.rugmunch.io
+  healthCheck: https://api.rugmunch.io/health
+  docs: https://docs.rugmunch.io
+metadata:
+  category: finance
+  tags: crypto,blockchain,intelligence,rag,x402
+  homepage: https://rugmunch.io

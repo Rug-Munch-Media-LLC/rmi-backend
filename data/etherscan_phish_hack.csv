@@ -1,0 +1,111 @@
+address,name_tag,label_type,chain,balance,txn_count,source
+0x139ae647499d762b2c589670be7546298c66f821,Fake_Phishing454,scam,BSC,0 BNB,219,etherscan
+0xac2eeb78f25ac8f19e3097a9dbab102c27dffa8e,Fake_Phishing459,scam,BSC,0 BNB,2512,etherscan
+0xa24155e615136363c8c5af4ecde325948621a0af,Fake_Phishing462,scam,BSC,0 BNB,6,etherscan
+0xe7d162ff34bcf5e5efc301fa061cbfb51341a814,Fake_Phishing71,scam,Polygon,0 MATIC,38,etherscan
+0x75113e57034ffdbd696df54ce843761ace5ee109,Fake_Phishing8,scam,Polygon,0 MATIC,31,etherscan
+0x9e532b19abd155ae5ced76ca2a206a732c68f261,ApolloX Exploiter,exploit,Polygon,0.84556997 MATIC,6,etherscan
+0xd8a5885e456c265e9938fecc3dde7357c58b630c,Blur Finance Rug Pull,exploit,Polygon,0 MATIC,101,etherscan
+0x9f142e0a2b7414dc2ce72258d666d9c538ca886d,Blur Finance Rug Pull 2,exploit,Polygon,0 MATIC,874,etherscan
+0xcacf2d28b2a5309e099f0c6e8c60ec3ddf656642,BonqDAO Exploiter,exploit,Polygon,7.68932571 MATIC,22,etherscan
+0x74487eed1e67f4787e8c0570e8d5d168a05254d4,bZx PrivKey Exploiter,exploit,Polygon,0 MATIC,19,etherscan
+0x0acc0e5faa09cb1976237c3a9af3d3d4b2f35fa5,bZx PrivKey Exploiter 2,exploit,Polygon,0 MATIC,48,etherscan
+0x967bb571f0fc9ee79c892abf9f99233aa1737e31,bZx PrivKey Exploiter 3,exploit,Polygon,"1,473.24768047 MATIC",8,etherscan
+0x6551fb9be444987f7482012cbf7ea95a1ee8dd0e,bZx PrivKey Exploiter 4,exploit,Polygon,0 MATIC,33,etherscan
+0xafad9352eb6bcd085dd68268d353d0ed2571af89,bZx PrivKey Exploiter 5,exploit,Polygon,34.35596201 MATIC,12,etherscan
+0x83927acf1a3f69f9fd2ed055fff424a49cda0c5d,Fake_Phishing15,exploit,Polygon,0.50320291 MATIC,148,etherscan
+0xd2d113d7b5c4f8fb4a68ceda26f894f0fe25f24a,Fake_Phishing69,exploit,Polygon,0.96222402 MATIC,10,etherscan
+0x43ec1d163cc4c15b574f86d8203c3b0f3ebed7a3,GenomesDAO Exploiter,exploit,Polygon,0.0205798 MATIC,30,etherscan
+0x8e430d8388d44e30f8e612708d59cf9d832daac2,Impermax Finance Exploiter,exploit,Polygon,1.98647883 MATIC,3,etherscan
+0x1863b74778cf5e1c9c482a1cdc2351362bd08611,Midas Capital Exploiter,exploit,Polygon,17.55765674 MATIC,8,etherscan
+0x8dded7daaee1f6cf2e77b89956c0eaf4a1c344ac,Midas Capital Exploiter 10,exploit,Polygon,"61,280 MATIC",2,etherscan
+0x5ad4238b713a221836cc0d0ad455a1e84dd14a0d,Midas Capital Exploiter 11,exploit,Polygon,"61,074 MATIC",2,etherscan
+0x65281cad63f4287e72b8f421cbaf075a9e5a72ec,Midas Capital Exploiter 12,exploit,Polygon,"60,884 MATIC",2,etherscan
+0x7de62e82908729cbc7222cfa1441cc84047f5922,Midas Capital Exploiter 13,exploit,Polygon,"62,041 MATIC",1,etherscan
+0x62cc85445c456a18e5d4d835840b273394957a8e,Midas Capital Exploiter 14,exploit,Polygon,"58,943 MATIC",1,etherscan
+0xe53955d29cab692a867faca3aa9c4bb872e359be,Midas Capital Exploiter 2,exploit,Polygon,"57,455.49649812 MATIC",10,etherscan
+0x04ecc5ba3258840725fd808be0fae3430b8346f2,Midas Capital Exploiter 3,exploit,Polygon,"556,493.7792233 MATIC",21978,etherscan
+0x123bb33dea46ef0e1902b63ec52748f66c293eb8,Midas Capital Exploiter 4,exploit,Polygon,"45,817.99793314 MATIC",10,etherscan
+0x1395d3d5000ab898f0e5b5af62e77cebb68317ff,Midas Capital Exploiter 5,exploit,Polygon,0.00288988 MATIC,9,etherscan
+0x7d27bc403c29f33abb9552b10a646de6de1d6c40,Midas Capital Exploiter 6,exploit,Polygon,"58,307.9993349 MATIC",4,etherscan
+0x89dc45a573a94eb3db87dc1353c50eeb5ca2ec75,Midas Capital Exploiter 7,exploit,Polygon,0.02915993 MATIC,2,etherscan
+0xb6ac8cbd51172b23b579084c3857007e5333f429,Midas Capital Exploiter 8,exploit,Polygon,"60,100 MATIC",2,etherscan
+0x49605afe33d1809b75394c3ef5183c6dec8e049c,Midas Capital Exploiter 9,exploit,Polygon,"60,704 MATIC",2,etherscan
+0x64c62e0930403d4f44530f8ce210bddf5795d4a9,OceanProtocol Exploiter,exploit,Polygon,39.29950134 MATIC,19,etherscan
+0x5dc3603c9d42ff184153a8a9094a73d461663214,PolyNetwork Exploiter,exploit,Polygon,52.31572642 MATIC,495,etherscan
+0x685b121bbb80e89c232f0ea1755794f14cfc9822,Siren Protocol Exploit,exploit,Polygon,0 MATIC,8,etherscan
+0x07ba7e8947f8fb4d33f3c7e25c2cb35b858f02eb,Siren Protocol Exploit 2,exploit,Polygon,249.986984 MATIC,5,etherscan
+0x6004ba8d5fb50b611344e29c19641e734c5f0759,Siren Protocol Exploit Deployer,exploit,Polygon,559.85018261 MATIC,23,etherscan
+0x1574f7f4c9d3aca2ebce918e5d19d18ae853c090,Superfluid Exploiter,exploit,Polygon,0.99916197 MATIC,29,etherscan
+0x0bd70f5cf99264bf8bcd98d9d24330773c84a282,Thetanuts Finance Exploiter,exploit,Polygon,928.15886724 MATIC,1283,etherscan
+0x740f582e55b5628ecb0bc74e0e3b739a807391ff,Thetanuts Finance Exploiter 2,exploit,Polygon,0.87639705 MATIC,44,etherscan
+0xcc06dd348169d95b1693b9185ca561b28f5b2165,Unlock Protocol Exploiter 1,exploit,Polygon,0 MATIC,4,etherscan
+0x8c769a59f93dac14b7a416294124c01d3ec4daac,Unlock Protocol Exploiter 2,exploit,Polygon,0 MATIC,3,etherscan
+0x65621fc7d87dacde7bef56170d8ac1078eb7d29a,Wallet Hacker,exploit,Polygon,0 MATIC,2,etherscan
+0x94546e31a8eca3da6143eff3a0012be3af1ba7b8,Fake_Phishing1,phish-hack,Arbitrum,0 ETH,3323,etherscan
+0x2574eb53b821cb7c52d57dd887c65200854f406d,Fake_Phishing100,phish-hack,Arbitrum,0.00818981 ETH,19,etherscan
+0x3ccf31a2eabb2b83f4f0c05169c222911dbf09f8,Fake_Phishing105,phish-hack,Arbitrum,0.01921068 ETH,19,etherscan
+0x9bd9fcb56c9c47643e3ee881ff7709bbd3b8a0db,Fake_Phishing107,phish-hack,Arbitrum,0 ETH,29,etherscan
+0xe5d27c9678f7bd597060dc42b26385f879d46871,Fake_Phishing11,phish-hack,Arbitrum,0 ETH,3,etherscan
+0xcf305c0be6d1214f7c6adaf5c47b15f971506968,Fake_Phishing12,phish-hack,Arbitrum,0 ETH,1,etherscan
+0x87e86782f372f967c720af0d56fab884eb891b5a,Fake_Phishing13,phish-hack,Arbitrum,0 ETH,14,etherscan
+0x618437b3a94596c3e3e733ca4fc0d7b3a34361ab,Fake_Phishing16,phish-hack,Arbitrum,0.00638274 ETH,3,etherscan
+0x1016c4dd270944373ffcf40071604b7f553e6c93,Fake_Phishing2,phish-hack,Arbitrum,0 ETH,93,etherscan
+0x24b6f12286d53c3fe2e9264485cf20b59be12162,Fake_Phishing25,phish-hack,Arbitrum,0.0000192 ETH,285,etherscan
+0x7e2d35a00d73a534d4d5508e557e0b1c6e60c977,Fake_Phishing26,phish-hack,Arbitrum,0.01498986 ETH,11,etherscan
+0x3448872bba4b87ca48cae98602795a9ceb9c57c1,Fake_Phishing27,phish-hack,Arbitrum,0.02508275 ETH,11,etherscan
+0x8bf1a0eea991f2183340960fce479279c26ad150,Fake_Phishing3,phish-hack,Arbitrum,0 ETH,105,etherscan
+0x232e2fd91c88f8e2a06acdaa0ed199516ba31efa,Fake_Phishing4,phish-hack,Arbitrum,0.00301258 ETH,8,etherscan
+0x8500a5b492a26ee1128dfdf28af4ee44b8dd2987,Fake_Phishing44,phish-hack,Arbitrum,0.01678459 ETH,86,etherscan
+0xdead055450137b92f7f77ccbc2b91ad5bb4298f7,Fake_Phishing6,phish-hack,Arbitrum,0.00112592 ETH,13,etherscan
+0x3c92161ff7a7605e13470295faef3111ad7bc425,Fake_Phishing96,phish-hack,Arbitrum,0.00375542 ETH,178,etherscan
+0x0ff66318a190440ed3d450f665584dba29a5e208,Fake_Phishing98,phish-hack,Arbitrum,0.00001621 ETH,185,etherscan
+0x489a8756c18c0b8b24ec2a2b9ff3d4d447f79bec,BNB Bridge Exploiter,exploit,Arbitrum,0.00001177 ETH,8,etherscan
+0x684083f312ac50f538cc4b634d85a2feafaab77a,Dexible Exploiter,exploit,Arbitrum,0.01337895 ETH,35,etherscan
+0xc29d94386ff784006ff8461c170d1953cc9e2b5c,Lodestar Exploiter,exploit,Arbitrum,0.00001476 ETH,172,etherscan
+0x65760288f19cff476b80a36a61f9dedab16bab49,Rari Capital Exploiter,exploit,Arbitrum,0.00268366 ETH,4,etherscan
+0x4afcd19bb978eaf4f993814298504ed285df1181,SperaxUSD Exploiter,exploit,Arbitrum,0.09508734 ETH,656,etherscan
+0x5c978df5f8af72298fe1c2c8c2c05476a10f2539,SperaxUSD Exploiter MultiSig,exploit,Arbitrum,0 ETH,0,etherscan
+0x9b1acd4336ebf7656f49224d14a892566fd48e68,TreasureDAO Exploiter 1,exploit,Arbitrum,0.04391177 ETH,214,etherscan
+0x40b584e60740ec2ce4701ce9d8b1fcfa9cbd4101,Fake_Phishing1,phish-hack,Avalanche,0 AVAX,82,etherscan
+0x6895cd7989eb617116ea96f887a81a03c9c988c5,Fake_Phishing16,phish-hack,Avalanche,0.00001494 AVAX,64,etherscan
+0x50db961b021431e226e17f4fc896cb0c1a8c5a9e,Fake_Phishing17,phish-hack,Avalanche,239.23714894 AVAX,59,etherscan
+0xe56934b9566c6e535a14288119060efe63400c38,Fake_Phishing18,phish-hack,Avalanche,0 AVAX,111,etherscan
+0xb2d22ca38dabf2bbad089b47f9c0b8824d06515f,Fake_Phishing20,phish-hack,Avalanche,0 AVAX,338,etherscan
+0x618437b3a94596c3e3e733ca4fc0d7b3a34361ab,Fake_Phishing32,phish-hack,Avalanche,0.41969252 AVAX,11,etherscan
+0x3448872bba4b87ca48cae98602795a9ceb9c57c1,Fake_Phishing34,phish-hack,Avalanche,2.11652317 AVAX,3,etherscan
+0x8500a5b492a26ee1128dfdf28af4ee44b8dd2987,Fake_Phishing35,phish-hack,Avalanche,0.57795868 AVAX,9,etherscan
+0x59e55ac0cb34358b9511bbb3f3c1327bd40523e5,Bitmart Hacker,exploit,Avalanche,408.44294587 AVAX,1,etherscan
+0x489a8756c18c0b8b24ec2a2b9ff3d4d447f79bec,BNB Bridge Exploiter,exploit,Avalanche,6.99363224 AVAX,28,etherscan
+0x7373dca267bdc623dfba228696c9d4e8234469f6,Defrost Finance Exploiter,exploit,Avalanche,0.67115061 AVAX,45,etherscan
+0x3bdf01ed32f07e8e843163b5d478d4502f5743cd,ElasticSwap Exploiter,exploit,Avalanche,0.00018375 AVAX,13,etherscan
+0xdd8429b85a92b35712659bd945462a41bfd60cbd,ElasticSwap Exploiter 3,exploit,Avalanche,0.00019083 AVAX,2,etherscan
+0x25fde76a52d01c83e31d2d3d5e1d2011ff103c56,ElasticSwap Expoiter 2,exploit,Avalanche,0.00018375 AVAX,4,etherscan
+0x67afdd6489d40a01dae65f709367e1b1d18a5322,Platypus Finance Exploiter,exploit,Avalanche,0.02 AVAX,13,etherscan
+0xeff003d64046a6f521ba31f39405cb720e953958,Platypus Finance Exploiter 1,exploit,Avalanche,2.49177688 AVAX,49,etherscan
+0xf5d6007abb615654a95d33614a059fa59bcff390,Platypus Finance Exploiter Contract 2,exploit,Avalanche,0 AVAX,2,etherscan
+0x650c104c3b0c679fc195cda1c38f8b0a39fb77b1,Platypus Finance Exploiter Contract 3,exploit,Avalanche,0 AVAX,2,etherscan
+0x11111112542d85b3ef69ae05771c2dccff4faa26,Fake 1inch Contract,phish-hack,Fantom,0 FTM,157,etherscan
+0x628f094c6ef383271f37516df7abf869046d6aaf,Fake_Phishing1,phish-hack,Fantom,0 FTM,5,etherscan
+0x3448872bba4b87ca48cae98602795a9ceb9c57c1,Fake_Phishing8,phish-hack,Fantom,77 FTM,1,etherscan
+0x1f56ccfe85dc55558603230d013e9f9bfe8e086c,,exploit,Fantom,0 FTM,6,etherscan
+0x489a8756c18c0b8b24ec2a2b9ff3d4d447f79bec,BNB Bridge Exploiter,exploit,Fantom,8.04556441 FTM,69,etherscan
+0x1ed5112b32486840071b7cdd2584ded2c66198dd,Deus Finance Exploiter,exploit,Fantom,40.38796227 FTM,14,etherscan
+0x701428525cbac59dae7af833f19d9c3aaa2a37cb,DEUS Finance Exploiter 2,exploit,Fantom,134.46659163 FTM,49,etherscan
+0x11111112542d85b3ef69ae05771c2dccff4faa26,Fake 1inch Contract,exploit,Fantom,0 FTM,157,etherscan
+0xe43d8f9e2ea875c6e342e7b3f78acbbae0a9110b,Fake_Phishing7,exploit,Fantom,46.88464759 FTM,35,etherscan
+0x47091e015b294b935babda2d28ad44e3ab07ae8d,Fantasm Finance Exploiter,exploit,Fantom,4.93140573 FTM,55,etherscan
+0xdefc385d7038f391eb0063c2f7c238cfb55b206c,Grim Finance Exploiter 1,exploit,Fantom,0 FTM,99,etherscan
+0x5089a0553c08212256ed72a65dcac91b5d91f7ff,Nova Exploiter 1,exploit,Fantom,0.81909417 FTM,15,etherscan
+0xe2d7d415640249ec37d30458c71f73972146ea20,Nova Exploiter 2,exploit,Fantom,0.00001796 FTM,5,etherscan
+0xc2d12c37acbfd5593bcae162bd12a161e0d2786e,Nova Exploiter 3,exploit,Fantom,19.50163454 FTM,11,etherscan
+0x6a6d593ed7458b8213fa71f1adc4a9e5fd0b5a58,One Ring Finance Exploit Contract,exploit,Fantom,0 FTM,13,etherscan
+0x12efed3512ea7b76f79bcde4a387216c7bce905e,One Ring Finance Exploiter,exploit,Fantom,2.07507262 FTM,29,etherscan
+0x5636e55e4a72299a0f194c001841e2ce75bb527a,ReaperFarm Exploiter 1,exploit,Fantom,321.31753984 FTM,33,etherscan
+0x2c177d20b1b1d68cc85d3215904a7bb6629ca954,ReaperFarm Exploiter 2,exploit,Fantom,0.9138382 FTM,17,etherscan
+0x7e2d35a00d73a534d4d5508e557e0b1c6e60c977,Fake_Phishing3,phish-hack,Optimism,0.00784924 Ether,5,etherscan
+0x3448872bba4b87ca48cae98602795a9ceb9c57c1,Fake_Phishing4,phish-hack,Optimism,0.01376665 Ether,9,etherscan
+0x8500a5b492a26ee1128dfdf28af4ee44b8dd2987,Fake_Phishing5,phish-hack,Optimism,0.00557035 Ether,15,etherscan
+0x489a8756c18c0b8b24ec2a2b9ff3d4d447f79bec,BNB Bridge Exploiter,exploit,Optimism,0.00038319 Ether,1,etherscan
+0x4f3a120e72c76c22ae802d129f599bfdbc31cb81,Wintermute Exploiter Multisig,exploit,Optimism,0.00750865 Ether,52,etherscan
+0x60b28637879b5a09d21b68040020ffbf7dba5107,Wintermute/OP Exploiter,exploit,Optimism,0.88138964 Ether,84,etherscan

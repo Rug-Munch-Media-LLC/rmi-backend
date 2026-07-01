@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RMI Daily Market Rundown</title>
+<style>
+:root{--bg:#0a0a0f;--fg:#e0e0e0;--accent:#6c5ce7;--green:#27ae60;--red:#e74c3c;--card:#14141f;--border:#2a2a3a;--muted:#888;--yellow:#f39c12;--purple:#9945FF}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:10}
+.logo{font-size:20px;font-weight:700;color:var(--accent)}
+main{max-width:1300px;margin:0 auto;padding:24px;display:grid;grid-template-columns:240px 1fr 300px;gap:20px}
+.sidebar{position:sticky;top:80px;height:fit-content}
+.sidebar h3{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px 0}
+.cat-link{display:block;padding:7px 10px;border-radius:6px;color:var(--fg);text-decoration:none;font-size:13px;margin:2px 0;cursor:pointer}
+.cat-link:hover,.cat-link.active{background:var(--accent);color:#fff}
+.data-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px}
+.data-card h4{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.data-value{font-size:24px;font-weight:700;margin:4px 0}
+.data-label{font-size:11px;color:var(--muted)}
+.data-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.03)}
+.ai-summary{background:linear-gradient(135deg,#1a1a3e,#2a1a4e);border:1px solid var(--accent);border-radius:12px;padding:20px;margin-bottom:20px}
+.ai-summary h2{font-size:20px;margin-bottom:4px;color:var(--accent)}
+.ai-badge{background:var(--accent);color:#fff;padding:2px 8px;border-radius:6px;font-size:10px;display:inline-block;margin-bottom:10px}
+.ai-summary p{line-height:1.6;color:#c0c0d0;font-size:13px}
+.article{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;transition:border-color .2s}
+.article:hover{border-color:var(--accent)}
+.article-source{font-size:10px;color:var(--muted);margin-bottom:4px}
+.article-title{font-size:14px;font-weight:600;margin-bottom:6px}
+.article-title a{color:var(--fg);text-decoration:none}
+.article-title a:hover{color:var(--accent)}
+.article-summary{font-size:12px;color:#c0c0d0;line-height:1.4;margin-bottom:8px}
+.article-meta{display:flex;gap:12px;align-items:center;font-size:11px;color:var(--muted)}
+.tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;margin-right:3px}
+.tag-bull{background:rgba(39,174,96,.15);color:var(--green)}
+.tag-bear{background:rgba(231,76,60,.15);color:var(--red)}
+.tag-neutral{background:rgba(136,136,136,.15);color:var(--muted)}
+.tag-cat{background:rgba(108,92,231,.15);color:var(--accent)}
+.tag-alert{background:rgba(231,76,60,.2);color:var(--red)}
+.vote-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px}
+.vote-btn:hover{background:var(--accent);color:#fff}
+.fg-bar{height:6px;border-radius:3px;margin-top:6px;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green))}
+.fg-marker{width:4px;height:14px;background:white;border-radius:2px;position:relative}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header><span class="logo">RMI</span><span>Daily Market Rundown</span><span class="badge">AI-Powered</span></header>
+<main>
+<aside class="sidebar">
+  <input style="width:100%;padding:8px 10px;background:#1a1a2e;border:1px solid var(--border);border-radius:6px;color:var(--fg);font-size:13px;margin-bottom:12px" placeholder="Search..." id="search" oninput="loadArticles()">
+  <h3>Categories</h3><div id="categories"></div>
+  <h3>Sentiment</h3><div id="sentiments"></div>
+</aside>
+
+<section id="feed">
+  <div id="summary"></div>
+  <div id="articles"><span class="spinner"></span> Loading...</div>
+</section>
+
+<aside id="data-panel">
+  <div class="data-card"><h4>Fear & Greed</h4><div id="fg"></div></div>
+  <div class="data-card"><h4>Price Action</h4><div id="prices"></div></div>
+  <div class="data-card"><h4>Security Alerts</h4><div id="alerts"></div></div>
+  <div class="data-card"><h4>Prediction Markets</h4><div id="pm"></div></div>
+</aside>
+</main>
+
+<script>
+let activeCat='All',activeSent='';
+
+async function load(){
+  document.getElementById('summary').innerHTML='<div class="ai-summary"><span class="spinner"></span> Generating AI market analysis...</div>';
+  try{
+    const s=await fetch('/mcp/news/summary').then(r=>r.json());
+    document.getElementById('summary').innerHTML=`<div class="ai-summary"><span class="ai-badge">AI Analysis</span><h2>Daily Market Rundown</h2><p>${s.summary}</p></div>`;
+  }catch(e){document.getElementById('summary').innerHTML='';}
+
+  try{const c=await fetch('/mcp/news/categories').then(r=>r.json());
+    document.getElementById('categories').innerHTML=c.categories.map(c=>`<span class="cat-link ${c.name===activeCat?'active':''}" onclick="setCat('${c.name}')">${c.icon} ${c.name}</span>`).join('');
+    document.getElementById('sentiments').innerHTML=['bullish','bearish','neutral'].map(s=>`<span class="cat-link ${s===activeSent?'active':''}" onclick="setSent('${s}')">${s==='bullish'?'🟢':s==='bearish'?'🔴':'⚪'} ${s}</span>`).join('');}catch(e){}
+
+  loadArticles();
+  loadDataPanel();
+}
+
+async function loadDataPanel(){
+  try{
+    const d=await fetch('/mcp/daily-data').then(r=>r.json());
+    const fg=d.fear_greed||{};
+    document.getElementById('fg').innerHTML=`<div class="data-value" style="color:${fg.value>60?'var(--green)':fg.value<40?'var(--red)':'var(--yellow)'}">${fg.value||50}</div><div class="data-label">${fg.classification||'Neutral'}</div><div class="fg-bar"><div style="width:${fg.value||50}%;height:6px;background:white;border-radius:3px"></div></div>`;
+
+    const pa=d.price_action||{};
+    let priceHTML='';
+    for(const [k,v] of Object.entries(pa.major_assets||{})){priceHTML+=`<div class="data-row"><span>${k.toUpperCase()}</span><span>\$${(v.price||0).toFixed(2)}</span></div>`;}
+    document.getElementById('prices').innerHTML=priceHTML||'<span style="font-size:12px;color:var(--muted)">Loading prices...</span>';
+
+    const sa=d.security_alerts||{};
+    document.getElementById('alerts').innerHTML=sa.count?sa.alerts.slice(0,3).map(a=>`<div style="font-size:11px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03)"><span class="tag tag-alert">${a.type}</span> ${a.project||a.amount_lost||''}</div>`).join(''):'<span style="font-size:12px;color:var(--muted)">No major alerts today</span>';
+
+    const pm=d.prediction_markets||{};
+    document.getElementById('pm').innerHTML=pm.top_markets?pm.top_markets.slice(0,3).map(m=>`<div style="font-size:11px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03)">${(m.title||'').slice(0,50)}</div>`).join(''):'<span style="font-size:12px;color:var(--muted)">Loading markets...</span>';
+  }catch(e){console.log(e)}
+}
+
+async function loadArticles(){
+  document.getElementById('articles').innerHTML='<span class="spinner"></span> Loading...';
+  try{
+    const params=new URLSearchParams({limit:50});if(activeCat!=='All')params.set('category',activeCat);if(activeSent)params.set('sentiment',activeSent);
+    const r=await fetch('/mcp/news?'+params).then(r=>r.json());
+    document.getElementById('articles').innerHTML=r.articles.map(a=>`<div class="article"><div class="article-source">${a.source} · ${a.published?.slice(0,16)||''}</div><div class="article-title"><a href="${a.url}" target="_blank">${a.title}</a></div><div class="article-summary">${a.summary||''}</div><div class="article-meta"><span class="tag tag-${a.sentiment_label?.slice(0,4)||'neutral'}">${a.sentiment_label||'neutral'}</span><span class="tag tag-cat">${a.category}</span><button class="vote-btn" onclick="vote('${a.id}','up')">▲</button><span>${a.votes_up-a.votes_down}</span><button class="vote-btn" onclick="vote('${a.id}','down')">▼</button></div></div>`).join('')||'<p>No articles found.</p>';
+  }catch(e){}
+}
+function setCat(c){activeCat=c;loadArticles();}
+function setSent(s){activeSent=activeSent===s?'':s;loadArticles();}
+async function vote(id,dir){await fetch('/mcp/news/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({article_id:id,direction:dir})});loadArticles();}
+load();
+</script>
+</body>
+</html>
