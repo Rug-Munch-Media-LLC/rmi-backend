@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RMI Earnings Dashboard</title>
+<style>
+:root{--bg:#0a0a0f;--fg:#e0e0e0;--accent:#6c5ce7;--green:#27ae60;--card:#14141f;--border:#2a2a3a;--muted:#888}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px}
+.logo{font-size:20px;font-weight:700;color:var(--accent)}
+.badge{background:var(--accent);color:#fff;padding:2px 8px;border-radius:12px;font-size:11px}
+main{max-width:1100px;margin:0 auto;padding:24px}
+h1{font-size:24px;margin-bottom:8px}
+.sub{color:var(--muted);margin-bottom:24px;font-size:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+.card-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.card-value{font-size:28px;font-weight:700}
+.card-value.green{color:var(--green)}
+.card-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.table-card h3{font-size:14px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-weight:500;padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase}
+td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.03)}
+tr:hover{background:rgba(255,255,255,0.02)}
+.addr{font-family:monospace;font-size:11px;color:var(--accent)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh{background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px}
+.refresh:hover{opacity:.9}
+.bar{height:6px;background:var(--accent);border-radius:3px;margin-top:4px}
+.bar-bg{background:#1a1a2e;border-radius:3px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+</style>
+</head>
+<body>
+<header><span class="logo">RMI</span><span>Earnings Dashboard</span><span class="badge">Revenue</span></header>
+<main>
+<h1>Revenue Dashboard</h1>
+<p class="sub">x402 payment tracking across all chains and facilitators. <button class="refresh" onclick="load()">Refresh</button></p>
+
+<div class="cards" id="summary"></div>
+<div class="row2">
+  <div class="table-card"><h3>Wallets</h3><div id="wallets"></div></div>
+  <div class="table-card"><h3>By Chain</h3><div id="byChain"></div></div>
+</div>
+<div class="table-card"><h3>Top Tools</h3><div id="byTool"></div></div>
+<div class="table-card"><h3>Recent Activity</h3><div id="recent"></div></div>
+</main>
+<script>
+async function load(){
+  document.getElementById('summary').innerHTML='<div class="card"><span class="spinner"></span> Loading...</div>';
+  try{
+    const r=await fetch('/mcp/earnings');
+    const d=await r.json();
+    const w=d.wallet_balances||{};
+    const s=d.revenue_by_source||{};
+
+    // Summary cards
+    document.getElementById('summary').innerHTML=`
+      <div class="card"><div class="card-label">Total Tracked</div><div class="card-value green">$${(w.total_usd||0).toFixed(2)}</div><div class="card-sub">Across all payment wallets</div></div>
+      <div class="card"><div class="card-label">Revenue Events</div><div class="card-value">${s.events||0}</div><div class="card-sub">Tracked tool calls</div></div>
+      <div class="card"><div class="card-label">Revenue Total</div><div class="card-value green">$${(s.total||0).toFixed(4)}</div><div class="card-sub">From tracked events</div></div>
+      <div class="card"><div class="card-label">Payment Wallets</div><div class="card-value">${Object.keys(w).filter(k=>k!=='total_usd'&&k!=='updated').length}</div><div class="card-sub">${Object.keys(w).filter(k=>k!=='total_usd'&&k!=='updated').join(', ')}</div></div>`;
+
+    // Wallets table
+    let wh='<table><tr><th>Chain</th><th>Address</th><th>Balance</th><th>USD</th><th>TXs</th></tr>';
+    for(const [k,v] of Object.entries(w)){
+      if(k==='total_usd'||k==='updated') continue;
+      wh+=`<tr><td>${v.chain}</td><td class="addr">${v.address}</td><td>${v.balance?.toFixed(4)||0}</td><td>$${v.balance_usd?.toFixed(2)||0}</td><td>${v.transactions||0}</td></tr>`;
+    }
+    wh+='</table>';
+    document.getElementById('wallets').innerHTML=wh;
+
+    // By chain
+    let ch='<table><tr><th>Chain</th><th>Revenue</th><th>Share</th></tr>';
+    for(const [k,v] of Object.entries(s.by_chain||{})){
+      const pct=s.total?((v/s.total)*100).toFixed(1):'0';
+      ch+=`<tr><td>${k}</td><td>$${v.toFixed(4)}</td><td><div class="bar-bg"><div class="bar" style="width:${pct}%"></div></div>${pct}%</td></tr>`;
+    }
+    ch+='</table>';
+    document.getElementById('byChain').innerHTML=ch;
+
+    // By tool
+    let tt='<table><tr><th>Tool</th><th>Revenue</th><th>Share</th></tr>';
+    for(const [k,v] of Object.entries(s.by_tool||{})){
+      const pct=s.total?((v/s.total)*100).toFixed(1):'0';
+      tt+=`<tr><td>${k}</td><td>$${v.toFixed(4)}</td><td><div class="bar-bg"><div class="bar" style="width:${pct}%"></div></div>${pct}%</td></tr>`;
+    }
+    tt+='</table>';
+    document.getElementById('byTool').innerHTML=tt;
+
+    // Recent
+    let rec='<table><tr><th>Time</th><th>Tool</th><th>Amount</th><th>Chain</th></tr>';
+    for(const e of (d.earnings_history||[]).reverse()){
+      rec+=`<tr><td>${e.timestamp?.slice(11,19)||''}</td><td>${e.tool}</td><td>$${e.amount_usd?.toFixed(4)}</td><td>${e.chain}</td></tr>`;
+    }
+    rec+='</table>';
+    document.getElementById('recent').innerHTML=rec;
+  }catch(e){
+    document.getElementById('summary').innerHTML=`<div class="card"><div class="card-label">Error</div><div>${e.message}</div></div>`;
+  }
+}
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

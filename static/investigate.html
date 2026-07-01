@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RMI Investigative Framework</title>
+<style>
+:root{--bg:#0a0a0f;--fg:#e0e0e0;--accent:#6c5ce7;--danger:#e74c3c;--card:#14141f;--border:#2a2a3a;--muted:#888;--success:#27ae60}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px}
+.logo{font-size:20px;font-weight:700;color:var(--accent)}
+.badge{background:var(--accent);color:#fff;padding:2px 8px;border-radius:12px;font-size:11px}
+main{max-width:960px;margin:0 auto;padding:32px 24px}
+h1{font-size:28px;margin-bottom:8px}
+.sub{color:var(--muted);margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:500}
+input,select{width:100%;padding:12px;background:#1a1a2e;border:1px solid var(--border);border-radius:8px;color:var(--fg);font-size:15px}
+.row{display:flex;gap:12px}.row>*{flex:1}
+button{padding:12px 28px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+button:hover{opacity:.9}button:disabled{opacity:.4;cursor:not-allowed}
+.result{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.tag{display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;margin:2px}
+.tag-cex{background:#27ae60;color:#fff}.tag-dex{background:#2980b9;color:#fff}
+.tag-mixer{background:#e74c3c;color:#fff}.tag-bridge{background:#8e44ad;color:#fff}
+.tag-eoa{background:#7f8c8d;color:#fff}.tag-contract{background:#d35400;color:#fff}
+.tag-solana{background:#9945FF;color:#fff}
+.hop{padding:12px;background:#1a1a2e;border-radius:8px;margin:8px 0;border-left:3px solid var(--accent)}
+.addr{font-family:monospace;font-size:13px;color:var(--accent);word-break:break-all}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stats{display:flex;gap:16px;flex-wrap:wrap}
+.stat{background:#1a1a2e;padding:12px 16px;border-radius:8px}
+.stat-value{font-size:20px;font-weight:700}.stat-label{font-size:11px;color:var(--muted)}
+.source-badge{font-size:10px;background:#2a2a3a;padding:2px 6px;border-radius:4px;margin-left:8px;color:var(--muted)}
+.fallback-notice{background:#1a1a0e;border:1px solid #f39c12;padding:12px;border-radius:8px;font-size:13px;color:#f39c12;margin-top:12px}
+</style>
+</head>
+<body>
+<header><span class="logo">RMI</span><span>Investigative Framework</span><span class="badge">Solana + EVM</span></header>
+<main>
+<h1>Trace Crypto Funding Sources</h1>
+<p class="sub">Trace wallets across Solana and 9 EVM chains. Multi-provider fallback ensures you never run out of data.</p>
+
+<div class="card">
+  <div class="row">
+    <div><label>Wallet Address</label><input type="text" id="address" placeholder="0x... or Solana address" value="vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg"></div>
+    <div style="max-width:220px">
+      <label>Chain</label>
+      <select id="chain" onchange="updatePlaceholder()">
+        <option value="solana">Solana</option>
+        <option value="ethereum">Ethereum</option><option value="bsc">BSC</option>
+        <option value="polygon">Polygon</option><option value="base">Base</option>
+        <option value="arbitrum">Arbitrum</option><option value="optimism">Optimism</option>
+        <option value="avalanche">Avalanche</option><option value="fantom">Fantom</option><option value="gnosis">Gnosis</option>
+      </select>
+    </div>
+  </div>
+  <div style="margin-top:16px;display:flex;gap:12px">
+    <button onclick="trace()" id="traceBtn">Trace Funding</button>
+    <button onclick="scan()" id="scanBtn" style="background:#2a2a3a">Full Investigation</button>
+  </div>
+</div>
+<div id="result"></div><div id="error"></div>
+</main>
+<script>
+function updatePlaceholder(){
+  const chain=document.getElementById('chain').value;
+  const inp=document.getElementById('address');
+  if(chain==='solana'){inp.placeholder='Solana address...';if(!inp.value.startsWith('0x'))inp.value=''}
+  else{inp.placeholder='0x...'}
+}
+
+async function api(path,body){
+  const btns=document.querySelectorAll('button');btns.forEach(b=>b.disabled=true);
+  document.getElementById('error').innerHTML='';
+  document.getElementById('result').innerHTML='<p><span class="spinner"></span> Querying all providers...</p>';
+  try{
+    const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.detail||'Request failed');
+    return d;
+  }catch(e){
+    document.getElementById('error').innerHTML=`<div style="background:#2c1010;border:1px solid var(--danger);border-radius:8px;padding:16px;color:#e74c3c">${e.message}</div>`;
+    document.getElementById('result').innerHTML='';
+  }finally{btns.forEach(b=>b.disabled=false)}
+}
+
+function tagClass(t){const m={cex:'tag-cex',dex:'tag-dex',mixer:'tag-mixer',bridge:'tag-bridge',eoa:'tag-eoa',contract:'tag-contract'};return m[t]||''}
+
+async function trace(){
+  const chain=document.getElementById('chain').value;
+  const data=await api('/api/v1/investigate/trace',{address:document.getElementById('address').value.trim(),chain});
+  if(!data)return;
+
+  if(chain==='solana'){
+    document.getElementById('result').innerHTML=`
+    <div class="card result"><h3>Solana Wallet Trace</h3>
+      <div class="stats" style="margin-top:12px">
+        <div class="stat"><div class="stat-value">${data.first_tx?data.first_tx.slice(0,10)+'...':'N/A'}</div><div class="stat-label">First TX</div></div>
+        <div class="stat"><div class="stat-value">${(data.balance_change_sol||0).toFixed(4)}</div><div class="stat-label">SOL Change</div></div>
+        <div class="stat"><div class="stat-value">${data.total_value_usd?('$'+data.total_value_usd.toFixed(2)):'N/A'}</div><div class="stat-label">Portfolio Value</div></div>
+      </div>
+      <div style="margin-top:12px">
+        <span class="tag tag-solana">Solana</span>
+        <span class="source-badge">via ${data.source||'?'}</span>
+        ${data.label?`<span class="tag" style="background:#2a2a3a">${data.label}</span>`:''}
+        ${data.is_cex?'<span class="tag tag-cex">CEX</span>':''}
+      </div>
+    </div>`;
+  } else {
+    document.getElementById('result').innerHTML=`
+    <div class="card result"><h3>EVM Funding Trace</h3>
+      <div class="stats" style="margin-top:12px">
+        <div class="stat"><div class="stat-value">${(data.source_type||'?').toUpperCase()}</div><div class="stat-label">Source Type</div></div>
+        <div class="stat"><div class="stat-value">${data.confidence||0}%</div><div class="stat-label">Confidence</div></div>
+        <div class="stat"><div class="stat-value">${(data.funding_amount_eth||0).toFixed(6)}</div><div class="stat-label">ETH</div></div>
+        <div class="stat"><div class="stat-value">${(data.hops||[]).length}</div><div class="stat-label">Hops</div></div>
+      </div>
+      ${data.source_address?`<div style="margin-top:12px"><label>Source</label><div class="addr">${data.source_address}</div><span class="tag ${tagClass(data.source_type)}">${data.source_type}</span></div>`:''}
+      ${(data.hops||[]).map((h,i)=>`<div class="hop"><strong>Hop ${h.depth}</strong> ← <span class="addr">${h.address}</span> <span style="color:var(--muted)">${(h.amount_eth||0).toFixed(6)} ETH</span></div>`).join('')}
+      ${data.errors?.length?`<div class="fallback-notice">⚠ Fallback used — some providers unavailable</div>`:''}
+    </div>`;
+  }
+}
+
+async function scan(){
+  const chain=document.getElementById('chain').value;
+  const data=await api('/api/v1/investigate/scan',{address:document.getElementById('address').value.trim(),chain});
+  if(!data)return;
+
+  const tr=data.trace||{};
+  const risk=data.risk||{};
+  const labels=data.labels||[];
+
+  document.getElementById('result').innerHTML=`
+  <div class="card result"><h3>Full Investigation — ${data.chain.toUpperCase()}</h3>
+    <div class="stats" style="margin-top:12px">
+      <div class="stat"><div class="stat-value">${(tr.source_type||tr.source||'?').toUpperCase()}</div><div class="stat-label">Source</div></div>
+      <div class="stat"><div class="stat-value">${tr.confidence||0}%</div><div class="stat-label">Confidence</div></div>
+      ${risk?`<div class="stat"><div class="stat-value" style="color:${risk.is_honeypot?'var(--danger)':'var(--success)'}">${risk.is_honeypot?'DANGER':'SAFE'}</div><div class="stat-label">Risk</div></div>`:''}
+      <div class="stat"><div class="stat-value">${labels.length}</div><div class="stat-label">Labels</div></div>
+    </div>
+    ${risk?.risks?.length?`<div style="margin-top:8px">${risk.risks.map(r=>`<span class="tag" style="background:#2c1010;color:var(--danger)">${r}</span>`).join(' ')}</div>`:''}
+    ${labels.map(l=>`<div class="hop"><span class="addr">${(l.address||'').slice(0,16)}...</span> → ${l.label}</div>`).join('')}
+    <div class="fallback-notice">🔍 Data sourced from ${tr.source||'multiple providers'} with automatic fallback</div>
+  </div>`;
+}
+</script>
+</body>
+</html>

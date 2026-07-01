@@ -1,0 +1,49 @@
+# ═══════════════════════════════════════════════
+# RMI Backend — Production dependencies
+# ═══════════════════════════════════════════════
+fastapi>=0.115.0         # Web framework
+uvicorn[standard]>=0.32.0  # ASGI server
+redis>=5.2.0             # Caching + message broker
+httpx>=0.27.0            # Async HTTP client
+pydantic>=2.9.0          # Data validation
+python-telegram-bot[job-queue]>=21.0  # Telegram bot framework
+supabase>=2.0.0          # Database client
+python-jose[cryptography]>=3.3.0  # JWT auth
+passlib[bcrypt]>=1.7.4   # Password hashing
+python-multipart>=0.0.17 # File uploads
+aiohttp>=3.11.0          # Async HTTP server
+feedparser>=6.0.11       # RSS/Atom parsing
+websockets>=13.0         # WebSocket support
+flask>=3.0.0             # Web framework (legacy routes)
+flask-cors>=5.0.0        # CORS for Flask
+gunicorn>=23.0.0         # WSGI server
+requests>=2.32.0         # HTTP client (legacy)
+structlog>=24.0.0        # Structured logging
+prometheus-client>=0.20.0  # Metrics
+
+# ═══════════════════════════════════════════════
+# AI / ML
+# ═══════════════════════════════════════════════
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.3.0             # Deep learning framework
+numpy>=1.26.0            # Numerical computing
+sentence-transformers>=3.0.0  # Embedding models
+faiss-cpu>=1.8.0         # Vector similarity search
+pandas>=2.2.0            # Data analysis
+
+# ═══════════════════════════════════════════════
+# Blockchain
+# ═══════════════════════════════════════════════
+eth-account>=0.13.0      # EVM account management
+pynacl>=1.5.0            # Cryptographic signing
+base58>=2.1.0            # Base58 encoding (Solana)
+solana>=0.34.0           # Solana blockchain SDK
+bip-utils>=2.12          # BIP39/44 wallet derivation
+
+# ═══════════════════════════════════════════════
+# Platform Infrastructure
+# ═══════════════════════════════════════════════
+slowapi>=0.1.9           # Rate limiting
+psutil>=5.9              # System monitoring
+cloudscraper>=1.2.71     # Cloudflare bypass
+email-validator>=2.0.0   # Email validation

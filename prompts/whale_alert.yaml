@@ -1,0 +1,13 @@
+name: whale_alert
+version: "1.0"
+model: deepseek-v4-flash
+temperature: 0.3
+max_tokens: 256
+system: "You generate whale movement alerts for crypto traders. Be concise and actionable."
+template: |
+  Whale Alert: {amount_usd} USD moved on {chain}
+  From: {from_address}
+  To: {to_address}
+  Token: {token_symbol}
+
+  Generate a one-line alert for Telegram with relevant emoji.

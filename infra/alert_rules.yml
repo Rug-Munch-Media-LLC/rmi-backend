@@ -1,0 +1,155 @@
+groups:
+  - name: rmi-critical
+    interval: 30s
+    rules:
+      - alert: BackendDown
+        expr: up{job="rmi-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: rmi-backend
+        annotations:
+          summary: "RMI backend is DOWN"
+          description: "rmi-backend has been unreachable for 2+ minutes. Check RB-001."
+          runbook_url: "https://docs.rugmunch.io/runbooks/rb-001"
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(rmi_requests_total{status=~"5.."}[5m]))
+            / sum(rate(rmi_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: rmi-backend
+        annotations:
+          summary: "5xx error rate > 5% for 5 minutes"
+
+      - alert: RedisDown
+        expr: up{job="rmi-redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Cache layer unreachable. Backend will degrade to no-cache."
+
+      - alert: PostgresDown
+        expr: up{job="rmi-postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Postgres is down"
+          description: "Source of truth unreachable."
+
+      - alert: ClickhouseDown
+        expr: up{job="rmi-clickhouse"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ClickHouse is down"
+          description: "Analytics queries will fail."
+
+      - alert: QdrantDown
+        expr: up{job="rmi-qdrant"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Qdrant is down"
+          description: "RAG queries will fail."
+
+      - alert: Neo4jDown
+        expr: up{job="rmi-neo4j"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Neo4j is down"
+          description: "Entity resolution queries will fail."
+
+      - alert: GlitchtipDown
+        expr: up{job="rmi-glitchtip"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GlitchTip is down"
+          description: "Errors are not being captured."
+
+  - name: rmi-warning
+    interval: 1m
+    rules:
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, path) (rate(rmi_request_duration_seconds_bucket[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: rmi-backend
+        annotations:
+          summary: "p99 latency > 1s on {{ $labels.path }}"
+
+      - alert: BackendHighMemory
+        expr: |
+          (
+            container_memory_usage_bytes{name=~".*rmi-backend.*"}
+            / container_spec_memory_limit_bytes{name=~".*rmi-backend.*"}
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backend memory > 85%"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            1 - node_filesystem_avail_bytes{job="node"}
+            / node_filesystem_size_bytes{job="node"}
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk > 85% full"
+
+      - alert: AlertManagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AlertManager itself is down"
+
+  - name: rmi-slo-burn
+    interval: 1m
+    rules:
+      - alert: SLOBurnRate2x
+        expr: |
+          (
+            sum(rate(rmi_requests_total{status=~"5.."}[1h]))
+            / sum(rate(rmi_requests_total[1h]))
+          ) > 0.02
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SLO burn rate 2x"
+
+      - alert: SLOBurnRate4x
+        expr: |
+          (
+            sum(rate(rmi_requests_total{status=~"5.."}[1h]))
+            / sum(rate(rmi_requests_total[1h]))
+          ) > 0.04
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SLO burn rate 4x — DEPLOY FREEZE"

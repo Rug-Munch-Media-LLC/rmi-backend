@@ -1,0 +1,13 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# Types: feat, fix, chore, docs, refactor, perf, test, ci, security
+# Scopes: rag, scanner, content, infra, api, email, license, ghost
+#
+# Example:
+#   feat(rag): add confidence scoring to three-pillar search
+#
+#   Implements composite 0-100 confidence score combining retrieval
+#   concentration, similarity quality, source corroboration, reranker
+#   margin, temporal freshness, and entity exact-match bonus.

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RugCharts — Token Intelligence</title>
+<style>
+:root {
+  --bg: #0a0a0f; --panel: #12121a; --border: #1e1e2e;
+  --text: #e0e0e0; --dim: #8888aa; --accent: #7c3aed;
+  --green: #00ff88; --yellow: #ffd700; --orange: #ff8800; --red: #ff0044;
+  --safe: #00ff88; --low: #88ff00; --medium: #ffd700; --high: #ff8800; --critical: #ff0044;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+header { background: var(--panel); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
+.logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.logo span:first-child { color: var(--accent); } .logo span:last-child { color: var(--text); }
+.search-bar { flex: 1; max-width: 600px; display: flex; gap: 8px; }
+.search-bar input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; color: var(--text); font-size: 14px; outline: none; }
+.search-bar input:focus { border-color: var(--accent); }
+.search-bar select { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px; }
+.search-bar button { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.search-bar button:hover { opacity: 0.9; }
+.stats-bar { background: var(--panel); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; gap: 24px; font-size: 13px; color: var(--dim); }
+.stats-bar b { color: var(--text); }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.verdict { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; display: none; }
+.verdict.active { display: block; }
+.verdict-header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+.risk-badge { padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; color: #000; }
+.risk-badge.SAFE { background: var(--safe); }
+.risk-badge.LOW { background: var(--low); }
+.risk-badge.MEDIUM { background: var(--medium); }
+.risk-badge.HIGH { background: var(--orange); }
+.risk-badge.CRITICAL,.risk-badge.DANGER { background: var(--red); color: #fff; }
+.risk-score { font-size: 48px; font-weight: 800; line-height: 1; }
+.verdict-text { font-size: 16px; color: var(--dim); margin-top: 4px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.panel-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dim); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.panel-title .icon { font-size: 18px; }
+.metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
+.metric-row:last-child { border-bottom: none; }
+.metric-label { color: var(--dim); }
+.metric-value { font-weight: 600; }
+.metric-value.green { color: var(--green); }
+.metric-value.yellow { color: var(--yellow); }
+.metric-value.orange { color: var(--orange); }
+.metric-value.red { color: var(--red); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px; }
+.tag.pass { background: rgba(0,255,136,0.15); color: var(--green); }
+.tag.fail { background: rgba(255,0,68,0.15); color: var(--red); }
+.tag.warn { background: rgba(255,136,0,0.15); color: var(--orange); }
+.entity-badge { background: rgba(124,58,237,0.15); color: var(--accent); padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+.loading { text-align: center; padding: 40px; color: var(--dim); }
+.spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { color: var(--dim); font-size: 13px; padding: 20px; text-align: center; }
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.wallet-list { max-height: 200px; overflow-y: auto; }
+.wallet-item { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); font-family: monospace; }
+.launch-feed { max-height: 300px; overflow-y: auto; }
+.launch-item { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+footer { text-align: center; padding: 24px; color: var(--dim); font-size: 12px; }
+footer span { color: var(--accent); }
+.error-panel { background: rgba(255,0,68,0.1); border: 1px solid var(--red); border-radius: 8px; padding: 12px; color: var(--red); font-size: 13px; display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>Rug</span><span>Charts</span></div>
+  <nav style="display:flex;gap:4px">
+    <a href="/rugcharts" style="color:var(--text);text-decoration:none;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:500;background:rgba(255,255,255,0.06)">RugCharts</a>
+    <a href="/rugmaps" style="color:var(--dim);text-decoration:none;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:500">RugMaps</a>
+    <a href="/news" style="color:var(--dim);text-decoration:none;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:500">News</a>
+  </nav>
+  <div class="search-bar">
+    <input id="tokenInput" type="text" placeholder="Paste token address (Solana or EVM)..." autofocus>
+    <select id="chainSelect">
+      <option value="solana">Solana</option>
+      <option value="ethereum">Ethereum</option>
+      <option value="base">Base</option>
+      <option value="bsc">BSC</option>
+      <option value="arbitrum">Arbitrum</option>
+      <option value="polygon">Polygon</option>
+    </select>
+    <button onclick="scanToken()">Scan</button>
+  </div>
+</header>
+
+<div class="stats-bar" id="statsBar">
+  <span>DataBus: <b id="chainCount">...</b> chains</span>
+  <span>Cache: <b id="cacheStatus">checking...</b></span>
+  <span>Powered by <b>Arkham · Helius · GoPlus · RAG</b></span>
+</div>
+
+<div class="container">
+  <div class="error-panel" id="errorPanel"></div>
+
+  <!-- VERDICT BANNER -->
+  <div class="verdict" id="verdictBanner">
+    <div class="verdict-header">
+      <div class="risk-score" id="riskScore">--</div>
+      <div>
+        <div class="risk-badge" id="riskBadge">SCAN A TOKEN</div>
+        <div class="verdict-text" id="verdictText"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid" id="mainGrid">
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🛡️</span> Security Scan</div>
+      <div id="securityPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">👥</span> Holder Health</div>
+      <div id="holderPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">💧</span> Liquidity Risk</div>
+      <div id="liquidityPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">📊</span> Volume Authenticity</div>
+      <div id="volumePanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🔍</span> Rug Patterns</div>
+      <div id="rugPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">👤</span> Developer Reputation</div>
+      <div id="devPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🔗</span> Cross-Chain Entity</div>
+      <div id="entityPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🐋</span> Whale Alerts</div>
+      <div id="whalePanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🕵️</span> Insider Detection</div>
+      <div id="insiderPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🚀</span> Token Launches (Live)</div>
+      <div id="launchPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="icon">💰</span> Smart Money</div>
+      <div id="smartMoneyPanel" class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<footer>RugCharts · 49 DataBus Chains · <span>No one else shows this data</span></footer>
+
+<script>
+const API = '/api/v1/databus';
+
+async function apiGet(path) {
+  try { const r = await fetch(API + path); return r.ok ? r.json() : null; }
+  catch(e) { return null; }
+}
+
+function riskColor(level) {
+  const m = {SAFE:'var(--green)',LOW:'var(--low)','LOW RISK':'var(--low)',
+    MEDIUM:'var(--yellow)','MEDIUM RISK':'var(--yellow)',
+    HIGH:'var(--orange)','HIGH RISK':'var(--orange)',
+    CRITICAL:'var(--red)',DANGER:'var(--red)',EXTREME:'var(--red)','NO_HOLDERS':'var(--dim)'};
+  return m[level] || 'var(--dim)';
+}
+
+function riskBadgeClass(level) {
+  const m = {SAFE:'SAFE',LOW:'LOW','LOW RISK':'LOW',MEDIUM:'MEDIUM','MEDIUM RISK':'MEDIUM',
+    HIGH:'HIGH','HIGH RISK':'HIGH',CRITICAL:'CRITICAL',DANGER:'CRITICAL'};
+  return m[level] || 'MEDIUM';
+}
+
+function renderSecurity(data) {
+  if (!data) return '<div class="empty">No security data available</div>';
+  let html = '';
+  html += `<div class="metric-row"><span class="metric-label">Risk Score</span><span class="metric-value" style="color:${riskColor(data.band)}">${data.score || '--'}/100</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Risk Band</span><span class="metric-value" style="color:${riskColor(data.band)}">${data.band || '--'}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Checks Run</span><span class="metric-value">${data.checks_run || 0}</span></div>`;
+  if (data.highlights && data.highlights.length) {
+    html += '<div style="margin-top:12px">';
+    data.highlights.forEach(h => {
+      const cls = h.startsWith('FAIL') ? 'fail' : 'warn';
+      html += `<span class="tag ${cls}">${h}</span> `;
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+function renderHolders(data) {
+  if (!data) return '<div class="empty">No holder data</div>';
+  let html = '';
+  html += `<div class="metric-row"><span class="metric-label">Total Holders</span><span class="metric-value">${(data.total||0).toLocaleString()}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Gini Coefficient</span><span class="metric-value" style="color:${(data.gini||0)>0.6?'var(--red)':(data.gini||0)>0.4?'var(--yellow)':'var(--green)'}">${(data.gini||0).toFixed(3)}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Top 10 Concentration</span><span class="metric-value">${data.top10_pct||0}%</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Top Wallet Dominance</span><span class="metric-value" style="color:${(data.top1_pct||0)>50?'var(--red)':'var(--dim)'}">${data.top1_pct||0}%</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Whales (>1%)</span><span class="metric-value">${data.whales||0}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Decentralization</span><span class="metric-value" style="color:${(data.decentralization||0)>60?'var(--green)':(data.decentralization||0)>30?'var(--yellow)':'var(--red)'}">${data.decentralization||0}/100</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Risk</span><span class="metric-value" style="color:${riskColor(data.risk)}">${data.risk||'--'}</span></div>`;
+  return html;
+}
+
+function renderLiquidity(data) {
+  if (!data) return '<div class="empty">No liquidity data</div>';
+  let html = '';
+  html += `<div class="metric-row"><span class="metric-label">Concentration Risk</span><span class="metric-value" style="color:${riskColor(data.concentration_risk?.toUpperCase())}">${data.concentration_risk||'unknown'}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Risk Score</span><span class="metric-value" style="color:${riskColor(data.risk_level)}">${data.risk_score||50}/100</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">LP Holders</span><span class="metric-value">${data.lp_holders||0}</span></div>`;
+  if (data.lp_holders_list && data.lp_holders_list.length) {
+    html += '<div style="margin-top:8px;font-size:11px;color:var(--dim)">Top LP Holders:</div>';
+    data.lp_holders_list.slice(0,3).forEach(h => {
+      html += `<div class="wallet-item"><span>${h.address||'...'}</span><span>${h.share_pct||0}% ${h.entity ? '· '+h.entity : ''}</span></div>`;
+    });
+  }
+  return html;
+}
+
+function renderVolume(data) {
+  if (!data) return '<div class="empty">No volume data</div>';
+  let html = '';
+  const fake = data.fake_volume_pct || 0;
+  const auth = data.authentic_score || 100;
+  const fc = fake > 50 ? 'var(--red)' : fake > 20 ? 'var(--yellow)' : 'var(--green)';
+  html += `<div class="metric-row"><span class="metric-label">Fake Volume</span><span class="metric-value" style="color:${fc}">${fake}%</span></div>`;
+  html += `<div class="progress-bar"><div class="progress-fill" style="width:${fake}%;background:${fc}"></div></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Authentic Score</span><span class="metric-value" style="color:${auth>80?'var(--green)':auth>50?'var(--yellow)':'var(--red)'}">${auth}/100</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Risk Level</span><span class="metric-value" style="color:${riskColor(data.risk_level)}">${data.risk_level||'--'}</span></div>`;
+  return html;
+}
+
+function renderRugPatterns(data) {
+  if (!data) return '<div class="empty">No pattern data</div>';
+  let html = '';
+  html += `<div class="metric-row"><span class="metric-label">Pattern Matches</span><span class="metric-value">${data.total_matches||0}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Overall Risk</span><span class="metric-value" style="color:${riskColor(data.overall_rug_risk||data.overall_risk)}">${data.overall_rug_risk||data.overall_risk||'--'}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Top Match</span><span class="metric-value">${data.top_match||'None'}</span></div>`;
+  if (data.top_score) html += `<div class="metric-row"><span class="metric-label">Match Score</span><span class="metric-value" style="color:${(data.top_score||0)>60?'var(--red)':'var(--yellow)'}">${data.top_score}/100</span></div>`;
+  if (data.pattern_matches && data.pattern_matches.length) {
+    data.pattern_matches.slice(0,3).forEach(m => {
+      html += `<div style="margin-top:4px;font-size:11px"><span class="tag ${m.severity==='CRITICAL'?'fail':'warn'}">${m.pattern_name}</span> ${m.match_score}%</div>`;
+    });
+  }
+  return html;
+}
+
+function renderDev(data) {
+  if (!data) return '<div class="empty">No developer data</div>';
+  let html = '';
+  html += `<div class="metric-row"><span class="metric-label">Tokens Deployed</span><span class="metric-value">${data.tokens_deployed||'unknown'}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Activity Span</span><span class="metric-value">${data.activity_span_days||0} days</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Risk Level</span><span class="metric-value" style="color:${riskColor(data.risk_level)}">${data.risk_level||'--'}</span></div>`;
+  if (data.known_entity) html += `<div class="metric-row"><span class="metric-label">Entity</span><span class="entity-badge">${data.known_entity}</span></div>`;
+  if (data.entity_type) html += `<div class="metric-row"><span class="metric-label">Type</span><span class="metric-value">${data.entity_type}</span></div>`;
+  return html;
+}
+
+function renderEntity(data) {
+  if (!data || !data.entity) return '<div class="empty">No entity data (requires Arkham)</div>';
+  let html = '';
+  const e = data.entity;
+  if (e.entity_name) html += `<div class="entity-badge" style="font-size:16px;margin-bottom:8px">${e.entity_name}</div>`;
+  html += `<div class="metric-row"><span class="metric-label">Type</span><span class="metric-value">${e.entity_type||'--'}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Chain</span><span class="metric-value">${e.primary_chain||'--'}</span></div>`;
+  if (e.label) html += `<div class="metric-row"><span class="metric-label">Label</span><span class="metric-value">${e.label}</span></div>`;
+  if (e.is_contract) html += `<div class="metric-row"><span class="metric-label">Contract</span><span class="metric-value">Yes</span></div>`;
+  return html;
+}
+
+function renderWhales(data) {
+  if (!data) return '<div class="empty">No whale activity</div>';
+  let html = '';
+  html += `<div class="metric-row"><span class="metric-label">Movements Detected</span><span class="metric-value">${data.total_detected||0}</span></div>`;
+  if (data.whale_movements && data.whale_movements.length) {
+    html += '<div class="wallet-list">';
+    data.whale_movements.slice(0,8).forEach(w => {
+      html += `<div class="wallet-item"><span>${w.wallet||'...'}</span><span style="color:var(--orange)">${w.amount||0}</span></div>`;
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+function renderInsider(data) {
+  if (!data) return '<div class="empty">No insider signals</div>';
+  let html = '';
+  html += `<div class="metric-row"><span class="metric-label">Signals Found</span><span class="metric-value">${data.total_signals||0}</span></div>`;
+  html += `<div class="metric-row"><span class="metric-label">Confidence</span><span class="metric-value" style="color:${data.confidence==='HIGH'?'var(--red)':'var(--yellow)'}">${data.confidence||'--'}</span></div>`;
+  if (data.insider_signals && data.insider_signals.length) {
+    data.insider_signals.slice(0,3).forEach(s => {
+      html += `<div style="margin-top:6px;font-size:11px"><span class="tag ${s.signal_strength==='HIGH'?'fail':'warn'}">${s.signal_strength}</span> ${s.spike_multiplier}x volume spike</div>`;
+    });
+  }
+  return html;
+}
+
+function renderLaunches(data) {
+  if (!data) return '<div class="empty">No launch data</div>';
+  let html = '';
+  const rd = data.risk_distribution || {};
+  html += `<div class="metric-row"><span class="metric-label">New Tokens</span><span class="metric-value">${data.total_detected||0}</span></div>`;
+  if (rd.CRITICAL) html += `<div class="metric-row"><span class="metric-label">Critical Risk</span><span class="metric-value" style="color:var(--red)">${rd.CRITICAL}</span></div>`;
+  if (rd.HIGH) html += `<div class="metric-row"><span class="metric-label">High Risk</span><span class="metric-value" style="color:var(--orange)">${rd.HIGH}</span></div>`;
+  if (data.new_tokens && data.new_tokens.length) {
+    html += '<div class="launch-feed">';
+    data.new_tokens.slice(0,10).forEach(t => {
+      html += `<div class="launch-item"><span style="font-family:monospace;font-size:11px">${t.signature||'...'}</span><span class="tag ${t.risk_level==='CRITICAL'?'fail':t.risk_level==='HIGH'?'warn':'pass'}">${t.risk_level} · ${t.age_minutes}m</span></div>`;
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+function renderSmartMoney(data) {
+  if (!data) return '<div class="empty">No smart money data</div>';
+  let html = '';
+  html += `<div class="metric-row"><span class="metric-label">Tracked Wallets</span><span class="metric-value">${data.total_tracked||0}</span></div>`;
+  if (data.smart_money_wallets && data.smart_money_wallets.length) {
+    html += '<div class="wallet-list">';
+    data.smart_money_wallets.slice(0,8).forEach(w => {
+      const label = w.entity ? ` · ${w.entity}` : '';
+      html += `<div class="wallet-item"><span>${(w.address||'').slice(0,12)}...</span><span>$${(w.estimated_usd||0).toLocaleString()}${label}</span></div>`;
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+async function scanToken() {
+  const addr = document.getElementById('tokenInput').value.trim();
+  const chain = document.getElementById('chainSelect').value;
+  if (!addr) return;
+
+  // Show loading
+  document.querySelectorAll('.panel > div:last-child').forEach(el => {
+    if (el.id && el.id.endsWith('Panel')) el.innerHTML = '<div class="spinner"></div>';
+  });
+  document.getElementById('verdictBanner').classList.remove('active');
+  document.getElementById('errorPanel').style.display = 'none';
+
+  // Fire all endpoints in parallel
+  const token = encodeURIComponent(addr);
+  const [report, security, holders, liquidity, volume, rug, dev, entity, whales, insider, launches, smart] =
+    await Promise.all([
+      apiGet(`/premium/token-report/${token}?chain=${chain}`),
+      apiGet(`/premium/security-scan/${token}?chain=${chain}`),
+      apiGet(`/premium/holder-health/${token}?chain=${chain}`),
+      apiGet(`/premium/liquidity-risk/${token}?chain=${chain}`),
+      apiGet(`/premium/volume-authenticity/${token}?chain=${chain}`),
+      apiGet(`/premium/rug-patterns/${token}?chain=${chain}`),
+      apiGet(`/premium/dev-reputation/${token}?chain=${chain}`),
+      apiGet(`/premium/cross-chain/${token}`),
+      apiGet(`/premium/whale-alerts/${token}?chain=${chain}`),
+      apiGet(`/premium/insider-detection/${token}?chain=${chain}`),
+      apiGet(`/premium/token-launches?chain=${chain}&limit=20`),
+      apiGet(`/premium/smart-money?chain=${chain}`),
+    ]);
+
+  // Render verdict
+  const v = document.getElementById('verdictBanner');
+  v.classList.add('active');
+  const or = report?.overall_risk || {};
+  document.getElementById('riskScore').textContent = or.score || '--';
+  document.getElementById('riskScore').style.color = riskColor(or.level);
+  const badge = document.getElementById('riskBadge');
+  badge.textContent = or.level || 'UNKNOWN';
+  badge.className = 'risk-badge ' + riskBadgeClass(or.level);
+  document.getElementById('verdictText').textContent = report?.quick_verdict || '';
+
+  // Render panels
+  document.getElementById('securityPanel').innerHTML = renderSecurity(report?.sections?.security || security);
+  document.getElementById('holderPanel').innerHTML = renderHolders(report?.sections?.holders || holders);
+  document.getElementById('liquidityPanel').innerHTML = renderLiquidity(report?.sections?.liquidity || liquidity);
+  document.getElementById('volumePanel').innerHTML = renderVolume(report?.sections?.volume || volume);
+  document.getElementById('rugPanel').innerHTML = renderRugPatterns(report?.sections?.rug_patterns || rug);
+  document.getElementById('devPanel').innerHTML = renderDev(report?.sections?.developer || dev);
+  document.getElementById('entityPanel').innerHTML = renderEntity(report?.sections?.entity || entity);
+  document.getElementById('whalePanel').innerHTML = renderWhales(whales);
+  document.getElementById('insiderPanel').innerHTML = renderInsider(insider);
+  document.getElementById('launchPanel').innerHTML = renderLaunches(launches);
+  document.getElementById('smartMoneyPanel').innerHTML = renderSmartMoney(smart);
+
+  // Error handling
+  if (!report && !security && !holders) {
+    document.getElementById('errorPanel').style.display = 'block';
+    document.getElementById('errorPanel').textContent = 'Could not fetch token data. Check the address and chain.';
+  }
+
+  // Update URL
+  history.pushState({}, '', `?chain=${chain}&token=${addr}`);
+}
+
+async function init() {
+  // Load stats
+  try {
+    const health = await fetch(API + '/health').then(r => r.json());
+    document.getElementById('chainCount').textContent = health?.chains || '49';
+    document.getElementById('cacheStatus').textContent = health?.cache_hits ? `${health.cache_hits} hits` : 'live';
+  } catch(e) {}
+
+  // Check URL params
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  const chain = params.get('chain');
+  if (token) {
+    document.getElementById('tokenInput').value = token;
+    if (chain) document.getElementById('chainSelect').value = chain;
+    scanToken();
+  }
+
+  // Enter key
+  document.getElementById('tokenInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') scanToken();
+  });
+}
+
+init();
+</script>
+</body>
+</html>

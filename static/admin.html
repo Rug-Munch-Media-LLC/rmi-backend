@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RMI Darkroom — Admin Control Panel</title>
+<style>
+:root {
+  --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a2e; --bg4: #242438;
+  --fg: #e0e0e0; --fg2: #a0a0b0; --accent: #00d4ff; --accent2: #ff6b35;
+  --green: #00ff88; --red: #ff4444; --yellow: #ffcc00; --purple: #b388ff;
+  --border: #2a2a40; --shadow: 0 4px 24px rgba(0,0,0,0.5);
+  --radius: 8px; --font: 'Segoe UI', system-ui, sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--bg); color:var(--fg); min-height:100vh; }
+
+/* Login */
+.login-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg, var(--bg) 0%, var(--bg3) 100%); }
+.login-box { background:var(--bg2); padding:40px; border-radius:16px; border:1px solid var(--border); width:100%; max-width:420px; box-shadow:var(--shadow); }
+.login-box h1 { font-size:28px; margin-bottom:8px; color:var(--accent); }
+.login-box p { color:var(--fg2); margin-bottom:24px; font-size:14px; }
+.login-box input { width:100%; padding:12px 16px; margin-bottom:12px; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); color:var(--fg); font-size:15px; }
+.login-box input:focus { outline:none; border-color:var(--accent); }
+.login-box button { width:100%; padding:14px; background:var(--accent); color:var(--bg); border:none; border-radius:var(--radius); font-size:16px; font-weight:600; cursor:pointer; transition:opacity 0.2s; }
+.login-box button:hover { opacity:0.9; }
+.login-box .error { color:var(--red); font-size:13px; margin-top:8px; }
+
+/* Layout */
+.app { display:none; }
+.app.active { display:flex; min-height:100vh; }
+.sidebar { width:260px; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; height:100vh; overflow-y:auto; z-index:100; }
+.sidebar-header { padding:20px; border-bottom:1px solid var(--border); }
+.sidebar-header h2 { font-size:18px; color:var(--accent); }
+.sidebar-header span { font-size:12px; color:var(--fg2); }
+.sidebar-nav { flex:1; padding:12px; }
+.nav-item { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:var(--radius); cursor:pointer; transition:all 0.2s; color:var(--fg2); font-size:14px; margin-bottom:2px; }
+.nav-item:hover { background:var(--bg3); color:var(--fg); }
+.nav-item.active { background:var(--bg3); color:var(--accent); border-left:3px solid var(--accent); }
+.nav-item svg { width:18px; height:18px; flex-shrink:0; }
+.nav-section { font-size:11px; text-transform:uppercase; color:var(--fg2); padding:16px 14px 8px; letter-spacing:1px; }
+.sidebar-footer { padding:16px; border-top:1px solid var(--border); font-size:12px; color:var(--fg2); }
+.sidebar-footer button { width:100%; padding:8px; margin-top:8px; background:var(--bg3); border:1px solid var(--border); color:var(--fg2); border-radius:var(--radius); cursor:pointer; }
+
+.main { flex:1; margin-left:260px; min-height:100vh; }
+.topbar { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; background:var(--bg2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50; }
+.topbar h1 { font-size:20px; font-weight:500; }
+.topbar-right { display:flex; align-items:center; gap:16px; }
+.topbar .badge { padding:4px 12px; border-radius:20px; font-size:12px; font-weight:500; }
+.badge-admin { background:var(--accent); color:var(--bg); }
+.badge-super { background:var(--purple); color:var(--bg); }
+.badge-mod { background:var(--yellow); color:var(--bg); }
+
+.content { padding:24px; }
+
+/* Cards */
+.card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; margin-bottom:24px; }
+.stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+.stat-card h3 { font-size:12px; color:var(--fg2); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.stat-card .value { font-size:32px; font-weight:700; color:var(--accent); }
+.stat-card .change { font-size:13px; color:var(--green); margin-top:4px; }
+.stat-card .change.down { color:var(--red); }
+
+/* Tables */
+.table-wrap { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.table-wrap table { width:100%; border-collapse:collapse; }
+.table-wrap th { text-align:left; padding:12px 16px; font-size:12px; text-transform:uppercase; color:var(--fg2); background:var(--bg3); border-bottom:1px solid var(--border); }
+.table-wrap td { padding:12px 16px; border-bottom:1px solid var(--border); font-size:14px; }
+.table-wrap tr:hover td { background:var(--bg3); }
+.table-wrap .status { padding:4px 10px; border-radius:12px; font-size:11px; font-weight:500; }
+.status-published { background:rgba(0,255,136,0.15); color:var(--green); }
+.status-draft { background:rgba(255,204,0,0.15); color:var(--yellow); }
+.status-archived { background:rgba(255,68,68,0.15); color:var(--red); }
+.status-review { background:rgba(0,212,255,0.15); color:var(--accent); }
+.status-scheduled { background:rgba(179,136,255,0.15); color:var(--purple); }
+
+/* Buttons */
+.btn { padding:8px 16px; border-radius:var(--radius); border:none; font-size:13px; cursor:pointer; transition:opacity 0.2s; font-weight:500; }
+.btn-primary { background:var(--accent); color:var(--bg); }
+.btn-danger { background:var(--red); color:#fff; }
+.btn-secondary { background:var(--bg3); color:var(--fg); border:1px solid var(--border); }
+.btn-sm { padding:4px 12px; font-size:12px; }
+.btn:hover { opacity:0.85; }
+
+/* Forms */
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-size:13px; color:var(--fg2); margin-bottom:6px; }
+.form-group input, .form-group textarea, .form-group select { width:100%; padding:10px 14px; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); color:var(--fg); font-size:14px; font-family:inherit; }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline:none; border-color:var(--accent); }
+.form-group textarea { min-height:120px; resize:vertical; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+/* Tabs */
+.tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); }
+.tab { padding:10px 20px; cursor:pointer; font-size:14px; color:var(--fg2); border-bottom:2px solid transparent; transition:all 0.2s; }
+.tab:hover { color:var(--fg); }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+/* Search */
+.search-bar { display:flex; gap:12px; margin-bottom:20px; }
+.search-bar input { flex:1; padding:10px 16px; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); color:var(--fg); }
+.search-bar input:focus { outline:none; border-color:var(--accent); }
+
+/* Modals */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200; align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal { background:var(--bg2); border:1px solid var(--border); border-radius:16px; width:90%; max-width:700px; max-height:90vh; overflow-y:auto; box-shadow:var(--shadow); }
+.modal-header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.modal-header h2 { font-size:18px; }
+.modal-body { padding:24px; }
+.modal-footer { padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:12px; }
+
+/* Charts placeholder */
+.chart-container { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px; height:300px; display:flex; align-items:center; justify-content:center; color:var(--fg2); }
+
+/* Toast */
+.toast { position:fixed; bottom:24px; right:24px; padding:12px 20px; border-radius:var(--radius); color:#fff; font-size:14px; z-index:300; transform:translateY(100px); opacity:0; transition:all 0.3s; }
+.toast.show { transform:translateY(0); opacity:1; }
+.toast-success { background:var(--green); color:var(--bg); }
+.toast-error { background:var(--red); }
+
+/* Responsive */
+@media (max-width:768px) {
+  .sidebar { width:60px; }
+  .sidebar .nav-item span, .sidebar-header span, .nav-section { display:none; }
+  .main { margin-left:60px; }
+  .form-row { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h1>Darkroom</h1>
+    <p>RugMunch Intelligence — Admin Control Panel</p>
+    <input type="email" id="loginEmail" placeholder="Admin email" value="">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <input type="text" id="loginTOTP" placeholder="2FA code (if enabled)" style="display:none;">
+    <button onclick="doLogin()">Sign In</button>
+    <div class="error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Darkroom</h2>
+      <span id="adminRoleBadge">ADMIN</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="navTo('dashboard')" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item" onclick="navTo('system')" data-page="system">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        <span>System Health</span>
+      </div>
+      <div class="nav-item" onclick="navTo('analytics')" data-page="analytics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        <span>Analytics</span>
+      </div>
+
+      <div class="nav-section">Users & Security</div>
+      <div class="nav-item" onclick="navTo('users')" data-page="users">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+        <span>User Management</span>
+      </div>
+      <div class="nav-item" onclick="navTo('security')" data-page="security">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Security Center</span>
+      </div>
+      <div class="nav-item" onclick="navTo('audit')" data-page="audit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>Audit Logs</span>
+      </div>
+      <div class="nav-item" onclick="navTo('admins')" data-page="admins">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Admin Accounts</span>
+      </div>
+
+      <div class="nav-section">Content</div>
+      <div class="nav-item" onclick="navTo('bulletin')" data-page="bulletin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>
+        <span>Bulletin Board</span>
+      </div>
+      <div class="nav-item" onclick="navTo('announcements')" data-page="announcements">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span>Announcements</span>
+      </div>
+
+      <div class="nav-section">Platform</div>
+      <div class="nav-item" onclick="navTo('tokens')" data-page="tokens">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span>Token Deployer</span>
+      </div>
+      <div class="nav-item" onclick="navTo('airdrop')" data-page="airdrop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span>Airdrop Manager</span>
+      </div>
+      <div class="nav-item" onclick="navTo('financial')" data-page="financial">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>Financial</span>
+      </div>
+      <div class="nav-item" onclick="navTo('apikeys')" data-page="apikeys">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <span>API Keys</span>
+      </div>
+      <div class="nav-item" onclick="navTo('webhooks')" data-page="webhooks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span>Webhooks</span>
+      </div>
+      <div class="nav-item" onclick="navTo('config')" data-page="config">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.68 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Configuration</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="adminEmail">admin@rugmunch.io</div>
+      <button onclick="doLogout()">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1 id="pageTitle">Dashboard</h1>
+      <div class="topbar-right">
+        <span class="badge badge-admin" id="roleBadge">ADMIN</span>
+        <span id="currentTime" style="font-size:13px;color:var(--fg2);"></span>
+      </div>
+    </div>
+    <div class="content" id="mainContent">
+      <!-- Content injected by JS -->
+    </div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Modal</h2>
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+let session = null;
+let admin = null;
+let currentPage = 'dashboard';
+const API_BASE = '/api/v1';
+
+// ── Auth ──────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const totp = document.getElementById('loginTOTP').value;
+  const errorEl = document.getElementById('loginError');
+  errorEl.textContent = '';
+
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password, totp_code: totp || undefined})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Login failed');
+
+    session = data.session_id;
+    admin = data.admin;
+    localStorage.setItem('admin_session', session);
+    showApp();
+  } catch (e) {
+    errorEl.textContent = e.message;
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('admin_session');
+  session = null;
+  admin = null;
+  location.reload();
+}
+
+async function checkSession() {
+  const saved = localStorage.getItem('admin_session');
+  if (!saved) return;
+  session = saved;
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/auth/me`, {
+      headers: {'X-Admin-Session': session}
+    });
+    if (!res.ok) throw new Error('Session expired');
+    const data = await res.json();
+    admin = data.admin;
+    showApp();
+  } catch (e) {
+    localStorage.removeItem('admin_session');
+  }
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('adminEmail').textContent = admin?.email || 'Admin';
+  document.getElementById('roleBadge').textContent = (admin?.role || 'ADMIN').toUpperCase();
+  document.getElementById('adminRoleBadge').textContent = (admin?.role || 'ADMIN').toUpperCase();
+  navTo('dashboard');
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function navTo(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  document.getElementById('pageTitle').textContent = page.charAt(0).toUpperCase() + page.slice(1);
+
+  const content = document.getElementById('mainContent');
+  content.innerHTML = '';
+
+  switch(page) {
+    case 'dashboard': renderDashboard(content); break;
+    case 'system': renderSystem(content); break;
+    case 'analytics': renderAnalytics(content); break;
+    case 'users': renderUsers(content); break;
+    case 'security': renderSecurity(content); break;
+    case 'audit': renderAudit(content); break;
+    case 'admins': renderAdmins(content); break;
+    case 'bulletin': renderBulletin(content); break;
+    case 'announcements': renderAnnouncements(content); break;
+    case 'tokens': window.location.href = '/darkroom'; break;
+    case 'airdrop': window.location.href = '/darkroom'; break;
+    case 'financial': renderFinancial(content); break;
+    case 'apikeys': renderAPIKeys(content); break;
+    case 'webhooks': renderWebhooks(content); break;
+    case 'config': renderConfig(content); break;
+    default: renderDashboard(content);
+  }
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function renderDashboard(el) {
+  el.innerHTML = `
+    <div class="card-grid">
+      <div class="stat-card"><h3>Total Users</h3><div class="value" id="dashUsers">-</div><div class="change">+12% this week</div></div>
+      <div class="stat-card"><h3>Active Sessions</h3><div class="value" id="dashSessions">-</div></div>
+      <div class="stat-card"><h3>Blocked IPs</h3><div class="value" id="dashBlocked">-</div></div>
+      <div class="stat-card"><h3>System Health</h3><div class="value" id="dashHealth" style="color:var(--green)">OK</div></div>
+      <div class="stat-card"><h3>Token Deployments</h3><div class="value" id="dashTokens">-</div></div>
+      <div class="stat-card"><h3>X402 Revenue</h3><div class="value" id="dashRevenue">$0</div></div>
+    </div>
+    <div class="chart-container">Charts & Analytics — Coming Soon</div>
+  `;
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/dashboard`, {headers:{'X-Admin-Session':session}});
+    if(res.ok) {
+      const data = await res.json();
+      document.getElementById('dashUsers').textContent = data.stats?.total_users || 0;
+      document.getElementById('dashSessions').textContent = data.stats?.active_sessions || 0;
+      document.getElementById('dashBlocked').textContent = data.stats?.blocked_ips || 0;
+      document.getElementById('dashTokens').textContent = data.stats?.total_deployments || 0;
+      const health = data.health?.cpu?.percent || 0;
+      document.getElementById('dashHealth').textContent = health > 80 ? 'HIGH' : 'OK';
+      document.getElementById('dashHealth').style.color = health > 80 ? 'var(--red)' : 'var(--green)';
+    }
+  } catch(e) {}
+}
+
+// ── System Health ────────────────────────────────────────────
+async function renderSystem(el) {
+  el.innerHTML = `<div class="chart-container">Loading system health...</div>`;
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/system/health`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    el.innerHTML = `
+      <div class="card-grid">
+        <div class="stat-card"><h3>CPU Usage</h3><div class="value">${data.cpu?.percent || 0}%</div><div class="change">${data.cpu?.count} cores</div></div>
+        <div class="stat-card"><h3>Memory</h3><div class="value">${data.memory?.percent || 0}%</div><div class="change">${data.memory?.used_gb}GB / ${data.memory?.total_gb}GB</div></div>
+        <div class="stat-card"><h3>Disk</h3><div class="value">${data.disk?.percent || 0}%</div><div class="change">${data.disk?.free_gb}GB free</div></div>
+        <div class="stat-card"><h3>Backend Memory</h3><div class="value">${data.backend?.memory_mb || 0}MB</div><div class="change">${data.backend?.threads} threads</div></div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Service</th><th>Status</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Backend</td><td><span class="status status-published">Running</span></td><td>PID ${data.backend?.pid}</td></tr>
+          <tr><td>Redis</td><td><span class="status ${data.services?.redis?.status==='connected'?'status-published':'status-archived'}">${data.services?.redis?.status}</span></td><td>${data.services?.redis?.version || ''}</td></tr>
+          <tr><td>Supabase</td><td><span class="status ${data.services?.supabase?.status==='connected'?'status-published':'status-archived'}">${data.services?.supabase?.status}</span></td><td></td></tr>
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch(e) { el.innerHTML = `<div class="error">Failed to load: ${e.message}</div>`; }
+}
+
+// ── Users ────────────────────────────────────────────────────
+async function renderUsers(el) {
+  el.innerHTML = `
+    <div class="search-bar">
+      <input type="text" id="userSearch" placeholder="Search users..." onkeyup="if(event.key==='Enter')loadUsers()">
+      <button class="btn btn-primary" onclick="loadUsers()">Search</button>
+    </div>
+    <div class="table-wrap" id="usersTable"><table><thead><tr><th>Email</th><th>Tier</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5" style="text-align:center;color:var(--fg2)">Loading...</td></tr></tbody></table></div>
+  `;
+  loadUsers();
+}
+
+async function loadUsers() {
+  const search = document.getElementById('userSearch')?.value || '';
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/users?limit=100&search=${encodeURIComponent(search)}`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    const tbody = data.users?.map(u => `
+      <tr>
+        <td>${u.email}</td>
+        <td><span class="status ${u.tier==='FREE'?'status-draft':'status-published'}">${u.tier}</span></td>
+        <td>${u.role || 'USER'}</td>
+        <td>${new Date(u.created_at).toLocaleDateString()}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="banUser('${u.id}', ${!u.banned})">${u.banned ? 'Unban' : 'Ban'}</button>
+          <button class="btn btn-sm btn-secondary" onclick="showUserTier('${u.id}', '${u.tier}')">Tier</button>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" style="text-align:center">No users</td></tr>';
+    document.getElementById('usersTable').innerHTML = `<table><thead><tr><th>Email</th><th>Tier</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead><tbody>${tbody}</tbody></table>`;
+  } catch(e) {}
+}
+
+async function banUser(userId, banned) {
+  try {
+    await fetch(`${API_BASE}/admin/backend/users/${userId}/ban`, {
+      method: 'POST', headers: {'X-Admin-Session': session, 'Content-Type': 'application/json'},
+      body: JSON.stringify({banned})
+    });
+    showToast(banned ? 'User banned' : 'User unbanned', 'success');
+    loadUsers();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── Security ─────────────────────────────────────────────────
+async function renderSecurity(el) {
+  el.innerHTML = `
+    <div class="tabs">
+      <div class="tab active" onclick="showSecurityTab('blocked')">Blocked IPs</div>
+      <div class="tab" onclick="showSecurityTab('threats')">Threats</div>
+    </div>
+    <div id="securityContent">
+      <div class="search-bar">
+        <input type="text" id="blockIP" placeholder="IP to block">
+        <input type="text" id="blockReason" placeholder="Reason" style="flex:2">
+        <button class="btn btn-danger" onclick="blockIP()">Block IP</button>
+      </div>
+      <div class="table-wrap" id="blockedTable">Loading...</div>
+    </div>
+  `;
+  loadBlockedIPs();
+}
+
+async function loadBlockedIPs() {
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/security/blocked-ips`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    const tbody = data.blocked_ips?.map(ip => `
+      <tr><td>${ip.ip}</td><td>${ip.reason}</td><td>${new Date(ip.blocked_at).toLocaleString()}</td><td>${ip.duration_hours}h</td>
+      <td><button class="btn btn-sm btn-secondary" onclick="unblockIP('${ip.ip}')">Unblock</button></td></tr>
+    `).join('') || '<tr><td colspan="5" style="text-align:center">No blocked IPs</td></tr>';
+    document.getElementById('blockedTable').innerHTML = `<table><thead><tr><th>IP</th><th>Reason</th><th>Blocked At</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${tbody}</tbody></table>`;
+  } catch(e) {}
+}
+
+async function blockIP() {
+  const ip = document.getElementById('blockIP').value;
+  const reason = document.getElementById('blockReason').value;
+  if(!ip) return;
+  try {
+    await fetch(`${API_BASE}/admin/backend/security/block-ip`, {
+      method: 'POST', headers: {'X-Admin-Session': session, 'Content-Type': 'application/json'},
+      body: JSON.stringify({ip, reason, duration_hours: 24})
+    });
+    showToast('IP blocked', 'success');
+    loadBlockedIPs();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function unblockIP(ip) {
+  try {
+    await fetch(`${API_BASE}/admin/backend/security/unblock-ip`, {
+      method: 'POST', headers: {'X-Admin-Session': session, 'Content-Type': 'application/json'},
+      body: JSON.stringify({ip})
+    });
+    showToast('IP unblocked', 'success');
+    loadBlockedIPs();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function showSecurityTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  if(tab === 'blocked') loadBlockedIPs();
+}
+
+// ── Audit Logs ───────────────────────────────────────────────
+async function renderAudit(el) {
+  el.innerHTML = `
+    <div class="search-bar">
+      <input type="text" id="auditAction" placeholder="Action filter">
+      <button class="btn btn-primary" onclick="loadAudit()">Refresh</button>
+    </div>
+    <div class="table-wrap" id="auditTable">Loading...</div>
+  `;
+  loadAudit();
+}
+
+async function loadAudit() {
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/security/audit-logs?limit=100`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    const tbody = data.logs?.map(l => `
+      <tr><td>${new Date(l.timestamp).toLocaleString()}</td><td>${l.admin_email}</td><td>${l.action}</td>
+      <td>${l.resource_type}</td><td><span class="status ${l.status==='success'?'status-published':'status-archived'}">${l.status}</span></td></tr>
+    `).join('') || '<tr><td colspan="5" style="text-align:center">No logs</td></tr>';
+    document.getElementById('auditTable').innerHTML = `<table><thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Resource</th><th>Status</th></tr></thead><tbody>${tbody}</tbody></table>`;
+  } catch(e) {}
+}
+
+// ── Admins ───────────────────────────────────────────────────
+async function renderAdmins(el) {
+  el.innerHTML = `
+    <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showCreateAdmin()">+ Create Admin</button></div>
+    <div class="table-wrap" id="adminsTable">Loading...</div>
+  `;
+  loadAdmins();
+}
+
+async function loadAdmins() {
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/admins`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    const tbody = data.admins?.map(a => `
+      <tr><td>${a.email}</td><td><span class="badge badge-${a.role}">${a.role}</span></td>
+      <td>${a.is_active ? 'Active' : 'Inactive'}</td><td>${a.last_login ? new Date(a.last_login).toLocaleString() : 'Never'}</td>
+      <td><button class="btn btn-sm btn-secondary" onclick="resetAdminPassword('${a.id}')">Reset PW</button></td></tr>
+    `).join('') || '<tr><td colspan="5" style="text-align:center">No admins</td></tr>';
+    document.getElementById('adminsTable').innerHTML = `<table><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>${tbody}</tbody></table>`;
+  } catch(e) {}
+}
+
+function showCreateAdmin() {
+  document.getElementById('modalTitle').textContent = 'Create Admin';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>Email</label><input type="email" id="newAdminEmail"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="newAdminPassword"></div>
+    <div class="form-group"><label>Role</label><select id="newAdminRole"><option value="viewer">Viewer</option><option value="moderator">Moderator</option><option value="admin">Admin</option><option value="superadmin">Superadmin</option></select></div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="createAdmin()">Create</button>
+  `;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function createAdmin() {
+  const email = document.getElementById('newAdminEmail').value;
+  const password = document.getElementById('newAdminPassword').value;
+  const role = document.getElementById('newAdminRole').value;
+  try {
+    await fetch(`${API_BASE}/admin/backend/admins`, {
+      method: 'POST', headers: {'X-Admin-Session': session, 'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password, role})
+    });
+    closeModal();
+    showToast('Admin created', 'success');
+    loadAdmins();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── BULLETIN BOARD ───────────────────────────────────────────
+async function renderBulletin(el) {
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="tabs">
+        <div class="tab active" onclick="showBulletinTab('all')">All Posts</div>
+        <div class="tab" onclick="showBulletinTab('published')">Published</div>
+        <div class="tab" onclick="showBulletinTab('draft')">Drafts</div>
+        <div class="tab" onclick="showBulletinTab('scheduled')">Scheduled</div>
+        <div class="tab" onclick="showBulletinTab('archived')">Archived</div>
+      </div>
+      <button class="btn btn-primary" onclick="showCreatePost()">+ New Post</button>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="postSearch" placeholder="Search posts..." onkeyup="if(event.key==='Enter')loadPosts()">
+      <select id="postCategory" onchange="loadPosts()">
+        <option value="">All Categories</option>
+        <option value="news">News</option>
+        <option value="alert">Alert</option>
+        <option value="update">Update</option>
+        <option value="promo">Promo</option>
+        <option value="system">System</option>
+        <option value="community">Community</option>
+        <option value="announcement">Announcement</option>
+        <option value="tutorial">Tutorial</option>
+      </select>
+      <button class="btn btn-primary" onclick="loadPosts()">Search</button>
+    </div>
+    <div class="table-wrap" id="postsTable">Loading...</div>
+  `;
+  loadPosts();
+}
+
+let currentBulletinTab = 'all';
+
+function showBulletinTab(tab) {
+  currentBulletinTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  loadPosts();
+}
+
+async function loadPosts() {
+  const search = document.getElementById('postSearch')?.value || '';
+  const category = document.getElementById('postCategory')?.value || '';
+  const status = currentBulletinTab === 'all' ? '' : currentBulletinTab;
+  try {
+    const res = await fetch(`${API_BASE}/admin/bulletin/posts?limit=50&search=${encodeURIComponent(search)}&category=${category}&status=${status}&sort_by=created_at&sort_order=desc`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    const tbody = data.posts?.map(p => `
+      <tr>
+        <td><strong>${p.title}</strong><br><small style="color:var(--fg2)">${p.summary?.substring(0,80)}...</small></td>
+        <td><span class="status status-${p.status}">${p.status}</span></td>
+        <td><span class="badge" style="background:var(--bg3);color:var(--fg2)">${p.category}</span></td>
+        <td>${p.pinned ? 'Pinned' : '-'}</td>
+        <td>${p.author_name}</td>
+        <td>${new Date(p.created_at).toLocaleDateString()}</td>
+        <td>
+          ${p.status === 'draft' || p.status === 'review' || p.status === 'scheduled' ? `<button class="btn btn-sm btn-primary" onclick="publishPost('${p.post_id}')">Publish</button>` : ''}
+          <button class="btn btn-sm btn-secondary" onclick="editPost('${p.post_id}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deletePost('${p.post_id}')">Delete</button>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="7" style="text-align:center">No posts</td></tr>';
+    document.getElementById('postsTable').innerHTML = `<table><thead><tr><th>Title</th><th>Status</th><th>Category</th><th>Pin</th><th>Author</th><th>Date</th><th>Actions</th></tr></thead><tbody>${tbody}</tbody></table>`;
+  } catch(e) { document.getElementById('postsTable').innerHTML = `<div class="error">Error: ${e.message}</div>`; }
+}
+
+function showCreatePost() {
+  document.getElementById('modalTitle').textContent = 'New Bulletin Post';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>Title</label><input type="text" id="postTitle" maxlength="200"></div>
+    <div class="form-group"><label>Content</label><textarea id="postContent"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Category</label><select id="postCat"><option value="news">News</option><option value="alert">Alert</option><option value="update">Update</option><option value="promo">Promo</option><option value="system">System</option><option value="community">Community</option><option value="announcement">Announcement</option><option value="tutorial">Tutorial</option></select></div>
+      <div class="form-group"><label>Priority</label><select id="postPriority"><option value="low">Low</option><option value="normal" selected>Normal</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label><select id="postStatus"><option value="draft" selected>Draft</option><option value="published">Published</option><option value="scheduled">Scheduled</option></select></div>
+      <div class="form-group"><label>Target Audience</label><select id="postAudience"><option value="all">All</option><option value="free">Free</option><option value="premium">Premium</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option><option value="admins">Admins</option></select></div>
+    </div>
+    <div class="form-group"><label>Tags (comma separated)</label><input type="text" id="postTags"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Schedule At (optional)</label><input type="datetime-local" id="postSchedule"></div>
+      <div class="form-group"><label>Expires At (optional)</label><input type="datetime-local" id="postExpires"></div>
+    </div>
+    <div class="form-group"><label><input type="checkbox" id="postPinned"> Pin this post</label></div>
+    <div class="form-group"><label><input type="checkbox" id="postComments"> Allow comments</label></div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="createPost()">Create Post</button>
+  `;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function createPost() {
+  const body = {
+    title: document.getElementById('postTitle').value,
+    content: document.getElementById('postContent').value,
+    category: document.getElementById('postCat').value,
+    priority: document.getElementById('postPriority').value,
+    target_audience: document.getElementById('postAudience').value,
+    status: document.getElementById('postStatus').value,
+    tags: document.getElementById('postTags').value.split(',').map(t => t.trim()).filter(t => t),
+    scheduled_at: document.getElementById('postSchedule').value || null,
+    expires_at: document.getElementById('postExpires').value || null,
+    pinned: document.getElementById('postPinned').checked,
+    allow_comments: document.getElementById('postComments').checked,
+  };
+  try {
+    await fetch(`${API_BASE}/admin/bulletin/posts`, {
+      method: 'POST', headers: {'X-Admin-Session': session, 'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    closeModal();
+    showToast('Post created', 'success');
+    loadPosts();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function publishPost(postId) {
+  try {
+    await fetch(`${API_BASE}/admin/bulletin/posts/${postId}/publish`, {
+      method: 'POST', headers: {'X-Admin-Session': session}
+    });
+    showToast('Post published', 'success');
+    loadPosts();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function deletePost(postId) {
+  if(!confirm('Archive this post?')) return;
+  try {
+    await fetch(`${API_BASE}/admin/bulletin/posts/${postId}`, {
+      method: 'DELETE', headers: {'X-Admin-Session': session}
+    });
+    showToast('Post archived', 'success');
+    loadPosts();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── Announcements (simplified) ────────────────────────────────
+async function renderAnnouncements(el) {
+  el.innerHTML = `
+    <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showCreateAnnouncement()">+ New Announcement</button></div>
+    <div class="table-wrap" id="announcementsTable">Loading...</div>
+  `;
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/content/announcements?active_only=false`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    const tbody = data.announcements?.map(a => `
+      <tr><td><strong>${a.title}</strong></td><td>${a.type}</td><td>${a.target_audience}</td>
+      <td>${new Date(a.created_at).toLocaleDateString()}</td><td>${a.active ? 'Active' : 'Inactive'}</td></tr>
+    `).join('') || '<tr><td colspan="5" style="text-align:center">No announcements</td></tr>';
+    document.getElementById('announcementsTable').innerHTML = `<table><thead><tr><th>Title</th><th>Type</th><th>Audience</th><th>Created</th><th>Status</th></tr></thead><tbody>${tbody}</tbody></table>`;
+  } catch(e) {}
+}
+
+function showCreateAnnouncement() {
+  document.getElementById('modalTitle').textContent = 'New Announcement';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>Title</label><input type="text" id="annTitle"></div>
+    <div class="form-group"><label>Content</label><textarea id="annContent"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Type</label><select id="annType"><option value="info">Info</option><option value="warning">Warning</option><option value="critical">Critical</option><option value="update">Update</option></select></div>
+      <div class="form-group"><label>Audience</label><select id="annAudience"><option value="all">All</option><option value="users">Users</option><option value="admins">Admins</option><option value="premium">Premium</option></select></div>
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="createAnnouncement()">Create</button>
+  `;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function createAnnouncement() {
+  const body = {
+    title: document.getElementById('annTitle').value,
+    content: document.getElementById('annContent').value,
+    type: document.getElementById('annType').value,
+    target_audience: document.getElementById('annAudience').value,
+  };
+  try {
+    await fetch(`${API_BASE}/admin/backend/content/announcements`, {
+      method: 'POST', headers: {'X-Admin-Session': session, 'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    closeModal();
+    showToast('Announcement created', 'success');
+    navTo('announcements');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── Financial ────────────────────────────────────────────────
+async function renderFinancial(el) {
+  el.innerHTML = `
+    <div class="card-grid">
+      <div class="stat-card"><h3>X402 Revenue (30d)</h3><div class="value">$0</div></div>
+      <div class="stat-card"><h3>Subscriptions</h3><div class="value">$0</div></div>
+      <div class="stat-card"><h3>API Usage</h3><div class="value">$0</div></div>
+      <div class="stat-card"><h3>Total Revenue</h3><div class="value">$0</div></div>
+    </div>
+    <div class="chart-container">Financial charts — Coming Soon</div>
+  `;
+}
+
+// ── API Keys ────────────────────────────────────────────────
+async function renderAPIKeys(el) {
+  el.innerHTML = `
+    <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showCreateAPIKey()">+ New API Key</button></div>
+    <div class="table-wrap" id="apiKeysTable">Loading...</div>
+  `;
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/api-keys`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    const tbody = data.api_keys?.map(k => `
+      <tr><td>${k.name}</td><td><code>${k.key}</code></td><td>${k.scopes?.join(', ') || 'all'}</td>
+      <td>${k.active ? 'Active' : 'Revoked'}</td><td>${new Date(k.created_at).toLocaleDateString()}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="revokeKey('${k.id}')">Revoke</button></td></tr>
+    `).join('') || '<tr><td colspan="6" style="text-align:center">No API keys</td></tr>';
+    document.getElementById('apiKeysTable').innerHTML = `<table><thead><tr><th>Name</th><th>Key</th><th>Scopes</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>${tbody}</tbody></table>`;
+  } catch(e) {}
+}
+
+function showCreateAPIKey() {
+  document.getElementById('modalTitle').textContent = 'New API Key';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>Name</label><input type="text" id="keyName"></div>
+    <div class="form-group"><label>Scopes (comma separated)</label><input type="text" id="keyScopes" placeholder="read, write, deploy"></div>
+    <div class="form-group"><label>Expires (days)</label><input type="number" id="keyExpires" value="30"></div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="createAPIKey()">Create</button>
+  `;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function createAPIKey() {
+  const body = {
+    name: document.getElementById('keyName').value,
+    scopes: document.getElementById('keyScopes').value.split(',').map(s => s.trim()).filter(s => s),
+    expires_days: parseInt(document.getElementById('keyExpires').value) || 30,
+  };
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/api-keys`, {
+      method: 'POST', headers: {'X-Admin-Session': session, 'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    closeModal();
+    if(data.api_key) {
+      document.getElementById('modalTitle').textContent = 'API Key Created';
+      document.getElementById('modalBody').innerHTML = `<div style="background:var(--bg3);padding:16px;border-radius:8px;"><p style="color:var(--fg2);margin-bottom:8px;">Copy this key now — it won't be shown again:</p><code style="font-size:16px;word-break:break-all;">${data.api_key}</code></div>`;
+      document.getElementById('modalFooter').innerHTML = `<button class="btn btn-primary" onclick="closeModal();navTo('apikeys');">Done</button>`;
+      document.getElementById('modalOverlay').classList.add('active');
+    }
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function revokeKey(keyId) {
+  if(!confirm('Revoke this API key?')) return;
+  try {
+    await fetch(`${API_BASE}/admin/backend/api-keys/${keyId}/revoke`, {
+      method: 'POST', headers: {'X-Admin-Session': session}
+    });
+    showToast('Key revoked', 'success');
+    navTo('apikeys');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── Webhooks ─────────────────────────────────────────────────
+async function renderWebhooks(el) {
+  el.innerHTML = `
+    <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showCreateWebhook()">+ New Webhook</button></div>
+    <div class="table-wrap" id="webhooksTable">Loading...</div>
+  `;
+  try {
+    const res = await fetch(`${API_BASE}/admin/backend/webhooks`, {headers:{'X-Admin-Session':session}});
+    const data = await res.json();
+    const tbody = data.webhooks?.map(w => `
+      <tr><td>${w.url}</td><td>${w.events?.join(', ')}</td><td>${w.active ? 'Active' : 'Inactive'}</td>
+      <td>${new Date(w.created_at).toLocaleDateString()}</td></tr>
+    `).join('') || '<tr><td colspan="4" style="text-align:center">No webhooks</td></tr>';
+    document.getElementById('webhooksTable').innerHTML = `<table><thead><tr><th>URL</th><th>Events</th><th>Status</th><th>Created</th></tr></thead><tbody>${tbody}</tbody></table>`;
+  } catch(e) {}
+}
+
+function showCreateWebhook() {
+  document.getElementById('modalTitle').textContent = 'New Webhook';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>URL</label><input type="url" id="whUrl"></div>
+    <div class="form-group"><label>Events (comma separated)</label><input type="text" id="whEvents" placeholder="token.deploy, user.signup, payment.received"></div>
+    <div class="form-group"><label>Secret</label><input type="text" id="whSecret"></div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="createWebhook()">Create</button>
+  `;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function createWebhook() {
+  const body = {
+    url: document.getElementById('whUrl').value,
+    events: document.getElementById('whEvents').value.split(',').map(s => s.trim()).filter(s => s),
+    secret: document.getElementById('whSecret').value,
+  };
+  try {
+    await fetch(`${API_BASE}/admin/backend/webhooks`, {
+      method: 'POST', headers: {'X-Admin-Session': session, 'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    closeModal();
+    showToast('Webhook created', 'success');
+    navTo('webhooks');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── Config ───────────────────────────────────────────────────
+async function renderConfig(el) {
+  el.innerHTML = `
+    <div class="table-wrap">
+      <table><thead><tr><th>Key</th><th>Value</th><th>Category</th><th>Actions</th></tr></thead>
+      <tbody>
+        <tr><td>ENVIRONMENT</td><td>production</td><td>general</td><td><button class="btn btn-sm btn-secondary">Edit</button></td></tr>
+        <tr><td>BACKEND_PORT</td><td>8000</td><td>general</td><td><button class="btn btn-sm btn-secondary">Edit</button></td></tr>
+        <tr><td>REDIS_HOST</td><td>localhost</td><td>database</td><td><button class="btn btn-sm btn-secondary">Edit</button></td></tr>
+        <tr><td>X402_ENABLED</td><td>true</td><td>payments</td><td><button class="btn btn-sm btn-secondary">Edit</button></td></tr>
+      </tbody>
+    </table>
+    </div>
+  `;
+}
+
+// ── Utilities ────────────────────────────────────────────────
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('active');
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function updateTime() {
+  document.getElementById('currentTime').textContent = new Date().toLocaleTimeString();
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+// Init
+checkSession();
+</script>
+</body>
+</html>

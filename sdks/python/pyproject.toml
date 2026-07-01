@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rugmunch"
+version = "0.1.0"
+description = "Python SDK for Rug Munch Intelligence — sovereign crypto intelligence platform"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Rug Munch Intelligence", email = "sdk@rugmunch.io"},
+]
+keywords = ["crypto", "rug-pull", "blockchain", "intelligence", "mcp", "x402"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "httpx>=0.25",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "ruff>=0.1",
+]
+
+[project.urls]
+Homepage = "https://rugmunch.io"
+Documentation = "https://docs.rugmunch.io"
+Repository = "https://github.com/Rug-Munch-Media-LLC/rug-munch-intelligence-mcp"
+
+[tool.setuptools.packages.find]
+include = ["rugmunch_sdk*"]
+exclude = ["rugmunch*", "test*"]

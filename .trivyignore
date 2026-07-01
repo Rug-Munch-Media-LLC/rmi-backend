@@ -1,0 +1,2 @@
+# Trivy ignore — investigation evidence files are intentionally stored case data
+investigation/**

@@ -1,0 +1,49 @@
+PROPRIETARY SOFTWARE REGISTRATION
+================================
+
+Software:     Rug Munch Intelligence (RMI) Platform
+              Including: RMI Backend, RMI Frontend, RugCharts, RugMaps,
+              RugMuncher Telegram Bot, x402 Protocol Gateways,
+              Rug Munch Intelligence MCP Server
+
+Owner:        Rug Munch Media LLC
+              Contact: biz@rugmunch.io
+              Website: https://rugmunch.io
+
+Copyright:    (c) 2026 Rug Munch Media LLC. All Rights Reserved.
+
+Type:         Proprietary Commercial Software
+              NOT open-source. NOT free software. NOT MIT, GPL, Apache,
+              or any other open-source license.
+
+Registration: This software is the confidential trade secret and
+              proprietary intellectual property of Rug Munch Media LLC.
+
+              All source code, algorithms, data collection methods,
+              detection heuristics, scam pattern databases, API designs,
+              and architectural decisions are protected trade secrets.
+
+              The public repositories (rugcharts, rugmaps, x402-*, mcp)
+              contain ONLY interface specifications and documentation.
+              NO implementation details, data collection methods, API
+              keys, or proprietary algorithms are exposed.
+
+              Core detection engines, data pipelines, and backend
+              implementations are maintained in PRIVATE repositories.
+
+Rights:       No rights granted. No license implied. All use, copying,
+              modification, distribution, or derivative works require
+              explicit written permission from Rug Munch Media LLC.
+
+Enforcement:  Unauthorized use will be pursued to the fullest extent
+              of applicable law including trade secret protection,
+              copyright infringement, and DMCA takedown.
+
+              Violations may be reported to: legal@rugmunch.io
+
+Governing Law: United States of America
+
+Date:         May 22, 2026
+
+---
+Rug Munch Media LLC — Proprietary & Confidential

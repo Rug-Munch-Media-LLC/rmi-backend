@@ -1,0 +1,58 @@
+# x402-rs Self-Hosted Facilitator — Docker Compose
+# ===============================================
+# Production-grade Rust x402 facilitator for multi-chain payment verification.
+#
+# Networks supported: Base, Ethereum, BSC, Arbitrum, Optimism, Polygon, Avalanche, Fantom, Gnosis
+# Tokens supported: USDC, USDT, DAI, WETH, ETH, native coins
+#
+# Start: docker compose -f docker/x402-rs/docker-compose.yml up -d
+# Stop:  docker compose -f docker/x402-rs/docker-compose.yml down
+# Logs:  docker compose -f docker/x402-rs/docker-compose.yml logs -f
+
+version: "3.8"
+
+services:
+  x402-rs:
+    image: ghcr.io/x402-protocol/x402-rs:latest
+    container_name: x402-rs
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      # Server
+      X402_HOST: "0.0.0.0"
+      X402_PORT: "8090"
+      X402_LOG_LEVEL: "info"
+
+      # Chain RPCs (required for on-chain verification)
+      ETH_RPC_URL: "${ETH_RPC_URL:-https://eth.llamarpc.com}"
+      BASE_RPC_URL: "${BASE_RPC_URL:-https://base.llamarpc.com}"
+      BSC_RPC_URL: "${BSC_RPC_URL:-https://bsc-dataseed.binance.org}"
+      ARBITRUM_RPC_URL: "${ARBITRUM_RPC_URL:-https://arb1.arbitrum.io/rpc}"
+      OPTIMISM_RPC_URL: "${OPTIMISM_RPC_URL:-https://mainnet.optimism.io}"
+      POLYGON_RPC_URL: "${POLYGON_RPC_URL:-https://polygon-rpc.com}"
+
+      # Payment configuration
+      X402_PAY_TO_ADDRESS: "${X402_EVM_PAY_TO:-0x1E3AC01d0fdb976179790BDD02823196A92705C9}"
+      X402_SUPPORTED_TOKENS: "USDC,USDT,DAI,WETH"
+      X402_SUPPORTED_CHAINS: "ethereum,base,bsc,arbitrum,optimism,polygon"
+
+      # Settlement
+      X402_SETTLEMENT_MODE: "instant"
+      X402_MAX_VERIFY_AGE_SECONDS: "300"
+
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    networks:
+      - rmi-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  rmi-network:
+    external: true
+    name: rmi-network

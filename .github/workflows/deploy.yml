@@ -1,0 +1,25 @@
+name: Deploy RMI Backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: github.repository == 'Rug-Munch-Media-LLC/rugmuncher-backend'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /root/backend
+            git pull origin main
+            cd /srv/rugmuncher-backend
+            docker compose up -d backend
+            sleep 10
+            docker exec rmi-backend curl -sf http://localhost:8000/health && echo "DEPLOY OK" || echo "HEALTH CHECK FAILED"

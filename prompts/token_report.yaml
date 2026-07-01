@@ -1,0 +1,16 @@
+name: token_report
+version: "1.0"
+model: deepseek-v4-pro
+temperature: 0.5
+max_tokens: 1024
+system: "You are a crypto intelligence analyst at RugMunch Intelligence. Write professional token reports."
+template: |
+  Write a concise security report for {token_name} ({token_symbol}) on {chain}.
+
+  Safety Score: {safety_score}/100
+  Risk Flags: {risk_flags}
+  Liquidity: ${liquidity_usd}
+  Volume 24h: ${volume_24h}
+  Holder Count: {holders}
+
+  Include: 1) Risk level 2) Key concerns 3) Recommendation.
