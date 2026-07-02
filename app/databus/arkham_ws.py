@@ -4,7 +4,7 @@ Arkham Intelligence WebSocket Client
 Real-time entity updates, transfer monitoring, label changes.
 Auto-reconnects, caches through DataBus, triggers premium scanner.
 
-WS Key: ws_REDACTED (ARKHAM_WS_KEY env var)
+WS Key: from ARKHAM_WS_KEY env var (set in /etc/secrets or docker env)
 """
 
 import logging

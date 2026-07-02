@@ -5,6 +5,7 @@ INTELLIGENT PROCESSING: Whale detection, cluster correlation, scam pattern match
 """
 
 import logging
+import os
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -14,8 +15,8 @@ router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
 # ── Config ──────────────────────────────────────────────────
 
-HELIUS_WEBHOOK_AUTH = "helius_REDACTED"
-HELIUS_WEBHOOK_SECRET = "rmi_REDACTED"
+HELIUS_WEBHOOK_AUTH = os.getenv("HELIUS_WEBHOOK_AUTH", "")
+HELIUS_WEBHOOK_SECRET = os.getenv("HELIUS_WEBHOOK_SECRET", "")
 
 # ── Intelligent Processor ────────────────────────────────────
 
