@@ -108,7 +108,7 @@ async def create_checkout(req: CheckoutRequest):
             status_code=503,
             content={
                 "error": "Stripe not configured",
-                "note": "Add STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY to environment. Using sandbox: pk_test_REDACTED",
+                "note": "Add STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY to environment. Set STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY in environment",
                 "packages": {k: {"price_usd": v["price_usd"], "credits": v["credits"], "label": v["label"]} for k, v in CREDIT_PACKAGES.items()},
                 "subscriptions": {k: {"price_usd": v["price_usd"], "credits_per_month": v["credits_per_month"], "label": v["label"]} for k, v in SUBSCRIPTION_TIERS.items()},
             },
@@ -215,7 +215,7 @@ async def list_packages():
         "packages": {k: {"price_usd": v["price_usd"], "credits": v["credits"], "label": v["label"]} for k, v in CREDIT_PACKAGES.items()},
         "subscriptions": {k: {"price_usd": v["price_usd"], "credits_per_month": v["credits_per_month"], "label": v["label"]} for k, v in SUBSCRIPTION_TIERS.items()},
         "stripe_configured": STRIPE_ENABLED,
-        "publishable_key": STRIPE_PUBLISHABLE_KEY or "pk_test_REDACTED",
+        "publishable_key": STRIPE_PUBLISHABLE_KEY or "" (set STRIPE_PUBLISHABLE_KEY in environment),
         "note": "Pay with credit card. No crypto wallet needed. Credits never expire.",
     }
 

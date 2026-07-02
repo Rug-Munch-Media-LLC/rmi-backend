@@ -2,11 +2,7 @@
 Aggressive Caching Shield - Solana Tracker Data API Client
 Multi-key load balanced with per-key rate limiting and quota tracking.
 
-Keys configured:
-  PRIMARY:   noble-flint-3959.secure.data.solanatracker.io (no header, subdomain auth)
-  SECONDARY: data.solanatracker.io + x-api-key: st_REDACTED
-
-Both free tier: 2,500 req/month, 3 RPS each = 5,000 combined, 6 RPS burst
+Keys configured via env vars: SOLANA_TRACKER_PRIMARY_HOST, SOLANA_TRACKER_SECONDARY_HOST, SOLANA_TRACKER_API_KEY
 Load balancing: round-robin with 429 fallback to next key
 """
 
@@ -33,7 +29,7 @@ KEY_CONFIGS = [
     {
         "name": "secondary",
         "base_url": "https://data.solanatracker.io",
-        "api_key": "st_REDACTED",
+        "api_key": os.getenv("SOLANA_TRACKER_API_KEY", ""),
         "rate_rps": 3.0,
         "monthly_quota": 2500,
     },
