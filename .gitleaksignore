@@ -1,0 +1,14 @@
+# .gitleaksignore — false positives in RMI data files
+# These are Telegram bot tokens embedded in scam-site descriptions in
+# CryptoScamDB data. They are indicators of compromise, not our secrets.
+bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:telegram-bot-api-token:57295
+bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:telegram-bot-api-token:61422
+bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:telegram-bot-api-token:69759
+bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:telegram-bot-api-token:69889
+bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:telegram-bot-api-token:70610
+# Working-tree fingerprints (no commit hash)
+data/cryptoscamdb_urls.yaml:telegram-bot-api-token:57295
+data/cryptoscamdb_urls.yaml:telegram-bot-api-token:61422
+data/cryptoscamdb_urls.yaml:telegram-bot-api-token:69759
+data/cryptoscamdb_urls.yaml:telegram-bot-api-token:69889
+data/cryptoscamdb_urls.yaml:telegram-bot-api-token:70610
