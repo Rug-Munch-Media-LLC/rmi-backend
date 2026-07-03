@@ -123,10 +123,11 @@ async def _check_neo4j() -> dict[str, Any]:
 
 async def _check_qdrant() -> dict[str, Any]:
     try:
-        client = await _get_http_client()
-        resp = await client.get(f'{QDRANT_URL.rstrip(chr(47))}/collections')
-        data = resp.json()
-        collections = data.get("result", {}).get("collections", [])
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{QDRANT_URL.rstrip(chr(47))}/collections")
+            data = resp.json()
+            collections = data.get("result", {}).get("collections", [])
         return {
             "healthy": resp.status_code == 200,
             "details": {"collection_count": len(collections)},
