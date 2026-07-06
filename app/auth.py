@@ -14,7 +14,10 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from jose import JWTError, jwt
+from passlib.context import CryptContext
 from pydantic import BaseModel, Field
+
+from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -83,12 +86,12 @@ def _generate_backup_codes(count: int = 8) -> list:
 
 def _hash_backup_code(code: str) -> str:
     """Hash a backup code for storage (same as password hashing)."""
-    return pwd_context.hash(code)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    return pwd_context.hash(code)
 
 
 def _verify_backup_code(code: str, hashed: str) -> bool:
     """Verify a backup code against its hash."""
-    return pwd_context.verify(code, hashed)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    return pwd_context.verify(code, hashed)
 
 
 # ── Config ──
@@ -97,6 +100,8 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
 
 import bcrypt  # noqa: E402
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
@@ -110,6 +115,45 @@ def verify_password(password: str, hashed: str) -> bool:
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
     except Exception:
         return False
+
+
+# ── Redis User Store ──
+def _get_user(user_id: str) -> dict[str, Any] | None:
+    """Fetch user record by id from Redis hash rmi:users."""
+    r = get_redis()
+    if not r:
+        return None
+    raw = r.hget("rmi:users", user_id)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def _get_user_by_email(email: str) -> dict[str, Any] | None:
+    """Fetch user record by email via rmi:users:email index → rmi:users hash."""
+    r = get_redis()
+    if not r:
+        return None
+    user_id = r.hget("rmi:users:email", email.lower())
+    if not user_id:
+        return None
+    if isinstance(user_id, bytes):
+        user_id = user_id.decode("utf-8")
+    return _get_user(user_id)
+
+
+def _save_user(user: dict[str, Any]) -> None:
+    """Persist user record to Redis hash rmi:users, refresh email index if present."""
+    r = get_redis()
+    if not r:
+        return
+    user_id = user["id"]
+    r.hset("rmi:users", user_id, json.dumps(user))
+    if user.get("email"):
+        r.hset("rmi:users:email", user["email"].lower(), user_id)
 
 
 # ── Helpers ──
@@ -265,7 +309,7 @@ def register_email(req: EmailRegisterRequest):
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     # Check if user exists
-    existing = _get_user_by_email(req.email)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    existing = _get_user_by_email(req.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -290,7 +334,7 @@ def register_email(req: EmailRegisterRequest):
     }
 
     # Save user + email index
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()
     r.hset("rmi:users", user_id, json.dumps(user))
     r.hset("rmi:users:email", req.email.lower(), user_id)
 
@@ -315,7 +359,7 @@ def register_email(req: EmailRegisterRequest):
 @router.post("/login", response_model=WalletAuthResponse)
 def login_email(req: EmailLoginRequest):
     """Login with email/password. If 2FA enabled, returns partial token requiring /2fa/login."""
-    user = _get_user_by_email(req.email)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    user = _get_user_by_email(req.email)
     if not user or not user.get("password_hash"):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -434,7 +478,7 @@ async def get_current_user(request: Request):
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    user = _get_user(payload["id"])  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    user = _get_user(payload["id"])
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -530,7 +574,7 @@ async def google_callback(request: Request):
         google_user = resp.json()
         email = google_user.get("email")
 
-        user = _get_user_by_email(email)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        user = _get_user_by_email(email)
         if not user:
             user_id = _derive_user_id(email)
             user = {
@@ -546,7 +590,7 @@ async def google_callback(request: Request):
                 "scans_remaining": 5,
                 "scans_used": 0,
             }
-            r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+            r = get_redis()
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
@@ -601,7 +645,7 @@ async def google_callback_post(request: Request):
         google_user = resp.json()
         email = google_user.get("email")
 
-        user = _get_user_by_email(email)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        user = _get_user_by_email(email)
         if not user:
             user_id = _derive_user_id(email)
             user = {
@@ -617,7 +661,7 @@ async def google_callback_post(request: Request):
                 "scans_remaining": 5,
                 "scans_used": 0,
             }
-            r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+            r = get_redis()
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
@@ -671,7 +715,7 @@ async def telegram_auth(req: TelegramAuthRequest):
         raise HTTPException(status_code=401, detail="Invalid Telegram auth data")
 
     telegram_user_id = f"tg:{req.id}"
-    user = _get_user(telegram_user_id)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    user = _get_user(telegram_user_id)
 
     if not user:
         display_name = f"{req.first_name or ''} {req.last_name or ''}".strip() or req.username or f"User{req.id}"
@@ -692,7 +736,7 @@ async def telegram_auth(req: TelegramAuthRequest):
             "scans_remaining": 5,
             "scans_used": 0,
         }
-        r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        r = get_redis()
         r.hset("rmi:users", telegram_user_id, json.dumps(user))
         r.hset("rmi:users:telegram", str(req.id), telegram_user_id)
 
@@ -801,7 +845,7 @@ async def github_callback(request: Request):
         if not email:
             email = f"{github_user.get('login', 'github_user')}@github.rmi"
 
-        user = _get_user_by_email(email)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        user = _get_user_by_email(email)
         if not user:
             user_id = _derive_user_id(email)
             user = {
@@ -817,7 +861,7 @@ async def github_callback(request: Request):
                 "scans_remaining": 5,
                 "scans_used": 0,
             }
-            r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+            r = get_redis()
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
@@ -863,8 +907,6 @@ async def x_callback(request: Request):
 
     import httpx
 
-    from app.core.redis import get_redis
-
     client_id = os.getenv("X_CLIENT_ID")
     client_secret = os.getenv("X_CLIENT_SECRET")
     redirect_uri = os.getenv("X_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/x/callback")
@@ -904,7 +946,7 @@ async def x_callback(request: Request):
         username = x_user.get("username", f"x_user_{x_user.get('id', 'unknown')}")
         email = f"{username}@x.rmi"  # X API v2 doesn't always return email
 
-        user = _get_user_by_email(email)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        user = _get_user_by_email(email)
         if not user:
             user_id = _derive_user_id(email)
             user = {
@@ -938,7 +980,7 @@ async def get_current_user(request: Request) -> dict[str, Any] | None:  # noqa: 
     payload = _verify_jwt(token)
     if not payload:
         return None
-    user = _get_user(payload["id"])  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    user = _get_user(payload["id"])
     if not user:
         return None
     return user
@@ -975,7 +1017,7 @@ async def twofa_setup(request: Request):
     backup_codes = _generate_backup_codes(8)
 
     # Store pending secret (not enabled until verified)
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()
     pending = {
         "secret": secret,
         "backup_codes": [_hash_backup_code(c) for c in backup_codes],
@@ -1001,7 +1043,7 @@ async def twofa_enable(req: TwoFAEnableRequest, request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()
     pending_raw = r.get(f"rmi:2fa_pending:{user['id']}")
     if not pending_raw:
         raise HTTPException(status_code=400, detail="No pending 2FA setup. Call /2fa/setup first.")
@@ -1019,7 +1061,7 @@ async def twofa_enable(req: TwoFAEnableRequest, request: Request):
     user["totp_created_at"] = pending["created_at"]
     user["totp_backup_codes"] = pending["backup_codes"]  # already hashed
     user["totp_last_used"] = None
-    _save_user(user)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    _save_user(user)
 
     # Clean up pending
     r.delete(f"rmi:2fa_pending:{user['id']}")
@@ -1050,7 +1092,7 @@ async def twofa_disable(request: Request):
     ]:
         user.pop(key, None)
 
-    _save_user(user)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    _save_user(user)
     logger.info(f"[2FA DISABLED] user={user['id']} email={user['email']}")
 
     return {"status": "ok", "message": "2FA disabled successfully"}
@@ -1114,7 +1156,7 @@ async def twofa_verify(req: TwoFAVerifyRequest, request: Request):
 
     # Update last used
     user["totp_last_used"] = datetime.utcnow().isoformat()
-    _save_user(user)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    _save_user(user)
 
     return {"status": "ok", "verified": True}
 
@@ -1125,7 +1167,7 @@ async def twofa_login(req: TwoFALoginRequest):
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")
 
-    user = _get_user_by_email(req.email)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    user = _get_user_by_email(req.email)
     if not user or not user.get("password_hash"):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -1157,7 +1199,7 @@ async def twofa_login(req: TwoFALoginRequest):
 
     # Update last used
     user["totp_last_used"] = datetime.utcnow().isoformat()
-    _save_user(user)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    _save_user(user)
 
     token = _create_jwt(
         user["id"],
