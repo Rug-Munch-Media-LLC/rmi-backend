@@ -17,7 +17,7 @@ Open-source reference implementations (GitHub):
     including Oddpool (cross-venue aggregator), analytics dashboards, trading bots.
 
 Architecture:
-  - Direct external API calls (NEVER route through own API — anti-circular-dependency rule)
+  - Direct external API calls (NEVER route through own API - anti-circular-dependency rule)
   - All 4 sources queried in parallel with individual try/except
   - Results normalized into unified PredictionMarket dataclass
   - Redis caching: 30s TTL prices, 5min searches, 1hr digests
@@ -30,10 +30,10 @@ Integration points:
 
 Pitfalls:
   - Polymarket Gamma API double-encodes outcomePrices/clobTokenIds as JSON strings
-  - One source timeout must not kill the entire call — individual try/except per source
-  - Prediction market data is probabilistic, not definitive — always cross-reference
+  - One source timeout must not kill the entire call - individual try/except per source
+  - Prediction market data is probabilistic, not definitive - always cross-reference
     with on-chain scanner results
-  - Don't poll every market every tick — use targeted search + category filters
+  - Don't poll every market every tick - use targeted search + category filters
 """
 
 import asyncio
@@ -238,7 +238,7 @@ class PredictionMarketService:
                     markets_data = json.loads(cached)
                     return [_dict_to_market(d) for d in markets_data]
             except Exception:
-                pass  # Cache miss or Redis error — fall through to live query
+                pass  # Cache miss or Redis error - fall through to live query
 
         # Fire all 4 sources in parallel
         results: list[list[PredictionMarket]] = await asyncio.gather(
@@ -302,7 +302,7 @@ class PredictionMarketService:
                     data = json.loads(cached)
                     return _dict_to_digest(data)
             except Exception:
-                pass  # Cache miss or Redis error — fall through to live query
+                pass  # Cache miss or Redis error - fall through to live query
 
         # Search for security-relevant crypto markets
         security_queries = [
@@ -629,7 +629,7 @@ class PredictionMarketService:
             m.get("event_ticker", "")
             category = m.get("category", "")
 
-            # Skip multi-outcome markets (sports parlays, etc.) — they have no yes_bid
+            # Skip multi-outcome markets (sports parlays, etc.) - they have no yes_bid
             if yes_bid <= 0 or ",yes " in title.lower():
                 return None
 
@@ -656,7 +656,7 @@ class PredictionMarketService:
             return None
 
     async def _trending_kalshi(self, limit: int) -> list[PredictionMarket]:
-        """Get trending Kalshi markets by volume — uses events-first approach."""
+        """Get trending Kalshi markets by volume - uses events-first approach."""
         try:
             # Get open events (avoid sports-multi-outcome noise from raw /markets)
             resp = await self._http.get(
@@ -770,7 +770,7 @@ class PredictionMarketService:
             title = m.get("title", "")
             slug = m.get("slug", str(m.get("id", "")))
 
-            # Prices: [YES%, NO%] — e.g., [42.8, 57.2]
+            # Prices: [YES%, NO%] - e.g., [42.8, 57.2]
             prices = m.get("prices", [50, 50])
             prob_yes = float(prices[0]) / 100 if isinstance(prices, list) and len(prices) >= 1 else 0.5
             prob_no = float(prices[1]) / 100 if isinstance(prices, list) and len(prices) >= 2 else 0.5

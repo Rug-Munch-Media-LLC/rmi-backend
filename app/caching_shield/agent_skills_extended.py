@@ -1,5 +1,5 @@
 """
-RMI Agent Skills — Extended Pack. More workflows for more agent types.
+RMI Agent Skills - Extended Pack. More workflows for more agent types.
 """
 
 AGENT_SKILLS_EXTENDED = {
@@ -374,7 +374,7 @@ AGENT_SKILLS_EXTENDED = {
 }
 
 # Merge with existing skills
-from app.caching_shield.agent_skills import AGENT_SKILLS, get_agent_skills
+from app.caching_shield.agent_skills import AGENT_SKILLS, get_agent_skills  # noqa: E402
 
 ALL_AGENT_SKILLS = {**AGENT_SKILLS, **AGENT_SKILLS_EXTENDED}
 

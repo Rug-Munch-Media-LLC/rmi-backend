@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Qdrant collection audit + cleanup for test_col_* artifacts.
 
-T15 (G14 FIX) — Qdrant accumulates test_col_* collections from integration
+T15 (G14 FIX) - Qdrant accumulates test_col_* collections from integration
 tests that forget to clean up. This script audits and cleans them.
 
 Usage:
-    # Audit only (safe — no changes):
+    # Audit only (safe - no changes):
     python scripts/ops/qdrant_audit.py
     python scripts/ops/qdrant_audit.py --audit-only
 
@@ -68,7 +68,7 @@ def main() -> int:
     p.add_argument(
         "--audit-only",
         action="store_true",
-        help="Only audit — never delete anything",
+        help="Only audit - never delete anything",
     )
     p.add_argument(
         "--cleanup",
@@ -102,7 +102,7 @@ def main() -> int:
     print(f"  Test artifacts (test_col_*): {len(test_like)}")
 
     if not test_like:
-        print("\nCLEAN — zero test_col_* artifacts.")
+        print("\nCLEAN - zero test_col_* artifacts.")
         return 0
 
     print("\n--- Test artifacts detail ---")

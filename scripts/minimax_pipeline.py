@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 """
-RMI MiniMax Pipeline — Cron Jobs
+RMI MiniMax Pipeline - Cron Jobs
 =================================
 Social threads | Support auto-responder | Health narrative
 All powered by MiniMax-Text-01 ($20/mo flat, 1M context)
 """
 
-import json, os, urllib.request
-from datetime import datetime, UTC
+import json
+import os
+import urllib.request
+from datetime import UTC, datetime
 
 KEY = os.getenv("MINIMAX_API_KEY", "")
 if not KEY:
     try:
         with open("/app/.env") as f:
             for line in f:
-                if line.startswith("MINIMAX_API_KEY=***                    KEY = line.strip().split("=",1)[1]
+                if line.startswith("MINIMAX_API_KEY="):
+                    KEY = line.strip().split("=", 1)[1]
                     break
-    except: pass
+    except: pass  # noqa: E701, E722
 URL = "https://api.minimax.io/v1/chat/completions"
 MODEL = "MiniMax-Text-01"
 BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
@@ -42,7 +45,7 @@ def call_minimax(system: str, prompt: str, max_tokens: int = 500, temp: float = 
 SOCIAL_SYSTEM = """You are the social media manager for Rug Munch Intelligence (@CryptoRugMunch).
 Write an engaging crypto security thread. Format:
 🧵 THREAD: <catchy title>
-1/ <hook — shocking stat or recent scam>
+1/ <hook - shocking stat or recent scam>
 2/ <how it works, simple terms>
 3/ <how to protect yourself>
 4/ <use our scanner at rugmunch.io>
@@ -91,7 +94,7 @@ def warm_support_cache():
 # ═══════════════════════════════════════════
 HEALTH_SYSTEM = """You are the RMI system health reporter. Given raw server metrics, write a brief, human-readable health report.
 Format:
-🩺 RMI SYSTEM HEALTH — {timestamp}
+🩺 RMI SYSTEM HEALTH - {timestamp}
 ├─ Backend: {status with emoji}
 ├─ Cron Jobs: {ok}/{total} healthy
 ├─ RAG: {docs} documents
@@ -107,7 +110,7 @@ def health_narrative(metrics: dict) -> str:
 
 
 # ═══════════════════════════════════════════
-# MAIN — Run all three
+# MAIN - Run all three
 # ═══════════════════════════════════════════
 if __name__ == "__main__":
     import sys

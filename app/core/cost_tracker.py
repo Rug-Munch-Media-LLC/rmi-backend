@@ -1,4 +1,4 @@
-"""#10 — Cost-Per-Model Tracking. Tracks $/1K tokens per model/provider.
+"""#10 - Cost-Per-Model Tracking. Tracks $/1K tokens per model/provider.
 Auto-routes to cheapest model that meets quality threshold."""
 
 from datetime import UTC, datetime
@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/api/v1/costs", tags=["cost-tracking"])
 
-# Cost per 1M tokens (USD) — updated June 2026
+# Cost per 1M tokens (USD) - updated June 2026
 MODEL_COSTS = {
     "deepseek-v4-flash": {"input": 0.14, "output": 0.28, "provider": "deepseek"},
     "deepseek-v4-pro": {"input": 0.55, "output": 2.19, "provider": "deepseek"},
@@ -15,13 +15,13 @@ MODEL_COSTS = {
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60, "provider": "gemini"},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00, "provider": "gemini"},
     "gemini-3.5-flash": {"input": 1.50, "output": 9.00, "provider": "gemini"},
-    "mistral-small-latest": {"input": 0.0, "output": 0.0, "provider": "mistral", "note": "Free tier — 1B tokens/mo"},
-    "mistral-medium-latest": {"input": 0.0, "output": 0.0, "provider": "mistral", "note": "Free tier — use sparingly"},
+    "mistral-small-latest": {"input": 0.0, "output": 0.0, "provider": "mistral", "note": "Free tier - 1B tokens/mo"},
+    "mistral-medium-latest": {"input": 0.0, "output": 0.0, "provider": "mistral", "note": "Free tier - use sparingly"},
     "mistral-embed": {
         "input": 0.0,
         "output": 0.0,
         "provider": "mistral",
-        "note": "Free tier — state of art embeddings",
+        "note": "Free tier - state of art embeddings",
     },
     "mistral-large": {"input": 2.00, "output": 6.00, "provider": "mistral"},
     "mistral-small": {"input": 0.20, "output": 0.60, "provider": "mistral"},
@@ -30,7 +30,7 @@ MODEL_COSTS = {
         "input": 0.0,
         "output": 0.0,
         "provider": "cerebras",
-        "note": "Free tier — 14.4K req/day, 9ms latency",
+        "note": "Free tier - 14.4K req/day, 9ms latency",
     },
     "mistral:7b": {"input": 0.0, "output": 0.0, "provider": "ollama"},
     "bge-m3": {"input": 0.0, "output": 0.0, "provider": "ollama"},

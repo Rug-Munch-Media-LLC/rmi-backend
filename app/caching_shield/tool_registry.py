@@ -1,5 +1,5 @@
 """
-Unified Tool Registry — accurate count of ALL tools across the system.
+Unified Tool Registry - accurate count of ALL tools across the system.
 
 Sources:
   - X402 gateway tools (CF Workers)
@@ -74,7 +74,7 @@ def _count_our_mcp() -> int:
 
 
 def _count_svm_tools() -> int:
-    """Solana SVM MCP server — compiled Rust binary with 60+ RPC tools."""
+    """Solana SVM MCP server - compiled Rust binary with 60+ RPC tools."""
     binary = Path("/root/.hermes/mcp-servers/solana-svm/target/release/solana-mcp-server")
     if binary.exists():
         return 60  # getBalance, getAccountInfo, getTokenSupply, etc.
@@ -82,7 +82,7 @@ def _count_svm_tools() -> int:
 
 
 def _count_evm_tools() -> int:
-    """EVM MCP server — 25 tools across 86 networks."""
+    """EVM MCP server - 25 tools across 86 networks."""
     entry = Path("/root/.hermes/mcp-servers/evm-direct/src/index.ts")
     if entry.exists():
         return 25  # verified: get_wallet_address through wait_for_transaction
@@ -90,17 +90,17 @@ def _count_evm_tools() -> int:
 
 
 def _count_service_mcp() -> int:
-    """Our keyed service MCP wrappers — GMGN, Birdeye, Solscan, etc."""
+    """Our keyed service MCP wrappers - GMGN, Birdeye, Solscan, etc."""
     return 13  # 6 services, 13 endpoints total
 
 
 def _count_data_providers() -> int:
-    """Caching shield data providers — unified_layer.py chains."""
+    """Caching shield data providers - unified_layer.py chains."""
     return 20  # Jupiter, ST, DexScreener, Binance, Helius DAS, GoPlus, RugCheck, etc.
 
 
 def _count_boar_tools() -> int:
-    """Boar blockchain MCP — 50 free read-only tools."""
+    """Boar blockchain MCP - 50 free read-only tools."""
     return 50  # eth_call, get_balance, resolve_ens, etc.
 
 

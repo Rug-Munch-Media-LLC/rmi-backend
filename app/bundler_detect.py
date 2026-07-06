@@ -197,7 +197,7 @@ class BundlerReport:
         flag_str = f" [{', '.join(flags)}]" if flags else ""
         return (
             f"[{self.risk_label.upper()}] {self.token_address[:14]}... "
-            f"({self.name}/{self.symbol}) — "
+            f"({self.name}/{self.symbol}) - "
             f"Bundler score: {self.bundler_score:.0f}/100 | "
             f"{len(self.holder_clusters)} clusters | "
             f"{self.estimated_unique_entities} entities estimated"
@@ -381,7 +381,7 @@ class BundlerDetector:
         return report
 
     async def quick_check(self, address: str, chain: str) -> dict[str, Any]:
-        """Quick supply concentration check — holder data only."""
+        """Quick supply concentration check - holder data only."""
         if not self._validate_address(address, chain):
             return {"error": f"Invalid address for chain {chain}"}
 
@@ -473,7 +473,7 @@ class BundlerDetector:
         try:
             if chain == "solana":
                 return await self._fetch_solana_holders(address)
-            # EVM chains — try Birdeye first
+            # EVM chains - try Birdeye first
             return await self._fetch_evm_holders(address, chain)
         except Exception as e:
             logger.debug(f"Holder fetch error: {e}")
@@ -617,7 +617,7 @@ class BundlerDetector:
                 m5_rate = m5_buys / 5
                 h1_rate = h1_buys / 60
                 if m5_rate > h1_rate * 3 and m5_buys >= 10:
-                    # High initial buy concentration — suspicious
+                    # High initial buy concentration - suspicious
                     bundled.append(
                         BundledBuy(
                             wallet=f"cluster:{buy.get('pair_address', '')[:12]}",

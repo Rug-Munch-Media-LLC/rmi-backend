@@ -1,5 +1,5 @@
 """
-RMI DataBus — The Single Source of Truth for ALL Data
+RMI DataBus - The Single Source of Truth for ALL Data
 =====================================================
 
 Every API call, MCP tool, x402 tool, scanner, and frontend hook routes through here.
@@ -22,15 +22,15 @@ What it REPLACES (do NOT use these anymore):
   - Direct .env reads for API keys            → databus.vault (encrypted in-memory)
 
 OWN DATA FIRST:
-  Our crown jewels — Wallet Memory Bank, RAG (17K docs), SENTINEL scanner,
+  Our crown jewels - Wallet Memory Bank, RAG (17K docs), SENTINEL scanner,
   Consensus RPC, Funding Tracer, ClickHouse, Price Consensus, News Network,
-  Bundle Detection, Label Import (169K+) — these are FAST, FREE, and OURS.
+  Bundle Detection, Label Import (169K+) - these are FAST, FREE, and OURS.
   They go FIRST in every fallback chain. External APIs only augment or fill gaps.
 
 Usage:
     from app.databus import databus
 
-    # Simple fetch — auto-selects best provider chain
+    # Simple fetch - auto-selects best provider chain
     result = await databus.fetch("token_price", mint="So11111111111111111111111111111111111111111")
 
     # Explicit chain override

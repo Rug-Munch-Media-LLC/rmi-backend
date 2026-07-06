@@ -1,5 +1,5 @@
 """
-RMI MEGA SCRAPER v3 — Substack, Mirror.xyz, Medium, Blog Scrapers
+RMI MEGA SCRAPER v3 - Substack, Mirror.xyz, Medium, Blog Scrapers
 Grabs EVERYTHING crypto. Biggest free news DB on the internet.
 """
 
@@ -14,7 +14,7 @@ import httpx
 logger = logging.getLogger("rmi.scraper")
 
 # ═══════════════════════════════════════════════════════
-# SUBSTACK — 50+ top crypto newsletters (free RSS)
+# SUBSTACK - 50+ top crypto newsletters (free RSS)
 # ═══════════════════════════════════════════════════════
 SUBSTACK_FEEDS = [
     ("substack-bankless", "https://substack.com/@bankless/feed"),
@@ -56,7 +56,7 @@ SUBSTACK_FEEDS = [
 ]
 
 # ═══════════════════════════════════════════════════════
-# MIRROR.XYZ — Decentralized crypto publishing
+# MIRROR.XYZ - Decentralized crypto publishing
 # ═══════════════════════════════════════════════════════
 MIRROR_FEEDS = [
     ("mirror-weekly", "https://mirror.xyz/0x/feed"),
@@ -69,7 +69,7 @@ MIRROR_FEEDS = [
 ]
 
 # ═══════════════════════════════════════════════════════
-# MEDIUM — Crypto publications
+# MEDIUM - Crypto publications
 # ═══════════════════════════════════════════════════════
 MEDIUM_FEEDS = [
     ("medium-coinfund", "https://blog.coinfund.io/feed"),

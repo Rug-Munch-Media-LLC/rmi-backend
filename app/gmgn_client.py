@@ -3,7 +3,7 @@
 RMI GMGN AI Agent Integration + Original Intelligence Features
 ===============================================================
 Cross-reference engine, smart money narrative, sniper detection,
-degen score, trending deep dive — powered by GMGN + Birdeye + AI.
+degen score, trending deep dive - powered by GMGN + Birdeye + AI.
 """
 
 import asyncio
@@ -18,7 +18,7 @@ GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
 
 
 class GMGNClient:
-    """GMGN AI Agent API Client — query-only (no trading without private key)"""
+    """GMGN AI Agent API Client - query-only (no trading without private key)"""
 
     def __init__(self):
         self.api_key = GMGN_API_KEY
@@ -148,31 +148,31 @@ class GMGNClient:
             v_ratio = vol / mcap
             if v_ratio > 3:
                 narrative_parts.append(
-                    f"Heavy trading activity — ${vol / 1e6:.1f}M volume vs ${mcap / 1e6:.1f}M market cap"
+                    f"Heavy trading activity - ${vol / 1e6:.1f}M volume vs ${mcap / 1e6:.1f}M market cap"
                 )
-                risk_factors.append("Volume is 3x+ market cap — possible wash trading")
+                risk_factors.append("Volume is 3x+ market cap - possible wash trading")
             elif v_ratio > 1:
-                narrative_parts.append(f"Strong trading interest — ${vol / 1e6:.1f}M in 24h volume")
+                narrative_parts.append(f"Strong trading interest - ${vol / 1e6:.1f}M in 24h volume")
                 opportunities.append("Healthy volume suggests genuine interest")
             else:
-                narrative_parts.append(f"Moderate trading volume — ${vol / 1e6:.1f}M in 24h")
+                narrative_parts.append(f"Moderate trading volume - ${vol / 1e6:.1f}M in 24h")
 
         # Holder story
         holders = token.get("holders", 0)
         if holders > 1000:
             narrative_parts.append(f"Established community with {holders:,} holders")
         elif holders > 100:
-            narrative_parts.append(f"Growing community — {holders:,} holders")
+            narrative_parts.append(f"Growing community - {holders:,} holders")
         elif holders > 0:
-            narrative_parts.append(f"Early stage — only {holders:,} holders")
-            risk_factors.append("Very few holders — concentration risk")
+            narrative_parts.append(f"Early stage - only {holders:,} holders")
+            risk_factors.append("Very few holders - concentration risk")
 
         # Price action story
         chg_1h = token.get("price_change_1h", 0) or 0
         chg_24h = token.get("price_change_24h", 0) or 0
         if chg_1h > 20:
             narrative_parts.append(f"🔥 Surging +{chg_1h:.1f}% in last hour")
-            risk_factors.append("Parabolic short-term pump — high volatility")
+            risk_factors.append("Parabolic short-term pump - high volatility")
         elif chg_1h < -20:
             narrative_parts.append(f"📉 Dropping {chg_1h:.1f}% in last hour")
             opportunities.append("Potential dip-buying opportunity if fundamentals are sound")
@@ -181,7 +181,7 @@ class GMGNClient:
             narrative_parts.append(f"🚀 Mooning +{chg_24h:.1f}% in 24h")
         elif chg_24h < -50:
             narrative_parts.append(f"💀 Crashed {chg_24h:.1f}% in 24h")
-            risk_factors.append("Severe 24h decline — possible rug")
+            risk_factors.append("Severe 24h decline - possible rug")
 
         # Buy/sell story
         buy = token.get("buy_24h", 0) or 0
@@ -189,34 +189,34 @@ class GMGNClient:
         if buy > 0 and sell > 0:
             ratio = buy / sell
             if ratio > 2:
-                narrative_parts.append(f"Bullish buy/sell ratio — {ratio:.1f}x more buys than sells")
+                narrative_parts.append(f"Bullish buy/sell ratio - {ratio:.1f}x more buys than sells")
                 opportunities.append("Strong buy pressure")
             elif ratio < 0.5:
-                narrative_parts.append(f"Bearish sell pressure — {sell / buy:.1f}x more sells")
-                risk_factors.append("Heavy selling — exit pressure")
+                narrative_parts.append(f"Bearish sell pressure - {sell / buy:.1f}x more sells")
+                risk_factors.append("Heavy selling - exit pressure")
 
         # Trend analysis
         trend = market.get("trend", "neutral")
         if trend == "uptrend":
             opportunities.append("Technical uptrend confirmed")
         elif trend == "downtrend":
-            risk_factors.append("Technical downtrend — momentum against")
+            risk_factors.append("Technical downtrend - momentum against")
 
         # Generate verdict
         risk_count = len(risk_factors)
         opp_count = len(opportunities)
 
         if risk_count >= 3:
-            verdict = "⚠️ HIGH RISK — Multiple red flags detected"
+            verdict = "⚠️ HIGH RISK - Multiple red flags detected"
             conviction = 1
         elif risk_count >= 2:
-            verdict = "🟡 MODERATE RISK — Proceed with caution"
+            verdict = "🟡 MODERATE RISK - Proceed with caution"
             conviction = 3
         elif opp_count >= 2:
-            verdict = "🟢 OPPORTUNITY — More signals than risks"
+            verdict = "🟢 OPPORTUNITY - More signals than risks"
             conviction = 4
         else:
-            verdict = "⚪ NEUTRAL — Insufficient data for conviction"
+            verdict = "⚪ NEUTRAL - Insufficient data for conviction"
             conviction = 2
 
         return {
@@ -258,7 +258,7 @@ class GMGNClient:
         score = 0
         factors = []
 
-        # 1. AGE FACTOR (0-20) — newer = more degen
+        # 1. AGE FACTOR (0-20) - newer = more degen
         # Use holder growth as proxy for age
         holder_change = d.get("holders", 0)
         if holder_change < 50:
@@ -291,20 +291,20 @@ class GMGNClient:
             score += 5
             factors.append(f"Moderate {chg_24h:.0f}% move (+5)")
 
-        # 3. HYPE FACTOR (0-20) — volume vs market cap
+        # 3. HYPE FACTOR (0-20) - volume vs market cap
         vol = d.get("volume_24h", 0) or 0
         mcap = d.get("market_cap", 0) or 0
         if mcap > 0 and vol > 0:
             ratio = vol / mcap
             if ratio > 5:
                 score += 20
-                factors.append(f"Volume {ratio:.1f}x mcap — pure hype (+20)")
+                factors.append(f"Volume {ratio:.1f}x mcap - pure hype (+20)")
             elif ratio > 2:
                 score += 15
-                factors.append(f"Volume {ratio:.1f}x mcap — very hypey (+15)")
+                factors.append(f"Volume {ratio:.1f}x mcap - very hypey (+15)")
             elif ratio > 1:
                 score += 10
-                factors.append("Volume matches mcap — hype building (+10)")
+                factors.append("Volume matches mcap - hype building (+10)")
             elif ratio > 0.3:
                 score += 5
                 factors.append("Decent volume ratio (+5)")
@@ -315,7 +315,7 @@ class GMGNClient:
         if buy > 0 and sell > 0:
             if buy > sell * 3:
                 score += 20
-                factors.append("FOMO buying — 3x more buys (+20)")
+                factors.append("FOMO buying - 3x more buys (+20)")
             elif buy > sell * 2:
                 score += 15
                 factors.append("Strong buy pressure (+15)")
@@ -327,7 +327,7 @@ class GMGNClient:
         ext = d.get("extensions", {})
         if not ext.get("website") and not ext.get("twitter"):
             score += 20
-            factors.append("No website or socials — pure degen (+20)")
+            factors.append("No website or socials - pure degen (+20)")
         elif not ext.get("website"):
             score += 10
             factors.append("No website (+10)")
@@ -411,7 +411,7 @@ class GMGNClient:
         # Check holder concentration (proxy for sniper accumulation)
         holders = token.get("holders", 0)
         if holders > 0 and holders < 30:
-            sniper_signals.append(f"Only {holders} holders — possible coordinated accumulation")
+            sniper_signals.append(f"Only {holders} holders - possible coordinated accumulation")
             confidence += 20
 
         # Verdict
@@ -420,7 +420,7 @@ class GMGNClient:
         elif confidence >= 40:
             verdict = "⚡ Possible sniper activity"
         elif confidence >= 20:
-            verdict = "🔍 Low confidence — monitor closely"
+            verdict = "🔍 Low confidence - monitor closely"
         else:
             verdict = "✅ No sniper patterns detected"
 
@@ -491,24 +491,24 @@ class GMGNClient:
         vol = gmgn_data.get("volume_24h", 0) or 0
         liq = gmgn_data.get("liquidity", 0) or 0
         if liq > 0 and vol > liq * 5:
-            manipulation_signals.append("Volume is 5x+ liquidity — possible wash trading")
+            manipulation_signals.append("Volume is 5x+ liquidity - possible wash trading")
             confidence += 25
 
         # Signal 2: Low holders + high volume = fake activity
         holders = gmgn_data.get("holders", 0) or 0
         if holders < 50 and vol > 100000:
-            manipulation_signals.append(f"Only {holders} holders but ${vol / 1e3:.0f}K volume — suspicious")
+            manipulation_signals.append(f"Only {holders} holders but ${vol / 1e3:.0f}K volume - suspicious")
             confidence += 20
 
         # Signal 3: Price flat despite volume = hidden selling
         chg_1h = gmgn_data.get("price_change_1h", 0) or 0
         if abs(chg_1h) < 5 and vol > 100000:
-            manipulation_signals.append("High volume but flat price — possible hidden distribution")
+            manipulation_signals.append("High volume but flat price - possible hidden distribution")
             confidence += 15
 
         # Signal 4: Security flags from Birdeye
         if birdeye_security.get("risk_score", 0) > 50:
-            manipulation_signals.append(f"Birdeye security risk: {birdeye_security.get(risk_level)}")
+            manipulation_signals.append(f"Birdeye security risk: {birdeye_security.get(risk_level)}")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
             confidence += 20
 
         if confidence >= 60:

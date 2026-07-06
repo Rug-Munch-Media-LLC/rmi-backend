@@ -1,4 +1,4 @@
-"""Redis-backed Background Task Queue — retry with exponential backoff, visibility."""
+"""Redis-backed Background Task Queue - retry with exponential backoff, visibility."""
 
 import asyncio
 import json

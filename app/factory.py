@@ -1,4 +1,4 @@
-"""RMI Backend — FastAPI app factory.
+"""RMI Backend - FastAPI app factory.
 
 The single source of truth for app composition. Every concern
 (lifespan, middleware, error handlers, routers) lives in its own
@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 VERSION: Final = "2026.06.21"
 TITLE: Final = "RMI Backend"
 DESCRIPTION: Final = (
-    "Rug Munch Intelligence — institutional-grade crypto intelligence API. "
+    "Rug Munch Intelligence - institutional-grade crypto intelligence API. "
     "13+ chains, 96 data providers, 8 MCP tools, x402 paid tier, sovereign-first FOSS."
 )
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RMI Supabase API Router — Exposes all platform tables via REST endpoints.
+RMI Supabase API Router - Exposes all platform tables via REST endpoints.
 Frontend connects here for live, real-time data from Supabase.
 """
 
@@ -233,7 +233,7 @@ async def watchlist_add(item: WatchlistItem):
             item_type=item.type,
         )
 
-    # Redis fallback — always written so watchlist works even without Supabase
+    # Redis fallback - always written so watchlist works even without Supabase
     if not result:
         import json as _json
         import os
@@ -265,7 +265,7 @@ async def watchlist_add(item: WatchlistItem):
             pass
 
     if not result:
-        raise HTTPException(status_code=500, detail="Add failed — both Supabase and Redis unavailable")
+        raise HTTPException(status_code=500, detail="Add failed - both Supabase and Redis unavailable")
 
     # Broadcast alert via WebSocket so frontend gets notified
     try:

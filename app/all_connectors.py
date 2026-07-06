@@ -1,5 +1,5 @@
 """
-All Connectors Router — Wires all 20+ unwired modules into API routes.
+All Connectors Router - Wires all 20+ unwired modules into API routes.
 One file to rule them all.
 """
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1", tags=["connectors"])
 
 
 # ═══════════════════════════════════════════════════════════
-# BIRDEYE — Token data, trending, OHLCV
+# BIRDEYE - Token data, trending, OHLCV
 # ═══════════════════════════════════════════════════════════
 @router.get("/birdeye/token/{address}")
 async def birdeye_token(address: str, chain: str = "solana"):
@@ -40,7 +40,7 @@ async def birdeye_trending(chain: str = "solana", limit: int = 20):
 
 
 # ═══════════════════════════════════════════════════════════
-# ARKHAM INTELLIGENCE — Entity labeling, wallet attribution,
+# ARKHAM INTELLIGENCE - Entity labeling, wallet attribution,
 # institutional tracking, sanctions screening
 # ═══════════════════════════════════════════════════════════
 @router.get("/arkham/entity/{address}")
@@ -89,7 +89,7 @@ async def arkham_portfolio(address: str):
 
 
 # ═══════════════════════════════════════════════════════════
-# BLOCKCHAIR — Multi-chain block explorer
+# BLOCKCHAIR - Multi-chain block explorer
 # ═══════════════════════════════════════════════════════════
 @router.get("/blockchair/balance/{address}")
 async def blockchair_balance(address: str, chain: str = "bitcoin"):
@@ -114,7 +114,7 @@ async def blockchair_search(q: str):
 
 
 # ═══════════════════════════════════════════════════════════
-# DEFILLAMA — DeFi analytics
+# DEFILLAMA - DeFi analytics
 # ═══════════════════════════════════════════════════════════
 @router.get("/defillama/tvl")
 async def defillama_tvl():
@@ -150,7 +150,7 @@ async def defillama_chains():
 
 
 # ═══════════════════════════════════════════════════════════
-# ENTITY CLUSTERING — Wallet cluster analysis
+# ENTITY CLUSTERING - Wallet cluster analysis
 # ═══════════════════════════════════════════════════════════
 @router.get("/entity/clusters")
 async def entity_clusters(address: str | None = None, min_size: int = 2):
@@ -190,7 +190,7 @@ async def entity_link(data: dict):
 
 
 # ═══════════════════════════════════════════════════════════
-# THREAT INTEL — Sanctions, reputation, blocklists
+# THREAT INTEL - Sanctions, reputation, blocklists
 # ═══════════════════════════════════════════════════════════
 @router.get("/threat/reputation/{address}")
 async def threat_reputation(address: str, chain: str = "ethereum"):
@@ -230,7 +230,7 @@ async def threat_blocklist_add(data: dict):
 
 
 # ═══════════════════════════════════════════════════════════
-# EXCHANGE FLOW — CEX inflows/outflows
+# EXCHANGE FLOW - CEX inflows/outflows
 # ═══════════════════════════════════════════════════════════
 @router.get("/exchange/flow/{address}")
 async def exchange_flow(address: str, chain: str = "ethereum"):
@@ -278,7 +278,7 @@ async def crosschain_fingerprint(address: str, chains: str = "ethereum,base,bsc,
 
 
 # ═══════════════════════════════════════════════════════════
-# AGENT MESH — 8 AI agents
+# AGENT MESH - 8 AI agents
 # ═══════════════════════════════════════════════════════════
 AGENTS = {
     "nexus": {
@@ -361,19 +361,19 @@ async def agent_command(agent_id: str, data: dict):
 
 
 # ═══════════════════════════════════════════════════════════
-# MCP SERVERS — Multi-chain data gateways
+# MCP SERVERS - Multi-chain data gateways
 # ═══════════════════════════════════════════════════════════
 @router.get("/mcp/servers")
 async def mcp_servers_list():
     return {
         "servers": {
             "dexpaprika": "Real-time DEX data for 5M+ tokens across 20+ chains",
-            "solana": "Solana RPC — wallet balances, token prices, DeFi yields",
+            "solana": "Solana RPC - wallet balances, token prices, DeFi yields",
             "dexscreener": "DEX pair data, token info, market stats",
             "defillama": "DeFi TVL, protocols, yields, fees",
             "coingecko": "13K+ tokens, global stats, historical data",
-            "helius": "Enhanced Solana RPC — parsed txs, webhooks",
-            "goplus": "Multi-chain token security — 700K+ tokens scanned",
+            "helius": "Enhanced Solana RPC - parsed txs, webhooks",
+            "goplus": "Multi-chain token security - 700K+ tokens scanned",
             "rugcheck": "Solana token safety audit",
         },
         "status": "operational",
@@ -381,7 +381,7 @@ async def mcp_servers_list():
 
 
 # ═══════════════════════════════════════════════════════════
-# SENTIMENT — Crypto market sentiment analysis
+# SENTIMENT - Crypto market sentiment analysis
 # ═══════════════════════════════════════════════════════════
 @router.get("/sentiment/market")
 async def sentiment_market():
@@ -441,7 +441,7 @@ async def sentiment_token(address: str):
 
 
 # ═══════════════════════════════════════════════════════════
-# NANSEN — Wallet labels, smart money, token flow
+# NANSEN - Wallet labels, smart money, token flow
 # ═══════════════════════════════════════════════════════════
 @router.get("/nansen/labels/{address}")
 async def nansen_labels(address: str):
@@ -477,7 +477,7 @@ async def nansen_activity(address: str):
 
 
 # ═══════════════════════════════════════════════════════════
-# MEMPOOL — Bitcoin mempool monitoring
+# MEMPOOL - Bitcoin mempool monitoring
 # ═══════════════════════════════════════════════════════════
 @router.get("/mempool/status")
 async def mempool_status():
@@ -503,7 +503,7 @@ async def mempool_status():
 
 
 # ═══════════════════════════════════════════════════════════
-# COINGECKO — Price data, trending, global metrics
+# COINGECKO - Price data, trending, global metrics
 # ═══════════════════════════════════════════════════════════
 @router.get("/coingecko/ping")
 async def coingecko_ping():

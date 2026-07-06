@@ -1,21 +1,21 @@
 """
-Community Forensics Router — Premium feature for on-chain sleuths.
+Community Forensics Router - Premium feature for on-chain sleuths.
 
 Endpoints:
-- POST /api/v1/community-forensics/investigations — Create investigation
-- GET  /api/v1/community-forensics/investigations — List community investigations
-- GET  /api/v1/community-forensics/investigations/{id} — Get investigation detail
-- POST /api/v1/community-forensics/investigations/{id}/evidence — Add evidence
-- POST /api/v1/community-forensics/investigations/{id}/submit — Submit for review
-- POST /api/v1/community-forensics/reports — Submit forensic report
-- GET  /api/v1/community-forensics/reports — List verified reports
-- GET  /api/v1/community-forensics/reports/{id} — Get report detail
-- POST /api/v1/community-forensics/reports/{id}/verify — Verify report (admin)
-- GET  /api/v1/community-forensics/leaderboard — Top sleuths
-- GET  /api/v1/community-forensics/notebooks — List notebook templates
-- GET  /api/v1/community-forensics/tools — List open-source tools
-- POST /api/v1/community-forensics/blockscout/query — Proxy to Blockscout API
-- GET  /api/v1/community-forensics/blockscout/health — Blockscout health
+- POST /api/v1/community-forensics/investigations - Create investigation
+- GET  /api/v1/community-forensics/investigations - List community investigations
+- GET  /api/v1/community-forensics/investigations/{id} - Get investigation detail
+- POST /api/v1/community-forensics/investigations/{id}/evidence - Add evidence
+- POST /api/v1/community-forensics/investigations/{id}/submit - Submit for review
+- POST /api/v1/community-forensics/reports - Submit forensic report
+- GET  /api/v1/community-forensics/reports - List verified reports
+- GET  /api/v1/community-forensics/reports/{id} - Get report detail
+- POST /api/v1/community-forensics/reports/{id}/verify - Verify report (admin)
+- GET  /api/v1/community-forensics/leaderboard - Top sleuths
+- GET  /api/v1/community-forensics/notebooks - List notebook templates
+- GET  /api/v1/community-forensics/tools - List open-source tools
+- POST /api/v1/community-forensics/blockscout/query - Proxy to Blockscout API
+- GET  /api/v1/community-forensics/blockscout/health - Blockscout health
 """
 
 import json
@@ -28,6 +28,11 @@ from typing import Literal
 import httpx
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
+
+from app.investigation_narratives import LLM_API_KEY
+from app.llm_config import AI_BASE
+from app.rugmaps_ai import AI_MODEL
+from sdks.python.x402_frameworks.autogen_adapter import logger
 
 router = APIRouter(prefix="/api/v1/community-forensics", tags=["community-forensics"])
 
@@ -616,7 +621,7 @@ async def blockscout_proxy(path: str, request):
             resp = await client.get(url)
             return resp.json()
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Blockscout unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Blockscout unavailable: {e}") from e
 
 
 # ── Endpoints: File Uploads ──────────────────────────────────────
@@ -797,7 +802,7 @@ async def trace_wallet_connections(req: WalletTraceRequest):
                                 if hop + 1 < req.depth:
                                     next_queue.append((other_addr, hop + 1))
             except Exception:
-                pass  # Silent fallback — partial graph is fine
+                pass  # Silent fallback - partial graph is fine
 
         queue = next_queue
 
@@ -915,13 +920,13 @@ Return ONLY valid JSON. Do not include markdown formatting or explanations outsi
                     return parsed
                 except json.JSONDecodeError:
                     logger.error(f"Failed to parse AI response: {content}")
-                    raise HTTPException(status_code=500, detail="AI returned invalid JSON")
+                    raise HTTPException(status_code=500, detail="AI returned invalid JSON") from None
             else:
                 logger.error(f"LLM API error: {resp.status_code} - {resp.text}")
                 raise HTTPException(status_code=500, detail="AI analysis failed")
     except httpx.RequestError as e:
         logger.error(f"HTTP request to LLM failed: {e}")
-        raise HTTPException(status_code=503, detail="AI service unavailable")
+        raise HTTPException(status_code=503, detail="AI service unavailable") from e
 
 
 # ── Pro Feature: Law Enforcement / Public Publishing ─────────────
@@ -1127,7 +1132,7 @@ graph TD
         </div>
     </div>
     <script>
-        mermaid.initialize({startOnLoad: true, theme: 'dark' });
+        mermaid.initialize({"startOnLoad": true, "theme": "dark" });  # noqa: F821  -- quoted keys avoid JS-embedded issue
     </script>
 </body>
 </html>"""

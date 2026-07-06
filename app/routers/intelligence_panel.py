@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/intelligence", tags=["intelligence-panel"])
 
-# Import prediction market intelligence (LAZY — deferred to first request)
+# Import prediction market intelligence (LAZY - deferred to first request)
 pm_intel = None
 _pm_intel_loaded = False
 
@@ -117,7 +117,7 @@ async def get_prediction_signals(limit: int = Query(10, ge=1, le=20)):
 
 @router.get("/crypto-fear-index", response_model=FearIndexResponse)
 async def get_crypto_fear_index():
-    """Get the Crypto Fear Index — risk aggregated from prediction markets.
+    """Get the Crypto Fear Index - risk aggregated from prediction markets.
 
     Components:
       - overall_risk: Weighted aggregate of all categories
@@ -161,7 +161,7 @@ async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)):
     items = []
     now_ts = datetime.now(UTC).isoformat()
 
-    # 1. Prediction market signals (highest priority — forward-looking)
+    # 1. Prediction market signals (highest priority - forward-looking)
     if pm_intel:
         try:
             signals = await pm_intel.generate_signals(max_signals=5)
@@ -201,7 +201,7 @@ async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)):
             items.append(
                 IntelligenceItem(
                     id=f"fear-index-{now_ts}",
-                    title=f"Crypto Fear Index: {fear.overall_risk:.0f}/100 — {risk_label}",
+                    title=f"Crypto Fear Index: {fear.overall_risk:.0f}/100 - {risk_label}",
                     content=(
                         f"Exploit risk: {fear.exploit_risk:.0f}/100 | "
                         f"Regulatory: {fear.regulatory_risk:.0f}/100 | "
@@ -224,7 +224,7 @@ async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)):
     items.append(
         IntelligenceItem(
             id=f"sources-{now_ts}",
-            title="Prediction Market Intelligence Active — 4 Sources Live",
+            title="Prediction Market Intelligence Active - 4 Sources Live",
             content="RMI now monitors Polymarket, Kalshi, Limitless, and Manifold for crypto security signals. Live risk indicators, token threat detection, and ecosystem monitoring are online.",
             url="/intelligence",
             source="RMI System",

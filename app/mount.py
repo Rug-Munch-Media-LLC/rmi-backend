@@ -1,12 +1,12 @@
-"""RMI Backend — router mounting.
+"""RMI Backend - router mounting.
 
 Single source of truth for every router. Adding a new domain:
   1. Create the module with a `router = APIRouter(...)` attribute
   2. Add the import path to ROUTER_MODULES below
-  3. Done — factory.create_app() picks it up automatically
+  3. Done - factory.create_app() picks it up automatically
 
 Per v4.0 §T01 + ADR-0001, this replaces the hardcoded lists that
-existed in the old main.py. Each mount is isolated — one failure
+existed in the old main.py. Each mount is isolated - one failure
 doesn't break the others.
 """
 from __future__ import annotations
@@ -56,7 +56,7 @@ ROUTER_MODULES: Final[list[str]] = [
 def mount_all(app) -> int:
     """Mount every router. Returns count of successful mounts.
 
-    Each mount is isolated — one failure does not break the rest.
+    Each mount is isolated - one failure does not break the rest.
     """
     mounted = 0
     for module_path in ROUTER_MODULES:

@@ -1,5 +1,5 @@
 """
-Aggressive Caching Shield — JSON-RPC Batch Request Grouper
+Aggressive Caching Shield - JSON-RPC Batch Request Grouper
 
 Groups individual RPC calls into batch JSON-RPC requests (where supported).
 Not all free tier providers support batching, but Helius, QuickNode, and
@@ -187,12 +187,12 @@ class RpcBatcher:
                         logger.debug(f"Orphan batch result for id={rid}")
 
             # Resolve any unmatched futures with None
-            for rid, fut in futures.items():
+            for rid, fut in futures.items():  # noqa: B007
                 if not fut.done():
                     fut.set_result(None)
         except Exception as e:
-            # Batch failed — fail all futures
-            for rid, fut in futures.items():
+            # Batch failed - fail all futures
+            for rid, fut in futures.items():  # noqa: B007
                 if not fut.done():
                     fut.set_exception(e)
 

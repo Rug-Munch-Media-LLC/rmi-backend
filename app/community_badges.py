@@ -1,5 +1,5 @@
 """
-Community Reputation Badges — Verified Sleuth System
+Community Reputation Badges - Verified Sleuth System
 =====================================================
 Users vote on whether a token is clean or malicious. If their vote aligns
 with the ultimate outcome (rug confirmed / token survives), they earn a

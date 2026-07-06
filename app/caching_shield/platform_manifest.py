@@ -1,5 +1,5 @@
 """
-RMI Platform Manifest — Single source of truth for all platform descriptions.
+RMI Platform Manifest - Single source of truth for all platform descriptions.
 
 Every external-facing surface reads from here: MCP discovery, docs,
 directory listings, READMEs, Smithery, Glama, mcp.so, Open WebUI.

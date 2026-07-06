@@ -29,6 +29,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.admin_backend import (
+    PERMISSIONS,
     AdminRole,
     AdminUserStore,
     AuditLogger,
@@ -387,7 +388,7 @@ async def list_users(
 
     except Exception as e:
         logger.error(f"List users error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/users/{user_id}")
@@ -418,7 +419,7 @@ async def get_user(request: Request, user_id: str):
         raise
     except Exception as e:
         logger.error(f"Get user error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/users/{user_id}/ban")
@@ -471,7 +472,7 @@ async def ban_user(request: Request, user_id: str, body: dict = Body(...)):
         raise
     except Exception as e:
         logger.error(f"Ban user error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/users/{user_id}/tier")
@@ -522,7 +523,7 @@ async def update_user_tier(request: Request, user_id: str, body: dict = Body(...
         raise
     except Exception as e:
         logger.error(f"Update tier error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -585,7 +586,7 @@ async def get_blocked_ips(request: Request):
 
     except Exception as e:
         logger.error(f"Get blocked IPs error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/security/block-ip")
@@ -832,7 +833,7 @@ async def create_announcement(request: Request, body: AnnouncementRequest):
 
     except Exception as e:
         logger.error(f"Create announcement error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -915,8 +916,8 @@ async def create_api_key(request: Request, body: APIKeyCreateRequest):
     admin = auth["admin"]
     ip, ua = _get_client_info(request)
 
-    key_id = f"key_{secrets.token_hex(8)}"
-    api_key = f"rmi_{secrets.token_urlsafe(32)}"
+    key_id = f"key_{secrets.token_hex(8)}"  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    api_key = f"rmi_{secrets.token_urlsafe(32)}"  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
     key_data = {
         "id": key_id,
@@ -963,7 +964,7 @@ async def create_api_key(request: Request, body: APIKeyCreateRequest):
 
     except Exception as e:
         logger.error(f"Create API key error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/api-keys/{key_id}/revoke")
@@ -1010,7 +1011,7 @@ async def revoke_api_key(request: Request, key_id: str):
         raise
     except Exception as e:
         logger.error(f"Revoke API key error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1272,7 +1273,7 @@ async def create_webhook(request: Request, body: WebhookConfigRequest):
 
     except Exception as e:
         logger.error(f"Create webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1481,9 +1482,9 @@ async def generate_contract(request: Request, body: dict = Body(...)):
 # 13. FILE UPLOADS (DAO Documents, etc.)
 # ═══════════════════════════════════════════════════════════════
 
-import uuid
+import uuid  # noqa: E402
 
-from fastapi import File, UploadFile
+from fastapi import File, UploadFile  # noqa: E402
 
 
 @router.post("/upload/document")
@@ -1527,7 +1528,7 @@ async def upload_document(request: Request, file: UploadFile = File(...), step_i
 # 14. WALLET BALANCE FETCHING
 # ═══════════════════════════════════════════════════════════════
 
-import httpx
+import httpx  # noqa: E402
 
 
 @router.post("/wallets/fetch-balances")

@@ -1,5 +1,5 @@
 """
-RAG Observability — Langfuse tracing + local metrics fallback.
+RAG Observability - Langfuse tracing + local metrics fallback.
 Traces: embedding latency, retrieval latency, cache hit rate, ingest rate.
 Langfuse primary, Redis metrics fallback when Langfuse unavailable.
 """
@@ -25,9 +25,9 @@ try:
         LANGFUSE_AVAILABLE = True
         logger.info("Langfuse observability enabled")
     else:
-        logger.info("Langfuse keys not set — using local metrics")
+        logger.info("Langfuse keys not set - using local metrics")
 except ImportError:
-    logger.info("Langfuse not installed — using local metrics")
+    logger.info("Langfuse not installed - using local metrics")
 
 
 @dataclass

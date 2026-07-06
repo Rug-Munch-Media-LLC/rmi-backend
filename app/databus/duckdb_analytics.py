@@ -2,7 +2,7 @@
 DuckDB Offline Analytics Engine
 =================================
 
-Local forensic analytics on cinnabox — no VPS needed.
+Local forensic analytics on cinnabox - no VPS needed.
 Loads Real-CATS (153K addresses) and MBAL (10M addresses) into
 DuckDB for instant SQL queries, risk scoring, and label lookups.
 

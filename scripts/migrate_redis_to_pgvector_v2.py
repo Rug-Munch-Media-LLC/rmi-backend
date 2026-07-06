@@ -102,7 +102,7 @@ async def insert_with_retry(client: httpx.AsyncClient, rows: list, batch_num: in
             if resp.status_code in (200, 201):
                 return len(rows)
             elif resp.status_code == 500 and "timeout" in (resp.text or "").lower():
-                # Statement timeout — split into smaller batches
+                # Statement timeout - split into smaller batches
                 logger.warning(f"Batch {batch_num}: statement timeout (attempt {attempt + 1}), splitting")
                 if len(rows) > 10:
                     # Split into two halves

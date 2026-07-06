@@ -1,5 +1,5 @@
 """
-RMI Investigative Framework — FastAPI Router v2
+RMI Investigative Framework - FastAPI Router v2
 Solana + EVM funding tracing, risk scanning, token analysis.
 All backed by the unified data fallback engine.
 """

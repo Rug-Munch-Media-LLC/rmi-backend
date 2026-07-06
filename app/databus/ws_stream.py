@@ -1,5 +1,5 @@
 """
-DataBus WebSocket Stream — Real-time Data Push
+DataBus WebSocket Stream - Real-time Data Push
 ================================================
 
 WebSocket endpoint that pushes real-time data updates to connected clients.
@@ -7,7 +7,7 @@ Channels: prices, alerts, whales, smart_money, market_overview, all
 
 Clients connect to: ws://host/api/v1/databus/ws/{channel}
 
-Premium feature — requires x402 payment or subscription for access.
+Premium feature - requires x402 payment or subscription for access.
 Free tier gets read-only access to 'prices' and 'market_overview' channels.
 
 Author: RMI Development
@@ -166,7 +166,7 @@ async def databus_websocket(ws: WebSocket, channel: str):
             }
         )
 
-        # Keep connection alive — listen for pings
+        # Keep connection alive - listen for pings
         while True:
             try:
                 data = await asyncio.wait_for(ws.receive_text(), timeout=60)
@@ -174,7 +174,7 @@ async def databus_websocket(ws: WebSocket, channel: str):
                 if data.strip() == "ping" or json.loads(data).get("type") == "ping":
                     await ws.send_json({"type": "pong", "ts": int(time.time())})
             except TimeoutError:
-                # No message for 60s — send keepalive ping
+                # No message for 60s - send keepalive ping
                 try:
                     await ws.send_json({"type": "ping", "ts": int(time.time())})
                 except Exception:

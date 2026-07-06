@@ -1,5 +1,5 @@
 """
-RMI Mega News v2 — Add Reddit + Twitter/Nitter RSS feeds
+RMI Mega News v2 - Add Reddit + Twitter/Nitter RSS feeds
 """
 
 import hashlib

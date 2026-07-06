@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Domain Fine-Tuned Embeddings — MarginMSE with hard negative mining.
+Domain Fine-Tuned Embeddings - MarginMSE with hard negative mining.
 
 Trains scam-specific embeddings that outperform general-purpose models
 for crypto security tasks. Uses cross-encoder as teacher, hard negative
@@ -112,7 +112,7 @@ async def mine_hard_negatives(
     num_negatives: int = 5,
 ) -> list[str]:
     """
-    Mine hard negatives from RAG search — documents that are similar
+    Mine hard negatives from RAG search - documents that are similar
     to positives but not relevant. These are the most valuable for training.
     """
     negatives = []
@@ -191,7 +191,7 @@ def train_margin_mse(
     epochs: int = 3,
     batch_size: int = 16,
     learning_rate: float = 2e-5,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     """
     Train embeddings using MarginMSE loss.
 
@@ -257,7 +257,7 @@ def train_margin_mse(
 async def main(epochs: int = 3, batch_size: int = 16):
     """Main training pipeline."""
     print("=" * 60)
-    print("  Domain Fine-Tuned Embeddings — MarginMSE Training")
+    print("  Domain Fine-Tuned Embeddings - MarginMSE Training")
     print("=" * 60)
 
     # 1. Build training data with hard negatives

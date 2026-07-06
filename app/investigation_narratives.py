@@ -1,5 +1,5 @@
 """
-Investigation Narratives — Agentic multi-hop forensic tracing.
+Investigation Narratives - Agentic multi-hop forensic tracing.
 
 "Follow the money from this scam token 5 hops → tell me the story."
 Combines multi-hop RAG retrieval, LLM planning, and narrative generation
@@ -71,7 +71,7 @@ HOP_TEMPLATES = {
         },
         {
             "hop": "victim_identification",
-            "goal": "Find wallets that bought but couldn't sell — estimate losses",
+            "goal": "Find wallets that bought but couldn't sell - estimate losses",
         },
     ],
     "phishing": [

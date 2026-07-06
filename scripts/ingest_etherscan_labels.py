@@ -37,7 +37,7 @@ logger = logging.getLogger("ingest_etherscan_labels")
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 
-# Scam-adjacent label keywords — these go to known_scams instead of wallet_profiles
+# Scam-adjacent label keywords - these go to known_scams instead of wallet_profiles
 SCAM_LABEL_KEYWORDS = [
     "phish",
     "hack",

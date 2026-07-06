@@ -13,11 +13,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-# Aggregator list — populated as domains migrate.
+# Aggregator list - populated as domains migrate.
 # Each entry is an APIRouter from app/api/v1/<group>/<domain>.py.
 api_v1_router: list[APIRouter] = []
 
-# Aggregator router — single mount point for v1.
+# Aggregator router - single mount point for v1.
 # When domains migrate, replace this with a real aggregator:
 #     from app.api.v1.public import router as public_router
 #     api_v1_router.append(public_router)
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api/v1", tags=["v1"])
 #
 # During strangelfig, the LEGACY /api/v1/<domain>/* endpoints remain
 # mounted in main.py. The new v1 router is mounted at the same path
-# (FastAPI handles prefix-based routing) — first match wins, so the
+# (FastAPI handles prefix-based routing) - first match wins, so the
 # legacy stays until we explicitly remove it.
 
 from app.api.v1.auth.alerts import router as alerts_router  # noqa: E402

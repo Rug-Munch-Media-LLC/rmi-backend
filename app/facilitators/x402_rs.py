@@ -28,13 +28,13 @@ logger = logging.getLogger("facilitator.x402_rs")
 
 class X402RsFacilitator(Facilitator):
     """
-    Self-hosted x402-rs facilitator — production-grade Rust implementation.
+    Self-hosted x402-rs facilitator - production-grade Rust implementation.
     Runs locally in Docker. Multi-chain support.
 
     Provides:
-    - /verify — Payment verification
-    - /settle — On-chain settlement
-    - /health — Health check
+    - /verify - Payment verification
+    - /settle - On-chain settlement
+    - /health - Health check
     """
 
     def __init__(self, config: FacilitatorConfig | None = None):
@@ -54,7 +54,7 @@ class X402RsFacilitator(Facilitator):
 
     @property
     def priority(self) -> int:
-        return 40  # Self-hosted — use after hosted facilitators
+        return 40  # Self-hosted - use after hosted facilitators
 
     @property
     def verify_url(self) -> str | None:
@@ -104,7 +104,7 @@ class X402RsFacilitator(Facilitator):
 
     @property
     def description(self) -> str:
-        return "x402-rs — self-hosted Rust facilitator, multi-chain"
+        return "x402-rs - self-hosted Rust facilitator, multi-chain"
 
     async def verify(
         self,
@@ -151,7 +151,7 @@ class X402RsFacilitator(Facilitator):
         except TimeoutError:
             return self._format_error("x402-rs verification timed out (is container running?)")
         except aiohttp.ClientConnectionError:
-            return self._format_error("x402-rs not reachable — check docker container")
+            return self._format_error("x402-rs not reachable - check docker container")
         except aiohttp.ClientError as e:
             return self._format_error(f"x402-rs connection error: {e}")
         except Exception as e:

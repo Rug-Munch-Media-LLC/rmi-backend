@@ -1,5 +1,5 @@
 """
-Google Cloud Manager — Service Account Access
+Google Cloud Manager - Service Account Access
 ==============================================
 
 Manages Google Cloud service account credentials and provides
@@ -11,10 +11,10 @@ Project: cryptorugmunch
 Key vault: /root/.secrets/google-sa-cryptorugmunch.json
 
 Available services:
-  - Vertex AI embedding (768d) — separate quota from AI Studio
-  - Cloud Storage (5GB free) — RAG backups, model storage
-  - BigQuery (1TB/mo free) — wallet analytics
-  - Cloud Run (2M req/mo free) — optional hosting
+  - Vertex AI embedding (768d) - separate quota from AI Studio
+  - Cloud Storage (5GB free) - RAG backups, model storage
+  - BigQuery (1TB/mo free) - wallet analytics
+  - Cloud Run (2M req/mo free) - optional hosting
 """
 
 import json
@@ -152,7 +152,7 @@ class GoogleCloudManager:
                         logger.warning(f"BigQuery insert errors: {len(errors)}")
                     return len(errors) == 0
                 elif r.status_code == 404:
-                    logger.info(f"BigQuery table {dataset}.{table} not found — needs creation")
+                    logger.info(f"BigQuery table {dataset}.{table} not found - needs creation")
                 else:
                     logger.warning(f"BigQuery insert HTTP {r.status_code}")
                 return False

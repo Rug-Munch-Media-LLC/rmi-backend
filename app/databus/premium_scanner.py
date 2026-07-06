@@ -1,5 +1,5 @@
 """
-RMI Premium Token Scanner — Deep Scan Analysis
+RMI Premium Token Scanner - Deep Scan Analysis
 ==============================================
 Bundle detection, cluster mapping, dev finder, sniper analysis,
 bot farm detection, copy trading, insider signals, wash trading.
@@ -56,7 +56,7 @@ def _cache_key(scan_type: str, address: str, chain: str = "") -> str:
 
 
 async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | None:
-    """Detect coordinated wallet bundles — groups that funded from same source
+    """Detect coordinated wallet bundles - groups that funded from same source
     within a tight time window. Bubblemaps-style cluster analysis.
 
     Uses: Helius transaction history → Arkham entity labels → local pattern matching.
@@ -179,7 +179,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
 
 
 async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw) -> dict | None:
-    """Map the full wallet cluster — funders, recipients, counterparties.
+    """Map the full wallet cluster - funders, recipients, counterparties.
     Returns graph-ready nodes and edges.
     """
     cache_key = _cache_key("cluster_map", address, chain)
@@ -494,7 +494,7 @@ def _assess_dev_risk(wallets: list) -> dict:
 
 
 async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | None:
-    """Detect snipers — wallets that buy in first blocks and dump fast."""
+    """Detect snipers - wallets that buy in first blocks and dump fast."""
     cache_key = _cache_key("sniper_detect", address, chain)
     # Check cache...
     try:
@@ -578,7 +578,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
 
 
 async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | None:
-    """Detect bot farms — groups of wallets with identical behavior patterns."""
+    """Detect bot farms - groups of wallets with identical behavior patterns."""
     cache_key = _cache_key("bot_farm", address, chain)
 
     result = {
@@ -605,7 +605,7 @@ async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | 
 
 
 async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict | None:
-    """Detect copy trading patterns — wallets mirroring trades with delay."""
+    """Detect copy trading patterns - wallets mirroring trades with delay."""
     cache_key = _cache_key("copy_trading", address, chain)
 
     result = {
@@ -626,7 +626,7 @@ async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict
 
 
 async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> dict | None:
-    """Detect insider trading signals — large buys before major announcements."""
+    """Detect insider trading signals - large buys before major announcements."""
     cache_key = _cache_key("insider_signals", address, chain)
 
     result = {
@@ -648,7 +648,7 @@ async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> d
 
 
 async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict | None:
-    """Detect wash trading — circular transactions, self-trading patterns."""
+    """Detect wash trading - circular transactions, self-trading patterns."""
     cache_key = _cache_key("wash_trading", address, chain)
 
     result = {
@@ -693,7 +693,7 @@ async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict
 
 
 async def detect_fresh_wallets(address: str, chain: str = "solana", **kw) -> dict | None:
-    """Analyze fresh wallet concentration — high % of new wallets = rug risk."""
+    """Analyze fresh wallet concentration - high % of new wallets = rug risk."""
     cache_key = _cache_key("fresh_wallets", address, chain)
 
     result = {

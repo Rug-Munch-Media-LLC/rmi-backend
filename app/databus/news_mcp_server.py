@@ -1,5 +1,5 @@
 """
-RMI News MCP Server — Expose our massive free crypto news aggregation
+RMI News MCP Server - Expose our massive free crypto news aggregation
 to AI agents, Claude, Cursor, and any MCP-compatible client.
 
 50+ sources, 1500+ articles, real-time updates every 5 minutes.
@@ -13,7 +13,7 @@ from fastmcp import FastMCP
 from app.core.redis import get_redis
 
 mcp = FastMCP(
-    "rmi-news", description="RMI Free Crypto News — 50+ sources, real-time, no API key needed"
+    "rmi-news", description="RMI Free Crypto News - 50+ sources, real-time, no API key needed"
 )
 
 
@@ -172,7 +172,7 @@ def get_news_stats() -> dict:
         "last_update": stats.get("last_ingest", 0),
         "free": True,
         "no_api_key": True,
-        "powered_by": "RMI — Rug Munch Intelligence",
+        "powered_by": "RMI - Rug Munch Intelligence",
     }
 
 

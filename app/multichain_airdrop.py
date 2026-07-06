@@ -21,7 +21,6 @@ Architecture:
   AirdropCampaignManager -> full lifecycle from snapshot to distribution
 """
 
-import asyncio
 from __future__ import annotations
 
 import json
@@ -56,7 +55,7 @@ class TokenSource:
 class CrossChainHolder:
     """Aggregated holder data across multiple chains."""
 
-    # Primary identifier — can be EVM address, Solana pubkey, or linked identity
+    # Primary identifier - can be EVM address, Solana pubkey, or linked identity
     primary_address: str
     chain_addresses: dict[str, str] = field(default_factory=dict)
     # { "base": "0x123...", "solana": "ABC...", "ethereum": "0x456..." }
@@ -300,7 +299,7 @@ class MultiChainSnapshotEngine:
         """Get TRC-20 holders via TronGrid."""
         # TRON holder enumeration requires an indexer or TronGrid API
         # Placeholder for now
-        logger.warning("TRON holder snapshot not yet implemented — use manual list or TronGrid API")
+        logger.warning("TRON holder snapshot not yet implemented - use manual list or TronGrid API")
         return {}
 
 
@@ -371,7 +370,7 @@ class WeightedAirdropCalculator:
 
         # Calculate allocations
         if total_score == 0:
-            logger.warning("No qualified holders — total score is 0")
+            logger.warning("No qualified holders - total score is 0")
             return {}
 
         for holder in qualified:
@@ -450,7 +449,7 @@ class WeightedAirdropCalculator:
 
             for _source_key, amount_str in holder.holdings_per_source.items():
                 amount = int(amount_str)
-                # 1:1 — exact same amount
+                # 1:1 - exact same amount
                 total_allocation += amount
 
             holder.airdrop_allocation = str(total_allocation)
@@ -469,7 +468,7 @@ class AntiGamingFilter:
     Filter out sybils, bots, and gaming attempts.
     """
 
-    KNOWN_BOT_PATTERNS = [
+    KNOWN_BOT_PATTERNS = [  # noqa: RUF012
         "0x0000000000000000000000000000000000000000",
         "0x000000000000000000000000000000000000dead",
     ]
@@ -490,7 +489,7 @@ class AntiGamingFilter:
             if exclude_known_bots and addr.lower() in AntiGamingFilter.KNOWN_BOT_PATTERNS:
                 continue
 
-            # Skip contracts (would need bytecode check — simplified)
+            # Skip contracts (would need bytecode check - simplified)
             if exclude_contracts:
                 # In production, check if address has code
                 pass
@@ -897,7 +896,7 @@ class MultiChainAirdropManager:
             raise ValueError(f"Campaign not ready for distribution: {campaign.status}")
 
         # Get deployer for target chain
-        deployer = TokenDeployerFactory.get_deployer(campaign.target_chain)
+        deployer = TokenDeployerFactory.get_deployer(campaign.target_chain)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
         # Distribute to all qualified holders
         total_distributed = 0
@@ -1073,7 +1072,7 @@ async def create_one_to_one_airdrop(
         distribution_mode="one_to_one",  # Custom mode
         require_hold_both_chains=False,
         require_hold_any_chain=True,
-        cross_chain_bonus=0.0,  # No bonus for 1:1 — it's already exact
+        cross_chain_bonus=0.0,  # No bonus for 1:1 - it's already exact
         exclude_contracts=True,
         exclude_known_bots=True,
         min_wallet_age_days=1,

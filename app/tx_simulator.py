@@ -1,5 +1,5 @@
 """
-Transaction Simulation — Pre-flight swap/sell simulation.
+Transaction Simulation - Pre-flight swap/sell simulation.
 
 Detects honeypots, excessive taxes, and reverts BEFORE the user signs.
 Simulates a sell transaction using Jupiter (Solana) and eth_call (EVM) to
@@ -99,10 +99,10 @@ async def simulate_solana(token_address: str) -> SimulationResult:
                 result.warnings.append("⚠️ HONEYPOT DETECTED: Can buy but cannot sell!")
             elif not result.can_sell:
                 result.risk = "critical"
-                result.warnings.append("⚠️ Cannot sell this token — liquidity may not exist")
+                result.warnings.append("⚠️ Cannot sell this token - liquidity may not exist")
             elif result.sell_tax_pct > 90:
                 result.risk = "critical"
-                result.warnings.append(f"☠️ {result.sell_tax_pct:.0f}% effective tax on sell — likely scam")
+                result.warnings.append(f"☠️ {result.sell_tax_pct:.0f}% effective tax on sell - likely scam")
             elif result.sell_tax_pct > 50:
                 result.risk = "dangerous"
                 result.warnings.append(f"🔴 {result.sell_tax_pct:.0f}% tax on sell")
@@ -197,7 +197,7 @@ async def simulate_evm(token_address: str, chain: str = "ethereum") -> Simulatio
                 result.risk = "safe"
             else:
                 result.risk = "warning"
-                result.warnings.append("Could not verify sell path — exercise caution")
+                result.warnings.append("Could not verify sell path - exercise caution")
 
     except Exception as e:
         result.error = str(e)

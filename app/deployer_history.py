@@ -179,13 +179,13 @@ def _compute_deployer_risk(profile: DeployerProfile) -> float:
     honey_ratio = profile.honeypot_tokens / total
     honey_score = min(honey_ratio * 100 * 0.20, 20)
 
-    # Volume check — serial deployers with tiny volumes are suspicious
+    # Volume check - serial deployers with tiny volumes are suspicious
     # If avg token has < $100 liquidity, it's likely a spam/scam deployer
     low_val_tokens = sum(1 for t in profile.tokens if t.liquidity_usd < 100)
     low_val_ratio = low_val_tokens / total
     volume_score = min(low_val_ratio * 100 * 0.15, 15)
 
-    # Lifespan — short-lived tokens are suspicious
+    # Lifespan - short-lived tokens are suspicious
     if profile.avg_token_lifespan_days > 0:
         # Less than 7 days avg = very suspicious
         if profile.avg_token_lifespan_days < 7:

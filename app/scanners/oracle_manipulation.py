@@ -1,5 +1,5 @@
 """
-SENTINEL — Oracle Manipulation Detector
+SENTINEL - Oracle Manipulation Detector
 =========================================
 Detects tokens vulnerable to or actually experiencing oracle attacks.
 
@@ -233,7 +233,7 @@ class OracleManipulationDetector:
         """Compute 0-100 score for how easily the oracle can be manipulated."""
         score = 0.0
 
-        # Pool depth factor — thinner pool = easier to manipulate
+        # Pool depth factor - thinner pool = easier to manipulate
         if pool_depth_usd < self.CRITICAL_LIQUIDITY_THRESHOLD:
             score += 50
         elif pool_depth_usd < self.MANIPULABLE_LIQUIDITY_THRESHOLD:
@@ -288,27 +288,27 @@ class OracleManipulationDetector:
         # Single source
         if report.is_single_source:
             score += 15
-            warnings.append("MEDIUM: Single-source oracle — no redundancy")
+            warnings.append("MEDIUM: Single-source oracle - no redundancy")
 
         # Price deviation
         if report.price_deviation_pct >= self.PRICE_DEVIATION_CRITICAL:
             score += 30
-            warnings.append(f"CRITICAL: Price deviation {report.price_deviation_pct:.1f}% — possible oracle attack")
+            warnings.append(f"CRITICAL: Price deviation {report.price_deviation_pct:.1f}% - possible oracle attack")
         elif report.price_deviation_pct >= self.PRICE_DEVIATION_THRESHOLD:
             score += 15
             warnings.append(
-                f"HIGH: Price deviation {report.price_deviation_pct:.1f}% — oracle may be stale/manipulated"
+                f"HIGH: Price deviation {report.price_deviation_pct:.1f}% - oracle may be stale/manipulated"
             )
 
         # Unknown oracle type
         if report.oracle_type in ("unknown", "custom"):
             score += 10
-            warnings.append(f"MEDIUM: Oracle type is '{report.oracle_type}' — unverified oracle")
+            warnings.append(f"MEDIUM: Oracle type is '{report.oracle_type}' - unverified oracle")
 
         # Very low pool depth
         if report.pool_depth_usd < self.CRITICAL_LIQUIDITY_THRESHOLD:
             score += 20
-            warnings.append(f"HIGH: Pool depth only ${report.pool_depth_usd:,.0f} — trivially manipulable")
+            warnings.append(f"HIGH: Pool depth only ${report.pool_depth_usd:,.0f} - trivially manipulable")
 
         score = min(100, score)
 

@@ -1,4 +1,4 @@
-"""RMI SDK — Python client for Rug Munch Intelligence.
+"""RMI SDK - Python client for Rug Munch Intelligence.
 
 v4.0 Sovereign-first. Friendly wrapper around the auto-generated
 OpenAPI client. See rugmunch/ for the full generated SDK.

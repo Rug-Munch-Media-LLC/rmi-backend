@@ -1,5 +1,5 @@
 """
-Consensus RPC Client — Multi-Provider Voting with Health Tracking.
+Consensus RPC Client - Multi-Provider Voting with Health Tracking.
 
 Queries 5+ Solana RPC endpoints in parallel, compares results via
 N-of-M consensus voting, and returns a ConsensusResult with confidence
@@ -215,7 +215,7 @@ class ConsensusRpcClient:
                 )
             )
 
-        # Public/free endpoints — always available
+        # Public/free endpoints - always available
         endpoints += [
             ("drpc", SOLANA_RPC_ENDPOINTS["drpc"], 0.9, False),
             ("publicnode", SOLANA_RPC_ENDPOINTS["publicnode"], 0.8, False),
@@ -380,7 +380,7 @@ class ConsensusRpcClient:
 
         # Find the winning value (most votes)
         best_sources: list[str] = []
-        for norm, sources in vote_counts.items():
+        for norm, sources in vote_counts.items():  # noqa: B007
             if len(sources) > len(best_sources):
                 best_sources = sources
 
@@ -410,7 +410,7 @@ class ConsensusRpcClient:
             supermajority_bonus = min(0.2, (len(agreed) - min_agreement) / max(total, 1) * 0.2)
             confidence = min(100.0, (agreement_ratio * 80.0) + (supermajority_bonus * 100.0))
         else:
-            # Weak consensus — disagreement
+            # Weak consensus - disagreement
             confidence = max(10.0, (len(agreed) / responded) * 50.0)
 
         # Recover the actual value from the first agreeing source
@@ -554,7 +554,7 @@ class ConsensusRpcClient:
             vote_counts.setdefault(norm, []).append(name)
 
         best_sources: list[str] = []
-        for norm, sources in vote_counts.items():
+        for norm, sources in vote_counts.items():  # noqa: B007
             if len(sources) > len(best_sources):
                 best_sources = sources[:]
 

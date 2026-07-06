@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # ======================================================================
-# GOLDEN TEST SET — 50+ (query, relevant_doc_ids, expected_answer) pairs
+# GOLDEN TEST SET - 50+ (query, relevant_doc_ids, expected_answer) pairs
 # ======================================================================
 
 GOLDEN_TEST_SET = [

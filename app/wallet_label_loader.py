@@ -1,5 +1,5 @@
 """
-Wallet Label Loader — Loads curated wallet address labels from open-source datasets.
+Wallet Label Loader - Loads curated wallet address labels from open-source datasets.
 Sources:
   - crypto-wallet-address-labels (105K+ Solana, 16K BSC/ETH, 15K phishing)
   - OFAC crypto-sanctions-list

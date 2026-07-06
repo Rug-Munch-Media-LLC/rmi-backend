@@ -1,5 +1,5 @@
 """
-SENTINEL — Developer Reputation Engine
+SENTINEL - Developer Reputation Engine
 ======================================
 Tracks every token ever launched by a wallet, their outcomes, holding patterns,
 and time-to-rug metrics. Detects serial ruggers through pattern matching
@@ -12,7 +12,7 @@ Scoring:
   dev holding 0% at rug time → high confidence rug signal
   Cross-chain same address → score 0-15 (same operator everywhere)
 
-Data sources (direct API calls — no self.api_base):
+Data sources (direct API calls - no self.api_base):
   DexScreener: Token search by deployer address (free, no key needed)
   Etherscan-family: EVM deployer transaction history
   Moralis: Cross-chain wallet token history
@@ -116,7 +116,7 @@ class DevReputationReport:
     serial_patterns: list[str]  # Detected serial rugger patterns
     cross_chain_addresses: list[dict[str, str]]  # Same dev on other chains
     launches: list[TokenLaunch] = field(default_factory=list)
-    dev_threat_index: float = 0.0  # (Holdings% × RugRate) / LockDays
+    dev_threat_index: float = 0.0  # (Holdings% x RugRate) / LockDays
     reputation_score: int = 50  # 0-100, higher = safer
     reputation_level: ReputationLevel = ReputationLevel.NEUTRAL
     confidence: str = "LOW"  # LOW, MEDIUM, HIGH
@@ -221,7 +221,7 @@ class DevReputationEngine:
                 reputation_score=50,
                 reputation_level=ReputationLevel.NEUTRAL,
                 confidence="LOW",
-                warnings=["New deployer — no history"],
+                warnings=["New deployer - no history"],
             )
 
         # Calculate core metrics
@@ -239,7 +239,7 @@ class DevReputationEngine:
         # Calculate reputation score
         score, level, confidence = self._calculate_score(total, rugged, rug_rate, avg_lifespan, retention, patterns)
 
-        # Calculate Dev Threat Index: (Holdings% × Reputation) / LockDays
+        # Calculate Dev Threat Index: (Holdings% x Reputation) / LockDays
         avg_holdings = sum(line.dev_holds_percentage for line in launches) / total if total else 0
         avg_lock_days = max(
             sum(line.lifespan_days for line in launches if line.has_locked_liquidity)
@@ -256,7 +256,7 @@ class DevReputationEngine:
             warnings.append(f"HIGH RUG RATE: {rugged}/{total} projects rugged ({rug_rate * 100:.0f}%)")
 
         if avg_lifespan < 7 and total >= 2:
-            warnings.append(f"SHORT-LIVED: Average lifespan {avg_lifespan:.1f} days — quick-exit pattern")
+            warnings.append(f"SHORT-LIVED: Average lifespan {avg_lifespan:.1f} days - quick-exit pattern")
 
         if retention < 0.2 and total >= 2:
             warnings.append(f"DUMP & RUN: Dev holds 0% in {(1 - retention) * 100:.0f}% of projects")

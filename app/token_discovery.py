@@ -1,5 +1,5 @@
 """
-Token Launch Discovery — DexScreener + GeckoTerminal + GoPlus Security
+Token Launch Discovery - DexScreener + GeckoTerminal + GoPlus Security
 =======================================================================
 Multi-chain real-time token discovery. Add this route to main.py:
     from app.token_discovery import discover_endpoint

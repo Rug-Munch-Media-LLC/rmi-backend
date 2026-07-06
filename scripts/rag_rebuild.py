@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fast RAG rebuild — run all ingestion sources + build FAISS indexes.
+"""Fast RAG rebuild - run all ingestion sources + build FAISS indexes.
 Single-pass, single client, proper error logging."""
 
 import asyncio
@@ -116,13 +116,13 @@ async def run():
                         ok_scam += 1
                     else:
                         err += 1
-                except:
+                except:  # noqa: E722
                     err += 1
                 if (i + 1) % 100 == 0:
                     logger.info(f"  Scam: {i + 1}/{len(scam_rows)} | ok={ok_scam}")
                     await asyncio.sleep(0.1)
 
-            # Wallet profiles (batch for speed, skip if 0 scam found — data issue)
+            # Wallet profiles (batch for speed, skip if 0 scam found - data issue)
             batch_size = 50
             for i in range(0, min(len(wallet_rows), 5000), batch_size):
                 batch = wallet_rows[i : i + batch_size]
@@ -145,7 +145,7 @@ async def run():
                     resp = await client.post(RAG_API, json=payload)
                     if resp.status_code == 200:
                         ok_wallet += len(batch)
-                except:
+                except:  # noqa: E722
                     pass
                 if (i // batch_size + 1) % 20 == 0:
                     logger.info(f"  Wallets: {i + len(batch)}/{min(len(wallet_rows), 5000)} | ok={ok_wallet}")
@@ -167,7 +167,7 @@ async def run():
             ]
             logger.info(f"3. Solana tokens: {len(flagged)} flagged as scam/spam")
             ok = 0
-            for i, token in enumerate(flagged):
+            for i, token in enumerate(flagged):  # noqa: B007
                 payload = {
                     "collection": "known_scams",
                     "content": f"Solana scam token: {token.get('name', '')} ({token.get('symbol', '')}) at {token.get('address', '')}. Tags: {token.get('tags', [])}.",
@@ -185,7 +185,7 @@ async def run():
                     resp = await client.post(RAG_API, json=payload)
                     if resp.status_code == 200:
                         ok += 1
-                except:
+                except:  # noqa: E722
                     pass
                 await asyncio.sleep(0.15)
             total_ingested += ok
@@ -200,10 +200,10 @@ async def run():
                 hacks = json.load(f)
             logger.info(f"4. Rekt hacks: {len(hacks)} incidents")
             ok = 0
-            for i, hack in enumerate(hacks):
+            for i, hack in enumerate(hacks):  # noqa: B007
                 payload = {
                     "collection": "forensic_reports",
-                    "content": f"DeFi hack: {hack.get('name', '')} — {hack.get('description', '')}. Attackers: {hack.get('attackers', [])}. Exploited: {hack.get('exploited', [])}. Amount: {hack.get('amount_lost', '')}.",
+                    "content": f"DeFi hack: {hack.get('name', '')} - {hack.get('description', '')}. Attackers: {hack.get('attackers', [])}. Exploited: {hack.get('exploited', [])}. Amount: {hack.get('amount_lost', '')}.",
                     "metadata": {
                         "source": "rekt_database",
                         "name": hack.get("name", ""),
@@ -217,7 +217,7 @@ async def run():
                     resp = await client.post(RAG_API, json=payload)
                     if resp.status_code == 200:
                         ok += 1
-                except:
+                except:  # noqa: E722
                     pass
                 await asyncio.sleep(0.1)
             total_ingested += ok
@@ -232,7 +232,7 @@ async def run():
     async with httpx.AsyncClient(timeout=120) as client:
         try:
             resp = await client.post("http://localhost:8000/api/v1/rag/build-index", json={})
-            logger.info(f"  Build index response: {resp.status_code} — {resp.text[:300]}")
+            logger.info(f"  Build index response: {resp.status_code} - {resp.text[:300]}")
 
             # Verify
             resp2 = await client.get("http://localhost:8000/api/v1/rag/stats")

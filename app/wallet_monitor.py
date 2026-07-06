@@ -1,5 +1,5 @@
 """
-Wallet Monitor — Live Wallet Intelligence Feed
+Wallet Monitor - Live Wallet Intelligence Feed
 ===============================================
 
 Real-time wallet monitoring across EVM (Alchemy WebSocket) and Solana (Helius WebSocket):
@@ -65,7 +65,7 @@ RPC_URLS = {
     "solana": os.getenv("SOLANA_RPC", ""),
 }
 
-# Known scammer / blocklist source — shared with threat_intel module
+# Known scammer / blocklist source - shared with threat_intel module
 SCAMMER_SET_KEY = "threatintel:blocklist"
 
 # Known DEX router addresses (EVM + Solana)
@@ -320,7 +320,7 @@ class AlertEngine:
         return alerts
 
     def _rule_large_transfer(self, tx: WalletTx, history: list[WalletTx]) -> WalletAlert | None:
-        # Value is raw — simplistic ETH assumption; real impl uses price oracle
+        # Value is raw - simplistic ETH assumption; real impl uses price oracle
         value_eth = tx.value
         if value_eth > (LARGE_TRANSFER_USD / 3000.0):  # assume $3K ETH as rough proxy
             return WalletAlert(
@@ -345,7 +345,7 @@ class AlertEngine:
                 chain=tx.chain,
                 tx_hash=tx.hash,
                 severity="warning",
-                message="Contract interaction with non-DEX contract — verify counterparty",
+                message="Contract interaction with non-DEX contract - verify counterparty",
                 metadata={"to": tx.to_addr},
                 timestamp=tx.timestamp,
             )
@@ -379,7 +379,7 @@ class AlertEngine:
                 chain=tx.chain,
                 tx_hash=tx.hash,
                 severity="warning",
-                message="First token approval — review spender contract",
+                message="First token approval - review spender contract",
                 metadata={"spender": tx.to_addr},
                 timestamp=tx.timestamp,
             )

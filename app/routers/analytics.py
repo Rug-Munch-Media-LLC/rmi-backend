@@ -4,17 +4,17 @@ RMI Analytics API Router
 REST API for real-time analytics and dashboard data.
 
 Endpoints:
-  GET  /api/v1/analytics/metrics              — List all metrics
-  GET  /api/v1/analytics/metrics/{name}       — Get metric data
-  POST /api/v1/analytics/metrics/{name}       — Record metric
-  GET  /api/v1/analytics/dashboards           — List dashboards
-  GET  /api/v1/analytics/dashboards/{id}     — Get dashboard data
-  POST /api/v1/analytics/dashboards            — Create dashboard
-  GET  /api/v1/analytics/trends/{metric}      — Get trend analysis
-  GET  /api/v1/analytics/stats                — System stats
-  GET  /api/v1/analytics/prometheus           — Prometheus export
-  GET  /api/v1/analytics/export/{metric}      — Export metric
-  GET  /api/v1/analytics/realtime/{dashboard} — WebSocket-compatible data
+  GET  /api/v1/analytics/metrics              - List all metrics
+  GET  /api/v1/analytics/metrics/{name}       - Get metric data
+  POST /api/v1/analytics/metrics/{name}       - Record metric
+  GET  /api/v1/analytics/dashboards           - List dashboards
+  GET  /api/v1/analytics/dashboards/{id}     - Get dashboard data
+  POST /api/v1/analytics/dashboards            - Create dashboard
+  GET  /api/v1/analytics/trends/{metric}      - Get trend analysis
+  GET  /api/v1/analytics/stats                - System stats
+  GET  /api/v1/analytics/prometheus           - Prometheus export
+  GET  /api/v1/analytics/export/{metric}      - Export metric
+  GET  /api/v1/analytics/realtime/{dashboard} - WebSocket-compatible data
 """
 
 import logging

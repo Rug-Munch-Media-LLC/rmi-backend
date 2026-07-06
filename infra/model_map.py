@@ -1,4 +1,4 @@
-"""Model access map — who has tokens for what.
+"""Model access map - who has tokens for what.
 
 Updated whenever API keys change. Run with `python -m infra.model_map` from
 the repo root, or `bash infra/model_map.sh` for a shell-only view.

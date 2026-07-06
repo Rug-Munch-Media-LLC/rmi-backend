@@ -1,5 +1,5 @@
 """
-Entity Resolver — Cross-chain entity linking.
+Entity Resolver - Cross-chain entity linking.
 ================================================================
 Links wallets across chains using:
   1. Bridge mappings (wallet A on chain X → wallet B on chain Y via bridge tx)

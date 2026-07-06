@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 # Load .env with override to ensure JWT keys win over stale Docker env vars
 load_dotenv("/app/.env", override=True)
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""T44 Cron Health Check — detects silent cron failures.
+"""T44 Cron Health Check - detects silent cron failures.
 
 Per v4.0 §T44. Runs every 5 minutes, checks that all crons have
 logged success in their expected window. Reports failures to:
@@ -152,7 +152,7 @@ def main():
     log(f"summary: {json.dumps(summary)}")
 
     for r in stale:
-        log(f"  STALE: {r['name']} — {r['error'][:120]}")
+        log(f"  STALE: {r['name']} - {r['error'][:120]}")
 
     if stale:
         report_to_backend(stale)

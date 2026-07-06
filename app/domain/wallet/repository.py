@@ -1,4 +1,4 @@
-"""Repository — async data fetch for wallet info.
+"""Repository - async data fetch for wallet info.
 
 Backed by:
   - Databus (chain-agnostic on-chain data) for balances + transactions

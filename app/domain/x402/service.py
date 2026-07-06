@@ -1,4 +1,4 @@
-"""x402 service — facade over legacy x402 routers.
+"""x402 service - facade over legacy x402 routers.
 
 Calls into the existing x402 catalog/enforcement routers. As those
 routers are rewritten into proper domain modules, this service
@@ -43,7 +43,7 @@ class X402Service:
         """Fetch list of enabled payment facilitators.
 
         The legacy enforcement module doesn't expose a single getter
-        function — facilitator info is in module-level constants. This
+        function - facilitator info is in module-level constants. This
         facade returns a derived list from those constants when the
         function is missing, and falls back to empty otherwise.
         """
@@ -63,7 +63,7 @@ class X402Service:
 
     @staticmethod
     def _default_facilitators() -> list[PaymentFacilitator]:
-        """Default facilitator list — matches the legacy enforcement config."""
+        """Default facilitator list - matches the legacy enforcement config."""
         return [
             PaymentFacilitator(name="Coinbase CDP", url="https://api.cdp.coinbase.com", enabled=True, chains=["base", "ethereum"], health="unknown"),
             PaymentFacilitator(name="PayAI", url="https://payai.example", enabled=True, chains=["solana", "base"], health="unknown"),

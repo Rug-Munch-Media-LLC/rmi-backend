@@ -12,7 +12,7 @@ BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 @router.get("/providers/dashboard")
 async def provider_dashboard():
-    """Real-time provider health dashboard data — feed into Grafana."""
+    """Real-time provider health dashboard data - feed into Grafana."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
@@ -47,7 +47,7 @@ async def provider_dashboard():
     except Exception:
         pass
 
-    return {"providers": [], "note": "Provider health API unavailable — check backend"}
+    return {"providers": [], "note": "Provider health API unavailable - check backend"}
 
 
 @router.get("/queue/stats")

@@ -1,19 +1,17 @@
-"""x402 Growth — webhooks, analytics, payment page, chains, affiliates.
+"""x402 Growth - webhooks, analytics, payment page, chains, affiliates.
 
 Items 6-10 from the strategic roadmap.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import secrets
 import time
-from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import HTMLResponse
 
 logger = logging.getLogger("x402.growth")
 
@@ -101,12 +99,11 @@ async def fire_payment_webhook(tx_hash: str, tool: str, amount_usd: float, chain
 
 @router.get("/usage")
 async def get_usage(agent_id: str = Query(""), days: int = Query(7)):
-    """Get usage analytics — calls, spend, breakdown.
+    """Get usage analytics - calls, spend, breakdown.
 
     Returns per-tool call counts, total spend, and daily breakdown.
     """
-    from app.routers.x402_enforcement import TOOL_PRICES
-    from app.routers.x402_enforcement import _ensure_tool_prices
+    from app.routers.x402_enforcement import TOOL_PRICES, _ensure_tool_prices
     _ensure_tool_prices()
 
     total_calls = 0
@@ -201,8 +198,7 @@ loadInvoice();
 @router.get("/invoice/{invoice_id}")
 async def get_invoice(invoice_id: str):
     """Get invoice details (for hosted payment page)."""
-    from app.domain.x402.middleware import create_invoice
-    # Parse tool from invoice_id (format: uuid — lookup in pending)
+    # Parse tool from invoice_id (format: uuid - lookup in pending)
     return {
         "invoice_id": invoice_id,
         "amount_usd": 0.01,
@@ -214,7 +210,7 @@ async def get_invoice(invoice_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  9. ADDITIONAL CHAINS — Polygon, Arbitrum, Optimism, Avalanche
+#  9. ADDITIONAL CHAINS - Polygon, Arbitrum, Optimism, Avalanche
 # ═══════════════════════════════════════════════════════════════════
 
 ADDITIONAL_CHAINS = {
@@ -316,7 +312,7 @@ async def register_affiliate(name: str = Query(...), email: str = Query("")):
 
 @router.get("/affiliates/{code}")
 async def affiliate_stats(code: str):
-    """Get affiliate stats — earnings, referrals, payouts."""
+    """Get affiliate stats - earnings, referrals, payouts."""
     aff = _affiliates.get(code)
     if not aff:
         raise HTTPException(status_code=404, detail="Affiliate not found")

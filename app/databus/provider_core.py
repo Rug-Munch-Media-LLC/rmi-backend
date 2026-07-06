@@ -1,5 +1,5 @@
 """
-DataBus Provider Core — Infrastructure & Base Classes
+DataBus Provider Core - Infrastructure & Base Classes
 ======================================================
 
 Circuit breakers, rate limiters, quota tracking, and core provider classes.
@@ -20,10 +20,10 @@ logger = logging.getLogger("databus.providers.core")
 class ProviderTier(Enum):
     """Provider tiers: LOCAL > FREE_API > FREEMIUM > PAID"""
 
-    LOCAL = "local"  # Our own data — instant, free, unlimited
-    FREE_API = "free_api"  # Free external API — no key needed
-    FREEMIUM = "freemium"  # Free tier with key — limited credits
-    PAID = "paid"  # Paid API — precious credits
+    LOCAL = "local"  # Our own data - instant, free, unlimited
+    FREE_API = "free_api"  # Free external API - no key needed
+    FREEMIUM = "freemium"  # Free tier with key - limited credits
+    PAID = "paid"  # Paid API - precious credits
 
 
 @dataclass

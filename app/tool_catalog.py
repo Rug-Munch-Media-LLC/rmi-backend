@@ -1,21 +1,21 @@
 """
-RMI Tool Catalog — Organized for Humans & Bots
+RMI Tool Catalog - Organized for Humans & Bots
 ===============================================
 Structured catalog of all 170 crypto security and intelligence tools.
 Organized by category with SEO-optimized descriptions, keywords, and use cases.
 Serves both human-readable discovery and bot-parseable structured data.
 
 Categories:
-    SECURITY (38)     — Scam detection, contract audit, threat prevention, SENTINEL deep scan
-    INTELLIGENCE (27)  — Wallet profiling, whale tracking, pattern detection
-    MARKET (15)        — Price data, liquidity analysis, market health
-    ANALYSIS (14)      — Portfolio, forensics, deep token investigation
-    SOCIAL (11)        — Sentiment, Twitter/X intelligence, signal detection
-    LAUNCHPAD (7)      — New token discovery, launch intelligence
-    PREMIUM (7)        — Advanced investigation packs
-    DEFI (4)           — Yield scanning, aggregator, impermanent loss
-    NFT (2)            — Wash trading, floor analytics
-    MCP EXTERNAL (150+) — Third-party data provider tools
+    SECURITY (38)     - Scam detection, contract audit, threat prevention, SENTINEL deep scan
+    INTELLIGENCE (27)  - Wallet profiling, whale tracking, pattern detection
+    MARKET (15)        - Price data, liquidity analysis, market health
+    ANALYSIS (14)      - Portfolio, forensics, deep token investigation
+    SOCIAL (11)        - Sentiment, Twitter/X intelligence, signal detection
+    LAUNCHPAD (7)      - New token discovery, launch intelligence
+    PREMIUM (7)        - Advanced investigation packs
+    DEFI (4)           - Yield scanning, aggregator, impermanent loss
+    NFT (2)            - Wash trading, floor analytics
+    MCP EXTERNAL (150+) - Third-party data provider tools
 """
 
 from typing import Any
@@ -160,7 +160,7 @@ TOOL_CATEGORIES = {
 def get_human_catalog() -> dict[str, Any]:
     """Build a human-friendly tool catalog organized by use case and tier.
 
-    Returns structured data suitable for frontend display — categories,
+    Returns structured data suitable for frontend display - categories,
     tools, descriptions, pricing tiers, and SEO metadata.
     """
     from app.routers.x402_databus_tools import X402_TOOL_PRICING as DATABUS_TOOLS
@@ -169,7 +169,7 @@ def get_human_catalog() -> dict[str, Any]:
 
     catalog = {
         "meta": {
-            "name": "Rug Munch Intelligence — Crypto Security & Analysis Tools",
+            "name": "Rug Munch Intelligence - Crypto Security & Analysis Tools",
             "description": "170 crypto security, intelligence, and market analysis tools accessible via API, MCP, and web interface. AI-powered scam detection, whale tracking, contract auditing, and forensics across 13 blockchains. Basic, Premium, and Elite tiers for every need.",
             "seo_keywords": [
                 "crypto scam detection",

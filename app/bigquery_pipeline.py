@@ -2,7 +2,7 @@
 BigQuery Wallet Analytics Pipeline
 ====================================
 Streams wallet labels, scan results, and embedding usage to BigQuery.
-All usage counts against free tier (1TB queries/month — we'll use <1%).
+All usage counts against free tier (1TB queries/month - we'll use <1%).
 """
 
 import logging

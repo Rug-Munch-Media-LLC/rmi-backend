@@ -7,16 +7,16 @@ across multiple chains. Includes blacklist/anti-bot controls.
 All endpoints require X-Admin-Key header.
 
 Routes:
-  POST /api/v1/admin/tokens/deploy       — Deploy new token
-  POST /api/v1/admin/tokens/mint       — Mint additional tokens
-  POST /api/v1/admin/tokens/burn       — Burn tokens
-  POST /api/v1/admin/tokens/transfer   — Transfer ownership
-  POST /api/v1/admin/tokens/renounce   — Renounce ownership
-  POST /api/v1/admin/tokens/blacklist  — Add to blacklist
-  POST /api/v1/admin/tokens/unblacklist — Remove from blacklist
-  GET  /api/v1/admin/tokens/list       — List all deployments
-  GET  /api/v1/admin/tokens/{id}       — Get deployment details
-  GET  /api/v1/admin/tokens/chains     — List supported chains
+  POST /api/v1/admin/tokens/deploy       - Deploy new token
+  POST /api/v1/admin/tokens/mint       - Mint additional tokens
+  POST /api/v1/admin/tokens/burn       - Burn tokens
+  POST /api/v1/admin/tokens/transfer   - Transfer ownership
+  POST /api/v1/admin/tokens/renounce   - Renounce ownership
+  POST /api/v1/admin/tokens/blacklist  - Add to blacklist
+  POST /api/v1/admin/tokens/unblacklist - Remove from blacklist
+  GET  /api/v1/admin/tokens/list       - List all deployments
+  GET  /api/v1/admin/tokens/{id}       - Get deployment details
+  GET  /api/v1/admin/tokens/chains     - List supported chains
 """
 
 import logging
@@ -188,10 +188,10 @@ async def deploy_token(request: Request, body: DeployTokenRequest, _=Depends(_ve
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Token deployment failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Deployment failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Deployment failed: {e!s}") from e
 
 
 @router.post("/mint")
@@ -204,7 +204,7 @@ async def mint_tokens(request: Request, body: MintRequest, _=Depends(_verify_adm
             raise HTTPException(status_code=404, detail="Deployment not found")
 
         if deployment.status != "deployed":
-            raise HTTPException(status_code=400, detail=f"Cannot mint — status is {deployment.status}")
+            raise HTTPException(status_code=400, detail=f"Cannot mint - status is {deployment.status}")
 
         deployer = TokenDeployerFactory.get_deployer(deployment.chain)
         tx_hash = await deployer.mint_tokens(deployment.contract_address, body.to_address, body.amount)
@@ -221,7 +221,7 @@ async def mint_tokens(request: Request, body: MintRequest, _=Depends(_verify_adm
         raise
     except Exception as e:
         logger.error(f"Mint failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Mint failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Mint failed: {e!s}") from e
 
 
 @router.post("/burn")
@@ -248,7 +248,7 @@ async def burn_tokens(request: Request, body: BurnRequest, _=Depends(_verify_adm
         raise
     except Exception as e:
         logger.error(f"Burn failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Burn failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Burn failed: {e!s}") from e
 
 
 @router.post("/transfer")
@@ -280,7 +280,7 @@ async def transfer_ownership(request: Request, body: TransferOwnershipRequest, _
         raise
     except Exception as e:
         logger.error(f"Ownership transfer failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Transfer failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Transfer failed: {e!s}") from e
 
 
 @router.post("/renounce")
@@ -310,7 +310,7 @@ async def renounce_ownership(request: Request, body: dict = Body(...), _=Depends
         raise
     except Exception as e:
         logger.error(f"Renounce failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Renounce failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Renounce failed: {e!s}") from e
 
 
 # ── Blacklist / Anti-Bot Endpoints ────────────────────────────
@@ -340,7 +340,7 @@ async def blacklist_add(request: Request, body: BlacklistRequest, _=Depends(_ver
         raise
     except Exception as e:
         logger.error(f"Blacklist add failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Blacklist failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Blacklist failed: {e!s}") from e
 
 
 @router.post("/unblacklist")
@@ -367,7 +367,7 @@ async def blacklist_remove(request: Request, body: BlacklistRequest, _=Depends(_
         raise
     except Exception as e:
         logger.error(f"Unblacklist failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Unblacklist failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Unblacklist failed: {e!s}") from e
 
 
 @router.get("/blacklist/check")
@@ -393,7 +393,7 @@ async def check_blacklist(request: Request, deployment_id: str, address: str, _=
         raise
     except Exception as e:
         logger.error(f"Blacklist check failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Check failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Check failed: {e!s}") from e
 
 
 @router.post("/trading")
@@ -419,7 +419,7 @@ async def set_trading(request: Request, body: TradingToggleRequest, _=Depends(_v
         raise
     except Exception as e:
         logger.error(f"Trading toggle failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Toggle failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Toggle failed: {e!s}") from e
 
 
 @router.post("/max-wallet")
@@ -445,7 +445,7 @@ async def set_max_wallet(request: Request, body: SetLimitRequest, _=Depends(_ver
         raise
     except Exception as e:
         logger.error(f"Max wallet set failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Set failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Set failed: {e!s}") from e
 
 
 @router.post("/max-tx")
@@ -471,7 +471,7 @@ async def set_max_tx(request: Request, body: SetLimitRequest, _=Depends(_verify_
         raise
     except Exception as e:
         logger.error(f"Max tx set failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Set failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Set failed: {e!s}") from e
 
 
 # ── Query Endpoints ───────────────────────────────────────────
@@ -492,7 +492,7 @@ async def list_deployments(request: Request, chain: str | None = None, limit: in
 
     except Exception as e:
         logger.error(f"List failed: {e}")
-        raise HTTPException(status_code=500, detail=f"List failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"List failed: {e!s}") from e
 
 
 @router.get("/{deployment_id}")
@@ -521,7 +521,7 @@ async def get_deployment(request: Request, deployment_id: str, _=Depends(_verify
         raise
     except Exception as e:
         logger.error(f"Get deployment failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}") from e
 
 
 @router.get("/{deployment_id}/balance/{wallet_address}")
@@ -547,7 +547,7 @@ async def get_balance(request: Request, deployment_id: str, wallet_address: str,
         raise
     except Exception as e:
         logger.error(f"Balance check failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Balance check failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Balance check failed: {e!s}") from e
 
 
 # ── Helpers ───────────────────────────────────────────────────

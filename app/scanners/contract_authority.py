@@ -1,5 +1,5 @@
 """
-SENTINEL — Contract Authority Detection
+SENTINEL - Contract Authority Detection
 =========================================
 Detects dangerous authority configurations on Solana tokens (mint, freeze,
 update authority) and EVM contracts (proxy patterns, upgradable contracts,
@@ -158,7 +158,7 @@ class ContractAuthorityScanner:
         await self._http.aclose()
 
     async def analyze(self, token_address: str, chain: str) -> ContractAuthorityReport:
-        """Alias for scan() — matches SENTINEL pipeline interface."""
+        """Alias for scan() - matches SENTINEL pipeline interface."""
         return await self.scan(token_address, chain)
 
     # ── Public Entry Point ──────────────────────────────────
@@ -336,13 +336,13 @@ class ContractAuthorityScanner:
 
         if auths.mint_authority and not auths.mint_authority.is_renounced:
             if auths.mint_authority.is_token_itself:
-                report.warnings.append("CRITICAL: Mint authority is the token itself — self-referential minting")
+                report.warnings.append("CRITICAL: Mint authority is the token itself - self-referential minting")
             else:
                 report.warnings.append(f"Mint authority not renounced: {auths.mint_authority.address}")
 
         if auths.freeze_authority and not auths.freeze_authority.is_renounced:
             if auths.freeze_authority.is_token_itself:
-                report.warnings.append("HIGH: Freeze authority is the token itself — can freeze accounts")
+                report.warnings.append("HIGH: Freeze authority is the token itself - can freeze accounts")
             else:
                 report.warnings.append(f"Freeze authority not renounced: {auths.freeze_authority.address}")
 
@@ -507,9 +507,9 @@ class ContractAuthorityScanner:
             )
 
             if proxy.admin_address and not proxy.is_ownership_renounced:
-                report.warnings.append(f"Proxy admin not renounced: {proxy.admin_address} — contract can be upgraded")
+                report.warnings.append(f"Proxy admin not renounced: {proxy.admin_address} - contract can be upgraded")
             elif proxy.is_ownership_renounced:
-                report.warnings.append("Proxy ownership is renounced — upgrade risk mitigated")
+                report.warnings.append("Proxy ownership is renounced - upgrade risk mitigated")
 
         if proxy.has_admin_functions:
             sigs = ", ".join(proxy.admin_function_signatures[:5])

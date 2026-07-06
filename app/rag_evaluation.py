@@ -1,5 +1,5 @@
 """
-RAGAS Evaluation Pipeline — Weekly RAG quality assessment.
+RAGAS Evaluation Pipeline - Weekly RAG quality assessment.
 =============================================================
 Evaluates RAG system against golden test set using RAGAS metrics:
   - faithfulness: is the answer grounded in retrieved context?
@@ -21,7 +21,7 @@ BACKEND = "http://localhost:8000"
 RAG_SEARCH = f"{BACKEND}/api/v1/rag/search"
 
 # ═══════════════════════════════════════════════════
-# GOLDEN TEST SET — 20 queries with expected answers
+# GOLDEN TEST SET - 20 queries with expected answers
 # ═══════════════════════════════════════════════════
 GOLDEN_TESTS = [
     {
@@ -359,12 +359,12 @@ async def evaluate_single(test: dict) -> dict:
             results = data.get("results", [])
             total = data.get("total", 0)
 
-            # Score: context_precision — how many expected terms appear in results?
+            # Score: context_precision - how many expected terms appear in results?
             all_text = " ".join([res.get("content", res.get("text", "")) for res in results]).lower()
             terms_found = sum(1 for t in expected_terms if t in all_text)
             precision = terms_found / len(expected_terms) if expected_terms else 0
 
-            # Score: context_recall — did we get enough results?
+            # Score: context_recall - did we get enough results?
             recall = min(total / min_results, 1.0) if min_results > 0 else 1.0
 
             # Combined score

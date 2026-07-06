@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Attempt imports — these are stubs and may not exist
+# Attempt imports - these are stubs and may not exist
 try:
     from app.rag_service import detect_scam_patterns, search_similar
 except ImportError:
@@ -102,7 +102,7 @@ async def check_wallet(request: WalletCheckRequest):
 
 @router.post("/check-token")
 async def check_token(request: TokenCheckRequest):
-    """Check token safety — delegates to x402-tools risk_scan for full analysis"""
+    """Check token safety - delegates to x402-tools risk_scan for full analysis"""
     return {
         "safe": True,
         "note": "Use /api/v1/x402-tools/risk_scan for full token security analysis",

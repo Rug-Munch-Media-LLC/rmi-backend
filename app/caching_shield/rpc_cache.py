@@ -1,5 +1,5 @@
 """
-Aggressive Caching Shield — RPC Cache Layer
+Aggressive Caching Shield - RPC Cache Layer
 Redis-backed cache wrapping ConsensusRpcClient with TTL tiers.
 
 Every RPC result is cached before returning. Cache keys are deterministic

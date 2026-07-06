@@ -1,5 +1,5 @@
 """
-SENTINEL — MEV/Sandwich Attack Detection
+SENTINEL - MEV/Sandwich Attack Detection
 =========================================
 Detects sandwich attacks, front-running, and back-running on token trades.
 For Solana: uses Jito tip detection + same-block buy-before/sell-after patterns.
@@ -295,7 +295,7 @@ class MEVDetector:
             if len(sigs) < 3:
                 continue
             # If 3+ TXs in same block for the same token, check for sandwich pattern
-            # This is a heuristic — full analysis requires parsed instruction data
+            # This is a heuristic - full analysis requires parsed instruction data
             sandwich = SandwichAttack(
                 victim_tx=sigs[0].get("signature", ""),
                 block_number=slot,
@@ -420,7 +420,7 @@ class MEVDetector:
             for tx in txs:
                 from_addr = tx.get("from", "").lower()
                 if from_addr in mev_builders:
-                    # Found a known MEV builder — check for sandwich pattern
+                    # Found a known MEV builder - check for sandwich pattern
                     # Look for: MEV bot buy → victim buy → MEV bot sell in same block
                     sandwich = SandwichAttack(
                         victim_tx="",  # Would need deeper analysis to identify victim
@@ -498,6 +498,6 @@ class MEVDetector:
         if report.sandwich_attacks:
             report.warnings.append(f"HIGH: {len(report.sandwich_attacks)} sandwich attacks detected")
         if report.jito_bundle_count > 0:
-            report.warnings.append(f"MEDIUM: {report.jito_bundle_count} Jito bundles found — MEV activity present")
+            report.warnings.append(f"MEDIUM: {report.jito_bundle_count} Jito bundles found - MEV activity present")
         if report.top_mev_bots:
             report.warnings.append(f"MEDIUM: {len(report.top_mev_bots)} known MEV bots active in this token")

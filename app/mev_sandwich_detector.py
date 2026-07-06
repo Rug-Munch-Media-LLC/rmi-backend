@@ -1,21 +1,21 @@
 """
 MEV & Sandwich Attack Detector
 ================================
-Real-time detection of Maximal Extractable Value (MEV) attacks — sandwich attacks,
+Real-time detection of Maximal Extractable Value (MEV) attacks - sandwich attacks,
 frontrunning, backrunning, and liquidation MEV across EVM chains.
 
 What it does:
-  1. Sandwich Detection — Identifies transactions where a user's swap is sandwiched
+  1. Sandwich Detection - Identifies transactions where a user's swap is sandwiched
      between a frontrun (buy) and backrun (sell) by the same MEV bot address
-  2. Frontrun/Backrun Detection — Flags suspicious tx ordering where a bot's
+  2. Frontrun/Backrun Detection - Flags suspicious tx ordering where a bot's
      transaction directly precedes/follows a user's transaction on the same pool
-  3. MEV Vulnerability Scoring — Rates tokens and DEX pools on their susceptibility
+  3. MEV Vulnerability Scoring - Rates tokens and DEX pools on their susceptibility
      to MEV extraction (liquidity depth, slippage tolerance, bot activity)
-  4. MEV Bot Tracking — Maintains a registry of known MEV bots and their
+  4. MEV Bot Tracking - Maintains a registry of known MEV bots and their
      extraction patterns, profit estimates, and target pools
-  5. Pool-Level Analysis — Analyzes DEX pool transactions for suspicious ordering
+  5. Pool-Level Analysis - Analyzes DEX pool transactions for suspicious ordering
      patterns indicative of ongoing MEV extraction
-  6. Alert Generation — Produces ranked alerts for users whose transactions show
+  6. Alert Generation - Produces ranked alerts for users whose transactions show
      signs of MEV extraction with estimated extracted value
 
 Competitive advantage:
@@ -476,7 +476,7 @@ def _is_sandwich_pattern(
 
 
 class MEVSandwichDetector:
-    """Real-time detection of MEV attacks — sandwiches, frontruns, backruns.
+    """Real-time detection of MEV attacks - sandwiches, frontruns, backruns.
 
     Provides:
       - Detects sandwich attacks and estimates extracted value
@@ -1025,7 +1025,7 @@ async def _run_scan(args: Any = None) -> None:
         ]
     )
 
-    print("🔍 MEV & Sandwich Attack Detector — Scan Starting")
+    print("🔍 MEV & Sandwich Attack Detector - Scan Starting")
     print(f"  Chains: {', '.join(detector.chains)}")
     print(f"  Known bots in registry: {len(detector._known_bots)}")
     print()
@@ -1060,8 +1060,8 @@ async def _run_scan(args: Any = None) -> None:
             reverse=True,
         )[:5]:
             print(
-                f"  {p['name']} ({p['chain']}) — "
-                f"score: {p['mev_vulnerability_score']} — {p['assessment']}"
+                f"  {p['name']} ({p['chain']}) - "
+                f"score: {p['mev_vulnerability_score']} - {p['assessment']}"
             )
             if p["flags"]:
                 for f in p["flags"]:
@@ -1084,7 +1084,7 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="MEV & Sandwich Attack Detector — real-time MEV detection"
+        description="MEV & Sandwich Attack Detector - real-time MEV detection"
     )
     parser.add_argument(
         "--pool",

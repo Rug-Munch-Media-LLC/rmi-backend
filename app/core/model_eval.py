@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#8 — Model Evaluation Harness. Benchmarks models on Real-CATS scam data.
+"""#8 - Model Evaluation Harness. Benchmarks models on Real-CATS scam data.
 Runs lm-eval locally or via Ollama. Picks the best model per task."""
 
 import asyncio

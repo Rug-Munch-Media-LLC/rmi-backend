@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RMI AI Pipeline Part 2 — Remaining 7 Modules
+RMI AI Pipeline Part 2 - Remaining 7 Modules
 =============================================
 Community Forensics | Cross-Chain Entity | Ghost Blog | Social Media | Token Compare
 All Ollama Cloud deepseek-v4-flash. ~$0.001/operation.

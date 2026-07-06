@@ -1,5 +1,5 @@
 """
-Wallet Ingestion Pipeline — Auto-pull data from Helius (Solana) & Etherscan (EVM).
+Wallet Ingestion Pipeline - Auto-pull data from Helius (Solana) & Etherscan (EVM).
 =================================================================================
 Automatically fetches transaction history when a wallet profile is requested and:
   - Profile has no data (never fetched)
@@ -60,7 +60,7 @@ class TokenBucketRateLimiter:
                 if self._tokens >= 1.0:
                     self._tokens -= 1.0
                     return
-            # No token available — brief sleep then retry
+            # No token available - brief sleep then retry
             await asyncio.sleep(1.0 / self.rate)
 
     def _refill(self):
@@ -261,7 +261,7 @@ class WalletIngestionPipeline:
         """
         addr = address.lower().strip()
 
-        # Check cooldown — don't re-fetch within 5 minutes
+        # Check cooldown - don't re-fetch within 5 minutes
         if self._cooldown.is_cooled(addr, chain):
             logger.debug(f"Ingestion cooldown active for {addr} on {chain}")
             return False
@@ -338,7 +338,7 @@ class WalletIngestionPipeline:
         """Fetch transaction history from Helius Enhanced Transactions API."""
         api_key = os.getenv("HELIUS_API_KEY", "")
         if not api_key:
-            logger.warning("HELIUS_API_KEY not set — cannot fetch Solana transactions")
+            logger.warning("HELIUS_API_KEY not set - cannot fetch Solana transactions")
             return []
 
         client = await self._get_http_client()
@@ -437,7 +437,7 @@ class WalletIngestionPipeline:
                 logger.warning(f"Etherscan fetch error (page {page}, {chain}): {e}")
                 break
 
-        # Fetch internal transactions (first page only — these are secondary)
+        # Fetch internal transactions (first page only - these are secondary)
         await self._etherscan_limiter.acquire()
         int_params = {
             "module": "account",
@@ -750,14 +750,14 @@ class WalletIngestionPipeline:
     async def _store_token_transfers(self, txs: list[NormalizedTransaction]):
         """Store token transfers in ClickHouse token_transfers table."""
         if not self.storage:
-            logger.debug("No storage available — skipping token transfer persistence")
+            logger.debug("No storage available - skipping token transfer persistence")
             return
 
         try:
             await self.storage._ensure_connections()
             ch = self.storage._ch
             if not ch:
-                logger.debug("ClickHouse unavailable — skipping token transfer save")
+                logger.debug("ClickHouse unavailable - skipping token transfer save")
                 return
 
             rows = []

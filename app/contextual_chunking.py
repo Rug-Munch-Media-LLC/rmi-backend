@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CONTEXTUAL CHUNKING — Anthropic-style Contextual Retrieval
+CONTEXTUAL CHUNKING - Anthropic-style Contextual Retrieval
 ==========================================================
 Prepends each chunk with a short LLM-generated context string explaining
 where this chunk sits in the source document. Dramatically improves
@@ -138,7 +138,7 @@ def chunk_document(
         end = start + chunk_size
 
         if end >= len(text):
-            # Last chunk — take everything remaining
+            # Last chunk - take everything remaining
             chunk_text = text[start:].strip()
             if chunk_text:
                 chunks.append(Chunk(index=idx, content=chunk_text))
@@ -189,7 +189,7 @@ Here is the chunk we want to situate within the whole document:
 {chunk}
 </chunk>
 
-Give a short context (2-3 sentences) to precede this chunk that improves its retrievability. The context should explain where this chunk fits in the document and what information it contains. Be specific — mention names, topics, and any key entities. Do NOT repeat the chunk content verbatim.
+Give a short context (2-3 sentences) to precede this chunk that improves its retrievability. The context should explain where this chunk fits in the document and what information it contains. Be specific - mention names, topics, and any key entities. Do NOT repeat the chunk content verbatim.
 
 Context:"""
 

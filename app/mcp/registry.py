@@ -1,4 +1,4 @@
-"""MCP Tool Registry — resolves and lists tools from the TOOL_CATALOG."""
+"""MCP Tool Registry - resolves and lists tools from the TOOL_CATALOG."""
 
 from __future__ import annotations
 

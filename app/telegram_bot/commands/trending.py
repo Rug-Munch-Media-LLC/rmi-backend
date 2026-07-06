@@ -1,5 +1,5 @@
 """
-📈 Trending Tokens — Powered by DataBus
+📈 Trending Tokens - Powered by DataBus
 =======================================
 Fetch trending tokens across chains from the RMI backend.
 """
@@ -37,11 +37,11 @@ async def cmd_trending(update, ctx):
             price = t.get("price_usd", t.get("price", 0))
             change = t.get("price_change_24h", t.get("change_24h", 0))
             emoji = "🟢" if change > 0 else "🔴" if change < 0 else "⚪"
-            lines.append(f"{i}. <b>{symbol}</b> — ${price:.6f} {emoji} {change:+.1f}%")
+            lines.append(f"{i}. <b>{symbol}</b> - ${price:.6f} {emoji} {change:+.1f}%")
 
         text = "\n".join(lines)
         if len(text) > 4000:
-            text = text[:4000] + "\n\n<i>…more on rugmunch.io</i>"
+            text = text[:4000] + "\n\n<i>...more on rugmunch.io</i>"
 
         await update.message.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)
     except Exception as e:
@@ -50,7 +50,7 @@ async def cmd_trending(update, ctx):
 
 
 async def cmd_launches(update, ctx):
-    """Handle /launches command — new token launches."""
+    """Handle /launches command - new token launches."""
     await update.message.chat.send_action("typing")
     try:
         req = Request(
@@ -73,7 +73,7 @@ async def cmd_launches(update, ctx):
             chain = t.get("chain", "?")
             age = t.get("age_minutes", t.get("age", 0))
             age_str = f"{age:.0f}m" if age < 60 else f"{age / 60:.1f}h"
-            lines.append(f"{i}. <b>{symbol}</b> on {chain} — {age_str} old")
+            lines.append(f"{i}. <b>{symbol}</b> on {chain} - {age_str} old")
 
         text = "\n".join(lines)
         await update.message.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)

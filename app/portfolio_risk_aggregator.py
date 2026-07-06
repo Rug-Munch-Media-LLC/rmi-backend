@@ -2,7 +2,7 @@
 Cross-Chain Portfolio Risk Aggregator
 ======================================
 Aggregates a wallet's token holdings across ALL supported chains and produces
-a unified risk profile — the free, comprehensive alternative to Nansen Portfolio.
+a unified risk profile - the free, comprehensive alternative to Nansen Portfolio.
 
 How it works:
   1. Scans EVM chains (Ethereum, Base, BSC, Arbitrum, Polygon, Optimism, etc.)
@@ -74,7 +74,7 @@ RISK_WEIGHT_TOKENS = 0.6  # weight for token-level risk in portfolio score
 RISK_WEIGHT_CONCENTRATION = 0.25
 RISK_WEIGHT_CHAIN_DIVERSITY = 0.15
 
-# ERC20 ABI (minimal — balanceOf + decimals + symbol)
+# ERC20 ABI (minimal - balanceOf + decimals + symbol)
 ERC20_ABI = json.loads("""
 [
     {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
@@ -348,7 +348,7 @@ class PortfolioRiskProfile:
         lines.append("=" * 64)
         total_val = f"${self.total_value_usd:,.2f}" if self.total_value_usd > 0 else "Unknown"
         lines.append(
-            f"  PORTFOLIO RISK REPORT — {self.wallet_address[:12]}...{self.wallet_address[-6:]}"
+            f"  PORTFOLIO RISK REPORT - {self.wallet_address[:12]}...{self.wallet_address[-6:]}"
         )
         lines.append(
             f"  Health: {self.overall_health_score:.0f}/100 ({self.overall_risk_level().value.upper()})"
@@ -384,7 +384,7 @@ class PortfolioRiskProfile:
                 flags = ", ".join(t.risk_flags[:3])
                 pct = f"{t.pct_of_portfolio:.1f}%"
                 lines.append(
-                    f"  • {t.symbol:>8} ({t.chain}) — Score: {t.risk_score:.0f}/100 — {val} — {pct}"
+                    f"  • {t.symbol:>8} ({t.chain}) - Score: {t.risk_score:.0f}/100 - {val} - {pct}"
                 )
                 if flags:
                     lines.append(f"            ⚑ {flags}")
@@ -600,7 +600,7 @@ class SolanaConnector(ChainConnector):
             return 0.0
         except ValueError as e:
             logger.warning(
-                f"solana address validation error: {e} — invalid pubkey: {address[:12]}..."
+                f"solana address validation error: {e} - invalid pubkey: {address[:12]}..."
             )
             return 0.0
         except Exception as e:
@@ -1034,7 +1034,7 @@ class PortfolioRiskAggregator:
                 if 20 <= h.risk_score < 40:
                     high.append(h)
         if high:
-            findings.append(f"⚠️  {len(high)} HIGH risk token(s) — investigate withdrawals")
+            findings.append(f"⚠️  {len(high)} HIGH risk token(s) - investigate withdrawals")
 
         # Concentration risk
         if profile.concentration_risk_pct > 50:
@@ -1049,7 +1049,7 @@ class PortfolioRiskAggregator:
         # Low chain diversity
         chains_used = sum(1 for cp in profile.chain_portfolios.values() if cp.token_count > 0)
         if chains_used <= 1:
-            findings.append("🟡 Single-chain portfolio — consider diversifying across chains")
+            findings.append("🟡 Single-chain portfolio - consider diversifying across chains")
         elif chains_used >= 5:
             findings.append(f"✅ Good cross-chain diversity ({chains_used} chains)")
 
@@ -1073,7 +1073,7 @@ class PortfolioRiskAggregator:
 
         # Clean portfolio
         if not critical and not high and profile.overall_health_score >= 80:
-            findings.append("✅ Portfolio looks clean — no high-risk tokens detected")
+            findings.append("✅ Portfolio looks clean - no high-risk tokens detected")
 
         return findings
 

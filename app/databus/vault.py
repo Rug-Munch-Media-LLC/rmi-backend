@@ -1,5 +1,5 @@
 """
-DataBus Vault Integration — Zero-Plaintext Key Management
+DataBus Vault Integration - Zero-Plaintext Key Management
 ===========================================================
 
 Never reads API keys from .env. Never logs them. Never exposes them in responses.
@@ -8,11 +8,11 @@ auto-rotates on 429, and can refresh from vault without restart.
 
 Architecture:
   1. On startup: vault.py decrypts all keys from pass store into locked memory
-  2. Keys stored as obfuscated bytes — never Python strings that could be repr()'d
+  2. Keys stored as obfuscated bytes - never Python strings that could be repr()'d
   3. When a provider needs a key: acquire() returns it for the minimum time needed
   4. Key rotation: on 429/401, mark key disabled, rotate to next in pool
   5. Auto-refresh: vault.py can be called to add new keys without restart
-  6. Admin endpoints NEVER expose key values — only status (active/disabled/rate-limited)
+  6. Admin endpoints NEVER expose key values - only status (active/disabled/rate-limited)
 """
 
 import asyncio
@@ -129,7 +129,7 @@ class ManagedKey:
 
     provider: str
     key_name: str  # env var name e.g. "HELIUS_API_KEY"
-    _obfuscated: bytes  # obfuscated key value — never plain string
+    _obfuscated: bytes  # obfuscated key value - never plain string
     source: str = "env"  # "env" or "vault"
     state: KeyState = KeyState.ACTIVE
     calls_total: int = 0
@@ -207,7 +207,7 @@ class ManagedKey:
         self.last_refill = now
 
     def status(self) -> dict:
-        """Return status dict — NEVER includes key value."""
+        """Return status dict - NEVER includes key value."""
         return {
             "provider": self.provider,
             "key_name": self.key_name,
@@ -279,7 +279,7 @@ class VaultKeyPool:
             return None  # All keys exhausted or rate-limited
 
     def status(self) -> dict:
-        """Return pool status — NO key values ever exposed."""
+        """Return pool status - NO key values ever exposed."""
         active = sum(1 for k in self.keys if k.is_available())
         rate_limited = sum(1 for k in self.keys if k.state == KeyState.RATE_LIMITED)
         return {
@@ -472,11 +472,11 @@ class DataBusVault:
 
         # Auto-recommendations for free tier expansion
         free_tier_accounts = {
-            "helius": "https://dev.helius.xyz — 3 free accounts = 75 RPS",
-            "moralis": "https://admin.moralis.io — 3 free accounts = 75 RPS",
-            "etherscan": "https://etherscan.io/register — multiple free keys",
-            "birdeye": "https://birdeye.io — free tier available",
-            "solscan": "https://solscan.io — Pro API free tier",
+            "helius": "https://dev.helius.xyz - 3 free accounts = 75 RPS",
+            "moralis": "https://admin.moralis.io - 3 free accounts = 75 RPS",
+            "etherscan": "https://etherscan.io/register - multiple free keys",
+            "birdeye": "https://birdeye.io - free tier available",
+            "solscan": "https://solscan.io - Pro API free tier",
         }
         for prov, info in free_tier_accounts.items():
             if prov in providers and providers[prov]["status"] != "OK":
@@ -535,7 +535,7 @@ async def get_vault() -> DataBusVault:
 
 
 def get_vault_sync() -> DataBusVault:
-    """Synchronous access — vault must already be loaded."""
+    """Synchronous access - vault must already be loaded."""
     global _vault
     if _vault is None:
         _vault = DataBusVault()

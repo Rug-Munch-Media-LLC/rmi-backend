@@ -513,7 +513,7 @@ async def generate_card(card_type: str, data: dict):
         raise
     except Exception as e:
         logger.error(f"Card generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/cards/templates")
@@ -534,7 +534,7 @@ async def get_card_templates():
             ]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 # ── Marketing Graphics Endpoints ─────────────────────────────
@@ -548,7 +548,7 @@ async def list_marketing_templates_endpoint():
 
         return {"templates": list_marketing_templates()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/marketing/generate")
@@ -568,7 +568,7 @@ async def generate_marketing_graphic(graphic_type: str, data: dict | None = None
         raise
     except Exception as e:
         logger.error(f"Marketing graphic generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/marketing/generate/feature-cards")
@@ -580,7 +580,7 @@ async def generate_all_feature_cards_endpoint():
         results = await generate_all_feature_cards()
         return {"cards": results, "count": len(results)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/marketing/generate/stats")
@@ -599,7 +599,7 @@ async def generate_stats_graphic(stat_value: str, stat_label: str, context: str 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/marketing/generate/pricing")
@@ -618,4 +618,4 @@ async def generate_pricing_graphic(tier_name: str, price: float, features: list[
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e

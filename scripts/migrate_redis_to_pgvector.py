@@ -25,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Target dimension — max across all collections is 640 (token_analysis)
+# Target dimension - max across all collections is 640 (token_analysis)
 TARGET_DIM = 640
 
 COLLECTIONS = [

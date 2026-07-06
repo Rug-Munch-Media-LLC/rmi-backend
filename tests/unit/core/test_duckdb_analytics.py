@@ -1,4 +1,4 @@
-"""Tests for app/core/duckdb_analytics.py (T13 — RMIV5).
+"""Tests for app/core/duckdb_analytics.py (T13 - RMIV5).
 
 Per RMIV5 §T13: DuckDB is an in-process analytics engine for queries
 too small for ClickHouse but still needing columnar speed. These tests
@@ -165,7 +165,7 @@ class TestContextManager:
         d.query("SELECT 1")
         d.close()
         # Subsequent ops should fail (connection closed)
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             d.query("SELECT 1")
 
 
@@ -211,11 +211,11 @@ class TestErrorHandling:
     """Bad SQL should raise, not silently return empty."""
 
     def test_bad_sql_raises(self, db) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             db.query("SELECT * FROM nonexistent_table")
 
     def test_syntax_error_raises(self, db) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             db.query("THIS IS NOT VALID SQL")
 
 
@@ -238,5 +238,5 @@ class TestPostgresAttach:
     def test_attach_missing_pg_url_fails(self, db, monkeypatch) -> None:
         """If PG_URL points nowhere, ATTACH should raise (not silently swallow)."""
         monkeypatch.setenv("PG_URL", "postgres://nobody:nope@localhost:1/none")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             db.query_postgres("SELECT 1")

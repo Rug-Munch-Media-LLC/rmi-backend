@@ -1,4 +1,4 @@
-"""Public scanner endpoints — /api/v1/scanner/*.
+"""Public scanner endpoints - /api/v1/scanner/*.
 
 Stub for unauthenticated token scans. Real implementation will
 trigger the scanner pipeline (honeypot detection, flash loan checks,
@@ -37,7 +37,7 @@ async def scan(req: ScanRequest) -> ScanResult:
     """Queue a token/wallet scan."""
     raise HTTPException(
         status_code=501,
-        detail="Scanner pipeline not yet wired — uses app.domain.scanner (T06+)",
+        detail="Scanner pipeline not yet wired - uses app.domain.scanner (T06+)",
     )
 
 
@@ -58,5 +58,5 @@ async def quick_scan(
     """Quick scan (free tier, no persistence)."""
     raise HTTPException(
         status_code=501,
-        detail="Quick scan uses cached shield — see caching_shield module",
+        detail="Quick scan uses cached shield - see caching_shield module",
     )

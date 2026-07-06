@@ -55,7 +55,7 @@ async def main():
                     all_reports.extend(reports)
                     logger.info(f"Got {len(reports)} reports (total: {len(all_reports)})")
                 elif resp.status_code == 401:
-                    logger.warning("ChainAbuse API requires authentication — trying public feed")
+                    logger.warning("ChainAbuse API requires authentication - trying public feed")
                     break
                 else:
                     logger.warning(f"ChainAbuse returned {resp.status_code}")
@@ -87,7 +87,7 @@ async def main():
 
     if not all_reports:
         logger.warning("No ChainAbuse reports accessible via API. Ingestion skipped.")
-        logger.info("ChainAbuse may require API key — visit https://chainabuse.com for access")
+        logger.info("ChainAbuse may require API key - visit https://chainabuse.com for access")
         return
 
     logger.info(f"Processing {len(all_reports)} ChainAbuse reports")

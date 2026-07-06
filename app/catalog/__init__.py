@@ -1,11 +1,11 @@
-"""Catalog domain — the unified read/write API for RMI.
+"""Catalog domain - the unified read/write API for RMI.
 
 T27 of the v4.0 guide. Every store read/write goes through CatalogService.
 Domain facades call the catalog; they never touch stores directly.
 
 Architecture (per v4.0 §T27):
   app/catalog/models.py      Pydantic v2 entity schemas
-  app/catalog/service.py     CatalogService — fan-out reads, fan-in writes
+  app/catalog/service.py     CatalogService - fan-out reads, fan-in writes
   app/catalog/reputation.py  Deployer reputation scoring (T31)
   app/catalog/rag_bridge.py  Bridge to existing app/rag/ engine
   app/catalog/llm_router.py  LiteLLM proxy for AI analysis

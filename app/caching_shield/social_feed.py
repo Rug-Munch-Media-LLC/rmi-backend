@@ -1,5 +1,5 @@
 """
-RMI Social Feed — X/Twitter + Reddit crypto news with aggressive caching.
+RMI Social Feed - X/Twitter + Reddit crypto news with aggressive caching.
 
 Top 50 crypto X accounts monitored for breaking news.
 Falls back to Nitter when rate limited.
@@ -17,7 +17,7 @@ import httpx
 logger = logging.getLogger("social_feed")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TOP 50 CRYPTO X ACCOUNTS — by influence/relevance
+# TOP 50 CRYPTO X ACCOUNTS - by influence/relevance
 # ═══════════════════════════════════════════════════════════════════════════
 
 TOP_CRYPTO_ACCOUNTS = [
@@ -268,7 +268,7 @@ async def get_reddit_feed(limit: int = 20) -> dict:
 
 
 async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> dict:
-    """Get combined social feed — X + Reddit, sorted by recency."""
+    """Get combined social feed - X + Reddit, sorted by recency."""
     twitter, reddit = await asyncio.gather(
         get_twitter_feed(limit_twitter),
         get_reddit_feed(limit_reddit),

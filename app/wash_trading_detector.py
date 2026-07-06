@@ -39,15 +39,15 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
     import aiohttp
 
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession() as session:  # noqa: SIM117
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
                 if resp.status == 200:
                     return await resp.json()
                 logger.debug(f"Non-200 from {url}: {resp.status}")
     except (TimeoutError, aiohttp.ClientError) as e:
-        logger.debug(f"Fetch failed: {url[:60]} — {e}")
+        logger.debug(f"Fetch failed: {url[:60]} - {e}")
     except Exception as e:
-        logger.debug(f"Unexpected fetch error: {url[:60]} — {e}")
+        logger.debug(f"Unexpected fetch error: {url[:60]} - {e}")
     return None
 
 
@@ -78,9 +78,9 @@ async def _post_json(url: str, payload: dict, timeout: int = 10) -> dict | None:
                 return await resp.json()
             logger.debug(f"POST non-200 from {url}: {resp.status}")
     except (TimeoutError, aiohttp.ClientError) as e:
-        logger.debug(f"POST failed: {url[:60]} — {e}")
+        logger.debug(f"POST failed: {url[:60]} - {e}")
     except Exception as e:
-        logger.debug(f"Unexpected POST error: {url[:60]} — {e}")
+        logger.debug(f"Unexpected POST error: {url[:60]} - {e}")
     return None
 
 
@@ -96,7 +96,7 @@ def _compute_wash_score(
     Compute a 0-100 wash trading risk score.
 
     Factors (weighted):
-      - volume_tx_ratio (20%): Trade size distribution — unusually small
+      - volume_tx_ratio (20%): Trade size distribution - unusually small
         trades vs volume suggests wash activity (normalized 0-1)
       - top_trader_concentration (25%): % of volume from few addresses
         (higher = more concentrated wash risk)
@@ -106,7 +106,7 @@ def _compute_wash_score(
         suspiciously small and frequent (volume pumping)
       - reapearring_address_count (10%): Count of addresses that
         trade the same pair repeatedly (circular pattern indicator)
-      - liquidity_depth_ratio (10%): Volume vs liquidity ratio —
+      - liquidity_depth_ratio (10%): Volume vs liquidity ratio -
         abnormally high volume relative to depth = wash signal
     """
     score = 0.0
@@ -158,13 +158,13 @@ def _generate_recommendation(score: float, confidence: float) -> str:
     if score >= 75:
         base = (
             "🚨 CRITICAL WASH TRADING DETECTED. Abnormal trade patterns indicate "
-            "coordinated volume manipulation. Strongly avoid this token — the "
+            "coordinated volume manipulation. Strongly avoid this token - the "
             "volume and price action are artificial."
         )
     elif score >= 55:
         base = (
             "⚠️ HIGH wash trading probability. Significant indicators of artificial "
-            "volume inflation detected. Proceed with extreme caution — real "
+            "volume inflation detected. Proceed with extreme caution - real "
             "liquidity may be far lower than reported."
         )
     elif score >= 35:
@@ -174,7 +174,7 @@ def _generate_recommendation(score: float, confidence: float) -> str:
         )
     elif score >= 15:
         base = (
-            "ℹ️ LOW wash trading indicators. Minor anomalies detected but overall "
+            "ℹ️ LOW wash trading indicators. Minor anomalies detected but overall "  # noqa: RUF001
             "trading behavior appears organic."
         )
     else:
@@ -263,12 +263,12 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict:
         # Healthy ratio: ~0.5-2.0 volume/liquidity
         if liquidity_depth_ratio > 3.0:
             signals.append(
-                f"🟠 Extreme volume/liquidity ratio ({liquidity_depth_ratio:.1f}x) — "
+                f"🟠 Extreme volume/liquidity ratio ({liquidity_depth_ratio:.1f}x) - "
                 "volume far exceeds available liquidity, suggesting artificial pumping"
             )
         elif liquidity_depth_ratio > 2.0:
             signals.append(
-                f"🟡 High volume/liquidity ratio ({liquidity_depth_ratio:.1f}x) — "
+                f"🟡 High volume/liquidity ratio ({liquidity_depth_ratio:.1f}x) - "
                 "possible wash trading to inflate volume metrics"
             )
 
@@ -283,24 +283,24 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict:
             volume_tx_ratio = 0.9
             signals.append(
                 f"🔴 Abnormal trade pattern: {tx_count_24h} tiny trades "
-                f"averaging ${avg_tx_size:.2f} each — classic wash trading fingerprint"
+                f"averaging ${avg_tx_size:.2f} each - classic wash trading fingerprint"
             )
         elif avg_tx_size < 50 and tx_count_24h > 100:
             volume_tx_ratio = 0.7
             signals.append(
                 f"🟠 High frequency of small trades ({tx_count_24h} txs, "
-                f"${avg_tx_size:.2f} avg) — possible volume pumping"
+                f"${avg_tx_size:.2f} avg) - possible volume pumping"
             )
         elif avg_tx_size < 100 and tx_count_24h > 200:
             volume_tx_ratio = 0.5
             signals.append(
                 f"🟡 Many small trades ({tx_count_24h} txs at ${avg_tx_size:.2f} avg) "
-                "— watch for wash patterns"
+                "- watch for wash patterns"
             )
         elif tx_count_24h > 500:
             volume_tx_ratio = 0.3
             signals.append(
-                f"ℹ️ High transaction volume ({tx_count_24h} txs) — "
+                f"ℹ️ High transaction volume ({tx_count_24h} txs) - "  # noqa: RUF001
                 "may indicate organic activity, worth monitoring"
             )
 
@@ -320,13 +320,13 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict:
             buy_sell_correlation = 0.8
             signals.append(
                 f"🔴 Near-perfect buy/sell balance ({buy_ratio:.0%} buys / "
-                f"{sell_ratio:.0%} sells) — highly indicative of wash trading bots"
+                f"{sell_ratio:.0%} sells) - highly indicative of wash trading bots"
             )
         elif reciprocal_range - 0.1 < buy_ratio < (1 - reciprocal_range + 0.1):
             buy_sell_correlation = 0.5
             signals.append(
                 f"🟠 Suspicious buy/sell balance ({buy_ratio:.0%} buys / "
-                f"{sell_ratio:.0%} sells) — possible reciprocal trading"
+                f"{sell_ratio:.0%} sells) - possible reciprocal trading"
             )
 
     # ── Step 6: Holder Concentration Analysis ─────────────────────
@@ -355,12 +355,12 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict:
     if top_trader_concentration > 0.6:
         signals.append(
             f"🟠 Extreme holder concentration ({top_trader_concentration * 100:.0f}% "
-            f"held by top 10) — possible coordinated wash trading syndicate"
+            f"held by top 10) - possible coordinated wash trading syndicate"
         )
     elif top_trader_concentration > 0.4:
         signals.append(
             f"🟡 High holder concentration ({top_trader_concentration * 100:.0f}%) "
-            "— small group controls most supply, facilitating wash trades"
+            "- small group controls most supply, facilitating wash trades"
         )
 
     # ── Step 7: Small trade ratio from volume distribution ───────

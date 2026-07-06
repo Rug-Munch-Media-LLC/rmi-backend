@@ -9,20 +9,19 @@ Usage (called by federated.py):
 Pattern: async function that returns list[Label]
 """
 
-from typing import List
 
 from app.domain.labels.models import Label
 from app.domain.labels.sources.mbal_source import get_mbalsy_service
 
 
-async def query_mbal(address: str, chain: str) -> List[Label]:
+async def query_mbal(address: str, chain: str) -> list[Label]:
     """
     Query MBAL for labels for an address.
-    
+
     Args:
         address: The wallet address to look up
         chain: The blockchain network (ethereum, bitcoin, etc.)
-        
+
     Returns:
         List of labels from MBAL
     """

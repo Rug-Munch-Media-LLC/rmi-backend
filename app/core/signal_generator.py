@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RMI Signal Generator — Automated trading signals from SENTINEL + market data.
+"""RMI Signal Generator - Automated trading signals from SENTINEL + market data.
 Publishes to Redpanda for real-time consumption. Cron every 5 minutes."""
 
 import asyncio
@@ -21,14 +21,14 @@ RMI_KEY = os.getenv("RMI_INTERNAL_KEY", "rmi-internal-2026")
 CHAINS = ["solana", "ethereum", "bsc", "base", "arbitrum"]
 
 SIGNAL_RULES = {
-    "avoid": {"max_safety": 35, "label": "🔴 AVOID", "desc": "High risk — likely scam or honeypot"},
-    "caution": {"max_safety": 55, "min_safety": 36, "label": "🟡 CAUTION", "desc": "Moderate risk — DYOR carefully"},
-    "watch": {"min_safety": 56, "max_safety": 75, "label": "🟢 WATCH", "desc": "Decent metrics — worth monitoring"},
+    "avoid": {"max_safety": 35, "label": "🔴 AVOID", "desc": "High risk - likely scam or honeypot"},
+    "caution": {"max_safety": 55, "min_safety": 36, "label": "🟡 CAUTION", "desc": "Moderate risk - DYOR carefully"},
+    "watch": {"min_safety": 56, "max_safety": 75, "label": "🟢 WATCH", "desc": "Decent metrics - worth monitoring"},
     "gem": {
         "min_safety": 76,
         "max_liquidity": 500000,
         "label": "💎 GEM",
-        "desc": "Strong safety, low cap — potential gem",
+        "desc": "Strong safety, low cap - potential gem",
     },
     "bluechip": {
         "min_safety": 76,
@@ -103,7 +103,7 @@ async def publish_signal(signal: dict):
 
 
 async def main():
-    logger.info(f"Signal Generator — {datetime.now(UTC).isoformat()}")
+    logger.info(f"Signal Generator - {datetime.now(UTC).isoformat()}")
     signals = []
     for chain in CHAINS:
         tokens = await fetch_trending(chain, 10)

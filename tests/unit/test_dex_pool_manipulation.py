@@ -210,7 +210,7 @@ class TestConcentrationAnalysis:
         pool = analyzer._build_pool_config("0xpool", sample_pool_metadata)
         parsed = analyzer._parse_positions(sample_positions)
         signal, _pct = analyzer._analyze_concentration(parsed, pool)
-        # Top 5: 500+300+100+50+30 = 980k out of 1000k = 98% — should flag
+        # Top 5: 500+300+100+50+30 = 980k out of 1000k = 98% - should flag
         assert signal is not None
         assert signal.category == RiskCategory.LIQUIDITY_CONCENTRATION
 

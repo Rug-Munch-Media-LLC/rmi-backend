@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RMI Tool Fingerprinter — Best-in-Class Scam Infrastructure Detection
+RMI Tool Fingerprinter - Best-in-Class Scam Infrastructure Detection
 =====================================================================
 Identifies the TOOLS behind scams, not just the outcomes.
 Phase 3-5 capabilities per the Enhanced Report V2 standards.
@@ -34,7 +34,7 @@ import httpx
 logger = logging.getLogger("tool-fingerprinter")
 
 # ══════════════════════════════════════════════════════════════════════
-# KNOWN TOOL FINGERPRINTS — from reverse-engineered scammer infrastructure
+# KNOWN TOOL FINGERPRINTS - from reverse-engineered scammer infrastructure
 # ══════════════════════════════════════════════════════════════════════
 
 # Solana Program IDs used by known bundler/sniper tools
@@ -56,7 +56,7 @@ TOOL_PROGRAMS = {
 # Transaction instruction patterns that identify specific tools
 TOOL_SIGNATURES = {
     "smithii_bundler": {
-        "description": "Smithii bundle bot — bundles liquidity add + first swap in single TX",
+        "description": "Smithii bundle bot - bundles liquidity add + first swap in single TX",
         "patterns": [
             # Signature: single TX with create_pool + add_liquidity + swap in sequence
             "create_pool_add_liquidity_swap_single_tx",
@@ -69,7 +69,7 @@ TOOL_SIGNATURES = {
         "confidence_required": 0.7,
     },
     "printr_bundler": {
-        "description": "Printr bundler — coordinated multi-wallet deployment with uniform distribution",
+        "description": "Printr bundler - coordinated multi-wallet deployment with uniform distribution",
         "patterns": [
             "deployer_program_derived_addresses",
             "wallets_funded_from_single_source",
@@ -80,7 +80,7 @@ TOOL_SIGNATURES = {
         "confidence_required": 0.7,
     },
     "launchlab_bundle": {
-        "description": "LaunchLab bundle bot — specific instruction ordering for token + LP creation",
+        "description": "LaunchLab bundle bot - specific instruction ordering for token + LP creation",
         "patterns": [
             "create_mint_create_ata_mint_to_create_pool_add_liquidity",
             "single_tx_8_12_instructions",
@@ -90,7 +90,7 @@ TOOL_SIGNATURES = {
         "confidence_required": 0.7,
     },
     "pumpfun_sniper": {
-        "description": "PumpFun sniper bot — buys within milliseconds of bonding curve completion",
+        "description": "PumpFun sniper bot - buys within milliseconds of bonding curve completion",
         "patterns": [
             "bonding_curve_completion_detection",
             "sub_second_first_buy",
@@ -101,7 +101,7 @@ TOOL_SIGNATURES = {
         "confidence_required": 0.6,
     },
     "volume_bot": {
-        "description": "Volume bot — self-trading to inflate volume metrics for trending algorithms",
+        "description": "Volume bot - self-trading to inflate volume metrics for trending algorithms",
         "patterns": [
             "circular_trading_same_small_wallet_set",
             "buy_sell_same_block_no_profit",
@@ -113,7 +113,7 @@ TOOL_SIGNATURES = {
         "confidence_required": 0.65,
     },
     "wallet_aging_evasion": {
-        "description": "Scanner-aware countermeasure — wallets aged before launching scam token",
+        "description": "Scanner-aware countermeasure - wallets aged before launching scam token",
         "patterns": [
             "wallet_created_weeks_before_first_scam_activity",
             "dormant_period_followed_by_intense_activity",
@@ -124,7 +124,7 @@ TOOL_SIGNATURES = {
         "confidence_required": 0.6,
     },
     "cross_chain_obfuscation": {
-        "description": "Scanner-aware countermeasure — funds routed through multiple chains to hide origin",
+        "description": "Scanner-aware countermeasure - funds routed through multiple chains to hide origin",
         "patterns": [
             "bridge_usage_to_break_tracking",
             "multiple_chain_funding_hops_3plus",
@@ -139,7 +139,7 @@ TOOL_SIGNATURES = {
 # Known scammer deployer patterns
 SCAMMER_DEPLOYER_PATTERNS = {
     "cex_funded_deployer": {
-        "description": "Deployer funded directly from centralized exchange — high scam correlation",
+        "description": "Deployer funded directly from centralized exchange - high scam correlation",
         "cex_wallets": [
             "binance",
             "coinbase",
@@ -156,7 +156,7 @@ SCAMMER_DEPLOYER_PATTERNS = {
         "severity": 60,
     },
     "mixer_funded_deployer": {
-        "description": "Deployer funded through mixer/tumbler — extremely suspicious",
+        "description": "Deployer funded through mixer/tumbler - extremely suspicious",
         "mixers": ["tornado", "cyclone", "typhoon", "wasabi", "samourai"],
         "severity": 95,
     },
@@ -261,7 +261,7 @@ class ToolFingerprinter:
                     confidence=0.95,
                     evidence=[f"Jito program invoked: {jito_hits[0]}"],
                     severity=75,
-                    description="Jito bundle detected — transaction was privately submitted to avoid front-running",
+                    description="Jito bundle detected - transaction was privately submitted to avoid front-running",
                 )
             )
 
@@ -275,7 +275,7 @@ class ToolFingerprinter:
                     confidence=0.99,
                     evidence=[f"Pump.fun program call: {pf_hits[0]}"],
                     severity=40,
-                    description="Pump.fun token — elevated risk due to low barrier to entry",
+                    description="Pump.fun token - elevated risk due to low barrier to entry",
                 )
             )
 
@@ -335,7 +335,7 @@ class ToolFingerprinter:
                     confidence=min(0.95, 0.6 + 0.1 * len(evidence_smithii)),
                     evidence=evidence_smithii,
                     severity=85,
-                    description="Smithii bundler detected — coordinated bundle launch with 15-25 wallets",
+                    description="Smithii bundler detected - coordinated bundle launch with 15-25 wallets",
                 )
             )
 
@@ -347,7 +347,7 @@ class ToolFingerprinter:
                     confidence=min(0.95, 0.6 + 0.1 * len(evidence_printr)),
                     evidence=evidence_printr,
                     severity=90,
-                    description="Printr bundler detected — 20-30 coordinated wallets from single deployer",
+                    description="Printr bundler detected - 20-30 coordinated wallets from single deployer",
                 )
             )
 
@@ -359,7 +359,7 @@ class ToolFingerprinter:
                     confidence=min(0.95, 0.6 + 0.1 * len(evidence_launchlab)),
                     evidence=evidence_launchlab,
                     severity=88,
-                    description="LaunchLab bundle detected — 8-12 instruction complex bundle transaction",
+                    description="LaunchLab bundle detected - 8-12 instruction complex bundle transaction",
                 )
             )
 
@@ -610,7 +610,7 @@ class ToolFingerprinter:
                     confidence=min(0.95, 0.5 + 0.15 * len(evidence)),
                     evidence=evidence,
                     severity=80,
-                    description="Volume bot / wash trading detected — inflated metrics",
+                    description="Volume bot / wash trading detected - inflated metrics",
                 )
             )
 
@@ -625,7 +625,7 @@ class ToolFingerprinter:
         transactions: list[dict] | None = None,
     ) -> dict[str, Any]:
         """
-        Full token scan — combines all detection methods.
+        Full token scan - combines all detection methods.
         Returns comprehensive risk assessment.
         """
         import time

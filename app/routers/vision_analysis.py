@@ -1,4 +1,4 @@
-"""Multi-Modal Token Analysis — Gemini 2.5 Flash vision for logo/website scanning.
+"""Multi-Modal Token Analysis - Gemini 2.5 Flash vision for logo/website scanning.
 Detects: stolen artwork, template websites, fake team photos, suspicious branding."""
 
 import base64
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/v1/vision", tags=["vision-analysis"])
 GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 GEMINI_VISION_MODEL = "gemini-2.5-flash"  # 1,500 req/day free
-GEMINI_PRO_MODEL = "gemini-2.5-pro"  # 50 req/day free — use sparingly
+GEMINI_PRO_MODEL = "gemini-2.5-pro"  # 50 req/day free - use sparingly
 
 
 async def _analyze_image(image_url: str, question: str) -> dict:
@@ -46,7 +46,7 @@ async def _analyze_image(image_url: str, question: str) -> dict:
 
 @router.get("/token-logo")
 async def analyze_token_logo(token_address: str, chain: str = Query("solana")):
-    """Analyze token logo for scam indicators — stolen art, AI-generated, generic."""
+    """Analyze token logo for scam indicators - stolen art, AI-generated, generic."""
 
     # Build logo URL based on chain
     logo_urls = {
@@ -83,9 +83,9 @@ async def scan_token_website(url: str):
     if re.search(r"(airdrop|claim|giveaway|free).*\.(io|com|xyz)", url.lower()):
         website_red_flags.append("Scam giveaway pattern in URL")
     if url.endswith((".xyz", ".click", ".win", ".loan")):
-        website_red_flags.append("Suspicious TLD — common for scams")
+        website_red_flags.append("Suspicious TLD - common for scams")
     if len(url) > 50:
-        website_red_flags.append("Unusually long URL — possible phishing")
+        website_red_flags.append("Unusually long URL - possible phishing")
 
     risk = min(100, len(website_red_flags) * 30)
 

@@ -1,10 +1,10 @@
 """
-AsterPay Facilitator — European x402 with EUR Off-Ramp
+AsterPay Facilitator - European x402 with EUR Off-Ramp
 ========================================================
 European x402 Facilitator with EUR off-ramp via SEPA Instant.
 MiCA compliant, ERC-8004 ready, ElizaOS plugin.
 
-First European-focused x402 infrastructure — allows users to
+First European-focused x402 infrastructure - allows users to
 pay in EUR or crypto and receive EUR via SEPA.
 """
 
@@ -28,7 +28,7 @@ logger = logging.getLogger("facilitator.asterpay")
 
 class AsterPayFacilitator(Facilitator):
     """
-    AsterPay — European x402 facilitator with SEPA EUR off-ramp.
+    AsterPay - European x402 facilitator with SEPA EUR off-ramp.
     MiCA compliant. Supports EUR and crypto payments.
     """
 
@@ -69,7 +69,7 @@ class AsterPayFacilitator(Facilitator):
 
     @property
     def description(self) -> str:
-        return "AsterPay — European x402 with SEPA EUR off-ramp, MiCA compliant"
+        return "AsterPay - European x402 with SEPA EUR off-ramp, MiCA compliant"
 
     async def verify(
         self,
@@ -141,7 +141,7 @@ class AsterPayFacilitator(Facilitator):
             return False
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
-        """Settle via AsterPay — may trigger SEPA off-ramp for EUR."""
+        """Settle via AsterPay - may trigger SEPA off-ramp for EUR."""
         try:
             body = {"paymentData": payment_data}
             # If EUR settlement requested

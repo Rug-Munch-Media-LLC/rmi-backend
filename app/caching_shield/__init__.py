@@ -1,14 +1,14 @@
 """
-Aggressive Caching Shield — Multi-Layer API Protection for Free RPC Tiers
+Aggressive Caching Shield - Multi-Layer API Protection for Free RPC Tiers
 
 Protects free tier RPC API keys (Helius, QuickNode, Alchemy) from
 exhaustion by frontend traffic. Enforces cache-first architecture:
 
-  1. RpcCacheClient — Redis L2 + in-memory L1 cache with TTL tiers
-  2. RpcRateLimiter — Token bucket rate limiting per provider
-  3. RpcBatcher — JSON-RPC batch request grouper (reduces call count)
-  4. HistoryDepthController — Caps default query depth, gates deep scans
-  5. WsClientManager — Connection-pooled Redis pub/sub for live streams
+  1. RpcCacheClient - Redis L2 + in-memory L1 cache with TTL tiers
+  2. RpcRateLimiter - Token bucket rate limiting per provider
+  3. RpcBatcher - JSON-RPC batch request grouper (reduces call count)
+  4. HistoryDepthController - Caps default query depth, gates deep scans
+  5. WsClientManager - Connection-pooled Redis pub/sub for live streams
 
 All modules fall back gracefully if Redis is unavailable.
 
@@ -48,38 +48,38 @@ from app.caching_shield.api_registry import (
     get_api_manager,
 )
 from app.caching_shield.batcher import (
-    BATCH_WINDOW_MS,
-    MAX_BATCH_SIZE,
-    BatchRequest,
-    BatchResult,
-    RpcBatcher,
+    BATCH_WINDOW_MS,  # noqa: F401
+    MAX_BATCH_SIZE,  # noqa: F401
+    BatchRequest,  # noqa: F401
+    BatchResult,  # noqa: F401
+    RpcBatcher,  # noqa: F401
 )
 from app.caching_shield.funding_tracer import (
     FundingTrace,
     trace_funding_source,
 )
 from app.caching_shield.history_depth import (
-    DEFAULT_DEPTH,
-    MAX_DEPTH,
-    MAX_PAGINATED,
-    HistoryDepthController,
-    get_history_controller,
+    DEFAULT_DEPTH,  # noqa: F401
+    MAX_DEPTH,  # noqa: F401
+    MAX_PAGINATED,  # noqa: F401
+    HistoryDepthController,  # noqa: F401
+    get_history_controller,  # noqa: F401
 )
 from app.caching_shield.rate_limiter import (
-    PROVIDER_LIMITS,
-    ProviderLimit,
-    RpcRateLimiter,
-    get_rate_limiter,
+    PROVIDER_LIMITS,  # noqa: F401
+    ProviderLimit,  # noqa: F401
+    RpcRateLimiter,  # noqa: F401
+    get_rate_limiter,  # noqa: F401
 )
 from app.caching_shield.rpc_cache import (
-    TTL_TABLE,
-    CacheStats,
-    RpcCacheClient,
-    get_rpc_cache,
+    TTL_TABLE,  # noqa: F401
+    CacheStats,  # noqa: F401
+    RpcCacheClient,  # noqa: F401
+    get_rpc_cache,  # noqa: F401
 )
 from app.caching_shield.solana_tracker import (
-    SolanaTrackerClient,
-    get_solana_tracker,
+    SolanaTrackerClient,  # noqa: F401
+    get_solana_tracker,  # noqa: F401
 )
 from app.caching_shield.tool_data import (
     ToolData,
@@ -91,12 +91,12 @@ from app.caching_shield.unified_layer import (
     get_data_layer,
 )
 from app.caching_shield.ws_broadcaster import (
-    CHANNEL_ALERTS,
-    CHANNEL_PRICES,
-    CHANNEL_SCANS,
-    CHANNEL_TOKENS,
-    WsClientManager,
-    get_ws_manager,
+    CHANNEL_ALERTS,  # noqa: F401
+    CHANNEL_PRICES,  # noqa: F401
+    CHANNEL_SCANS,  # noqa: F401
+    CHANNEL_TOKENS,  # noqa: F401
+    WsClientManager,  # noqa: F401
+    get_ws_manager,  # noqa: F401
 )
 
 __all__ = [

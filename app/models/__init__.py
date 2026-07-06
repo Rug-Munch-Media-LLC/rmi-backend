@@ -1,6 +1,6 @@
 """Shared Pydantic v2 models used across modules.
 
-Prefer domain-local models in `app/domain/<name>/models.py` — this module
+Prefer domain-local models in `app/domain/<name>/models.py` - this module
 is only for cross-domain shared types (e.g., pagination envelope, error body).
 """
 

@@ -1,5 +1,5 @@
 """
-SENTINEL — Social Sentiment Velocity Analysis
+SENTINEL - Social Sentiment Velocity Analysis
 ==============================================
 Tracks the speed of the first 50 mentions to distinguish between
 organic retail engagement and coordinated bot farm activity.
@@ -304,7 +304,7 @@ class SocialVelocityAnalyzer:
         warnings = []
         if max_in_window >= self.BOT_FARM_THRESHOLD:
             warnings.append(
-                f"CRITICAL: {max_in_window} mentions arrived within {self.BOT_FARM_WINDOW_SEC}s — bot farm detected"
+                f"CRITICAL: {max_in_window} mentions arrived within {self.BOT_FARM_WINDOW_SEC}s - bot farm detected"
             )
         if largest_cluster_size >= 5:
             cluster_types = ", ".join(f"{len(c)} mentions in {c[-1] - c[0]:.2f}s" for c in clusters if len(c) >= 5)

@@ -1,4 +1,4 @@
-"""Wallet domain — public API + health check."""
+"""Wallet domain - public API + health check."""
 from __future__ import annotations
 
 from app.core import health as health_mod
@@ -6,7 +6,7 @@ from app.core.health import DomainHealth
 
 
 async def _health_check() -> DomainHealth:
-    """Wallet health: DataBus is importable (we don't call it — that would be slow)."""
+    """Wallet health: DataBus is importable (we don't call it - that would be slow)."""
     try:
         # DataBus is the gateway for all chain data. Verify the module loads.
         import app.databus  # noqa: F401
@@ -23,8 +23,8 @@ health_mod.register_health_check("wallet", _health_check)
 
 
 # Public API
-from app.domain.wallet.analyzer import WalletAnalyzer
-from app.domain.wallet.models import (
+from app.domain.wallet.analyzer import WalletAnalyzer  # noqa: E402
+from app.domain.wallet.models import (  # noqa: E402
     Balance,
     RiskLevel,
     ScanFlag,
@@ -35,8 +35,8 @@ from app.domain.wallet.models import (
     Wallet,
     WalletAnalysis,
 )
-from app.domain.wallet.repository import WalletRepository
-from app.domain.wallet.service import WalletService
+from app.domain.wallet.repository import WalletRepository  # noqa: E402
+from app.domain.wallet.service import WalletService  # noqa: E402
 
 __all__ = [
     "Balance",

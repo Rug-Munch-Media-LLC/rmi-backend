@@ -1,4 +1,4 @@
-"""x402 domain — auto-registers its health check + HTTP routes.
+"""x402 domain - auto-registers its health check + HTTP routes.
 
 T34 from v4.0. Sovereign-first x402 payment layer for AI agents.
 
@@ -28,7 +28,7 @@ health_mod.register_health_check("x402", _health_check)
 
 
 # Re-export models for backward compat with v1 routers and tests
-from app.domain.x402.models import (
+from app.domain.x402.models import (  # noqa: E402
     PaymentFacilitator,
     PaymentReceipt,
     ToolCatalog,
@@ -39,7 +39,7 @@ from app.domain.x402.models import (
 
 # Re-export the new T34 router
 from app.domain.x402.router import router  # noqa: E402
-from app.domain.x402.service import X402Service
+from app.domain.x402.service import X402Service  # noqa: E402
 
 __all__ = [
     "PaymentFacilitator",

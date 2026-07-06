@@ -294,7 +294,7 @@ def _detect_bundled_launch(
         if count >= 3:
             identical_amounts += count
             bundle_evidence.append(
-                f"{count} wallets bought {amount_key} USD (identical — bot pattern)"
+                f"{count} wallets bought {amount_key} USD (identical - bot pattern)"
             )
 
     if bundle_count >= 2 or total_bundled_wallets >= 5:
@@ -488,7 +488,7 @@ def _detect_bot_activity(
     if len(set(gas_prices.values())) <= 2 and len(gas_prices) >= 5:
         evidence.append(
             f"All wallets using identical gas price "
-            f"({next(iter(gas_prices.values()))} gwei) — coordinated bots"
+            f"({next(iter(gas_prices.values()))} gwei) - coordinated bots"
         )
 
     if bot_wallet_count >= 3:
@@ -548,7 +548,7 @@ def _detect_presale_concentration(
         result.score = 0.6
         result.severity = Severity.HIGH
         result.details = (
-            f"High presale allocation: {presale_pct:.1f}% — significant insider advantage"
+            f"High presale allocation: {presale_pct:.1f}% - significant insider advantage"
         )
     elif presale_pct >= 15:
         result.detected = True
@@ -560,7 +560,7 @@ def _detect_presale_concentration(
         if result.detected:
             result.score = min(result.score + 0.15, 1.0)
             result.severity = _severity_from_score(result.score)
-        evidence.append(f"⚠️ High insider allocation ({insider_pct:.1f}%) — elevated dump risk")
+        evidence.append(f"⚠️ High insider allocation ({insider_pct:.1f}%) - elevated dump risk")
 
     result.evidence = evidence
     return result
@@ -650,7 +650,7 @@ async def analyze_launch_fairness(
     result = LaunchFairnessResult(token_address=addr, chain=chain)
 
     if not is_valid_address(addr):
-        result.warnings.append("Invalid address format — analysis will be limited")
+        result.warnings.append("Invalid address format - analysis will be limited")
 
     result.sources_used = ["address_analysis", "holder_analysis"]
 
@@ -784,10 +784,10 @@ async def analyze_launch_fairness(
     if result.sniper_count > 50:
         result.warnings.append(f"High sniper activity: {result.sniper_count}+ unique buyers")
     if result.top_holder_concentration_pct > 80:
-        result.warnings.append("Extreme top-holder concentration — potential dump risk")
+        result.warnings.append("Extreme top-holder concentration - potential dump risk")
     if result.lp_add_delay_blocks > 200:
         result.warnings.append(
-            f"LP added {result.lp_add_delay_blocks} blocks late — early buyers couldn't sell"
+            f"LP added {result.lp_add_delay_blocks} blocks late - early buyers couldn't sell"
         )
     if result.bot_wallets_detected > 10:
         result.warnings.append(f"{result.bot_wallets_detected}+ bot wallets detected")
@@ -804,13 +804,13 @@ def _generate_summary(result: LaunchFairnessResult) -> str:
     parts = []
 
     if result.risk_level == "critical":
-        parts.append("🚨 CRITICAL — Launch appears heavily manipulated")
+        parts.append("🚨 CRITICAL - Launch appears heavily manipulated")
     elif result.risk_level == "high":
-        parts.append("⚠️ HIGH — Significant fairness concerns detected")
+        parts.append("⚠️ HIGH - Significant fairness concerns detected")
     elif result.risk_level == "medium":
-        parts.append("⚡ MEDIUM — Some manipulation signals present")
+        parts.append("⚡ MEDIUM - Some manipulation signals present")
     else:
-        parts.append("✅ LOW — Launch appears reasonably fair")
+        parts.append("✅ LOW - Launch appears reasonably fair")
 
     parts.append(f"Fairness Score: {result.fairness_score:.0f}/100")
 

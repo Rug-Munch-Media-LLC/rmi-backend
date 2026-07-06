@@ -1,5 +1,5 @@
 """
-Wallet Memory Storage — ClickHouse + Redis unified interface.
+Wallet Memory Storage - ClickHouse + Redis unified interface.
 =============================================================
 ClickHouse: persistent analytical store (transfers, entities, risk scores).
 Redis: hot cache for real-time lookups (5min TTL on profiles, 1hr on labels).
@@ -187,7 +187,7 @@ async def ensure_schema():
     """Create ClickHouse tables if they don't exist. Safe to call on startup."""
     ch = await _get_clickhouse()
     if not ch:
-        logger.warning("Cannot ensure ClickHouse schema — ClickHouse unavailable")
+        logger.warning("Cannot ensure ClickHouse schema - ClickHouse unavailable")
         return False
     try:
         # Create database first

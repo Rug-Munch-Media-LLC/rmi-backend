@@ -9,15 +9,15 @@ Advanced token distribution system with:
   • Multi-chain support (EVM, Solana, TRON)
   • Batch distribution for gas efficiency
 
-All operations are admin-only and stay in /root/tools/ — never committed to git.
+All operations are admin-only and stay in /root/tools/ - never committed to git.
 
 Usage:
-  POST /api/v1/admin/tokens/airdrop/snapshot    — Create snapshot from existing token
-  POST /api/v1/admin/tokens/airdrop/execute     — Execute airdrop distribution
-  POST /api/v1/admin/tokens/airdrop/team          — Allocate team/dev tokens
-  POST /api/v1/admin/tokens/airdrop/vesting     — Set up vesting for team
-  GET  /api/v1/admin/tokens/airdrop/{id}/status  — Check airdrop status
-  POST /api/v1/admin/tokens/airdrop/antisniper   — Enable anti-sniper protection
+  POST /api/v1/admin/tokens/airdrop/snapshot    - Create snapshot from existing token
+  POST /api/v1/admin/tokens/airdrop/execute     - Execute airdrop distribution
+  POST /api/v1/admin/tokens/airdrop/team          - Allocate team/dev tokens
+  POST /api/v1/admin/tokens/airdrop/vesting     - Set up vesting for team
+  GET  /api/v1/admin/tokens/airdrop/{id}/status  - Check airdrop status
+  POST /api/v1/admin/tokens/airdrop/antisniper   - Enable anti-sniper protection
 """
 
 from __future__ import annotations
@@ -133,7 +133,7 @@ class AntiSniperProtection:
     """
 
     # Known bot/sniper patterns (addresses and creation patterns)
-    KNOWN_BOT_PATTERNS = [
+    KNOWN_BOT_PATTERNS = [  # noqa: RUF012
         "0x0000000000000000000000000000000000000000",  # Burn address
     ]
 
@@ -254,7 +254,7 @@ class SnapshotEngine:
             block_number = w3.eth.block_number
 
         # Query Transfer events to find all holders
-        # This is a simplified approach — for production, use a subgraph or indexer
+        # This is a simplified approach - for production, use a subgraph or indexer
         logs = w3.eth.get_logs(
             {
                 "fromBlock": max(0, block_number - 100000),  # Last ~100k blocks
@@ -306,7 +306,7 @@ class SnapshotEngine:
             min_holdings=min_holdings,
         )
 
-        logger.info(f"Snapshot created: {snapshot.snapshot_id} — {len(holders)} holders, {total_supply} total")
+        logger.info(f"Snapshot created: {snapshot.snapshot_id} - {len(holders)} holders, {total_supply} total")
         return snapshot
 
     @staticmethod

@@ -4,7 +4,7 @@ RMI x402 Payment Enforcement Middleware
 Intercepts /api/v1/x402-tools/* requests, verifies x402 payment headers.
 Returns 402 Payment Required when no valid payment is provided.
 
-ARCHITECTURE (May 23, 2026 — Multi-Facilitator):
+ARCHITECTURE (May 23, 2026 - Multi-Facilitator):
 - Smart router auto-picks best facilitator per chain/token
 - 7 active facilitators: Coinbase CDP, PayAI, Cloudflare x402,
   AsterPay (EUR/SEPA), Primev (fee-free ETH),
@@ -28,10 +28,13 @@ import re
 import time
 from typing import TYPE_CHECKING, Any
 
+from app.routers.protection import get_client_id
+
 if TYPE_CHECKING:
     import redis as _redis_types
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+
 from app.core.redis import get_redis
 
 logger = logging.getLogger("x402_enforcement")
@@ -62,11 +65,11 @@ DISCOVERY_CACHE_TTL = 300  # 5 minutes
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
-    # X-XSS-Protection intentionally omitted — deprecated by all modern browsers
+    # X-XSS-Protection intentionally omitted - deprecated by all modern browsers
     "Cache-Control": "no-store",
 }
 
-# ── Import existing PaymentVerifier (LAZY — deferred to first use) ──
+# ── Import existing PaymentVerifier (LAZY - deferred to first use) ──
 VERIFIER = None
 _FACILITATOR_CONFIGS = None
 _TOKEN_METADATA = None
@@ -90,7 +93,7 @@ def _ensure_verifier():
         logger.warning(f"x402 enforcement: PaymentVerifier not available: {e}")
 
 
-def get_redis_async() -> "aioredis.Redis | None":
+def get_redis_async() -> aioredis.Redis | None:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     """Get async Redis client. Use in async middleware paths."""
     try:
         from app.core.redis import get_redis_async as _get_async
@@ -102,7 +105,7 @@ def get_redis_async() -> "aioredis.Redis | None":
 # ── Multi-chain USDC configs ──
 # PAYMENT chains: Base and Solana use facilitators (fast, federated verification).
 # All other EVM chains use self-verification via Etherscan/Alchemy on-chain checks.
-# Same EVM wallet works across all chains — user pays on whichever has USDC.
+# Same EVM wallet works across all chains - user pays on whichever has USDC.
 # This is a competitive advantage: most x402 gateways only take Base.
 CHAIN_USDC = {
     # ── Facilitator-verified chains (instant/direct) ──
@@ -135,7 +138,7 @@ CHAIN_USDC = {
         "method": "local_eip712",
         "verify": "facilitator",
         "facilitators": ["eip7702"],
-    },  # pieverse REMOVED — OFFLINE (api.pieverse.xyz NXDOMAIN)
+    },  # pieverse REMOVED - OFFLINE (api.pieverse.xyz NXDOMAIN)
     "ethereum": {
         "network": "eip155:1",
         "chain_id": 1,
@@ -246,7 +249,7 @@ CHAIN_USDC = {
     },
 }
 
-# Pay-to addresses — pulled dynamically from WalletManagerV2
+# Pay-to addresses - pulled dynamically from WalletManagerV2
 # Fallback: env vars or legacy hardcoded addresses
 
 
@@ -272,7 +275,7 @@ def _get_pay_to_address(chain: str) -> str:
     return ""
 
 
-# Deferred — wallet_manager_v2 pulls bip_utils+monero (~450ms)
+# Deferred - wallet_manager_v2 pulls bip_utils+monero (~450ms)
 # ── Tool pricing (parsed from gateway configs) ──
 TOOL_PRICES: dict[str, dict[str, Any]] = {}
 
@@ -282,7 +285,7 @@ def _load_tool_prices():
 
     1. Load from CANONICAL_TOOL_PRICES (127 tools, always present)
     2. Enrich from gateway configs if available (adds chain variants)
-    3. NO circular catalog API fallback — that was the bug
+    3. NO circular catalog API fallback - that was the bug
     """
     import os
     import re
@@ -345,56 +348,56 @@ def _load_tool_prices():
             "price_atoms": "250000",
             "category": "premium",
             "trial_free": 1,
-            "description": "Institutional-grade token valuation — DCF intrinsic value, comparable analysis with outlier detection, scam probability scoring",
+            "description": "Institutional-grade token valuation - DCF intrinsic value, comparable analysis with outlier detection, scam probability scoring",
         },
         "osint_identity_hunt": {
             "price_usd": 0.15,
             "price_atoms": "150000",
             "category": "premium",
             "trial_free": 2,
-            "description": "Cross-platform OSINT investigation — hunt usernames across 400+ networks, domain intelligence, stealth page capture",
+            "description": "Cross-platform OSINT investigation - hunt usernames across 400+ networks, domain intelligence, stealth page capture",
         },
         "investigation_report": {
             "price_usd": 0.20,
             "price_atoms": "200000",
             "category": "premium",
             "trial_free": 1,
-            "description": "Full investigation report — on-chain forensics, financial valuation, OSINT findings, scam scoring in one deliverable",
+            "description": "Full investigation report - on-chain forensics, financial valuation, OSINT findings, scam scoring in one deliverable",
         },
         "whale_accumulation": {
             "price_usd": 0.10,
             "price_atoms": "100000",
             "category": "intelligence",
             "trial_free": 2,
-            "description": "Accumulation Pattern Detector — detect stealth accumulation by large holders before price impact. Identifies quiet buying patterns and wallet funding sequences.",
+            "description": "Accumulation Pattern Detector - detect stealth accumulation by large holders before price impact. Identifies quiet buying patterns and wallet funding sequences.",
         },
         "social_engineering": {
             "price_usd": 0.15,
             "price_atoms": "150000",
             "category": "premium",
             "trial_free": 1,
-            "description": "Social Engineering & Identity Fraud Detector — detect fake teams, AI-generated profiles, phishing domains, copied whitepapers, and social engineering campaigns.",
+            "description": "Social Engineering & Identity Fraud Detector - detect fake teams, AI-generated profiles, phishing domains, copied whitepapers, and social engineering campaigns.",
         },
         "forensic_pack": {
             "price_usd": 0.35,
             "price_atoms": "350000",
             "category": "bundle",
             "trial_free": 1,
-            "description": "Forensic Investigation Pack — valuation + OSINT + report at 33% discount",
+            "description": "Forensic Investigation Pack - valuation + OSINT + report at 33% discount",
         },
         "token_watch_create": {
             "price_usd": 0.05,
             "price_atoms": "50000",
             "category": "monitoring",
             "trial_free": 3,
-            "description": "Set token monitoring watch — alerts when LP drops, price changes, or rug indicators detected",
+            "description": "Set token monitoring watch - alerts when LP drops, price changes, or rug indicators detected",
         },
         "token_watch_check": {
             "price_usd": 0.03,
             "price_atoms": "30000",
             "category": "monitoring",
             "trial_free": 5,
-            "description": "One-shot token status check — current LP, price, volume, and rug risk warnings",
+            "description": "One-shot token status check - current LP, price, volume, and rug risk warnings",
         },
     }
     TOOL_PRICES.update(_NEW_TOOL_PRICES)
@@ -412,16 +415,16 @@ try:
             "price_atoms": "250000",
             "category": "premium",
             "trial_free": 1,
-            "description": "Institutional-grade token valuation — DCF intrinsic value, comparable analysis with outlier detection, scam probability scoring",
+            "description": "Institutional-grade token valuation - DCF intrinsic value, comparable analysis with outlier detection, scam probability scoring",
         },
         "osint_identity_hunt": {
             "price_usd": 0.15,
             "price_atoms": "150000",
             "category": "premium",
             "trial_free": 2,
-            "description": "Cross-platform OSINT investigation — hunt usernames across 400+ networks, domain intelligence, stealth page capture",
+            "description": "Cross-platform OSINT investigation - hunt usernames across 400+ networks, domain intelligence, stealth page capture",
         },
-        # API / meta tools — must be in TOOL_PRICES at startup (not loaded from catalog)
+        # API / meta tools - must be in TOOL_PRICES at startup (not loaded from catalog)
         "catalog": {
             "price_usd": 0.00,
             "price_atoms": "0",
@@ -434,28 +437,28 @@ try:
             "price_atoms": "10000",
             "category": "intelligence",
             "trial_free": 3,
-            "description": "Smart money alpha signals — track wallets that consistently outperform the market",
+            "description": "Smart money alpha signals - track wallets that consistently outperform the market",
         },
         "meme_vibe_score": {
             "price_usd": 0.01,
             "price_atoms": "10000",
             "category": "social",
             "trial_free": 3,
-            "description": "Meme token vibe scoring — sentiment, community strength, and virality analysis",
+            "description": "Meme token vibe scoring - sentiment, community strength, and virality analysis",
         },
         "mcp-proxy": {
             "price_usd": 0.01,
             "price_atoms": "10000",
             "category": "api",
             "trial_free": 5,
-            "description": "MCP protocol proxy — route tool calls through the x402 payment layer",
+            "description": "MCP protocol proxy - route tool calls through the x402 payment layer",
         },
         "human-execute": {
             "price_usd": 0.02,
             "price_atoms": "20000",
             "category": "api",
             "trial_free": 2,
-            "description": "Human-in-the-loop execution — wallet-based payment for manual crypto investigation tasks",
+            "description": "Human-in-the-loop execution - wallet-based payment for manual crypto investigation tasks",
         },
         # Premium standout tools
         "reputation_score": {
@@ -470,7 +473,7 @@ try:
             "price_atoms": "20000",
             "category": "monitoring",
             "trial_free": 2,
-            "description": "Register webhook URL for real-time monitoring alerts — rug pulls, whale moves, price crashes",
+            "description": "Register webhook URL for real-time monitoring alerts - rug pulls, whale moves, price crashes",
         },
         "webhook_list": {
             "price_usd": 0.00,
@@ -485,21 +488,21 @@ try:
             "price_atoms": "150000",
             "category": "premium",
             "trial_free": 1,
-            "description": "Predictive rug pull probability 0-100 — honeypot + liquidity + deployer + social signals",
+            "description": "Predictive rug pull probability 0-100 - honeypot + liquidity + deployer + social signals",
         },
         "history": {
             "price_usd": 0.08,
             "price_atoms": "80000",
             "category": "analysis",
             "trial_free": 2,
-            "description": "Historical scanner time-series — risk/liquidity/volume/price trends over hours",
+            "description": "Historical scanner time-series - risk/liquidity/volume/price trends over hours",
         },
         "narrative": {
             "price_usd": 0.05,
             "price_atoms": "50000",
             "category": "social",
             "trial_free": 3,
-            "description": "Market narrative engine — what is the market saying about this token RIGHT NOW",
+            "description": "Market narrative engine - what is the market saying about this token RIGHT NOW",
         },
         # Institutional tools
         "portfolio_risk": {
@@ -507,28 +510,28 @@ try:
             "price_atoms": "200000",
             "category": "premium",
             "trial_free": 1,
-            "description": "Cross-chain portfolio risk dashboard — unified risk across multiple wallets and chains",
+            "description": "Cross-chain portfolio risk dashboard - unified risk across multiple wallets and chains",
         },
         "defi_position": {
             "price_usd": 0.15,
             "price_atoms": "150000",
             "category": "defi",
             "trial_free": 1,
-            "description": "DeFi position analyzer — LP holdings, impermanent loss estimation, yield sustainability, protocol risk",
+            "description": "DeFi position analyzer - LP holdings, impermanent loss estimation, yield sustainability, protocol risk",
         },
         "liquidation_cascade": {
             "price_usd": 0.15,
             "price_atoms": "150000",
             "category": "defi",
             "trial_free": 1,
-            "description": "Liquidation Cascade Risk Analyzer — cross-chain DeFi position monitoring, health factor computation, and cascade scenario simulation for Aave/Compound positions",
+            "description": "Liquidation Cascade Risk Analyzer - cross-chain DeFi position monitoring, health factor computation, and cascade scenario simulation for Aave/Compound positions",
         },
         "mev_detect": {
             "price_usd": 0.15,
             "price_atoms": "150000",
             "category": "security",
             "trial_free": 2,
-            "description": "MEV/Sandwich attack detection — sandwich attacks, frontrunning, arbitrage extraction, MEV bot identification",
+            "description": "MEV/Sandwich attack detection - sandwich attacks, frontrunning, arbitrage extraction, MEV bot identification",
         },
         # Alpha tools
         "composite_score": {
@@ -536,28 +539,28 @@ try:
             "price_atoms": "250000",
             "category": "premium",
             "trial_free": 1,
-            "description": "RMI Composite Score — one number combining ALL signals for instant buy/sell/avoid decisions",
+            "description": "RMI Composite Score - one number combining ALL signals for instant buy/sell/avoid decisions",
         },
         "smart_money": {
             "price_usd": 0.20,
             "price_atoms": "200000",
             "category": "intelligence",
             "trial_free": 1,
-            "description": "Smart Money P&L Tracker — real profitability-based wallet tracking, find the actual profitable traders",
+            "description": "Smart Money P&L Tracker - real profitability-based wallet tracking, find the actual profitable traders",
         },
         "clone_detect": {
             "price_usd": 0.10,
             "price_atoms": "100000",
             "category": "security",
             "trial_free": 2,
-            "description": "Token Clone Detector — find tokens cloned from known rug pulls by name, symbol, and deployer patterns",
+            "description": "Token Clone Detector - find tokens cloned from known rug pulls by name, symbol, and deployer patterns",
         },
         "wash_trade_detect": {
             "price_usd": 0.15,
             "price_atoms": "150000",
             "category": "security",
             "trial_free": 2,
-            "description": "Wash Trading & Insider Detection — artificial volume, coordinated buying, insider accumulation patterns",
+            "description": "Wash Trading & Insider Detection - artificial volume, coordinated buying, insider accumulation patterns",
         },
         # RIP: Rug Pull Imminence Predictor
         "rug_imminence": {
@@ -565,21 +568,21 @@ try:
             "price_atoms": "200000",
             "category": "security",
             "trial_free": 1,
-            "description": "Rug Pull Imminence Predictor — AI-powered early warning system fusing 7 signals to predict imminent rug pulls before they happen",
+            "description": "Rug Pull Imminence Predictor - AI-powered early warning system fusing 7 signals to predict imminent rug pulls before they happen",
         },
         "cross_chain_whale": {
             "price_usd": 0.08,
             "price_atoms": "80000",
             "category": "intelligence",
             "trial_free": 2,
-            "description": "Track whale wallets across multiple blockchains simultaneously — maps cross-chain capital flows, bridge migrations, and multi-network positioning of top holders",
+            "description": "Track whale wallets across multiple blockchains simultaneously - maps cross-chain capital flows, bridge migrations, and multi-network positioning of top holders",
         },
     }
     TOOL_PRICES.update(_NEW_TOOL_PRICES)
 except Exception as e:
     logger.warning(f"x402 enforcement: could not add new tool prices: {e}")
 
-# ── TOOL_PRICES lazy loading (deferred — saves ~1.5s cold start) ──
+# ── TOOL_PRICES lazy loading (deferred - saves ~1.5s cold start) ──
 _tool_prices_extras_loaded = False
 
 
@@ -632,7 +635,7 @@ def _ensure_tool_prices():
         del TOOL_PRICES[_k]
 
 
-# ── Tool prices loaded lazily via _ensure_tool_prices() — no module-level side effects
+# ── Tool prices loaded lazily via _ensure_tool_prices() - no module-level side effects
 
 # ── Chain display names (used in human-readable messages) ──
 CHAIN_NAMES = {
@@ -652,7 +655,7 @@ CHAIN_NAMES = {
 }
 
 # ── x402 v2 spec helpers ──
-import base64 as _base64
+import base64 as _base64  # noqa: E402
 
 
 def _ensure_pay_addresses():
@@ -815,7 +818,7 @@ def _build_bazaar_extension(tool_id: str, pricing: dict, accepts: list) -> dict:
         },
         "category": bazaar_category,
         "tags": ["crypto", "security", "blockchain", tool_id],
-        "description": pricing.get("description", f"{tool_id} — Rug Munch Intelligence"),
+        "description": pricing.get("description", f"{tool_id} - Rug Munch Intelligence"),
     }
 
     # Schema that validates the info structure per bazaar spec
@@ -833,7 +836,7 @@ def _build_bazaar_extension(tool_id: str, pricing: dict, accepts: list) -> dict:
                         if http_method == "GET"
                         else ["POST", "PUT", "PATCH"],
                     },
-                    "queryParams": {"type": "object"}
+                    "queryParams": {"type": "object"}  # noqa: RUF034
                     if http_method == "GET"
                     else {"type": "object"},
                     "bodyType": {"type": "string", "enum": ["json", "form-data", "text"]},
@@ -876,7 +879,7 @@ def _build_resource_info(tool_id: str, pricing: dict) -> dict:
     We preserve them as legacy compat fields in x402.resource_metadata for our
     own internal use, but they must not appear in the spec-compliant ResourceInfo.
     """
-    description = pricing.get("description", f"Rug Munch Intelligence — {tool_id}")
+    description = pricing.get("description", f"Rug Munch Intelligence - {tool_id}")
     # Per spec: max 200 chars for description
     if len(description) > 200:
         description = description[:197] + "..."
@@ -988,7 +991,7 @@ def build_402_response(tool_id: str, client_id: str = "") -> JSONResponse:
         # -1 = wallet required (no client_id provided, cannot check trials)
         "wallet_required": remaining < 0,
         "message": (
-            f"Connect a wallet to continue. Your 1 free trial is used — link MetaMask or Phantom to get {trial_free} free calls per tool. From ${pricing['price_usd']:.2f}/call after that."
+            f"Connect a wallet to continue. Your 1 free trial is used - link MetaMask or Phantom to get {trial_free} free calls per tool. From ${pricing['price_usd']:.2f}/call after that."
             if remaining < 0
             else f"All {trial_free} free trial{'s' if trial_free != 1 else ''} used. Pay {pricing['price_atoms']} atoms to use {tool_id}. Pay on {', '.join(CHAIN_NAMES.get(c, c) for c in CHAIN_USDC)}."
         ),
@@ -1056,7 +1059,7 @@ def parse_x_pay_header(header_value: str) -> dict | None:
                 # v2 PaymentPayload has: x402Version, resource, accepted, payload, extensions
                 # Our verifier expects: accepted (dict), payload (with signature/authorization)
                 if "x402Version" in payload:
-                    # v2 PaymentPayload — our verifier already handles this format
+                    # v2 PaymentPayload - our verifier already handles this format
                     # It extracts network from payload.accepted and routes to facilitator
                     return payload
                 return payload
@@ -1110,7 +1113,7 @@ async def verify_payment_via_router(payload: dict) -> dict:
             break
 
     if not chain_key:
-        # Unknown network — fall back to old verifier
+        # Unknown network - fall back to old verifier
         try:
             from app.routers.x402_middleware import PaymentVerifier
             verifier = PaymentVerifier()
@@ -1180,9 +1183,9 @@ async def verify_payment_via_router(payload: dict) -> dict:
             }
 
     except ImportError:
-        logger.debug("Facilitator router not available — falling back to old verifier")
+        logger.debug("Facilitator router not available - falling back to old verifier")
     except Exception as e:
-        logger.error(f"Router verification error: {e} — falling back to old verifier")
+        logger.error(f"Router verification error: {e} - falling back to old verifier")
 
     # Fallback: old verification logic
     return await verify_payment(payload)
@@ -1238,14 +1241,14 @@ async def verify_payment(payload: dict) -> dict:
 
     verify_method = chain_cfg.get("verify", "facilitator")
 
-    # Facilitator-verified chains (Base, Solana) — fast, federated
+    # Facilitator-verified chains (Base, Solana) - fast, federated
     if verify_method == "facilitator":
         if chain_cfg["method"] == "local_eip712":
             return VERIFIER._verify_eip712_local(payload)
         elif chain_cfg["method"] == "payai":
             return await VERIFIER._verify_via_payai(payload, None)
 
-    # Self-verified chains (ETH, BSC, ARB, OPT, POL) — check USDC transfer on-chain
+    # Self-verified chains (ETH, BSC, ARB, OPT, POL) - check USDC transfer on-chain
     if verify_method == "self":
         return await self_verify_evm_usdc(payload, chain_key or "", chain_cfg)
 
@@ -1275,7 +1278,7 @@ async def self_verify_evm_usdc(payload: dict, chain_key: str, chain_cfg: dict) -
         if not tx_hash:
             return {"verified": False, "reason": "No tx hash in payment payload"}
 
-        # Prevent double-spend: atomic SET NX — no race condition
+        # Prevent double-spend: atomic SET NX - no race condition
         r = get_redis()
         if r:
             spent_key = f"x402:spent_tx:{tx_hash}"
@@ -1419,7 +1422,7 @@ async def self_verify_evm_usdc(payload: dict, chain_key: str, chain_cfg: dict) -
                 "reason": f"Amount mismatch: expected {expected_amount} atoms, got {actual_amount} atoms",
             }
 
-        # Mark as spent in Redis with 86400s (24h) TTL — update the existing NX lock
+        # Mark as spent in Redis with 86400s (24h) TTL - update the existing NX lock
         tool_name = tool_id or "unknown"
         if r:
             spent_key = f"x402:spent_tx:{tx_hash}"
@@ -1478,7 +1481,7 @@ def _record_refundable_payment(
     """Record a refundable payment in Redis when a tool returns empty data.
 
     Stores in Redis key 'x402:refund:{tx_hash}' with 7-day TTL.
-    Actual USDC refund is a manual process — we send USDC back from whichever chain has funds.
+    Actual USDC refund is a manual process - we send USDC back from whichever chain has funds.
     """
     r = get_redis()
     if not r:
@@ -1547,7 +1550,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                 response.headers[k] = v
         return response
 
-    # ── Free endpoints — always accessible, no payment required ──────────
+    # ── Free endpoints - always accessible, no payment required ──────────
     # These MUST be checked before bot detection so AI agents can discover us.
     # Discovery/catalog/framework endpoints are useless if bots can't reach them.
     FREE_GET_PATHS = {
@@ -1626,7 +1629,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                         "Retry-After": str(dev_result.get("retry_after", 60)),
                     },
                 )
-            # Valid dev key — attach info to request state and bypass payment
+            # Valid dev key - attach info to request state and bypass payment
             request.state.developer_key = True
             request.state.developer_tier = dev_result.get("tier", "free")
             request.state.developer_email = dev_result.get("email", "")
@@ -1636,10 +1639,10 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
             response.headers["X-RMI-Remaining"] = str(dev_result.get("remaining_today", 0))
             return response
     except ImportError:
-        pass  # developer_tier module not available — fall through to payment
+        pass  # developer_tier module not available - fall through to payment
     except Exception as e:
         logger.warning(f"Developer key check failed: {e}")
-        # Fail open — don't block paying customers on dev tier errors
+        # Fail open - don't block paying customers on dev tier errors
         pass
 
     # ── Bot / abuse detection ─────────────────────────────────────
@@ -1647,7 +1650,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
     user_agent = (request.headers.get("User-Agent", "") or "").lower()
 
     # Block known bot/scanner user agents ONLY on paid endpoints
-    # Legitimate API clients (curl, python, etc.) are welcome — just need payment
+    # Legitimate API clients (curl, python, etc.) are welcome - just need payment
     SCANNER_AGENTS = [
         "masscan",
         "nmap",
@@ -1699,7 +1702,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
         except Exception:
             pass  # Don't block on burst tracking errors
 
-    # Free paths already checked above — flow continues to paid tool enforcement
+    # Free paths already checked above - flow continues to paid tool enforcement
     # Extract tool name
     tool_id = path.rstrip("/").split("/")[-1]
 
@@ -1727,7 +1730,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
             content={"error": "Payment header too large"},
             headers=SECURITY_HEADERS,
         )
-    # Size check BEFORE parsing — prevent DoS on oversized headers
+    # Size check BEFORE parsing - prevent DoS on oversized headers
     max_header_len = 8192
     if (x_pay and len(x_pay) > max_header_len) or (pay_sig and len(pay_sig) > max_header_len):
         return JSONResponse(
@@ -1745,7 +1748,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
             # v2 spec: payload should have top-level x402Version, accepted, payload, resource
             # Normalize: make sure "accepted" is available at top level for our verifier
             if "accepted" not in payload and "payload" in payload:
-                # This is a v2 PaymentPayload format — extract payment info
+                # This is a v2 PaymentPayload format - extract payment info
                 pass  # The verify_payment_via_router already handles this format
     elif x_pay:
         payload = parse_x_pay_header(x_pay)
@@ -1767,7 +1770,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                 )
             result = await verify_payment_via_router(payload)
             if result.get("verified"):
-                # Payment OK — attach info and proceed
+                # Payment OK - attach info and proceed
                 request.state.x402_verified = True
                 request.state.x402_payer = result.get("payer", "")
                 request.state.x402_chain = result.get("chain", "")
@@ -1889,7 +1892,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
 
                 return response
 
-            # Payment verification failed — track failure for health monitoring
+            # Payment verification failed - track failure for health monitoring
             facilitator = result.get("method", result.get("facilitator", ""))
             if facilitator:
                 try:
@@ -1899,7 +1902,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                 except Exception:
                     pass
 
-    # No valid payment — check free trials
+    # No valid payment - check free trials
     try:
         can_trial, remaining = check_trial(tool_id, client_id, consume=False)
     except Exception as e:
@@ -1918,7 +1921,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
         # Allow free trial execution
         # ── Execute the tool directly via DataBus caching shield ──
         # This eliminates the fragile httpx GET-to-POST roundtrip.
-        # All 127 tools are available through the DataBus — no need for
+        # All 127 tools are available through the DataBus - no need for
         # internal HTTP bouncing through POST-only route handlers.
         try:
             from app.caching_shield.tool_data import td
@@ -1936,7 +1939,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
             result = await td.call_tool(tool_id, params)
 
             if result is not None:
-                # Trial execution succeeded — return the result
+                # Trial execution succeeded - return the result
                 # Use raw Response (not JSONResponse) to avoid BaseHTTPMiddleware
                 # body_iterator consumption bug when returning from middleware directly.
                 response_body = json.dumps(result, default=str)
@@ -1952,7 +1955,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                 )
                 return response
             else:
-                # DataBus returned None — tool not available via DataBus.
+                # DataBus returned None - tool not available via DataBus.
                 # For GET requests: try httpx GET-to-POST conversion.
                 # For POST requests: fall through to original route handler.
                 if request.method == "GET" and request.query_params:
@@ -1975,7 +1978,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                             )
                             if resp.status_code == 404:
                                 # Tool has no POST route handler (DataBus-only tool that failed).
-                                # Trial was consumed — return 200 with "no data" result.
+                                # Trial was consumed - return 200 with "no data" result.
                                 # The client got their free call, data just wasn't available.
                                 return Response(
                                     content=json.dumps(
@@ -1984,7 +1987,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                                             "result": "no_data_available",
                                             "trial": True,
                                             "trial_remaining": remaining,
-                                            "message": "Free trial used. Data not available for this address — try a real token address.",
+                                            "message": "Free trial used. Data not available for this address - try a real token address.",
                                         }
                                     ),
                                     status_code=200,
@@ -2006,7 +2009,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                                 },
                             )
                     except Exception:
-                        # httpx failed — return "no data" response (trial was consumed)
+                        # httpx failed - return "no data" response (trial was consumed)
                         return Response(
                             content=json.dumps(
                                 {
@@ -2025,10 +2028,10 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                             },
                         )
                 else:
-                    # POST request or GET without params — try call_next
+                    # POST request or GET without params - try call_next
                     response = await call_next(request)
                     # If call_next returns 404, the tool has no POST route handler.
-                    # Trial was consumed — return "no data" response instead of 404.
+                    # Trial was consumed - return "no data" response instead of 404.
                     if response.status_code == 404:
                         return Response(
                             content=json.dumps(
@@ -2037,7 +2040,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                                     "result": "no_data_available",
                                     "trial": True,
                                     "trial_remaining": remaining,
-                                    "message": "Free trial used. Data not available for this address — try a real token address.",
+                                    "message": "Free trial used. Data not available for this address - try a real token address.",
                                 }
                             ),
                             status_code=200,
@@ -2066,7 +2069,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
             return response
         except Exception as e:
             logger.error(f"Trial execution via DataBus failed for {tool_id}: {e}")
-            # Trial consumed but execution failed — refund the trial
+            # Trial consumed but execution failed - refund the trial
             try:
                 r = get_redis()
                 if r:
@@ -2075,15 +2078,15 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
                         r.decr(key)  # Roll back the consumption only if key exists
             except Exception:
                 pass
-            # Return 402 — trial should be refunded since we couldn't execute
+            # Return 402 - trial should be refunded since we couldn't execute
             return build_402_response(tool_id, client_id=client_id)
 
-    # No trials left — return 402
+    # No trials left - return 402
     return build_402_response(tool_id, client_id=client_id)
 
 
 # ── Discovery Endpoint ──
-from fastapi import APIRouter
+from fastapi import APIRouter  # noqa: E402
 
 discovery_router = APIRouter()
 # ── Main enforcement router (wrapper) ──
@@ -2129,12 +2132,12 @@ def _build_discovery_response():
         desc = pricing.get("description", "")
         if not desc:
             _TOOL_DESCRIPTIONS = {
-                "forensic_valuation": "Institutional-grade token valuation — DCF intrinsic value, comparable analysis with outlier detection, scam probability scoring",
-                "osint_identity_hunt": "Cross-platform OSINT — hunt usernames across 400+ networks, domain intelligence, stealth page capture",
-                "investigation_report": "Full investigation report — on-chain forensics, financial valuation, OSINT, scam scoring in one deliverable",
-                "forensic_pack": "Forensic Investigation Pack — valuation + OSINT + report at 33% discount",
+                "forensic_valuation": "Institutional-grade token valuation - DCF intrinsic value, comparable analysis with outlier detection, scam probability scoring",
+                "osint_identity_hunt": "Cross-platform OSINT - hunt usernames across 400+ networks, domain intelligence, stealth page capture",
+                "investigation_report": "Full investigation report - on-chain forensics, financial valuation, OSINT, scam scoring in one deliverable",
+                "forensic_pack": "Forensic Investigation Pack - valuation + OSINT + report at 33% discount",
             }
-            desc = _TOOL_DESCRIPTIONS.get(tool_id, f"{tool_id} — crypto intelligence tool")
+            desc = _TOOL_DESCRIPTIONS.get(tool_id, f"{tool_id} - crypto intelligence tool")
         tools[tool_id] = {
             "description": desc,
             "price_usd": price_usd,
@@ -2182,17 +2185,17 @@ def _build_discovery_response():
         },
         "eip7702": {
             "name": "EIP-7702 Universal",
-            "description": "Universal EVM — BSC, Polygon, Avalanche, Fantom, Gnosis, Arbitrum, Optimism, Base",
+            "description": "Universal EVM - BSC, Polygon, Avalanche, Fantom, Gnosis, Arbitrum, Optimism, Base",
             "url": "https://eips.ethereum.org/EIPS/eip-7702",
         },
         "tron_selfverify": {
             "name": "TRON Self-Verify",
-            "description": "TRON USDT/USDC/USDD — self-verified via TronGrid (fee-free)",
+            "description": "TRON USDT/USDC/USDD - self-verified via TronGrid (fee-free)",
             "url": "https://trongrid.io",
         },
         "bitcoin_selfverify": {
             "name": "Bitcoin Self-Verify",
-            "description": "Bitcoin BTC — self-verified via Mempool.space (fee-free, 1-conf)",
+            "description": "Bitcoin BTC - self-verified via Mempool.space (fee-free, 1-conf)",
             "url": "https://mempool.space",
         },
         "asterpay": {
@@ -2217,7 +2220,7 @@ def _build_discovery_response():
         "x402": {
             "version": "2",
             "protocol": "x402",
-            "description": "Rug Munch Intelligence (RMI) — Multi-chain x402 payment system. Crypto scam detection, market analysis, and security intelligence via micropayments.",
+            "description": "Rug Munch Intelligence (RMI) - Multi-chain x402 payment system. Crypto scam detection, market analysis, and security intelligence via micropayments.",
             "trial_policy": "1 free trial per tool without wallet. Connect wallet for 3 free calls per standard tool, 1 per premium tool.",
             "refund_policy": "Full refund if tool returns no data. Request within 48h via POST /api/v1/x402/refund with tx hash.",
             "facilitator_summary": {
@@ -2225,11 +2228,11 @@ def _build_discovery_response():
                 "payai": "Base + Solana USDC, deferred settlement",
                 "primev": "Fee-free Ethereum via mev-commit preconfirmations",
                 "cloudflare_x402": "Base Sepolia + Ethereum fallback",
-                "eip7702": "Universal EVM — BSC, Polygon, Avalanche, Fantom, Gnosis, Arbitrum, Optimism, Base",
-                "tron_selfverify": "TRON USDT/USDC/USDD — self-verified via TronGrid (fee-free)",
-                "bitcoin_selfverify": "Bitcoin BTC — self-verified via Mempool.space (fee-free, 1-conf)",
+                "eip7702": "Universal EVM - BSC, Polygon, Avalanche, Fantom, Gnosis, Arbitrum, Optimism, Base",
+                "tron_selfverify": "TRON USDT/USDC/USDD - self-verified via TronGrid (fee-free)",
+                "bitcoin_selfverify": "Bitcoin BTC - self-verified via Mempool.space (fee-free, 1-conf)",
                 "asterpay": "EUR/SEPA European off-ramp",
-                "x402_rs": "Self-hosted x402-rs — multi-chain (requires Docker)",
+                "x402_rs": "Self-hosted x402-rs - multi-chain (requires Docker)",
             },
         },
         "gateway_url": "https://mcp.rugmunch.io",
@@ -2295,7 +2298,7 @@ def _build_extra(cfg: dict, tool_id: str, chain_key: str, pay_to: str, method: s
 
 @discovery_router.get("/.well-known/x402")
 async def x402_discovery():
-    """x402 discovery endpoint — lists all tools, chains, payment requirements, and trial info.
+    """x402 discovery endpoint - lists all tools, chains, payment requirements, and trial info.
     Response is cached for DISCOVERY_CACHE_TTL seconds to avoid rebuilding 7-chain requirements per request.
     """
     global _discovery_cache, _discovery_cache_time
@@ -2556,8 +2559,8 @@ async def request_refund(request: Request):
 
     POST body: {
         "tx_hash": "0x...",
-        "payer": "0x..." (REQUIRED — your wallet address that paid),
-        "signature": "0x..." (optional — EIP-191 signed message for v2),
+        "payer": "0x..." (REQUIRED - your wallet address that paid),
+        "signature": "0x..." (optional - EIP-191 signed message for v2),
         "reason": "Tool returned empty data" (optional)
     }
     """
@@ -2651,7 +2654,7 @@ async def request_refund(request: Request):
             except (json.JSONDecodeError, TypeError):
                 pass
         elif spent_data:
-            # Payment exists but wasn't auto-flagged — user is requesting manually
+            # Payment exists but wasn't auto-flagged - user is requesting manually
             # Allow if within 48h window and user provides a reason
             try:
                 spent_info = json.loads(spent_data)

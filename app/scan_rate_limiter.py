@@ -37,19 +37,19 @@ SCAN_PACKS = {
         "scans": 50,
         "price_usd": 29.99,
         "price_atoms": "29990000",
-        "description": "50 scans/day — Starter tier",
+        "description": "50 scans/day - Starter tier",
     },
     "pro_monthly": {
         "scans": 200,
         "price_usd": 49.99,
         "price_atoms": "49990000",
-        "description": "200 scans/day — Pro tier",
+        "description": "200 scans/day - Pro tier",
     },
     "elite_monthly": {
         "scans": 1000,
         "price_usd": 89.99,
         "price_atoms": "89990000",
-        "description": "1000 scans/day + API access — Elite tier",
+        "description": "1000 scans/day + API access - Elite tier",
     },
 }
 
@@ -59,25 +59,25 @@ BOT_PACKS = {
         "calls": 200,
         "price_usd": 9.99,
         "price_atoms": "9990000",
-        "description": "200 API calls — Scout pack for testing bots",
+        "description": "200 API calls - Scout pack for testing bots",
     },
     "bot_hunter": {
         "calls": 1500,
         "price_usd": 49.99,
         "price_atoms": "49990000",
-        "description": "1,500 API calls — Hunter pack for active bots (33% savings)",
+        "description": "1,500 API calls - Hunter pack for active bots (33% savings)",
     },
     "bot_whale": {
         "calls": 10000,
         "price_usd": 199.99,
         "price_atoms": "199990000",
-        "description": "10,000 API calls — Whale pack for production bots (60% savings)",
+        "description": "10,000 API calls - Whale pack for production bots (60% savings)",
     },
     "bot_api_plan": {
         "calls": 50000,
         "price_usd": 499.00,
         "price_atoms": "499000000",
-        "description": "50,000 calls/month — API Plan for SaaS/funds ($0.01/call)",
+        "description": "50,000 calls/month - API Plan for SaaS/funds ($0.01/call)",
     },
 }
 
@@ -329,12 +329,12 @@ def is_internal_request(request) -> bool:
     # Check for x402 payment (already paid)
     x402_version = request.headers.get("X-Payment-Version", "") if hasattr(request, "headers") else ""
     if x402_version:
-        return False  # x402 is not internal, but it's paid — handled separately
+        return False  # x402 is not internal, but it's paid - handled separately
 
     # Check for authenticated user (Authorization header)
     auth = request.headers.get("Authorization", "") if hasattr(request, "headers") else ""
     if auth.startswith("Bearer "):
-        return False  # Authenticated user — check their tier
+        return False  # Authenticated user - check their tier
 
     return False
 

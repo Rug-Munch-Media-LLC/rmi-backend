@@ -2,7 +2,7 @@
 Tests for MEV & Sandwich Attack Detector
 =========================================
 Covers all core components: sandwich detection heuristics, bot registry,
-pool vulnerability scoring, and report generation — all without requiring
+pool vulnerability scoring, and report generation - all without requiring
 network calls.
 """
 

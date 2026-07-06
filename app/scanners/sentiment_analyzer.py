@@ -1,5 +1,5 @@
 """
-SENTINEL — Sentiment & Bot Campaign Analyzer
+SENTINEL - Sentiment & Bot Campaign Analyzer
 ==============================================
 Analyzes token sentiment from DexScreener/Birdeye social signals:
   - Bullish/bearish keyword sentiment scoring
@@ -7,7 +7,7 @@ Analyzes token sentiment from DexScreener/Birdeye social signals:
   - Telegram group velocity (message rate spikes)
   - Pump probability scoring
 
-No Twitter/Telegram API keys required — uses public DexScreener and
+No Twitter/Telegram API keys required - uses public DexScreener and
 Birdeye endpoints for social/sentiment data.
 """
 
@@ -240,23 +240,23 @@ class SentimentAnalyzer:
                 sentiment_label="neutral",
             )
 
-        # Step 2 — keyword sentiment
+        # Step 2 - keyword sentiment
         bull_score, bear_score, sentiment_label = self._score_keywords(messages)
 
-        # Step 3 — bot campaign detection
+        # Step 3 - bot campaign detection
         bot_campaigns = self._detect_bot_campaigns(messages)
         bot_probability = self._calculate_bot_probability(bot_campaigns, messages)
 
-        # Step 4 — velocity analysis
+        # Step 4 - velocity analysis
         msgs_per_hour, velocity_spikes = self._analyze_velocity(messages)
         new_account_ratio = self._calc_new_account_ratio(messages)
 
-        # Step 5 — pump probability
+        # Step 5 - pump probability
         pump_prob, pump_signals, pump_kws = self._score_pump_probability(messages, velocity_spikes, bot_probability)
 
-        # Step 6 — assemble overall sentiment (0-100)
+        # Step 6 - assemble overall sentiment (0-100)
         raw_sentiment = 50 + (bull_score - bear_score) * 50  # center at 50
-        # Adjust for bot probability — bots inflate sentiment
+        # Adjust for bot probability - bots inflate sentiment
         adjusted = raw_sentiment * (1 - bot_probability * 0.5)
         # Clamp to 0-100
         overall = max(0.0, min(100.0, round(adjusted, 1)))
@@ -264,13 +264,13 @@ class SentimentAnalyzer:
         # Warnings
         warnings: list[str] = []
         if bot_probability > 0.7:
-            warnings.append(f"CRITICAL: Bot activity {bot_probability:.0%} — sentiment likely artificial")
+            warnings.append(f"CRITICAL: Bot activity {bot_probability:.0%} - sentiment likely artificial")
         elif bot_probability > 0.4:
-            warnings.append(f"HIGH: Bot activity {bot_probability:.0%} — sentiment may be inflated")
+            warnings.append(f"HIGH: Bot activity {bot_probability:.0%} - sentiment may be inflated")
         if pump_prob > 0.7:
             warnings.append(f"PUMP WARNING: {pump_prob:.0%} pump-and-dump probability detected")
         if velocity_spikes > 3:
-            warnings.append(f"VELOCITY: {velocity_spikes} message rate spikes — possible coordinated campaign")
+            warnings.append(f"VELOCITY: {velocity_spikes} message rate spikes - possible coordinated campaign")
         if new_account_ratio > 0.5:
             warnings.append(f"NEW ACCOUNTS: {new_account_ratio:.0%} of authors are new accounts")
         if bear_score > 0.5:
@@ -648,7 +648,7 @@ class SentimentAnalyzer:
             if social_type and social_url:
                 messages.append(
                     SocialMessage(
-                        text=f"Social link: {social_type} — {social_url}",
+                        text=f"Social link: {social_type} - {social_url}",
                         author="dexscreener_meta",
                         timestamp=int(time.time() * 1000),
                         platform="dexscreener",

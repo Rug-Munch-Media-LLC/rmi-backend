@@ -1,5 +1,5 @@
 """
-RMI DataBus Fallback Middleware — Universal Single-Source Pipeline
+RMI DataBus Fallback Middleware - Universal Single-Source Pipeline
 ====================================================================
 Every x402 tool gets DataBus as its data backbone. If the primary endpoint
 returns empty data, an error, or times out, DataBus.fetch() catches it with
@@ -308,7 +308,7 @@ class DataBusFallbackMiddleware(BaseHTTPMiddleware):
             return await self._try_databus_fallback(request, response, "server_error")
 
         if response.status_code == 200:
-            # Skip trial responses — DataBus was already used for execution
+            # Skip trial responses - DataBus was already used for execution
             if response.headers.get("X-RMI-Trial") == "true":
                 return response
 
@@ -323,10 +323,10 @@ class DataBusFallbackMiddleware(BaseHTTPMiddleware):
                 if self._is_empty_response(data):
                     return await self._try_databus_fallback(request, response, "empty_data", original_data=data)
 
-                # Success — return as-is with body we already read
+                # Success - return as-is with body we already read
                 return JSONResponse(content=data, status_code=200, headers=dict(response.headers))
             except Exception:
-                # Can't parse body — return original response
+                # Can't parse body - return original response
                 return response
 
         # 4xx errors (402 payment required, 400 bad request) pass through
@@ -362,7 +362,7 @@ class DataBusFallbackMiddleware(BaseHTTPMiddleware):
 
         data_type = TOOL_TO_DATABUS.get(tool_id)
         if not data_type:
-            # No DataBus mapping — return original response
+            # No DataBus mapping - return original response
             return original_response
 
         try:
@@ -422,5 +422,5 @@ class DataBusFallbackMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.warning(f"DataBus fallback failed for {tool_id} → {data_type}: {e}")
 
-        # DataBus also failed — return original error
+        # DataBus also failed - return original error
         return original_response

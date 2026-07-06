@@ -1,4 +1,4 @@
-"""NFT Wash Trading Detector — detects fake volume in NFT collections."""
+"""NFT Wash Trading Detector - detects fake volume in NFT collections."""
 
 import os
 
@@ -15,7 +15,7 @@ async def check_nft_wash(collection_address: str, chain: str = Query("ethereum")
     """Check NFT collection for wash trading patterns."""
 
     # Use DataBus volume authenticity engine with NFT-specific heuristics
-    score = 85  # Placeholder — real implementation queries DataBus
+    score = 85  # Placeholder - real implementation queries DataBus
 
     # NFT-specific wash trading patterns
     patterns = []
@@ -48,7 +48,7 @@ async def check_nft_wash(collection_address: str, chain: str = Query("ethereum")
         "wash_patterns": patterns,
         "recommendation": "Likely authentic trading"
         if score >= 80
-        else "Suspicious activity detected — verify before buying",
+        else "Suspicious activity detected - verify before buying",
     }
 
 

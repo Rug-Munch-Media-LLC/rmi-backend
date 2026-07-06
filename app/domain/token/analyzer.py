@@ -10,7 +10,7 @@ from app.domain.token.models import (
 
 
 class TokenAnalyzer:
-    """Pure logic — given holders + liquidity + flags, return risk."""
+    """Pure logic - given holders + liquidity + flags, return risk."""
 
     @staticmethod
     def compute_risk(
@@ -31,7 +31,7 @@ class TokenAnalyzer:
         # Honeypot = critical
         if honeypot or not can_sell:
             score += 100
-            flags.append({"code": "honeypot", "severity": "critical", "message": "Cannot sell — likely honeypot."})
+            flags.append({"code": "honeypot", "severity": "critical", "message": "Cannot sell - likely honeypot."})
 
         # Owner can change balance = rug pull risk
         if owner_change_balance:

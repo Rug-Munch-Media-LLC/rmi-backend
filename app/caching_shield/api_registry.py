@@ -1,5 +1,5 @@
 """
-Unified API Key Registry — Multi-Key Pools with Load Balancing
+Unified API Key Registry - Multi-Key Pools with Load Balancing
 
 Discovers all API keys from environment variables and groups them
 by provider into key pools. Each pool handles:
@@ -10,21 +10,21 @@ by provider into key pools. Each pool handles:
   - Health scoring (success rate, latency)
 
 Providers managed:
-  HELIUS (3 keys)     — Solana RPC
-  QUICKNODE (1 key)   — Solana RPC
-  ALCHEMY (1 key)     — Solana RPC
-  SOLANA_TRACKER (2)  — Indexed Solana data
-  BIRDEYE (1 key)     — Token analytics
-  SOLSCAN (1 key)     — Block explorer API
-  MORALIS (3 keys)    — EVM wallet data
-  ETHERSCAN (1 key)   — EVM explorer
-  COINGECKO (1 key)   — Price data
-  THEGRAPH (1 key)    — Subgraph queries
-  GOPLUS (1 key)      — Token security
-  NANSEN (1 key)      — Wallet labels
-  DUNE (1 key)        — Analytics
-  ARKHAM (1 key)      — Entity intelligence
-  LUNARCRUSH (1 key)  — Social signals
+  HELIUS (3 keys)     - Solana RPC
+  QUICKNODE (1 key)   - Solana RPC
+  ALCHEMY (1 key)     - Solana RPC
+  SOLANA_TRACKER (2)  - Indexed Solana data
+  BIRDEYE (1 key)     - Token analytics
+  SOLSCAN (1 key)     - Block explorer API
+  MORALIS (3 keys)    - EVM wallet data
+  ETHERSCAN (1 key)   - EVM explorer
+  COINGECKO (1 key)   - Price data
+  THEGRAPH (1 key)    - Subgraph queries
+  GOPLUS (1 key)      - Token security
+  NANSEN (1 key)      - Wallet labels
+  DUNE (1 key)        - Analytics
+  ARKHAM (1 key)      - Entity intelligence
+  LUNARCRUSH (1 key)  - Social signals
 """
 
 import asyncio
@@ -499,7 +499,7 @@ class UnifiedApiManager:
                 bottlenecks.append(f"{name}: only {combined_quota}/mo across {total_keys} key(s)")
             if total_keys == 1 and cfg.rate_rps < 10:
                 status = "SINGLE_KEY_LIMITED"
-                bottlenecks.append(f"{name}: single key at {cfg.rate_rps} RPS — get more accounts")
+                bottlenecks.append(f"{name}: single key at {cfg.rate_rps} RPS - get more accounts")
 
             providers[name] = {
                 "keys": total_keys,
@@ -539,7 +539,7 @@ def _generate_recommendations(bottlenecks: list, providers: dict) -> list:
         recs.append("LOW: Get 1 more Solscan Pro API key if needed for holder data")
 
     if any("coingecko" in b.lower() for b in bottlenecks):
-        recs.append("LOW: CoinGecko Demo tier is generous at 30 RPS — likely sufficient")
+        recs.append("LOW: CoinGecko Demo tier is generous at 30 RPS - likely sufficient")
 
     if not recs:
         recs.append("All providers have adequate capacity for current load.")
@@ -603,7 +603,7 @@ BACKEND_SOURCES = {
         "rate_rps": 10.0,
         "burst": 15,
         "ttl_default": 60,
-        "data": "Price, market cap, volume (free tier — no key needed for basic)",
+        "data": "Price, market cap, volume (free tier - no key needed for basic)",
         "status": "in_use",
         "module": "coingecko_connector.py",
     },
@@ -613,7 +613,7 @@ BACKEND_SOURCES = {
         "rate_rps": 5.0,
         "burst": 5,
         "ttl_default": 60,
-        "data": "Prices, market data, exchanges — free, no auth",
+        "data": "Prices, market data, exchanges - free, no auth",
         "status": "available",
         "module": "not yet wired",
     },
@@ -623,7 +623,7 @@ BACKEND_SOURCES = {
         "rate_rps": 2.0,
         "burst": 2,
         "ttl_default": 300,
-        "data": "TVL, yields, protocol data — free, no key",
+        "data": "TVL, yields, protocol data - free, no key",
         "status": "in_use",
         "module": "all_connectors.py",
     },
@@ -676,7 +676,7 @@ BACKEND_SOURCES = {
         "rate_rps": 2.0,
         "burst": 2,
         "ttl_default": 3600,
-        "data": "Scam reports, blacklisted addresses — free, no key",
+        "data": "Scam reports, blacklisted addresses - free, no key",
         "status": "in_use",
         "module": "all_connectors.py, security_defense.py",
     },
@@ -686,7 +686,7 @@ BACKEND_SOURCES = {
         "rate_rps": 2.0,
         "burst": 2,
         "ttl_default": 3600,
-        "data": "Scam database, reported addresses — free, no key",
+        "data": "Scam database, reported addresses - free, no key",
         "status": "in_use",
         "module": "all_connectors.py",
     },
@@ -696,7 +696,7 @@ BACKEND_SOURCES = {
         "rate_rps": 3.0,
         "burst": 3,
         "ttl_default": 60,
-        "data": "Honeypot detection for EVM tokens — free, no key",
+        "data": "Honeypot detection for EVM tokens - free, no key",
         "status": "in_use",
         "module": "unified_scanner.py, all_connectors.py",
     },
@@ -706,7 +706,7 @@ BACKEND_SOURCES = {
         "rate_rps": 5.0,
         "burst": 5,
         "ttl_default": 60,
-        "data": "Solana token rug check, risk analysis — free, no key",
+        "data": "Solana token rug check, risk analysis - free, no key",
         "status": "available",
         "module": "not yet wired (could replace solsniffer)",
     },
@@ -716,7 +716,7 @@ BACKEND_SOURCES = {
         "rate_rps": 5.0,
         "burst": 5,
         "ttl_default": 120,
-        "data": "Transaction simulation, scam detection — free tier available",
+        "data": "Transaction simulation, scam detection - free tier available",
         "status": "available",
         "module": "all_connectors.py",
     },
@@ -727,7 +727,7 @@ BACKEND_SOURCES = {
         "rate_rps": 3.0,
         "burst": 3,
         "ttl_default": 60,
-        "data": "Solana account, token, tx data — public tier (rate limited)",
+        "data": "Solana account, token, tx data - public tier (rate limited)",
         "status": "in_use",
         "module": "free_solscan_client.py, unified_scanner.py",
     },
@@ -737,7 +737,7 @@ BACKEND_SOURCES = {
         "rate_rps": 1.0,
         "burst": 1,
         "ttl_default": 300,
-        "data": "EVM contract verification, ABI — free tier 1 RPS (no key)",
+        "data": "EVM contract verification, ABI - free tier 1 RPS (no key)",
         "status": "in_use",
         "module": "unified_scanner.py (fallback when keyed fails)",
     },
@@ -745,10 +745,10 @@ BACKEND_SOURCES = {
     "wallet_labels_imported": {
         "type": "imported_data",
         "url": "local files: whalegod, sigmod, etherscan, solana labels",
-        "rate_rps": None,  # no API calls — local DB
+        "rate_rps": None,  # no API calls - local DB
         "burst": None,
         "ttl_default": 86400,
-        "data": "CEX wallets, scam labels, dapp labels, OFAC — pre-loaded into ClickHouse",
+        "data": "CEX wallets, scam labels, dapp labels, OFAC - pre-loaded into ClickHouse",
         "status": "in_use",
         "module": "wallet_memory/label_importer.py, wallet_label_loader.py",
     },
@@ -758,7 +758,7 @@ BACKEND_SOURCES = {
         "rate_rps": None,
         "burst": None,
         "ttl_default": 86400,
-        "data": "Wallet history, labels, risk scores — our own indexed DB",
+        "data": "Wallet history, labels, risk scores - our own indexed DB",
         "status": "in_use",
         "module": "wallet_memory/storage.py",
     },
@@ -785,7 +785,7 @@ BACKEND_SOURCES = {
     },
     "blogwatcher": {
         "type": "cli_tool",
-        "url": "blogwatcher CLI — local execution",
+        "url": "blogwatcher CLI - local execution",
         "rate_rps": 0.05,
         "burst": 1,
         "ttl_default": 3600,
@@ -821,7 +821,7 @@ BACKEND_SOURCES = {
         "rate_rps": None,  # local Docker
         "burst": None,
         "ttl_default": 300,
-        "data": "Dify AI agent platform — chat, workflows, knowledge base",
+        "data": "Dify AI agent platform - chat, workflows, knowledge base",
         "status": "in_use",
         "module": "routers/admin_extensions.py (Dify chat proxy)",
     },
@@ -831,7 +831,7 @@ BACKEND_SOURCES = {
         "rate_rps": 100.0,
         "burst": 200,
         "ttl_default": 30,
-        "data": "x402 MCP gateway — 231 tools, 14 categories, 13 chains",
+        "data": "x402 MCP gateway - 231 tools, 14 categories, 13 chains",
         "status": "in_use",
         "module": "Cloudflare Workers, facilitators/",
     },
@@ -841,7 +841,7 @@ BACKEND_SOURCES = {
         "rate_rps": None,  # same process
         "burst": None,
         "ttl_default": 30,
-        "data": "RMI MCP server — all token scanning, wallet analysis tools",
+        "data": "RMI MCP server - all token scanning, wallet analysis tools",
         "status": "in_use",
         "module": "routers/mcp_server.py",
     },
@@ -852,7 +852,7 @@ BACKEND_SOURCES = {
         "rate_rps": None,
         "burst": None,
         "ttl_default": 3600,
-        "data": "EVM funding source forensics — traces wallet funding back to origin (CEX/DEX/bridge/mixer/contract).",
+        "data": "EVM funding source forensics - traces wallet funding back to origin (CEX/DEX/bridge/mixer/contract).",
         "status": "built",
         "module": "funding_tracer.py",
     },
@@ -872,7 +872,7 @@ BACKEND_SOURCES = {
         "rate_rps": None,
         "burst": None,
         "ttl_default": 3600,
-        "data": "SENTINEL multi-chain scanner — wallet risk, token analysis, whale tracking. 15+ enrichment modules.",
+        "data": "SENTINEL multi-chain scanner - wallet risk, token analysis, whale tracking. 15+ enrichment modules.",
         "status": "in_use",
         "module": "unified_scanner.py",
     },

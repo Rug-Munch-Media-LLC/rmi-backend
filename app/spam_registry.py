@@ -1,8 +1,8 @@
 """
-Spam & Sanctions Registry — Aggregates free blocklists from multiple sources.
+Spam & Sanctions Registry - Aggregates free blocklists from multiple sources.
 Sources: GoldRush (8M+ spam tokens), Scam Sniffer, OpenSanctions, Guardian, CryptoScamDB.
 
-Paper ref: Article 4, Sections 4 & 17 — Free Blocklists and Datasets
+Paper ref: Article 4, Sections 4 & 17 - Free Blocklists and Datasets
 All sources are free, MIT/GPL/CC licensed, production-grade.
 """
 

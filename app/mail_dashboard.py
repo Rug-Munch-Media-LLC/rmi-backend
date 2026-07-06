@@ -1,5 +1,5 @@
 """
-Email Dashboard — Full email management for rugmunch.io + cryptorugmunch.com
+Email Dashboard - Full email management for rugmunch.io + cryptorugmunch.com
 Access cryptorugmuncher@gmail.com via backend (no password needed).
 """
 
@@ -93,7 +93,7 @@ async def list_addresses():
 
 
 # ═══════════════════════════════════════════════════════════
-# GMAIL INBOX — Read without password
+# GMAIL INBOX - Read without password
 # ═══════════════════════════════════════════════════════════
 @router.get("/inbox")
 async def check_inbox(limit: int = 10):
@@ -111,7 +111,7 @@ async def check_inbox(limit: int = 10):
         mail.login("cryptorugmuncher@gmail.com", app_password)
         mail.select("INBOX")
 
-        status, messages = mail.search(None, "ALL")
+        status, messages = mail.search(None, "ALL")  # noqa: RUF059
         email_ids = messages[0].split()[-limit:] if messages[0] else []
 
         emails = []
@@ -161,7 +161,7 @@ def _get_body(msg) -> str:
 
 
 # ═══════════════════════════════════════════════════════════
-# SEND — From any rugmunch.io address
+# SEND - From any rugmunch.io address
 # ═══════════════════════════════════════════════════════════
 @router.post("/send")
 async def send_mail(data: dict):

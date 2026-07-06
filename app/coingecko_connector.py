@@ -1,5 +1,5 @@
 """
-CoinGecko Connector — Free + Pro API with x402 pay-per-use fallback.
+CoinGecko Connector - Free + Pro API with x402 pay-per-use fallback.
 Free tier: 30 req/min. Pro tier: 500+ req/min. x402: pay-per-request.
 
 Endpoints covered:
@@ -384,7 +384,7 @@ class CoinGeckoConnector:
             "tier": "demo",
             "api_key": bool(self._api_key),
             "free_key": bool(COINGECKO_FREE_KEY),
-            "pro_key_note": "both keys are Demo tier — webhooks require Analyst plan ($103/mo)",
+            "pro_key_note": "both keys are Demo tier - webhooks require Analyst plan ($103/mo)",
             "cache_size": len(self._cache),
             "base_url": self._base(),
             "rate_limit": "30 req/min",

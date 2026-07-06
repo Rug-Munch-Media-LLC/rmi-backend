@@ -1,5 +1,5 @@
 """
-Enhanced Daily Market Data — Price action, sentiment, security, whales.
+Enhanced Daily Market Data - Price action, sentiment, security, whales.
 
 Pulls from ALL our data sources to create comprehensive daily analysis.
 """

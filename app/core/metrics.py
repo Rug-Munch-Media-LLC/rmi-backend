@@ -1,4 +1,4 @@
-"""Prometheus metrics — /metrics endpoint + PrometheusMiddleware.
+"""Prometheus metrics - /metrics endpoint + PrometheusMiddleware.
 
 Per RMIV5 v4.0 §T32. Exposes:
   - /metrics                  Prometheus scrape target

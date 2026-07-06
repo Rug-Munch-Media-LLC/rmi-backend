@@ -1,21 +1,21 @@
 """
-RMI Wallet Factory API — Multi-Chain Wallet Generation & Rotation
+RMI Wallet Factory API - Multi-Chain Wallet Generation & Rotation
 ==================================================================
 REST API for generating, rotating, and managing wallets across 25+ blockchains.
 Secure key storage with AES-256-GCM encryption.
 
 Endpoints:
-    GET  /api/v1/wallets/chains          — List supported chains
-    POST /api/v1/wallets/generate        — Generate wallet(s)
-    POST /api/v1/wallets/generate/batch  — Generate for multiple chains
-    POST /api/v1/wallets/rotate          — Rotate to new wallet
-    GET  /api/v1/wallets/vault           — List vault wallets (no keys)
-    GET  /api/v1/wallets/vault/{id}      — Get wallet with key (auth required)
-    GET  /api/v1/wallets/stats           — Wallet factory statistics
-    POST /api/v1/wallets/export          — Export for Apify/CLI usage
+    GET  /api/v1/wallets/chains          - List supported chains
+    POST /api/v1/wallets/generate        - Generate wallet(s)
+    POST /api/v1/wallets/generate/batch  - Generate for multiple chains
+    POST /api/v1/wallets/rotate          - Rotate to new wallet
+    GET  /api/v1/wallets/vault           - List vault wallets (no keys)
+    GET  /api/v1/wallets/vault/{id}      - Get wallet with key (auth required)
+    GET  /api/v1/wallets/stats           - Wallet factory statistics
+    POST /api/v1/wallets/export          - Export for Apify/CLI usage
 
 Free version: 3 chains, no rotation, no encryption
-Full version: All 25+ chains, rotation, encryption — available on Apify
+Full version: All 25+ chains, rotation, encryption - available on Apify
 """
 
 import json
@@ -30,7 +30,7 @@ logger = logging.getLogger("wallet_api")
 router = APIRouter(prefix="/api/v1/chain-vault", tags=["Chain Vault"])
 
 # ── Import wallet factory ───────────────────────────────────────
-from app.wallet_factory import SUPPORTED_CHAINS, get_wallet_factory
+from app.wallet_factory import SUPPORTED_CHAINS, get_wallet_factory  # noqa: E402
 
 # ── Auth ────────────────────────────────────────────────────────
 ADMIN_KEY = os.getenv("ADMIN_API_KEY", "")
@@ -90,8 +90,8 @@ async def list_chains():
         "chain_families": len({c["family"] for c in chains.values()}),
         "chains": chains,
         "pricing": {
-            "free": "3 chains (btc, eth, sol) — basic generation only",
-            "full": "25+ chains, rotation, encrypted vault, batch generation — available on Apify",
+            "free": "3 chains (btc, eth, sol) - basic generation only",
+            "full": "25+ chains, rotation, encrypted vault, batch generation - available on Apify",
         },
     }
 
@@ -288,7 +288,7 @@ async def export_wallets(req: ExportRequest, request: Request):
         return {"format": "csv", "data": "\n".join(lines)}
 
     elif req.format == "env":
-        lines = [f"# RMI Wallet Export — {len(wallets)} chains"]
+        lines = [f"# RMI Wallet Export - {len(wallets)} chains"]
         for c, w in wallets.items():
             lines.append(f"WALLET_{c.upper()}_ADDRESS={w.address}")
         return {"format": "env", "data": "\n".join(lines)}

@@ -1,9 +1,9 @@
 """
-Lightweight GNN/Sklearn Fraud Detection — CPU-only, no GPU needed.
+Lightweight GNN/Sklearn Fraud Detection - CPU-only, no GPU needed.
 Pulls pre-trained models from HuggingFace (sklearn format, <50MB).
 Fallback: Random Forest 96% accuracy from MUDzain ethereum-fraud-detection.
 
-Paper ref: Article 3, Section 7 — Open-Source ML Models and GNN Frameworks
+Paper ref: Article 3, Section 7 - Open-Source ML Models and GNN Frameworks
 """
 
 import logging
@@ -99,7 +99,7 @@ class FraudGNNDetector:
             self.model_type = f"huggingface:{model_path}"
             logger.info(f"Loaded HF fraud model: {self.model_type}")
         except ImportError:
-            raise ImportError("huggingface_hub not installed")
+            raise ImportError("huggingface_hub not installed") from None
 
     def _load_fallback_model(self):
         """Fallback: simple sklearn Random Forest trained on common heuristics."""

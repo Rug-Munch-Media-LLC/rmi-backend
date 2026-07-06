@@ -92,4 +92,4 @@ async def lookup_labels(req: LabelLookupRequest):
 
     except Exception as e:
         logger.error(f"Label lookup failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

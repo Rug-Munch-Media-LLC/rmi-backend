@@ -1,4 +1,4 @@
-"""Solana wallet labels CSV source — 103K SOL labels via DuckDB."""
+"""Solana wallet labels CSV source - 103K SOL labels via DuckDB."""
 from __future__ import annotations
 
 import asyncio
@@ -17,7 +17,7 @@ async def query_solana_labels_csv(address: str, chain: str = "solana") -> list[L
 
     Schema (likely): address,source,name,entity_type,threat_group,risk_level
 
-    Only matches if chain == "solana" — returns [] for EVM chains.
+    Only matches if chain == "solana" - returns [] for EVM chains.
     """
     if chain != "solana":
         return []
@@ -40,7 +40,7 @@ async def query_solana_labels_csv(address: str, chain: str = "solana") -> list[L
                 )
                 labels = []
                 for row in rows:
-                    # Field names may differ — try common names
+                    # Field names may differ - try common names
                     label_value = (
                         row.get("name")
                         or row.get("label")

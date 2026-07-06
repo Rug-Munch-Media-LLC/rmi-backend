@@ -1,5 +1,5 @@
 """
-DataBus Access Control — Who Sees What, Based On Who They Are
+DataBus Access Control - Who Sees What, Based On Who They Are
 ================================================================
 
 Controls data access at a granular level. No consumer can pull raw individual
@@ -615,7 +615,7 @@ X402_ACCESS_TIERS = {
 class AccessController:
     """
     Controls what data each consumer can see and in what format.
-    No consumer ever gets raw data — everything is packaged and scoped.
+    No consumer ever gets raw data - everything is packaged and scoped.
     """
 
     @staticmethod
@@ -664,7 +664,7 @@ class AccessController:
         Returns: "full", "summary", "scoped", or "denied"
         """
         if data_type not in DATA_ACCESS_MATRIX:
-            # Unknown data type — authenticated minimum
+            # Unknown data type - authenticated minimum
             if consumer in (ConsumerType.ADMIN, ConsumerType.MCP_TOOL):
                 return "full"
             if consumer == ConsumerType.PREMIUM:
@@ -676,7 +676,7 @@ class AccessController:
         type_matrix = DATA_ACCESS_MATRIX[data_type]
         packaging = type_matrix.get(consumer, "denied")
 
-        # MCP tool scoping — further restrict to tool's allowed data types
+        # MCP tool scoping - further restrict to tool's allowed data types
         if consumer == ConsumerType.MCP_TOOL:
             # MCP tools get "full" for their scoped data types,
             # but only if the data type is in their scope
@@ -739,7 +739,7 @@ class AccessController:
 
     @staticmethod
     def _package_summary(data: dict, data_type: str) -> dict:
-        """Package as summary — only whitelisted fields."""
+        """Package as summary - only whitelisted fields."""
         if not isinstance(data, dict):
             return data
 
@@ -755,12 +755,12 @@ class AccessController:
             result["tier"] = data.get("tier", "unknown")
             return result
 
-        # No specific field list — strip dangerous and return
+        # No specific field list - strip dangerous and return
         return AccessController._strip_dangerous(data)
 
     @staticmethod
     def _package_for_mcp(data: dict, data_type: str, tool_id: str) -> dict:
-        """Package for MCP tool — only data types and fields the tool is authorized for."""
+        """Package for MCP tool - only data types and fields the tool is authorized for."""
         scope = MCP_TOOL_SCOPES.get(tool_id, {})
         allowed_types = scope.get("data_types", [])
 

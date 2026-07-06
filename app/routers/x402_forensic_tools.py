@@ -1,9 +1,9 @@
 """
-RMI x402 Forensic Investigation Tools — Premium Analysis Endpoints
+RMI x402 Forensic Investigation Tools - Premium Analysis Endpoints
 ================================================================
-TOOL 37: Forensic Valuation ($0.25) — DCF + Comps + Scam scoring
-TOOL 38: OSINT Identity Hunt ($0.15) — Cross-platform username/domain investigation
-TOOL 39: Investigation Report ($0.20) — Full investigative deliverable
+TOOL 37: Forensic Valuation ($0.25) - DCF + Comps + Scam scoring
+TOOL 38: OSINT Identity Hunt ($0.15) - Cross-platform username/domain investigation
+TOOL 39: Investigation Report ($0.20) - Full investigative deliverable
 
 These are premium x402-paid endpoints that provide institutional-grade
 crypto scam investigation capabilities.
@@ -20,7 +20,7 @@ logger = logging.getLogger("x402_forensic_tools")
 router = APIRouter(prefix="/api/v1/x402-tools", tags=["x402-forensic-tools"])
 
 
-# ── TOOL 37: Forensic Valuation — DCF + Comps Analysis ($0.25) ──
+# ── TOOL 37: Forensic Valuation - DCF + Comps Analysis ($0.25) ──
 
 
 class ForensicValuationRequest(BaseModel):
@@ -33,7 +33,7 @@ class ForensicValuationRequest(BaseModel):
 
 @router.post("/forensic_valuation")
 async def forensic_valuation(req: ForensicValuationRequest):
-    """Institutional-grade token valuation — DCF intrinsic value, comparable analysis
+    """Institutional-grade token valuation - DCF intrinsic value, comparable analysis
     with statistical outlier detection, and scam probability scoring.
     Proves whether a token has any fundamental value or is purely speculative.
     """
@@ -91,13 +91,13 @@ async def forensic_valuation(req: ForensicValuationRequest):
                     dcf["annualized_fees_estimate"] = round(annualized_fees, 2)
                     dcf["fee_fdv_ratio"] = round(annualized_fees / fdv * 100, 4) if fdv > 0 else 0
                     if annualized_fees / fdv < 0.01:
-                        dcf["verdict"] = "NEGATIVE — Fee revenue cannot justify FDV"
+                        dcf["verdict"] = "NEGATIVE - Fee revenue cannot justify FDV"
                         result["scam_signals"].append("dcf_negative")
                     else:
                         dcf["intrinsic_value_estimate"] = "potentially_positive"
-                        dcf["verdict"] = "NEEDS_VERIFICATION — Fee revenue exists but must verify distribution"
+                        dcf["verdict"] = "NEEDS_VERIFICATION - Fee revenue exists but must verify distribution"
                 else:
-                    dcf["verdict"] = "NEGATIVE — No volume to support valuation"
+                    dcf["verdict"] = "NEGATIVE - No volume to support valuation"
                 result["valuation"]["dcf"] = dcf
 
             scam_score = 0
@@ -121,7 +121,7 @@ async def forensic_valuation(req: ForensicValuationRequest):
         return result
     except Exception as e:
         logger.error(f"Forensic valuation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── TOOL 38: OSINT Identity Hunt ($0.15) ──
@@ -135,7 +135,7 @@ class OSINTRequest(BaseModel):
 
 @router.post("/osint_identity_hunt")
 async def osint_identity_hunt(req: OSINTRequest):
-    """Cross-platform OSINT investigation — hunt usernames across 400+ social networks,
+    """Cross-platform OSINT investigation - hunt usernames across 400+ social networks,
     domain intelligence (WHOIS/DNS/SSL), and stealth page capture for evidence preservation.
     """
     try:
@@ -166,13 +166,13 @@ async def osint_identity_hunt(req: OSINTRequest):
             }
         if req.project_url:
             result["findings"]["project_url"] = req.project_url
-            result["findings"]["capture_recommended"] = "Capture project page immediately — scam sites often disappear"
+            result["findings"]["capture_recommended"] = "Capture project page immediately - scam sites often disappear"
         result["pricing"] = {"tool": "osint_identity_hunt", "price": "$0.15"}
         await record_x402_payment("osint_identity_hunt", "0.15", req.username)
         return result
     except Exception as e:
         logger.error(f"OSINT identity hunt failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── TOOL 39: Investigation Report Generator ($0.20) ──
@@ -186,7 +186,7 @@ class InvestigationReportRequest(BaseModel):
 
 @router.post("/investigation_report")
 async def investigation_report(req: InvestigationReportRequest):
-    """Full investigation report — combines on-chain forensics, financial valuation,
+    """Full investigation report - combines on-chain forensics, financial valuation,
     OSINT findings, and scam scoring into a structured deliverable.
     Available as JSON, Excel, or PPTX.
     """
@@ -231,10 +231,10 @@ async def investigation_report(req: InvestigationReportRequest):
         details = []
         if fdv > 0 and liq > 0 and fdv / liq > 500:
             scam_score += 35
-            details.append(f"FDV/Liq ratio {fdv / liq:.0f}x — extreme ruggable liquidity")
+            details.append(f"FDV/Liq ratio {fdv / liq:.0f}x - extreme ruggable liquidity")
         if fdv > 0 and vol > 0 and fdv / vol > 1000:
             scam_score += 25
-            details.append(f"FDV/Volume ratio {fdv / vol:.0f}x — no organic volume")
+            details.append(f"FDV/Volume ratio {fdv / vol:.0f}x - no organic volume")
         if fdv > 100000 and liq < 1000:
             scam_score += 30
             details.append("Near-zero liquidity for significant FDV")
@@ -268,4 +268,4 @@ async def investigation_report(req: InvestigationReportRequest):
         return result
     except Exception as e:
         logger.error(f"Investigation report failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

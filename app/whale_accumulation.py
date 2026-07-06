@@ -38,12 +38,12 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
     import aiohttp
 
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession() as session:  # noqa: SIM117
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
                 if resp.status == 200:
                     return await resp.json()
     except Exception as e:
-        logger.debug(f"Fetch failed: {url} — {e}")
+        logger.debug(f"Fetch failed: {url} - {e}")
     return None
 
 
@@ -65,7 +65,7 @@ def _compute_accumulation_score(
     recent_large_buys: int,
 ) -> float:
     """
-    Compute a 0–100 accumulation signal score.
+    Compute a 0-100 accumulation signal score.  # noqa: RUF002
 
     Factors (weighted):
       - buy_volume_ratio (20%): Buy vs sell volume (normalized 0-1, 2.0x = max)
@@ -89,7 +89,7 @@ def _compute_accumulation_score(
     tf = min(tx_frequency / 50.0, 1.0)
     score += tf * 15
 
-    # Wallet age bonus (0-10 points) — newer = more suspicious = higher score
+    # Wallet age bonus (0-10 points) - newer = more suspicious = higher score
     age_factor = max(0.0, 1.0 - wallet_age_days / 365.0)
     score += age_factor * 10
 
@@ -259,7 +259,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
 
     if holder_concentration > 0.5:
         signal_messages.append(
-            f"🟠 High top-10 holder concentration ({holder_concentration * 100:.0f}%) — potential accumulation risk"
+            f"🟠 High top-10 holder concentration ({holder_concentration * 100:.0f}%) - potential accumulation risk"
         )
 
     # ── Step 5: Smart money cross-reference ───────────────────────
@@ -291,7 +291,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
                 result["analysis"]["token_age_days"] = wallet_age_days
                 if wallet_age_days < 7:
                     signal_messages.append(
-                        f"🆕 Very new token ({wallet_age_days}d old) — higher accumulation uncertainty"
+                        f"🆕 Very new token ({wallet_age_days}d old) - higher accumulation uncertainty"
                     )
     except Exception:
         pass
@@ -318,11 +318,11 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
 
     if price_change_24h < -20 and buy_volume_ratio > 1.5:
         signal_messages.append(
-            "💎 Price down 20%+ but buy volume is strong — possible accumulation "
+            "💎 Price down 20%+ but buy volume is strong - possible accumulation "
             "during dip (smart money buying the dip)"
         )
     elif price_change_24h > 20 and buy_volume_ratio > 1.5:
-        signal_messages.append("📈 Price up 20%+ with continued buy pressure — momentum accumulation")
+        signal_messages.append("📈 Price up 20%+ with continued buy pressure - momentum accumulation")
 
     # ── Step 9: Assemble report ───────────────────────────────────
     persona = "trader"  # default persona for API tool

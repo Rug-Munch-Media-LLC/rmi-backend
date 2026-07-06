@@ -1,5 +1,5 @@
 """
-Alchemy Connector — NFT API, Enhanced APIs, Transaction API.
+Alchemy Connector - NFT API, Enhanced APIs, Transaction API.
 Free tier: 300M compute credits/month (~10M/day).
 Supports: Ethereum, Polygon, Arbitrum, Optimism, Base, Solana (via partnerships).
 

@@ -1,18 +1,18 @@
 """
-RMI Analytics Engine — Real-Time Metrics & Trend Visualization
+RMI Analytics Engine - Real-Time Metrics & Trend Visualization
 ===============================================================
 Comprehensive analytics system for the RugMunch Intelligence Platform.
 
 Features:
-  • Real-Time Metrics — CPU, memory, requests, errors, latency
-  • Time-Series Storage — Redis-backed rolling windows
-  • Trend Detection — automatic anomaly detection, trend arrows
-  • User Analytics — DAU, MAU, retention, cohort analysis
-  • Financial Analytics — revenue, ARPU, MRR, churn
-  • Security Analytics — threats blocked, bot traffic, attack patterns
-  • Token Analytics — deployment stats, airdrop metrics, holder growth
-  • Custom Dashboards — configurable widget layouts
-  • Export — CSV, JSON, Prometheus metrics
+  • Real-Time Metrics - CPU, memory, requests, errors, latency
+  • Time-Series Storage - Redis-backed rolling windows
+  • Trend Detection - automatic anomaly detection, trend arrows
+  • User Analytics - DAU, MAU, retention, cohort analysis
+  • Financial Analytics - revenue, ARPU, MRR, churn
+  • Security Analytics - threats blocked, bot traffic, attack patterns
+  • Token Analytics - deployment stats, airdrop metrics, holder growth
+  • Custom Dashboards - configurable widget layouts
+  • Export - CSV, JSON, Prometheus metrics
 
 Integrations:
   - Prometheus metrics export

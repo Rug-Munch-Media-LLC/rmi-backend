@@ -1,5 +1,5 @@
 """
-SENTINEL — Static Analyzer (Slither + Forta)
+SENTINEL - Static Analyzer (Slither + Forta)
 =============================================
 Runs Slither static analysis on EVM contracts and queries Forta public alerts
 to detect vulnerabilities, bad patterns, and known exploit indicators.
@@ -312,7 +312,7 @@ class StaticAnalyzer:
         try:
             # SmartCheck cloud API (if available)
             url = "https://smartcheck.mythril.ai/check"
-            # Need source code — skip if we can't get it
+            # Need source code - skip if we can't get it
             source_data = await self._fetch_contract_source(address, chain)
             if not source_data:
                 return []
@@ -399,14 +399,14 @@ class StaticAnalyzer:
                 red_flags.append(f"HIGH: Suspicious function '{fn}' found")
             elif fn_lower in ("mint", "rescuetokens", "sweepfunds"):
                 score += 8
-                warnings.append(f"MEDIUM: Function '{fn}' found — could be misused")
+                warnings.append(f"MEDIUM: Function '{fn}' found - could be misused")
             else:
                 score += 4
 
-        # Heimdall fallback means source wasn't verified — more opaque
+        # Heimdall fallback means source wasn't verified - more opaque
         if report.used_heimdall_fallback:
             score += 10
-            warnings.append("MEDIUM: Contract source unverified — analyzed via decompilation")
+            warnings.append("MEDIUM: Contract source unverified - analyzed via decompilation")
 
         # Forta alerts
         for alert in report.forta_alerts:
@@ -495,7 +495,7 @@ class StaticAnalyzer:
                         f.write(source_code)
 
             else:
-                # 2. Source not verified — try Heimdall decompilation
+                # 2. Source not verified - try Heimdall decompilation
                 if self._heimdall_available:
                     report.used_heimdall_fallback = True
                     sol_path = await self._heimdall_decompile(token_address, chain)
@@ -519,7 +519,7 @@ class StaticAnalyzer:
                 report.warnings.append(warnings_msg)
 
         elif is_solana(chain):
-            # Solana: no Slither/Heimdall — just run Forta + lightweight checks
+            # Solana: no Slither/Heimdall - just run Forta + lightweight checks
             report.slither_available = False
             report.warnings.append("Slither static analysis not applicable for Solana")
 

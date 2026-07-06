@@ -1,4 +1,4 @@
-"""Broadcaster — pushes fired alert events to WebSocket subscribers.
+"""Broadcaster - pushes fired alert events to WebSocket subscribers.
 
 Uses core/websocket's broadcast helper. No FastAPI imports.
 """

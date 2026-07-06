@@ -1,5 +1,5 @@
 """
-X402 Tool Data Provider — Cached, rate-limited data access for all x402 tools.
+X402 Tool Data Provider - Cached, rate-limited data access for all x402 tools.
 
 Replace raw aiohttp/httpx calls with this provider. One import, everything cached.
 
@@ -45,7 +45,7 @@ class ToolData:
         return r.to_dict() if r else {"error": "no data"}
 
     async def call_tool(self, tool_id: str, params: dict | None = None) -> dict:
-        """Generic tool dispatcher — calls unified_layer.fetch with tool_id and params.
+        """Generic tool dispatcher - calls unified_layer.fetch with tool_id and params.
 
         This is the primary method for trial execution and MCP tool calls.
         Falls back to specific ToolData methods for known tools, or uses
@@ -68,7 +68,7 @@ class ToolData:
         if tool_id in method_map:
             try:
                 result = await method_map[tool_id](**params)
-                # If the result has only an error key, it's not real data — return None
+                # If the result has only an error key, it's not real data - return None
                 if isinstance(result, dict) and set(result.keys()) <= {"error"}:
                     return None
                 return result
@@ -80,14 +80,14 @@ class ToolData:
             if r:
                 result = r.to_dict()
                 result["tool"] = tool_id
-                # If result has only an error key, it's not real data — return None
+                # If result has only an error key, it's not real data - return None
                 if set(result.keys()) <= {"error", "tool"}:
                     return None
                 return result
         except Exception:
             pass
 
-        # Tool not available via DataBus — return None so middleware falls back
+        # Tool not available via DataBus - return None so middleware falls back
         return None
 
     def stats(self) -> dict:

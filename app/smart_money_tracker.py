@@ -205,7 +205,7 @@ class FlowReport:
         total_value = sum(m.value_usd for m in self.moves)
         top = self.top_moves(5)
         lines = [
-            f"# Smart Money Flow Report — {self.timestamp.strftime('%Y-%m-%d %H:%M UTC')}",
+            f"# Smart Money Flow Report - {self.timestamp.strftime('%Y-%m-%d %H:%M UTC')}",
             "",
             f"Scanned {self.wallets_scanned} wallets across {', '.join(self.chains_covered)} in {self.scan_duration_ms:.0f}ms",
             "",
@@ -254,7 +254,7 @@ class SmartMoneyTracker:
                     data = json.load(f)
                 raw_wallets = data.get("wallets", [])
                 if not isinstance(raw_wallets, list):
-                    logger.warning("Invalid wallet data format — expected list")
+                    logger.warning("Invalid wallet data format - expected list")
                     self._wallets = self._default_wallets()
                 else:
                     self._wallets = []
@@ -277,7 +277,7 @@ class SmartMoneyTracker:
                         )
                     logger.info(f"Loaded {len(self._wallets)} tracked wallets")
             else:
-                # No saved data yet — seed with default wallets
+                # No saved data yet - seed with default wallets
                 self._wallets = self._default_wallets()
                 logger.info(f"Seeded {len(self._wallets)} default wallets")
         except Exception as e:
@@ -496,7 +496,7 @@ class SmartMoneyTracker:
                 return []
 
             # Get details for each signature
-            # (getMultipleAccounts commented out — using signatures directly)
+            # (getMultipleAccounts commented out - using signatures directly)
             txs = []
             for sig_info in sigs[:10]:
                 sig = sig_info["signature"]

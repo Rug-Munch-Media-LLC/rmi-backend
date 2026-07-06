@@ -1,4 +1,4 @@
-"""Alerts domain — public API + health check registration."""
+"""Alerts domain - public API + health check registration."""
 from __future__ import annotations
 
 from app.core import health as health_mod
@@ -57,15 +57,15 @@ health_mod.register_health_check("alerts", _health_check)
 
 
 # Public API
-from app.domain.alerts.broadcaster import AlertBroadcaster
-from app.domain.alerts.models import (
+from app.domain.alerts.broadcaster import AlertBroadcaster  # noqa: E402
+from app.domain.alerts.models import (  # noqa: E402
     AlertEvent,
     AlertSubscription,
     AlertType,
     CreateAlertRequest,
 )
-from app.domain.alerts.repository import AlertRepository
-from app.domain.alerts.service import AlertService
+from app.domain.alerts.repository import AlertRepository  # noqa: E402
+from app.domain.alerts.service import AlertService  # noqa: E402
 
 __all__ = [
     "AlertBroadcaster",

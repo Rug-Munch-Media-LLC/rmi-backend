@@ -1,4 +1,4 @@
-"""Tron blockchain provider — free TronGrid API, no key needed."""
+"""Tron blockchain provider - free TronGrid API, no key needed."""
 
 import logging
 

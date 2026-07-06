@@ -1,5 +1,5 @@
 """
-Unified Label Service — Merges wallet_label_loader + address_labeler into one call.
+Unified Label Service - Merges wallet_label_loader + address_labeler into one call.
 ===============================================================================
 Sources:
   Static (loaded at startup into Redis):
@@ -9,10 +9,10 @@ Sources:
     4. Internal wallet_database.json (Omega Forensic)
 
   Live (API calls on demand):
-    5. Etherscan API — public address labels
-    6. RolodETH — public GitHub label database
-    7. walletLabels.xyz — public address label API
-    8. bluepages.fyi — public address label API
+    5. Etherscan API - public address labels
+    6. RolodETH - public GitHub label database
+    7. walletLabels.xyz - public address label API
+    8. bluepages.fyi - public address label API
 
   Built-in:
     9. CEX hot wallet labels from chain_registry

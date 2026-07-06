@@ -1,4 +1,4 @@
-"""Internal labels source — our own growing set in Postgres/Redis.
+"""Internal labels source - our own growing set in Postgres/Redis.
 
 Currently returns []. The schema for internal labels (community
 contributions, RMI-curated tags) is being designed separately.

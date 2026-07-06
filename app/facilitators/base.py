@@ -27,7 +27,7 @@ logger = logging.getLogger("facilitator_base")
 
 
 class FacilitatorType(Enum):
-    """Type of facilitator — hosted (external) or self-hosted."""
+    """Type of facilitator - hosted (external) or self-hosted."""
 
     HOSTED = "hosted"
     SELF_HOSTED = "self_hosted"
@@ -161,7 +161,7 @@ class Facilitator(ABC):
 
     @property
     def description(self) -> str:
-        return f"{self.name} — {self.facilitator_type.value} — {self.settlement_type.value}"
+        return f"{self.name} - {self.facilitator_type.value} - {self.settlement_type.value}"
 
     @property
     def priority(self) -> int:
@@ -214,12 +214,12 @@ class Facilitator(ABC):
         """
         Settle a verified payment on-chain (or queue for batch).
 
-        Default: no-op — many hosted facilitators settle automatically.
+        Default: no-op - many hosted facilitators settle automatically.
         Override for facilitators that need explicit settlement calls.
         """
         return SettlementResult(
             settled=True,
-            reason="Hosted facilitator — auto-settled",
+            reason="Hosted facilitator - auto-settled",
             facilitator=self.name,
         )
 

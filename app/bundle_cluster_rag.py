@@ -5,12 +5,12 @@ BUNDLE & CLUSTER RAG INTEGRATION
 Marries graph-based detection with semantic intelligence.
 
 What RAG adds to bundle/cluster detection:
-  1. BEHAVIORAL EMBEDDING — Convert cluster behavior to vectors, store in pgvector
-  2. SEMANTIC LABELING — Auto-label clusters ("insider ring", "MEV bot farm", "sybil attack")
-  3. SIMILARITY SEARCH — "Find clusters that look like this known scammer group"
-  4. CROSS-CHAIN IDENTITY — Match behavioral fingerprints across chains
-  5. EVIDENCE CHAIN — Link clusters to known scam patterns, forensic reports
-  6. NL QUERYING — "Show me all wash trading clusters from the last week"
+  1. BEHAVIORAL EMBEDDING - Convert cluster behavior to vectors, store in pgvector
+  2. SEMANTIC LABELING - Auto-label clusters ("insider ring", "MEV bot farm", "sybil attack")
+  3. SIMILARITY SEARCH - "Find clusters that look like this known scammer group"
+  4. CROSS-CHAIN IDENTITY - Match behavioral fingerprints across chains
+  5. EVIDENCE CHAIN - Link clusters to known scam patterns, forensic reports
+  6. NL QUERYING - "Show me all wash trading clusters from the last week"
 
 Flow:
   BundleDetector → finds bundles → embed bundle profile → store in RAG
@@ -374,7 +374,7 @@ CLUSTER_LABEL_TEMPLATES = [
     },
     {
         "label": "market_maker_cluster",
-        "description": "Legitimate market making operation — multiple wallets providing liquidity across DEXes.",
+        "description": "Legitimate market making operation - multiple wallets providing liquidity across DEXes.",
         "signals": ["market_maker", "arbitrage", "dex_only", "high_volume", "low_profit_margin"],
         "severity": "low",
         "examples": "Wintermute, Jump Trading, GSR wallet clusters",

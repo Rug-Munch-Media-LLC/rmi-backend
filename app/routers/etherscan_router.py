@@ -1,5 +1,5 @@
 """
-Etherscan Family API Router — EVM Block Explorers.
+Etherscan Family API Router - EVM Block Explorers.
 Single API for: Ethereum, BSC, Polygon, Avalanche, Fantom, Arbitrum, Optimism, Base.
 """
 
@@ -65,9 +65,9 @@ async def get_balance(address: str, network: str = "eth"):
             "balance_native": native,
         }
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/transactions")
@@ -85,9 +85,9 @@ async def get_transactions(address: str, network: str = "eth", page: int = 1, of
             "count": len(txs),
         }
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/token-transfers")
@@ -111,9 +111,9 @@ async def get_token_transfers(
             "count": len(transfers),
         }
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/token-balance")
@@ -131,9 +131,9 @@ async def get_token_balance(contract: str, address: str, network: str = "eth"):
             "balance_wei": balance,
         }
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/nft-transfers")
@@ -151,9 +151,9 @@ async def get_nft_transfers(address: str, network: str = "eth", page: int = 1, o
             "count": len(transfers),
         }
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 # ── Contract API ─────────────────────────────────────────────
@@ -169,9 +169,9 @@ async def get_contract_abi(contract: str, network: str = "eth"):
         abi = await ec.get_contract_abi(contract, network)
         return {"contract": contract, "network": network, "abi": abi}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/contract/source")
@@ -184,9 +184,9 @@ async def get_contract_source(contract: str, network: str = "eth"):
         source = await ec.get_contract_source(contract, network)
         return {"contract": contract, "network": network, "source": source}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/contract/verify")
@@ -199,9 +199,9 @@ async def verify_contract(contract: str, network: str = "eth"):
         result = await ec.verify_contract(contract, network)
         return {"contract": contract, "network": network, **result}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 # ── Transaction API ──────────────────────────────────────────
@@ -217,9 +217,9 @@ async def get_tx_status(tx_hash: str, network: str = "eth"):
         status = await ec.get_transaction_status(tx_hash, network)
         return {"tx_hash": tx_hash, "network": network, "status": status}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 # ── Block API ────────────────────────────────────────────────
@@ -235,9 +235,9 @@ async def get_latest_block(network: str = "eth"):
         block = await ec.get_block_number(network)
         return {"network": network, "block_number": block}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 # ── Logs API ─────────────────────────────────────────────────
@@ -253,9 +253,9 @@ async def get_logs(req: LogsQuery):
         logs = await ec.get_logs(req.from_block, req.to_block, req.address, req.topic0, req.network)
         return {"network": req.network, "logs": logs, "count": len(logs)}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Etherscan connector not available")
+        raise HTTPException(status_code=503, detail="Etherscan connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 # ── Health ────────────────────────────────────────────────────

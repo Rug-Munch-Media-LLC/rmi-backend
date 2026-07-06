@@ -1,4 +1,4 @@
-"""A/B Testing Framework — split traffic, measure accuracy, auto-promote winners."""
+"""A/B Testing Framework - split traffic, measure accuracy, auto-promote winners."""
 
 import hashlib
 from datetime import UTC, datetime

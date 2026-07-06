@@ -3,9 +3,9 @@ RugCharts Token Security Matrix
 ================================
 37+ security checks across 3 tiers: Quick Scan, Deep Scan, ML Scan.
 
-Tier 1 (Quick Scan — <500ms): GoPlus, honeypot, taxes, basic contract checks
-Tier 2 (Deep Scan — 2-10s): Bytecode analysis, liquidity analysis, holder distribution
-Tier 3 (ML Scan — async): XGBoost risk classifier, bytecode anomaly, symbol executor
+Tier 1 (Quick Scan - <500ms): GoPlus, honeypot, taxes, basic contract checks
+Tier 2 (Deep Scan - 2-10s): Bytecode analysis, liquidity analysis, holder distribution
+Tier 3 (ML Scan - async): XGBoost risk classifier, bytecode anomaly, symbol executor
 
 Wired into DataBus as 'token_security' chain.
 Produces the Authentic Score that feeds directly into the scanner.
@@ -15,7 +15,7 @@ Scoring bands:
   21-40: LOW RISK (light green)
   41-60: MEDIUM RISK (yellow)
   61-80: HIGH RISK (orange)
-  81-100: DANGER (red) — auto-fail
+  81-100: DANGER (red) - auto-fail
 """
 
 import json
@@ -24,7 +24,7 @@ import os
 import time
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 import httpx
 import redis
@@ -83,7 +83,7 @@ SECURITY_CHECKS = [
         "contract_risks",
         2.0,
         1,
-        "Upgradeable proxy — owner can change logic at any time",
+        "Upgradeable proxy - owner can change logic at any time",
     ),
     SecurityCheck(
         "CR03",
@@ -91,7 +91,7 @@ SECURITY_CHECKS = [
         "contract_risks",
         3.0,
         1,
-        "Token has unrestricted mint() — infinite supply possible",
+        "Token has unrestricted mint() - infinite supply possible",
         auto_fail=True,
     ),
     SecurityCheck(
@@ -130,7 +130,7 @@ SECURITY_CHECKS = [
     # ── CATEGORY: Honeypot Detection (HP) ──
     SecurityCheck(
         "HP01",
-        "Honeypot — GoPlus",
+        "Honeypot - GoPlus",
         "honeypot",
         5.0,
         1,
@@ -139,7 +139,7 @@ SECURITY_CHECKS = [
     ),
     SecurityCheck(
         "HP02",
-        "Honeypot — Honeypot.is",
+        "Honeypot - Honeypot.is",
         "honeypot",
         5.0,
         2,
@@ -152,7 +152,7 @@ SECURITY_CHECKS = [
         "honeypot",
         3.0,
         1,
-        "Buy tax normal but sell tax >50% — likely honeypot",
+        "Buy tax normal but sell tax >50% - likely honeypot",
     ),
     SecurityCheck(
         "HP04",
@@ -186,7 +186,7 @@ SECURITY_CHECKS = [
         "liquidity",
         1.5,
         1,
-        "Pool liquidity < $1,000 — extreme slippage risk",
+        "Pool liquidity < $1,000 - extreme slippage risk",
     ),
     SecurityCheck(
         "LR03",
@@ -268,7 +268,7 @@ SECURITY_CHECKS = [
         "deployer",
         2.5,
         1,
-        "Deployer launched 10+ tokens — factory pattern",
+        "Deployer launched 10+ tokens - factory pattern",
     ),
     SecurityCheck(
         "DT04",
@@ -284,7 +284,7 @@ SECURITY_CHECKS = [
         "deployer",
         0.5,
         1,
-        "No website, Twitter, or Telegram — likely ghost token",
+        "No website, Twitter, or Telegram - likely ghost token",
     ),
     # ── CATEGORY: Token Economics (TE) ──
     SecurityCheck(
@@ -295,7 +295,7 @@ SECURITY_CHECKS = [
         1,
         "Creator/team controls >20% of total supply",
     ),
-    SecurityCheck("TE02", "Tax Anomaly", "tokenomics", 2.5, 1, "Buy/sell tax >10% — predatory economics"),
+    SecurityCheck("TE02", "Tax Anomaly", "tokenomics", 2.5, 1, "Buy/sell tax >10% - predatory economics"),
     SecurityCheck(
         "TE03",
         "Transfer Fee",
@@ -323,7 +323,7 @@ SECURITY_CHECKS = [
     # ── CATEGORY: Rug Pull Indicators (RP) ──
     SecurityCheck(
         "RP01",
-        "Rug Pull — Known Pattern",
+        "Rug Pull - Known Pattern",
         "rug_pull",
         5.0,
         2,
@@ -339,14 +339,14 @@ SECURITY_CHECKS = [
         "LP was removed or significantly drained",
         auto_fail=True,
     ),
-    SecurityCheck("RP03", "Price Crash", "rug_pull", 2.0, 2, "Price dropped >90% within 24h — possible rug"),
+    SecurityCheck("RP03", "Price Crash", "rug_pull", 2.0, 2, "Price dropped >90% within 24h - possible rug"),
     SecurityCheck(
         "RP04",
         "Duplicate Token",
         "rug_pull",
         1.5,
         2,
-        "Same name/symbol as another token — impersonation",
+        "Same name/symbol as another token - impersonation",
     ),
     SecurityCheck(
         "RP05",
@@ -354,7 +354,7 @@ SECURITY_CHECKS = [
         "rug_pull",
         1.0,
         1,
-        "Token deployed within last hour — highest risk period",
+        "Token deployed within last hour - highest risk period",
     ),
 ]
 
@@ -381,9 +381,9 @@ def get_check_matrix() -> dict:
         "total_checks": len(SECURITY_CHECKS),
         "categories": dict(categories),
         "tiers": {
-            1: "Quick Scan (<500ms) — GoPlus, honeypot, basic contract",
-            2: "Deep Scan (2-10s) — Bytecode, liquidity, deployer tracing",
-            3: "ML Scan (async) — XGBoost, bytecode anomaly, symbolic executor",
+            1: "Quick Scan (<500ms) - GoPlus, honeypot, basic contract",
+            2: "Deep Scan (2-10s) - Bytecode, liquidity, deployer tracing",
+            3: "ML Scan (async) - XGBoost, bytecode anomaly, symbolic executor",
         },
     }
 
@@ -394,8 +394,7 @@ def get_check_matrix() -> dict:
 class TokenSecurityScorer:
     """Weighs and aggregates security check results into a 0-100 risk score."""
 
-    SCORE_BANDS: ClassVar[list] =
-[
+    SCORE_BANDS: ClassVar[list] =[
         (0, 20, "SAFE", "#00FF88"),
         (21, 40, "LOW RISK", "#88FF00"),
         (41, 60, "MEDIUM RISK", "#FFD700"),
@@ -462,7 +461,7 @@ class TokenSecurityScorer:
 
 
 async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[str, Any]:
-    """Tier 1 quick scan — GoPlus + basic checks. <1s target."""
+    """Tier 1 quick scan - GoPlus + basic checks. <1s target."""
     results = {}
     api_key = kw.get("api_key", "") or kw.get("goplus_key", "") or os.getenv("GOPLUS_API_KEY", "")
 

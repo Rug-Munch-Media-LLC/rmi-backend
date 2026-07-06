@@ -1,16 +1,16 @@
-"""T33 MCP Server — exposes 8 tools to AI agents at mcp.rugmunch.io.
+"""T33 MCP Server - exposes 8 tools to AI agents at mcp.rugmunch.io.
 
 Per v4.0 §T33. JSON-RPC over SSE (the protocol Claude/Cursor speak).
 
 Tools (per v4.0):
-  1. get_token_risk        — Real-time risk score (FREE 5/day or $0.01)
-  2. get_wallet_analysis   — Wallet activity + reputation
-  3. get_deployer_reputation — Deployer reputation (0-100)
-  4. get_news_sentiment    — Latest news + sentiment
-  5. generate_report       — Full AI research report ($5)
-  6. query_catalog         — Natural language catalog query
-  7. find_similar_tokens   — Vector-similar tokens
-  8. resolve_entity        — Cross-chain entity resolution
+  1. get_token_risk        - Real-time risk score (FREE 5/day or $0.01)
+  2. get_wallet_analysis   - Wallet activity + reputation
+  3. get_deployer_reputation - Deployer reputation (0-100)
+  4. get_news_sentiment    - Latest news + sentiment
+  5. generate_report       - Full AI research report ($5)
+  6. query_catalog         - Natural language catalog query
+  7. find_similar_tokens   - Vector-similar tokens
+  8. resolve_entity        - Cross-chain entity resolution
 
 Backend implementations: app/catalog/* + app/domain/reports/generator.py
 """
@@ -22,7 +22,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-# Tool catalog — inputSchema follows JSON Schema 2020-12
+# Tool catalog - inputSchema follows JSON Schema 2020-12
 TOOL_CATALOG: list[dict[str, Any]] = [
     {
         "name": "get_token_risk",
@@ -388,9 +388,9 @@ TOOL_CATALOG: list[dict[str, Any]] = [
 TOOL_VERSIONS: dict[str, str] = {
     "get_token_risk": "1.2.0",
     "get_wallet_analysis": "1.1.0",
-    "get_deployer_reputation": "2.0.0",  # M3 — Bayesian posterior
+    "get_deployer_reputation": "2.0.0",  # M3 - Bayesian posterior
     "get_news_sentiment": "1.0.0",
-    "generate_report": "2.0.0",  # M3 — RAG-grounded
+    "generate_report": "2.0.0",  # M3 - RAG-grounded
     "query_catalog": "1.0.0",
     "find_similar_tokens": "1.0.0",
     "resolve_entity": "1.0.0",
@@ -401,8 +401,8 @@ TOOL_VERSIONS: dict[str, str] = {
     "status_check": "1.0.0",  # M3 moat TIER 1
 }
 
-TOOL_DEPRECATED: set[str] = set()  # empty — no deprecated tools yet
-TOOL_SUCCESSORS: dict[str, str] = {}  # empty — no successor mappings yet
+TOOL_DEPRECATED: set[str] = set()  # empty - no deprecated tools yet
+TOOL_SUCCESSORS: dict[str, str] = {}  # empty - no successor mappings yet
 
 # Server version (single source of truth for /mcp/info)
 MCP_SERVER_VERSION = "5.0.0"
@@ -560,7 +560,7 @@ async def call_tool(name: str, arguments: dict) -> dict:
     # ── TIERS 1-2 moat tools (June 23-24 2026) ───────────────────
     if name == "analytics_query":
         # T13: Run read-only SQL via embedded DuckDB
-        # TODO: M3 moat TIER 2 — add API key check before opening to public
+        # TODO: M3 moat TIER 2 - add API key check before opening to public
         from app.core.duckdb_analytics import DuckDBAnalytics
 
         sql = arguments.get("sql", "").strip()
@@ -651,7 +651,7 @@ async def call_tool(name: str, arguments: dict) -> dict:
         }
 
     if name == "status_check":
-        # M3 moat TIER 1 — unified health check across all subsystems
+        # M3 moat TIER 1 - unified health check across all subsystems
         # Use the async path directly (we're in an event loop already)
         from app.core.health import run_health_checks
 

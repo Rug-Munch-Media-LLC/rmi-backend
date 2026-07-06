@@ -379,7 +379,7 @@ def get_service_mcp() -> ServiceMCP:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# COINMARKETCAP — Market data, listings, trends, OHLCV (10K free/mo)
+# COINMARKETCAP - Market data, listings, trends, OHLCV (10K free/mo)
 # ═══════════════════════════════════════════════════════════════════════════
 
 

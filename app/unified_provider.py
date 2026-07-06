@@ -1,5 +1,5 @@
 """
-Unified Chain Data Provider — Multi-source with automatic fallback.
+Unified Chain Data Provider - Multi-source with automatic fallback.
 Priority: Helius → Birdeye → Solscan → GMGN → DexScreener → QuickNode → Blockchair
 Rate-limited to ~5 req/sec total. Heavy caching. Never blocks on a single API.
 """
@@ -67,7 +67,7 @@ class UnifiedProvider:
     # ── Solana: Get Token Holders ──────────────────────────
 
     async def get_token_holders(self, mint: str, limit: int = 20) -> list[dict]:
-        """Get token holders — tries 5 sources in cascade."""
+        """Get token holders - tries 5 sources in cascade."""
         cache = self._get_cache()
         cached = await cache.get("holders_v2", mint, limit)
         if cached:
@@ -190,7 +190,7 @@ class UnifiedProvider:
     # ── Solana: Wallet Transactions ────────────────────────
 
     async def get_wallet_transactions(self, wallet: str, limit: int = 20) -> list[dict]:
-        """Get wallet transactions — Helius → Solscan → Birdeye."""
+        """Get wallet transactions - Helius → Solscan → Birdeye."""
         cache = self._get_cache()
         cached = await cache.get("txs_v2", wallet, limit)
         if cached:
@@ -255,7 +255,7 @@ class UnifiedProvider:
     # ── Token Price ────────────────────────────────────────
 
     async def get_token_price(self, mint: str) -> float | None:
-        """Get token price — Birdeye → DexScreener → Jupiter."""
+        """Get token price - Birdeye → DexScreener → Jupiter."""
         cache = self._get_cache()
         cached = await cache.get("price", mint)
         if cached is not None:
@@ -293,7 +293,7 @@ class UnifiedProvider:
     # ── Token Metadata ─────────────────────────────────────
 
     async def get_token_metadata(self, mint: str) -> dict:
-        """Get token metadata — Helius → Birdeye → DexScreener."""
+        """Get token metadata - Helius → Birdeye → DexScreener."""
         cache = self._get_cache()
         cached = await cache.get("meta", mint)
         if cached:

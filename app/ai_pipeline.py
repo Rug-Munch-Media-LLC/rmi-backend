@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RMI AI Pipeline — Batch Ollama Cloud Modules
+RMI AI Pipeline - Batch Ollama Cloud Modules
 =============================================
 Wallet Profiling | RAG Enrichment | Alert Ranking | Market Briefing | Post-Mortem
 All use Ollama Cloud deepseek-v4-flash. ~$0.001 per operation.

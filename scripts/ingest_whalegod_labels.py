@@ -19,9 +19,9 @@ sol_labels = namespace.get("SOL_LABELS", {})
 print(f"WHALEGOD labels: ETH={len(eth_labels)}, SOL={len(sol_labels)}")
 
 # Ingest into wallet_memory
-import asyncio
+import asyncio  # noqa: E402
 
-import httpx
+import httpx  # noqa: E402
 
 
 async def ingest():

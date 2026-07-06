@@ -43,7 +43,7 @@ _seeded = False
 _pattern_cache: dict[str, EmbeddingResult] = {}
 _pattern_cache_loaded = False
 
-# Redis singleton — reuses connection across all calls
+# Redis singleton - reuses connection across all calls
 _redis_pool = None
 
 
@@ -248,7 +248,7 @@ async def ingest_document(
     except Exception as e:
         logger.debug(f"KG edge creation skipped: {e}")
 
-    # pgvector disabled — FAISS + Redis are the primary vector stores.
+    # pgvector disabled - FAISS + Redis are the primary vector stores.
     # Supabase pgvector was a migration artifact consuming 500MB of free-tier quota.
     # All vector search goes through FAISS ANN → Redis hydration.
     logger.debug("pgvector upsert skipped (FAISS primary)")
@@ -308,7 +308,7 @@ async def _embed_by_collection(
 
 
 # ═══════════════════════════════════════════════════════════════════
-# SEARCH — now backed by FAISS ANN index + semantic cache
+# SEARCH - now backed by FAISS ANN index + semantic cache
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -369,7 +369,7 @@ async def search_similar(
                 enriched = await _enrich_ann_results(collection, needs_enrich) if needs_enrich else []
                 results = [r for r in ann_results if "content" in r] + enriched
         else:
-            # FAISS not built — fall back to embedder brute-force search
+            # FAISS not built - fall back to embedder brute-force search
             logger.info(f"FAISS not built for {collection}, using brute-force fallback")
             results = await embedder.search(
                 query=query,
@@ -499,10 +499,10 @@ async def three_pillar_search(
     Three-pillar hybrid search with Knowledge Graph expansion, MMR dedup,
     and parent-child retrieval.
 
-      Pillar 1 — Dense vector search via FAISS ANN index (semantic similarity)
-      Pillar 2 — Sparse text search via SPLADE+BM25
-      Pillar 3 — Entity exact-match + Knowledge Graph expansion
-      Post-fusion — MMR deduplication + parent-child context expansion
+      Pillar 1 - Dense vector search via FAISS ANN index (semantic similarity)
+      Pillar 2 - Sparse text search via SPLADE+BM25
+      Pillar 3 - Entity exact-match + Knowledge Graph expansion
+      Post-fusion - MMR deduplication + parent-child context expansion
 
     All pillar result sets are fused with Reciprocal Rank Fusion (k=60),
     then deduplicated with Maximal Marginal Relevance for diversity,
@@ -742,7 +742,7 @@ async def three_pillar_search(
     parent_child_applied = False
     if use_parent_child and fused:
         try:
-            from app.contextual_chunking import parent_child_chunk
+            from app.contextual_chunking import parent_child_chunk  # noqa: F401
 
             expanded_results = []
             for r in fused[: limit * 2]:
@@ -765,10 +765,10 @@ async def three_pillar_search(
                     except Exception:
                         pass
 
-                # If content is short, it might be a child chunk — include for generation
+                # If content is short, it might be a child chunk - include for generation
                 if content and len(content) < 800:
                     r["chunk_type"] = "child"
-                    r["retrieval_note"] = "Short chunk — consider parent context for generation"
+                    r["retrieval_note"] = "Short chunk - consider parent context for generation"
 
                 expanded_results.append(r)
 
@@ -1125,12 +1125,12 @@ async def detect_scam_patterns(
         token_sem = token_result.vector[:token_sem_end]
         token_code = token_result.vector[token_sem_end : token_sem_end + 128]
     elif token_total > 128:
-        # Partial: [semantic | code(128)] — no behavioral/wallet
+        # Partial: [semantic | code(128)] - no behavioral/wallet
         token_sem_end = token_total - 128
         token_sem = token_result.vector[:token_sem_end]
         token_code = token_result.vector[token_sem_end : token_sem_end + 128]
     else:
-        # Only semantic — use as-is
+        # Only semantic - use as-is
         token_sem = token_result.vector
         token_code = [0.0] * 128
 
@@ -1255,7 +1255,7 @@ async def seed_known_scams() -> dict[str, Any]:
                 "stored_at": datetime.now(UTC).isoformat(),
             }
             key = f"rag:known_scams:{pid}"
-            await r.set(key, json.dumps(doc))  # permanent — seed data should never expire
+            await r.set(key, json.dumps(doc))  # permanent - seed data should never expire
             await r.sadd("rag:idx:known_scams", pid)
             count += 1
             logger.info(f"Seeded scam pattern: {pattern['name']}")
@@ -1301,7 +1301,7 @@ async def get_stats() -> dict[str, Any]:
     embedder = await get_embedder()
     r = await _get_redis()
 
-    # Get ANN index stats FIRST — these have the authoritative vector counts
+    # Get ANN index stats FIRST - these have the authoritative vector counts
     ann_stats = {}
     try:
         from app.ann_index import get_ann_index
@@ -1365,7 +1365,7 @@ async def get_goplus_analysis(token_address: str, chain: str = "1") -> dict[str,
     # Ingest the result into the RAG knowledge base for future retrieval
     try:
         content = (
-            f"GoPlus Security Scan [{chain}]: {token_address} — "
+            f"GoPlus Security Scan [{chain}]: {token_address} - "
             f"honeypot={result.get('is_honeypot')}, "
             f"buy_tax={result.get('buy_tax')}, sell_tax={result.get('sell_tax')}, "
             f"proxy={result.get('is_proxy')}, "

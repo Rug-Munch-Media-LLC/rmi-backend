@@ -45,7 +45,7 @@ def _cache_set(key: str, data: dict):
     CACHE[key] = (data, time.time())
 
 
-# ── 1. COINGECKO — Prices, trending, market data ───────────────────
+# ── 1. COINGECKO - Prices, trending, market data ───────────────────
 
 
 async def get_market_prices(coins: str = "bitcoin,ethereum,solana", **kw) -> dict | None:
@@ -121,7 +121,7 @@ async def get_trending_coins(**kw) -> dict | None:
     return None
 
 
-# ── 2. FEAR & GREED INDEX — Alternative.me ─────────────────────────
+# ── 2. FEAR & GREED INDEX - Alternative.me ─────────────────────────
 
 
 async def get_fear_greed(**kw) -> dict | None:
@@ -167,7 +167,7 @@ async def get_fear_greed(**kw) -> dict | None:
     return None
 
 
-# ── 3. POLYMARKET — Prediction markets ─────────────────────────────
+# ── 3. POLYMARKET - Prediction markets ─────────────────────────────
 
 
 async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> dict | None:
@@ -207,7 +207,7 @@ async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> d
     return None
 
 
-# ── 4. COMBINED MARKET BRIEF — All sources in one call ─────────────
+# ── 4. COMBINED MARKET BRIEF - All sources in one call ─────────────
 
 
 async def get_market_brief(**kw) -> dict | None:
@@ -245,7 +245,7 @@ async def get_market_brief(**kw) -> dict | None:
     }
 
 
-# ── 5. NEWS AGGREGATION — from our existing 200+ feeds ─────────────
+# ── 5. NEWS AGGREGATION - from our existing 200+ feeds ─────────────
 
 
 async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict | None:
@@ -272,7 +272,7 @@ async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict
     return None
 
 
-# ── 6. COMBINED NEWS + MARKET — The full picture ───────────────────
+# ── 6. COMBINED NEWS + MARKET - The full picture ───────────────────
 
 
 async def get_full_news_feed(limit: int = 15, **kw) -> dict | None:

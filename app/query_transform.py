@@ -193,7 +193,7 @@ async def hyde_transform(query: str) -> str:
         max_tokens=300,
     )
 
-    if llm_result:
+    if llm_result:  # noqa: SIM108
         result = llm_result
     else:
         # Rule-based fallback: prepend crypto-specific context
@@ -351,7 +351,7 @@ def _step_back_rule_based(query: str) -> str:
     # Replace specific percentages with general terms
     result = re.sub(r"\b\d+\.?\d*%\b", "significant percentage", result)
 
-    # Broader phrasing replacements — make it generic
+    # Broader phrasing replacements - make it generic
     broader_map = {
         "is this": "what are indicators of",
         "is it": "what are characteristics of",

@@ -1,4 +1,4 @@
-"""Public wallet endpoints — /api/v1/wallet/*.
+"""Public wallet endpoints - /api/v1/wallet/*.
 
 Stub for unauthenticated wallet queries. Real implementation will
 resolve wallets, fetch labels, and return balance/history data.
@@ -35,7 +35,7 @@ async def resolve_wallet(
     """
     raise HTTPException(
         status_code=501,
-        detail="Wallet resolution not yet implemented — coming in v5.1",
+        detail="Wallet resolution not yet implemented - coming in v5.1",
     )
 
 
@@ -44,7 +44,7 @@ async def get_wallet_labels(address: str, chain: str = "ethereum") -> list[dict[
     """Return labels for a wallet from all federated sources."""
     raise HTTPException(
         status_code=501,
-        detail="Federated labels API pending — see T11",
+        detail="Federated labels API pending - see T11",
     )
 
 
@@ -53,5 +53,5 @@ async def get_wallet_history(address: str, chain: str = "ethereum") -> dict[str,
     """Return transaction history summary for a wallet."""
     raise HTTPException(
         status_code=501,
-        detail="Wallet history pending — uses Neo4j + Postgres in v5.1",
+        detail="Wallet history pending - uses Neo4j + Postgres in v5.1",
     )

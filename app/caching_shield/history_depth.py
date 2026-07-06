@@ -1,13 +1,13 @@
 """
-Aggressive Caching Shield — Historical Depth Controller
+Aggressive Caching Shield - Historical Depth Controller
 
 Controls how far back transaction history queries go. Free tier RPC
 endpoints often rate-limit or block deep history queries. This module
 caps default queries to shallow depth and gates deep queries.
 
 Strategy:
-  - DEFAULT_DEPTH: 20 signatures (fast scan — enough to detect recent activity)
-  - MAX_DEPTH: 100 signatures (deep scan — on-demand only, user clicks button)
+  - DEFAULT_DEPTH: 20 signatures (fast scan - enough to detect recent activity)
+  - MAX_DEPTH: 100 signatures (deep scan - on-demand only, user clicks button)
   - MAX_PAGINATED: 200 (absolute maximum across all pages)
   - Deep queries are cached longer (5min vs 30s) since historical data rarely changes
   - Per-address cooldown: deep scan limited to once per 5 min per address
@@ -86,7 +86,7 @@ class HistoryDepthController:
         """Check if a deep scan is allowed for this address.
 
         Returns:
-            (allowed, wait_seconds) — if not allowed, wait_seconds is how long to wait
+            (allowed, wait_seconds) - if not allowed, wait_seconds is how long to wait
         """
         now = time.monotonic()
         last = self._deep_cooldowns.get(address)

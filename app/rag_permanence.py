@@ -1,9 +1,9 @@
 """
-RAG Permanence v2 — Cloudflare R2 cold storage via REST API.
+RAG Permanence v2 - Cloudflare R2 cold storage via REST API.
 Hot (Redis) → Warm (local 7-day cache) → Cold (R2 permanent).
 
 R2 free tier: 10GB storage, 10M Class A ops/month, zero egress.
-Uses CF REST API with Bearer token — no S3 credentials needed.
+Uses CF REST API with Bearer token - no S3 credentials needed.
 """
 
 import json
@@ -159,7 +159,7 @@ async def snapshot_all():
             total_uploaded = 0
 
             while all_items:
-                # Build chunk — add items until we exceed size limit
+                # Build chunk - add items until we exceed size limit
                 chunk_items = []
                 chunk_size = 0
                 while all_items and chunk_size < MAX_CHUNK_SIZE:
@@ -189,7 +189,7 @@ async def snapshot_all():
                 total_uploaded += len(chunk_items)
 
                 if not ok and chunk_idx == 0:
-                    # First chunk failed — report failure
+                    # First chunk failed - report failure
                     results[name] = {
                         "collection": name,
                         "status": "failed",
@@ -270,7 +270,7 @@ async def restore_all():
             items = snapshot.get("items", [])
             snapshot_ts = latest.get("timestamp", "")
 
-            # Handle chunked snapshots — download all chunks
+            # Handle chunked snapshots - download all chunks
             total_chunks = latest.get("chunks", 1)
             if total_chunks > 1:
                 for ci in range(1, total_chunks):

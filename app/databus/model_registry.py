@@ -5,20 +5,20 @@ Smart model routing across free providers. Quality review pipeline.
 All AI tasks go through this module. All output meets human standards.
 
 Free Models Available (OpenRouter):
-  NVIDIA Nemotron 3 Super 120B  — research, analysis, long context (1M)
-  Google Gemma 4 26B            — writing, prose, natural language
-  NVIDIA Nemotron Nano 30B      — reasoning, classification
-  Qwen3 Coder 480B              — code generation, tool use
-  Moonshot Kimi K2.6            — fast writing, summaries
-  Z.ai GLM 4.5 Air             — general purpose, fast
-  OpenAI gpt-oss-120b           — heavy reasoning, agentic tasks
-  OpenAI gpt-oss-20b            — lightweight, fast inference
-  Liquid LFM 2.5 1.2B           — edge, tiny tasks, classification
+  NVIDIA Nemotron 3 Super 120B  - research, analysis, long context (1M)
+  Google Gemma 4 26B            - writing, prose, natural language
+  NVIDIA Nemotron Nano 30B      - reasoning, classification
+  Qwen3 Coder 480B              - code generation, tool use
+  Moonshot Kimi K2.6            - fast writing, summaries
+  Z.ai GLM 4.5 Air             - general purpose, fast
+  OpenAI gpt-oss-120b           - heavy reasoning, agentic tasks
+  OpenAI gpt-oss-20b            - lightweight, fast inference
+  Liquid LFM 2.5 1.2B           - edge, tiny tasks, classification
 
 Other Free Providers:
-  Groq (Llama 3.1 8B, Llama 3.3 70B) — 14,400 RPD free
+  Groq (Llama 3.1 8B, Llama 3.3 70B) - 14,400 RPD free
   Mistral (via OpenRouter free tier)
-  DeepSeek Flash V4 — $0.14/M (near-free with prefix caching)
+  DeepSeek Flash V4 - $0.14/M (near-free with prefix caching)
 
 Quality Standards:
   NO: "delve", "tapestry", "landscape", "robust", "moreover", "furthermore",
@@ -244,7 +244,7 @@ AI_ROLES = {
         },
         "social_writer": {
             "name": "Social Media Writer",
-            "emoji": "𝕏",
+            "emoji": "𝕏",  # noqa: RUF001
             "description": "X/Twitter posts, Telegram messages. Runs on Groq, high throughput.",
             "model": "llama-3.1-8b-instant",
             "provider": "groq",
@@ -319,7 +319,7 @@ AI_ROLES = {
     },
     "social_writer": {
         "name": "Social Media Writer",
-        "emoji": "𝕏",
+        "emoji": "𝕏",  # noqa: RUF001
         "description": "X/Twitter posts, Telegram messages. Punchy, engaging, native to platform.",
         "model": "mistral-small-latest",
         "provider": "mistral",
@@ -340,7 +340,7 @@ AI_ROLES = {
 }
 
 # ── PROVIDER RATE LIMITS (verified June 2026) ─────────────────────
-# These are HARD LIMITS — going over means 429 errors and downtime.
+# These are HARD LIMITS - going over means 429 errors and downtime.
 
 PROVIDER_LIMITS = {
     "openrouter": {
@@ -782,7 +782,7 @@ REQUIRED (mark as FAIL if missing):
 - Short paragraphs. Varied sentence length.
 - Hooks the reader in first 2 sentences
 
-OUTPUT FORMAT — JSON only:
+OUTPUT FORMAT - JSON only:
 {
   "pass": true/false,
   "score": 0-100,
@@ -841,7 +841,7 @@ async def review_content(content: str, content_type: str = "article") -> dict:
             ai_review = await ai_call("review", QUALITY_REVIEW_PROMPT, content, max_tokens=800, temperature=0.2)
             if ai_review:
                 try:
-                    review_data = json.loads(ai_review.strip().lstrip("```json").rstrip("```"))
+                    review_data = json.loads(ai_review.strip().lstrip("```json").rstrip("```"))  # noqa: B005
                     issues.extend(review_data.get("issues", []))
                     if review_data.get("score", 100) < base_score:
                         base_score = review_data["score"]

@@ -2,7 +2,7 @@
 Tests for Cross-Chain Bridge Health & Exploit Monitor
 ======================================================
 Covers all core components: scoring, anomaly detection, contagion risk,
-and report generation — all without requiring network calls.
+and report generation - all without requiring network calls.
 """
 
 import json
@@ -155,7 +155,7 @@ class TestBridgeHealthReport(unittest.TestCase):
 
     def test_summary_with_contagion_risk(self):
         """Summary includes contagion risk section."""
-        self.report.contagion_risk = ["Hop (score 72) — shares similar security profile"]
+        self.report.contagion_risk = ["Hop (score 72) - shares similar security profile"]
         summary = self.report.summary()
         self.assertIn("Contagion Risk", summary)
         self.assertIn("Hop", summary)
@@ -189,7 +189,7 @@ class TestBridgeHealthReport(unittest.TestCase):
             exploit_history_score=0,
             upgrade_risk_score=5,
             risk_tier=RiskTier.CRITICAL,
-            vulnerabilities=["Major past exploit(s) — $326,000,000 total losses"],
+            vulnerabilities=["Major past exploit(s) - $326,000,000 total losses"],
         )
         summary = self.report.summary()
         self.assertIn("Wormhole", summary)

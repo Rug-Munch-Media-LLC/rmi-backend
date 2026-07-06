@@ -1,4 +1,4 @@
-"""Cost tracking middleware — per-tenant/per-route cost enforcement.
+"""Cost tracking middleware - per-tenant/per-route cost enforcement.
 
 Per RMIV5 v4.0 §T31. Tracks per-request cost in USD and enforces
 budget caps per tenant. Stub implementation: records costs but
@@ -30,10 +30,10 @@ class CostBuffer:
 
     def record(self, tenant_id: str, route: str, cost_usd: float, latency_s: float) -> None:
         """Record a single cost event."""
-        try:
+        try:  # noqa: SIM105
             self._buffer.put_nowait((tenant_id, cost_usd, latency_s, time.monotonic()))
         except asyncio.QueueFull:
-            # Drop oldest if full (acceptable — we keep running totals)
+            # Drop oldest if full (acceptable - we keep running totals)
             pass
         self._totals[tenant_id] += cost_usd
 

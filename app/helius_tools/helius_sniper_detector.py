@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Helius Sniper Detector — Detect coordinated sniping on token launches
+Helius Sniper Detector - Detect coordinated sniping on token launches
 Analyzes transaction patterns around token creation to identify bot rings,
 coordinated buys, and insider trading.
 
@@ -341,19 +341,19 @@ class SniperDetector:
 
         ultra_fast = sum(1 for s in snipers if s.first_buy_time_ms < 2000)
         if ultra_fast >= 3:
-            evidence.append(f"{ultra_fast} wallets bought within 2 seconds — impossible for humans")
+            evidence.append(f"{ultra_fast} wallets bought within 2 seconds - impossible for humans")
 
         return evidence
 
     def _verdict(self, insider_prob: float, ring_size: int, jito_count: int) -> str:
         """Generate risk verdict."""
         if insider_prob >= 70:
-            return "HIGH INSIDER PROBABILITY — Coordinated launch detected"
+            return "HIGH INSIDER PROBABILITY - Coordinated launch detected"
         elif insider_prob >= 40:
-            return "MODERATE RISK — Some coordination indicators present"
+            return "MODERATE RISK - Some coordination indicators present"
         elif insider_prob >= 20:
-            return "LOW-MODERATE — Few snipers, limited coordination"
-        return "LOW RISK — Organic launch pattern"
+            return "LOW-MODERATE - Few snipers, limited coordination"
+        return "LOW RISK - Organic launch pattern"
 
     def _empty_report(self, token_address: str) -> SniperReport:
         return SniperReport(
@@ -371,7 +371,7 @@ class SniperDetector:
             ring_size=0,
             ring_funding_source=None,
             insider_probability=0,
-            risk_verdict="Could not analyze — token creation tx not found",
+            risk_verdict="Could not analyze - token creation tx not found",
             evidence=["No creation transaction found on-chain"],
         )
 

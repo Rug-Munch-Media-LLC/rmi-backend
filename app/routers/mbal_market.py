@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#17 — MBAL 10M-Label Market Maker. Public searchable database of the MBAL dataset
+"""#17 - MBAL 10M-Label Market Maker. Public searchable database of the MBAL dataset
 (10M labeled addresses). Free search, paid API. Kaggle: cryptorugmuncher."""
 
 import contextlib
@@ -65,7 +65,7 @@ async def mbal_stats():
     """MBAL dataset statistics."""
     conn = _get_db()
     stats = {
-        "dataset": "MBAL — Multi-chain Blockchain Address Labels",
+        "dataset": "MBAL - Multi-chain Blockchain Address Labels",
         "total_addresses": 0,
         "categories": [],
         "chains_covered": [],
@@ -128,7 +128,7 @@ async def bulk_search_mbal(request: BulkSearchRequest):
             else:
                 results.append({"address": addr, "found": False})
     except sqlite3.Error:
-        raise HTTPException(500, "Database query error")
+        raise HTTPException(500, "Database query error") from None
     finally:
         conn.close()
 
@@ -156,6 +156,6 @@ async def search_by_category(category: str, limit: int = Query(20, le=100)):
         ]
         return {"category": category, "count": len(results), "addresses": results}
     except sqlite3.Error:
-        raise HTTPException(500, "Database query error")
+        raise HTTPException(500, "Database query error") from None
     finally:
         conn.close()

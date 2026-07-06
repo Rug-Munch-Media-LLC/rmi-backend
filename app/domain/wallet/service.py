@@ -1,4 +1,4 @@
-"""Service — business logic for wallet analysis and scans.
+"""Service - business logic for wallet analysis and scans.
 
 Composes the repository (data access) and the analyzer (pure logic).
 This is the only thing the api/ layer should call.

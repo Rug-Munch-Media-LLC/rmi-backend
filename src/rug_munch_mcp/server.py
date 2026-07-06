@@ -1,4 +1,4 @@
-"""Rug Munch Intelligence — MCP Server.
+"""Rug Munch Intelligence - MCP Server.
 
 97 tools for scam detection, rug pull prevention, and crypto intelligence across 7 chains.
 The Bloomberg of Shitcoins Terminal Ultimate Edition.
@@ -14,7 +14,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 # ---------------------------------------------------------------------------
-# Configuration — NO secrets, only public endpoints
+# Configuration - NO secrets, only public endpoints
 # ---------------------------------------------------------------------------
 
 API_BASE = os.environ.get("RUG_MUNCH_API_BASE", "https://mcp.rugmunch.io/api/v1")
@@ -238,7 +238,7 @@ async def mev_protection(chain: str = DEFAULT_CHAIN) -> dict:
 
 
 # ===========================================================================
-# SECURITY (17 tools) — some shared names, different tool registration context
+# SECURITY (17 tools) - some shared names, different tool registration context
 # ===========================================================================
 
 
