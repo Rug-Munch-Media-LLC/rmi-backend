@@ -88,3 +88,4 @@ data/papers/
 *.h5
 *.hdf5
 main.py.bak
+ruff.toml
