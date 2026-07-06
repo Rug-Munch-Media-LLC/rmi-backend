@@ -39,6 +39,17 @@ dev = [
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
+# Declare app/ as an installable package so `pip install -e ".[dev]"` registers
+# it on sys.path. Without this, pytest collection fails outside the repo cwd
+# (33/35 test files fail without PYTHONPATH=.).
+# packages.find auto-discovers every sub-package that has __init__.py.
+# Sub-packages without __init__.py are namespace packages and remain out of
+# scope for Phase 1.3 (tracked for Phase 3).
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+namespaces = false
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
