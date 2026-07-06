@@ -1,4 +1,23 @@
-"""Billing subsystem.
+"""billing — DEPRECATED shim. Use app.domains.billing.
 
-Phase 3B of AUDIT-2026-Q3.md.
+Phase 4.1 of AUDIT-2026-Q3.md moved app/billing/ to app/domains/billing/.
+This shim re-exports the canonical surface and aliases submodules so that
+`from app.billing.x402.router import router` keeps working.
+
+MIGRATION: replace `from app.billing.x402 import ...` with
+`from app.domains.billing.x402 import ...`.
 """
+import sys as _sys
+from app.domains.billing import x402 as _x402
+from app.domains.billing.x402 import router as _router
+
+# Public re-exports
+from app.domains.billing.x402 import (  # noqa: F401
+    X402Enforcer,
+    TOOL_PRICES,
+    CHAIN_USDC,
+)
+
+# Alias submodules so `from app.billing.x402.router import router` works
+_sys.modules["app.billing.x402"] = _x402
+_sys.modules["app.billing.x402.router"] = _router
