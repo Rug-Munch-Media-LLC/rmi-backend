@@ -1,0 +1,55 @@
+"""RugMunchBot subsystem.
+
+Phase 3B of AUDIT-2026-Q3.md.
+
+Re-exports the canonical public API of the @rugmunchbot. Implementation
+lives in app.telegram_bot.rugmunchbot.bot (moved verbatim from
+app.telegram_bot.bot on 2026-07-07).
+"""
+from app.telegram_bot.rugmunchbot.bot import (  # noqa: F401
+    RugMunchBot,
+    main,
+    cmd_start,
+    cmd_help,
+    cmd_scan,
+    cmd_wallet,
+    cmd_ta,
+    cmd_compare,
+    cmd_rugcheck,
+    cmd_trending,
+    cmd_news,
+    cmd_account,
+    cmd_pricing,
+    cmd_topup,
+    cmd_scamschool,
+    cmd_refer,
+    cmd_watchlist,
+    cmd_watch,
+    cmd_unwatch,
+    cmd_alerts,
+    cmd_admin_stats,
+    cmd_admin_set_tier,
+    cmd_admin_broadcast,
+    cmd_admin_ban,
+    handle_message,
+    handle_inline,
+    handle_callback,
+    precheckout,
+    successful_payment,
+    error_handler,
+    setup_bot_profile,
+    daily_scam_tip,
+    scan_token,
+    analyze_wallet,
+    format_scan_report,
+    format_wallet_report,
+    check_spam,
+    is_owner,
+    is_evm,
+    is_sol,
+    detect_chain,
+    short_addr,
+    main_menu_kb,
+    paywall_text,
+    footer_links,
+)
