@@ -9,51 +9,84 @@ Per v4.0 §T01 + ADR-0001, this replaces the hardcoded lists that
 existed in the old main.py. Each mount is isolated - one failure
 doesn't break the others.
 """
+
 from __future__ import annotations
 
 import importlib
 import logging
-from typing import Final
+from typing import Any, Final
 
 log = logging.getLogger(__name__)
 
 
-# ── Canonical router list (single source of truth) ─────────────────
+# Canonical router list (single source of truth)
 # Order matters for path resolution. v1 routers are mounted at /api/v1/*.
 # Domain routers (news, reports, x402) self-prefix.
 ROUTER_MODULES: Final[list[str]] = [
-    # ── Core system routes ─────────────────────────────────
-    "app.core.health_route",       # /health, /live, /ready
-    "app.core.metrics",             # /metrics
-    "app.homepage",                 # /, /version
-
-    # ── v1 API (thin HTTP layer) ───────────────────────────
-    "app.api.v1.auth.alerts",       # /api/v1/alerts/*
-    "app.api.v1.public.wallet",     # /api/v1/wallet/*
-    "app.api.v1.public.token",      # /api/v1/token/*
-    "app.api.v1.public.scanner",     # /api/v1/scanner/*
-    "app.api.v1.rag.search",        # /api/v1/rag/v2/*
+    # Core system routes
+    "app.core.health_route",  # /health, /live, /ready
+    "app.core.metrics",  # /metrics
+    "app.homepage",  # /, /version
+    # v1 API (thin HTTP layer)
+    "app.api.v1.auth.alerts",  # /api/v1/alerts/*
+    "app.api.v1.public.wallet",  # /api/v1/wallet/*
+    "app.api.v1.public.token",  # /api/v1/token/*
+    "app.api.v1.public.scanner",  # /api/v1/scanner/*
+    "app.api.v1.rag.search",  # /api/v1/rag/v2/*
     "app.api.v1.admin.alerts_webhook",  # /api/v1/admin/alerts/webhook
     "app.api.v1.admin.glitchtip_test",  # /api/v1/_test/* (T07)
-    "app.api.v1.catalog",           # /api/v1/catalog/*
-    "app.api.v1.mcp",               # /mcp/* (JSON-RPC + plain JSON)
-
-    # ── Domain facades (per v4.0 §T28-T34) ─────────────────
-    "app.domain.news",              # /api/v1/news/*
-    "app.domain.news.admin_router", # /api/v1/news/_admin/*
-    "app.domain.reports",           # /api/v1/reports/*
-    "app.domain.x402",              # /api/v1/x402/*
-
-    # ── x402 MCP + Discovery + Docs ───────────────────────
+    "app.api.v1.catalog",  # /api/v1/catalog/*
+    "app.api.v1.mcp",  # /mcp/* (JSON-RPC + plain JSON)
+    # Domain facades (per v4.0 T28-T34)
+    "app.domain.news",  # /api/v1/news/*
+    "app.domain.news.admin_router",  # /api/v1/news/_admin/*
+    "app.domain.reports",  # /api/v1/reports/*
+    "app.domain.x402",  # /api/v1/x402/*
+    # x402 MCP + Discovery + Docs
     "app.routers.x402_mcp_handler",  # /mcp/x402, /.well-known/x402
-    "app.routers.x402_docs",         # /x402/docs, /x402/sandbox/*
-    "app.routers.x402_growth",       # /api/v1/x402/webhooks/*, /usage, /pay, /affiliates
-    "app.routers.x402_docs_v2",      # /docs/v2/quickstart, /docs/v2/api-reference
+    "app.routers.x402_docs",  # /x402/docs, /x402/sandbox/*
+    "app.routers.x402_growth",  # /api/v1/x402/webhooks/*, /usage, /pay, /affiliates
+    "app.routers.x402_docs_v2",  # /docs/v2/quickstart, /docs/v2/api-reference
     "app.routers.stripe_integration",  # /api/v1/stripe/*, /api/v1/credits/*
+    # Wire-in Wave 1 - AUDIT-2026-Q3 Phase 2
+    # Mounted 2026-07-07. Re-validated "dead" routers, all import cleanly,
+    # all prefixes non-conflicting with existing mounts.
+    #
+    # Routers (24) - total ~140 routes added:
+    "app.routers.bulletin",  # /api/v1/bulletin/*  (21 routes, supabase)
+    "app.routers.bulletin_board",  # /api/v1/bulletin-board/*  (22 routes, app/bulletin_board.py)
+    "app.routers.intelligence_router",  # /api/v1/intelligence/*  (19 routes, n8n-fed)
+    "app.routers.intelligence_panel",  # /api/v1/intelligence/*  (4 routes, /feed /latest /crypto-fear-index)
+    "app.routers.chat",  # /api/v1/chat/*  (5 routes, AI chat surface)
+    "app.routers.address_profiler",  # /api/v1/address-profiler/*  (1 route, scanner ext)
+    "app.routers.chain_comparability",  # /api/v1/chain-compare/*  (2 routes, multi-chain)
+    "app.routers.honeypot_map",  # /api/v1/honeypot-map/*  (3 routes, unique viz)
+    "app.routers.label_lookup",  # /api/v1/labels/*  (1 route, CF worker enrichment)
+    "app.routers.whale_alerts",  # /api/v1/whale-alerts/*  (5 routes, whale tracker)
+    "app.routers.lp_health",  # /api/v1/lp-health/*  (5 routes, LP monitor)
+    "app.routers.ai_stream",  # /api/v1/ai/*  (3 routes, SSE infra)
+    "app.routers.rugcharts",  # /api/v1/rugcharts/*  (3 routes, RugCharts backend)
+    "app.routers.bubble_maps_router",  # /api/v1/rugmaps/*  (7 routes, RugMaps viz)
+    "app.routers.mev_advisory",  # /api/v1/mev-advisory/*  (2 routes, MEV warning)
+    "app.routers.impersonation_detector",  # /api/v1/impersonation/*  (1 route, forensics)
+    "app.routers.rug_recovery",  # /api/v1/rug-recovery/*  (2 routes, recovery indexer)
+    "app.routers.laundry_matcher",  # /api/v1/laundry-matcher/*  (2 routes, copycat detect)
+    "app.routers.death_clock",  # /api/v1/death-clock/*  (1 route, Token Death Clock)
+    "app.routers.token_cv",  # /api/v1/token-cv/*  (2 routes, On-Chain CV)
+    "app.routers.tvl_verifier",  # /api/v1/tvl-verify/*  (2 routes, DeFiLlama mismatch)
+    "app.routers.contract_analyzer",  # /api/v1/contract-analyzer/*  (2 routes, SENTINEL ext)
+    "app.routers.criminal_clusters",  # /api/v1/criminal-clusters/*  (3 routes, Real-CATS)
+    "app.rag_metrics_api",  # /api/v1/rag/metrics  (1 route, uses LIVE rag_observability)
+    #
+    # DEFERRED (1) - see AUDIT-2026-Q3.md Phase 2 Wave 2:
+    #   "app.routers.news" - CONFLICTS with app.domain.news.router.
+    #   domain.news has GET /{news_id} catch-all; routes.news has /feed /headlines etc.
+    #   Catch-all in domain.news shadows the new routes when domain is mounted first.
+    #   Needs domain.news refactor (move catch-all to a less-broad path) before mount.
 ]
 
 
-def mount_all(app) -> int:
+def mount_all(app: Any) -> int:
     """Mount every router. Returns count of successful mounts.
 
     Each mount is isolated - one failure does not break the rest.
@@ -65,7 +98,7 @@ def mount_all(app) -> int:
     return mounted
 
 
-def _try_mount(app, module_path: str) -> bool:
+def _try_mount(app: Any, module_path: str) -> bool:
     """Try to import + mount a single router. Returns True on success."""
     try:
         module = importlib.import_module(module_path)
@@ -79,7 +112,9 @@ def _try_mount(app, module_path: str) -> bool:
     except Exception as exc:
         log.warning(
             "router_mount_failed path=%s err=%s: %s",
-            module_path, type(exc).__name__, exc,
+            module_path,
+            type(exc).__name__,
+            exc,
         )
         return False
 
