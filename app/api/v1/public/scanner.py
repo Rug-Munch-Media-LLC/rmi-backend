@@ -37,7 +37,7 @@ async def scan(req: ScanRequest) -> ScanResult:
     """Queue a token/wallet scan."""
     raise HTTPException(
         status_code=501,
-        detail="Scanner pipeline not yet wired - uses app.domain.scanner (T06+)",
+        detail="Scanner pipeline not yet wired - uses app.domains.scanner (T06+)",
     )
 
 

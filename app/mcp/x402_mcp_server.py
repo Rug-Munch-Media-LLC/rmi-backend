@@ -116,7 +116,7 @@ TOOLS = [
 
 async def handle_mcp_call(tool_name: str, arguments: dict[str, Any]) -> dict:
     """Route MCP tool calls to the appropriate handler."""
-    from app.domain.x402.middleware import create_invoice
+    from app.domains.x402.middleware import create_invoice
     from app.routers.x402_enforcement import TOOL_PRICES, _ensure_tool_prices
 
     if tool_name == "x402_create_invoice":

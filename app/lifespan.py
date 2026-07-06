@@ -78,7 +78,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # 7. T12 - CertStream phishing domain monitor (background task)
     certstream_task = None
     try:
-        from app.domain.threat.certstream_listener import start_listener
+        from app.domains.threat.certstream_listener import start_listener
         certstream_task = await start_listener()
         log.info("certstream_started has_task=%s", certstream_task is not None)
     except Exception as exc:
@@ -88,7 +88,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     # Shutdown
     try:
-        from app.domain.threat.certstream_listener import stop_listener
+        from app.domains.threat.certstream_listener import stop_listener
         await stop_listener(certstream_task)
     except Exception:
         pass

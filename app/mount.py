@@ -38,10 +38,10 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.api.v1.catalog",  # /api/v1/catalog/*
     "app.api.v1.mcp",  # /mcp/* (JSON-RPC + plain JSON)
     # Domain facades (per v4.0 T28-T34)
-    "app.domain.news",  # /api/v1/news/*
-    "app.domain.news.admin_router",  # /api/v1/news/_admin/*
-    "app.domain.reports",  # /api/v1/reports/*
-    "app.domain.x402",  # /api/v1/x402/*
+    "app.domains.news",  # /api/v1/news/*
+    "app.domains.news.admin_router",  # /api/v1/news/_admin/*
+    "app.domains.reports",  # /api/v1/reports/*
+    "app.domains.x402",  # /api/v1/x402/*
     # x402 MCP + Discovery + Docs
     "app.routers.x402_mcp_handler",  # /mcp/x402, /.well-known/x402
     "app.routers.x402_docs",  # /x402/docs, /x402/sandbox/*
