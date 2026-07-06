@@ -34,10 +34,25 @@ def test_factory_boots_without_error(app) -> None:
 
 
 def test_factory_has_minimum_routes(app) -> None:
-    """App must expose >= 40 routes (T14 G09 gate)."""
-    routes = [r for r in app.routes if hasattr(r, "path")]
-    assert len(routes) >= 40, (
-        f"Only {len(routes)} routes mounted. "
+    """App must expose >= 40 routes (T14 G09 gate).
+
+    Counts all routes including those inside mounted APIRouter objects.
+    The previous version used `hasattr(r, "path")` which only matches
+    direct Route objects; APIRouter containers don't have a .path
+    attribute but contain many Route objects.
+    """
+    def _flatten(routes):
+        n = 0
+        for r in routes:
+            if hasattr(r, "routes"):  # APIRouter
+                n += _flatten(r.routes)
+            else:  # Route
+                n += 1
+        return n
+
+    total = _flatten(app.routes)
+    assert total >= 40, (
+        f"Only {total} routes mounted. "
         f"Need >= 40 for T14 gate. Check factory logs for 'router_mount_failed'."
     )
 

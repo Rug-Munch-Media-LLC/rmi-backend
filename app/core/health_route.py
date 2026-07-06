@@ -19,7 +19,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.core.metrics import HEALTH_CHECK_DURATION, HEALTH_CHECK_STATUS
-from app.telegram_bot.requirements import httpx
+import httpx
 
 router = APIRouter(tags=["health"])
 

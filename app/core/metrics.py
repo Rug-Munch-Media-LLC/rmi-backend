@@ -44,6 +44,16 @@ ACTIVE_REQUESTS = Gauge(
     "rmi_http_requests_active",
     "Currently active requests",
 )
+HEALTH_CHECK_DURATION = Gauge(
+    "rmi_health_check_duration_seconds",
+    "Last health-check latency per store",
+    ["store"],
+)
+HEALTH_CHECK_STATUS = Gauge(
+    "rmi_health_check_status",
+    "Last health-check status per store (1=healthy, 0=unhealthy)",
+    ["store"],
+)
 
 
 # ── PrometheusMiddleware ────────────────────────────────────────────
