@@ -6,6 +6,7 @@ help: ## Show this help
 install: ## Install dependencies
 	pip install -e ".[dev]"
 	pip install -r requirements.txt
+	@command -v pre-commit >/dev/null 2>&1 && pre-commit install || echo "  (pre-commit not installed; skipping hook install)"
 
 dev: ## Start dev server
 	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
