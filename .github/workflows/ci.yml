@@ -107,9 +107,8 @@ jobs:
   qdrant-cleanup:
     # T15 (G14 FIX) — informational check. Qdrant only runs on netcup,
     # not in CI, so this will always skip here. The audit script
-    # gracefully handles connection failures.
+    # gracefully handles connection failures (inner step uses || \).
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

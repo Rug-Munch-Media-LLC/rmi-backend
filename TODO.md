@@ -2,7 +2,7 @@
 
 ## Active
 - [ ] Fix `rmi-redis:6379` name resolution so `/health` returns healthy
-- [ ] Fix Qdrant stale IP bind (`100.100.18.18:6333` → `127.0.0.1:6333`)
+- [x] Fix Qdrant stale IP bind (was `100.100.18.18:6333` → now `127.0.0.1:6333`, fixed in 3c6b295)
 - [ ] Rotate 5 Telegram tokens leaked in `data/cryptoscamdb_urls.yaml` history
 - [ ] Rotate Solana Tracker, Arkham WS, Stripe, Helius webhook secrets
 - [ ] Remove `continue-on-error: true` and `|| true` from `.github/workflows/ci.yml`
