@@ -1,6 +1,11 @@
-"""Backward-compat shim — moved to app.wallet.manager in P3B."""
-from app.wallet.manager import *  # noqa: F401,F403
-from app.wallet.manager import (  # noqa: F401
+"""wallet_manager_v2.py - DEPRECATED shim. Use app.domains.wallet.manager.
+
+Phase 4 of AUDIT-2026-Q3.md moved this to app/domains/wallet/manager/.
+This shim re-exports the public surface for legacy callers.
+"""
+from app.domains.wallet.manager import *  # noqa: F401,F403
+from app.domains.wallet.manager import (  # noqa: F401
+    CHAIN_REGISTRY,
     ChainMeta,
     PaymentRecord,
     PaymentType,
@@ -16,5 +21,7 @@ from app.wallet.manager import (  # noqa: F401
     ZKAddressVerifier,
     get_wallet_manager_v2,
     import_legacy_wallets,
+    logger,
     _build_registry,
+    _wallet_manager_instance,
 )
