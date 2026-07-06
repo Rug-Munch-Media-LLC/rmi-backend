@@ -23,7 +23,7 @@ import httpx
 
 from app.chain_client import ChainClient
 from app.chain_registry import is_evm, is_solana
-from app.scanners.rag_citations import build_citation_string, query_rag_citations
+from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = logging.getLogger("proxy_detector")
 

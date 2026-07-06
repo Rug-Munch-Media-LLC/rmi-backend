@@ -124,7 +124,7 @@ class ContractDiffAnalyzer:
             return
 
         try:
-            from app.scanners.rag_citations import query_rag_citations
+            from app.domains.scanners.rag_citations import query_rag_citations
 
             # Load known rug contract hashes from RAG
             cits = await query_rag_citations(
@@ -282,7 +282,7 @@ class ContractDiffAnalyzer:
 
             # RAG citations
             try:
-                from app.scanners.rag_citations import query_rag_citations
+                from app.domains.scanners.rag_citations import query_rag_citations
 
                 report.citations = await query_rag_citations(
                     topic=f"contract clone rug pattern {report.bytecode_hash[:8]}",
@@ -358,7 +358,7 @@ class ContractDiffAnalyzer:
 
             # Enhance warnings with RAG citations
             try:
-                from app.scanners.rag_citations import build_citation_string
+                from app.domains.scanners.rag_citations import build_citation_string
 
                 if report.citations and report.warnings:
                     cit_str = build_citation_string(report.citations)

@@ -5,7 +5,7 @@ Shared utility for all scanner modules to query RAG for relevant research,
 known scams, and forensic reports, then include structured citations in their output.
 
 Usage in scanners:
-    from app.scanners.rag_citations import query_rag_citations
+    from app.domains.scanners.rag_citations import query_rag_citations
 
     citations = await query_rag_citations(
         topic="flash loan sandwich attack",
