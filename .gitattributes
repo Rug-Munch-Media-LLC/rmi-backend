@@ -1,0 +1,28 @@
+# Line endings — normalize to LF
+*                 text=auto eol=lf
+*.bat             text eol=crlf
+*.cmd             text eol=crlf
+*.ps1             text eol=crlf
+
+# Lockfiles are binaries (don't diff them)
+*.lock            -text
+package-lock.json -text
+pnpm-lock.yaml    -text
+yarn.lock         -text
+bun.lock          -text
+bun.lockb         binary
+uv.lock           -text
+poetry.lock       -text
+
+# Generated / vendored
+openapi.json      linguist-generated=true
+dist/**           linguist-generated=true
+build/**          linguist-generated=true
+*.tsbuildinfo     linguist-generated=true
+node_modules/**   linguist-generated=true
+.ruff_cache/**    linguist-generated=true
+.mypy_cache/**    linguist-generated=true
+.pytest_cache/**  linguist-generated=true
+
+# Linguist overrides
+*.py              linguist-language=Python
