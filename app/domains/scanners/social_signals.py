@@ -1,6 +1,8 @@
 import asyncio
 import os
 
+from typing import Any, Dict, Optional
+
 from app.apify_tools import logger
 
 # CoinGecko trending + social signal enrichment

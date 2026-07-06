@@ -20,7 +20,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import CHAINS, is_evm
-from app.scanners.rag_citations import build_citation_string, query_rag_citations
+from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = logging.getLogger("address_labeler")
 
