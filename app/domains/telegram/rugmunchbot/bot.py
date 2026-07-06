@@ -43,7 +43,7 @@ from telegram.ext import (
 )
 
 # ── Local imports ──
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, "/srv/work/repos/rmi-backend/app/telegram_bot")
 import contextlib
 
 import db
