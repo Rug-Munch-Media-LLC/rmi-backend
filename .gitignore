@@ -87,3 +87,4 @@ data/papers/
 *.gguf
 *.h5
 *.hdf5
+main.py.bak
