@@ -12,9 +12,9 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Any
 
+import bcrypt
 from fastapi import APIRouter, HTTPException, Request
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel, Field
 
 from app.core.redis import get_redis
@@ -86,22 +86,18 @@ def _generate_backup_codes(count: int = 8) -> list:
 
 def _hash_backup_code(code: str) -> str:
     """Hash a backup code for storage (same as password hashing)."""
-    return pwd_context.hash(code)
+    return hash_password(code)
 
 
 def _verify_backup_code(code: str, hashed: str) -> bool:
     """Verify a backup code against its hash."""
-    return pwd_context.verify(code, hashed)
+    return verify_password(code, hashed)
 
 
 # ── Config ──
 JWT_SECRET = os.getenv("JWT_SECRET", "rmi-jwt-secret-change-me")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
-
-import bcrypt  # noqa: E402
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
