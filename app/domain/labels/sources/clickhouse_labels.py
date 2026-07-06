@@ -1,4 +1,4 @@
-"""ClickHouse wallet_memory.wallet_labels source — currently empty.
+"""ClickHouse wallet_memory.wallet_labels source - currently empty.
 
 Schema (verified):
   address String
@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 async def query_clickhouse_labels(address: str, chain: str = "ethereum") -> list[Label]:
     """Query ClickHouse wallet_memory.wallet_labels table.
 
-    Currently returns [] — table is empty until CSVs are bulk-imported.
+    Currently returns [] - table is empty until CSVs are bulk-imported.
     Real implementation will use HTTP to clickhouse client over
     native protocol via app.core.duckdb_analytics.query_postgres-style attach.
 

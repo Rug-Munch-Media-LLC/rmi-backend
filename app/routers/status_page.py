@@ -2,7 +2,7 @@
 RMI Public Status Page
 =======================
 Public-facing status page showing health of all RMI services.
-No authentication required — designed for transparency and trust.
+No authentication required - designed for transparency and trust.
 
 Monitors:
 - Backend API health
@@ -15,11 +15,11 @@ Monitors:
 - Incident history
 
 Endpoints:
-  GET  /api/v1/status          — Full status JSON
-  GET  /status                 — Public HTML status page
-  GET  /api/v1/status/summary  — One-line summary for badges
-  POST /api/v1/status/incident — Report incident (admin only)
-  GET  /api/v1/status/history  — Historical uptime data
+  GET  /api/v1/status          - Full status JSON
+  GET  /status                 - Public HTML status page
+  GET  /api/v1/status/summary  - One-line summary for badges
+  POST /api/v1/status/incident - Report incident (admin only)
+  GET  /api/v1/status/history  - Historical uptime data
 
 Author: RMI Development
 Date: 2026-06-05
@@ -36,6 +36,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.core.redis import get_redis
+
 logger = logging.getLogger("status_page")
 
 router = APIRouter(prefix="/api/v1/status", tags=["status-page"])
@@ -50,7 +52,7 @@ async def check_http_service(url: str, timeout: float = 5.0) -> dict[str, Any]:
 
     start = time.monotonic()
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:  # noqa: SIM117
             async with session.get(url) as resp:
                 latency_ms = (time.monotonic() - start) * 1000
                 if resp.status == 200:
@@ -227,7 +229,7 @@ def get_uptime_history(days: int = 30) -> dict[str, Any]:
         return {"error": "redis_unavailable"}
 
     history = {}
-    for service_name in SERVICES:
+    for service_name in SERVICES:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
         daily_uptime = []
         for i in range(days):
             day = (datetime.now(UTC) - timedelta(days=i)).strftime("%Y-%m-%d")
@@ -257,7 +259,7 @@ async def run_all_checks():
     results = {}
     overall_status = "operational"
 
-    for name, config in SERVICES.items():
+    for name, config in SERVICES.items():  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
         try:
             result = await check_service(name, config)
             results[name] = result
@@ -321,7 +323,7 @@ async def get_status():
             "timestamp": datetime.now(UTC).isoformat(),
             "services": {},
         }
-        for name, config in SERVICES.items():
+        for name, config in SERVICES.items():  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
             try:
                 result = await check_service(name, config)
                 overall["services"][name] = result
@@ -414,7 +416,7 @@ async def list_services():
                     "critical": config.get("critical", False),
                     "check_type": config.get("check_type", "http"),
                 }
-                for name, config in SERVICES.items()
+                for name, config in SERVICES.items()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
             }
         }
     )

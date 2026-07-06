@@ -1,14 +1,14 @@
 """
-RMI x402 Payment Middleware — Proper x402 Protocol Integration
+RMI x402 Payment Middleware - Proper x402 Protocol Integration
 ================================================================
 Uses the official x402 SDK for payment verification, receipt validation,
 and public transparency. Replaces the hacky direct facilitator POST.
 
 Components:
-1. x402_middleware.py — FastAPI middleware for payment verification
-2. /api/v1/x402/receipt/{id}/verify — Public receipt verification
-3. /api/v1/x402/ledger — Public payment ledger (anonymized)
-4. /api/v1/x402/transparency — System trust metrics
+1. x402_middleware.py - FastAPI middleware for payment verification
+2. /api/v1/x402/receipt/{id}/verify - Public receipt verification
+3. /api/v1/x402/ledger - Public payment ledger (anonymized)
+4. /api/v1/x402/transparency - System trust metrics
 
 Author: RMI Development
 Date: 2026-05-03
@@ -18,11 +18,13 @@ import contextlib
 import hashlib
 import json
 import logging
+import os
 import time
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 logger = logging.getLogger("x402_middleware")
 
@@ -35,12 +37,12 @@ router = APIRouter(prefix="/api/v1/x402", tags=["x402-payment-middleware"])
 try:
     from x402 import (
         X402_VERSION,
-        Network,
-        PaymentPayload,
-        PaymentRequirements,
-        parse_payment_payload,
-        parse_payment_required,
-        x402Facilitator,
+        Network,  # noqa: F401
+        PaymentPayload,  # noqa: F401
+        PaymentRequirements,  # noqa: F401
+        parse_payment_payload,  # noqa: F401
+        parse_payment_required,  # noqa: F401
+        x402Facilitator,  # noqa: F401
     )
 
     X402_SDK_AVAILABLE = True
@@ -100,7 +102,7 @@ class PaymentVerifier:
     def _verify_eip712_local(self, payload_data: dict) -> dict[str, Any]:
         """
         Verify EIP-712 signed EIP-3009 authorization locally.
-        No external facilitator needed — pure cryptographic verification.
+        No external facilitator needed - pure cryptographic verification.
         Uses the name/version from the payment's extra field (matches what SDK signed with).
         """
         try:
@@ -332,7 +334,7 @@ _verifier = PaymentVerifier()
 async def verify_receipt_public(receipt_id: str):
     """
     Public endpoint to verify any x402 receipt.
-    Anyone can check if a payment was fulfilled — no auth needed.
+    Anyone can check if a payment was fulfilled - no auth needed.
     Returns: receipt data + on-chain proof + verification status.
     """
     try:
@@ -382,7 +384,7 @@ async def verify_receipt_public(receipt_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── Public Payment Ledger ─────────────────────────────────────
@@ -456,7 +458,7 @@ async def payment_ledger(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── Transparency Dashboard ────────────────────────────────────
@@ -466,7 +468,7 @@ async def payment_ledger(
 async def transparency_dashboard(hours: int = 24):
     """
     Public transparency dashboard showing system trust metrics.
-    No sensitive data — all aggregated and anonymized.
+    No sensitive data - all aggregated and anonymized.
     """
     try:
         from app.auth import get_redis
@@ -480,7 +482,7 @@ async def transparency_dashboard(hours: int = 24):
         total_revenue = 0.0
         tool_counts: dict[str, int] = {}
         network_counts: dict[str, int] = {}
-        # hourly array intentionally skipped — data is fetched on-demand
+        # hourly array intentionally skipped - data is fetched on-demand
         for rid in recent_ids:
             rid_str = rid.decode() if isinstance(rid, bytes) else rid
             data = await r.get(f"x402:receipt:{rid_str}")
@@ -532,7 +534,7 @@ async def transparency_dashboard(hours: int = 24):
             k = key.decode() if isinstance(key, bytes) else key
             if ":reason:" not in k:
                 ip_bans += 1
-        async for key in r.scan_iter(match="x402:ban:wallet:*"):
+        async for key in r.scan_iter(match="x402:ban:wallet:*"):  # noqa: B007
             wallet_bans += 1
 
         fulfillment_rate = fulfilled / max(1, total)
@@ -567,7 +569,7 @@ async def transparency_dashboard(hours: int = 24):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── Payment Verification Endpoint (for gateway use) ────────────
@@ -580,7 +582,7 @@ async def verify_payment_endpoint(
     """
     Verify an x402 payment payload.
     Used by the gateway worker to verify payments before executing tools.
-    Exempt from rate limiting — gateway workers call this for every paid request.
+    Exempt from rate limiting - gateway workers call this for every paid request.
 
     POST body: {
         "payload": "<x402 payment payload JSON string>",
@@ -644,7 +646,7 @@ async def verify_payment_endpoint(
         raise
     except Exception as e:
         logger.error(f"Payment verification error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── Receipt Storage Endpoint (called by x402 Workers after payment) ────
@@ -706,7 +708,7 @@ async def store_receipt(request: Request):
         else:
             amount_float = 0.0
 
-        # Store in Redis (sync — app.auth.get_redis returns a sync client)
+        # Store in Redis (sync - app.auth.get_redis returns a sync client)
         from app.auth import get_redis as _get_redis
 
         r = _get_redis()
@@ -772,7 +774,7 @@ async def store_receipt(request: Request):
                 "message": "Receipt stored successfully",
             }
         else:
-            # Redis unavailable — still return success so Worker doesn't retry endlessly
+            # Redis unavailable - still return success so Worker doesn't retry endlessly
             logger.warning(f"Redis unavailable, receipt not stored: {receipt_id}")
             return {
                 "ok": True,
@@ -783,7 +785,7 @@ async def store_receipt(request: Request):
 
     except Exception as e:
         logger.error(f"Receipt store error: {e}")
-        # Return 200 so Worker doesn't retry — receipt storage is best-effort
+        # Return 200 so Worker doesn't retry - receipt storage is best-effort
         return {
             "ok": True,
             "stored": False,
@@ -854,4 +856,4 @@ async def fallback_status():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

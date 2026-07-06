@@ -14,7 +14,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 try:
-    from solana.rpc.api import Client, Pubkey, Signature, Transaction
+    from solana.rpc.api import Client, Pubkey, Signature, Transaction  # noqa: F401
 
     SOLANA_AVAILABLE = True
     logger.info("solana-py SDK imported successfully")

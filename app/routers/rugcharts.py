@@ -312,7 +312,7 @@ def _compute_volume_authenticity(pair_info: dict, candles: list[dict]) -> dict:
         ratio = vol_24h / liq
         if ratio > 100:
             score -= 30
-            risk_flags.append(f"Extreme vol/liq ratio ({ratio:.0f}x) — likely wash trading")
+            risk_flags.append(f"Extreme vol/liq ratio ({ratio:.0f}x) - likely wash trading")
         elif ratio > 50:
             score -= 20
             risk_flags.append(f"Very high vol/liq ratio ({ratio:.0f}x)")
@@ -338,7 +338,7 @@ def _compute_volume_authenticity(pair_info: dict, candles: list[dict]) -> dict:
             risk_flags.append(f"Heavy sell dominance ({sells} sells vs {buys} buys)")
         elif buy_pct > 0.9:
             score -= 10
-            risk_flags.append(f"Suspiciously high buy ratio ({buy_pct * 100:.0f}%) — possible bot activity")
+            risk_flags.append(f"Suspiciously high buy ratio ({buy_pct * 100:.0f}%) - possible bot activity")
 
     # 4. Candle analysis (if available)
     if len(candles) >= 3:
@@ -429,7 +429,7 @@ def _compute_rug_score(pair_info: dict, vol_auth: dict) -> dict:
         factors.append(f"Massive dump ({change:.1f}%)")
     elif change > 50:
         score += 8
-        factors.append(f"Extreme pump (+{change:.1f}%) — potential exit liquidity")
+        factors.append(f"Extreme pump (+{change:.1f}%) - potential exit liquidity")
     elif change > 10:
         score += 5
         factors.append("Rapid price increase")

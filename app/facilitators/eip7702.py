@@ -79,11 +79,11 @@ class EIP7702Facilitator(Facilitator):
 
     @property
     def priority(self) -> int:
-        return 50  # Universal fallback — use after specialized facilitators
+        return 50  # Universal fallback - use after specialized facilitators
 
     @property
     def is_fee_free(self) -> bool:
-        return True  # No facilitator fee — just RPC gas
+        return True  # No facilitator fee - just RPC gas
 
     @property
     def supported_networks(self) -> NetworkSupport:
@@ -111,7 +111,7 @@ class EIP7702Facilitator(Facilitator):
     @property
     def description(self) -> str:
         chains = list(self._rpc_urls.keys())
-        return f"EIP-7702 Universal EVM — {len(chains)} chains, all tokens, all native coins"
+        return f"EIP-7702 Universal EVM - {len(chains)} chains, all tokens, all native coins"
 
     # ── Chain ID mapping ───────────────────────────────────────
 
@@ -220,7 +220,7 @@ class EIP7702Facilitator(Facilitator):
         """Verify native coin transfer (ETH, POL, AVAX, etc.)."""
         # For native transfers, check the tx value
         # We'd need eth_getTransactionByHash for the 'value' field
-        # This is a simplified check — full implementation queries the tx
+        # This is a simplified check - full implementation queries the tx
         payer = receipt.get("from", "")
         to_addr = (receipt.get("to") or "").lower()
         expected_to = self._config.evm_pay_to.lower()
@@ -285,7 +285,7 @@ class EIP7702Facilitator(Facilitator):
                     f"EIP-7702: Amount mismatch on {chain_key} for {tx_hash[:16]}... "
                     f"expected {amount_atoms}, got {actual_amount}"
                 )
-                # Continue checking other logs — maybe multiple transfers
+                # Continue checking other logs - maybe multiple transfers
 
             block_number = int(receipt.get("blockNumber", "0x0"), 16) if receipt.get("blockNumber") else None
 

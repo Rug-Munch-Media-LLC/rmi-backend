@@ -1,5 +1,5 @@
 """
-Unified Data Fallback Engine — Never Run Out of Data
+Unified Data Fallback Engine - Never Run Out of Data
 
 For every data query type, chains through multiple providers in priority order.
 Cache-first, rate-limited, with automatic fallback on failure/429.

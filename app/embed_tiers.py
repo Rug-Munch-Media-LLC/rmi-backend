@@ -1,5 +1,5 @@
 """
-Embedding Quality Tiers — Intelligent Provider Selection
+Embedding Quality Tiers - Intelligent Provider Selection
 =========================================================
 
 Routes embedding requests to appropriate providers based on task type.
@@ -7,16 +7,16 @@ Saves premium (high-dim) credits for critical analysis. Uses cheap/free
 providers for bulk ingestion and simple lookups.
 
 Tiers:
-  critical  — Scam detection, forensic reports, vulnerability mapping
+  critical  - Scam detection, forensic reports, vulnerability mapping
               → 3072d Gemini only (highest quality for highest-stakes analysis)
 
-  standard  — User searches, token profiles, wallet lookups
+  standard  - User searches, token profiles, wallet lookups
               → 1024-2048d NVIDIA/Mistral (good quality, free)
 
-  light     — News ingestion, social feed, bulk data
+  light     - News ingestion, social feed, bulk data
               → 384d local BGE or hash (zero cost, unlimited)
 
-  default   — Catch-all
+  default   - Catch-all
               → Any available free provider
 
 This ensures premium credits are preserved for the analysis that actually
@@ -28,10 +28,10 @@ benefits from 3072-dimension embeddings.
 # ──────────────────────────────────────────────────────────────
 
 TIER_PROVIDERS = {
-    "critical": {"gemini_1", "gemini_2", "gemini_3"},  # 3072d only — highest quality
-    "standard": {"nv_direct", "mistral", "nv_openrouter"},  # 1024-2048d — good quality, free
-    "light": {"local_bge", "hash"},  # 384d — zero cost, unlimited
-    "deep": {"gemini_1", "gemini_2", "gemini_3", "nv_openrouter"},  # 2048-3072d — deep analysis
+    "critical": {"gemini_1", "gemini_2", "gemini_3"},  # 3072d only - highest quality
+    "standard": {"nv_direct", "mistral", "nv_openrouter"},  # 1024-2048d - good quality, free
+    "light": {"local_bge", "hash"},  # 384d - zero cost, unlimited
+    "deep": {"gemini_1", "gemini_2", "gemini_3", "nv_openrouter"},  # 2048-3072d - deep analysis
     "default": set(),  # Any available provider (empty = all)
 }
 

@@ -1,4 +1,4 @@
-"""#7 — Prompt Registry. Git-versioned prompts with hot-reload support.
+"""#7 - Prompt Registry. Git-versioned prompts with hot-reload support.
 Store prompts in prompts/*.yaml. Load at startup, reload via API."""
 
 import os

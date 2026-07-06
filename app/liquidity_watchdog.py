@@ -134,7 +134,7 @@ def get_tracked_tokens() -> list[dict[str, Any]]:
         hash_key = f"{REDIS_NS}:token:{token_id}"
         raw = r.hgetall(hash_key)
         if not raw:
-            # Stale entry — clean up
+            # Stale entry - clean up
             r.srem(f"{REDIS_NS}:tracked", token_id)
             continue
 

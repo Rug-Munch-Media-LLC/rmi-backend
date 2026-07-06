@@ -1,12 +1,12 @@
 """
-RMI MCP Server — Quality Endpoints
+RMI MCP Server - Quality Endpoints
 
 Adds the endpoints that make agents choose us over competitors:
-  /mcp/health      — Agent health check with response times
-  /mcp/status      — Live system status (uptime, cache, rate limits)
-  /mcp/changelog   — What's new in each version
-  /mcp/sdk         — Quick-start code for Python, TypeScript, curl
-  /mcp/trials      — Check remaining free trials
+  /mcp/health      - Agent health check with response times
+  /mcp/status      - Live system status (uptime, cache, rate limits)
+  /mcp/changelog   - What's new in each version
+  /mcp/sdk         - Quick-start code for Python, TypeScript, curl
+  /mcp/trials      - Check remaining free trials
 """
 
 import time
@@ -33,7 +33,7 @@ async def mcp_health(request: Request):
 
 @router.get("/mcp/status")
 async def mcp_status():
-    """Live system status — cache stats, rate limits, provider health."""
+    """Live system status - cache stats, rate limits, provider health."""
     from app.caching_shield.api_registry import get_api_manager
     from app.caching_shield.tool_registry import TOOL_COUNTS
     from app.caching_shield.unified_layer import get_data_layer
@@ -71,7 +71,7 @@ async def mcp_changelog():
                     "85 local MCP tools (Solana RPC + EVM 86 networks)",
                     "50 free Boar blockchain tools",
                     "Multi-provider caching shield on every data call",
-                    "Platform manifest — single source of truth, auto-syncing",
+                    "Platform manifest - single source of truth, auto-syncing",
                     "Agent prompts for 4 agent types",
                     "Quality endpoints: /mcp/health, /mcp/status, /mcp/sdk",
                 ],

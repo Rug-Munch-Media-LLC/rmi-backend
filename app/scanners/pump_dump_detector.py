@@ -1,5 +1,5 @@
 """
-SENTINEL — Pump-and-Dump / Coordinated Shill Detector
+SENTINEL - Pump-and-Dump / Coordinated Shill Detector
 ======================================================
 Goes beyond wash_trading's circular transfer detection to identify
 coordinated pump-and-dump campaigns:
@@ -209,7 +209,7 @@ class PumpDumpDetector:
                 price_change_24h = float(birdeye_data.get("priceChange24h", 0) or 0)
 
         now_ms = int(time.time() * 1000)
-        if created_at > 0:
+        if created_at > 0:  # noqa: SIM108
             age_hours = (now_ms - created_at) / 3_600_000
         else:
             age_hours = 24  # default assumption
@@ -265,7 +265,7 @@ class PumpDumpDetector:
             by_time[window].append(t)
 
         groups: list[CoordinatedBuyGroup] = []
-        for window, window_buys in by_time.items():
+        for window, window_buys in by_time.items():  # noqa: B007
             if len(window_buys) < self.MIN_COORDINATED_WALLETS:
                 continue
 
@@ -328,7 +328,7 @@ class PumpDumpDetector:
         # Price-volume divergence
         if report.price_volume_divergence:
             score += 15
-            warnings.append("MEDIUM: Price-volume divergence — price up without fundamental support")
+            warnings.append("MEDIUM: Price-volume divergence - price up without fundamental support")
 
         # Lifecycle stage
         if report.lifecycle_stage == "pump":
@@ -344,7 +344,7 @@ class PumpDumpDetector:
         # LP removal signal
         if report.has_lp_removal_signal:
             score += 25
-            warnings.append("CRITICAL: Liquidity very low relative to market cap — possible LP removal")
+            warnings.append("CRITICAL: Liquidity very low relative to market cap - possible LP removal")
 
         # Fake volume signal
         if report.has_fake_volume_signal:

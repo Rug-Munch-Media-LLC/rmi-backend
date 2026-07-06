@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot sweep — no interactive prompt. For cron/automation.
+"""One-shot sweep - no interactive prompt. For cron/automation.
 Usage: docker exec rmi_backend python3 /app/app/sweep_now.py [--chain sol|eth] [--to ADDR] [--min 1.00]
 """
 
@@ -16,7 +16,7 @@ parser.add_argument("--to", default="")
 parser.add_argument("--min", type=float, default=1.0)
 args = parser.parse_args()
 
-from app.wallet_manager_v2 import get_wallet_manager_v2
+from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402
 
 mgr = get_wallet_manager_v2(os.environ["WALLET_VAULT_PASSWORD"])
 evm_chains = {
@@ -89,21 +89,21 @@ for w in mgr._wallets.values():
             kp = Keypair.from_bytes(ctx.PrivateKey().Raw().ToBytes())
 
             async def _do():
-                async with AsyncClient(rpc) as c:
-                    resp = await c.get_balance(kp.pubkey(), commitment=Confirmed)
+                async with AsyncClient(rpc) as c:  # noqa: B023
+                    resp = await c.get_balance(kp.pubkey(), commitment=Confirmed)  # noqa: B023
                     if resp.value <= 2_000_000:
                         return
                     sweep = resp.value - 1_000_000
                     ix = transfer(
                         TransferParams(
-                            from_pubkey=kp.pubkey(),
-                            to_pubkey=Pubkey.from_string(owner),
+                            from_pubkey=kp.pubkey(),  # noqa: B023
+                            to_pubkey=Pubkey.from_string(owner),  # noqa: B023
                             lamports=sweep,
                         )
                     )
                     tx = Transaction().add(ix)
-                    tx.sign(kp)
-                    r = await c.send_transaction(tx, kp)
+                    tx.sign(kp)  # noqa: B023
+                    r = await c.send_transaction(tx, kp)  # noqa: B023
                     return str(r.value)
 
             sig = asyncio.run(_do())
@@ -115,4 +115,4 @@ for w in mgr._wallets.values():
         errors += 1
 
 mgr._save_vault()
-print("Done: %d swept, %d errors" % (swept, errors))
+print("Done: %d swept, %d errors" % (swept, errors))  # noqa: UP031

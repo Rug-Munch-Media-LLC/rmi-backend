@@ -1,5 +1,5 @@
 """
-Tests for cross_chain_whale.py — Cross-Chain Whale Tracker.
+Tests for cross_chain_whale.py - Cross-Chain Whale Tracker.
 """
 
 from unittest.mock import patch

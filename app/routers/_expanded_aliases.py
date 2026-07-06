@@ -1,5 +1,5 @@
 """
-Expanded tool aliases — maps 44 new specialized tools + 80 per-chain variants
+Expanded tool aliases - maps 44 new specialized tools + 80 per-chain variants
 to their closest real handler endpoint.
 
 Per-chain variants (e.g., wallet_solana) are handled by the dispatcher

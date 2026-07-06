@@ -1,4 +1,4 @@
-"""T11 — Federated labels router.
+"""T11 - Federated labels router.
 
 Endpoint:
   GET /api/v1/labels/{address}?chain=ethereum
@@ -49,12 +49,12 @@ async def get_labels(
     """Get all wallet labels from 6 federated sources in parallel.
 
     Sources queried:
-      1. eth-labels.db         — 115K local labels (SQLite)
-      2. Etherscan CSV         — 51K labels (DuckDB)
-      3. Ethereum labels CSV   — 51K labels (DuckDB)
-      4. Solana labels CSV     — 103K labels (DuckDB)
-      5. ClickHouse            — wallet_memory.wallet_labels
-      6. MetaSleuth            — BlockSec AML API
+      1. eth-labels.db         - 115K local labels (SQLite)
+      2. Etherscan CSV         - 51K labels (DuckDB)
+      3. Ethereum labels CSV   - 51K labels (DuckDB)
+      4. Solana labels CSV     - 103K labels (DuckDB)
+      5. ClickHouse            - wallet_memory.wallet_labels
+      6. MetaSleuth            - BlockSec AML API
 
     Graceful degradation: failed sources are skipped, not raised.
     """
@@ -78,4 +78,4 @@ async def get_labels(
         raise HTTPException(
             status_code=500,
             detail=f"Label fetch failed: {type(e).__name__}: {str(e)[:200]}",
-        )
+        ) from e

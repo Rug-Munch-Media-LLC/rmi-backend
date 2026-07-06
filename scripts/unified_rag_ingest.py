@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-RMI Unified RAG Ingestion Pipeline — v2.0
+RMI Unified RAG Ingestion Pipeline - v2.0
 ==========================================
 Multi-source, auto-throttling, permanence-guaranteed RAG ingestion.
 
 Sources (all FREE):
-  1. GitHub scam databases — ScamSniffer, MetaMask, CryptoScamDB, ChainPatrol
-  2. News articles — auto-ingested from news_service.py
-  3. Research papers — arxiv crypto/blockchain papers
-  4. Existing scripts — Rekt hacks, Etherscan labels, SIGMOD, WHALEGOD
-  5. Token scan results — auto-fed from DataBus scanner
+  1. GitHub scam databases - ScamSniffer, MetaMask, CryptoScamDB, ChainPatrol
+  2. News articles - auto-ingested from news_service.py
+  3. Research papers - arxiv crypto/blockchain papers
+  4. Existing scripts - Rekt hacks, Etherscan labels, SIGMOD, WHALEGOD
+  5. Token scan results - auto-fed from DataBus scanner
 
 Architecture:
   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
@@ -33,7 +33,7 @@ Architecture:
               │   9 collections          │
               └──────────────────────────┘
 
-Backpressure — prevents overload:
+Backpressure - prevents overload:
   - Max 50 docs per cycle (configurable)
   - Min 2s between API calls
   - Redis key: rmi:rag:ingest:last_run (prevents concurrent runs)
@@ -140,7 +140,7 @@ def _check_redis_pressure() -> bool:
                 else:
                     mb = 0
                 if mb > MAX_REDIS_MEMORY_MB:
-                    logger.warning(f"Redis memory {mb:.0f}MB > {MAX_REDIS_MEMORY_MB}MB — stopping")
+                    logger.warning(f"Redis memory {mb:.0f}MB > {MAX_REDIS_MEMORY_MB}MB - stopping")
                     return False
                 return True
     except Exception:
@@ -191,7 +191,7 @@ def parse_cryptoscamdb(data: dict) -> list[dict]:
         docs.append(
             {
                 "collection": "known_scams",
-                "content": f"CryptoScamDB: {name} — {addr}" if name else f"CryptoScamDB entry: {addr}",
+                "content": f"CryptoScamDB: {name} - {addr}" if name else f"CryptoScamDB entry: {addr}",
                 "metadata": {"address": str(addr), "source": "cryptoscamdb", "name": name},
             }
         )
@@ -278,7 +278,7 @@ async def ingest_news_to_rag() -> int:
 
 
 async def run_unified_ingest():
-    """Main entry point — run all ingestion sources with backpressure."""
+    """Main entry point - run all ingestion sources with backpressure."""
     start = time.monotonic()
 
     # Check for concurrent run
@@ -305,7 +305,7 @@ async def run_unified_ingest():
         pass
 
     if not _check_redis_pressure():
-        logger.warning("Redis memory pressure — skipping cycle")
+        logger.warning("Redis memory pressure - skipping cycle")
         return
 
     total = 0

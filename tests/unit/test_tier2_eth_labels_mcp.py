@@ -5,8 +5,9 @@ This file tests the eth-labels MCP tools implemented for Tier 2:
 - eth_labels_stats: Statistics about eth-labels.db dataset
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from app.mcp.server import call_tool
 
@@ -40,7 +41,7 @@ async def test_eth_labels_query_version_tracked():
     print(f"✓ eth_labels_query version: {version}")
 
 
-@pytest.mark.asyncio  
+@pytest.mark.asyncio
 async def test_eth_labels_stats_version_tracked():
     """Test that eth_labels_stats tool has version tracking."""
     from app.mcp.server import TOOL_VERSIONS
@@ -57,11 +58,11 @@ async def test_eth_labels_query_calls_underlying_function(mock_query):
     # Mock the response
     mock_response = {"rows": [{"id": 1, "address": "0x123"}], "count": 1}
     mock_query.return_value = mock_response
-    
+
     result = await call_tool("eth_labels_query", {
         "sql": "SELECT * FROM accounts LIMIT 10"
     })
-    
+
     # Verify the tool processed the call
     mock_query.assert_called_once_with("SELECT * FROM accounts LIMIT 10", 1000)
     assert "result" in result
@@ -75,9 +76,9 @@ async def test_eth_labels_stats_calls_underlying_function(mock_stats):
     """Test that eth_labels_stats calls our implementation."""
     mock_response = {"total_accounts": 106000, "tables": ["accounts"]}
     mock_stats.return_value = mock_response
-    
+
     result = await call_tool("eth_labels_stats", {})
-    
+
     mock_stats.assert_called_once()
     assert "result" in result
     assert result["result"]["total_accounts"] == 106000
@@ -88,7 +89,7 @@ async def test_eth_labels_stats_calls_underlying_function(mock_stats):
 async def test_eth_labels_query_requires_sql_parameter():
     """Test that eth_labels_query properly validates input."""
     result = await call_tool("eth_labels_query", {})
-    
+
     assert "error" in result
     assert "sql parameter required" in result["error"]
     print("✓ eth_labels_query validates required parameters")
@@ -100,7 +101,7 @@ async def test_eth_labels_query_blocks_non_select_statements():
     result = await call_tool("eth_labels_query", {
         "sql": "UPDATE accounts SET label='bad' WHERE id=1"
     })
-    
+
     assert "error" in result
     assert "only SELECT queries allowed" in result["error"]
     print("✓ eth_labels_query blocks non-SELECT queries")
@@ -109,17 +110,17 @@ async def test_eth_labels_query_blocks_non_select_statements():
 if __name__ == "__main__":
     """Direct test runner."""
     import asyncio
-    
+
     async def run_tests():
         print("Running Tier 2 eth-labels MCP tool tests...")
-        
+
         await test_eth_labels_query_tool_exists()
         await test_eth_labels_stats_tool_exists()
         await test_eth_labels_query_version_tracked()
         await test_eth_labels_stats_version_tracked()
         await test_eth_labels_query_requires_sql_parameter()
         await test_eth_labels_query_blocks_non_select_statements()
-        
+
         print("\nAll Tier 2 eth-labels MCP tool tests passed! 🎉")
-        
+
     asyncio.run(run_tests())

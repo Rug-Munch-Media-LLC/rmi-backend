@@ -1,4 +1,4 @@
-"""Sentiment pipeline — X/Twitter + Reddit crypto mentions → NLP scoring."""
+"""Sentiment pipeline - X/Twitter + Reddit crypto mentions → NLP scoring."""
 
 import os
 import re

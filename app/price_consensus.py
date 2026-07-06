@@ -1,12 +1,12 @@
 """
-Price Consensus Engine — Multi-Source Aggregation with MAD Outlier Detection.
+Price Consensus Engine - Multi-Source Aggregation with MAD Outlier Detection.
 
 Queries 7+ price sources in parallel, applies Median Absolute Deviation (MAD)
 outlier filtering (z-score > 3 = outlier), and computes a weighted mean price
 using source reliability scores.
 
 Sources: DexScreener, GeckoTerminal, Jupiter (Solana), DIA, CoinGecko,
-         CryptoCompare, Coinpaprika — all free tier, no paid keys required.
+         CryptoCompare, Coinpaprika - all free tier, no paid keys required.
 
 Depends on: httpx, numpy (for median/percentile), optional env keys.
 """
@@ -23,7 +23,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# ── Source Reliability Scores (0.0–1.0, higher = more trusted) ─────────────
+# ── Source Reliability Scores (0.0-1.0, higher = more trusted) ─────────────
 
 # These are initial weights based on historical accuracy, API stability,
 # and data freshness. They can be adjusted via _source_stats over time.
@@ -46,7 +46,7 @@ class PriceSource:
     """A single price data provider."""
 
     name: str
-    weight: float  # Reliability score 0–1
+    weight: float  # Reliability score 0-1
     fetcher: Any = None  # Async callable: (address, chain) → Optional[float]
     last_price: float = 0.0
     last_latency: float = 0.0
@@ -58,7 +58,7 @@ class PriceConsensus:
     """Result of multi-source price consensus."""
 
     price: float | None = None
-    confidence: float = 0.0  # 0–100%
+    confidence: float = 0.0  # 0-100%
     sources_used: list[str] = field(default_factory=list)
     outlier_sources: list[str] = field(default_factory=list)
     failed_sources: list[str] = field(default_factory=list)
@@ -121,7 +121,7 @@ class PriceConsensusEngine:
     # ── Source Fetchers ──────────────────────────────────────────────────
 
     async def _fetch_dexscreener(self, address: str, chain: str) -> float | None:
-        """DexScreener free API — no key required."""
+        """DexScreener free API - no key required."""
         try:
             async with httpx.AsyncClient(timeout=self.PER_SOURCE_TIMEOUT) as client:
                 r = await client.get(
@@ -143,7 +143,7 @@ class PriceConsensusEngine:
             return None
 
     async def _fetch_geckoterminal(self, address: str, chain: str) -> float | None:
-        """GeckoTerminal free API — no key required."""
+        """GeckoTerminal free API - no key required."""
         network = self._chain_to_gecko_network(chain)
         try:
             async with httpx.AsyncClient(timeout=self.PER_SOURCE_TIMEOUT) as client:
@@ -164,7 +164,7 @@ class PriceConsensusEngine:
             return None
 
     async def _fetch_jupiter(self, address: str, chain: str) -> float | None:
-        """Jupiter price API — free, Solana only."""
+        """Jupiter price API - free, Solana only."""
         if chain.lower() not in ("solana", "sol"):
             return None
         try:
@@ -186,7 +186,7 @@ class PriceConsensusEngine:
             return None
 
     async def _fetch_dia(self, address: str, chain: str) -> float | None:
-        """DIA oracle price feed — free, no key."""
+        """DIA oracle price feed - free, no key."""
         dia_chain = self._chain_to_dia_chain(chain)
         if not dia_chain:
             return None
@@ -207,7 +207,7 @@ class PriceConsensusEngine:
             return None
 
     async def _fetch_coingecko(self, address: str, chain: str) -> float | None:
-        """CoinGecko token price by contract — free tier."""
+        """CoinGecko token price by contract - free tier."""
         cg_chain = self._chain_to_coingecko_platform(chain)
         if not cg_chain:
             return None
@@ -236,7 +236,7 @@ class PriceConsensusEngine:
             return None
 
     async def _fetch_cryptocompare(self, address: str, chain: str) -> float | None:
-        """CryptoCompare price API — free tier."""
+        """CryptoCompare price API - free tier."""
         api_key = os.getenv("CRYPTOCOMPARE_API_KEY", "")
         headers = {"Accept": "application/json"}
         if api_key:
@@ -262,7 +262,7 @@ class PriceConsensusEngine:
             return None
 
     async def _fetch_coinpaprika(self, address: str, chain: str) -> float | None:
-        """Coinpaprika free API — no key required."""
+        """Coinpaprika free API - no key required."""
         try:
             async with httpx.AsyncClient(timeout=self.PER_SOURCE_TIMEOUT) as client:
                 # Try by contract address lookup
@@ -290,7 +290,7 @@ class PriceConsensusEngine:
             return None
 
     async def _fetch_birdeye(self, address: str, chain: str) -> float | None:
-        """Birdeye price API — requires BIRDEYE_API_KEY."""
+        """Birdeye price API - requires BIRDEYE_API_KEY."""
         api_key = os.getenv("BIRDEYE_API_KEY", "")
         if not api_key:
             return None
@@ -497,7 +497,7 @@ class PriceConsensusEngine:
         # z_i = 0.6745 * (x_i - median) / MAD
         z_scores = 0.6745 * (arr - median) / mad
 
-        # Outlier threshold: |z| > 3 (very conservative — classic threshold)
+        # Outlier threshold: |z| > 3 (very conservative - classic threshold)
         inliers_mask = np.abs(z_scores) <= 3.0
         outliers_mask = ~inliers_mask
 
@@ -514,7 +514,7 @@ class PriceConsensusEngine:
 
         # If all prices are outliers, fall back to all with low confidence
         if not inlier_prices:
-            logger.warning(f"All prices flagged as outliers for {token_address} — using all with low confidence")
+            logger.warning(f"All prices flagged as outliers for {token_address} - using all with low confidence")
             weighted_avg = self._weighted_mean(prices)
             return PriceConsensus(
                 price=weighted_avg,
@@ -540,7 +540,7 @@ class PriceConsensusEngine:
         # Base confidence from inlier agreement ratio
         if inlier_count >= 3:
             agreement_ratio = inlier_count / responder_count
-            confidence = agreement_ratio * 85.0 + 10.0  # 70–95 range
+            confidence = agreement_ratio * 85.0 + 10.0  # 70-95 range
         elif inlier_count == 2:
             confidence = 55.0
         else:

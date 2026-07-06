@@ -1,6 +1,8 @@
+from app.sweep_all import results
+
 #!/usr/bin/env python3
 """
-Deep Intelligence Engine — 12 Unaccounted Features
+Deep Intelligence Engine - 12 Unaccounted Features
 ====================================================
 Deployer Reputation Score, Pre-flight Simulator, Liquidity Lock Authenticity,
 Volume Authenticity Engine, Slow Rug Detector, Funding Source Tracer,
@@ -10,12 +12,12 @@ Post-Purchase Monitor, Cross-Chain Identity Resolution, Social-Onchain Correlati
 Uses real on-chain data from GMGN, Birdeye, Helius, Etherscan, and our DB.
 """
 
-import logging
-import os
-from datetime import UTC, datetime
-from typing import Any
+import logging  # noqa: E402
+import os  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
+from typing import Any  # noqa: E402
 
-import httpx
+import httpx  # noqa: E402
 
 logger = logging.getLogger("deep_intel")
 
@@ -39,19 +41,19 @@ class DeepIntelConfig:
     GOPLUS_KEY: str = os.getenv("GOPLUS_API_KEY", "")
     CHAINABUSE_KEY: str = os.getenv("CHAINABUSE_API_KEY", "")
 
-    CHAINS = ["sol", "eth", "bsc", "base", "arb", "polygon", "avax"]
-    CHAIN_RPC_MAP = {
+    CHAINS = ["sol", "eth", "bsc", "base", "arb", "polygon", "avax"]  # noqa: RUF012
+    CHAIN_RPC_MAP = {  # noqa: RUF012
         "eth": f"https://eth-mainnet.g.alchemy.com/v2/{os.getenv('ALCHEMY_KEY', '')}",
         "bsc": "https://bsc-dataseed.binance.org",
         "base": f"https://base-mainnet.g.alchemy.com/v2/{os.getenv('ALCHEMY_KEY', '')}",
         "arb": f"https://arb-mainnet.g.alchemy.com/v2/{os.getenv('ALCHEMY_KEY', '')}",
         "polygon": f"https://polygon-mainnet.g.alchemy.com/v2/{os.getenv('ALCHEMY_KEY', '')}",
     }
-    CHAIN_SCAN_MAP = {
+    CHAIN_SCAN_MAP = {  # noqa: RUF012
         "eth": ("https://api.etherscan.io/api", os.getenv("ETHERSCAN_KEY", "")),
         "bsc": ("https://api.bscscan.com/api", os.getenv("BSCSCAN_KEY", "")),
     }
-    CHAIN_DEXSCREENER_MAP = {
+    CHAIN_DEXSCREENER_MAP = {  # noqa: RUF012
         "sol": "solana",
         "eth": "ethereum",
         "bsc": "bsc",
@@ -383,7 +385,7 @@ async def deployer_reputation(address: str, chain: str = "sol") -> dict[str, Any
     if result["tokens_deployed"] > 5:
         flags.append(f"High volume deployer: {result['tokens_deployed']} tokens")
     if result["scam_rate"] > 0.7:
-        flags.append(f"Scam rate {result['scam_rate']:.0%} — likely serial rugger")
+        flags.append(f"Scam rate {result['scam_rate']:.0%} - likely serial rugger")
 
     # Calculate composite risk score
     scam_weight = min(result["scam_rate"] * 60, 60)
@@ -449,7 +451,7 @@ async def preflight_simulate(
             "can_buy": slippage_impact < 5,
         }
 
-        # Sell simulation — assume a sell tax might exist
+        # Sell simulation - assume a sell tax might exist
         # Check if token is sellable (vs honeypot)
         sell_tax_estimate = 0  # Would be calculated from contract analysis
         estimated_sell_usd = estimated_tokens * price_usd * (1 - sell_tax_estimate / 100)
@@ -466,7 +468,7 @@ async def preflight_simulate(
 
         # Warnings
         if liquidity < 10000:
-            result["warnings"].append(f"Low liquidity: ${liquidity:,.0f} — hard to exit positions")
+            result["warnings"].append(f"Low liquidity: ${liquidity:,.0f} - hard to exit positions")
         if slippage_impact > 3:
             result["warnings"].append(f"Your buy would move the price ~{slippage_impact:.1f}%")
         if volume_24h < 1000:
@@ -548,12 +550,12 @@ async def liquidity_lock_authenticity(token_address: str, chain: str = "sol") ->
         }
 
         if lock_pct < 50:
-            flags.append(f"Only {lock_pct:.0f}% of LP locked — partial lock")
+            flags.append(f"Only {lock_pct:.0f}% of LP locked - partial lock")
         if lock_pct < 100:
-            flags.append("Not fully locked — remaining LP can be pulled")
+            flags.append("Not fully locked - remaining LP can be pulled")
     else:
         result["is_locked"] = False
-        flags.append("NO liquidity lock detected — LP can be removed at any time")
+        flags.append("NO liquidity lock detected - LP can be removed at any time")
 
     # LP ratio analysis
     if liq_to_mcap < 0.02:
@@ -633,24 +635,24 @@ async def volume_authenticity(token_address: str, chain: str = "sol") -> dict[st
     # Signal 1: Volume spikes with minimal price change (classic wash trading)
     if volume_24h > 50000 and abs(price_change) < 2:
         wash_score += 25
-        wash_indicators.append("High volume but minimal price movement — possible wash trading")
+        wash_indicators.append("High volume but minimal price movement - possible wash trading")
 
     # Signal 2: Buy/sell ratio near 1.0 (symmetric trading)
     if 0.8 < buy_sell_ratio < 1.2 and total_txs > 20:
         wash_score += 20
-        wash_indicators.append(f"Symmetric buy/sell ratio ({buy_sell_ratio:.2f}) — common in wash trading")
+        wash_indicators.append(f"Symmetric buy/sell ratio ({buy_sell_ratio:.2f}) - common in wash trading")
 
     # Signal 3: Many small transactions
     if avg_tx_value < 50 and total_txs > 100:
         wash_score += 15
-        wash_indicators.append(f"Many small transactions (avg ${avg_tx_value:.0f}/tx) — possible bot activity")
+        wash_indicators.append(f"Many small transactions (avg ${avg_tx_value:.0f}/tx) - possible bot activity")
 
     # Signal 4: Higher volume than liquidity (impossible without wash trading)
     liquidity = float(dex_info.get("liquidity", {}).get("usd", 0) or 0)
     if volume_24h > liquidity * 3 and liquidity > 0:
         wash_score += 20
         wash_indicators.append(
-            f"24h volume ({volume_24h:,.0f}) > 3x liquidity ({liquidity:,.0f}) — wash trading likely"
+            f"24h volume ({volume_24h:,.0f}) > 3x liquidity ({liquidity:,.0f}) - wash trading likely"
         )
 
     result["wash_score"] = min(wash_score, 100)
@@ -719,23 +721,23 @@ async def slow_rug_detector(token_address: str, chain: str = "sol") -> dict[str,
     # Pattern 1: Price declining while volume stays high (LP being drained)
     if price_change_24h < -10 and volume_24h > current_liq * 0.5:
         slow_rug_score += 30
-        patterns.append(f"Price down {price_change_24h:.1f}% in 24h with high volume — possible LP drain")
+        patterns.append(f"Price down {price_change_24h:.1f}% in 24h with high volume - possible LP drain")
 
     # Pattern 2: Steady decline with no recovery
     if price_change_24h < -5 and price_change_6h < -2:
         slow_rug_score += 20
-        patterns.append("Consistent decline across timeframes — slow bleed pattern")
+        patterns.append("Consistent decline across timeframes - slow bleed pattern")
 
     # Pattern 3: Very low liquidity for the market cap
     mcap = float(dex_info.get("marketCap", 0) or 0)
     if mcap > 0 and current_liq / mcap < 0.03:
         slow_rug_score += 25
-        patterns.append(f"LP is only {current_liq / mcap:.1%} of market cap — easy to drain")
+        patterns.append(f"LP is only {current_liq / mcap:.1%} of market cap - easy to drain")
 
     # Pattern 4: High volume-to-liquidity ratio (churning through thin pool)
     if current_liq > 0 and volume_24h / current_liq > 2:
         slow_rug_score += 15
-        patterns.append(f"24h volume is {volume_24h / current_liq:.1f}x the liquidity — high churn rate")
+        patterns.append(f"24h volume is {volume_24h / current_liq:.1f}x the liquidity - high churn rate")
 
     result["slow_rug_score"] = min(slow_rug_score, 100)
     result["patterns"] = patterns
@@ -785,7 +787,7 @@ async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, A
     flags = []
     risk_score = 0
 
-    # For Solana — use Helius
+    # For Solana - use Helius
     if chain == "sol" and cfg.HELIUS_KEY:
         # Get transaction history
         txs = await client.helius_post("/addresses/transactions", {"addresses": [address], "options": {"limit": 50}})
@@ -795,7 +797,7 @@ async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, A
                 # Heuristic: look for SOL transfers INTO this wallet
                 pass
 
-    # For EVM — use Etherscan/BSCScan
+    # For EVM - use Etherscan/BSCScan
     elif chain in cfg.CHAIN_SCAN_MAP:
         txs = await client.scan_get(
             chain,
@@ -842,10 +844,10 @@ async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, A
                 )
 
                 if is_fresh:
-                    flags.append("Fresh wallet — funded just before interaction")
+                    flags.append("Fresh wallet - funded just before interaction")
                     risk_score += 25
                 if not is_cex and value_eth < 1:
-                    flags.append("Small non-CEX funding — possible burner wallet")
+                    flags.append("Small non-CEX funding - possible burner wallet")
                     risk_score += 15
 
     result["funding_sources"] = sources
@@ -896,7 +898,7 @@ async def ownership_theater_detector(token_address: str, chain: str = "sol") -> 
         if "renounced" in [str(t).lower() for t in tags]:
             is_renounced = True
 
-    # For EVM tokens — check contract source
+    # For EVM tokens - check contract source
     if chain in cfg.CHAIN_SCAN_MAP:
         contract_info = await client.scan_get(
             chain,
@@ -913,22 +915,22 @@ async def ownership_theater_detector(token_address: str, chain: str = "sol") -> 
             source_data.get("OptimizationUsed", "0")
 
             if is_proxy:
-                flags.append("UPGRADEABLE PROXY — owner can change contract logic at any time")
+                flags.append("UPGRADEABLE PROXY - owner can change contract logic at any time")
                 theater_score += 40
                 privileges.append("Proxy contract with upgradeable implementation")
 
             # Check for common privilege functions in ABI
             abi_str = source_data.get("ABI", "")
             if "mint" in abi_str.lower():
-                flags.append("Mint function found — tokens can be created out of thin air")
+                flags.append("Mint function found - tokens can be created out of thin air")
                 theater_score += 30
                 privileges.append("Mint function exists")
             if "pause" in abi_str.lower():
-                flags.append("Pause function — contract can be frozen")
+                flags.append("Pause function - contract can be frozen")
                 theater_score += 15
                 privileges.append("Pause function exists")
             if "blacklist" in abi_str.lower():
-                flags.append("Blacklist function — selective wallet blocking")
+                flags.append("Blacklist function - selective wallet blocking")
                 theater_score += 25
                 privileges.append("Blacklist function exists")
 
@@ -991,11 +993,11 @@ async def exit_liquidity_calculator(
 
     flags = []
     if position_pct_of_liq > 10:
-        flags.append(f"Your position is {position_pct_of_liq:.1f}% of the pool — exiting will crash the price")
+        flags.append(f"Your position is {position_pct_of_liq:.1f}% of the pool - exiting will crash the price")
     if position_pct_of_liq > 50:
-        flags.append("CRITICAL: Position exceeds half the liquidity — exit is nearly impossible")
+        flags.append("CRITICAL: Position exceeds half the liquidity - exit is nearly impossible")
     if liquidity < 10000:
-        flags.append(f"Extremely thin liquidity (${liquidity:,.0f}) — large exits impossible")
+        flags.append(f"Extremely thin liquidity (${liquidity:,.0f}) - large exits impossible")
 
     # Cascade simulation: what if top holders sell?
     cascade = []
@@ -1088,21 +1090,21 @@ async def token_lifespan_predictor(token_address: str, chain: str = "sol") -> di
     # Signal: Very new token
     if pair_age_days < 1:
         risk_score += 20
-        risk_flags.append("Token less than 1 day old — extreme risk")
+        risk_flags.append("Token less than 1 day old - extreme risk")
     elif pair_age_days < 7:
         risk_score += 15
-        risk_flags.append("Token less than 1 week old — high risk")
+        risk_flags.append("Token less than 1 week old - high risk")
     elif pair_age_days < 30:
         risk_score += 5
-        risk_flags.append("Token less than 1 month old — elevated risk")
+        risk_flags.append("Token less than 1 month old - elevated risk")
 
     # Signal: Price patterns
     if price_change_1h < -20:
         risk_score += 15
-        risk_flags.append(f"1h price drop: {price_change_1h:.1f}% — active dumping")
+        risk_flags.append(f"1h price drop: {price_change_1h:.1f}% - active dumping")
     if price_change_24h < -50:
         risk_score += 20
-        risk_flags.append(f"24h price crash: {price_change_24h:.1f}% — likely rug in progress")
+        risk_flags.append(f"24h price crash: {price_change_24h:.1f}% - likely rug in progress")
 
     # Signal: Low liquidity
     if liquidity < 5000:
@@ -1114,7 +1116,7 @@ async def token_lifespan_predictor(token_address: str, chain: str = "sol") -> di
     # Signal: Volume anomaly
     if mcap > 0 and volume_24h / max(mcap, 1) > 3:
         risk_score += 10
-        risk_flags.append("Volume exceeds 3x market cap — likely wash trading")
+        risk_flags.append("Volume exceeds 3x market cap - likely wash trading")
 
     # Pattern matching
     pattern = "UNKNOWN"
@@ -1213,7 +1215,7 @@ async def post_purchase_monitor(token_address: str, chain: str = "sol") -> dict[
             {
                 "severity": "CRITICAL",
                 "type": "PRICE_CRASH",
-                "message": f"Price dropped {price_change_1h:.1f}% in the last hour — possible rug or sell-off",
+                "message": f"Price dropped {price_change_1h:.1f}% in the last hour - possible rug or sell-off",
             }
         )
     elif price_change_1h < -10:
@@ -1335,9 +1337,9 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
 
     # Risk analysis of cross-chain presence
     if len(profiles) >= 3:
-        flags.append(f"Same symbol found on {len(profiles)} chains — possible coordinated multi-chain scam")
+        flags.append(f"Same symbol found on {len(profiles)} chains - possible coordinated multi-chain scam")
     elif len(profiles) >= 2:
-        flags.append(f"Token exists on {len(profiles)} chains — verify they're the same team")
+        flags.append(f"Token exists on {len(profiles)} chains - verify they're the same team")
 
     result["cross_chain_profiles"] = profiles
     result["linked_addresses"] = linked
@@ -1404,7 +1406,7 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
     # Check for pump pattern (price spike without organic social presence)
     if price_change_24h > 100 and volume_24h > mcap * 0.5:
         correlation_score += 20
-        flags.append("Massive price spike with volume exceeding 50% of market cap — possible coordinated pump")
+        flags.append("Massive price spike with volume exceeding 50% of market cap - possible coordinated pump")
 
     if price_change_6h > 50 and volume_6h > volume_24h * 0.5:
         correlation_score += 15
@@ -1412,12 +1414,12 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
 
     if mcap > 0 and volume_24h / max(mcap, 1) > 2:
         correlation_score += 10
-        flags.append("Volume-to-mcap ratio exceeds 2x — extreme activity for size")
+        flags.append("Volume-to-mcap ratio exceeds 2x - extreme activity for size")
 
     # Suspicious social patterns
     if social_data["social_count"] == 0:
         correlation_score += 15
-        flags.append("No social links found — possible anonymous/scam project")
+        flags.append("No social links found - possible anonymous/scam project")
 
     result["social_signals"] = social_data
     result["onchain_activity"] = {

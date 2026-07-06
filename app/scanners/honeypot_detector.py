@@ -1,5 +1,5 @@
 """
-SENTINEL — Honeypot Detector
+SENTINEL - Honeypot Detector
 =============================
 Detects honeypot tokens via buy/sell simulation and transfer tax analysis.
 
@@ -89,7 +89,7 @@ class HoneypotDetector:
         await self.client.aclose()
 
     async def analyze(self, token_address: str, chain: str, pair_address: str = "") -> HoneypotReport:
-        """Alias for detect() — matches SENTINEL pipeline interface."""
+        """Alias for detect() - matches SENTINEL pipeline interface."""
         return await self.detect(token_address, chain, pair_address)
 
     async def detect(self, token_address: str, chain: str, pair_address: str = "") -> HoneypotReport:
@@ -153,7 +153,7 @@ class HoneypotDetector:
 
         # Step 3: Analyze sell results
         if not sell_results:
-            report.warnings.append("No sell quotes obtainable — likely honeypot")
+            report.warnings.append("No sell quotes obtainable - likely honeypot")
             report.is_honeypot = True
             report.can_sell = False
             report.confidence = 80
@@ -166,15 +166,15 @@ class HoneypotDetector:
             report.is_honeypot = True
             report.can_sell = False
             report.confidence = SELL_FAIL_CONF
-            report.warnings.append("All sell simulations failed — classic honeypot")
+            report.warnings.append("All sell simulations failed - classic honeypot")
         elif failed > 0:
             report.can_sell = True
             report.is_honeypot = True
             report.confidence = 60 + int(failed / total * 20)
-            report.warnings.append(f"{failed}/{total} sell simulations failed — partial sell block")
+            report.warnings.append(f"{failed}/{total} sell simulations failed - partial sell block")
             self._check_volume_limit(sell_results, report)
         else:
-            # All sells succeeded — compute effective taxes
+            # All sells succeeded - compute effective taxes
             successful = [s for s in sell_results if not s.simulation_failed]
             buy_price = ref_sol / ref_tokens if ref_tokens > 0 else 0
             sell_prices = [s.actual_output / s.input_amount for s in successful if s.input_amount > 0]
@@ -240,7 +240,7 @@ class HoneypotDetector:
             report.can_sell = False
             report.is_honeypot = True
             report.confidence = max(report.confidence, 90)
-            report.warnings.append("Transfer simulation failed — deny-list or honeypot contract")
+            report.warnings.append("Transfer simulation failed - deny-list or honeypot contract")
         elif not can_to_pair:
             report.is_honeypot = True
             report.confidence = max(report.confidence, 70)
@@ -256,7 +256,7 @@ class HoneypotDetector:
                 report.can_sell = False
                 report.is_honeypot = True
                 report.confidence = max(report.confidence, SELL_FAIL_CONF)
-                report.warnings.append("All EVM sell simulations failed — honeypot")
+                report.warnings.append("All EVM sell simulations failed - honeypot")
             elif failed:
                 report.is_honeypot = True
                 report.confidence = max(report.confidence, 60)
@@ -347,14 +347,14 @@ class HoneypotDetector:
         # High buy + high sell tax → scam
         if bt > HIGH_TAX_PCT and st > HIGH_TAX_PCT:
             combined = bt + st
-            report.warnings.append(f"High combined tax ({combined:.1f}%): buy={bt:.1f}% sell={st:.1f}% — likely scam")
+            report.warnings.append(f"High combined tax ({combined:.1f}%): buy={bt:.1f}% sell={st:.1f}% - likely scam")
             report.is_honeypot = True
             report.confidence = max(report.confidence, 75)
             report.transfer_tax = round(combined, 2)
 
         # Sell blocked + extreme tax → honeypot
         if not report.can_sell and st > EXTREME_TAX_PCT:
-            report.warnings.append("Sell blocked with extreme tax — classic honeypot")
+            report.warnings.append("Sell blocked with extreme tax - classic honeypot")
             report.is_honeypot = True
             report.confidence = min(max(report.confidence, 90), 100)
 
@@ -364,7 +364,7 @@ class HoneypotDetector:
             slippages = [s.slippage_pct for s in succeeded]
             if max(slippages) - min(slippages) > 20:
                 report.warnings.append(
-                    f"Variable slippage ({min(slippages):.1f}%–{max(slippages):.1f}%) — possible volume-based tax trap"
+                    f"Variable slippage ({min(slippages):.1f}%-{max(slippages):.1f}%) - possible volume-based tax trap"
                 )
                 report.confidence = max(report.confidence, VARIABLE_TAX_CONF)
                 report.is_honeypot = True
@@ -422,7 +422,7 @@ class HoneypotDetector:
             avg_ok = sum(s.input_amount for s in ok) / len(ok)
             avg_fail = sum(s.input_amount for s in fail) / len(fail)
             if 0 < avg_ok < avg_fail:
-                report.warnings.append("Smaller sells succeed, larger fail — volume-limited sell trap")
+                report.warnings.append("Smaller sells succeed, larger fail - volume-limited sell trap")
                 report.confidence = min(report.confidence + 5, 95)
 
     def _finalize(self, report: HoneypotReport) -> HoneypotReport:

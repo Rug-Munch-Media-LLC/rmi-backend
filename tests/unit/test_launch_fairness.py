@@ -307,7 +307,7 @@ class TestSerialization(unittest.TestCase):
         result = LaunchFairnessResult(token_address="0xabc", chain="ethereum")
         result.fairness_score = 45.0
         result.risk_level = "high"
-        result.summary = "High risk — multiple signals"
+        result.summary = "High risk - multiple signals"
         result.signals = [
             FairnessSignalResult(
                 signal=FairnessSignal.BUNDLED_LAUNCH,

@@ -1,11 +1,11 @@
-"""T15 — Qdrant test_col_* cleanup guard.
+"""T15 - Qdrant test_col_* cleanup guard.
 
 CI runs this after integration tests to verify no test_col_* collections
 are left behind. Test fixtures SHOULD use unique names (uuid-based) and
-clean up in teardown — this test catches regressions where they don't.
+clean up in teardown - this test catches regressions where they don't.
 
 Also includes a pytest fixture that creates a unique test collection,
-yields its name, and drops it on teardown — even on test failure.
+yields its name, and drops it on teardown - even on test failure.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def test_no_legacy_test_col_collection() -> None:
     """
     names = _list_collections()
     assert "test_col" not in names, (
-        "Bare 'test_col' collection found — this is a test artifact that "
+        "Bare 'test_col' collection found - this is a test artifact that "
         "should never be present in production. Use the "
         "`clean_test_collection` fixture for all Qdrant tests."
     )
@@ -87,7 +87,7 @@ def clean_test_collection() -> str:
         yield name
     finally:
         # Always drop, even on test failure
-        try:
+        try:  # noqa: SIM105
             httpx.delete(f"{QDRANT_URL}/collections/{name}", timeout=5.0)
         except Exception:
             pass  # best-effort cleanup

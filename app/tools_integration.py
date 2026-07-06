@@ -1,5 +1,5 @@
 """
-RMI Tools Integration — Wires all installed open-source tools into the backend.
+RMI Tools Integration - Wires all installed open-source tools into the backend.
 Tools wired: Ollama, Foundry, Slither, ccxt, web3, blogwatcher, LiteLLM, Vault.
 """
 
@@ -14,7 +14,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════
-# OLLAMA — Local LLM (port 11434, 2 models)
+# OLLAMA - Local LLM (port 11434, 2 models)
 # ═══════════════════════════════════════════════════════════
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://172.17.0.1:11434")
 
@@ -65,7 +65,7 @@ async def ollama_list_models() -> list[str]:
 
 
 # ═══════════════════════════════════════════════════════════
-# FOUNDRY — EVM smart contract analysis (cast)
+# FOUNDRY - EVM smart contract analysis (cast)
 # ═══════════════════════════════════════════════════════════
 CAST_PATH = "/root/.foundry/bin/cast"
 
@@ -153,7 +153,7 @@ def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict:
 
 
 # ═══════════════════════════════════════════════════════════
-# SLITHER — Solidity vulnerability scanner
+# SLITHER - Solidity vulnerability scanner
 # ═══════════════════════════════════════════════════════════
 def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict:
     """Run Slither on a verified contract."""
@@ -175,7 +175,7 @@ def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict:
 
 
 # ═══════════════════════════════════════════════════════════
-# CCXT — 100+ exchange price feeds
+# CCXT - 100+ exchange price feeds
 # ═══════════════════════════════════════════════════════════
 def ccxt_get_prices(symbols: list[str] | None = None) -> dict:
     """Get real-time prices from multiple exchanges via ccxt."""
@@ -241,7 +241,7 @@ def ccxt_arbitrage(symbol: str = "BTC/USDT") -> dict:
 
 
 # ═══════════════════════════════════════════════════════════
-# WEB3.PY — Direct Ethereum interaction
+# WEB3.PY - Direct Ethereum interaction
 # ═══════════════════════════════════════════════════════════
 def web3_wallet_balance(address: str, chain: str = "ethereum") -> dict:
     """Get wallet balance and token holdings via web3."""
@@ -283,7 +283,7 @@ def web3_wallet_balance(address: str, chain: str = "ethereum") -> dict:
 
 
 # ═══════════════════════════════════════════════════════════
-# BLOGWATCHER — RSS/Atom feed monitoring
+# BLOGWATCHER - RSS/Atom feed monitoring
 # ═══════════════════════════════════════════════════════════
 BLOGWATCHER_PATH = "/root/go/bin/blogwatcher"
 
@@ -315,7 +315,7 @@ def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════
-# LITELLM — Multi-provider LLM proxy routing
+# LITELLM - Multi-provider LLM proxy routing
 # ═══════════════════════════════════════════════════════════
 LITELLM_CONFIG = "/srv/rugmuncher-backend/litellm/config.yaml"
 
@@ -331,7 +331,7 @@ def litellm_status() -> dict:
 
 
 # ═══════════════════════════════════════════════════════════
-# VAULT — Secrets management
+# VAULT - Secrets management
 # ═══════════════════════════════════════════════════════════
 VAULT_ADDR = os.getenv("VAULT_ADDR", "http://172.17.0.1:8200")
 
@@ -359,7 +359,7 @@ def vault_list_secrets(path: str = "secret") -> list[str]:
 
 
 # ═══════════════════════════════════════════════════════════
-# TOOL STATUS — Health check for all integrated tools
+# TOOL STATUS - Health check for all integrated tools
 # ═══════════════════════════════════════════════════════════
 async def tools_health() -> dict:
     """Health check for all integrated tools."""

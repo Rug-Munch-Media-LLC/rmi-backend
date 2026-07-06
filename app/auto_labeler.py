@@ -1,5 +1,5 @@
 """
-Auto-Labeling RAG System — Behavioral wallet labeling.
+Auto-Labeling RAG System - Behavioral wallet labeling.
 ========================================================
 Watches for on-chain patterns and automatically labels wallets over time.
 Uses FAISS similarity search against known labeled wallets.
@@ -40,7 +40,7 @@ AUTO_LABELS = {
     },
     "repeat_deployer_5": {
         "name": "Rug Pull Factory (5+)",
-        "description": "Deployed 5+ rug pull tokens — professional scam operation",
+        "description": "Deployed 5+ rug pull tokens - professional scam operation",
         "entity_type": "scam_operation",
         "risk_score": 95,
         "confidence_threshold": 0.8,
@@ -48,7 +48,7 @@ AUTO_LABELS = {
     },
     "funding_funnel": {
         "name": "Funding Funnel",
-        "description": "Received funds from 3+ known scam wallets — likely launderer",
+        "description": "Received funds from 3+ known scam wallets - likely launderer",
         "entity_type": "money_launderer",
         "risk_score": 80,
         "confidence_threshold": 0.6,
@@ -64,7 +64,7 @@ AUTO_LABELS = {
     },
     "sandwich_bot": {
         "name": "Sandwich Bot",
-        "description": "Detected sandwich attack patterns — front-running trades",
+        "description": "Detected sandwich attack patterns - front-running trades",
         "entity_type": "mev_bot",
         "risk_score": 60,
         "confidence_threshold": 0.7,
@@ -96,7 +96,7 @@ AUTO_LABELS = {
     },
     "wash_trader": {
         "name": "Wash Trader",
-        "description": "Circular transaction patterns — trading with self/controlled wallets",
+        "description": "Circular transaction patterns - trading with self/controlled wallets",
         "entity_type": "wash_trader",
         "risk_score": 70,
         "confidence_threshold": 0.65,
@@ -104,7 +104,7 @@ AUTO_LABELS = {
     },
     "dust_attacker": {
         "name": "Dust Attacker",
-        "description": "Sends dust amounts to 100+ addresses — phishing or tracking attempt",
+        "description": "Sends dust amounts to 100+ addresses - phishing or tracking attempt",
         "entity_type": "dust_attacker",
         "risk_score": 45,
         "confidence_threshold": 0.8,
@@ -112,7 +112,7 @@ AUTO_LABELS = {
     },
     "pig_butchering": {
         "name": "Pig Butchering Operator",
-        "description": "Gradual fund accumulation then sudden drain to exchange — scam pattern",
+        "description": "Gradual fund accumulation then sudden drain to exchange - scam pattern",
         "entity_type": "scam_operation",
         "risk_score": 92,
         "confidence_threshold": 0.7,
@@ -128,7 +128,7 @@ AUTO_LABELS = {
     },
     "sleeping_agent": {
         "name": "Sleeping Agent",
-        "description": "Wallet dormant 90+ days then suddenly active — potential sleeper",
+        "description": "Wallet dormant 90+ days then suddenly active - potential sleeper",
         "entity_type": "suspicious",
         "risk_score": 55,
         "confidence_threshold": 0.6,
@@ -207,7 +207,7 @@ class AutoLabeler:
             }
         )
 
-        # Check label rules — return only NEW labels not already applied
+        # Check label rules - return only NEW labels not already applied
         existing_label_keys = {line_list["label_key"] for line_list in self.pending_observations.get(f"_labels_{key}", [])}
         new_labels = await self._check_labels(address, chain, self.pending_observations[key])
         unique_new = [line_list for line_list in new_labels if line_list["label_key"] not in existing_label_keys]

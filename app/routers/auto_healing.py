@@ -1,4 +1,4 @@
-"""Auto-Healing Infrastructure — self-diagnosing, self-repairing platform."""
+"""Auto-Healing Infrastructure - self-diagnosing, self-repairing platform."""
 
 import os
 from datetime import UTC, datetime
@@ -22,7 +22,7 @@ CHECKS = [
 
 @router.get("/full")
 async def full_health_check():
-    """Comprehensive system health check — all services."""
+    """Comprehensive system health check - all services."""
     results = {}
     all_healthy = True
 
@@ -62,11 +62,11 @@ def _check_alerts(mem, disk) -> list:
     """Generate alerts for concerning metrics."""
     alerts = []
     if mem.percent > 90:
-        alerts.append({"level": "CRITICAL", "msg": f"Memory usage at {mem.percent}% — consider restarting services"})
+        alerts.append({"level": "CRITICAL", "msg": f"Memory usage at {mem.percent}% - consider restarting services"})
     elif mem.percent > 80:
         alerts.append({"level": "WARNING", "msg": f"Memory usage at {mem.percent}%"})
     if disk.percent > 90:
-        alerts.append({"level": "CRITICAL", "msg": f"Disk usage at {disk.percent}% — prune logs immediately"})
+        alerts.append({"level": "CRITICAL", "msg": f"Disk usage at {disk.percent}% - prune logs immediately"})
     elif disk.percent > 80:
         alerts.append({"level": "WARNING", "msg": f"Disk usage at {disk.percent}%"})
     return alerts

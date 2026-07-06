@@ -4,16 +4,16 @@ RMI Prediction Market Router
 FastAPI router exposing prediction market data for crypto security intelligence.
 
 Endpoints:
-  GET /api/v1/prediction-markets/search          — Search all 4 sources
-  GET /api/v1/prediction-markets/trending         — Top markets by volume
-  GET /api/v1/prediction-markets/token/{symbol}   — Token-specific markets
-  GET /api/v1/prediction-markets/sentinel         — Daily security digest
-  GET /api/v1/prediction-markets/detail/{source}/{id}  — Market detail
+  GET /api/v1/prediction-markets/search          - Search all 4 sources
+  GET /api/v1/prediction-markets/trending         - Top markets by volume
+  GET /api/v1/prediction-markets/token/{symbol}   - Token-specific markets
+  GET /api/v1/prediction-markets/sentinel         - Daily security digest
+  GET /api/v1/prediction-markets/detail/{source}/{id}  - Market detail
 
 x402 Tool Registration:
-  prediction_market_search   — Search prediction markets (basic tier, $0.01)
-  prediction_market_token     — Token-specific odds (standard tier, $0.03)
-  prediction_market_sentinel  — Daily threat digest (advanced tier, $0.05)
+  prediction_market_search   - Search prediction markets (basic tier, $0.01)
+  prediction_market_token     - Token-specific odds (standard tier, $0.03)
+  prediction_market_sentinel  - Daily threat digest (advanced tier, $0.05)
 
 Caching: Redis-backed, 30s-1hr TTL by endpoint.
 Rate limiting: Inherited from app-wide slowapi configuration.

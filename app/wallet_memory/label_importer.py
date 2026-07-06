@@ -1,5 +1,5 @@
 """
-Static Label Importer — Async boot-time loader for 105K+ wallet labels.
+Static Label Importer - Async boot-time loader for 105K+ wallet labels.
 ========================================================================
 Replaces the sync Redis-only wallet_label_loader.py with an async module that:
 
@@ -203,7 +203,7 @@ async def _ensure_solana_labels() -> dict[str, int]:
             ok = await _download_file(url, dest)
             results[filename] = os.path.getsize(dest) if ok else 0
             if not ok:
-                logger.warning(f"Failed to download {filename} — skipping")
+                logger.warning(f"Failed to download {filename} - skipping")
     return results
 
 
@@ -226,7 +226,7 @@ async def _ensure_eth_scam_labels() -> dict[str, int]:
             ok = await _download_file(url, dest)
             results[filename] = os.path.getsize(dest) if ok else 0
             if not ok:
-                logger.warning(f"Failed to download {filename} — skipping")
+                logger.warning(f"Failed to download {filename} - skipping")
     return results
 
 
@@ -254,7 +254,7 @@ async def _load_ofac_sanctions(storage) -> int:
     if sanctions is None:
         sanctions = await _download_json(OFAC_URL)
         if sanctions is None:
-            logger.warning("OFAC sanctions download failed — trying fallback")
+            logger.warning("OFAC sanctions download failed - trying fallback")
             # Fallback: try alternate URL formats
             alt_urls = [
                 "https://raw.githubusercontent.com/OFAC/crypto-sanctions-list/master/crypto-sanctions-list.json",
@@ -355,10 +355,10 @@ async def _load_csv_labels(
         try:
             existing = storage._ch.execute("SELECT count() FROM wallet_labels WHERE source = %(src)s", {"src": src})
             if existing and existing[0][0] > 100:
-                logger.info(f"Source '{src}' already has {existing[0][0]:,} labels in CH — skipping re-import")
+                logger.info(f"Source '{src}' already has {existing[0][0]:,} labels in CH - skipping re-import")
                 return existing[0][0]
         except Exception:
-            pass  # CH unavailable — import anyway for Redis
+            pass  # CH unavailable - import anyway for Redis
 
     count = 0
     ch_rows = []
@@ -591,7 +591,7 @@ async def _load_etherscan_phish_hack(storage) -> int:
                 redis_key = f"rmi:label:{chain}:{addr}"
                 redis_ops.append((redis_key, label_json, addr))
 
-                # These are phishing/hack labels — also store in scam_addresses
+                # These are phishing/hack labels - also store in scam_addresses
                 is_scam = 1 if label_type.lower() in ("scam", "phishing", "hack") else 0
 
                 ch_rows.append(
@@ -1113,7 +1113,7 @@ async def load_all_static_labels() -> dict[str, int]:
     global _loading, _last_load_counts
 
     if _loading:
-        logger.info("Label import already in progress — skipping")
+        logger.info("Label import already in progress - skipping")
         return _last_load_counts
 
     _loading = True
@@ -1191,7 +1191,7 @@ async def load_all_static_labels() -> dict[str, int]:
         await storage.redis_set("rmi:labels:counts", json.dumps(counts))
 
         elapsed = time.time() - start
-        logger.info(f"Static label import complete: {total} labels in {elapsed:.1f}s — {counts}")
+        logger.info(f"Static label import complete: {total} labels in {elapsed:.1f}s - {counts}")
 
     except Exception as e:
         logger.error(f"Static label import failed: {e}", exc_info=True)

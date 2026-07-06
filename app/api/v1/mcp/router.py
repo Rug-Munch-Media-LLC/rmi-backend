@@ -1,4 +1,4 @@
-"""T33 MCP Server — HTTP wrapper for SSE transport.
+"""T33 MCP Server - HTTP wrapper for SSE transport.
 
 Per v4.0 §T33. Endpoints:
   POST /mcp                  JSON-RPC 2.0 endpoint
@@ -68,7 +68,7 @@ async def jsonrpc_handler(req: JsonRpcRequest) -> dict:
                 "serverInfo": {
                     "name": "rugmunch-intelligence",
                     "version": MCP_SERVER_VERSION,
-                    "description": "Crypto intelligence platform — 13+ chains, 8 MCP tools, x402 paid tier",
+                    "description": "Crypto intelligence platform - 13+ chains, 8 MCP tools, x402 paid tier",
                 },
                 "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
             },

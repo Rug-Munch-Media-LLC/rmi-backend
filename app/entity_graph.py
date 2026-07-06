@@ -1,5 +1,5 @@
 """
-Entity Graph Visualization — Interactive Fund Flow for RugMaps + Scans
+Entity Graph Visualization - Interactive Fund Flow for RugMaps + Scans
 =======================================================================
 
 Generates interactive entity relationship graphs showing wallet connections,

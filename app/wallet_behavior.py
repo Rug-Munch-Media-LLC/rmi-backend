@@ -1,5 +1,5 @@
 """
-Wallet Behavioral Fingerprinting — Beyond Labels
+Wallet Behavioral Fingerprinting - Beyond Labels
 ================================================
 
 Classifies wallets by HOW they trade, not just what labels they have.

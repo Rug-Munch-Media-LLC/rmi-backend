@@ -395,9 +395,9 @@ def _generate_summary(result: FundTraceResult) -> str:
     )
 
     if result.suspicious_score > 0.5:
-        parts.append("🚨 HIGH SUSPICION — likely obfuscation attempt")
+        parts.append("🚨 HIGH SUSPICION - likely obfuscation attempt")
     elif result.suspicious_score > 0.3:
-        parts.append("⚠️ MODERATE SUSPICION — further investigation recommended")
+        parts.append("⚠️ MODERATE SUSPICION - further investigation recommended")
 
     return " | ".join(parts)
 

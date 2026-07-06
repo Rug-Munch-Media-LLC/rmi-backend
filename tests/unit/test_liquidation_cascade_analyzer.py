@@ -155,7 +155,7 @@ class TestDebtPosition:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# ProtocolPosition — Health Computation
+# ProtocolPosition - Health Computation
 # ══════════════════════════════════════════════════════════════════════════
 
 
@@ -677,7 +677,7 @@ class TestEdgeCases:
         assert critical.risk_tier == RiskTier.CRITICAL
         # The large safe position ($200k coll, $10k debt) outweighs the
         # small critical position ($50k coll, $48k debt) in the weighted
-        # average, so overall is SAFE — but cascade scenarios still show the risk
+        # average, so overall is SAFE - but cascade scenarios still show the risk
         assert analysis.overall_risk_tier == RiskTier.SAFE
         assert len(analysis.cascade_scenarios) > 0
         total_liquidated = sum(s.total_liquidated_value_usd for s in analysis.cascade_scenarios)

@@ -1,5 +1,5 @@
 """
-DeFiLlama DataBus Provider — Free, unlimited DeFi analytics.
+DeFiLlama DataBus Provider - Free, unlimited DeFi analytics.
 7,661 protocols across 350+ chains. No API key needed.
 """
 
@@ -11,7 +11,7 @@ logger = logging.getLogger("databus.defillama")
 async def fetch_defillama_tvl(
     protocol: str | None = None, chain: str | None = None, limit: int = 20
 ) -> dict:
-    """Fetch TVL data from DeFiLlama — free, no auth, no rate limits for standard traffic."""
+    """Fetch TVL data from DeFiLlama - free, no auth, no rate limits for standard traffic."""
     import aiohttp
 
     results = {}
@@ -78,7 +78,7 @@ async def fetch_defillama_tvl(
 
 
 async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict:
-    """Fetch live prices from Pyth Network Hermes API — 125+ institutional publishers."""
+    """Fetch live prices from Pyth Network Hermes API - 125+ institutional publishers."""
     import aiohttp
 
     try:
@@ -86,7 +86,7 @@ async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict
         url = "https://hermes.pyth.network/v2/updates/price/latest"
         params = {}
         if symbols:
-            # Convert symbols to Pyth feed IDs (simplified — production would use lookup)
+            # Convert symbols to Pyth feed IDs (simplified - production would use lookup)
             params["ids"] = symbols
 
         async with aiohttp.ClientSession() as session, session.get(

@@ -48,7 +48,7 @@ def _min_max_normalize(scores: list[float]) -> list[float]:
 
 
 # ---------------------------------------------------------------------------
-# CrossEncoderReranker — singleton
+# CrossEncoderReranker - singleton
 # ---------------------------------------------------------------------------
 
 
@@ -63,7 +63,7 @@ class CrossEncoderReranker:
     _lock = asyncio.Lock()
 
     def __init__(self) -> None:
-        # Do NOT call _load_model here — lazy-load on first use.
+        # Do NOT call _load_model here - lazy-load on first use.
         self._model: CrossEncoder | None = None
         self._model_loaded: bool = False
         self._model_type: str = "none"  # "onnx", "fp32", or "none"
@@ -107,11 +107,11 @@ class CrossEncoderReranker:
         _onnx_model = _os.path.join(_onnx_path, "model.onnx")
 
         if _os.path.exists(_onnx_model):
-            logger.info("Loading quantized ONNX reranker from %s …", _onnx_path)
+            logger.info("Loading quantized ONNX reranker from %s ...", _onnx_path)
             start = time.perf_counter()
             try:
                 import onnxruntime as ort
-                from optimum.onnxruntime import ORTModelForSequenceClassification
+                from optimum.onnxruntime import ORTModelForSequenceClassification  # noqa: F401
                 from transformers import AutoTokenizer
 
                 # Use CPU execution provider
@@ -142,7 +142,7 @@ class CrossEncoderReranker:
 
     def _load_fp32_model(self) -> None:
         """Load the full fp32 cross-encoder (2.1 GB, ~45s)."""
-        logger.info("Loading cross-encoder model '%s' (CPU, fp32) …", _MODEL_NAME)
+        logger.info("Loading cross-encoder model '%s' (CPU, fp32) ...", _MODEL_NAME)
         start = time.perf_counter()
         self._model = CrossEncoder(_MODEL_NAME, device="cpu")
         elapsed = time.perf_counter() - start
@@ -164,7 +164,7 @@ class CrossEncoderReranker:
         )
 
     # -----------------------------------------------------------------------
-    # Public API — warm_up / health_check
+    # Public API - warm_up / health_check
     # -----------------------------------------------------------------------
 
     async def warm_up(self) -> None:
@@ -173,7 +173,7 @@ class CrossEncoderReranker:
         Call this at application startup.
         """
         if self._model_loaded:
-            logger.debug("warm_up() called but model already loaded — skipping")
+            logger.debug("warm_up() called but model already loaded - skipping")
             return
         # Model loading is CPU-bound; run in executor to avoid blocking the
         # async event loop.
@@ -237,7 +237,7 @@ class CrossEncoderReranker:
         return scores
 
     # -----------------------------------------------------------------------
-    # Public API — rerank
+    # Public API - rerank
     # -----------------------------------------------------------------------
 
     async def rerank(
@@ -293,13 +293,13 @@ class CrossEncoderReranker:
             )
         except TimeoutError:
             logger.warning(
-                "Cross-encoder inference timed out after %ds — falling back to vector-only ranking for query: %.80s",
+                "Cross-encoder inference timed out after %ds - falling back to vector-only ranking for query: %.80s",
                 _INFERENCE_TIMEOUT_SECS,
                 query,
             )
         except Exception:
             logger.exception(
-                "Cross-encoder inference failed — falling back to vector-only ranking for query: %.80s",
+                "Cross-encoder inference failed - falling back to vector-only ranking for query: %.80s",
                 query,
             )
 
@@ -347,7 +347,7 @@ class CrossEncoderReranker:
         return results[:top_k]
 
     # -----------------------------------------------------------------------
-    # Public API — rerank_only (simpler)
+    # Public API - rerank_only (simpler)
     # -----------------------------------------------------------------------
 
     async def rerank_only(
@@ -391,13 +391,13 @@ class CrossEncoderReranker:
             )
         except TimeoutError:
             logger.warning(
-                "rerank_only: cross-encoder timed out after %ds — returning texts in original order",
+                "rerank_only: cross-encoder timed out after %ds - returning texts in original order",
                 _INFERENCE_TIMEOUT_SECS,
             )
             return texts[:top_k]
         except Exception:
             logger.exception(
-                "rerank_only: cross-encoder failed — returning texts in original order",
+                "rerank_only: cross-encoder failed - returning texts in original order",
             )
             return texts[:top_k]
 

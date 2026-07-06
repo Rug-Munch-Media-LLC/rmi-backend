@@ -1,5 +1,5 @@
 """
-SENTINEL — Governance Attack Detector
+SENTINEL - Governance Attack Detector
 ======================================
 Detects governance concentration risk and potential attack vectors:
 
@@ -306,7 +306,7 @@ class GovernanceAttackDetector:
             if isinstance(info, dict):
                 mint_authority = info.get("mintAuthority", "")
                 if mint_authority:
-                    # Authority exists — can mint more tokens
+                    # Authority exists - can mint more tokens
                     params.has_timelock = False
                 else:
                     # No mint authority = renounced
@@ -334,7 +334,7 @@ class GovernanceAttackDetector:
         # Top 10 concentration
         if report.top_10_holder_pct >= self.TOP_10_CRITICAL_PCT:
             score += 20
-            warnings.append(f"HIGH: Top 10 holders control {report.top_10_holder_pct:.1f}% — cartel risk")
+            warnings.append(f"HIGH: Top 10 holders control {report.top_10_holder_pct:.1f}% - cartel risk")
         elif report.top_10_holder_pct >= 60:
             score += 10
             warnings.append(f"MEDIUM: Top 10 holders control {report.top_10_holder_pct:.1f}%")
@@ -342,7 +342,7 @@ class GovernanceAttackDetector:
         # No timelock
         if report.is_governed and not report.has_timelock:
             score += 20
-            warnings.append("HIGH: Governance changes have no timelock — instant execution possible")
+            warnings.append("HIGH: Governance changes have no timelock - instant execution possible")
         elif not report.has_timelock:
             score += 10
             warnings.append("MEDIUM: No timelock detected on admin functions")
@@ -350,14 +350,14 @@ class GovernanceAttackDetector:
         # Low quorum
         if report.quorum_threshold > 0 and report.quorum_threshold < self.LOW_QUORUM_PCT:
             score += 15
-            warnings.append(f"HIGH: Governance quorum only {report.quorum_threshold:.2f}% — easily gamed")
+            warnings.append(f"HIGH: Governance quorum only {report.quorum_threshold:.2f}% - easily gamed")
 
         # Timelock too short
         if report.has_timelock and report.timelock_delay_seconds > 0:
             timelock_hours = report.timelock_delay_seconds / 3600
             if timelock_hours < self.MIN_TIMELOCK_HOURS:
                 score += 10
-                warnings.append(f"MEDIUM: Timelock only {timelock_hours:.1f}h — insufficient for reaction")
+                warnings.append(f"MEDIUM: Timelock only {timelock_hours:.1f}h - insufficient for reaction")
 
         # Governance risk flags from analysis
         for flag in report.governance_risk_flags:

@@ -37,7 +37,7 @@ async def register_all_facilitators() -> None:
         logger.warning(f"Failed to register Primev: {e}")
 
     # ── 2. Coinbase CDP (highest priority for Base) ──
-    # Always register — health check will mark unavailable if no API key
+    # Always register - health check will mark unavailable if no API key
     try:
         from app.facilitators.coinbase_cdp import CoinbaseCDPFacilitator
 
@@ -46,7 +46,7 @@ async def register_all_facilitators() -> None:
     except Exception as e:
         logger.warning(f"Failed to register Coinbase CDP: {e}")
 
-    # ── 3. BNB Pieverse (BNB Chain) — OFFLINE: api.pieverse.xyz NXDOMAIN ──
+    # ── 3. BNB Pieverse (BNB Chain) - OFFLINE: api.pieverse.xyz NXDOMAIN ──
     # Skipped: dead facilitator, DNS does not resolve
     # try:
     #     from app.facilitators.pieverse import PieverseFacilitator
@@ -54,9 +54,9 @@ async def register_all_facilitators() -> None:
     #     logger.info("Registered: BNB Pieverse (BNB Chain, instant)")
     # except Exception as e:
     #     logger.warning(f"Failed to register Pieverse: {e}")
-    logger.info("SKIPPED: BNB Pieverse — OFFLINE (api.pieverse.xyz NXDOMAIN)")
+    logger.info("SKIPPED: BNB Pieverse - OFFLINE (api.pieverse.xyz NXDOMAIN)")
 
-    # ── 4. MERX TRON — OFFLINE: api.merx.finance NXDOMAIN ──
+    # ── 4. MERX TRON - OFFLINE: api.merx.finance NXDOMAIN ──
     # Skipped: dead facilitator, DNS does not resolve
     # try:
     #     from app.facilitators.merx_tron import MerxTronFacilitator
@@ -64,9 +64,9 @@ async def register_all_facilitators() -> None:
     #     logger.info("Registered: MERX x402 for TRON (USDT/USDC/USDD, sub-3s)")
     # except Exception as e:
     #     logger.warning(f"Failed to register MERX TRON: {e}")
-    logger.info("SKIPPED: MERX TRON — OFFLINE (api.merx.finance NXDOMAIN)")
+    logger.info("SKIPPED: MERX TRON - OFFLINE (api.merx.finance NXDOMAIN)")
 
-    # ── 4b. TRON Self-Verify (replaces dead MERX — uses TronGrid API) ──
+    # ── 4b. TRON Self-Verify (replaces dead MERX - uses TronGrid API) ──
     try:
         from app.facilitators.tron_selfverify import TronSelfVerifyFacilitator
 
@@ -79,7 +79,7 @@ async def register_all_facilitators() -> None:
     except Exception as e:
         logger.warning(f"Failed to register TRON Self-Verify: {e}")
 
-    # ── 5. PayAI (Base + Solana, always available — no key needed) ──
+    # ── 5. PayAI (Base + Solana, always available - no key needed) ──
     try:
         from app.facilitators.payai import PayAIFacilitator
 
@@ -89,7 +89,7 @@ async def register_all_facilitators() -> None:
         logger.warning(f"Failed to register PayAI: {e}")
 
     # ── 6. AsterPay (EUR/SEPA Europe) ──
-    # Always register — health check marks unavailable if no key
+    # Always register - health check marks unavailable if no key
     try:
         from app.facilitators.asterpay import AsterPayFacilitator
 
@@ -107,7 +107,7 @@ async def register_all_facilitators() -> None:
     except Exception as e:
         logger.warning(f"Failed to register Cloudflare x402: {e}")
 
-    # ── 8. Satoshi (Bitcoin) — OFFLINE: api.satoshi.dev NXDOMAIN ──
+    # ── 8. Satoshi (Bitcoin) - OFFLINE: api.satoshi.dev NXDOMAIN ──
     # Skipped: dead facilitator, DNS does not resolve
     # try:
     #     from app.facilitators.satoshi import SatoshiFacilitator
@@ -115,9 +115,9 @@ async def register_all_facilitators() -> None:
     #     logger.info("Registered: Satoshi Facilitator (Bitcoin → Base/Solana)")
     # except Exception as e:
     #     logger.warning(f"Failed to register Satoshi: {e}")
-    logger.info("SKIPPED: Satoshi — OFFLINE (api.satoshi.dev NXDOMAIN)")
+    logger.info("SKIPPED: Satoshi - OFFLINE (api.satoshi.dev NXDOMAIN)")
 
-    # ── 8b. Bitcoin Self-Verify (replaces dead Satoshi — uses Mempool.space API) ──
+    # ── 8b. Bitcoin Self-Verify (replaces dead Satoshi - uses Mempool.space API) ──
     try:
         from app.facilitators.bitcoin_selfverify import BitcoinSelfVerifyFacilitator
 
@@ -141,11 +141,11 @@ async def register_all_facilitators() -> None:
             registry.register(facilitator)
             logger.info("Registered: x402-rs (self-hosted, multi-chain)")
         else:
-            logger.info("x402-rs: container not running — skipped")
+            logger.info("x402-rs: container not running - skipped")
     except Exception as e:
-        logger.info(f"x402-rs: not available — {e}")
+        logger.info(f"x402-rs: not available - {e}")
 
-    # ── 10. EIP-7702 Universal EVM (always available — no key needed) ──
+    # ── 10. EIP-7702 Universal EVM (always available - no key needed) ──
     try:
         from app.facilitators.eip7702 import EIP7702Facilitator
 

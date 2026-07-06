@@ -1,10 +1,10 @@
 """
-SENTINEL — Holder Distribution & HHI Analysis
+SENTINEL - Holder Distribution & HHI Analysis
 =============================================
 Calculates Herfindahl-Hirschman Index for token concentration,
 detects fake diversification through funding/creation/behavior clustering.
 
-HHI = Σ(s_i²) × 10,000 where s_i = market share of holder i
+HHI = Σ(s_i²) x 10,000 where s_i = market share of holder i  # noqa: RUF002
   < 1,500  = Low risk (well-distributed)
   1,500-3,000 = Moderate risk
   3,000-5,000 = High risk (whale dominance)
@@ -71,7 +71,7 @@ class HolderAnalyzer:
     """
 
     # Known dead/burn addresses
-    DEAD_ADDRESSES = {
+    DEAD_ADDRESSES = {  # noqa: RUF012
         "solana": [
             "11111111111111111111111111111111",  # System program
             "1nc1nerator11111111111111111111111111111111",  # Incinerator
@@ -353,7 +353,7 @@ class HolderAnalyzer:
 
     def _cluster_by_behavior(self, holders: list[HolderInfo]) -> list[ClusterGroup]:
         """Group wallets with identical trading patterns.
-        Placeholder for on-chain behavior analysis — requires transaction data.
+        Placeholder for on-chain behavior analysis - requires transaction data.
         """
         # This requires fetching transaction history for each holder
         # which is expensive. For now, return empty clusters.
@@ -385,7 +385,7 @@ class HolderAnalyzer:
             if px != py:
                 parent[px] = py
 
-        for wallet, cluster_indices in wallet_to_clusters.items():
+        for wallet, cluster_indices in wallet_to_clusters.items():  # noqa: B007
             if len(cluster_indices) > 1:
                 indices = list(cluster_indices)
                 for i in range(1, len(indices)):
@@ -479,11 +479,11 @@ class HolderAnalyzer:
         # Generate warnings
         warnings = []
         if hhi > 5000:
-            warnings.append(f"CRITICAL: HHI {hhi:.0f} — extreme concentration, likely coordinated")
+            warnings.append(f"CRITICAL: HHI {hhi:.0f} - extreme concentration, likely coordinated")
         elif hhi > 3000:
-            warnings.append(f"HIGH: HHI {hhi:.0f} — significant whale control, dump risk")
+            warnings.append(f"HIGH: HHI {hhi:.0f} - significant whale control, dump risk")
         elif hhi > 1500:
-            warnings.append(f"MODERATE: HHI {hhi:.0f} — some concentration, monitor whale activity")
+            warnings.append(f"MODERATE: HHI {hhi:.0f} - some concentration, monitor whale activity")
 
         if cluster_pct > 10:
             warnings.append(f"FAKE DIVERSIFICATION: {cluster_pct:.1f}% of supply in detected clusters")

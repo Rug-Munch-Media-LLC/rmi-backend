@@ -1,13 +1,13 @@
-"""Stripe Integration — credit card payments for x402 API credits.
+"""Stripe Integration - credit card payments for x402 API credits.
 
 Users buy credits with a card → we credit their API key → they use x402 tools.
 The x402 payment protocol runs on our backend. The user never touches crypto.
 
 Endpoints:
-  POST /api/v1/stripe/checkout    — Create Stripe checkout session
-  POST /api/v1/stripe/webhook     — Stripe webhook (payment confirmations)
-  GET  /api/v1/stripe/portal      — Customer portal (manage subscriptions)
-  GET  /api/v1/credits/balance    — Check remaining credits
+  POST /api/v1/stripe/checkout    - Create Stripe checkout session
+  POST /api/v1/stripe/webhook     - Stripe webhook (payment confirmations)
+  GET  /api/v1/stripe/portal      - Customer portal (manage subscriptions)
+  GET  /api/v1/credits/balance    - Check remaining credits
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ import json
 import logging
 import os
 import time
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -30,7 +29,7 @@ STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 try:
-    import stripe as _stripe_check
+    import stripe as _stripe_check  # noqa: F401
     STRIPE_PACKAGE_INSTALLED = True
 except ImportError:
     STRIPE_PACKAGE_INSTALLED = False
@@ -39,17 +38,17 @@ STRIPE_ENABLED = bool(STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY and STRIPE_PA
 
 # Credit packages (USD -> API credits)
 CREDIT_PACKAGES = {
-    "starter": {"price_usd": 1000, "credits": 1000, "label": "Starter Pack — 1,000 credits"},
-    "growth": {"price_usd": 5000, "credits": 6000, "label": "Growth Pack — 6,000 credits (16% off)"},
-    "pro": {"price_usd": 10000, "credits": 14000, "label": "Pro Pack — 14,000 credits (28% off)"},
-    "enterprise": {"price_usd": 50000, "credits": 80000, "label": "Enterprise Pack — 80,000 credits (37% off)"},
+    "starter": {"price_usd": 1000, "credits": 1000, "label": "Starter Pack - 1,000 credits"},
+    "growth": {"price_usd": 5000, "credits": 6000, "label": "Growth Pack - 6,000 credits (16% off)"},
+    "pro": {"price_usd": 10000, "credits": 14000, "label": "Pro Pack - 14,000 credits (28% off)"},
+    "enterprise": {"price_usd": 50000, "credits": 80000, "label": "Enterprise Pack - 80,000 credits (37% off)"},
 }
 
 # Monthly subscription tiers
 SUBSCRIPTION_TIERS = {
-    "starter_monthly": {"price_usd": 2900, "credits_per_month": 1000, "label": "Starter — $29/mo"},
-    "pro_monthly": {"price_usd": 9900, "credits_per_month": 5000, "label": "Pro — $99/mo"},
-    "team_monthly": {"price_usd": 29900, "credits_per_month": 25000, "label": "Team — $299/mo"},
+    "starter_monthly": {"price_usd": 2900, "credits_per_month": 1000, "label": "Starter - $29/mo"},
+    "pro_monthly": {"price_usd": 9900, "credits_per_month": 5000, "label": "Pro - $99/mo"},
+    "team_monthly": {"price_usd": 29900, "credits_per_month": 25000, "label": "Team - $299/mo"},
 }
 
 router = APIRouter(prefix="/api/v1", tags=["Stripe"])
@@ -65,7 +64,7 @@ class CheckoutRequest(BaseModel):
 
 
 class CreditEntry:
-    """In-memory credit store — replace with Redis/Postgres in production."""
+    """In-memory credit store - replace with Redis/Postgres in production."""
 
     def __init__(self):
         self._credits: dict[str, dict] = {}
@@ -168,7 +167,7 @@ async def create_checkout(req: CheckoutRequest):
 
 @router.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
-    """Stripe webhook — called when payment succeeds."""
+    """Stripe webhook - called when payment succeeds."""
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
@@ -215,7 +214,7 @@ async def list_packages():
         "packages": {k: {"price_usd": v["price_usd"], "credits": v["credits"], "label": v["label"]} for k, v in CREDIT_PACKAGES.items()},
         "subscriptions": {k: {"price_usd": v["price_usd"], "credits_per_month": v["credits_per_month"], "label": v["label"]} for k, v in SUBSCRIPTION_TIERS.items()},
         "stripe_configured": STRIPE_ENABLED,
-        "publishable_key": STRIPE_PUBLISHABLE_KEY or "" (set STRIPE_PUBLISHABLE_KEY in environment),
+        "publishable_key": STRIPE_PUBLISHABLE_KEY or "",
         "note": "Pay with credit card. No crypto wallet needed. Credits never expire.",
     }
 
@@ -269,7 +268,7 @@ async def buy_credits(api_key: str = "", amount_usd: int = 1000):
         "total_balance": balance,
         "price_per_call": "$0.01",
         "mode": "sandbox",
-        "note": "Stripe not configured — credits added in sandbox mode. Add STRIPE_SECRET_KEY for live payments.",
+        "note": "Stripe not configured - credits added in sandbox mode. Add STRIPE_SECRET_KEY for live payments.",
     }
 
 

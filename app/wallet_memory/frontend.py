@@ -1,5 +1,5 @@
 """
-WalletSafe Frontend — Entity explorer, wallet search, risk page.
+WalletSafe Frontend - Entity explorer, wallet search, risk page.
 ===============================================================
 Served at /walletsafe/ as a single-page app.
 Hits /api/v1/wallet/* endpoints directly via fetch().
@@ -15,7 +15,7 @@ WALLETSAFE_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WalletSafe — Wallet Intelligence Explorer</title>
+<title>WalletSafe - Wallet Intelligence Explorer</title>
 <style>
   :root {
     --bg: #0a0a0f;

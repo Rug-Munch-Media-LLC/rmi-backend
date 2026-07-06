@@ -8,7 +8,7 @@ import sys
 import pymupdf4llm
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-PAPERS_DIR = os.path.dirname(os.path.abspath(__file__)).rstrip("/scripts") + "/data/papers"
+PAPERS_DIR = os.path.dirname(os.path.abspath(__file__)).rstrip("/scripts") + "/data/papers"  # noqa: B005
 
 with open(os.path.join(PAPERS_DIR, "papers_metadata.json")) as f:
     existing = json.load(f)

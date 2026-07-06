@@ -1,5 +1,5 @@
 """
-DataBus Social Data Provider — X/Twitter + Cross-Platform Intelligence
+DataBus Social Data Provider - X/Twitter + Cross-Platform Intelligence
 ======================================================================
 
 Tiered access to social data with aggressive caching:
@@ -28,16 +28,16 @@ logger = logging.getLogger("databus.social")
 # Free tier: 1,500 tweets/month POST, 10k reads/month
 # Basic tier ($100/mo): 3,000 tweets POST, 10k reads/day
 # Pro tier ($5,000/mo): Full search, 1M tweets/month
-# We use FREE tier — must be surgical with reads
+# We use FREE tier - must be surgical with reads
 X_FREE_MONTHLY_READ_LIMIT = 10_000
 X_FREE_MONTHLY_POST_LIMIT = 1_500
 X_DAILY_READ_BUDGET = 333  # ~10k/30 days
 
 # Cache TTLs (long because of read budget constraints)
-CACHE_TTL_HOT = 900  # 15 min — real-time-ish
-CACHE_TTL_WARM = 3600  # 1 hour — recent
-CACHE_TTL_COLD = 86400  # 24 hours — historical
-CACHE_TTL_WEEKLY = 604800  # 7 days — old data
+CACHE_TTL_HOT = 900  # 15 min - real-time-ish
+CACHE_TTL_WARM = 3600  # 1 hour - recent
+CACHE_TTL_COLD = 86400  # 24 hours - historical
+CACHE_TTL_WEEKLY = 604800  # 7 days - old data
 
 
 class XTwitterProvider:
@@ -66,7 +66,7 @@ class XTwitterProvider:
         self._loaded = False
 
     async def _load_creds(self):
-        """Load X credentials from vault — NEVER read from .env or plaintext."""
+        """Load X credentials from vault - NEVER read from .env or plaintext."""
         if self._loaded:
             return
         try:
@@ -149,7 +149,7 @@ class XTwitterProvider:
                 logger.warning("X API rate limited")
                 return None
             if resp.status_code == 401:
-                logger.warning("X API auth failed — token may need refresh")
+                logger.warning("X API auth failed - token may need refresh")
                 return None
 
             resp.raise_for_status()
@@ -164,7 +164,7 @@ class XTwitterProvider:
     # ── Public Data Endpoints (cached aggressively) ──────────────
 
     async def get_user(self, username: str) -> dict | None:
-        """Get user profile — cached 24h."""
+        """Get user profile - cached 24h."""
         cache_key = f"social:x:user:{username}"
         cached = await self.cache.get(cache_key)
         if cached:
@@ -187,7 +187,7 @@ class XTwitterProvider:
         since_id: str | None = None,
         tweet_fields: str | None = None,
     ) -> list[dict] | None:
-        """Get recent tweets from a user — cached 15min hot, 1h warm."""
+        """Get recent tweets from a user - cached 15min hot, 1h warm."""
         cache_key = f"social:x:tweets:{user_id}:{max_results}:{since_id or 'latest'}"
         cached = await self.cache.get(cache_key)
         if cached:
@@ -213,7 +213,7 @@ class XTwitterProvider:
         return None
 
     async def get_mentions(self, user_id: str, max_results: int = 100) -> list[dict] | None:
-        """Get mentions of user — cached 15min."""
+        """Get mentions of user - cached 15min."""
         cache_key = f"social:x:mentions:{user_id}:{max_results}"
         cached = await self.cache.get(cache_key)
         if cached:
@@ -234,7 +234,7 @@ class XTwitterProvider:
         return None
 
     async def get_tweet(self, tweet_id: str) -> dict | None:
-        """Get a single tweet — cached 24h (tweets don't change)."""
+        """Get a single tweet - cached 24h (tweets don't change)."""
         cache_key = f"social:x:tweet:{tweet_id}"
         cached = await self.cache.get(cache_key)
         if cached:
@@ -255,7 +255,7 @@ class XTwitterProvider:
         return None
 
     async def get_engagement_metrics(self, tweet_ids: list[str]) -> dict[str, dict]:
-        """Get engagement metrics for multiple tweets — cached 1h."""
+        """Get engagement metrics for multiple tweets - cached 1h."""
         if not tweet_ids:
             return {}
 
@@ -283,7 +283,7 @@ class XTwitterProvider:
         return results
 
     async def get_followers_count(self, user_id: str) -> int | None:
-        """Quick follower count check — cached 1h."""
+        """Quick follower count check - cached 1h."""
         cache_key = f"social:x:followers:{user_id}"
         cached = await self.cache.get(cache_key)
         if cached:
@@ -301,7 +301,7 @@ class XTwitterProvider:
     async def post_tweet(
         self, text: str, reply_to: str | None = None, media_ids: list[str] | None = None
     ) -> dict | None:
-        """Post a tweet — requires x402 payment, uses POST budget."""
+        """Post a tweet - requires x402 payment, uses POST budget."""
         payload = {"text": text}
         if reply_to:
             payload["reply"] = {"in_reply_to_tweet_id": reply_to}
@@ -317,13 +317,13 @@ class SocialDataAggregator:
     Aggregates social data from X/Twitter + web sources.
 
     Provides DataBus-compatible routes:
-    - social/x/profile — user profile data
-    - social/x/tweets — recent tweets (cached)
-    - social/x/mentions — brand mentions
-    - social/x/engagement — engagement metrics
-    - social/x/search — keyword search (expensive, cache heavily)
-    - social/kol/reputation — KOL reputation scores
-    - social/sentiment — basic sentiment from recent mentions
+    - social/x/profile - user profile data
+    - social/x/tweets - recent tweets (cached)
+    - social/x/mentions - brand mentions
+    - social/x/engagement - engagement metrics
+    - social/x/search - keyword search (expensive, cache heavily)
+    - social/kol/reputation - KOL reputation scores
+    - social/sentiment - basic sentiment from recent mentions
     """
 
     def __init__(self, cache: CacheLayer):
@@ -332,7 +332,7 @@ class SocialDataAggregator:
         self._our_user_id: str | None = None
 
     async def get_our_profile(self) -> dict | None:
-        """Get @CryptoRugMunch profile — cached 1h."""
+        """Get @CryptoRugMunch profile - cached 1h."""
         return await self.x.get_user("CryptoRugMunch")
 
     async def get_our_tweets(self, count: int = 20, since_id: str | None = None) -> list[dict] | None:
@@ -351,7 +351,7 @@ class SocialDataAggregator:
 
     async def search_mentions(self, query: str, count: int = 10) -> list[dict] | None:
         """
-        Search for brand mentions — VERY expensive on free tier.
+        Search for brand mentions - VERY expensive on free tier.
         Heavily cached (24h). Only use for critical queries.
         """
         cache_key = f"social:x:search:{hashlib.md5(query.encode()).hexdigest()}"
@@ -428,7 +428,7 @@ class SocialDataAggregator:
     async def get_sentiment(self, username: str = "CryptoRugMunch") -> dict:
         """
         Basic sentiment analysis of recent mentions.
-        Uses cached data only — no live API calls.
+        Uses cached data only - no live API calls.
         Falls back to web scraping if no cached data.
         """
         cache_key = f"social:sentiment:{username}"

@@ -1,11 +1,9 @@
-"""M3 moat TIER 1 — tests for new MCP tools (analytics_query, mcp_discover, status_check).
+"""M3 moat TIER 1 - tests for new MCP tools (analytics_query, mcp_discover, status_check).
 
-These tests verify the tool catalog, versioning, and dispatch — all without
+These tests verify the tool catalog, versioning, and dispatch - all without
 needing a live database or external service. They test the contract.
 """
 from __future__ import annotations
-
-import pytest
 
 from app.mcp.server import (
     MCP_PROTOCOL_VERSION,
@@ -64,13 +62,13 @@ def test_version_format_is_semver():
 
 
 def test_bayesian_reputation_version_bumped():
-    """M3 — deployer reputation must be v2.x (Bayesian upgrade)."""
+    """M3 - deployer reputation must be v2.x (Bayesian upgrade)."""
     ver = TOOL_VERSIONS.get("get_deployer_reputation", "")
     assert ver.startswith("2."), f"get_deployer_reputation should be v2.x (Bayesian), got {ver}"
 
 
 def test_generate_report_version_bumped():
-    """M3 — generate_report must be v2.x (RAG-grounded)."""
+    """M3 - generate_report must be v2.x (RAG-grounded)."""
     ver = TOOL_VERSIONS.get("generate_report", "")
     assert ver.startswith("2."), f"generate_report should be v2.x (RAG-grounded), got {ver}"
 
@@ -108,8 +106,9 @@ def test_protocol_version_is_set():
 # ── DuckDB max_rows safety ────────────────────────────────────────
 def test_duckdb_query_supports_max_rows():
     """DuckDB query() must support max_rows to prevent MCP API DoS."""
-    from app.core.duckdb_analytics import DuckDBAnalytics
     import inspect
+
+    from app.core.duckdb_analytics import DuckDBAnalytics
     sig = inspect.signature(DuckDBAnalytics.query)
     assert "max_rows" in sig.parameters, "DuckDBAnalytics.query must support max_rows parameter"
 

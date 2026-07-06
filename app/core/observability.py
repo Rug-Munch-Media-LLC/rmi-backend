@@ -1,4 +1,4 @@
-"""T07 GlitchTip — Sentry SDK integration.
+"""T07 GlitchTip - Sentry SDK integration.
 
 Per v4.0 §T07. Self-hosted Sentry-compatible error tracking at
 glitchtip.rugmunch.io (Sentry SDK pointed at our own instance).
@@ -7,7 +7,7 @@ Key principle: NEVER leak secrets. The before_send hook strips
 authorization headers, X-API-Key, passwords, tokens, etc.
 
 Per v3 unfuck rule #7: SDK init must be at module level, not in lifespan.
-But the SDK itself uses lazy init — setup_sentry() is called once at startup.
+But the SDK itself uses lazy init - setup_sentry() is called once at startup.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-# Config — defaults to local GlitchTip; override via env
+# Config - defaults to local GlitchTip; override via env
 DEFAULT_DSN = "http://rmi-glitchtip-web:8000/1"
 DEFAULT_ENV = "production"
 DEFAULT_SAMPLE_RATE = 0.1  # 10% of transactions traced
@@ -50,7 +50,7 @@ def setup_sentry() -> bool:
     """Initialize the Sentry SDK pointed at our self-hosted GlitchTip.
 
     Returns True if initialized, False if DSN not configured or
-    sentry_sdk is not installed (graceful — backend still works).
+    sentry_sdk is not installed (graceful - backend still works).
     """
     dsn = os.getenv("GLITCHTIP_DSN") or os.getenv("SENTRY_DSN")
     if not dsn:
@@ -90,7 +90,7 @@ def _before_send(event: dict, hint: dict) -> dict | None:
     """Strip secrets before sending to GlitchTip.
 
     Per v4.0 §T07: secrets scrubbed before send. This is a hard
-    requirement — never log full request bodies with credentials.
+    requirement - never log full request bodies with credentials.
     """
     try:
         if "request" in event:
@@ -101,7 +101,7 @@ def _before_send(event: dict, hint: dict) -> dict | None:
         if "extra" in event:
             event["extra"] = _scrub_secrets(event["extra"])
         if "user" in event:
-            # Strip email/IP — keep only id
+            # Strip email/IP - keep only id
             event["user"] = {"id": event["user"].get("id", "anon")}
         return event
     except Exception as e:

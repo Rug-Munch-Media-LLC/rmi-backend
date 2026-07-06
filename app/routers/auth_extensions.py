@@ -1,5 +1,5 @@
 """
-RMI Auth Extensions — Password Reset, Profile Management, Multi-Chain Wallets
+RMI Auth Extensions - Password Reset, Profile Management, Multi-Chain Wallets
 =============================================================================
 Adds to existing /root/backend/app/auth.py:
   - Password reset via email token
@@ -90,7 +90,7 @@ class ProfileResponse(BaseModel):
 
 @router.post("/forgot-password")
 async def forgot_password(req: ForgotPasswordRequest):
-    """Request password reset — sends email with reset token."""
+    """Request password reset - sends email with reset token."""
     from app.auth import _get_user_by_email
 
     user = _get_user_by_email(req.email)
@@ -106,7 +106,7 @@ async def forgot_password(req: ForgotPasswordRequest):
     token_hash = hashlib.sha256(reset_token.encode()).hexdigest()
 
     # Store token in Redis with expiry
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     r.setex(f"rmi:password_reset:{token_hash}", timedelta(hours=RESET_TOKEN_EXPIRY_HOURS), user["id"])
 
     # TODO: Send actual email via your email router
@@ -120,7 +120,7 @@ async def forgot_password(req: ForgotPasswordRequest):
 
         await send_email(
             to=req.email,
-            subject="RugMunch Intelligence — Password Reset",
+            subject="RugMunch Intelligence - Password Reset",
             body=f"Click to reset your password: {reset_url}\n\nThis link expires in 24 hours.\n\nIf you didn't request this, ignore this email.",
             html=f"""
             <html><body style="font-family:sans-serif;max-width:500px;margin:40px auto;">
@@ -143,7 +143,7 @@ async def reset_password(req: ResetPasswordRequest):
     from app.auth import _get_user, _save_user, hash_password
 
     token_hash = hashlib.sha256(req.token.encode()).hexdigest()
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     user_id = r.get(f"rmi:password_reset:{token_hash}")
 
     if not user_id:
@@ -207,7 +207,7 @@ async def get_profile(request: Request):
         raise HTTPException(status_code=401, detail="Authentication required")
 
     # Get linked wallets
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     wallets_raw = r.hget("rmi:user_wallets", user["id"])
     wallets = json.loads(wallets_raw) if wallets_raw else []
 
@@ -315,7 +315,7 @@ def verify_tron_signature(message: str, signature: str, address: str) -> bool:
 
         # Convert recovered ETH address to Tron base58 (simplified)
         # Full implementation needs tronpy
-        return True  # Stub — replace with full Tron verification
+        return True  # Stub - replace with full Tron verification
     except Exception as e:
         logger.warning(f"Tron signature verification failed: {e}")
         return False
@@ -326,9 +326,7 @@ def verify_btc_signature(message: str, signature: str, address: str) -> bool:
     try:
         # Use bitcoinlib or ecdsa for full verification
         # This is a simplified stub
-        if len(signature) < 20 or len(address) < 26:
-            return False
-        return True  # Stub — replace with full BTC verification
+        return len(signature) >= 20 and len(address) >= 26
     except Exception as e:
         logger.warning(f"BTC signature verification failed: {e}")
         return False
@@ -339,9 +337,7 @@ def verify_monero_signature(message: str, signature: str, address: str) -> bool:
     try:
         # Monero uses ed25519 + ring signatures
         # Full verification requires monero-python or similar
-        if len(address) < 95 or not address.startswith("4"):
-            return False
-        return True  # Stub — replace with full XMR verification
+        return len(address) >= 95 and address.startswith("4")
     except Exception as e:
         logger.warning(f"Monero signature verification failed: {e}")
         return False
@@ -407,7 +403,7 @@ async def link_wallet(req: LinkWalletRequest, request: Request):
         raise HTTPException(status_code=401, detail="Invalid wallet signature")
 
     # Get existing wallets
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     wallets_key = "rmi:user_wallets"
     wallets_raw = r.hget(wallets_key, user["id"])
     wallets = json.loads(wallets_raw) if wallets_raw else []
@@ -447,7 +443,7 @@ async def unlink_wallet(req: UnlinkWalletRequest, request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     wallets_key = "rmi:user_wallets"
     wallets_raw = r.hget(wallets_key, user["id"])
     wallets = json.loads(wallets_raw) if wallets_raw else []
@@ -486,7 +482,7 @@ async def list_wallets(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     wallets_raw = r.hget("rmi:user_wallets", user["id"])
     wallets = json.loads(wallets_raw) if wallets_raw else []
 

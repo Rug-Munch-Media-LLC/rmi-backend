@@ -1,5 +1,5 @@
 """
-Chain Data Feeder — Pre-loads wallet clustering engine with real on-chain data.
+Chain Data Feeder - Pre-loads wallet clustering engine with real on-chain data.
 Uses Helius (primary) with QuickNode fallback. Rate-limited + cached.
 """
 

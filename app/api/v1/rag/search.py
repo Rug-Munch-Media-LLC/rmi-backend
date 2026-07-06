@@ -1,4 +1,4 @@
-"""V1 RAG route — thin HTTP layer over app.rag.
+"""V1 RAG route - thin HTTP layer over app.rag.
 
 The RAG system is the most coupled module (14 legacy files). This
 facade exposes the most-used operations: search, ingest, feedback.

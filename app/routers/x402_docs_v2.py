@@ -1,4 +1,4 @@
-"""RugMunch Intelligence API Docs — written for normal developers.
+"""RugMunch Intelligence API Docs - written for normal developers.
 
 No blockchain knowledge required. No crypto wallet needed. No USDC.
 The product is token intelligence and scam detection. The payment
@@ -23,7 +23,7 @@ def _page(title: str, body: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="keywords" content="{SEO_KEYWORDS}">
 <meta name="description" content="Crypto intelligence API for token scanning, wallet analysis, and scam detection. Powered by x402 protocol. Pay with credit card or USDC. No blockchain knowledge needed.">
-<title>{title} — RugMunch Intelligence API</title>
+<title>{title} - RugMunch Intelligence API</title>
 <style>
 :root{{--bg:#0a0a0f;--fg:#e0e0e0;--accent:#4a6cf7;--green:#10b981;--border:#1e1e2e;--mono:'SF Mono','Fira Code',monospace;--font:system-ui,sans-serif}}
 *{{box-sizing:border-box;margin:0;padding:0}}
@@ -72,12 +72,12 @@ a:hover{{text-decoration:underline}}
 @router.get("/docs")
 @router.get("/docs/v2/landing")
 async def landing_page():
-    """Landing page — the product is token intelligence, not x402."""
+    """Landing page - the product is token intelligence, not x402."""
     return HTMLResponse(content=_page("RugMunch Intelligence API", """
 <h2>Token Intelligence for Every Developer</h2>
 <p style="font-size:16px;margin-bottom:24px">
 Scan tokens for rug pulls. Analyze wallets for risk. Detect scams before they steal.
-No blockchain knowledge needed. Just an API call. Built on the <strong>x402 protocol</strong> —
+No blockchain knowledge needed. Just an API call. Built on the <strong>x402 protocol</strong> -
 the open standard for pay-per-call blockchain API access with USDC settlement.
 </p>
 
@@ -129,7 +129,7 @@ Your API key is all you need. We handle the blockchain.
 @router.get("/docs/v2/quickstart")
 async def quickstart():
     return HTMLResponse(content=_page("Quickstart", """
-<h2>Quickstart — Try It in 30 Seconds</h2>
+<h2>Quickstart - Try It in 30 Seconds</h2>
 <p>No crypto wallet needed. No USDC. Just a credit card or free API key.</p>
 
 <div class="step">
@@ -144,7 +144,7 @@ async def quickstart():
 
 <div class="step">
 <span class="num">2</span>
-<strong>Scan a token (free — 100 calls included)</strong>
+<strong>Scan a token (free - 100 calls included)</strong>
 <p>Use your API key to scan any token for rug pull indicators. No payment needed for your first 100 calls.</p>
 <pre>curl https://api.rugmunch.io/v1/token/scan \\
   -H "X-API-Key: rm_free_abc123" \\
@@ -198,7 +198,7 @@ async def api_reference():
 </table>
 
 <h3>Examples</h3>
-<pre><span class="comment"># Python — pip install requests</span>
+<pre><span class="comment"># Python - pip install requests</span>
 import requests
 
 API_KEY = "rm_free_abc123"
@@ -217,7 +217,7 @@ resp = requests.get(f"{api}/credits/balance",
 )
 print(f"Credits remaining: {resp.json()['balance']}")</pre>
 
-<pre><span class="comment"># JavaScript — fetch</span>
+<pre><span class="comment"># JavaScript - fetch</span>
 const API_KEY = "rm_free_abc123";
 
 const resp = await fetch("https://api.rugmunch.io/v1/token/scan", {

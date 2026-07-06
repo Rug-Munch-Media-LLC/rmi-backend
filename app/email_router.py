@@ -1,5 +1,5 @@
 """
-Email Service — Listmonk + Gmail SMTP integration for rugmunch.io
+Email Service - Listmonk + Gmail SMTP integration for rugmunch.io
 Uses listmonk API for newsletters + transactional emails.
 SMTP relay: Gmail (cryptorugmuncher@gmail.com)
 """
@@ -105,7 +105,7 @@ async def list_campaigns():
 
 
 # ═══════════════════════════════════════════════════════════
-# TRANSACTIONAL — Direct Gmail SMTP
+# TRANSACTIONAL - Direct Gmail SMTP
 # ═══════════════════════════════════════════════════════════
 @router.post("/send")
 async def send_transactional(data: dict):
@@ -129,7 +129,7 @@ async def send_transactional(data: dict):
 
         with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
             server.starttls()
-            # Gmail App Password needed — stored in env
+            # Gmail App Password needed - stored in env
             app_password = os.getenv("GMAIL_APP_PASSWORD", "")
             server.login("cryptorugmuncher@gmail.com", app_password)
             server.send_message(msg)

@@ -1,4 +1,4 @@
-"""API Developer Portal — self-service key management, docs, usage tracking."""
+"""API Developer Portal - self-service key management, docs, usage tracking."""
 
 import hashlib
 import os
@@ -77,7 +77,7 @@ async def get_usage(x_api_key: str = Header(...)):
 
 @router.get("/docs")
 async def api_docs():
-    """API documentation — available endpoints."""
+    """API documentation - available endpoints."""
     return {
         "base_url": "https://rugmunch.io/api/v1",
         "authentication": "X-API-Key header",

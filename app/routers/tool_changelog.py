@@ -5,10 +5,10 @@ Tracks tool versions, changes, and deprecations.
 Provides transparency for tool quality and evolution.
 
 Endpoints:
-  GET  /api/v1/tools/changelog       — Full changelog
-  GET  /api/v1/tools/changelog/{tool} — Changelog for specific tool
-  GET  /api/v1/tools/version/{tool}   — Current version for tool
-  GET  /api/v1/tools/deprecated       — List of deprecated tools
+  GET  /api/v1/tools/changelog       - Full changelog
+  GET  /api/v1/tools/changelog/{tool} - Changelog for specific tool
+  GET  /api/v1/tools/version/{tool}   - Current version for tool
+  GET  /api/v1/tools/deprecated       - List of deprecated tools
 
 Author: RMI Development
 Date: 2026-06-05
@@ -39,7 +39,7 @@ INITIAL_CHANGELOG = [
         "type": "feature",
         "tool": "whale_copy_trade",
         "title": "New Tool: Whale Copy Trade Engine",
-        "description": "Real-time copy trade engine — input a smart money wallet, get their exact last 24h trades with entry/exit prices, PnL, and suggested follow trades.",
+        "description": "Real-time copy trade engine - input a smart money wallet, get their exact last 24h trades with entry/exit prices, PnL, and suggested follow trades.",
         "breaking": False,
     },
     {
@@ -57,7 +57,7 @@ INITIAL_CHANGELOG = [
         "type": "feature",
         "tool": "whale_cluster",
         "title": "New Tool: Whale Cluster Detection",
-        "description": "Identify coordinated whale clusters — wallets that move together via same funding source, timing patterns, and token sets. Detects wash trading and insider networks.",
+        "description": "Identify coordinated whale clusters - wallets that move together via same funding source, timing patterns, and token sets. Detects wash trading and insider networks.",
         "breaking": False,
     },
     {
@@ -84,7 +84,7 @@ INITIAL_CHANGELOG = [
         "type": "infrastructure",
         "tool": "*",
         "title": "Public Status Page",
-        "description": "Public-facing status page at /api/v1/status showing health of all RMI services — backend, Redis, ClickHouse, MCP, facilitators. 30s monitoring loop.",
+        "description": "Public-facing status page at /api/v1/status showing health of all RMI services - backend, Redis, ClickHouse, MCP, facilitators. 30s monitoring loop.",
         "breaking": False,
     },
     {

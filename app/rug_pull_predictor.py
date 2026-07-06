@@ -22,11 +22,11 @@ Signals Analyzed:
   - SOCIAL_SIGNALS: Low engagement, anonymous team, no community presence
 
 Data Sources (all free):
-  - DexScreener — token pairs, liquidity, price
-  - Solscan (public) — SPL token holder data
-  - Etherscan/BscScan (public free) — EVM token info
-  - Birdeye public — basic token metrics
-  - GoPlus (free) — token security info (if available)
+  - DexScreener - token pairs, liquidity, price
+  - Solscan (public) - SPL token holder data
+  - Etherscan/BscScan (public free) - EVM token info
+  - Birdeye public - basic token metrics
+  - GoPlus (free) - token security info (if available)
 """
 
 import asyncio

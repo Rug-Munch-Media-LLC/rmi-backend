@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#10 — DataBus Public API Gateway. Free tier + x402 paid tier. 102 chains, 119 providers."""
+"""#10 - DataBus Public API Gateway. Free tier + x402 paid tier. 102 chains, 119 providers."""
 
 import hashlib
 import logging

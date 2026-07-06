@@ -1,4 +1,4 @@
-"""T29 Reports — thin HTTP layer."""
+"""T29 Reports - thin HTTP layer."""
 
 from .router import router
 

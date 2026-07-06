@@ -16,12 +16,15 @@ All endpoints require ADMIN or SUPERADMIN role.
 
 import json
 import logging
+import secrets
 from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+
+from app.core.redis import get_redis
 
 logger = logging.getLogger("rmi_admin_users")
 router = APIRouter(tags=["admin-users"])

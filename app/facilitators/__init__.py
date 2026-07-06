@@ -20,10 +20,10 @@ Supported Facilitators:
         - x402-rs (multi-chain Rust facilitator)
     Universal:
         - EIP-7702 (all EVM chains, all tokens, all native coins)
-    OFFLINE (dead — DNS NXDOMAIN):
-        - BNB Pieverse (api.pieverse.xyz) — OFFLINE
-        - MERX x402 (api.merx.finance) — OFFLINE
-        - Satoshi (api.satoshi.dev) — OFFLINE
+    OFFLINE (dead - DNS NXDOMAIN):
+        - BNB Pieverse (api.pieverse.xyz) - OFFLINE
+        - MERX x402 (api.merx.finance) - OFFLINE
+        - Satoshi (api.satoshi.dev) - OFFLINE
 """
 
 from app.facilitators.base import (

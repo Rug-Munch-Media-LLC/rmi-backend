@@ -5,18 +5,18 @@ A full content management backend for announcements, news, alerts, platform
 communications, and community bulletin boards.
 
 Features:
-  • Posts — CRUD with rich text, attachments, scheduling, expiry
-  • Categories — organize by type (news, alert, update, promo, system)
-  • Targeting — audience segmentation (all, free, premium, admins, specific tiers)
-  • Moderation — draft/review/published/archived workflow, approval chains
-  • Pinning — sticky posts, priority ordering
-  • Analytics — views, clicks, engagement tracking per post
-  • Comments — threaded discussions on posts (optional)
-  • Notifications — push/email/Telegram alerts for critical posts
-  • Scheduling — publish at future date, auto-archive after expiry
-  • Versioning — track edit history, rollback capability
-  • Search — full-text search across all posts
-  • SEO — slug generation, meta tags, OpenGraph
+  • Posts - CRUD with rich text, attachments, scheduling, expiry
+  • Categories - organize by type (news, alert, update, promo, system)
+  • Targeting - audience segmentation (all, free, premium, admins, specific tiers)
+  • Moderation - draft/review/published/archived workflow, approval chains
+  • Pinning - sticky posts, priority ordering
+  • Analytics - views, clicks, engagement tracking per post
+  • Comments - threaded discussions on posts (optional)
+  • Notifications - push/email/Telegram alerts for critical posts
+  • Scheduling - publish at future date, auto-archive after expiry
+  • Versioning - track edit history, rollback capability
+  • Search - full-text search across all posts
+  • SEO - slug generation, meta tags, OpenGraph
 
 Security:
   - All write operations require admin auth + content.write permission
@@ -36,7 +36,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 logger = logging.getLogger("rmi_bulletin_board")
 
@@ -182,8 +182,7 @@ class Comment:
 class ContentSanitizer:
     """Sanitize user-generated content to prevent XSS."""
 
-    ALLOWED_TAGS: ClassVar[dict] =
-{
+    ALLOWED_TAGS: ClassVar[dict] ={
         "p",
         "br",
         "strong",
@@ -220,8 +219,7 @@ class ContentSanitizer:
         "ins",
     }
 
-    ALLOWED_ATTRS: ClassVar[dict] =
-{
+    ALLOWED_ATTRS: ClassVar[dict] ={
         "a": ["href", "title", "target"],
         "img": ["src", "alt", "title", "width", "height"],
         "div": ["class"],
@@ -776,7 +774,7 @@ BADGES = {
     "100_posts": {
         "name": "Terminally Online",
         "icon": "🖥️",
-        "desc": "100 posts — touch grass",
+        "desc": "100 posts - touch grass",
         "tier": "gold",
     },
     "10_upvotes": {

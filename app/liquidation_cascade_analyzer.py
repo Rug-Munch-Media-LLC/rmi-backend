@@ -10,7 +10,7 @@ What it does:
      EVM chains (Ethereum, Base, Arbitrum, Optimism, Polygon, BSC)
   2. Calculates current health factor, liquidation threshold, and
      liquidation price for each position
-  3. Simulates cascade scenarios — if top N positions liquidate, what
+  3. Simulates cascade scenarios - if top N positions liquidate, what
      happens to remaining positions?
   4. Detects concentrated liquidation clusters (multiple wallets at
      similar liquidation prices using same collateral)
@@ -406,7 +406,7 @@ class LiquidationAnalysis:
                 )
             )
 
-        # Scenario 3: Worst-case — all CRITICAL positions trigger simultaneously
+        # Scenario 3: Worst-case - all CRITICAL positions trigger simultaneously
         critical = [p for p in self.positions if p.risk_tier == RiskTier.CRITICAL]
         if critical:
             total_critical_value = sum(p.total_debt_usd for p in critical)
@@ -415,7 +415,7 @@ class LiquidationAnalysis:
             self.cascade_scenarios.append(
                 CascadeScenario(
                     name="Worst-Case Cascade",
-                    description="All CRITICAL positions liquidate simultaneously — worst-case scenario",
+                    description="All CRITICAL positions liquidate simultaneously - worst-case scenario",
                     liquidated_positions=len(critical),
                     total_liquidated_value_usd=total_critical_value,
                     secondary_affected_positions=sum(

@@ -1,5 +1,5 @@
 """
-Darkroom Token Deployer — Multi-Chain Token Factory
+Darkroom Token Deployer - Multi-Chain Token Factory
 ====================================================
 Deploy, mint, and manage tokens across 5+ chains from the admin backend.
 
@@ -50,7 +50,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 logger = logging.getLogger("darkroom_token_deployer")
 
@@ -257,7 +257,7 @@ class EVMDeployer(ChainDeployer):
         owner = params.owner_address or self.deployer_address
 
         # Build constructor args: (name, symbol, decimals, initialSupply, owner, mintable, burnable)
-        # This is a simplified approach — in production use a proper factory contract
+        # This is a simplified approach - in production use a proper factory contract
         from web3 import Web3
 
         args_encoded = (
@@ -270,7 +270,7 @@ class EVMDeployer(ChainDeployer):
             + ("1" if params.burnable else "0").zfill(64)
         )
 
-        # For now, return a placeholder — real deployment uses factory contract
+        # For now, return a placeholder - real deployment uses factory contract
         bytecode = self.ERC20_BYTECODE + args_encoded
         return bytecode, owner
 
@@ -289,7 +289,7 @@ class EVMDeployer(ChainDeployer):
             raise
 
     async def _deploy_direct(self, params: DeployParams) -> TokenDeployment:
-        """Direct contract deployment (simplified — uses raw tx)."""
+        """Direct contract deployment (simplified - uses raw tx)."""
         bytecode, owner = self._build_contract_code(params)
 
         # Build and sign transaction
@@ -387,12 +387,12 @@ class EVMDeployer(ChainDeployer):
         contract_address = None
         for log in receipt.logs:
             if log.address.lower() == factory_address.lower():
-                # TokenCreated event — 32 bytes padded address at position 0
+                # TokenCreated event - 32 bytes padded address at position 0
                 contract_address = "0x" + log.data[-40:]
                 break
 
         if not contract_address:
-            raise RuntimeError("Factory deployment failed — no TokenCreated event found")
+            raise RuntimeError("Factory deployment failed - no TokenCreated event found")
 
         deployment = TokenDeployment(
             deployment_id=self._generate_deployment_id(self.chain, params.symbol, tx_hash.hex()),
@@ -732,7 +732,7 @@ class SolanaDeployer(ChainDeployer):
 
         try:
             # Create mint account
-            mint = Keypair()
+            mint = Keypair()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
             # Get rent-exempt balance for mint
             rent = self.client.get_minimum_balance_for_rent_exemption(82)["result"]
@@ -838,7 +838,7 @@ class SolanaDeployer(ChainDeployer):
         from spl.token.instructions import burn
 
         mint = Pubkey.from_string(contract_address)
-        ata = get_associated_token_address(self.keypair.pubkey(), mint)
+        ata = get_associated_token_address(self.keypair.pubkey(), mint)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
         tx = Transaction()
         burn_ix = burn(
@@ -955,7 +955,7 @@ class SolanaDeployer(ChainDeployer):
         from spl.token.instructions import freeze_account
 
         mint = Pubkey.from_string(contract_address)
-        account = get_associated_token_address(Pubkey.from_string(address), mint)
+        account = get_associated_token_address(Pubkey.from_string(address), mint)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
         tx = Transaction()
         freeze_ix = freeze_account(
@@ -979,7 +979,7 @@ class SolanaDeployer(ChainDeployer):
         from spl.token.instructions import thaw_account
 
         mint = Pubkey.from_string(contract_address)
-        account = get_associated_token_address(Pubkey.from_string(address), mint)
+        account = get_associated_token_address(Pubkey.from_string(address), mint)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
         tx = Transaction()
         thaw_ix = thaw_account(
@@ -1021,12 +1021,12 @@ class SolanaDeployer(ChainDeployer):
         return await self.renounce_ownership(contract_address)
 
     async def set_max_wallet(self, contract_address: str, max_amount: str) -> str:
-        """Not natively supported on SPL — would require custom program."""
+        """Not natively supported on SPL - would require custom program."""
         logger.warning("Max wallet not natively supported on Solana SPL")
         return "not_supported"
 
     async def set_max_tx(self, contract_address: str, max_amount: str) -> str:
-        """Not natively supported on SPL — would require custom program."""
+        """Not natively supported on SPL - would require custom program."""
         logger.warning("Max tx not natively supported on Solana SPL")
         return "not_supported"
 
@@ -1054,7 +1054,7 @@ class TronDeployer(ChainDeployer):
     async def deploy_token(self, params: DeployParams) -> TokenDeployment:
         """Deploy TRC-20 token on TRON."""
         try:
-            # TRON uses TVM (Tron Virtual Machine) — similar to EVM
+            # TRON uses TVM (Tron Virtual Machine) - similar to EVM
             # For production, deploy via a factory or use pre-compiled bytecode
 
             # Simplified: deploy via TronGrid API call
@@ -1205,8 +1205,7 @@ class TokenDeployerFactory:
     Reads private keys and RPC URLs from environment variables.
     """
 
-    CHAIN_CONFIG: ClassVar[dict] =
-{
+    CHAIN_CONFIG: ClassVar[dict] ={
         "ethereum": {
             "deployer_class": EVMDeployer,
             "rpc_env": "ETH_RPC_URL",

@@ -1,4 +1,4 @@
-"""RAG domain — v3 M3 engine surface.
+"""RAG domain - v3 M3 engine surface.
 
 Public API (per v3 unfuck guide §M3):
 - RAGService, init_rag

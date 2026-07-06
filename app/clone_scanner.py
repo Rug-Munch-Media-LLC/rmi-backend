@@ -14,15 +14,15 @@ PRICE : $0.08 (80000 atoms)
 TRIAL : 2 free checks
 
 Endpoints:
-  POST /api/v1/x402-tools/clone/scan  — full clone analysis
-  POST /api/v1/x402-tools/clone/detect — fast similarity check only
+  POST /api/v1/x402-tools/clone/scan  - full clone analysis
+  POST /api/v1/x402-tools/clone/detect - fast similarity check only
 
 Data Sources (all free):
-  - DexScreener — token info, pairs, prices across chains
-  - Birdeye public — holder stats, token metadata
-  - Solscan (free) — Solana contract verification status
-  - Etherscan family — EVM contract source code
-  - Jupiter — Solana token list
+  - DexScreener - token info, pairs, prices across chains
+  - Birdeye public - holder stats, token metadata
+  - Solscan (free) - Solana contract verification status
+  - Etherscan family - EVM contract source code
+  - Jupiter - Solana token list
 
 Usage:
     from app.clone_scanner import CloneScanner, CloneReport
@@ -245,7 +245,7 @@ class CloneReport:
         flag_str = f" [{', '.join(flags)}]" if flags else ""
         return (
             f"[{self.risk_label.upper()}] {self.token_address[:12]}... "
-            f"({self.name}/{self.symbol}) — "
+            f"({self.name}/{self.symbol}) - "
             f"Clone score: {self.clone_score:.0f}/100 | "
             f"{len(self.similar_tokens)} similar tokens found"
             f"{flag_str}"
@@ -378,7 +378,7 @@ class CloneScanner:
         return report
 
     async def fast_check(self, address: str, chain: str) -> dict[str, Any]:
-        """Quick similarity check — name/symbol only, no bytecode."""
+        """Quick similarity check - name/symbol only, no bytecode."""
         if not self._validate_address(address, chain):
             return {"error": f"Invalid address for chain {chain}"}
 
@@ -427,7 +427,7 @@ class CloneScanner:
             return bool(SOLANA_ADDRESS_RE.match(address))
         if chain in EVM_CHAINS:
             return bool(EVM_ADDRESS_RE.match(address))
-        # Unknown chain — try either format
+        # Unknown chain - try either format
         return bool(EVM_ADDRESS_RE.match(address) or SOLANA_ADDRESS_RE.match(address))
 
     def _is_well_known(self, name: str, symbol: str) -> bool:
@@ -596,7 +596,7 @@ class CloneScanner:
             return False  # Solana doesn't have a simple verified/unverified check via free API
         base = ETHERSCAN_BASES.get(chain)
         if not base:
-            return True  # Unknown chain — assume unverified
+            return True  # Unknown chain - assume unverified
 
         try:
             # Use free-tier etherscan API (no key needed for basic queries)
@@ -621,7 +621,7 @@ class CloneScanner:
             return None
 
         try:
-            # Get internal txns for creation — free endpoint
+            # Get internal txns for creation - free endpoint
             url = f"{base}?module=account&action=txlistinternal&address={address}&sort=asc&limit=1"
             resp = await self.http.get(url)
             if resp.status_code == 200:
@@ -750,7 +750,7 @@ class CloneScanner:
 
 
 async def scan_token(address: str, chain: str) -> CloneReport:
-    """Convenience function — create scanner, scan, close."""
+    """Convenience function - create scanner, scan, close."""
     scanner = CloneScanner()
     try:
         return await scanner.scan(address, chain)

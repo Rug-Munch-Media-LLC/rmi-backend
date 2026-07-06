@@ -1,3 +1,5 @@
+from app.telegram_bot.requirements import httpx
+
 #!/usr/bin/env python3
 """
 ╔═══════════════════════════════════════════════════════════════════════════════╗
@@ -34,19 +36,19 @@ Author: RMI Dev Team
 Contract: Eme5T2s2HB7B8W4YgLG1eReQpnadEVUnQBRjaKTdBAGS
 """
 
-import asyncio
-import json
-import logging
-import os
-import statistics
-import sys
-import time
-from collections import defaultdict
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
+import asyncio  # noqa: E402
+import json  # noqa: E402
+import logging  # noqa: E402
+import os  # noqa: E402
+import statistics  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+from collections import defaultdict  # noqa: E402
+from dataclasses import asdict, dataclass, field  # noqa: E402
+from datetime import datetime  # noqa: E402
 
 # Load the free solscan client
-from app.free_solscan_client import FreeSolscanClient, is_known_exchange
+from app.free_solscan_client import FreeSolscanClient, is_known_exchange  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -594,7 +596,7 @@ class DegenSecurityScanner:
             report.funding_risk = "LOW"  # Direct exchange = transparent
         elif organic_count > exchange_count * 2:
             report.funding_risk = "MEDIUM"  # Mostly anonymous funding
-            self.critical_warnings.append("⚠️ Deployer funded from non-exchange sources — possible obfuscation")
+            self.critical_warnings.append("⚠️ Deployer funded from non-exchange sources - possible obfuscation")
         elif mixer_detected:
             report.funding_risk = "CRITICAL"
             self.critical_warnings.append("🚨 MIXER FUNDING DETECTED: Deployer used a tumbler!")
@@ -919,7 +921,7 @@ class DegenSecurityScanner:
             report.dev_is_known_scammer = True
             report.dev_rug_history = len(token_creations) - 1  # estimate
             self.critical_warnings.append(
-                f"👺 DEV SERIAL LAUNCHER: Created {len(token_creations)} tokens — "
+                f"👺 DEV SERIAL LAUNCHER: Created {len(token_creations)} tokens - "
                 f"likely a token factory / rug operation"
             )
         elif len(token_creations) >= 2:
@@ -1017,10 +1019,10 @@ class DegenSecurityScanner:
 
         if report.rug_pull_probability >= 70:
             report.overall_risk = "CRITICAL"
-            self.recommendations.insert(0, "🛑 DO NOT INVEST — EXTREME RISK")
+            self.recommendations.insert(0, "🛑 DO NOT INVEST - EXTREME RISK")
         elif report.rug_pull_probability >= 50:
             report.overall_risk = "HIGH"
-            self.recommendations.insert(0, "⚠️ HIGH RISK — Only gamble what you can lose")
+            self.recommendations.insert(0, "⚠️ HIGH RISK - Only gamble what you can lose")
         elif report.rug_pull_probability >= 30:
             report.overall_risk = "MEDIUM"
         else:
@@ -1046,9 +1048,9 @@ class DegenSecurityScanner:
         if not report.mint_authority_renounced:
             self.recommendations.append("Verify mint authority renouncement on-chain")
         if report.total_liquidity_usd < 50000:
-            self.recommendations.append("Low liquidity — large sells will cause massive slippage")
+            self.recommendations.append("Low liquidity - large sells will cause massive slippage")
         if report.top_10_concentration > 40:
-            self.recommendations.append("Top-heavy distribution — watch for whale dumps")
+            self.recommendations.append("Top-heavy distribution - watch for whale dumps")
 
     # ═══════════════════════════════════════════════════════════════════════
     # EXTERNAL API HELPERS
@@ -1136,7 +1138,7 @@ def format_report(report: SecurityReport) -> str:
     """Format a security report for display."""
     lines = [
         "╔══════════════════════════════════════════════════════════════════════╗",
-        "║           RUG MUNCH INTELLIGENCE — DEGEN SECURITY SCAN             ║",
+        "║           RUG MUNCH INTELLIGENCE - DEGEN SECURITY SCAN             ║",
         "╚══════════════════════════════════════════════════════════════════════╝",
         "",
         f"🪙 Token: {report.token_name} (${report.token_symbol})",
@@ -1237,7 +1239,7 @@ def format_report(report: SecurityReport) -> str:
     lines.extend(
         [
             "═══════════════════════════════════════════════════════════════",
-            "  Powered by Rug Munch Intelligence — Protecting Degens Since 2024",
+            "  Powered by Rug Munch Intelligence - Protecting Degens Since 2024",
             "═══════════════════════════════════════════════════════════════",
         ]
     )

@@ -1,5 +1,5 @@
 """
-Community Badges Router — FastAPI endpoints for voting and badge queries.
+Community Badges Router - FastAPI endpoints for voting and badge queries.
 """
 
 from fastapi import APIRouter, HTTPException, Query

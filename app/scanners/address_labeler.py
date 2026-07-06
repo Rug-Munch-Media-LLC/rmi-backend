@@ -1,12 +1,12 @@
 """
-SENTINEL — Address Labeler
+SENTINEL - Address Labeler
 ==========================
 Resolves wallet/contract addresses to known labels from multiple sources:
-  1. Etherscan API — public address labels
-  2. RolodETH — public GitHub label database
-  3. walletLabels.xyz — public address label API
-  4. bluepages.fyi — public address label API
-  5. Internal RAG — known_scams and wallet_profiles databases
+  1. Etherscan API - public address labels
+  2. RolodETH - public GitHub label database
+  3. walletLabels.xyz - public address label API
+  4. bluepages.fyi - public address label API
+  5. Internal RAG - known_scams and wallet_profiles databases
 
 Combines all label sources into a unified response with risk assessment.
 """
@@ -228,7 +228,7 @@ class AddressLabeler:
             resp = await self._http.get(url, timeout=10.0)
             if resp.status_code == 200:
                 body = resp.json()
-                # Parse response — format may vary
+                # Parse response - format may vary
                 labels = body.get("labels", body.get("data", []))
                 if isinstance(labels, list):
                     for lbl in labels:
@@ -457,7 +457,7 @@ class AddressLabeler:
 
         # DeFi protocol = context-dependent
         if report.is_defi_protocol:
-            # DeFi protocols are neutral — no risk adjustment
+            # DeFi protocols are neutral - no risk adjustment
             pass
 
         # Bridge addresses are neutral
@@ -473,7 +473,7 @@ class AddressLabeler:
         # No labels found = unknown entity (slightly suspicious)
         if not report.labels:
             score += 10
-            warnings.append("LOW: No known labels found for address — unknown entity")
+            warnings.append("LOW: No known labels found for address - unknown entity")
 
         # Negative risk from exchange doesn't go below 0
         score = max(0.0, min(100.0, score))

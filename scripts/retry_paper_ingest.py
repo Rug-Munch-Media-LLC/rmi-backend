@@ -84,7 +84,7 @@ def main():
         total_chunks += success
         metadata[arxiv_id]["ingested"] = True
         metadata[arxiv_id]["chunk_count"] = success
-        print(f"  {arxiv_id}: {success}/{len(chunks)} chunks — {title[:50]}")
+        print(f"  {arxiv_id}: {success}/{len(chunks)} chunks - {title[:50]}")
 
     with open(METADATA_FILE, "w") as f:
         json.dump(metadata, f, indent=2)

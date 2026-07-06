@@ -29,7 +29,7 @@ logger = logging.getLogger("social_engineering_detector")
 
 # ── Free API sources ─────────────────────────────────────────────
 TWITTER_API = "https://api.twitter.com/2"
-TWITTER_BEARER = ""  # Optional — uses public scrapers if empty
+TWITTER_BEARER = ""  # Optional - uses public scrapers if empty
 DEXTOOLS_API = "https://api.dextools.io/v2"
 DOMAIN_PUBLIC_API = "https://api.domainsdb.info/v1"
 WHOIS_API = "https://whois.freewhoisxmlapi.com/api/v1"
@@ -92,7 +92,7 @@ def analyze_profile_photo(photo_url: str | None, name: str) -> dict:
         return {
             "has_photo": False,
             "risk_score": 15,
-            "flags": ["No profile photo — potential fake persona"],
+            "flags": ["No profile photo - potential fake persona"],
             "details": "Team member has no profile photo",
         }
 
@@ -131,7 +131,7 @@ def analyze_profile_photo(photo_url: str | None, name: str) -> dict:
     # No EXIF / generic placeholder
     if "placeholder" in photo_url.lower() or "avatar" in photo_url.lower():
         score += 10
-        flags.append("Generic placeholder image — no real identity")
+        flags.append("Generic placeholder image - no real identity")
 
     return {
         "has_photo": True,
@@ -154,7 +154,7 @@ def analyze_domain(domain: str | None) -> dict:
         return {
             "has_domain": False,
             "risk_score": 20,
-            "flags": ["No domain provided — potential lack of commitment"],
+            "flags": ["No domain provided - potential lack of commitment"],
             "details": "No project website domain available",
         }
 
@@ -165,7 +165,7 @@ def analyze_domain(domain: str | None) -> dict:
     for tld in _FLAG_TLDS:
         if domain.endswith(tld):
             score += 15
-            flags.append(f"Suspicious TLD ({tld}) — commonly used in scam projects")
+            flags.append(f"Suspicious TLD ({tld}) - commonly used in scam projects")
             break
 
     # Check domain age (we can only estimate without WHOIS API)
@@ -175,14 +175,14 @@ def analyze_domain(domain: str | None) -> dict:
 
     # Check for registered domain with suspicious patterns
     suspicious_domain_patterns = [
-        (r"\d{4,}", "Year in domain — often auto-generated"),
+        (r"\d{4,}", "Year in domain - often auto-generated"),
         (
             r"(?:crypto|token|coin|defi|web3)\d*\w*\d*(?:crypto|token|coin|defi|web3)",
-            "Keyword-stuffed domain — SEO manipulation",
+            "Keyword-stuffed domain - SEO manipulation",
         ),
         (
             r"(?:finance|bank|exchange|swap|trade|market|profit|earn|investment)",
-            "High-risk keyword in domain — commonly phished",
+            "High-risk keyword in domain - commonly phished",
         ),
         (r"(?:secure|login|verify|auth|wallet|connect)", "Phishing-indicative keyword in domain"),
     ]
@@ -207,7 +207,7 @@ def analyze_domain(domain: str | None) -> dict:
     homoglyph_count = sum(1 for c in domain.split(".")[0] if c in homoglyphs)
     if homoglyph_count >= 3:
         score += 20
-        flags.append(f"Homoglyph characters detected ({homoglyph_count}) — domain squatting risk")
+        flags.append(f"Homoglyph characters detected ({homoglyph_count}) - domain squatting risk")
 
     return {
         "domain": domain,
@@ -232,7 +232,7 @@ def analyze_social_presence(social_links: list[str] | None) -> dict:
             "platforms_found": {},
             "platform_count": 0,
             "risk_score": 30,
-            "flags": ["No social media links — major red flag for active projects"],
+            "flags": ["No social media links - major red flag for active projects"],
             "details": "No social profiles provided",
         }
 
@@ -249,12 +249,12 @@ def analyze_social_presence(social_links: list[str] | None) -> dict:
                     flags.append(f"Suspiciously short Twitter username: @{username}")
                 if re.match(r"^.*\d{4,}$", username):
                     score += 5
-                    flags.append(f"Username ends with year pattern — auto-generated? ({username})")
+                    flags.append(f"Username ends with year pattern - auto-generated? ({username})")
         elif "t.me" in lower or "telegram" in lower:
             platforms_found["telegram"] = link
             if "t.me/+" in lower:
                 score += 10
-                flags.append("Private Telegram group link — limited transparency")
+                flags.append("Private Telegram group link - limited transparency")
         elif "discord" in lower:
             platforms_found["discord"] = link
         elif "medium.com" in lower or "mirror.xyz" in lower:
@@ -276,12 +276,12 @@ def analyze_social_presence(social_links: list[str] | None) -> dict:
     # Twitter only + Discord = minimal legitimate presence
     if set(platforms_found.keys()).issubset({"twitter", "discord"}):
         score += 15
-        flags.append("Only Twitter and Discord — no blog, GitHub, or professional presence")
+        flags.append("Only Twitter and Discord - no blog, GitHub, or professional presence")
 
     # No GitHub = suspicious for crypto/defi projects
     if "github" not in platforms_found:
         score += 10
-        flags.append("No GitHub presence — atypical for legitimate crypto projects")
+        flags.append("No GitHub presence - atypical for legitimate crypto projects")
 
     return {
         "platforms_found": platforms_found,
@@ -307,7 +307,7 @@ def analyze_whitepaper_content(text: str | None) -> dict:
             "has_content": False,
             "risk_score": 20,
             "flags": ["No whitepaper or documentation available"],
-            "details": "Cannot analyze — no content provided",
+            "details": "Cannot analyze - no content provided",
         }
 
     # Check for AI generation markers
@@ -386,8 +386,8 @@ async def check_team_background(name: str, role: str, social_handle: str | None)
     # Check for suspicious name patterns
     fake_name_patterns = [
         (r"^[A-Z][a-z]+ [A-Z][a-z]+$", "Simple two-word name often used for fake personas"),
-        (r"^Dr\.\s", "Unverified 'Dr.' title — common in fake teams"),
-        (r"\b(?:ceo|founder|cto|cmo|coo)\b", "Title in name field — suspicious"),
+        (r"^Dr\.\s", "Unverified 'Dr.' title - common in fake teams"),
+        (r"\b(?:ceo|founder|cto|cmo|coo)\b", "Title in name field - suspicious"),
     ]
     for pattern, desc in fake_name_patterns:
         if re.search(pattern, name):
@@ -420,7 +420,7 @@ async def detect_social_engineering(
     domain: str | None = None,
     whitepaper_text: str | None = None,
 ) -> dict:
-    """Main detection function — orchestrates all sub-analyses.
+    """Main detection function - orchestrates all sub-analyses.
 
     Args:
         token_address: The token/contract address to investigate
@@ -490,7 +490,7 @@ async def detect_social_engineering(
     else:
         results["team_analysis"] = {
             "members_analyzed": 0,
-            "note": "No team data provided — cannot assess identity authenticity",
+            "note": "No team data provided - cannot assess identity authenticity",
         }
         total_score += 25 * 0.25  # Default medium risk for unknown team
 
@@ -518,7 +518,7 @@ async def detect_social_engineering(
                                 if creator_tokens and creator_tokens > 20:
                                     total_score += 10
                                     all_flags.append(
-                                        f"Creator has launched {creator_tokens}+ tokens — "
+                                        f"Creator has launched {creator_tokens}+ tokens - "
                                         "serial deployer pattern, high impersonation risk"
                                     )
                 except (TimeoutError, Exception):

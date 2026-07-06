@@ -4,10 +4,10 @@
 import json
 import urllib.request
 
-code = open("/app/app/cross_chain_whale.py").read()[:10000]
+code = open("/app/app/cross_chain_whale.py").read()[:10000]  # noqa: SIM115
 
 k = None
-for line in open("/app/.env"):
+for line in open("/app/.env"):  # noqa: SIM115
     line = line.strip()
     if line.startswith("MINIMAX_API_KEY="):
         k = line.split("=", 1)[1].strip()

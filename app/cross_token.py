@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
-# Lazy imports — api_arsenal and wallet_database may not exist
+# Lazy imports - api_arsenal and wallet_database may not exist
 ForensicAPIArsenal = None
 APIResponse = None
 WalletDatabase = None
@@ -89,7 +89,7 @@ class CrossTokenAffiliationTracker:
         affiliations = []
 
         if ForensicAPIArsenal is None:
-            logger.warning("ForensicAPIArsenal not available — returning empty")
+            logger.warning("ForensicAPIArsenal not available - returning empty")
             return affiliations
 
         async with ForensicAPIArsenal() as api:

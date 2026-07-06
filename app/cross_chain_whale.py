@@ -11,11 +11,11 @@ PRICE : $0.08 (80000 atoms)
 TRIAL : 2 free checks
 
 Data Sources (all free):
-- DexScreener — token pairs, holders, liquidity across chains
-- Solscan (free) — Solana holder data
-- Etherscan family — EVM holder data
-- Birdeye public — cross-chain holder rankings
-- Jupiter — Solana token info
+- DexScreener - token pairs, holders, liquidity across chains
+- Solscan (free) - Solana holder data
+- Etherscan family - EVM holder data
+- Birdeye public - cross-chain holder rankings
+- Jupiter - Solana token info
 """
 
 import asyncio

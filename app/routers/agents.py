@@ -1,5 +1,5 @@
 """
-Agents Router — Agent Mesh listing, detail, commands
+Agents Router - Agent Mesh listing, detail, commands
 """
 
 import json
@@ -84,7 +84,7 @@ class AgentCommandRequest(BaseModel):
     priority: str = Field(default="normal")
 
 
-from app.auth import get_redis
+from app.auth import get_redis  # noqa: E402
 
 
 # ── Static routes must comes before parameterized routes to avoid FastAPI matching issues ──

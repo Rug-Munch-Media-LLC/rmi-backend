@@ -65,10 +65,10 @@ class DualDimEmbedder:
             data = resp.json()
 
         # Ollama returns {"embedding": [[...], [...]]} for single, or {"embeddings": [[...]]}
-        if "embeddings" in data:
+        if "embeddings" in data:  # noqa: SIM108
             vectors = data["embeddings"]
         else:
-            # Single-text fallback — Ollama returns {"embedding": [...]}
+            # Single-text fallback - Ollama returns {"embedding": [...]}
             vectors = [data["embedding"]] if "embedding" in data else []
 
         # Validate dimensions to catch backend mismatches early.
@@ -109,7 +109,7 @@ async def reindex_collection(
     Returns True if migration succeeded (or verification skipped).
     """
     if source.dim == target.dim:
-        # Same dim — no migration needed.
+        # Same dim - no migration needed.
         return True
 
     docs = await fetch_docs()
@@ -122,7 +122,7 @@ async def reindex_collection(
     new_name = f"{name}_v2"
     await write_collection(new_name, list(zip((id_ for id_, _ in docs), new_vectors, strict=False)))
 
-    # Atomic swap — implementation-specific. Caller handles.
+    # Atomic swap - implementation-specific. Caller handles.
     # For FAISS: rename .index files. For Qdrant: rename collections.
 
     if verify_queries:

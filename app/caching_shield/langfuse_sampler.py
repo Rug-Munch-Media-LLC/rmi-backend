@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Langfuse Smart Sampling — Never exceed free tier, keep local as fallback.
+Langfuse Smart Sampling - Never exceed free tier, keep local as fallback.
 
 Strategy:
   - Sample 20% of normal traces → cloud

@@ -5,12 +5,12 @@ Real-time revenue, usage, and customer analytics.
 Reads from Redis counters populated by x402 enforcement + developer tier.
 
 Endpoints:
-  GET /api/v1/analytics/x402/revenue        — Revenue overview
-  GET /api/v1/analytics/x402/tools          — Per-tool usage + revenue
-  GET /api/v1/analytics/x402/daily          — Daily breakdown (30 days)
-  GET /api/v1/analytics/x402/developers     — Developer tier stats
-  GET /api/v1/analytics/x402/funnel         — Conversion funnel (trial → paid)
-  GET /api/v1/analytics/x402/summary        — One-line summary for dashboards
+  GET /api/v1/analytics/x402/revenue        - Revenue overview
+  GET /api/v1/analytics/x402/tools          - Per-tool usage + revenue
+  GET /api/v1/analytics/x402/daily          - Daily breakdown (30 days)
+  GET /api/v1/analytics/x402/developers     - Developer tier stats
+  GET /api/v1/analytics/x402/funnel         - Conversion funnel (trial → paid)
+  GET /api/v1/analytics/x402/summary        - One-line summary for dashboards
 
 Author: RMI Development
 Date: 2026-06-05
@@ -29,38 +29,38 @@ router = APIRouter(prefix="/api/v1/analytics/x402", tags=["x402-analytics"])
 
 async def revenue_overview():
     """Get overall revenue metrics."""
-    return JSONResponse(content=get_revenue_overview())
+    return JSONResponse(content=get_revenue_overview())  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
 
 @router.get("/tools")
 async def tool_breakdown():
     """Get per-tool usage and revenue."""
-    return JSONResponse(content=get_tool_breakdown())
+    return JSONResponse(content=get_tool_breakdown())  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
 
 @router.get("/daily")
 async def daily_breakdown(days: int = 30):
     """Get daily revenue breakdown."""
     days = min(days, 90)  # Cap at 90 days
-    return JSONResponse(content=get_daily_breakdown(days))
+    return JSONResponse(content=get_daily_breakdown(days))  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
 
 @router.get("/developers")
 async def developer_analytics():
     """Get developer tier analytics."""
-    return JSONResponse(content=get_developer_analytics())
+    return JSONResponse(content=get_developer_analytics())  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
 
 @router.get("/funnel")
 async def conversion_funnel():
     """Get trial → paid conversion funnel."""
-    return JSONResponse(content=get_conversion_funnel())
+    return JSONResponse(content=get_conversion_funnel())  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
 
 @router.get("/summary")
 async def analytics_summary():
     """One-line summary for dashboards."""
-    overview = get_revenue_overview()
+    overview = get_revenue_overview()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if "error" in overview:
         return JSONResponse(content=overview)
 

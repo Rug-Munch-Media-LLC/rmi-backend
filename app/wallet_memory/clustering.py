@@ -1,18 +1,18 @@
 """
-Wallet Clustering Engine — 6 heuristics with Union-Find merge.
+Wallet Clustering Engine - 6 heuristics with Union-Find merge.
 ================================================================
 Upgraded from the original 4-heuristic engine in wallet_clustering.py.
 Added: gas payer linkage (EVM deployer networks) and deposit-withdraw patterns (CEX tracing).
 
 Heuristics (confidence 0-1):
-  1. Temporal proximity        — 0.60  (coordinated tx timing)
-  2. Common counterparties     — 0.70  (shared senders/recipients)
-  3. Behavioral patterns      — 0.65  (similar fingerprint)
-  4. Common funding source     — 0.80  (same funder = same operator)
-  5. Gas payer linkage         — 0.85  (one wallet pays for multiple deploys)
-  6. Deposit-withdraw pattern  — 0.80  (exchange flow tracing)
+  1. Temporal proximity        - 0.60  (coordinated tx timing)
+  2. Common counterparties     - 0.70  (shared senders/recipients)
+  3. Behavioral patterns      - 0.65  (similar fingerprint)
+  4. Common funding source     - 0.80  (same funder = same operator)
+  5. Gas payer linkage         - 0.85  (one wallet pays for multiple deploys)
+  6. Deposit-withdraw pattern  - 0.80  (exchange flow tracing)
 
-Union-Find for O(α(n)) merges. Results persisted to storage.py.
+Union-Find for O(alpha(n)) merges. Results persisted to storage.py.  # noqa: RUF002
 """
 
 import logging
@@ -26,7 +26,7 @@ logger = logging.getLogger("wallet_memory.clustering")
 
 
 class UnionFind:
-    """Weighted Union-Find with path compression. O(α(n)) per op."""
+    """Weighted Union-Find with path compression. O(alpha(n)) per op."""
 
     def __init__(self):
         self._parent: dict[str, str] = {}
@@ -63,7 +63,7 @@ class UnionFind:
         return self.find(x) == self.find(y)
 
     def get_members(self, x: str) -> set[str]:
-        """Get all members of x's set. O(n) — use sparingly."""
+        """Get all members of x's set. O(n) - use sparingly."""
         root = self.find(x)
         return {k for k, v in self._parent.items() if v and self.find(k) == root}
 
@@ -262,7 +262,7 @@ class WalletClusteringEngine:
 
         # Find pairs sharing >= MIN_COMMON_COUNTERPARTIES
         pair_shared: dict[tuple[str, str], int] = defaultdict(int)
-        for cp, wallets in cp_wallets.items():
+        for cp, wallets in cp_wallets.items():  # noqa: B007
             wl = list(wallets)
             for i in range(len(wl)):
                 for j in range(i + 1, len(wl)):
@@ -383,7 +383,7 @@ class WalletClusteringEngine:
 
         return clusters
 
-    # ── Heuristic 5: Gas Payer Linkage (NEW — for deployer networks) ─
+    # ── Heuristic 5: Gas Payer Linkage (NEW - for deployer networks) ─
 
     def detect_gas_payer_clusters(self, gas_payer_map: dict[str, list[str]] | None = None) -> list[Cluster]:
         """
@@ -429,7 +429,7 @@ class WalletClusteringEngine:
 
         return clusters
 
-    # ── Heuristic 6: Deposit-Withdraw Pattern (NEW — CEX tracing) ─
+    # ── Heuristic 6: Deposit-Withdraw Pattern (NEW - CEX tracing) ─
 
     def detect_deposit_withdraw_clusters(
         self,
@@ -493,7 +493,7 @@ class WalletClusteringEngine:
         all_clusters.extend(self.detect_gas_payer_clusters(gas_payer_map))
         all_clusters.extend(self.detect_deposit_withdraw_clusters(exchange_deposit_map, exchange_withdrawal_map))
 
-        # The Union-Find already merged everything — now extract the final clusters
+        # The Union-Find already merged everything - now extract the final clusters
         final = self._build_final_clusters()
         return final
 

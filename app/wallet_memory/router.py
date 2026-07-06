@@ -1,5 +1,5 @@
 """
-Wallet Memory Bank API Router — /api/v1/wallet/*
+Wallet Memory Bank API Router - /api/v1/wallet/*
 ===================================================
 Unified wallet intelligence endpoints for both:
   - WalletSafe frontend (wallet profiles, entity explorer)
@@ -264,7 +264,7 @@ async def get_wallet_labels(
     address: str,
     chain: str = Query(default=""),
 ):
-    """Fast label lookup — returns all labels for an address instantly."""
+    """Fast label lookup - returns all labels for an address instantly."""
     engine = _get_engine()
 
     # Try known chains
@@ -303,7 +303,7 @@ async def get_wallet_labels(
 
 @router.post("/labels/batch")
 async def batch_label_lookup(request: dict):
-    """Bulk lookup — query up to 100 addresses at once."""
+    """Bulk lookup - query up to 100 addresses at once."""
     addresses = request.get("addresses", [])
     chain = request.get("chain", "")
 
@@ -332,7 +332,7 @@ async def batch_label_lookup(request: dict):
 
 @router.get("/labels/freshness")
 async def label_freshness_stats():
-    """Check how fresh our labels are — when were they last verified."""
+    """Check how fresh our labels are - when were they last verified."""
     import os
 
     clean_dir = os.path.join(os.environ.get("RMI_DATA_DIR", "/app/data"), "wallet-labels-clean")

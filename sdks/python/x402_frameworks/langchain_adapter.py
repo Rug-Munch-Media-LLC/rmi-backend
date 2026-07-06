@@ -1,4 +1,4 @@
-"""x402 LangChain adapter — transparent payment for LangChain tools.
+"""x402 LangChain adapter - transparent payment for LangChain tools.
 
 Usage:
     from x402_frameworks import x402LangChain
@@ -7,7 +7,7 @@ Usage:
     # Initialize x402
     x402 = x402LangChain(api_key="your-key", auto_pay=True)
 
-    # Wrap any tool — payment is handled automatically
+    # Wrap any tool - payment is handled automatically
     @x402.wrap_tool("token_scan")
     @tool
     def scan_token(address: str) -> dict:
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 
 from .base import x402Adapter
 
@@ -32,7 +32,7 @@ logger = logging.getLogger("x402.langchain")
 
 
 class x402LangChain(x402Adapter):
-    """LangChain adapter — wraps tools with automatic x402 payment.
+    """LangChain adapter - wraps tools with automatic x402 payment.
 
     Every tool call checks:
     1. Free trial available? → use it
@@ -41,7 +41,7 @@ class x402LangChain(x402Adapter):
     4. None? → raise PaymentRequired error
     """
 
-    def wrap_tool(self, tool_name: str, tool_func: Optional[Callable] = None) -> Callable:
+    def wrap_tool(self, tool_name: str, tool_func: Callable | None = None) -> Callable:
         """Decorator: wrap a LangChain tool function with x402 payment.
 
         Usage as decorator:

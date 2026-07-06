@@ -1,4 +1,4 @@
-"""Embedding Router — thin wrapper around smart rate-limited dispatcher."""
+"""Embedding Router - thin wrapper around smart rate-limited dispatcher."""
 
 from app.rate_limiter import get_dispatcher
 

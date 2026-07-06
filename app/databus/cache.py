@@ -1,5 +1,5 @@
 """
-DataBus Cache Layer — Three-Tier Cache with SWR + Per-Type Stats
+DataBus Cache Layer - Three-Tier Cache with SWR + Per-Type Stats
 ================================================================
 
 L1: In-memory dict (sub-millisecond, 4096 keys, LRU eviction) + SWR stale buffer
@@ -11,7 +11,7 @@ Stale-While-Revalidate (SWR):
   - On cache read, if entry is fresh → direct hit
   - If entry is stale (past TTL but within stale window) → return stale data
     AND flag for background refresh via cache.stale_refresh_callback
-  - User NEVER waits for a refresh — always gets instant data
+  - User NEVER waits for a refresh - always gets instant data
 
 Per-Type Stats:
   - Tracks hits/misses per data_type for tuning TTLs
@@ -70,12 +70,12 @@ class L1Cache:
             value, fresh_expiry, stale_expiry = entry
             now = time.monotonic()
             if now > stale_expiry:
-                # Fully expired — evict
+                # Fully expired - evict
                 del self._store[key]
                 self.misses += 1
                 return None, False
             if now > fresh_expiry:
-                # Stale but usable — SWR hit
+                # Stale but usable - SWR hit
                 self._store.move_to_end(key)
                 self.stale_hits += 1
                 return value, True
@@ -138,7 +138,7 @@ class L2RedisCache:
                 "socket_connect_timeout": 2,
                 "socket_timeout": 2,
                 "decode_responses": True,
-                "protocol": 2,  # Redis 7.2 compat — avoid HELLO/AUTH handshake issue
+                "protocol": 2,  # Redis 7.2 compat - avoid HELLO/AUTH handshake issue
             }
             if REDIS_PASSWORD:
                 kwargs["password"] = REDIS_PASSWORD
@@ -222,7 +222,7 @@ class CacheLayer:
         self.stale_refresh_callback: Callable | None = None
         # Per-type hit/miss tracking for TTL tuning
         self._type_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"hits": 0, "stale_hits": 0, "misses": 0})
-        # Data type TTLs — optimized for FREE tier usage to avoid rate limits
+        # Data type TTLs - optimized for FREE tier usage to avoid rate limits
         # and maximize our 1-month Arkham trial + Alchemy free quota.
         self.ttl_config = {
             # ── High Frequency (Cache aggressively to save free API calls) ──
@@ -318,12 +318,12 @@ class CacheLayer:
                 self._type_stats[dtype]["hits"] += 1
             # SWR: schedule background refresh if stale and callback is set
             if is_stale and self.stale_refresh_callback:
-                try:
+                try:  # noqa: SIM105
                     asyncio.create_task(self.stale_refresh_callback(key))
                 except Exception:
                     pass  # Best-effort refresh
             return val, is_stale
-        # L2 (no SWR — Redis handles its own TTL)
+        # L2 (no SWR - Redis handles its own TTL)
         val = await self.l2.get(key)
         if val is not None:
             # Promote to L1 with shorter TTL (fresh only for now)

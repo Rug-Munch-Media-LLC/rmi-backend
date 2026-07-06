@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
 """
-TIER-1 AGENTIC RAG — Multi-Hop Retrieval + LLM Reranking
+TIER-1 AGENTIC RAG - Multi-Hop Retrieval + LLM Reranking
 =========================================================
 What elevates RAG from "search tool" to "intelligence analyst":
 
-1. LLM RERANKING — Cross-encode top-K results for precision
+1. LLM RERANKING - Cross-encode top-K results for precision
    - Initial ANN search returns 20 candidates
    - LLM scores each result against the query
    - Returns top-5 highest-confidence hits with reasoning
 
-2. MULTI-HOP RETRIEVAL — Chain-of-thought investigation
+2. MULTI-HOP RETRIEVAL - Chain-of-thought investigation
    - "Token X has this scam pattern → same deployer → check their other tokens → any also scams?"
    - Agent plans retrieval steps, executes, synthesizes
 
-3. REFLECTION LOOP — Self-correcting search
+3. REFLECTION LOOP - Self-correcting search
    - "Results look low-confidence. Reformulate query with different keywords."
    - "Found pattern A. Did I check pattern B which is often paired with A?"
 
-4. EVIDENCE WEIGHTING — Confidence scoring per source
+4. EVIDENCE WEIGHTING - Confidence scoring per source
    - Curated patterns: 0.9 weight
    - REKT reports: 0.85 weight
    - Community reports: 0.6 weight
    - Automated scan results: 0.7 weight
 
-5. STREAMING RESPONSE — Progressive disclosure
+5. STREAMING RESPONSE - Progressive disclosure
    - Stream findings as they're discovered
 """
 
@@ -414,13 +414,13 @@ Return as JSON. Be precise and evidence-based."""
                 "confidence": min(0.9, high_risk / max(1, total)),
                 "evidence_count": len(reranked),
                 "scam_patterns_found": [r.get("metadata", {}).get("name", "") for r in reranked[:5]],
-                "recommendation": "Avoid — high risk indicators detected" if high_risk > 0 else "Proceed with caution",
+                "recommendation": "Avoid - high risk indicators detected" if high_risk > 0 else "Proceed with caution",
             }
 
         # Build findings summary
         finding_text = ""
         for f in findings:
-            finding_text += f"\nHop {f['hop']}: {f['action']} — {f['result'].get('count', 0)} results\n"
+            finding_text += f"\nHop {f['hop']}: {f['action']} - {f['result'].get('count', 0)} results\n"
             for doc in f.get("result", {}).get("documents", [])[:3]:
                 finding_text += f"  - {doc.get('content', '')[:200]}\n"
 
@@ -471,7 +471,7 @@ async def stream_rag_search(
     limit: int = 5,
 ) -> AsyncGenerator[str, None]:
     """
-    Streaming RAG search — yields results as they're discovered.
+    Streaming RAG search - yields results as they're discovered.
     Pattern: "thinking..." → "found N matches..." → "reranking..." → results
     """
     from app.rag_service import search_multi_collection, search_similar

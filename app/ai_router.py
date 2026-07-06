@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stub AI Router — Intelligent Model-First Provider Swapping
+Stub AI Router - Intelligent Model-First Provider Swapping
 ===========================================================
 Routes requests to optimal AI provider based on quota, latency, and cost.
 For now, a minimal stub that delegates to OpenRouter.

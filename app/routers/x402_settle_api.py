@@ -1,5 +1,5 @@
 """
-x402_settle_api.py — x402 micropayment settlement
+x402_settle_api.py - x402 micropayment settlement
 
 Settles the EIP-3009 USDC transfer authorization returned by the client
 and activates the corresponding entitlement (subscription tier or add-on).
@@ -157,7 +157,7 @@ async def settle_x402(req: SettleRequest, request: Request):
         try:
             payload = json.loads(req.x_pay)  # maybe already JSON
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid x_pay: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid x_pay: {e}") from e
 
     auth = (payload.get("payload") or {}).get("authorization") or {}
     sig = (payload.get("payload") or {}).get("signature")
@@ -166,11 +166,11 @@ async def settle_x402(req: SettleRequest, request: Request):
 
     # Validate critical fields
     if auth.get("to", "").lower() != PAY_TO.lower():
-        raise HTTPException(status_code=400, detail="payTo mismatch — wrong recipient")
+        raise HTTPException(status_code=400, detail="payTo mismatch - wrong recipient")
     if str(auth.get("value", "")) != str(pending.get("amount_atoms")):
         raise HTTPException(status_code=400, detail="amount mismatch")
     if req.payer and auth.get("from", "").lower() != req.payer.lower():
-        raise HTTPException(status_code=400, detail="payer mismatch — signature not from expected wallet")
+        raise HTTPException(status_code=400, detail="payer mismatch - signature not from expected wallet")
 
     # Optional: verify the signature on-chain via eth_call
     # Skipped in dev to keep the endpoint fast. Production should call

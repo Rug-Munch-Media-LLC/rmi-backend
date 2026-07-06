@@ -7,5 +7,5 @@
     - apis/: third-party APIs (coingecko, etherscan, birdeye, ...)
     - providers/: AI providers (ollama, openrouter, huggingface, ...)
 
-Domain code goes through these — no direct third-party calls from domain.
+Domain code goes through these - no direct third-party calls from domain.
 """

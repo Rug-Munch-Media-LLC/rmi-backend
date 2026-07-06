@@ -163,7 +163,7 @@ async def full_degen_scan(request: DegenScanRequest):
 
     except Exception as e:
         logger.error(f"Degen scan failed for {token}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Scan failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Scan failed: {e!s}") from e
 
 
 @router.get("/quick")

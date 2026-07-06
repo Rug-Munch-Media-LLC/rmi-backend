@@ -1,20 +1,20 @@
 """
 RugCharts News Intelligence Engine
 ===================================
-"We come to the news" — multi-source aggregation, quality scoring,
+"We come to the news" - multi-source aggregation, quality scoring,
 deduplication, sentiment, category tagging, social hooks.
 
 Sources (all free):
-  RSS/Atom     — 200+ crypto feeds (news_service.py)
-  Google News  — crypto search results RSS
-  Decrypt      — decrypt.co/feed
-  The Block    — theblock.co/rss.xml
-  CoinTelegraph — cointelegraph.com/rss
-  CryptoPanic  — news sentiment API
-  arXiv        — academic crypto/blockchain papers
-  CoinGecko    — trending, market context
-  Polymarket   — prediction market context
-  X/Twitter    — v2 API searches (if key available)
+  RSS/Atom     - 200+ crypto feeds (news_service.py)
+  Google News  - crypto search results RSS
+  Decrypt      - decrypt.co/feed
+  The Block    - theblock.co/rss.xml
+  CoinTelegraph - cointelegraph.com/rss
+  CryptoPanic  - news sentiment API
+  arXiv        - academic crypto/blockchain papers
+  CoinGecko    - trending, market context
+  Polymarket   - prediction market context
+  X/Twitter    - v2 API searches (if key available)
 """
 
 import asyncio
@@ -40,7 +40,7 @@ NEWS_SOURCES = {
         "type": "rss",
         "tier": 1,
         "category": "aggregator",
-        "quality_weight": 0.7,  # lower — includes mainstream noise
+        "quality_weight": 0.7,  # lower - includes mainstream noise
         "icon": "🔍",
     },
     "decrypt": {
@@ -138,8 +138,8 @@ NEWS_SOURCES = {
         "type": "internal",
         "tier": 1,
         "category": "social",
-        "quality_weight": 0.6,  # lower — social media noise
-        "icon": "𝕏",
+        "quality_weight": 0.6,  # lower - social media noise
+        "icon": "𝕏",  # noqa: RUF001
     },
 }
 
@@ -288,7 +288,7 @@ def score_quality(article: dict) -> float:
     score = 0.5
     text = (article.get("title", "") + " " + article.get("summary", "") + article.get("description", "")).lower()
 
-    # Length — substantive articles are better
+    # Length - substantive articles are better
     content_len = len(article.get("summary", "") + article.get("description", ""))
     if content_len > 500:
         score += 0.15
@@ -704,7 +704,7 @@ async def aggregate_all_news(limit: int = 50, **kw) -> dict:
 
 
 async def get_weekly_best(limit: int = 20, **kw) -> dict:
-    """Curated weekly best — highest quality articles from the past 7 days."""
+    """Curated weekly best - highest quality articles from the past 7 days."""
     all_news = await aggregate_all_news(limit=100)
     articles = all_news.get("articles", [])
 
@@ -741,7 +741,7 @@ async def get_academic_papers(limit: int = 10, **kw) -> dict:
 
 
 async def get_social_feed(limit: int = 30, **kw) -> dict:
-    """Social media feed — X/Twitter crypto reactions + CryptoPanic sentiment."""
+    """Social media feed - X/Twitter crypto reactions + CryptoPanic sentiment."""
     x_posts = await _fetch_x_crypto()
     cp_posts = await _fetch_cryptopanic()
 

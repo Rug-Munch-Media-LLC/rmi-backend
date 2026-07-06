@@ -105,7 +105,7 @@ def test_match_brand_ignores_unrelated():
 
 
 def test_match_brand_strips_wildcard():
-    """CertStream sometimes gives '*.example.com' — strip the wildcard."""
+    """CertStream sometimes gives '*.example.com' - strip the wildcard."""
     assert match_brand("*.metamask-secure.com") == "metamask"
 
 

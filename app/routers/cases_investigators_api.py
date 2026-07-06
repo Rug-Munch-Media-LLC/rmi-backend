@@ -1,14 +1,14 @@
 """
-cases_investigators_api.py — Public case files + investigator profiles
+cases_investigators_api.py - Public case files + investigator profiles
 
 Endpoints:
-  POST   /api/v1/cases              — create/save a case snapshot
-  GET    /api/v1/cases/:id          — fetch a case by id (public)
-  GET    /api/v1/cases              — list cases by creator (auth)
-  DELETE /api/v1/cases/:id          — delete a case (creator only)
-  GET    /api/v1/investigators/:username — public investigator profile
-  GET    /api/v1/portfolio/features — returns tier-gated portfolio limits for current user
-  POST   /api/v1/subscription/addon — add an add-on to an existing subscription
+  POST   /api/v1/cases              - create/save a case snapshot
+  GET    /api/v1/cases/:id          - fetch a case by id (public)
+  GET    /api/v1/cases              - list cases by creator (auth)
+  DELETE /api/v1/cases/:id          - delete a case (creator only)
+  GET    /api/v1/investigators/:username - public investigator profile
+  GET    /api/v1/portfolio/features - returns tier-gated portfolio limits for current user
+  POST   /api/v1/subscription/addon - add an add-on to an existing subscription
 
 Designed to work with localStorage fallback on the frontend (cases are
 still public-shareable URLs even before this backend is wired).

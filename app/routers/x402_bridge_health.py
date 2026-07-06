@@ -1,5 +1,5 @@
 """
-RMI x402 Bridge Health Monitor — Pay-per-call API endpoint
+RMI x402 Bridge Health Monitor - Pay-per-call API endpoint
 ===========================================================
 Wraps BridgeHealthMonitor from bridge_health_monitor.py with:
   - x402 payment enforcement ($0.10 / scan)
@@ -296,9 +296,9 @@ async def bridge_health_scan(req: BridgeHealthRequest):
         raise HTTPException(
             status_code=503,
             detail="Bridge Health Monitor module not available. Try: pip install aiohttp",
-        )
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Bridge health scan failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

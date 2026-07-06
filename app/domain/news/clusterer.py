@@ -1,4 +1,4 @@
-"""T03 — News story clustering (G04 FIX).
+"""T03 - News story clustering (G04 FIX).
 
 Per MINIMAX_M3_TASKS.md T03. MinHash + DBSCAN dedupes raw RSS items into
 single "stories" so AI agents don't see the same CoinDesk/The Block story
@@ -14,7 +14,7 @@ Endpoints:
   GET /api/v1/news?clustered=true    returns stories (clusters), not raw items
   GET /api/v1/news                   raw items (legacy)
 
-This module is pure logic — no I/O at import time. Router/background job
+This module is pure logic - no I/O at import time. Router/background job
 call `cluster_items(items) -> list[StoryCluster]`.
 """
 from __future__ import annotations
@@ -51,7 +51,7 @@ _MAX_HASH = (1 << 32) - 1
 def _minhash_signature(shingles: set[str], seed: int = 42) -> list[int]:
     """128-permutation MinHash signature of a shingle set.
 
-    Uses SHA-256 seeded permutations — fast, deterministic, no numpy.
+    Uses SHA-256 seeded permutations - fast, deterministic, no numpy.
     """
     if not shingles:
         return [_MAX_HASH] * _NUM_PERM
@@ -100,7 +100,7 @@ def _dbscan(
             if i != j and (1.0 - _jaccard_minhash(signatures[i], signatures[j])) <= eps
         ]
         if len(neighbors) < min_samples - 1:
-            # not enough neighbours — mark as noise (may become border later)
+            # not enough neighbours - mark as noise (may become border later)
             continue
         labels[i] = cluster_id
         seed_set = list(neighbors)
@@ -220,7 +220,7 @@ def cluster_items(
     stories: list[StoryCluster] = []
     for _bucket, group in windows.items():
         if len(group) == 1:
-            # singleton — still a story
+            # singleton - still a story
             it = group[0]
             stories.append(
                 StoryCluster(

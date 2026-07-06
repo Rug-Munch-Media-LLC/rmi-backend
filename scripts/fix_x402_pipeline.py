@@ -46,7 +46,7 @@ for name, chain in sorted(chains.items()):
         "price_atoms": str(atoms),
         "category": cat,
         "trial_free": trials,
-        "description": f"{desc} — DataBus-powered with cache, dedup & credit-aware routing",
+        "description": f"{desc} - DataBus-powered with cache, dedup & credit-aware routing",
     }
 
 X402_TOOL_PRICING.update(new_entries)
@@ -54,9 +54,9 @@ print(f"Added {len(new_entries)} new pricing entries")
 print(f"Total priced tools: {len(X402_TOOL_PRICING)}")
 
 # ── Verify catalog ──
-import asyncio
+import asyncio  # noqa: E402
 
-import httpx
+import httpx  # noqa: E402
 
 
 async def verify():
@@ -78,4 +78,4 @@ async def verify():
 
 
 asyncio.run(verify())
-print("\nDone — x402 pipeline aligned with DataBus")
+print("\nDone - x402 pipeline aligned with DataBus")

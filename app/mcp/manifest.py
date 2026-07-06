@@ -34,7 +34,7 @@ class MCPToolManifest(BaseModel):
     name: str = Field(
         ...,
         pattern=r"^[a-z][a-z0-9-]*:[a-z][a-z0-9_]*$",
-        description='Format "{server}:{tool}" — lowercase, hyphens for server, underscores for tool.',
+        description='Format "{server}:{tool}" - lowercase, hyphens for server, underscores for tool.',
         examples=["rmi-netcup:docker_ps", "coingecko:simple_price"],
     )
     version: str = Field(

@@ -40,13 +40,13 @@ CHAINS = {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# WALLET SCANNER — Powered by SENTINEL + Helius + Wallet Memory
+# WALLET SCANNER - Powered by SENTINEL + Helius + Wallet Memory
 # ═══════════════════════════════════════════════════════════════
 
 
 @dataclass
 class WalletRiskFactors:
-    """100+ risk factors scored per wallet — populated from real on-chain data."""
+    """100+ risk factors scored per wallet - populated from real on-chain data."""
 
     wallet_age_days: int = 0
     first_tx_date: str | None = None
@@ -133,10 +133,10 @@ class WalletRiskFactors:
 
 
 # ═══════════════════════════════════════════
-# RESULT CACHE — Redis-backed, 1hr TTL
+# RESULT CACHE - Redis-backed, 1hr TTL
 # ═══════════════════════════════════════════
 
-import hashlib
+import hashlib  # noqa: E402
 
 
 async def _cache_get(key: str) -> dict | None:
@@ -179,7 +179,7 @@ async def _cache_set(key: str, data: dict, ttl: int = 3600):
 
 
 # ═══════════════════════════════════════════
-# HELIUS CREDENTIAL POOL — Primary + Fallback
+# HELIUS CREDENTIAL POOL - Primary + Fallback
 # ═══════════════════════════════════════════
 
 _HELIUS_KEYS = None
@@ -286,7 +286,7 @@ async def _fetch_helius_wallet(address: str) -> dict[str, Any]:
 
 
 # ═══════════════════════════════════════════
-# MORALIS — EVM wallet data (multi-chain)
+# MORALIS - EVM wallet data (multi-chain)
 # ═══════════════════════════════════════════
 
 
@@ -368,7 +368,7 @@ async def _fetch_moralis_wallet(address: str, chain: str) -> dict[str, Any]:
 
 
 # ═══════════════════════════════════════════
-# ETHERSCAN — EVM transaction data (free tier)
+# ETHERSCAN - EVM transaction data (free tier)
 # ═══════════════════════════════════════════
 
 ETHERSCAN_APIS = {
@@ -427,7 +427,7 @@ async def _fetch_etherscan_wallet(address: str, chain: str) -> dict[str, Any]:
 
 
 # ═══════════════════════════════════════════
-# SENTINEL INTEGRATION — Labels + Intel
+# SENTINEL INTEGRATION - Labels + Intel
 # ═══════════════════════════════════════════
 
 
@@ -472,7 +472,7 @@ async def _fetch_wallet_memory(address: str, chain: str) -> dict[str, Any]:
 
 
 async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
-    """Scan held tokens using SENTINEL — parallel with full enrichments."""
+    """Scan held tokens using SENTINEL - parallel with full enrichments."""
     if not tokens:
         return {"scanned": 0, "risks": [], "deployers_to_flag": []}
 
@@ -523,7 +523,7 @@ async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
             asyncio.gather(*[_scan_one(m) for m in mints], return_exceptions=True), timeout=15.0
         )
     except TimeoutError:
-        results = []  # Timeout — return what we have
+        results = []  # Timeout - return what we have
 
     risks = []
     deployers_to_flag = []
@@ -576,7 +576,7 @@ async def _check_hapi_risk(address: str, chain: str) -> dict[str, Any] | None:
     Uses both external and on-chain data for real-time AML screening.
     """
     try:
-        # HAPI doesn't have a simple REST API — we query their public data
+        # HAPI doesn't have a simple REST API - we query their public data
         # or use their subgraph. For now, we check their public status endpoint.
         async with httpx.AsyncClient(timeout=10.0) as client:
             # HAPI Protocol public API (if available)
@@ -599,7 +599,7 @@ async def _check_hapi_risk(address: str, chain: str) -> dict[str, Any] | None:
 
 
 async def _check_misttrack_light(address: str, chain: str) -> dict[str, Any] | None:
-    """Query SlowMist MistTrack Light — free wallet risk assessment.
+    """Query SlowMist MistTrack Light - free wallet risk assessment.
 
     Provides preliminary risk profiling and graph analysis.
     """
@@ -632,8 +632,8 @@ async def _check_honeydb_ip(ip_address: str) -> dict[str, Any] | None:
     Useful for correlating IP addresses with crypto scam infrastructure.
     """
     try:
-        api_id = os.getenv("HONEYDB_API_ID", "")
-        api_key = os.getenv("HONEYDB_API_KEY", "")
+        api_id = os.getenv("HONEYDB_API_ID", "")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        api_key = os.getenv("HONEYDB_API_KEY", "")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
         if not api_id or not api_key:
             return None
 
@@ -732,7 +732,7 @@ async def _trace_funding_source(address: str, chain: str) -> dict[str, Any]:
 
 
 async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
-    """Basic cross-chain entity resolution — FREE tier (no Wallet Memory Bank)."""
+    """Basic cross-chain entity resolution - FREE tier (no Wallet Memory Bank)."""
     try:
         # Check SENTINEL labels first
         from app.scanners.address_labeler import AddressLabeler
@@ -755,7 +755,7 @@ async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
 
 
 async def _calculate_basic_pnl(address: str, chain: str, tokens: list, native_balance: float = 0) -> dict[str, Any]:
-    """Basic PnL calculation — FREE tier (no GMGN)."""
+    """Basic PnL calculation - FREE tier (no GMGN)."""
     try:
         total_value = native_balance or 0
         token_count = len(tokens)
@@ -811,7 +811,7 @@ async def _close_data_flywheel(deployers: list):
 
 
 async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "free") -> dict[str, Any]:
-    """Unified wallet scanner — SENTINEL + Helius/Moralis/Etherscan pool + Wallet Memory + Token Scanner."""
+    """Unified wallet scanner - SENTINEL + Helius/Moralis/Etherscan pool + Wallet Memory + Token Scanner."""
     import time
 
     # ── Redis cache check (1hr TTL, skips repeat scans) ──
@@ -1102,7 +1102,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         risk += 10
         flags.append("UNVERIFIED_HIGH_VOLUME")
 
-    # Held token risk (FREE tier — from parallel token scan)
+    # Held token risk (FREE tier - from parallel token scan)
     if factors.honeypot_tokens_owned > 0:
         risk += 25
         flags.append(f"HOLDS_SCAM_TOKENS_{factors.honeypot_tokens_owned}")
@@ -1291,7 +1291,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
 
 
 # ═══════════════════════════════════════════════════════════════
-# TRENDING ENGINE — Multi-source, real-time
+# TRENDING ENGINE - Multi-source, real-time
 # ═══════════════════════════════════════════════════════════════
 
 

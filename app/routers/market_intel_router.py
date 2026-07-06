@@ -1,5 +1,5 @@
 """
-Market Intelligence Router — /api/v1/market/*
+Market Intelligence Router - /api/v1/market/*
 Aggregates real data from CoinGecko, DexScreener, Polymarket, alternative.me, Binance.
 All endpoints have in-memory caching and graceful fallbacks.
 """
@@ -256,7 +256,7 @@ def _safe_float(v, default=0.0):
 
 @router.get("/overview")
 async def get_market_overview(request: Request):
-    """Global market overview — total cap, dominance, fear & greed."""
+    """Global market overview - total cap, dominance, fear & greed."""
     now = _now()
     global_data = await _cg("/global", ttl=120)
     fng_data = await _fng()
@@ -464,7 +464,7 @@ async def get_market_trending(
 
 @router.get("/chains")
 async def get_market_chains(request: Request):
-    """Chain activity — TPS, gas, active addresses from CoinGecko chain data."""
+    """Chain activity - TPS, gas, active addresses from CoinGecko chain data."""
     now = _now()
     # Base chain data with known approximate values + enrichment
     chains_data = [
@@ -518,10 +518,10 @@ async def get_market_scams(
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
 ):
-    """Scam alerts — flagged tokens from DexScreener with suspicious patterns."""
+    """Scam alerts - flagged tokens from DexScreener with suspicious patterns."""
     now = _now()
     items = []
-    # Get boosted tokens from DexScreener — flag those with extreme moves as potential scams
+    # Get boosted tokens from DexScreener - flag those with extreme moves as potential scams
     boosts = await _ds("/token-boosts/latest/v1", ttl=60)
     if boosts and isinstance(boosts, list):
         # Also get trending to cross-reference
@@ -604,7 +604,7 @@ async def get_market_whales(
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
 ):
-    """Whale movements — large swaps from DexScreener."""
+    """Whale movements - large swaps from DexScreener."""
     now = _now()
     items = []
     # Fetch top DEX pairs to find large swaps
@@ -687,7 +687,7 @@ async def get_market_predictions(
     limit: int = Query(6, ge=1, le=50),
     tier: str = Query("free"),
 ):
-    """Prediction markets — Polymarket data."""
+    """Prediction markets - Polymarket data."""
     now = _now()
     items = []
     data = await _polymarket(limit=limit * 2)
@@ -726,7 +726,7 @@ async def get_market_insiders(
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
 ):
-    """Insider trading signals — derived from CoinGecko trending + price anomalies."""
+    """Insider trading signals - derived from CoinGecko trending + price anomalies."""
     now = _now()
     items = []
     # Use CoinGecko trending + price data to generate insider-style signals
@@ -787,7 +787,7 @@ async def get_market_sentiment(
     request: Request,
     tier: str = Query("free"),
 ):
-    """Social sentiment — aggregated from market data."""
+    """Social sentiment - aggregated from market data."""
     now = _now()
     items = []
     # Use CoinGecko trending as a proxy for social activity
@@ -846,7 +846,7 @@ async def get_market_onchain(
     request: Request,
     tier: str = Query("free"),
 ):
-    """On-chain metrics — exchange flows, stablecoin inflows."""
+    """On-chain metrics - exchange flows, stablecoin inflows."""
     now = _now()
     global_data = await _cg("/global", ttl=120)
 
@@ -894,7 +894,7 @@ async def get_market_liquidations(
     request: Request,
     tier: str = Query("free"),
 ):
-    """Liquidation levels — estimated from Binance price data."""
+    """Liquidation levels - estimated from Binance price data."""
     now = _now()
     items = []
     # Use Binance funding + mark prices to estimate liquidation clusters
@@ -954,7 +954,7 @@ async def get_market_options(
     request: Request,
     tier: str = Query("free"),
 ):
-    """Options flow — unusual activity proxy from funding rate extremes."""
+    """Options flow - unusual activity proxy from funding rate extremes."""
     now = _now()
     items = []
     # Derive options-like signals from funding rate extremes
@@ -992,9 +992,9 @@ async def get_market_airdrops(
     request: Request,
     tier: str = Query("free"),
 ):
-    """Airdrop opportunities — curated list of confirmed and upcoming drops."""
+    """Airdrop opportunities - curated list of confirmed and upcoming drops."""
     now = _now()
-    # Curated airdrops — these are well-known upcoming/active airdrops
+    # Curated airdrops - these are well-known upcoming/active airdrops
     items = [
         {
             "id": "airdrop_berachain",
@@ -1071,7 +1071,7 @@ async def get_market_macro(
     request: Request,
     tier: str = Query("free"),
 ):
-    """Macro correlation — BTC vs traditional assets."""
+    """Macro correlation - BTC vs traditional assets."""
     now = _now()
     # CoinGecko doesn't provide SPX/DXY/Gold, so we provide BTC data with known correlations
     price_data = await _cg(
@@ -1127,7 +1127,7 @@ async def get_market_likely_rugs(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
 ):
-    """Likely rug pulls — premium data from scanner."""
+    """Likely rug pulls - premium data from scanner."""
     now = _now()
     items = []
     return {"items": items, "total": 0, "updated_at": now}
@@ -1138,7 +1138,7 @@ async def get_market_runners(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
 ):
-    """Potential runners — tokens with early momentum."""
+    """Potential runners - tokens with early momentum."""
     now = _now()
     items = []
     # Use CoinGecko trending as runner candidates
@@ -1161,7 +1161,7 @@ async def get_market_runners(
                     "volume_surge": round(abs(price_change) / 5, 1) if price_change else 1,
                     "social_mentions_delta": round(abs(price_change) * 50),
                     "ai_prediction": min(int(abs(price_change) * 5), 95) if price_change else 45,
-                    "narrative": f"Trending on CoinGecko — {coin.get('name', 'Unknown')}",
+                    "narrative": f"Trending on CoinGecko - {coin.get('name', 'Unknown')}",
                     "detected_at": now,
                 }
             )
@@ -1174,7 +1174,7 @@ async def get_market_alpha(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
 ):
-    """Alpha signals — from trending + whale data."""
+    """Alpha signals - from trending + whale data."""
     now = _now()
     items = []
     return {"items": items, "total": 0, "updated_at": now}
@@ -1190,7 +1190,7 @@ async def get_market_smart_money(request: Request):
 
 @router.get("/bundlers")
 async def get_market_bundlers(request: Request):
-    """Bundler detection — coordinated buy patterns."""
+    """Bundler detection - coordinated buy patterns."""
     now = _now()
     items = []
     return {"items": items, "total": 0, "updated_at": now}
@@ -1201,7 +1201,7 @@ async def get_market_dex_flows(
     request: Request,
     limit: int = Query(20, ge=1, le=100),
 ):
-    """DEX flow data — buy/sell pressure from top pairs."""
+    """DEX flow data - buy/sell pressure from top pairs."""
     now = _now()
     items = []
     # Get top trending pairs from DexScreener
@@ -1229,7 +1229,7 @@ async def get_market_dex_flows(
 
 
 # ══════════════════════════════════════════════════════════
-#  COMBINED ALERTS FEED — scams + hacks + exploits + bad actors
+#  COMBINED ALERTS FEED - scams + hacks + exploits + bad actors
 # ══════════════════════════════════════════════════════════
 
 
@@ -1239,7 +1239,7 @@ async def get_market_alerts_feed(
     limit: int = Query(20, ge=1, le=100),
     tier: str = Query("free"),
 ):
-    """Combined alerts feed — scams from DexScreener, system alerts, bad actors."""
+    """Combined alerts feed - scams from DexScreener, system alerts, bad actors."""
     now = _now()
     items = []
 
@@ -1359,7 +1359,7 @@ async def get_market_alerts_feed(
                             "title": f"Known Bad Actor: {a.get('label', 'Unknown')}",
                             "description": a.get(
                                 "description",
-                                f"Flagged wallet {a.get('address', '')[:16]}... — {a.get('label', '')}",
+                                f"Flagged wallet {a.get('address', '')[:16]}... - {a.get('label', '')}",
                             ),
                             "severity": a.get("severity", "high"),
                             "token": "",
@@ -1386,7 +1386,7 @@ async def get_market_alerts_feed(
 
 
 # ══════════════════════════════════════════════════════════
-#  HYPERLIQUID DATA — Market Overview Enhancement
+#  HYPERLIQUID DATA - Market Overview Enhancement
 # ══════════════════════════════════════════════════════════
 
 
@@ -1426,7 +1426,7 @@ async def get_hyperliquid_action(
 
 
 # ══════════════════════════════════════════════════════════
-#  INSIDER WALLETS — Premium Market Intelligence
+#  INSIDER WALLETS - Premium Market Intelligence
 # ══════════════════════════════════════════════════════════
 
 
@@ -1514,7 +1514,7 @@ async def get_insider_wallets(
 
 
 # ══════════════════════════════════════════════════════════
-#  PREDICTION MARKET SIGNALS — Intelligence Layer
+#  PREDICTION MARKET SIGNALS - Intelligence Layer
 # ══════════════════════════════════════════════════════════
 
 

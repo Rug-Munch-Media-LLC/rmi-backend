@@ -1,4 +1,4 @@
-"""Semantic LLM Cache for DataBus — caches identical + similar prompts. Redis-backed."""
+"""Semantic LLM Cache for DataBus - caches identical + similar prompts. Redis-backed."""
 
 import hashlib
 import json

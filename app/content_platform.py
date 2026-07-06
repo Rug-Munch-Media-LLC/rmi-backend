@@ -1,15 +1,15 @@
 """
-Ghost Content Platform — @CryptoRugMunch Feed engine.
+Ghost Content Platform - @CryptoRugMunch Feed engine.
 
 Post types:
-  micro      — Short posts (≤4000 chars, like X posts)
-  thread     — Connected series of posts (X-style threads)
-  article    — Standard longform blog post
-  dev        — Development updates
-  announcement — Platform announcements
-  newsletter — Weekly deep-dive newsletter
-  briefing   — Daily intelligence briefing (auto-generated)
-  paid       — Premium gated content
+  micro      - Short posts (≤4000 chars, like X posts)
+  thread     - Connected series of posts (X-style threads)
+  article    - Standard longform blog post
+  dev        - Development updates
+  announcement - Platform announcements
+  newsletter - Weekly deep-dive newsletter
+  briefing   - Daily intelligence briefing (auto-generated)
+  paid       - Premium gated content
 
 Auth: Session cookie from owner login. Cookie refreshed on 401.
 """
@@ -160,7 +160,7 @@ async def create_post(
                     "excerpt": p.get("custom_excerpt") or content[:140],
                 }
             elif resp.status_code == 401:
-                return {"error": "Session expired — re-login at /ghost"}
+                return {"error": "Session expired - re-login at /ghost"}
             return {"error": f"Ghost: HTTP {resp.status_code}", "detail": resp.text[:300]}
     except Exception as e:
         return {"error": str(e)}
@@ -222,7 +222,7 @@ async def get_feed(page: int = 1, limit: int = 20, tag: str = "", include: str =
 
 
 async def create_thread(posts: list[str], post_type: str = "thread") -> dict[str, Any]:
-    """Create a thread — multiple connected posts."""
+    """Create a thread - multiple connected posts."""
     results = []
     for i, content in enumerate(posts):
         title = f"Thread {i + 1}/{len(posts)}" if len(posts) > 1 else ""
@@ -260,13 +260,13 @@ async def generate_briefing() -> dict[str, Any]:
                     if snippet:
                         content_parts.append(f"- {snippet}")
     except Exception:
-        content_parts.append("\n*Automated briefing — full RAG analysis pending*")
+        content_parts.append("\n*Automated briefing - full RAG analysis pending*")
 
     content = "\n".join(content_parts)
     return await create_post(
         content=content,
         post_type="briefing",
-        title=f"Daily Briefing — {datetime.now(UTC).strftime('%B %d, %Y')}",
+        title=f"Daily Briefing - {datetime.now(UTC).strftime('%B %d, %Y')}",
     )
 
 
@@ -301,5 +301,5 @@ async def generate_newsletter() -> dict[str, Any]:
     return await create_post(
         content=content,
         post_type="newsletter",
-        title=f"Weekly Intelligence — {datetime.now(UTC).strftime('%B %d, %Y')}",
+        title=f"Weekly Intelligence - {datetime.now(UTC).strftime('%B %d, %Y')}",
     )

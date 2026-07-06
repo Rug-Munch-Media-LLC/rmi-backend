@@ -1,4 +1,4 @@
-"""x402 Python SDK — pay-per-call AI tool access.
+"""x402 Python SDK - pay-per-call AI tool access.
 
 Usage:
   pip install x402-sdk
@@ -34,8 +34,7 @@ Usage:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
 
 import httpx
 
@@ -73,7 +72,7 @@ class ToolInfo:
 
 
 class x402:
-    """x402 client — pay-per-call AI tool access.
+    """x402 client - pay-per-call AI tool access.
 
     Args:
         api_key: Optional API key for authenticated access.

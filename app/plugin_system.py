@@ -1,27 +1,27 @@
 """
-RMI Plugin Architecture — Extensible Backend System
+RMI Plugin Architecture - Extensible Backend System
 ====================================================
 Plugin system for adding new features without modifying core code.
 
 Features:
-  • Plugin Registry — discover, load, and manage plugins
-  • Plugin Types — connectors, scanners, analyzers, notifiers, exporters
-  • Hot Reload — reload plugins without restart
-  • Sandboxed Execution — isolated plugin environments
-  • Plugin API — standardized interface for all plugins
-  • Configuration Management — per-plugin config with validation
-  • Health Checks — monitor plugin status and performance
-  • Dependency Management — handle plugin dependencies
+  • Plugin Registry - discover, load, and manage plugins
+  • Plugin Types - connectors, scanners, analyzers, notifiers, exporters
+  • Hot Reload - reload plugins without restart
+  • Sandboxed Execution - isolated plugin environments
+  • Plugin API - standardized interface for all plugins
+  • Configuration Management - per-plugin config with validation
+  • Health Checks - monitor plugin status and performance
+  • Dependency Management - handle plugin dependencies
 
 Plugin Types:
-  connector   — Data sources (exchanges, APIs, oracles)
-  scanner     — Security scanners (contract, wallet, token)
-  analyzer    — Analysis engines (risk, sentiment, on-chain)
-  notifier    — Alert channels (email, telegram, webhook)
-  exporter    — Data export (CSV, PDF, API, webhook)
-  wallet      — Wallet integrations (hardware, custodial)
-  payment     — Payment processors (x402, stripe, crypto)
-  ml          — ML models (fraud detection, prediction)
+  connector   - Data sources (exchanges, APIs, oracles)
+  scanner     - Security scanners (contract, wallet, token)
+  analyzer    - Analysis engines (risk, sentiment, on-chain)
+  notifier    - Alert channels (email, telegram, webhook)
+  exporter    - Data export (CSV, PDF, API, webhook)
+  wallet      - Wallet integrations (hardware, custodial)
+  payment     - Payment processors (x402, stripe, crypto)
+  ml          - ML models (fraud detection, prediction)
 
 Author: RMI Platform Team
 Date: 2026-05-31
@@ -115,7 +115,7 @@ class Plugin(ABC):
             logger.error(f"Plugin {self.name} initialization failed: {e}")
             return False
 
-    def _setup(self):
+    def _setup(self):  # noqa: B027
         """Override for setup logic."""
         pass
 
@@ -171,7 +171,7 @@ class PluginRegistry:
     def register(self, plugin: Plugin) -> bool:
         """Register a plugin instance."""
         if plugin.name in self._plugins:
-            logger.warning(f"Plugin {plugin.name} already registered — replacing")
+            logger.warning(f"Plugin {plugin.name} already registered - replacing")
 
         if plugin.initialize():
             self._plugins[plugin.name] = plugin

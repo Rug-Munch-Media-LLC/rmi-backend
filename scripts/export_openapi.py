@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Export the auto-generated OpenAPI schema from the FastAPI app.
 
-Per T14 (G09 FIX) — never hand-maintain openapi.yaml/openapi.json. Always
+Per T14 (G09 FIX) - never hand-maintain openapi.yaml/openapi.json. Always
 auto-generate from the live FastAPI routes. SDK generation (Python, TS)
 and MCP manifests depend on this being a faithful snapshot of the code.
 
@@ -80,7 +80,7 @@ def main() -> int:
             print(
                 f"FAIL: OpenAPI has only {path_count} paths "
                 f"(minimum {args.min_paths}). "
-                f"Factory imports are likely broken — check that all "
+                f"Factory imports are likely broken - check that all "
                 f"routers in app/api/v1/ and app/domain/* import cleanly.",
                 file=sys.stderr,
             )

@@ -1,4 +1,4 @@
-"""Homepage routes — /, /version.
+"""Homepage routes - /, /version.
 
 Minimal landing endpoints for the backend. Returns deployment metadata.
 """
@@ -34,7 +34,7 @@ class HomeResponse(BaseModel):
 
 @router.get("/", response_model=HomeResponse)
 async def home() -> HomeResponse:
-    """Landing page — returns service metadata."""
+    """Landing page - returns service metadata."""
     return HomeResponse(service=TITLE, version=VERSION)
 
 

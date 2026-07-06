@@ -38,7 +38,7 @@ BSCSCAN_API = (
 SOLSCAN_API = "https://api.solscan.io/account/tokens?address={}"
 DEFILLAMA_TOKEN_APPROVALS = "https://coins.llama.fi/approvals/ethereum/{}"
 
-# Known drainer contract address patterns (simplified — real DB would be larger)
+# Known drainer contract address patterns (simplified - real DB would be larger)
 KNOWN_DRAINER_SIGNATURES = {
     "0x095ea7b3": "approve(address,uint256)",  # ERC20 approve
     "0xa22cb465": "setApprovalForAll(address,bool)",  # ERC721 approval
@@ -57,7 +57,7 @@ KNOWN_DRAINER_SIGNATURES = {
 MAX_UINT256 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 MAX_UINT128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
-# URL safety regex — stricter than basic to prevent SSRF bypasses
+# URL safety regex - stricter than basic to prevent SSRF bypasses
 _URL_SAFE = re.compile(
     r"^https?://[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*(?::\d{1,5})?(?:/[^\s\"<>]*)?$"
 )
@@ -345,7 +345,7 @@ class WalletDrainScanner:
         import aiohttp
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession() as session:  # noqa: SIM117
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -366,7 +366,7 @@ class WalletDrainScanner:
         """
         addr_lower = address.lower()
 
-        # Known drainer prefixes (red flags — in production use a full DB)
+        # Known drainer prefixes (red flags - in production use a full DB)
         drainer_prefixes = [
             "0x0000",  # Null address tricks
             "0xdead",  # Death address used in scams

@@ -1,11 +1,11 @@
-"""RMI Backend — middleware registration.
+"""RMI Backend - middleware registration.
 
 Per v3 unfuck rule #7: add_middleware MUST be called at module level,
 NOT inside lifespan. FastAPI rejects middleware added after startup.
 
 This module owns every middleware registration. Adding a new middleware:
   1. Add a `try_register(app, "name")` block below
-  2. Each block is isolated — one failure doesn't break the rest
+  2. Each block is isolated - one failure doesn't break the rest
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def register_middleware(app) -> None:
 
 
 def _try_register_cors(app) -> None:
-    """T19 — CORS hardening with strict allowlist."""
+    """T19 - CORS hardening with strict allowlist."""
     try:
         from fastapi.middleware.cors import CORSMiddleware
         ALLOWED_ORIGINS = [
@@ -50,7 +50,7 @@ def _try_register_cors(app) -> None:
 
 
 def _try_register_security_headers(app) -> None:
-    """T20 — Security headers on every response."""
+    """T20 - Security headers on every response."""
     try:
         from starlette.middleware.base import BaseHTTPMiddleware
         from starlette.requests import Request
@@ -89,7 +89,7 @@ def _try_register_prometheus(app) -> None:
 
 
 def _try_register_cost_tracking(app) -> None:
-    """M7 — per-tenant/per-route cost tracking."""
+    """M7 - per-tenant/per-route cost tracking."""
     try:
         from app.middleware.cost_tracking import CostBuffer, CostTrackingMiddleware
         app.add_middleware(CostTrackingMiddleware, buffer=CostBuffer())

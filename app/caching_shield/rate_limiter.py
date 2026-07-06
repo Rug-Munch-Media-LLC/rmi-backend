@@ -1,5 +1,5 @@
 """
-Aggressive Caching Shield — Token Bucket Rate Limiter
+Aggressive Caching Shield - Token Bucket Rate Limiter
 Redis-backed rate limiting to stay under free tier RPC limits.
 
 Free tier limits (per second):

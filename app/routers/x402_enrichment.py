@@ -22,6 +22,7 @@ Always opt-in for premium tools, opt-out for speed-only callers.
 Storage impact: ~500 Redis keys at steady state, 0 ClickHouse writes.
 """
 
+import datetime
 import json
 import logging
 import time
@@ -133,7 +134,7 @@ ENRICHABLE_CATEGORIES = {
     ],
 }
 
-# Per-chain variants — strip _chain suffix and check base tool name
+# Per-chain variants - strip _chain suffix and check base tool name
 CHAIN_SUFFIXES = {
     "solana",
     "base",
@@ -274,7 +275,7 @@ def extract_addresses(result: dict[str, Any], tool_name: str) -> list[str]:
                     addresses.add(item)
 
     # Token comparisons have numbered entries
-    for key, val in result.items():
+    for key, val in result.items():  # noqa: B007
         if isinstance(val, dict):
             addr = val.get("address") or val.get("token_address")
             if addr and isinstance(addr, str) and len(addr) >= 32:
@@ -669,7 +670,7 @@ def _synthesize_enrichment(risk_summary: str, scam_flags: list, tool_name: str) 
         d = json.loads(r.read())
         return d["choices"][0]["message"]["content"].strip().strip('"')
     except Exception:
-        return ""  # Best-effort — never block enrichment on LLM failure
+        return ""  # Best-effort - never block enrichment on LLM failure
 
 
 # ── Alert Hooks ──────────────────────────────────────────────

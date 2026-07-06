@@ -1,5 +1,5 @@
 """
-Premium x402 tools — reputation scoring, investigation reports, webhook alerts.
+Premium x402 tools - reputation scoring, investigation reports, webhook alerts.
 
 These are the standout tools that make the RMI MCP server worth paying for:
 - reputation_score: Single 0-100 trust score combining all enrichment signals
@@ -229,7 +229,7 @@ async def reputation_score(req: AddressRequest):
 
         # If no sources had data, provide a baseline
         if not sources:
-            score = 50  # Neutral — insufficient data
+            score = 50  # Neutral - insufficient data
             flags.append(
                 {
                     "severity": "info",
@@ -263,17 +263,17 @@ async def reputation_score(req: AddressRequest):
             "flag_count": len(flags),
             "sources_used": sources,
             "interpretation": {
-                "90-100": "Trusted — verified exchange or known entity",
-                "70-89": "Low risk — established wallet, clean history",
-                "50-69": "Moderate risk — some flags, exercise caution",
-                "30-49": "High risk — multiple red flags, suspected scam",
-                "0-29": "Critical risk — confirmed scam, sanctioned, known rugger",
+                "90-100": "Trusted - verified exchange or known entity",
+                "70-89": "Low risk - established wallet, clean history",
+                "50-69": "Moderate risk - some flags, exercise caution",
+                "30-49": "High risk - multiple red flags, suspected scam",
+                "0-29": "Critical risk - confirmed scam, sanctioned, known rugger",
             },
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except Exception as e:
         logger.error(f"Reputation score failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -354,7 +354,7 @@ async def webhook_register(req: WebhookRegisterRequest):
         raise
     except Exception as e:
         logger.error(f"Webhook register failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/webhook_list")
@@ -385,7 +385,7 @@ async def webhook_list(address: str | None = None):
             "count": len(webhooks),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -475,7 +475,7 @@ async def investigation_report(req: InvestigationRequest):
                     }
                     sources.extend(forensics.get("sources_used", []))
         except Exception:
-            sections["on_chain"] = {"error": "Forensics unavailable — continuing with other sources"}
+            sections["on_chain"] = {"error": "Forensics unavailable - continuing with other sources"}
 
         # ── Section 4: Market Context ──
         try:
@@ -551,7 +551,7 @@ async def investigation_report(req: InvestigationRequest):
         raise
     except Exception as e:
         logger.error(f"Investigation report failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════

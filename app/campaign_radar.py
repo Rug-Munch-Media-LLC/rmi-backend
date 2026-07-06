@@ -1,12 +1,12 @@
 """
-Campaign Radar — Coordinated Scam Detection
+Campaign Radar - Coordinated Scam Detection
 ============================================
 
 Detects coordinated rug pull campaigns across multiple tokens.
 Clusters tokens by deployer entity, funding source, contract similarity,
 and social signal correlation.
 
-Premium feature: "4 tokens detected from same entity — coordinated rug campaign"
+Premium feature: "4 tokens detected from same entity - coordinated rug campaign"
 """
 
 import asyncio
@@ -139,7 +139,7 @@ def detect_campaigns(min_cluster_size: int = 3) -> list[CampaignCluster]:
                     contract_similarity=avg_sim,
                     risk_level="high" if avg_sim > 0.95 else "medium",
                     estimated_victims=sum(s.get("holder_count", 0) or 0 for s in cluster_tokens),
-                    description=f"{len(cluster_tokens)} tokens with {avg_sim:.0%} contract similarity — likely cloned scam contracts",
+                    description=f"{len(cluster_tokens)} tokens with {avg_sim:.0%} contract similarity - likely cloned scam contracts",
                 )
                 campaigns.append(campaign)
 

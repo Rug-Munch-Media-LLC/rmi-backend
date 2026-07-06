@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#9 — Token Laundry Matcher. Finds copycat tokens by code similarity, deployer patterns,
+"""#9 - Token Laundry Matcher. Finds copycat tokens by code similarity, deployer patterns,
 liquidity profile, marketing tactics. Spots scams before they launch."""
 
 import os
@@ -67,7 +67,7 @@ async def find_matches(
                 raise HTTPException(502, "Scanner unavailable")
             reference = resp.json()
     except Exception as e:
-        raise HTTPException(502, f"Scan failed: {e}")
+        raise HTTPException(502, f"Scan failed: {e}") from e
 
     ref_name = reference.get("free", {}).get("name", "") or reference.get("symbol", "")
     reference.get("pro", {}).get("deployer_address", "")

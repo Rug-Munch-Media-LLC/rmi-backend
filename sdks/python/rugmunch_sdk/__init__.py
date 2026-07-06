@@ -1,4 +1,4 @@
-"""rugmunch_sdk — friendly Python wrapper around the RMI API.
+"""rugmunch_sdk - friendly Python wrapper around the RMI API.
 
 v4.0 Sovereign-first. Auto-generated from /openapi.json then wrapped
 with a friendly ergonomic interface.

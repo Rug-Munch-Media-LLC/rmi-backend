@@ -1,5 +1,5 @@
 """
-RMI Python SDK v2.0 — Production-Grade Client
+RMI Python SDK v2.0 - Production-Grade Client
 ===============================================
 Rug Munch Intelligence Python SDK with:
 - Async/sync dual API (httpx)
@@ -362,7 +362,7 @@ class RMI:
         try:
             data = response.json()
         except Exception:
-            raise RMIToolError(tool, f"Invalid JSON response: {response.text[:200]}")
+            raise RMIToolError(tool, f"Invalid JSON response: {response.text[:200]}") from None
 
         # Check for error
         if "error" in data and not data.get("result"):
@@ -747,7 +747,7 @@ class AsyncRMI:
         headers: dict | None = None,
         base_url: str | None = None,
     ) -> httpx.Response:
-        f"{base_url or self.base}/{path.lstrip('/')}"
+        f"{base_url or self.base}/{path.lstrip('/')}"  # noqa: B021
 
         for attempt in range(self.max_retries + 1):
             try:

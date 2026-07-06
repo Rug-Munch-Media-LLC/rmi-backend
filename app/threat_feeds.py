@@ -1,6 +1,6 @@
 """
-Free Threat Intelligence Feeds — CryptoScamDB, GoPlus, Januus.
-Paper ref: Article 3, Section 2 & Section 6 — Free Datasets and APIs.
+Free Threat Intelligence Feeds - CryptoScamDB, GoPlus, Januus.
+Paper ref: Article 3, Section 2 & Section 6 - Free Datasets and APIs.
 """
 
 import logging
@@ -25,7 +25,7 @@ class ThreatIntelFeeds:
             return self._scamdb_cache[address]
 
         try:
-            # CryptoScamDB API — free, no auth required
+            # CryptoScamDB API - free, no auth required
             url = f"https://api.cryptoscamdb.org/v1/check/{address}"
             async with httpx.AsyncClient(timeout=8.0) as client:
                 r = await client.get(url)

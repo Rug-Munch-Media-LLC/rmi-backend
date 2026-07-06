@@ -1,4 +1,4 @@
-"""MEV Protection Advisory — warns users before trading in sandwich-prone pools."""
+"""MEV Protection Advisory - warns users before trading in sandwich-prone pools."""
 
 import os
 

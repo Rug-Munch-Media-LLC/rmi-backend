@@ -1,5 +1,5 @@
 """
-SENTINEL Contract Diff — bytecode hash comparison against known rug patterns
+SENTINEL Contract Diff - bytecode hash comparison against known rug patterns
 ==============================================================================
 Compares a token's contract bytecode/ABI against a database of known rug contracts.
 Detects clones, forks, and near-identical contracts by hashing function selectors,
@@ -373,7 +373,7 @@ class ContractDiffAnalyzer:
         return report
 
     # Chain name → chain ID mapping for EVM chains
-    CHAIN_TO_ID = {
+    CHAIN_TO_ID = {  # noqa: RUF012
         "ethereum": 1,
         "eth": 1,
         "bsc": 56,

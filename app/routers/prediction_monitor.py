@@ -1,4 +1,4 @@
-"""Prediction Market Monitor — Polymarket + Kalshi + Manifold tracker.
+"""Prediction Market Monitor - Polymarket + Kalshi + Manifold tracker.
 Premium feature: wallet-level tracking, insider pattern detection, P&L analytics."""
 
 import json
@@ -188,7 +188,7 @@ def _analyze_insider_patterns(wallet: str, data: dict) -> dict:
 
     if win_rate > 80 and total_trades > 20 and volume > 10000:
         risk += 25
-        flags.append(f"{win_rate}% win rate across {total_trades} trades — statistically anomalous")
+        flags.append(f"{win_rate}% win rate across {total_trades} trades - statistically anomalous")
 
     # Pattern 3: Trades on markets with low public interest
     low_interest_trades = sum(1 for t in trades if t.get("market_volume", 0) < 1000)
@@ -200,7 +200,7 @@ def _analyze_insider_patterns(wallet: str, data: dict) -> dict:
     last_minute = sum(1 for t in trades if t.get("hours_before_resolution", 999) < 1)
     if last_minute > 3:
         risk += 15
-        flags.append(f"{last_minute} trades within 1 hour of resolution — possible info leak")
+        flags.append(f"{last_minute} trades within 1 hour of resolution - possible info leak")
 
     if risk >= 60:
         level = "CRITICAL"

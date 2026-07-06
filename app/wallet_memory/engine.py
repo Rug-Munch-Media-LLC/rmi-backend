@@ -1,5 +1,5 @@
 """
-Wallet Memory Engine — Orchestrator for the Wallet Memory Bank.
+Wallet Memory Engine - Orchestrator for the Wallet Memory Bank.
 ================================================================
 Single entry point for all wallet intelligence queries. Combines:
   - Storage (ClickHouse + Redis)
@@ -9,9 +9,9 @@ Single entry point for all wallet intelligence queries. Combines:
   - Entity resolution (cross-chain linking)
 
 Primary API:
-  get_deployer_intelligence(address, chain) — what SENTINEL calls
-  get_wallet_profile(address, chain) — what WalletSafe frontend calls
-  flag_deployer(address, chain, reason) — the data flywheel from scans
+  get_deployer_intelligence(address, chain) - what SENTINEL calls
+  get_wallet_profile(address, chain) - what WalletSafe frontend calls
+  flag_deployer(address, chain, reason) - the data flywheel from scans
 """
 
 import logging

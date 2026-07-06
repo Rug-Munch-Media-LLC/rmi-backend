@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#3 — Token Death Clock. Predicts time-to-rug using Real-CATS labeled data.
+"""#3 - Token Death Clock. Predicts time-to-rug using Real-CATS labeled data.
 Lightweight model trained on 153K tokens (criminal+benign). Paid API endpoint."""
 
 import math
@@ -120,7 +120,7 @@ async def predict_death_clock(
                     features["liquidity_usd"], 1
                 )
     except Exception as e:
-        raise HTTPException(502, f"Scanner unavailable: {e}")
+        raise HTTPException(502, f"Scanner unavailable: {e}") from e
 
     days, confidence, factors = _compute_death_clock(features)
 

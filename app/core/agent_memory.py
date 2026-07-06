@@ -1,10 +1,12 @@
-"""#9 — Agent Memory Layer. Stores conversation history in Memgraph for long-term agent memory.
+"""#9 - Agent Memory Layer. Stores conversation history in Memgraph for long-term agent memory.
 Enables agents to remember past interactions across sessions."""
 
 import os
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
+
+from app.telegram_bot.requirements import httpx
 
 MEMGRAPH_URI = os.getenv("MEMGRAPH_URI", "bolt://localhost:7687")
 MEMGRAPH_USER = os.getenv("MEMGRAPH_USER", "")

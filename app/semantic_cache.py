@@ -4,7 +4,7 @@ Semantic Query Cache for RMI RAG
 =================================
 Caches search results keyed by query embedding similarity.
 If a new query's embedding is > 0.95 cosine-similar to a cached query,
-the cached results are returned instantly — no vector search needed.
+the cached results are returned instantly - no vector search needed.
 
 Redis key layout:
   sem_cache:{sha256(embedding_prefix)} -> JSON({embedding, results, timestamp})
@@ -111,7 +111,7 @@ class SemanticCache:
         self._embedding_hash(query_embedding)
         candidate_keys = []
 
-        # Scan recent cache entries — use Redis SCAN for efficiency
+        # Scan recent cache entries - use Redis SCAN for efficiency
         # But limit the scan to prevent O(N) scans on huge caches
         try:
             # Use a pattern scan limited by count
@@ -190,7 +190,7 @@ class SemanticCache:
 
         try:
             await r.setex(key, CACHE_TTL, json.dumps(entry))
-            # Enforce max cache size — delete oldest if over limit
+            # Enforce max cache size - delete oldest if over limit
             # (Redis volatile-lru handles this, but let's be explicit)
             cache_keys = []
             cursor = 0
@@ -200,7 +200,7 @@ class SemanticCache:
                 if cursor == 0:
                     break
             if len(cache_keys) > MAX_CACHE_SIZE:
-                # Delete oldest entries (by TTL remaining — lowest TTL = oldest)
+                # Delete oldest entries (by TTL remaining - lowest TTL = oldest)
                 pipe = r.pipeline()
                 for k in cache_keys:
                     pipe.ttl(k)

@@ -1,8 +1,8 @@
-"""Federated label API — orchestrates all 6 sources.
+"""Federated label API - orchestrates all 6 sources.
 
 Per RMIV5 §T11: queries every configured source in parallel via
 asyncio.gather(return_exceptions=True). Failed sources are logged
-but don't fail the whole query — graceful degradation.
+but don't fail the whole query - graceful degradation.
 
 Deduplication: labels from different sources for the same
 (address, chain, label_type, label_value) get merged, keeping the

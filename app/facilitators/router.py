@@ -2,12 +2,12 @@
 x402 Facilitator Smart Router
 ==============================
 Routes payments to the best facilitator based on:
-1. Chain support — only route to facilitators supporting the chain
-2. Token support — match requested token (USDC, USDT, etc.)
-3. Health — skip unhealthy facilitators
-4. Priority — lower priority number = higher preference
-5. Cost — prefer fee-free facilitators when available
-6. Settlement speed — prefer instant > deferred
+1. Chain support - only route to facilitators supporting the chain
+2. Token support - match requested token (USDC, USDT, etc.)
+3. Health - skip unhealthy facilitators
+4. Priority - lower priority number = higher preference
+5. Cost - prefer fee-free facilitators when available
+6. Settlement speed - prefer instant > deferred
 
 Usage:
     from app.facilitators.router import get_facilitator_router
@@ -184,7 +184,7 @@ class FacilitatorRouter:
             preferred_facilitator: Optional facilitator name to try first
 
         Returns:
-            VerificationResult — verified=True on success
+            VerificationResult - verified=True on success
         """
         candidates = self._get_candidates(chain_key, token_symbol)
 
@@ -238,12 +238,12 @@ class FacilitatorRouter:
                 else:
                     self._failure_counts[facilitator.name] += 1
                     errors.append((facilitator.name, result.reason))
-                    logger.debug(f"{facilitator.name} rejected: {result.reason} — trying next")
+                    logger.debug(f"{facilitator.name} rejected: {result.reason} - trying next")
 
             except Exception as e:
                 self._failure_counts[facilitator.name] += 1
                 errors.append((facilitator.name, str(e)))
-                logger.warning(f"{facilitator.name} error: {e} — trying next")
+                logger.warning(f"{facilitator.name} error: {e} - trying next")
 
         # All facilitators failed
         error_summary = "; ".join(f"{name}: {err}" for name, err in errors)

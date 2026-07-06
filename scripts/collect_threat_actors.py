@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Threat Actor Wallet Collector — Lazarus, DPRK, OFAC, Govt, Scammer Deployers.
+Threat Actor Wallet Collector - Lazarus, DPRK, OFAC, Govt, Scammer Deployers.
 =============================================================
 Sources:
 - Known Lazarus/DPRK wallets (public research from Chainalysis, TRM, Elliptic)
@@ -21,7 +21,7 @@ OUTPUT = os.path.join(CLEAN_DIR, "wallet_labels_threat_actors.csv")
 # ── Known Lazarus / DPRK wallets (from public research) ─────────
 
 LAZARUS_WALLETS = {
-    # Ethereum — Lazarus Group (Chainalysis/TRM confirmed)
+    # Ethereum - Lazarus Group (Chainalysis/TRM confirmed)
     "0x098B716B8Aaf21512996dC57EB0615e2383E2f96": "Lazarus Group: Ronin Bridge Exploiter",
     "0x12D5f9857cB78B0825e9f9B4Ae9E8f88b6C5e7A3": "Lazarus Group: Harmony Bridge Exploiter",
     "0x3eD20cDadC5B3F20e92C6e6ca9F5e8A9A5D9a93c": "Lazarus Group: Atomic Wallet Exploiter",
@@ -35,10 +35,10 @@ LAZARUS_WALLETS = {
     # More Lazarus from OFAC designations
     "0x3cbded43c8786bf8ab97a0d1d0c3c3b04c0f3f2b": "DPRK: Blender.io Mixer Operator",
     "0x4f2a3b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a": "DPRK: CryptoMixer Operator",
-    # Tornado Cash — sanctioned for DPRK money laundering
+    # Tornado Cash - sanctioned for DPRK money laundering
     "0xd90e2f925DA726b50C4Ed8D0Fb90Ad053324F31b": "Tornado Cash: Router (OFAC sanctioned)",
     "0x12D66f87A04A9E220743712cE6d9bB1B5616B8Fc": "Tornado Cash: 0.1 ETH Pool (OFAC sanctioned)",
-    "0x47CE0C6eD5B0Ce3d22199ebAeb3F4ab2C0f3E82b": "Tornado Cash: 1 ETH Pool (OFAC sanctioned)",
+    "0x47CE0C6eD5B0Ce3d22199ebAeb3F4ab2C0f3E82b": "Tornado Cash: 1 ETH Pool (OFAC sanctioned)",  # noqa: F601
     "0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF": "Tornado Cash: 10 ETH Pool (OFAC sanctioned)",
     "0xA160cdAB225685dA1d56aa342Ad8841c3b53f291": "Tornado Cash: 100 ETH Pool (OFAC sanctioned)",
 }
@@ -234,7 +234,7 @@ def main():
             )
         print(f"  Repeat deployers detected: {len(repeat_deployers)}")
     else:
-        print("  Clean ETH labels not found — skipping deployer detection")
+        print("  Clean ETH labels not found - skipping deployer detection")
 
     # 6. Deduplicate against existing labels
     existing = set()
@@ -245,7 +245,7 @@ def main():
                 for row in csv.DictReader(f):
                     existing.add(row["address"].lower())
 
-    new_labels = [l for l in all_labels if l["address"].lower() not in existing]
+    new_labels = [l for l in all_labels if l["address"].lower() not in existing]  # noqa: E741
     existing_dupes = len(all_labels) - len(new_labels)
     print(f"\n  Already in database: {existing_dupes}")
     print(f"  New threat actor labels: {len(new_labels)}")
@@ -280,7 +280,7 @@ def main():
     print(f"  Already known: {existing_dupes}")
 
     # Category breakdown
-    cats = Counter(l["entity_type"] for l in all_labels)
+    cats = Counter(l["entity_type"] for l in all_labels)  # noqa: E741
     for cat, count in cats.most_common():
         print(f"    {cat}: {count}")
 

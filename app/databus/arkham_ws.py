@@ -90,7 +90,7 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
 
 
 async def broadcast_ws_update(address: str, update: dict):
-    """Called when Arkham WS pushes an update — route through DataBus."""
+    """Called when Arkham WS pushes an update - route through DataBus."""
     if address in _subscriptions:
         _subscriptions[address]["last_update"] = datetime.utcnow().isoformat()
         _subscriptions[address]["latest_data"] = update

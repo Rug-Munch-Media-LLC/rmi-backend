@@ -6,16 +6,16 @@ Pulls crypto threat intelligence from RSS feeds and open APIs.
 Runs continuously, indexing scam/hack/exploit data into RAG.
 
 Feeds (verified working):
-  - Web3IsGoingGreat (Molly White) — incident tracker RSS
-  - SlowMist — blockchain security firm (Medium)
-  - PeckShield — on-chain security monitor (via Nitter)
-  - Blockworks — crypto news
-  - Cointelegraph Security — tagged articles
+  - Web3IsGoingGreat (Molly White) - incident tracker RSS
+  - SlowMist - blockchain security firm (Medium)
+  - PeckShield - on-chain security monitor (via Nitter)
+  - Blockworks - crypto news
+  - Cointelegraph Security - tagged articles
 
 Additional sources:
-  - Helius webhooks — new Solana tokens
-  - GoPlus API — real-time token security checks
-  - On-chain scanning — new token → quick risk assessment
+  - Helius webhooks - new Solana tokens
+  - GoPlus API - real-time token security checks
+  - On-chain scanning - new token → quick risk assessment
 
 Architecture:
   Prometheus → every N minutes pull RSS → extract entities → embed → store

@@ -3,11 +3,11 @@ Real-CATS and MBAL Dataset Providers
 =====================================
 Two massive free datasets for AML detection and address labeling.
 
-1. Real-CATS — 153,121 addresses (50,943 criminal + 102,178 benign)
+1. Real-CATS - 153,121 addresses (50,943 criminal + 102,178 benign)
    with full transaction profiles. Ideal for risk scoring and AML.
    Source: https://github.com/sjdseu/Real-CATS
 
-2. MBAL — 10 million annotated crypto addresses across 5 chains
+2. MBAL - 10 million annotated crypto addresses across 5 chains
    with 62 categories. The largest free label dataset available.
    Source: https://www.kaggle.com/datasets/yidongchaintoolai/mbal-10m-crypto-address-label-dataset
    NOTE: Requires manual Kaggle download. Place files in ~/rmi/mbal/
@@ -20,7 +20,7 @@ import os
 logger = logging.getLogger("databus.dataset_providers")
 
 # ═══════════════════════════════════════════════════════════════
-# 1. REAL-CATS — Criminal + Benign Address Dataset
+# 1. REAL-CATS - Criminal + Benign Address Dataset
 # ═══════════════════════════════════════════════════════════════
 
 REAL_CATS_PATHS = [
@@ -102,7 +102,7 @@ def _load_real_cats() -> dict:
                     elif is_benign:
                         result["benign"].append(entry)
                     else:
-                        # Mixed file — use the actual label field
+                        # Mixed file - use the actual label field
                         if (
                             "scam" in (row.get("label", "") or "").lower()
                             or "criminal" in (row.get("label", "") or "").lower()
@@ -132,7 +132,7 @@ def _load_real_cats() -> dict:
 async def fetch_real_cats(
     address: str | None = None, category: str = "all", limit: int = 50
 ) -> dict:
-    """Query Real-CATS — check if address is criminal, or list criminal/benign addresses."""
+    """Query Real-CATS - check if address is criminal, or list criminal/benign addresses."""
     data = _load_real_cats()
 
     if "error" in data:
@@ -167,7 +167,7 @@ async def fetch_real_cats(
 
 
 # ═══════════════════════════════════════════════════════════════
-# 2. MBAL — 10 Million Annotated Crypto Addresses
+# 2. MBAL - 10 Million Annotated Crypto Addresses
 # ═══════════════════════════════════════════════════════════════
 
 MBAL_PATHS = [
@@ -209,7 +209,7 @@ async def fetch_mbal(
     category: str | None = None,
     limit: int = 20,
 ) -> dict:
-    """Query MBAL — 10M labeled addresses. Schema: chain,address,categories,entity,source"""
+    """Query MBAL - 10M labeled addresses. Schema: chain,address,categories,entity,source"""
     base = _find_mbal_dir()
 
     if not base:
@@ -277,7 +277,7 @@ async def fetch_mbal(
             "results": results,
             "match_count": len(results),
             "filters": {"address": address, "chain": chain, "category": category},
-            "source": "MBAL — 10M annotated addresses (Kaggle)",
+            "source": "MBAL - 10M annotated addresses (Kaggle)",
             "total_estimate": total_estimate,
             "categories": "62 distinct: cex, dex, l2, bridge, mixer, scam, gambling, nft, defi, ...",
             "chains_covered": [

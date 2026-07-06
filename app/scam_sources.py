@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-TIER-1 SCAM INGESTION — Automated Knowledge Base Builder
+TIER-1 SCAM INGESTION - Automated Knowledge Base Builder
 =========================================================
 Pulls scam/exploit data from public sources and indexes them.
 
 Sources:
-  - REKT News DB (rekt.news) — largest crypto exploit database
-  - Chainabuse — community-reported scams
-  - GoPlus Security API — real-time token risk assessment
-  - QuickIntel API — honeypot/rug detection
-  - TokenSniffer — scam detection scores
-  - Web3IsGoingGreat — incident timeline
-  - SlowMist Hacked — investigation reports
-  - CertiK Alerts — audit findings
+  - REKT News DB (rekt.news) - largest crypto exploit database
+  - Chainabuse - community-reported scams
+  - GoPlus Security API - real-time token risk assessment
+  - QuickIntel API - honeypot/rug detection
+  - TokenSniffer - scam detection scores
+  - Web3IsGoingGreat - incident timeline
+  - SlowMist Hacked - investigation reports
+  - CertiK Alerts - audit findings
 
 Architecture:
   1. Periodically poll sources (configurable intervals)
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # SOURCE CONNECTORS
 # ══════════════════════════════════════════════════════════════════════
 
-# RSS feeds from security sources — verified working May 2026
+# RSS feeds from security sources - verified working May 2026
 SECURITY_RSS_FEEDS = [
     ("https://www.web3isgoinggreat.com/feed", "W3IGG"),
     ("https://slowmist.medium.com/feed", "SlowMist"),
@@ -50,7 +50,7 @@ SECURITY_RSS_FEEDS = [
     ("https://www.chainalysis.com/blog/feed/", "Chainalysis"),
 ]
 
-# Scam-adjacent URLs for scraping (no API, no RSS — use HTML parsing)
+# Scam-adjacent URLs for scraping (no API, no RSS - use HTML parsing)
 SCRAPE_SOURCES = [
     {
         "name": "chainabuse",
@@ -114,7 +114,7 @@ class RSSFeedConnector:
 
 
 class GoPlusConnector:
-    """GoPlus Security API — real-time token risk detection.
+    """GoPlus Security API - real-time token risk detection.
     Free tier: rate limited but no API key needed for basic checks."""
 
     BASE = "https://api.gopluslabs.io/api/v1"
@@ -155,13 +155,13 @@ class GoPlusConnector:
 
 
 # ══════════════════════════════════════════════════════════════════════
-# KNOWN SCAM DATABASE — Manual curated patterns (expanded)
+# KNOWN SCAM DATABASE - Manual curated patterns (expanded)
 # ══════════════════════════════════════════════════════════════════════
 
 KNOWN_SCAMS_EXPANDED = [
     # From crypto_embeddings.py KNOWN_SCAM_PATTERNS
     {
-        "name": "Honeypot — Sell Disabled",
+        "name": "Honeypot - Sell Disabled",
         "description": "Token where only the creator can sell. maxSellAmount=0, tradingEnabled=false, blacklist of non-owner addresses.",
         "indicators": [
             "maxSellAmount=0",
@@ -273,7 +273,7 @@ KNOWN_SCAMS_EXPANDED = [
         "code_snippets": [],
     },
     {
-        "name": "Fake Token — Name Squatting",
+        "name": "Fake Token - Name Squatting",
         "description": "Token with identical name/symbol to legitimate project. Trick users into buying the wrong token.",
         "indicators": [
             "identical name to top-100",
@@ -392,7 +392,7 @@ class ScamIngestionPipeline:
         self._total_ingested += stats["total"]
 
         # FAISS indexes are built from Redis automatically
-        # when first search hits each collection — no manual build needed.
+        # when first search hits each collection - no manual build needed.
 
         return {
             "status": "completed",

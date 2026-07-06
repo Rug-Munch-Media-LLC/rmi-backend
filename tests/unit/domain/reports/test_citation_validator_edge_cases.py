@@ -13,7 +13,7 @@ class TestCitationValidatorEdgeCases:
         Per T05 spec: validator must (1) parse [1-N] correctly AND
         (2) verify claim is supported by source content. With strict
         default overlap (40%), generic claim text won't match
-        'Source 0' / 'Source 4' content — so claim is unciteable.
+        'Source 0' / 'Source 4' content - so claim is unciteable.
         """
         sources = [f"Source {i}" for i in range(20)]
         result = validate_section(

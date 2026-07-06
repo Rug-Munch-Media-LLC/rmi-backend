@@ -25,7 +25,7 @@ CONNECTORS = {
             {
                 "id": "gmgn_kol",
                 "name": "KOL Tracker",
-                "desc": "Track Key Opinion Leader wallets — see what top traders are buying and selling in real-time.",
+                "desc": "Track Key Opinion Leader wallets - see what top traders are buying and selling in real-time.",
                 "price": "0.08",
                 "cat": "intelligence",
                 "trial": 1,
@@ -33,7 +33,7 @@ CONNECTORS = {
             {
                 "id": "gmgn_new_pairs",
                 "name": "New Pair Scanner",
-                "desc": "Scan newly created trading pairs on GMGN — get in early on promising launches.",
+                "desc": "Scan newly created trading pairs on GMGN - get in early on promising launches.",
                 "price": "0.05",
                 "cat": "launchpad",
                 "trial": 2,
@@ -77,7 +77,7 @@ CONNECTORS = {
             {
                 "id": "nansen_smart_money",
                 "name": "Nansen Smart Money",
-                "desc": "Track smart money wallets — see what profitable traders are accumulating before pumps.",
+                "desc": "Track smart money wallets - see what profitable traders are accumulating before pumps.",
                 "price": "0.15",
                 "cat": "intelligence",
                 "trial": 0,
@@ -85,7 +85,7 @@ CONNECTORS = {
             {
                 "id": "nansen_token_god",
                 "name": "Token God Mode",
-                "desc": "Nansen Token God Mode — full holder breakdown, exchange flows, smart money holdings.",
+                "desc": "Nansen Token God Mode - full holder breakdown, exchange flows, smart money holdings.",
                 "price": "0.20",
                 "cat": "analysis",
                 "trial": 0,
@@ -103,7 +103,7 @@ CONNECTORS = {
             {
                 "id": "birdeye_trending",
                 "name": "Birdeye Trending",
-                "desc": "Multi-chain trending tokens from Birdeye — volume, price action, liquidity.",
+                "desc": "Multi-chain trending tokens from Birdeye - volume, price action, liquidity.",
                 "price": "0.03",
                 "cat": "market",
                 "trial": 2,
@@ -111,7 +111,7 @@ CONNECTORS = {
             {
                 "id": "birdeye_token",
                 "name": "Token Overview",
-                "desc": "Complete token overview — price, volume, liquidity, holders, social links from Birdeye.",
+                "desc": "Complete token overview - price, volume, liquidity, holders, social links from Birdeye.",
                 "price": "0.05",
                 "cat": "market",
                 "trial": 1,
@@ -137,7 +137,7 @@ CONNECTORS = {
             {
                 "id": "defillama_protocol",
                 "name": "Protocol Data",
-                "desc": "Full protocol analytics — TVL history, revenue, fees, treasury from DeFiLlama.",
+                "desc": "Full protocol analytics - TVL history, revenue, fees, treasury from DeFiLlama.",
                 "price": "0.01",
                 "cat": "market",
                 "trial": 3,
@@ -180,7 +180,7 @@ CONNECTORS = {
     },
     "coingecko": {
         "name": "CoinGecko Market Data",
-        "description": "Comprehensive crypto market data — prices, market caps, trending, categories.",
+        "description": "Comprehensive crypto market data - prices, market caps, trending, categories.",
         "price": "$0.01",
         "category": "market",
         "trialFree": 5,
@@ -197,7 +197,7 @@ CONNECTORS = {
             {
                 "id": "coingecko_trending",
                 "name": "CoinGecko Trending",
-                "desc": "Get CoinGecko trending tokens — most searched and visited coins in the last 24h.",
+                "desc": "Get CoinGecko trending tokens - most searched and visited coins in the last 24h.",
                 "price": "0.01",
                 "cat": "market",
                 "trial": 5,
@@ -205,7 +205,7 @@ CONNECTORS = {
             {
                 "id": "coingecko_categories",
                 "name": "Market Categories",
-                "desc": "Browse CoinGecko categories — meme coins, DeFi, L2s, AI tokens with market data.",
+                "desc": "Browse CoinGecko categories - meme coins, DeFi, L2s, AI tokens with market data.",
                 "price": "0.01",
                 "cat": "market",
                 "trial": 5,

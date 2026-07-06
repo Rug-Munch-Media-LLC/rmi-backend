@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#19 — Smart Contract Function Analyzer. Extends SENTINEL to decompile and analyze
+"""#19 - Smart Contract Function Analyzer. Extends SENTINEL to decompile and analyze
 bytecode. Returns human-readable "what this contract actually does." """
 
 import os
@@ -128,7 +128,7 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
                             "function": name,
                             "selector": selector,
                             "risk": "HIGH" if score >= 10 else "MEDIUM",
-                            "explanation": f"Contract has {name} function — {'can create unlimited tokens' if 'mint' in name.lower() else 'may be used to manipulate trading'}",
+                            "explanation": f"Contract has {name} function - {'can create unlimited tokens' if 'mint' in name.lower() else 'may be used to manipulate trading'}",
                         }
                     )
                     break
@@ -207,5 +207,5 @@ async def detect_mint_function(address: str, chain: str = Query("ethereum")):
         "has_mint_function": len(found) > 0,
         "mint_functions": found,
         "risk": "HIGH" if len(found) > 0 else "LOW",
-        "note": "Mint functions allow creating new tokens — typical of scams" if found else "No mint function detected",
+        "note": "Mint functions allow creating new tokens - typical of scams" if found else "No mint function detected",
     }

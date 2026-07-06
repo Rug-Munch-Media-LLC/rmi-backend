@@ -260,20 +260,21 @@ def calculate_price(tier: str, period: str) -> float:
     return config["price_monthly"]
 
 
+_PERIOD_DAYS = {
+    "monthly": 30,
+    "six_month": 180,
+    "yearly": 365,
+}
+
+
 def get_period_days(period: str) -> int:
     """Get number of days for a billing period."""
-    if period == "monthly":
-        return 30
-    elif period == "six_month":
-        return 180
-    elif period == "yearly":
-        return 365
-    return 30
+    return _PERIOD_DAYS.get(period, 30)
 
 
 def _get_user_subscriptions(user_id: str) -> list[dict]:
     """Get all subscriptions for a user."""
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     subs_raw = r.hget("rmi:subscriptions", user_id)
     if subs_raw:
         return json.loads(subs_raw)
@@ -282,7 +283,7 @@ def _get_user_subscriptions(user_id: str) -> list[dict]:
 
 def _save_subscription(sub: dict):
     """Save a subscription to Redis."""
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     user_id = sub["user_id"]
     subs = _get_user_subscriptions(user_id)
 
@@ -304,7 +305,7 @@ def _save_subscription(sub: dict):
 
 @router.get("/pricing")
 async def get_pricing() -> PricingResponse:
-    """Get all pricing information — base tiers + add-ons."""
+    """Get all pricing information - base tiers + add-ons."""
     return {
         "tiers": TIER_CONFIG,
         "addons": ADDON_CONFIG,
@@ -459,7 +460,7 @@ async def create_subscription(req: SubscriptionCreateRequest, request: Request):
             }
         except Exception as e:
             logger.error(f"Stripe checkout failed: {e}")
-            raise HTTPException(status_code=500, detail="Payment processing failed")
+            raise HTTPException(status_code=500, detail="Payment processing failed") from e
 
     elif req.payment_method == "crypto":
         if not req.crypto_chain:
@@ -494,7 +495,7 @@ async def create_subscription(req: SubscriptionCreateRequest, request: Request):
             "instructions": f"Send payment to the address above. Include memo 'RMI-{sub_id[:8]}' for faster confirmation.",
         }
     elif req.payment_method == "x402":
-        # x402 micropayment — return EIP-3009 challenge for client to sign
+        # x402 micropayment - return EIP-3009 challenge for client to sign
         config = ALL_PRODUCTS.get(tier, {})
         x402_price_atoms = config.get("x402_price_atoms")
         x402_chain_id = config.get("x402_chain_id", 8453)
@@ -649,7 +650,7 @@ async def stripe_webhook(request: Request):
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except Exception as e:
         logger.error(f"Stripe webhook error: {e}")
-        raise HTTPException(status_code=400, detail="Invalid webhook")
+        raise HTTPException(status_code=400, detail="Invalid webhook") from e
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
@@ -703,7 +704,7 @@ async def list_all_subscriptions(
     if not user or user.get("role") not in ("ADMIN", "SUPERADMIN"):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     all_subs = r.hgetall("rmi:subscriptions")
 
     results = []

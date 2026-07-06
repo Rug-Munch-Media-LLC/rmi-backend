@@ -1,4 +1,4 @@
-"""Billing module skeleton — x402 crypto payments ready, Stripe slot for later."""
+"""Billing module skeleton - x402 crypto payments ready, Stripe slot for later."""
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -20,7 +20,7 @@ TIERS = {
     },
 }
 
-# Stripe placeholder — ready when you add keys
+# Stripe placeholder - ready when you add keys
 STRIPE_ENABLED = False
 
 

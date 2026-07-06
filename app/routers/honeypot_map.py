@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#14 — Honeypot Network Map. Maps all known honeypot contracts, clusters by deployer,
+"""#14 - Honeypot Network Map. Maps all known honeypot contracts, clusters by deployer,
 fund flows. Interactive graph showing the honeypot factory network."""
 
 import os
@@ -135,7 +135,7 @@ async def get_honeypot_network(
                                     }
                                 )
     except Exception as e:
-        raise HTTPException(502, f"Labels service unavailable: {e}")
+        raise HTTPException(502, f"Labels service unavailable: {e}") from e
 
     return {
         "chain": chain,

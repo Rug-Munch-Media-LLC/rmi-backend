@@ -34,4 +34,4 @@ async def get_domains():
         all_domains = list(set(blocklist.get("domains", []) + rag_scams))
         return all_domains
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error loading blocklist: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Error loading blocklist: {e!s}") from e

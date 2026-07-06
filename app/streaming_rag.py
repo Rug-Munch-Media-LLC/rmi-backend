@@ -1,5 +1,5 @@
 """
-Streaming RAG — Real-time token/address monitoring with push updates.
+Streaming RAG - Real-time token/address monitoring with push updates.
 
 "Watch this token" → results stream as the scanner finds new evidence.
 Uses Redis pub/sub for real-time delivery to WebSocket or polling clients.

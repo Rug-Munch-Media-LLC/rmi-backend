@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RMI Backend — Environment Generator
+RMI Backend - Environment Generator
 ====================================
 Generates /root/backend/.env from .env.example + Hermes .env matching keys.
 Also syncs from /root/.secrets/ where available.

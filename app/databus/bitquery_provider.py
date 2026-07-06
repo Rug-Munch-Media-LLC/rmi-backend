@@ -1,5 +1,5 @@
 """
-Bitquery DataBus Provider — Blockchain Intelligence via GraphQL
+Bitquery DataBus Provider - Blockchain Intelligence via GraphQL
 =================================================================
 
 Bitquery provides deep blockchain data across 40+ chains via GraphQL.
@@ -46,10 +46,10 @@ BITQUERY_IDE_URL = "https://ide.bitquery.io/graphql"
 BITQUERY_API_URL = "https://graphql.bitquery.io/"
 
 # Cache TTLs
-CACHE_TTL_PRICE = 300  # 5 min — prices are volatile
+CACHE_TTL_PRICE = 300  # 5 min - prices are volatile
 CACHE_TTL_VOLUME = 300  # 5 min
 CACHE_TTL_HOLDERS = 3600  # 1 hour
-CACHE_TTL_TRACE = 86400  # 24 hours — historical
+CACHE_TTL_TRACE = 86400  # 24 hours - historical
 CACHE_TTL_BALANCE = 600  # 10 min
 
 # Rate limits (free tier)
@@ -78,7 +78,7 @@ class BitqueryProvider:
         self._loaded = False
 
     async def _load_creds(self):
-        """Load Bitquery credentials — env vars first, vault as fallback."""
+        """Load Bitquery credentials - env vars first, vault as fallback."""
         if self._loaded:
             return
         import os

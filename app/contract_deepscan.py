@@ -14,6 +14,8 @@ import tempfile
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from app.telegram_bot.requirements import httpx
+
 logger = logging.getLogger(__name__)
 
 

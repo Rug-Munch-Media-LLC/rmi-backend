@@ -29,7 +29,7 @@ def app():
 
 
 def test_factory_boots_without_error(app) -> None:
-    """Factory must boot without raising — any import failure = bug."""
+    """Factory must boot without raising - any import failure = bug."""
     assert app is not None
 
 

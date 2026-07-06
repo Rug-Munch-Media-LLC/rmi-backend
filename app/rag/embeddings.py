@@ -1,12 +1,12 @@
-"""M3 RAG Embeddings — strict two-tier (no hash fallback).
+"""M3 RAG Embeddings - strict two-tier (no hash fallback).
 
 Per T04: the hash-based "fallback" embedding was returning
 confidently-wrong results (non-semantic vectors). When all neural
 backends fail, the RAG system now fails LOUDLY instead of returning
 gibberish.
 
-Tier 1: Ollama bge-m3 (1024d, our own, zero cost) — best quality when reachable
-Tier 2: OpenRouter NVIDIA Nemotron (2048d, free tier) — if API key set
+Tier 1: Ollama bge-m3 (1024d, our own, zero cost) - best quality when reachable
+Tier 2: OpenRouter NVIDIA Nemotron (2048d, free tier) - if API key set
 
 Design (per DESIGN.md M3):
 - Single async API: `await get_embedding(text) -> list[float]`
@@ -152,7 +152,7 @@ async def get_embedding(text: str) -> list[float]:
 
 
 async def get_embeddings(texts: list[str]) -> list[list[float]]:
-    """Batch embedding. Sequential calls — Ollama and OpenRouter handle
+    """Batch embedding. Sequential calls - Ollama and OpenRouter handle
     larger requests poorly and we'd rather keep memory bounded."""
     return [await get_embedding(t) for t in texts]
 

@@ -1,5 +1,5 @@
 """
-RMI GLOBAL NEWS v4 — Google News, Bing, Reuters, NYT, BBC, Bloomberg, CNBC, WSJ, FT
+RMI GLOBAL NEWS v4 - Google News, Bing, Reuters, NYT, BBC, Bloomberg, CNBC, WSJ, FT
 Every major news organization's crypto coverage. The biggest on the internet.
 """
 
@@ -14,7 +14,7 @@ import httpx
 logger = logging.getLogger("rmi.global")
 
 # ═══════════════════════════════════════════════════════
-# GOOGLE NEWS — Crypto section (free RSS)
+# GOOGLE NEWS - Crypto section (free RSS)
 # ═══════════════════════════════════════════════════════
 GOOGLE_NEWS_FEEDS = [
     (
@@ -36,7 +36,7 @@ GOOGLE_NEWS_FEEDS = [
 ]
 
 # ═══════════════════════════════════════════════════════
-# BING NEWS — Crypto section (free RSS)
+# BING NEWS - Crypto section (free RSS)
 # ═══════════════════════════════════════════════════════
 BING_NEWS_FEEDS = [
     (
@@ -47,7 +47,7 @@ BING_NEWS_FEEDS = [
 ]
 
 # ═══════════════════════════════════════════════════════
-# MAJOR NEWS ORGS — All with crypto RSS
+# MAJOR NEWS ORGS - All with crypto RSS
 # ═══════════════════════════════════════════════════════
 MAJOR_NEWS = [
     # Reuters

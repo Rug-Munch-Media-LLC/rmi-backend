@@ -1,5 +1,5 @@
 """
-Supabase Auth Integration — Web3 wallet authentication.
+Supabase Auth Integration - Web3 wallet authentication.
 Uses Moralis for SIWE/SIWS challenges, Supabase for user storage.
 Free alternative to paid Moralis auth for acquired users.
 
@@ -159,9 +159,9 @@ async def verify_evm_and_create_user(req: VerifyRequest):
             "chain": "evm",
         }
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/verify/solana")
@@ -199,9 +199,9 @@ async def verify_solana_and_create_user(req: VerifyRequest):
             "chain": "solana",
         }
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/health")

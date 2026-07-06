@@ -1,5 +1,5 @@
 """
-Velocity Risk Engine — Time-Series Anomaly Detection
+Velocity Risk Engine - Time-Series Anomaly Detection
 =====================================================
 
 Tracks how token metrics CHANGE over time, not just what they ARE.
@@ -183,24 +183,24 @@ def get_market_context() -> dict[str, Any]:
 def contextualize_score(base_safety: int, market_context: dict[str, Any]) -> dict[str, Any]:
     """Adjust safety score based on market conditions.
 
-    During Extreme Greed (>75): scammers launch more — raise sensitivity
-    During Extreme Fear (<25): fewer scams launch — lower sensitivity
+    During Extreme Greed (>75): scammers launch more - raise sensitivity
+    During Extreme Fear (<25): fewer scams launch - lower sensitivity
     """
     fng = market_context.get("fear_greed_value", 50)
 
     # Market pressure: how much to adjust
-    if fng > 75:  # Extreme Greed — more scams
+    if fng > 75:  # Extreme Greed - more scams
         pressure = 1.3
-        context = "Scam alert elevated — market in Extreme Greed"
+        context = "Scam alert elevated - market in Extreme Greed"
     elif fng > 60:  # Greed
         pressure = 1.15
-        context = "Elevated scam risk — market in Greed"
-    elif fng < 25:  # Extreme Fear — fewer new scams
+        context = "Elevated scam risk - market in Greed"
+    elif fng < 25:  # Extreme Fear - fewer new scams
         pressure = 0.85
-        context = "Reduced scam activity — market in Extreme Fear"
+        context = "Reduced scam activity - market in Extreme Fear"
     elif fng < 40:  # Fear
         pressure = 0.95
-        context = "Slightly reduced risk — market in Fear"
+        context = "Slightly reduced risk - market in Fear"
     else:  # Neutral
         pressure = 1.0
         context = "Normal market conditions"

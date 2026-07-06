@@ -26,7 +26,7 @@ logger = logging.getLogger("facilitator.primev")
 
 class PrimevFacilitator(Facilitator):
     """
-    Primev FastRPC — fee-free Ethereum settlement with mev-commit preconfirmations.
+    Primev FastRPC - fee-free Ethereum settlement with mev-commit preconfirmations.
     Sub-200ms settlement. ERC-8004 Agent #23175.
     """
 
@@ -47,7 +47,7 @@ class PrimevFacilitator(Facilitator):
 
     @property
     def priority(self) -> int:
-        return 5  # Highest priority for Ethereum — fee-free!
+        return 5  # Highest priority for Ethereum - fee-free!
 
     @property
     def is_fee_free(self) -> bool:
@@ -74,7 +74,7 @@ class PrimevFacilitator(Facilitator):
 
     @property
     def description(self) -> str:
-        return "Primev FastRPC — fee-free Ethereum, sub-200ms mev-commit, ERC-8004 #23175"
+        return "Primev FastRPC - fee-free Ethereum, sub-200ms mev-commit, ERC-8004 #23175"
 
     async def verify(
         self,

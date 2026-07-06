@@ -1,5 +1,5 @@
 """
-MEV Shield Analysis — Proactive Transaction Protection
+MEV Shield Analysis - Proactive Transaction Protection
 ========================================================
 Assesses any pending or planned transaction for MEV extraction vulnerability
 BEFORE it's sent. Identifies sandwich attack risk, frontrunning exposure,
@@ -20,8 +20,8 @@ TRIAL : 1 free check
 
 Data Sources (all free):
   - Local MEV database (historical sandwich/frontrun patterns)
-  - DexScreener — pool liquidity, pair metadata
-  - Chain RPC (public) — pending tx pool analysis
+  - DexScreener - pool liquidity, pair metadata
+  - Chain RPC (public) - pending tx pool analysis
   - Mempool.space (BTC) and Etherscan pending (EVM)
   - Historical MEV data from mev_sandwich_detector
 """
@@ -169,7 +169,7 @@ async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> Me
             name="mempool_activity",
             score=0.3,
             finding=f"Unsupported chain: {chain}",
-            detail=f"No RPC endpoints configured for {chain} — mempool analysis unavailable",
+            detail=f"No RPC endpoints configured for {chain} - mempool analysis unavailable",
             suggestion="Supported chains: " + ", ".join(sorted(FREE_RPCS.keys())),
         )
     score = 0.1
@@ -184,15 +184,15 @@ async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> Me
             if pending > 500:
                 score = 0.8
                 findings.append("Congested mempool")
-                details.append(f"{pending} pending transactions — high MEV competition zone")
+                details.append(f"{pending} pending transactions - high MEV competition zone")
             elif pending > 200:
                 score = 0.5
                 findings.append("Moderate mempool activity")
-                details.append(f"{pending} pending transactions — MEV possible")
+                details.append(f"{pending} pending transactions - MEV possible")
             else:
                 score = 0.2
                 findings.append("Low mempool activity")
-                details.append(f"{pending} pending transactions — lower MEV likelihood")
+                details.append(f"{pending} pending transactions - lower MEV likelihood")
         except (ValueError, KeyError):
             pass
 
@@ -213,11 +213,11 @@ async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> Me
                 if avg_gas > 100:
                     score = max(score, 0.75)
                     findings.append("High gas price environment")
-                    details.append(f"Avg gas: {avg_gas:.1f} gwei — competitive bidding indicates MEV activity")
+                    details.append(f"Avg gas: {avg_gas:.1f} gwei - competitive bidding indicates MEV activity")
                 elif avg_gas > 30:
                     score = max(score, 0.45)
                     findings.append("Elevated gas prices")
-                    details.append(f"Avg gas: {avg_gas:.1f} gwei — some MEV extraction likely")
+                    details.append(f"Avg gas: {avg_gas:.1f} gwei - some MEV extraction likely")
         except (ValueError, KeyError):
             pass
 
@@ -226,7 +226,7 @@ async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> Me
     suggestions = {
         0.8: "Use private mempool (Flashbots, MEV Blocker) to avoid frontrunning",
         0.5: "Consider using a MEV-protected RPC endpoint",
-        0.2: "Standard transaction should be safe — no special protection needed",
+        0.2: "Standard transaction should be safe - no special protection needed",
     }
     # Pick closest suggestion
     closest_key = min(suggestions.keys(), key=lambda k: abs(k - score))
@@ -246,17 +246,17 @@ async def _check_slippage_risk(slippage_bps: int) -> MevFactor:
     if slippage_bps >= HIGH_RISK_SLIPPAGE_BPS:
         score = 0.9
         finding = "High slippage tolerance"
-        detail = f"{slippage_bps / 100:.1f}% slippage — easily exploited by sandwich bots"
+        detail = f"{slippage_bps / 100:.1f}% slippage - easily exploited by sandwich bots"
         suggestion = "Reduce slippage to 0.5-1.0% (50-100 bps) to minimize attack surface"
     elif slippage_bps >= DEFAULT_SLIPPAGE_BPS:
         score = 0.5
         finding = "Moderate slippage tolerance"
-        detail = f"{slippage_bps / 100:.1f}% slippage — exploitable in thin liquidity pools"
+        detail = f"{slippage_bps / 100:.1f}% slippage - exploitable in thin liquidity pools"
         suggestion = "Lower slippage to 0.5% for tighter protection"
     else:
         score = 0.15
         finding = "Low slippage tolerance"
-        detail = f"{slippage_bps / 100:.1f}% slippage — tight, harder to sandwich"
+        detail = f"{slippage_bps / 100:.1f}% slippage - tight, harder to sandwich"
         suggestion = "Current slippage setting looks safe"
 
     return MevFactor(
@@ -273,18 +273,18 @@ async def _check_gas_price_risk(gas_price_gwei: float) -> MevFactor:
     if gas_price_gwei >= HIGH_RISK_GAS_PRICE_GWEI:
         score = 0.7
         finding = "Premium gas price"
-        detail = f"{gas_price_gwei:.1f} gwei — high bid flags tx as urgent/value to bots"
+        detail = f"{gas_price_gwei:.1f} gwei - high bid flags tx as urgent/value to bots"
         suggestion = "Use Flashbots to submit privately while still getting fast inclusion"
     elif gas_price_gwei >= 20:
         score = 0.4
         finding = "Above-average gas price"
-        detail = f"{gas_price_gwei:.1f} gwei — may attract some MEV attention"
+        detail = f"{gas_price_gwei:.1f} gwei - may attract some MEV attention"
         suggestion = "Consider MEV Blocker or a private RPC for extra safety"
     else:
         score = 0.1
         finding = "Normal gas price"
-        detail = f"{gas_price_gwei:.1f} gwei — unlikely to attract MEV extractors"
-        suggestion = "Standard gas pricing — no special MEV concern"
+        detail = f"{gas_price_gwei:.1f} gwei - unlikely to attract MEV extractors"
+        suggestion = "Standard gas pricing - no special MEV concern"
 
     return MevFactor(
         name="gas_price",
@@ -302,7 +302,7 @@ async def _check_pool_liquidity(pair_address: str | None, chain: str) -> MevFact
             name="pool_liquidity",
             score=0.3,
             finding="Unknown pool",
-            detail="No pair address provided — cannot assess liquidity depth",
+            detail="No pair address provided - cannot assess liquidity depth",
             suggestion="Provide pair address for accurate MEV risk assessment",
         )
 
@@ -320,20 +320,20 @@ async def _check_pool_liquidity(pair_address: str | None, chain: str) -> MevFact
                         score = 0.85
                         finding = "Thin liquidity pool"
                         detail = (
-                            f"${liquidity_usd:,.0f} liquidity — highly vulnerable to sandwich/liquidity manipulation"
+                            f"${liquidity_usd:,.0f} liquidity - highly vulnerable to sandwich/liquidity manipulation"
                         )
                         suggestion = "Avoid trading in sub-$50K liquidity pools, or use small orders split across time"
                     elif liquidity_usd < MODERATE_LIQUIDITY_USD:
                         score = 0.5
                         finding = "Moderate liquidity"
-                        detail = f"${liquidity_usd:,.0f} liquidity — sandwich possible for orders >${liquidity_usd * 0.01:,.0f}"
+                        detail = f"${liquidity_usd:,.0f} liquidity - sandwich possible for orders >${liquidity_usd * 0.01:,.0f}"
                         suggestion = (
                             "Keep individual trades under 1% of pool liquidity to minimize slippage and MEV risk"
                         )
                     else:
                         score = 0.15
                         finding = "Deep liquidity pool"
-                        detail = f"${liquidity_usd:,.0f} liquidity — sandwich attacks expensive and unlikely"
+                        detail = f"${liquidity_usd:,.0f} liquidity - sandwich attacks expensive and unlikely"
                         suggestion = "Low MEV risk due to deep liquidity"
 
                     return MevFactor(
@@ -350,7 +350,7 @@ async def _check_pool_liquidity(pair_address: str | None, chain: str) -> MevFact
         name="pool_liquidity",
         score=0.3,
         finding="Liquidity lookup failed",
-        detail="Could not fetch pool data — conservative risk estimate applied",
+        detail="Could not fetch pool data - conservative risk estimate applied",
         suggestion="Check manually on DexScreener or retry later",
     )
 
@@ -372,17 +372,17 @@ async def _check_historical_mev(chain: str, token_address: str | None = None) ->
             if recent_attacks > 20:
                 score = 0.75
                 finding = "Active MEV chain"
-                detail = f"{recent_attacks} MEV attacks in last 24h — high activity chain"
+                detail = f"{recent_attacks} MEV attacks in last 24h - high activity chain"
                 suggestion = "Always use MEV protection on this chain (Flashbots, MEV Blocker)"
             elif recent_attacks > 5:
                 score = 0.45
                 finding = "Moderate MEV activity"
-                detail = f"{recent_attacks} MEV attacks in last 24h — some risk"
+                detail = f"{recent_attacks} MEV attacks in last 24h - some risk"
                 suggestion = "Consider MEV protection for high-value transactions"
             else:
                 score = 0.15
                 finding = "Low MEV activity"
-                detail = f"{recent_attacks} MEV attacks in last 24h — chain relatively safe"
+                detail = f"{recent_attacks} MEV attacks in last 24h - chain relatively safe"
                 suggestion = "Standard transactions should be safe"
 
             return MevFactor(
@@ -427,12 +427,12 @@ async def _check_timing_risk() -> MevFactor:
     if is_weekend:
         score = 0.3
         finding = "Weekend trading"
-        detail = "Lower overall MEV activity on weekends — fewer bots competing"
+        detail = "Lower overall MEV activity on weekends - fewer bots competing"
         suggestion = "Good time for lower-risk transactions"
     elif 14 <= hour <= 22:
         score = 0.6
         finding = "Peak MEV hours"
-        detail = "US market hours — highest MEV bot competition"
+        detail = "US market hours - highest MEV bot competition"
         suggestion = (
             "Consider transacting outside peak hours (before 14:00 UTC) for lower MEV risk, or use private mempool"
         )
@@ -440,11 +440,11 @@ async def _check_timing_risk() -> MevFactor:
         score = 0.35
         finding = "Off-peak hours"
         detail = "Lower bot activity during Asian/European hours"
-        suggestion = "Moderate MEV risk — standard precautions recommended"
+        suggestion = "Moderate MEV risk - standard precautions recommended"
     else:
         score = 0.2
         finding = "Low activity period"
-        detail = "Nighttime hours — minimal bot activity expected"
+        detail = "Nighttime hours - minimal bot activity expected"
         suggestion = "Low MEV risk window"
 
     return MevFactor(
@@ -465,33 +465,33 @@ def _compute_protection_strategies(risk_level: MevRiskLevel, factors: list[MevFa
 
     if risk_level in (MevRiskLevel.CRITICAL, MevRiskLevel.HIGH):
         strategies.append(
-            "🚨 Use Flashbots Protect (https://flashbots.net/) for private transaction submission — "
+            "🚨 Use Flashbots Protect (https://flashbots.net/) for private transaction submission - "
             "guarantees your tx won't be frontrun"
         )
         strategies.append(
-            "🔒 Use MEV Blocker (https://mevblocker.io/) — sends tx to private mempool with backrunning protection"
+            "🔒 Use MEV Blocker (https://mevblocker.io/) - sends tx to private mempool with backrunning protection"
         )
         if any(f.name == "pool_liquidity" for f in high_factors):
             strategies.append("📊 Split large trades into smaller chunks to reduce slippage and sandwich exposure")
         if any(f.name == "slippage_tolerance" for f in high_factors):
             strategies.append(
-                "⚡ Set slippage to 0.5% or lower — this is the single most effective MEV reduction tactic"
+                "⚡ Set slippage to 0.5% or lower - this is the single most effective MEV reduction tactic"
             )
     elif risk_level == MevRiskLevel.MODERATE:
-        strategies.append("🛡️ Consider MEV Blocker for moderate-value transactions — free to use")
+        strategies.append("🛡️ Consider MEV Blocker for moderate-value transactions - free to use")
         strategies.append("⏰ Time your transaction during off-peak hours (before 14:00 UTC) for lower MEV competition")
     else:
-        strategies.append("✅ Standard transaction appears safe — no special MEV protection needed")
+        strategies.append("✅ Standard transaction appears safe - no special MEV protection needed")
         strategies.append("💡 For high-value transactions (>$10K), still consider Flashbots as a precaution")
 
     # Chain-specific
     if chain == "ethereum":
         strategies.append(
-            "🔷 Ethereum has the most mature MEV protection — Flashbots, MEV Blocker, and CoW Swap all available"
+            "🔷 Ethereum has the most mature MEV protection - Flashbots, MEV Blocker, and CoW Swap all available"
         )
     elif chain == "bsc":
         strategies.append(
-            "🟡 BSC has fewer MEV protection options — Flashbots not available. "
+            "🟡 BSC has fewer MEV protection options - Flashbots not available. "
             "Use low slippage and consider Poly Network for cross-chain routing"
         )
 
@@ -548,7 +548,7 @@ async def analyze_transaction_risk(
     gas_price_gwei: float | None = None,
 ) -> MevShieldResult:
     """
-    Full MEV Shield Analysis — assess transaction MEV vulnerability.
+    Full MEV Shield Analysis - assess transaction MEV vulnerability.
 
     Args:
         chain: Blockchain name (ethereum, bsc, base, arbitrum, polygon, optimism, avalanche)
@@ -658,7 +658,7 @@ def mev_shield_analysis(
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # Already in an event loop — create a new one in a new thread
+            # Already in an event loop - create a new one in a new thread
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor() as pool:
@@ -691,13 +691,13 @@ def mev_shield_analysis(
 
 async def main() -> None:
     """Run a sample MEV Shield analysis for demonstration."""
-    print("🛡️ MEV Shield Analysis — Demo Run")
+    print("🛡️ MEV Shield Analysis - Demo Run")
     print("=" * 60)
 
     result = await analyze_transaction_risk(
         chain="ethereum",
         pair_address="0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",  # USDC/WETH
-        slippage_bps=300,  # 3% — high risk
+        slippage_bps=300,  # 3% - high risk
     )
 
     print(f"\nRisk Level: {result.risk_level.value.upper()}")
@@ -708,7 +708,7 @@ async def main() -> None:
     print("Factor Breakdown:")
     for f in result.factors:
         bar = "█" * int(f.score * 20) + "░" * (20 - int(f.score * 20))
-        print(f"  [{bar}] {f.name:25s} {f.score:.2f} — {f.finding}")
+        print(f"  [{bar}] {f.name:25s} {f.score:.2f} - {f.finding}")
 
     print("\nProtection Strategies:")
     for s in result.protection_strategies:

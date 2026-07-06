@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#16 — DeFiLlama Protocol Mismatch Detector. Compares DeFiLlama TVL against
+"""#16 - DeFiLlama Protocol Mismatch Detector. Compares DeFiLlama TVL against
 actual on-chain balances. Flags inflated TVL or impending rug."""
 
 import asyncio
@@ -125,7 +125,7 @@ async def find_top_mismatches(limit: int = Query(10, le=20)):
                 protocols = resp.json()
                 top_protocols = [p["slug"] for p in protocols[: limit * 2] if p.get("slug")]
     except Exception:
-        raise HTTPException(502, "DeFiLlama unavailable")
+        raise HTTPException(502, "DeFiLlama unavailable") from None
 
     mismatches: list[dict] = []
     for slug in top_protocols[: limit * 2]:

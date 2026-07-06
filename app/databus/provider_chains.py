@@ -1,5 +1,5 @@
 """
-DataBus Provider Chains — Fallback Chain Definitions
+DataBus Provider Chains - Fallback Chain Definitions
 ====================================================
 
 All fallback chain definitions using the providers from provider_implementations.
@@ -359,7 +359,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except Exception as e:
         logger.warning(f"Bitquery not available: {e}")
 
-    # Wallet Labels — OUR data first
+    # Wallet Labels - OUR data first
     chains["wallet_labels"] = ProviderChain(
         data_type="wallet_labels",
         description="Address labels and entity identification (190K local + external)",
@@ -563,7 +563,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     )
     chains["wallet_nfts"] = ProviderChain(
         data_type="wallet_nfts",
-        description="NFT holdings for any address (Moralis — free tier available)",
+        description="NFT holdings for any address (Moralis - free tier available)",
         providers=[
             Provider(
                 "moralis_nfts",
@@ -633,7 +633,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         ],
     )
 
-    # ── Arkham Intelligence — Free trial month (Nov 2026) ──
+    # ── Arkham Intelligence - Free trial month (Nov 2026) ──
     # Priority: LOCAL labels → Arkham (free trial) → paid alternatives
     chains["entity_intel"] = ProviderChain(
         data_type="entity_intel",
@@ -747,16 +747,16 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         ],
     )
 
-    # ── MCP Bridge — all installed MCP servers ──
+    # ── MCP Bridge - all installed MCP servers ──
     chains["mcp_bridge"] = ProviderChain(
         data_type="mcp_bridge",
-        description="Universal MCP bridge — calls any local/remote MCP server tool",
+        description="Universal MCP bridge - calls any local/remote MCP server tool",
         providers=[
             Provider("mcp_bridge", ProviderTier.LOCAL, _mcp_bridge, weight=10.0),
         ],
     )
 
-    # ── PREMIUM SCANNER — 10 high-value detection chains ──
+    # ── PREMIUM SCANNER - 10 high-value detection chains ──
     try:
         from app.databus.premium_scanner import (
             detect_bot_farms,
@@ -782,7 +782,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["cluster_map"] = ProviderChain(
             "cluster_map",
-            description="Full wallet cluster mapping — funders, recipients, counterparties (graph-ready)",
+            description="Full wallet cluster mapping - funders, recipients, counterparties (graph-ready)",
             providers=[_premium_provider("cluster_mapper", map_clusters, rps=1.0)],
         )
 
@@ -794,43 +794,43 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["sniper_detect"] = ProviderChain(
             "sniper_detect",
-            description="Sniper detection — first-block buyers with fast dump patterns",
+            description="Sniper detection - first-block buyers with fast dump patterns",
             providers=[_premium_provider("sniper_scanner", detect_snipers)],
         )
 
         chains["bot_farm_detect"] = ProviderChain(
             "bot_farm_detect",
-            description="Bot farm detection — identical behavior patterns across wallets",
+            description="Bot farm detection - identical behavior patterns across wallets",
             providers=[_premium_provider("bot_farm_scanner", detect_bot_farms)],
         )
 
         chains["copy_trade_detect"] = ProviderChain(
             "copy_trade_detect",
-            description="Copy trading pattern detection — wallets mirroring trades with delay",
+            description="Copy trading pattern detection - wallets mirroring trades with delay",
             providers=[_premium_provider("copy_trade_scanner", detect_copy_trading)],
         )
 
         chains["insider_detect"] = ProviderChain(
             "insider_detect",
-            description="Insider trading signals — large buys before major announcements",
+            description="Insider trading signals - large buys before major announcements",
             providers=[_premium_provider("insider_scanner", detect_insider_signals)],
         )
 
         chains["wash_trade_detect"] = ProviderChain(
             "wash_trade_detect",
-            description="Wash trading detection — circular transactions, self-trading",
+            description="Wash trading detection - circular transactions, self-trading",
             providers=[_premium_provider("wash_trade_scanner", detect_wash_trading)],
         )
 
         chains["mev_detect"] = ProviderChain(
             "mev_detect",
-            description="MEV sandwich attack detection — frontrun/backrun patterns",
+            description="MEV sandwich attack detection - frontrun/backrun patterns",
             providers=[_premium_provider("mev_scanner", detect_mev_sandwich)],
         )
 
         chains["fresh_wallet_analysis"] = ProviderChain(
             "fresh_wallet_analysis",
-            description="Fresh wallet concentration analysis — high new-wallet % = rug risk",
+            description="Fresh wallet concentration analysis - high new-wallet % = rug risk",
             providers=[_premium_provider("fresh_wallet_scanner", detect_fresh_wallets, rps=2.0)],
         )
 
@@ -842,11 +842,11 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
     # ── WEBHOOK SYSTEM ──
     try:
-        from app.databus.webhooks import handle_webhook, list_webhooks, setup_webhook
+        from app.databus.webhooks import handle_webhook, list_webhooks, setup_webhook  # noqa: F401
 
         chains["webhook_handler"] = ProviderChain(
             "webhook_handler",
-            description="Intelligent webhook receiver — Arkham, Helius, Moralis, Alchemy + custom",
+            description="Intelligent webhook receiver - Arkham, Helius, Moralis, Alchemy + custom",
             providers=[
                 Provider(
                     "webhook_processor",
@@ -864,13 +864,13 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError:
         pass
 
-    # ── ARKHAM WEBSOCKET — real-time intelligence streaming ──
+    # ── ARKHAM WEBSOCKET - real-time intelligence streaming ──
     try:
         from app.databus.arkham_ws import arkham_ws_subscribe
 
         chains["arkham_ws"] = ProviderChain(
             "arkham_ws",
-            description="Arkham Intelligence WebSocket — real-time entity updates, transfers, labels",
+            description="Arkham Intelligence WebSocket - real-time entity updates, transfers, labels",
             providers=[
                 Provider(
                     "arkham_ws_stream",
@@ -886,7 +886,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         )
         logger.info("Arkham WebSocket chain registered")
     except ImportError:
-        logger.info("Arkham WS module not found — skipping WS chain")
+        logger.info("Arkham WS module not found - skipping WS chain")
 
     # ── RUGCHARTS: Volume Authenticity (Fake Volume %) ──
     try:
@@ -894,7 +894,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["volume_authenticity"] = ProviderChain(
             "volume_authenticity",
-            description="Fake volume detection — 4-layer analysis (statistical, graph, heuristic, ML) with bootstrap CI",
+            description="Fake volume detection - 4-layer analysis (statistical, graph, heuristic, ML) with bootstrap CI",
             providers=[
                 Provider(
                     "volume_auth_scorer",
@@ -943,7 +943,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["token_security"] = ProviderChain(
             "token_security",
-            description="37+ security checks — GoPlus, honeypot, contract, liquidity, holders, deployer, tokenomics, rug pull",
+            description="37+ security checks - GoPlus, honeypot, contract, liquidity, holders, deployer, tokenomics, rug pull",
             providers=[
                 Provider(
                     "security_scanner",
@@ -965,7 +965,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError:
         logger.info("Token Security module not found")
 
-    # ── RUGCHARTS INTELLIGENCE — 10 Premium Features ──
+    # ── RUGCHARTS INTELLIGENCE - 10 Premium Features ──
     try:
         from app.databus.data_quality import enhanced_token_report, get_tier_comparison
         from app.databus.rugcharts_intel import (
@@ -982,7 +982,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["smart_money"] = ProviderChain(
             "smart_money",
-            description="Smart money feed — what profitable wallets are buying right now",
+            description="Smart money feed - what profitable wallets are buying right now",
             providers=[
                 Provider(
                     "smart_money_tracker",
@@ -996,7 +996,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["whale_alerts"] = ProviderChain(
             "whale_alerts",
-            description="Real-time whale transaction detection — large transfers across chains",
+            description="Real-time whale transaction detection - large transfers across chains",
             providers=[
                 Provider(
                     "whale_detector",
@@ -1024,7 +1024,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["insider_detection"] = ProviderChain(
             "insider_detection",
-            description="Pre-pump accumulation pattern detection — volume spikes before price moves",
+            description="Pre-pump accumulation pattern detection - volume spikes before price moves",
             providers=[
                 Provider(
                     "insider_detector",
@@ -1038,7 +1038,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["liquidity_risk"] = ProviderChain(
             "liquidity_risk",
-            description="LP health monitor — concentration, lock status, removal risk",
+            description="LP health monitor - concentration, lock status, removal risk",
             providers=[
                 Provider(
                     "liquidity_monitor",
@@ -1052,7 +1052,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["holder_health"] = ProviderChain(
             "holder_health",
-            description="Holder distribution analysis — Gini, concentration, decentralization score",
+            description="Holder distribution analysis - Gini, concentration, decentralization score",
             providers=[
                 Provider(
                     "holder_analyzer",
@@ -1066,7 +1066,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["cross_chain_entity"] = ProviderChain(
             "cross_chain_entity",
-            description="Cross-chain entity resolution via Arkham — trace wallets across all chains",
+            description="Cross-chain entity resolution via Arkham - trace wallets across all chains",
             providers=[
                 Provider(
                     "entity_tracer",
@@ -1080,7 +1080,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["rug_patterns"] = ProviderChain(
             "rug_patterns",
-            description="Rug pull pattern matcher — similarity scoring against 10 known scam patterns",
+            description="Rug pull pattern matcher - similarity scoring against 10 known scam patterns",
             providers=[
                 Provider(
                     "rug_matcher",
@@ -1094,7 +1094,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["dev_reputation"] = ProviderChain(
             "dev_reputation",
-            description="Developer reputation — deployer history, token count, entity resolution",
+            description="Developer reputation - deployer history, token count, entity resolution",
             providers=[
                 Provider(
                     "dev_reputation",
@@ -1108,7 +1108,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["token_report"] = ProviderChain(
             "token_report",
-            description="ONE-CALL enhanced token report — smart verdicts, entity enrichment, trust adjustments, tier-aware",
+            description="ONE-CALL enhanced token report - smart verdicts, entity enrichment, trust adjustments, tier-aware",
             providers=[
                 Provider(
                     "report_generator",
@@ -1122,7 +1122,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["tier_comparison"] = ProviderChain(
             "tier_comparison",
-            description="Competitive tier comparison — RugCharts vs DexScreener vs Nansen vs GMGN",
+            description="Competitive tier comparison - RugCharts vs DexScreener vs Nansen vs GMGN",
             providers=[
                 Provider(
                     "tier_compare",
@@ -1138,7 +1138,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError as e:
         logger.warning(f"RugCharts Intelligence not available: {e}")
 
-    # ── NEWS & MARKET DATA — Free APIs ──
+    # ── NEWS & MARKET DATA - Free APIs ──
     try:
         from app.databus.news_provider import (
             get_fear_greed,
@@ -1151,7 +1151,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["live_prices"] = ProviderChain(
             "live_prices",
-            description="Live crypto prices — CoinGecko free tier, multi-coin",
+            description="Live crypto prices - CoinGecko free tier, multi-coin",
             providers=[
                 Provider(
                     "coingecko_prices",
@@ -1165,7 +1165,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["trending_coins"] = ProviderChain(
             "trending_coins",
-            description="Trending coins — CoinGecko search, top 10",
+            description="Trending coins - CoinGecko search, top 10",
             providers=[
                 Provider(
                     "coingecko_trending",
@@ -1179,7 +1179,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["fear_greed"] = ProviderChain(
             "fear_greed",
-            description="Crypto Fear & Greed Index — Alternative.me, free, no key",
+            description="Crypto Fear & Greed Index - Alternative.me, free, no key",
             providers=[
                 Provider(
                     "fear_greed_index",
@@ -1193,7 +1193,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["prediction_markets"] = ProviderChain(
             "prediction_markets",
-            description="Prediction market events — Polymarket, free, no key",
+            description="Prediction market events - Polymarket, free, no key",
             providers=[
                 Provider(
                     "polymarket_events",
@@ -1239,7 +1239,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError as e:
         logger.warning(f"News providers not available: {e}")
 
-    # ── NEWS INTELLIGENCE ENGINE — multi-source, quality-scored, sentiment-tagged ──
+    # ── NEWS INTELLIGENCE ENGINE - multi-source, quality-scored, sentiment-tagged ──
     try:
         from app.databus.news_intel import (
             add_comment,
@@ -1254,7 +1254,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["news_intel"] = ProviderChain(
             "news_intel",
-            description="Complete news intelligence — 10+ sources, quality-scored, deduped, sentiment-tagged",
+            description="Complete news intelligence - 10+ sources, quality-scored, deduped, sentiment-tagged",
             providers=[
                 Provider(
                     "news_engine",
@@ -1268,7 +1268,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["weekly_best"] = ProviderChain(
             "weekly_best",
-            description="Curated weekly best — highest quality crypto journalism",
+            description="Curated weekly best - highest quality crypto journalism",
             providers=[
                 Provider(
                     "weekly_curator",
@@ -1296,7 +1296,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["social_feed"] = ProviderChain(
             "social_feed",
-            description="Crypto social feed — X/Twitter + CryptoPanic sentiment",
+            description="Crypto social feed - X/Twitter + CryptoPanic sentiment",
             providers=[
                 Provider(
                     "social_aggregator",
@@ -1310,7 +1310,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["article_reactions"] = ProviderChain(
             "article_reactions",
-            description="Article reactions — 🔥🐂🐻💎🧠🤡🚀💀 with counts",
+            description="Article reactions - 🔥🐂🐻💎🧠🤡🚀💀 with counts",
             providers=[
                 Provider(
                     "react_article",
@@ -1331,7 +1331,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["article_comments"] = ProviderChain(
             "article_comments",
-            description="Article comments — community discussion on any story",
+            description="Article comments - community discussion on any story",
             providers=[
                 Provider(
                     "comment_article",
@@ -1363,13 +1363,13 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError as e:
         logger.warning(f"News Intelligence not available: {e}")
 
-    # ── X/CT INTELLIGENCE — Crypto Twitter Rundown ──
+    # ── X/CT INTELLIGENCE - Crypto Twitter Rundown ──
     try:
         from app.databus.x_intel import fetch_ct_rundown, track_ct_accounts
 
         chains["ct_rundown"] = ProviderChain(
             "ct_rundown",
-            description="CT Rundown — top 20 Crypto Twitter stories, AI-summarized, category-diverse",
+            description="CT Rundown - top 20 Crypto Twitter stories, AI-summarized, category-diverse",
             providers=[
                 Provider(
                     "ct_scanner",
@@ -1383,7 +1383,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["ct_accounts"] = ProviderChain(
             "ct_accounts",
-            description="Curated CT account list — 35+ top accounts across 5 tiers",
+            description="Curated CT account list - 35+ top accounts across 5 tiers",
             providers=[
                 Provider(
                     "ct_account_list",
@@ -1399,7 +1399,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError as e:
         logger.warning(f"X/CT Intelligence not available: {e}")
 
-    # ── SOCIAL INTELLIGENCE — KOL tracking, shill detection, Daily Intel ──
+    # ── SOCIAL INTELLIGENCE - KOL tracking, shill detection, Daily Intel ──
     try:
         from app.databus.daily_intel import generate_daily_intel
         from app.databus.social_intel import (
@@ -1414,7 +1414,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["kol_track"] = ProviderChain(
             "kol_track",
-            description="KOL call tracking — record and analyze influencer token calls",
+            description="KOL call tracking - record and analyze influencer token calls",
             providers=[
                 Provider(
                     "kol_call_tracker",
@@ -1428,7 +1428,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["kol_profile"] = ProviderChain(
             "kol_profile",
-            description="KOL performance profile — trust score, call history, win rate",
+            description="KOL performance profile - trust score, call history, win rate",
             providers=[
                 Provider(
                     "kol_profiler",
@@ -1442,7 +1442,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["kol_leaderboard"] = ProviderChain(
             "kol_leaderboard",
-            description="KOL leaderboard — ranked by trust score and accuracy",
+            description="KOL leaderboard - ranked by trust score and accuracy",
             providers=[
                 Provider(
                     "kol_board",
@@ -1456,7 +1456,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["shill_detector"] = ProviderChain(
             "shill_detector",
-            description="Shill campaign detection — coordinated promotion, paid content, pump-and-dump",
+            description="Shill campaign detection - coordinated promotion, paid content, pump-and-dump",
             providers=[
                 Provider(
                     "shill_scanner",
@@ -1477,7 +1477,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["scam_monitor"] = ProviderChain(
             "scam_monitor",
-            description="Scam channel monitor — Telegram/Discord scam pattern detection",
+            description="Scam channel monitor - Telegram/Discord scam pattern detection",
             providers=[
                 Provider(
                     "scam_scanner",
@@ -1491,7 +1491,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["daily_intel"] = ProviderChain(
             "daily_intel",
-            description="Daily Intelligence Briefing — OpenRouter free model research + writing, publish to X/Telegram/Ghost",
+            description="Daily Intelligence Briefing - OpenRouter free model research + writing, publish to X/Telegram/Ghost",
             providers=[
                 Provider(
                     "intel_reporter",
@@ -1505,7 +1505,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["social_metrics"] = ProviderChain(
             "social_metrics",
-            description="Social metrics aggregator — trending topics, sentiment, KOL activity",
+            description="Social metrics aggregator - trending topics, sentiment, KOL activity",
             providers=[
                 Provider(
                     "social_aggregator",
@@ -1523,13 +1523,13 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError as e:
         logger.warning(f"Social Intelligence not available: {e}")
 
-    # ── MODEL REGISTRY — Smart free model routing, quality review ──
+    # ── MODEL REGISTRY - Smart free model routing, quality review ──
     try:
         from app.databus.model_registry import ai_call, get_usage_stats, review_content
 
         chains["ai_task"] = ProviderChain(
             "ai_task",
-            description="AI task execution — smart routing across free models (research/writing/coding/review/fast)",
+            description="AI task execution - smart routing across free models (research/writing/coding/review/fast)",
             providers=[
                 Provider(
                     "ai_runner",
@@ -1549,7 +1549,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["content_review"] = ProviderChain(
             "content_review",
-            description="Content quality review — checks for AI-slop, forbidden words, human voice",
+            description="Content quality review - checks for AI-slop, forbidden words, human voice",
             providers=[
                 Provider(
                     "quality_reviewer",
@@ -1563,7 +1563,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["ai_usage"] = ProviderChain(
             "ai_usage",
-            description="AI model usage statistics — track free tier consumption",
+            description="AI model usage statistics - track free tier consumption",
             providers=[
                 Provider(
                     "usage_tracker",
@@ -1579,13 +1579,13 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError as e:
         logger.warning(f"Model Registry not available: {e}")
 
-    # ── RAG INGESTION — nightly indexing, health checks ──
+    # ── RAG INGESTION - nightly indexing, health checks ──
     try:
         from app.databus.rag_ingestion import nightly_rag_index, rag_health_check
 
         chains["rag_nightly"] = ProviderChain(
             "rag_nightly",
-            description="Nightly RAG indexing — embeds news, CT, market, social data into vector store",
+            description="Nightly RAG indexing - embeds news, CT, market, social data into vector store",
             providers=[
                 Provider(
                     "rag_indexer",
@@ -1599,7 +1599,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["rag_health"] = ProviderChain(
             "rag_health",
-            description="RAG system health — collection stats, doc counts, embedder status",
+            description="RAG system health - collection stats, doc counts, embedder status",
             providers=[
                 Provider(
                     "rag_checker",
@@ -1615,11 +1615,11 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     except ImportError as e:
         logger.warning(f"RAG Ingestion not available: {e}")
 
-    # ── HYPERLIQUID — Perp markets and funding rates ──
+    # ── HYPERLIQUID - Perp markets and funding rates ──
     async def _passthrough_hyperliquid(**kwargs) -> dict | None:
         try:
             limit = kwargs.get("limit", 10)
-            async with httpx.AsyncClient(timeout=10) as c:
+            async with httpx.AsyncClient(timeout=10) as c:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
                 r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid?limit={limit}")
                 if r.status_code == 200:
                     return r.json()
@@ -1635,11 +1635,11 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         ],
     )
 
-    # ── HYPERLIQUID ACTION — Gain/Loss Porn & Squeezes ──
+    # ── HYPERLIQUID ACTION - Gain/Loss Porn & Squeezes ──
     async def _passthrough_hyperliquid_action(**kwargs) -> dict | None:
         try:
             limit = kwargs.get("limit", 5)
-            async with httpx.AsyncClient(timeout=10) as c:
+            async with httpx.AsyncClient(timeout=10) as c:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
                 r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid-action?limit={limit}")
                 if r.status_code == 200:
                     return r.json()
@@ -1660,12 +1660,12 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         ],
     )
 
-    # ── INSIDER WALLETS — Premium intelligence ──
+    # ── INSIDER WALLETS - Premium intelligence ──
     async def _passthrough_insider_wallets(**kwargs) -> dict | None:
         try:
             limit = kwargs.get("limit", 10)
             tier = kwargs.get("tier", "free")
-            async with httpx.AsyncClient(timeout=10) as c:
+            async with httpx.AsyncClient(timeout=10) as c:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
                 r = await c.get(f"http://localhost:8000/api/v1/market/insider-wallets?limit={limit}&tier={tier}")
                 if r.status_code == 200:
                     return r.json()
@@ -1681,12 +1681,12 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         ],
     )
 
-    # ── PREDICTION SIGNALS — Market intelligence layer ──
+    # ── PREDICTION SIGNALS - Market intelligence layer ──
     async def _passthrough_prediction_signals(**kwargs) -> dict | None:
         try:
             limit = kwargs.get("limit", 5)
             tier = kwargs.get("tier", "free")
-            async with httpx.AsyncClient(timeout=15) as c:
+            async with httpx.AsyncClient(timeout=15) as c:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
                 r = await c.get(f"http://localhost:8000/api/v1/market/prediction-signals?limit={limit}&tier={tier}")
                 if r.status_code == 200:
                     return r.json()

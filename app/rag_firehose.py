@@ -1,5 +1,5 @@
 """
-RAG Firehose — Continuous Intelligence Ingestion Engine
+RAG Firehose - Continuous Intelligence Ingestion Engine
 ========================================================
 
 Self-feeding RAG pipeline that continuously pulls, filters, and ingests
@@ -49,12 +49,12 @@ Feed Cadences:
   - 168hr: Full pattern extraction from confirmed scams, quality audit
 
 Smart Ingestion:
-  - Content hash dedup (Redis) — never ingest the same doc twice
-  - Quality scoring — skip low-signal content (<30 score)
-  - Entity extraction — pull addresses, chains, tokens, protocols
-  - Auto-classification — route to correct collection
-  - Batch embedding with rate limiting — never overload embedder
-  - Per-collection size caps — auto-evict oldest on overflow
+  - Content hash dedup (Redis) - never ingest the same doc twice
+  - Quality scoring - skip low-signal content (<30 score)
+  - Entity extraction - pull addresses, chains, tokens, protocols
+  - Auto-classification - route to correct collection
+  - Batch embedding with rate limiting - never overload embedder
+  - Per-collection size caps - auto-evict oldest on overflow
 """
 
 import asyncio
@@ -79,17 +79,17 @@ RAG_API = "http://localhost:8000/api/v1/rag"
 
 # Per-collection size caps (auto-evict oldest on overflow)
 COLLECTION_CAPS = {
-    "known_scams": 50000,  # scam addresses — keep forever, large
-    "scam_patterns": 5000,  # curated patterns — small, high quality
-    "forensic_reports": 10000,  # hack reports — medium
-    "contract_audits": 5000,  # code audits — medium
-    "wallet_profiles": 100000,  # labeled wallets — large
-    "news_articles": 20000,  # news — rolling window
-    "market_intel": 5000,  # market data — medium
-    "token_analysis": 50000,  # token data — large
-    "transaction_patterns": 10000,  # on-chain patterns — medium
-    "social_sentiment": 10000,  # social data — rolling
-    "general": 10000,  # misc — catch-all
+    "known_scams": 50000,  # scam addresses - keep forever, large
+    "scam_patterns": 5000,  # curated patterns - small, high quality
+    "forensic_reports": 10000,  # hack reports - medium
+    "contract_audits": 5000,  # code audits - medium
+    "wallet_profiles": 100000,  # labeled wallets - large
+    "news_articles": 20000,  # news - rolling window
+    "market_intel": 5000,  # market data - medium
+    "token_analysis": 50000,  # token data - large
+    "transaction_patterns": 10000,  # on-chain patterns - medium
+    "social_sentiment": 10000,  # social data - rolling
+    "general": 10000,  # misc - catch-all
 }
 
 # Quality thresholds (skip docs below this score)
@@ -397,7 +397,7 @@ class IngestionPipeline:
 
 
 # ──────────────────────────────────────────────────────────────
-# Feed Sources — Pull Functions
+# Feed Sources - Pull Functions
 # ──────────────────────────────────────────────────────────────
 
 
@@ -460,7 +460,7 @@ class FeedSources:
 
             docs = []
             for story in (stories if isinstance(stories, list) else [])[:5]:
-                content = f"CT: {story.get('title', '')} — {story.get('summary', '')}"
+                content = f"CT: {story.get('title', '')} - {story.get('summary', '')}"
                 docs.append(
                     {
                         "collection": "news_articles",
@@ -491,7 +491,7 @@ class FeedSources:
                     docs.append(
                         {
                             "collection": "social_sentiment",
-                            "content": f"Scam alert: {alert.get('title', '')} — {alert.get('description', '')}",
+                            "content": f"Scam alert: {alert.get('title', '')} - {alert.get('description', '')}",
                             "metadata": {
                                 "source": "scam_monitor",
                                 "severity": alert.get("severity", "medium"),
@@ -607,7 +607,7 @@ class FeedSources:
                     docs.append(
                         {
                             "collection": "market_intel",
-                            "content": f"Prediction market: {m.get('question', '')} — "
+                            "content": f"Prediction market: {m.get('question', '')} - "
                             f"YES: {m.get('yes_price', '?')} NO: {m.get('no_price', '?')}",
                             "metadata": {"source": "polymarket", "type": "prediction"},
                         }
@@ -774,7 +774,7 @@ class FirehoseEngine:
         logger.info("Firehose stopped")
 
     async def _run_loop(self):
-        """Main firehose loop — checks sources and runs those due."""
+        """Main firehose loop - checks sources and runs those due."""
         logger.info("Firehose loop started")
 
         while self._running:

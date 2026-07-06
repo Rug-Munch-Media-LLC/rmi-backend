@@ -98,7 +98,7 @@ def list_inbox(account: str, limit: int = Query(20, le=100)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 @router.get("/{account}/message/{msg_id}")
@@ -114,7 +114,7 @@ def read_message(account: str, msg_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
 
 @router.post("/send")
@@ -132,4 +132,4 @@ def send_email(req: SendRequest):
             smtp.send_message(msg)
         return {"status": "sent", "from": sender_addr, "to": req.to}
     except Exception as e:
-        raise HTTPException(500, f"Send failed: {e}")
+        raise HTTPException(500, f"Send failed: {e}") from e

@@ -39,7 +39,7 @@ class TestProxyDetection:
     @pytest.mark.asyncio
     async def test_non_proxy_returns_false(self):
         """Check that a non-proxy address returns is_proxy=False."""
-        # Use a well-known EOA (Vitalik's address) — should not be a proxy
+        # Use a well-known EOA (Vitalik's address) - should not be a proxy
         result = await detect_proxy("0xab5801a7d398352b5532b8a7c0c8e9c6c5c9f6d5", "ethereum")
         # This might still return proxy=False or proxy with low confidence
         # depending on whether the RPC is available
@@ -124,7 +124,7 @@ class TestFormatter:
             recent_suspicious_upgrades=[],
             risk_score=35.0,
             risk_factors=[
-                "No timelock detected — upgrades can be instant",
+                "No timelock detected - upgrades can be instant",
                 "Moderate upgrade frequency: 2 upgrades in 30 days",
             ],
             admin_privileges=["upgradeTo(address)", "changeAdmin(address)"],
@@ -207,7 +207,7 @@ class TestAnalyzer:
     @pytest.mark.asyncio
     async def test_analyzer_returns_report(self):
         analyzer = ContractUpgradeAnalyzer()
-        # Use a known address — USDT contract on Ethereum
+        # Use a known address - USDT contract on Ethereum
         # This is a real contract but we don't rely on it being a proxy
         report = await analyzer.analyze(
             contract_address="0xdAC17F958D2ee523a2206206994597C13D831ec7",

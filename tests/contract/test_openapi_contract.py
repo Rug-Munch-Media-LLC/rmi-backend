@@ -1,4 +1,4 @@
-"""Contract tests — verify API responses match OpenAPI schema.
+"""Contract tests - verify API responses match OpenAPI schema.
 
 Uses schemathesis to fuzz test that every endpoint returns responses
 that conform to the declared schema. Catches type mismatches, missing

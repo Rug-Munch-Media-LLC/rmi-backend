@@ -1,7 +1,7 @@
-"""RMI Backend — exception handlers.
+"""RMI Backend - exception handlers.
 
 Clean JSON error responses for 404, 500, AppError, etc. Each
-handler is isolated — one failure doesn't break the others.
+handler is isolated - one failure doesn't break the others.
 """
 from __future__ import annotations
 
@@ -38,8 +38,8 @@ def _register_404(app: FastAPI) -> None:
 
 
 def _register_validation(app: FastAPI) -> None:
-    """422 — Pydantic validation errors. Return structured details."""
-    try:
+    """422 - Pydantic validation errors. Return structured details."""
+    try:  # noqa: SIM105
         # The core module may also register; we don't want to double-register.
         # Skip if it already handled 422.
         log.info("error_handler_registered name=validation (via core)")

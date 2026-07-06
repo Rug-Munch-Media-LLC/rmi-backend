@@ -1,5 +1,5 @@
 """
-RugMaps AI Analysis — DeepSeek Flash powered token investigation.
+RugMaps AI Analysis - DeepSeek Flash powered token investigation.
 Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
 """
 
@@ -11,7 +11,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-# LLM config — DeepSeek Flash for fast, cheap analysis
+# LLM config - DeepSeek Flash for fast, cheap analysis
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")
 DEEPSEEK_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
 AI_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")  # Flash by default
@@ -170,7 +170,7 @@ async def generate_ai_analysis(
         pct = h.get("supply_pct", h.get("pct", "?"))
         label = labels.get(h.get("address", ""), {}).get("entity", {}).get("name", "")
         risk = labels.get(h.get("address", ""), {}).get("risk_score", "?")
-        holder_summary.append(f"  {addr}... — {pct}% supply — label: {label or 'unknown'} — risk: {risk}/100")
+        holder_summary.append(f"  {addr}... - {pct}% supply - label: {label or 'unknown'} - risk: {risk}/100")
 
     similar_summary = (
         "\n".join(
@@ -262,7 +262,7 @@ Return ONLY valid JSON, no markdown, no code blocks."""
                         "summary": content[:300],
                         "red_flags": [],
                         "green_flags": [],
-                        "recommendation": "Manual review recommended — AI response was malformed.",
+                        "recommendation": "Manual review recommended - AI response was malformed.",
                         "confidence": 30,
                     }
 
@@ -292,7 +292,7 @@ def generate_fallback_analysis(
     # Check for high concentration
     top_holder_pct = sum(h.get("supply_pct", h.get("pct", 0)) for h in holders[:3])
     if top_holder_pct > 50:
-        red_flags.append(f"Top 3 holders control {top_holder_pct:.0f}% of supply — extreme concentration risk")
+        red_flags.append(f"Top 3 holders control {top_holder_pct:.0f}% of supply - extreme concentration risk")
     elif top_holder_pct < 20:
         green_flags.append(f"Well distributed: top 3 holders only control {top_holder_pct:.0f}%")
 
@@ -345,11 +345,11 @@ def generate_fallback_analysis(
         "dev_wallets": dev_wallets[:5],
         "bundle_wallets": bundle_wallets[:5],
         "recommendation": (
-            "DO NOT INVEST — clear scam indicators"
+            "DO NOT INVEST - clear scam indicators"
             if verdict == "SCAM"
-            else "Extreme caution — multiple high-risk signals"
+            else "Extreme caution - multiple high-risk signals"
             if verdict == "HIGH_RISK"
-            else "Proceed with caution — some suspicious patterns"
+            else "Proceed with caution - some suspicious patterns"
             if verdict == "SUSPICIOUS"
             else "No major concerns detected from our analysis"
         ),

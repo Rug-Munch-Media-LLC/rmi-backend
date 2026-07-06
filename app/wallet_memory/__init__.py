@@ -1,5 +1,5 @@
 """
-Wallet Memory Bank — Persistent wallet intelligence across chains.
+Wallet Memory Bank - Persistent wallet intelligence across chains.
 ===============================================================
 Consolidates wallet clustering, labeling, entity resolution, and risk scoring
 into a single coherent system that feeds SENTINEL token scans and powers

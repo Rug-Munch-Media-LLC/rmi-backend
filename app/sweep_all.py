@@ -31,7 +31,7 @@ parser.add_argument("--dry-run", action="store_true", help="Preview only, no tra
 parser.add_argument("--force", action="store_true", help="Skip threshold (sweeps everything)")
 args = parser.parse_args()
 
-from app.wallet_manager_v2 import get_wallet_manager_v2
+from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402
 
 mgr = get_wallet_manager_v2(os.environ.get("WALLET_VAULT_PASSWORD", ""))
 
@@ -53,7 +53,7 @@ for w in mgr._wallets.values():
         continue
     x402_wallets.append(w)
 
-print("x402 wallets found: %d" % len(x402_wallets))
+print("x402 wallets found: %d" % len(x402_wallets))  # noqa: UP031
 
 evm_chains = {
     "eth",
@@ -77,7 +77,7 @@ for w in x402_wallets:
         continue  # unsupported chain for sweep
 
     if not has_key:
-        print("  SKIP %-6s %s (no key)" % (w.chain, w.address[:16]))
+        print("  SKIP %-6s %s (no key)" % (w.chain, w.address[:16]))  # noqa: UP031
         continue
 
     if not args.force and balance < args.min:
@@ -85,7 +85,7 @@ for w in x402_wallets:
 
     sweepable.append(w)
 
-print("Sweepable wallets: %d" % len(sweepable))
+print("Sweepable wallets: %d" % len(sweepable))  # noqa: UP031
 print()
 
 if not sweepable:
@@ -96,7 +96,7 @@ if not sweepable:
 total = 0.0
 for w in sweepable:
     balance = w.balance_usd or 0
-    print("  %-6s %s...  \033[33m$%.2f\033[0m" % (w.chain, w.address[:24], balance))
+    print("  %-6s %s...  \033[33m$%.2f\033[0m" % (w.chain, w.address[:24], balance))  # noqa: UP031
     total += balance
 
 print()
@@ -109,7 +109,7 @@ if args.dry_run:
 # ── Confirm ──
 owner_fallback = args.to or "(default owner addresses)"
 print(f"\nDestination: {owner_fallback}")
-print("Type \033[1mYES\033[0m to broadcast %d transactions:" % len(sweepable))
+print("Type \033[1mYES\033[0m to broadcast %d transactions:" % len(sweepable))  # noqa: UP031
 confirm = input("> ").strip()
 if confirm != "YES":
     print("Aborted.")
@@ -177,7 +177,7 @@ for w in sweepable:
             )
             sweep_usd = float(w3.from_wei(sweep_wei, "ether")) * 2500
             results["total_usd"] += sweep_usd
-            print("  \033[32mOK\033[0m  %-6s %s -> %s ($%.2f)" % (w.chain, w.address[:12], owner[:12], sweep_usd))
+            print("  \033[32mOK\033[0m  %-6s %s -> %s ($%.2f)" % (w.chain, w.address[:12], owner[:12], sweep_usd))  # noqa: UP031
 
         elif w.chain == "sol":
             # ── Solana sweep ──
@@ -201,8 +201,8 @@ for w in sweepable:
                 raise RuntimeError("Address mismatch")
 
             async def _sweep_sol():
-                async with AsyncClient(rpc) as client:
-                    resp = await client.get_balance(keypair.pubkey(), commitment=Confirmed)
+                async with AsyncClient(rpc) as client:  # noqa: B023
+                    resp = await client.get_balance(keypair.pubkey(), commitment=Confirmed)  # noqa: B023
                     lamports = resp.value
                     if lamports == 0:
                         raise RuntimeError("On-chain balance is 0")
@@ -214,14 +214,14 @@ for w in sweepable:
                     sweep = lamports - reserve
                     ix = transfer(
                         TransferParams(
-                            from_pubkey=keypair.pubkey(),
-                            to_pubkey=SoldersPubkey.from_string(owner),
+                            from_pubkey=keypair.pubkey(),  # noqa: B023
+                            to_pubkey=SoldersPubkey.from_string(owner),  # noqa: B023
                             lamports=sweep,
                         )
                     )
                     tx = Transaction().add(ix)
-                    tx.sign(keypair)
-                    result_tx = await client.send_transaction(tx, keypair)
+                    tx.sign(keypair)  # noqa: B023
+                    result_tx = await client.send_transaction(tx, keypair)  # noqa: B023
                     return str(result_tx.value), sweep
 
             import asyncio
@@ -238,18 +238,18 @@ for w in sweepable:
                 }
             )
             results["total_usd"] += sweep_sol * 75  # Approx SOL price
-            print("  \033[32mOK\033[0m  %-6s %s -> %s (%.4f SOL)" % (w.chain, w.address[:12], owner[:12], sweep_sol))
+            print("  \033[32mOK\033[0m  %-6s %s -> %s (%.4f SOL)" % (w.chain, w.address[:12], owner[:12], sweep_sol))  # noqa: UP031
 
     except Exception as e:
         results["errors"].append({"chain": w.chain, "address": w.address, "error": str(e)})
-        print("  \033[31mERR\033[0m %-6s %s: %s" % (w.chain, w.address[:12], str(e)[:80]))
+        print("  \033[31mERR\033[0m %-6s %s: %s" % (w.chain, w.address[:12], str(e)[:80]))  # noqa: UP031
 
 # ── Summary ──
 print()
 print("=" * 60)
 print("SWEEP COMPLETE")
-print("  Swept:  %d transactions" % len(results["swept"]))
-print("  Errors: %d" % len(results["errors"]))
+print("  Swept:  %d transactions" % len(results["swept"]))  # noqa: UP031
+print("  Errors: %d" % len(results["errors"]))  # noqa: UP031
 print("  Total:  ${:.2f}".format(round(results["total_usd"], 2)))
 
 mgr._save_vault()

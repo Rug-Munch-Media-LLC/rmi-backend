@@ -1,5 +1,5 @@
 """
-DataBus Security Gate — Access Control for Premium/Paid Data
+DataBus Security Gate - Access Control for Premium/Paid Data
 ==============================================================
 
 Three tiers:

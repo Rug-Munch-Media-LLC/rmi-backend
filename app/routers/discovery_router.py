@@ -1,5 +1,5 @@
 """
-Token Discovery API Router — Multi-chain token discovery from DexScreener + GeckoTerminal.
+Token Discovery API Router - Multi-chain token discovery from DexScreener + GeckoTerminal.
 Connects to /api/v1/discovery/*
 """
 

@@ -65,7 +65,7 @@ async def provider_health() -> dict:
 
 
 async def credit_burn() -> dict:
-    """Enterprise credit burn tracking — daily rate, projected exhaustion."""
+    """Enterprise credit burn tracking - daily rate, projected exhaustion."""
     d = await get_dispatcher()
     rl = await d.tracker.stats()
 
