@@ -3,12 +3,24 @@
 Clean JSON error responses for 404, 500, AppError, etc. Each
 handler is isolated - one failure doesn't break the others.
 """
+
 from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import (  # noqa: TC002 - runtime use (matches app/core/errors.py + pre-existing project-wide pattern)
+    FastAPI,
+    Request,
+)
 from fastapi.responses import JSONResponse
+
+from app.core.errors import (
+    AppError,
+    AuthError,
+    NotFoundError,
+    UpstreamError,
+    ValidationError,
+)
 
 log = logging.getLogger(__name__)
 
@@ -38,18 +50,23 @@ def _register_404(app: FastAPI) -> None:
 
 
 def _register_validation(app: FastAPI) -> None:
-    """422 - Pydantic validation errors. Return structured details."""
-    try:  # noqa: SIM105
-        # The core module may also register; we don't want to double-register.
-        # Skip if it already handled 422.
-        log.info("error_handler_registered name=validation (via core)")
-    except Exception:
-        pass
+    """422 - Pydantic validation errors. Return structured details.
+
+    Phase 3 of AUDIT-2026-Q3.md (router split) will wire RequestValidationError
+    to RMI's typed ValidationError here. Until then, this is a logging stub.
+    """
+    log.info("error_handler_registered name=validation (pending phase 3)")
 
 
 def _register_500(app: FastAPI) -> None:
+    """Generic 500 fallback for non-AppError exceptions.
+
+    AppError instances are routed by the more-specific handler installed in
+    _register_apperror, so this only fires for plain Exception subclasses.
+    """
+
     @app.exception_handler(Exception)
-    async def _internal_error(request: Request, exc: Exception) -> JSONResponse:
+    async def handle_generic_exception(request: Request, exc: Exception) -> JSONResponse:
         log.exception("unhandled_exception path=%s", request.url.path)
         return JSONResponse(
             status_code=500,
@@ -64,22 +81,27 @@ def _register_500(app: FastAPI) -> None:
 
 
 def _register_apperror(app: FastAPI) -> None:
-    """AppError → JSON via core.errors.register_error_handlers (if available)."""
-    try:
+    """AppError → JSON via its declared status_code + to_dict().
 
-        from app.core.errors import AppError
+    Import is at module top so a missing AppError is a hard ImportError
+    at import time rather than a silently-swallowed runtime warning.
+    """
 
-        @app.exception_handler(AppError)
-        async def _app_error(request: Request, exc: AppError) -> JSONResponse:
-            return JSONResponse(
-                status_code=exc.status_code,
-                content={
-                    "error": exc.__class__.__name__,
-                    "message": exc.message,
-                    "path": request.url.path,
-                },
-            )
+    @app.exception_handler(AppError)
+    async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+        body = exc.to_dict()
+        body["path"] = request.url.path
+        body["type"] = type(exc).__name__
+        return JSONResponse(status_code=exc.status_code, content=body)
 
-        log.info("error_handler_registered name=AppError")
-    except Exception as exc:
-        log.info("error_handler_skipped name=AppError err=%s", exc)
+    log.info(
+        "error_handler_registered name=AppError handlers=%s",
+        sorted(
+            {
+                AuthError.__name__,
+                NotFoundError.__name__,
+                ValidationError.__name__,
+                UpstreamError.__name__,
+            }
+        ),
+    )
