@@ -78,11 +78,23 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.criminal_clusters",  # /api/v1/criminal-clusters/*  (3 routes, Real-CATS)
     "app.rag_metrics_api",  # /api/v1/rag/metrics  (1 route, uses LIVE rag_observability)
     #
-    # DEFERRED (1) - see AUDIT-2026-Q3.md Phase 2 Wave 2:
-    #   "app.routers.news" - CONFLICTS with app.domain.news.router.
-    #   domain.news has GET /{news_id} catch-all; routes.news has /feed /headlines etc.
-    #   Catch-all in domain.news shadows the new routes when domain is mounted first.
-    #   Needs domain.news refactor (move catch-all to a less-broad path) before mount.
+    # Wire-in Wave 2 — AUDIT-2026-Q3.md Phase 2.2 — mounted 2026-07-07.
+    # All routers below import cleanly with LIVE deps; no dead imports.
+    # Mounted 2026-07-07 — 6 medium-wiring routers + news retry:
+    "app.routers.news",  # /api/v1/news/{feed,headlines,sources,sentiment,categories,stats,comment,comments,internal/scanner-alert}  (9 routes, news_service.py live). Wave 1 deferred; resolved by moving domain.news catch-all to /api/v1/articles/{news_id}.
+    "app.routers.market_intel_router",  # /api/v1/market/*  (28 routes, CoinGecko + DexScreener + Polymarket). Uses LIVE app.services.prediction_market_intel.
+    "app.routers.prediction_market_router",  # /api/v1/prediction-markets/*  (6 routes, prediction_market_service.py live)
+    "app.routers.scam_school",  # /scam-school/*  (11 routes, education platform). No prefix — paths absolute.
+    "app.routers.wallet_clustering_router",  # /api/v1/wallet-clusters/*  (8 routes, wallet_clustering.py live; depends on app.{ai_router,bundle_detector,cluster_detection,entity_registry,fraud_gnn,unified_provider,wallet_clustering,spam_registry,chain_cache})
+    "app.routers.security_intel",  # /api/v1/security/*  (31 routes, crypto security stack). Depends on LIVE app.{cross_chain_correlator,ml_anomaly,onchain_analyzer}.
+    "app.routers.mev_sniper",  # /api/v1/mev-sniper/*  (2 routes: /signals + /chains). No internal app.* deps. MEV Sniper = premium scanner feature.
+    #
+    # DEFERRED (1) — needs APIRouter:
+    #   "app.tool_fingerprint" — module only (no `router` APIRouter attribute).
+    #   773 lines, scam-infra detection logic. Wire-in requires a thin
+    #   router wrapper exposing the fingerprint functions as endpoints
+    #   (e.g. POST /api/v1/tool-fingerprint/analyze). Defer until wrapper
+    #   is written.
 ]
 
 
