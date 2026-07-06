@@ -1,4 +1,4 @@
-"""Password helpers - re-exports from app.auth.
+"""Password helpers - re-exports from app.domains.auth.
 
 Phase 3B of AUDIT-2026-Q3.md.
 

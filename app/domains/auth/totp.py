@@ -1,4 +1,4 @@
-"""TOTP / 2FA helpers - re-exports from app.auth.
+"""TOTP / 2FA helpers - re-exports from app.domains.auth.
 
 Phase 3B of AUDIT-2026-Q3.md.
 
