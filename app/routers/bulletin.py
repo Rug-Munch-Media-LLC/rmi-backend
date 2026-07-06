@@ -31,7 +31,7 @@ from app.services.supabase_service import (  # noqa: E402
 )
 
 
-# Lazy auth dependency - avoids importing passlib+jose+bcrypt at module load
+# Lazy auth dependency - avoids importing jose+bcrypt at module load
 async def _require_public_profile(request: Request):
     from app.auth import require_public_profile
 
