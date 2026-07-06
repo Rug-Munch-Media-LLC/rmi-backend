@@ -9,7 +9,7 @@ from app.unified_token_scanner import get_token_scanner
 from app.unified_wallet_scanner import get_wallet_scanner
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v2", tags=["scanner-v2"])
+router = APIRouter(prefix="/api/v2/scanner", tags=["scanner-v2"])
 
 
 class TokenScanRequest(BaseModel):
