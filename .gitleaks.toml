@@ -1,0 +1,22 @@
+# .gitleaks.toml -- rmi-backend gitleaks configuration
+# Phase 1.11 of AUDIT-2026-Q3 -- false-positive allowlist
+#
+# All 28 findings from gitleaks 8.24.0 hit on public token contract
+# addresses (USDC, WETH, MATIC, BONK, DAI on EVM; USDC on Solana)
+# and the CryptoScamDB URL dataset (which we DETECT -- those are scam
+# infrastructure indicators, not our secrets). See .gitleaksignore for
+# per-finding fingerprints.
+
+title = "rmi-backend gitleaks config"
+
+[allowlist]
+description = "AUDIT-2026-Q3 Phase 1.11 - public token contract addresses + scam URL dataset"
+paths = [
+  '''(^|/)data/cryptoscamdb_urls\.yaml$''',
+  '''(^|/)main\.py\.bak$''',
+  '''(^|/)app/test_bundler_detect\.py$''',
+  '''(^|/)app/test_clone_scanner\.py$''',
+  '''(^|/)app/cross_chain_whale\.py$''',
+  '''(^|/)tests/unit/test_cross_chain_whale\.py$''',
+  '''(^|/)tests/unit/test_dex_pool_manipulation\.py$'''
+]
