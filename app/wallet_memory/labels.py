@@ -55,7 +55,7 @@ class LabelService:
             for _chain, wallets in CEX_HOT_WALLETS.items():
                 for addr, label in wallets.items():
                     self._builtin_cex[addr.lower()] = label
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     async def resolve(self, address: str, chain: str) -> dict[str, Any] | None:
@@ -116,10 +116,14 @@ class LabelService:
                                 "address_name",
                                 label_data.get(
                                     "dapp_name",
-                                    label_data.get("protocol_name", label_data.get("label_type", "")),
+                                    label_data.get(
+                                        "protocol_name", label_data.get("label_type", "")
+                                    ),
                                 ),
                             ),
-                            "category": label_data.get("label_type", label_data.get("label_subtype", "")),
+                            "category": label_data.get(
+                                "label_type", label_data.get("label_subtype", "")
+                            ),
                             "confidence": 0.95,  # Static labels are high confidence
                         }
                     )
@@ -149,7 +153,9 @@ class LabelService:
                     all_labels.append(
                         {
                             "source": "omega_forensic",
-                            "label": wallet_data.get("display_name", wallet_data.get("category", "")),
+                            "label": wallet_data.get(
+                                "display_name", wallet_data.get("category", "")
+                            ),
                             "category": cat,
                             "confidence": 0.9,
                         }
@@ -233,7 +239,7 @@ class LabelService:
 
     async def _query_etherscan(self, address: str, chain: str) -> list[dict]:
         """Query Etherscan account API for address labels."""
-        from app.scanners.dev_reputation import ETHERSCAN_NETWORKS
+        from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 
         network = ETHERSCAN_NETWORKS.get(chain)
         if not network:
@@ -286,11 +292,13 @@ class LabelService:
         now = time.time()
         if _ROLODETH_CACHE is None or (now - _ROLODETH_LAST_FETCH) > _ROLODETH_TTL:
             try:
-                resp = await self._http.get("https://raw.githubusercontent.com/RoleTiker/rolodETH/main/rolodETH.json")
+                resp = await self._http.get(
+                    "https://raw.githubusercontent.com/RoleTiker/rolodETH/main/rolodETH.json"
+                )
                 if resp.status_code == 200:
                     _ROLODETH_CACHE = resp.json()
                     _ROLODETH_LAST_FETCH = now
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         if not _ROLODETH_CACHE:
@@ -411,7 +419,10 @@ class LabelService:
 
         sorted_labels = sorted(
             labels,
-            key=lambda line: (priority.get(line.get("category", "unknown"), 8), -line.get("confidence", 0)),
+            key=lambda line: (
+                priority.get(line.get("category", "unknown"), 8),
+                -line.get("confidence", 0),
+            ),
         )
         return sorted_labels[0] if sorted_labels else {"label": "", "category": "unknown"}
 

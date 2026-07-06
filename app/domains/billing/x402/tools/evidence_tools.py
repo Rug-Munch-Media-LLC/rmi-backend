@@ -20,6 +20,7 @@ decompiler, address labels, contract diff, fund flow, etc.) live in
 tools/report_tools.py. label_tools.py hosts the standalone address
 labeling endpoint.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -43,7 +44,7 @@ async def sentinel_full_scan(req: SentinelScanRequest):
     Returns composite risk score (0-100), per-module breakdown, and aggregated red flags.
     """
     try:
-        from app.scanners.sentinel_pipeline import dataclass_to_dict, run_sentinel_scan
+        from app.domains.scanners.sentinel_pipeline import dataclass_to_dict, run_sentinel_scan
 
         report = await run_sentinel_scan(
             token_address=req.address,
@@ -72,7 +73,7 @@ async def holder_analysis_endpoint(req: SentinelModuleRequest):
     Pricing: $0.05
     """
     try:
-        from app.scanners.sentinel_pipeline import run_holder_analysis
+        from app.domains.scanners.sentinel_pipeline import run_holder_analysis
 
         result = await run_holder_analysis(req.address, req.chain)
         await record_x402_payment("holder_analysis", "0.05", req.address)
@@ -97,7 +98,7 @@ async def bundle_detect_endpoint(req: SentinelModuleRequest):
     Pricing: $0.08
     """
     try:
-        from app.scanners.sentinel_pipeline import run_bundle_detection
+        from app.domains.scanners.sentinel_pipeline import run_bundle_detection
 
         result = await run_bundle_detection(req.address, req.chain)
         await record_x402_payment("bundle_detect", "0.08", req.address)
@@ -122,7 +123,7 @@ async def exchange_fund_check_endpoint(req: SentinelModuleRequest):
     Pricing: $0.05
     """
     try:
-        from app.scanners.sentinel_pipeline import run_exchange_funding
+        from app.domains.scanners.sentinel_pipeline import run_exchange_funding
 
         result = await run_exchange_funding(req.address, req.chain)
         await record_x402_payment("exchange_fund_check", "0.05", req.address)
@@ -147,7 +148,7 @@ async def liquidity_verify_endpoint(req: SentinelModuleRequest):
     Pricing: $0.05
     """
     try:
-        from app.scanners.sentinel_pipeline import run_liquidity_verification
+        from app.domains.scanners.sentinel_pipeline import run_liquidity_verification
 
         result = await run_liquidity_verification(req.address, req.chain)
         await record_x402_payment("liquidity_verify", "0.05", req.address)
@@ -173,7 +174,7 @@ async def dev_reputation_endpoint(req: SentinelModuleRequest):
     Requires dev_address (deployer/creator wallet). Falls back to address if dev_address not provided.
     """
     try:
-        from app.scanners.sentinel_pipeline import run_dev_reputation
+        from app.domains.scanners.sentinel_pipeline import run_dev_reputation
 
         dev_wallet = req.dev_address or req.address
         result = await run_dev_reputation(dev_wallet, chains=[req.chain])
@@ -199,7 +200,7 @@ async def wash_trading_endpoint(req: SentinelModuleRequest):
     Pricing: $0.08
     """
     try:
-        from app.scanners.sentinel_pipeline import run_wash_trading
+        from app.domains.scanners.sentinel_pipeline import run_wash_trading
 
         result = await run_wash_trading(req.address, req.chain)
         await record_x402_payment("wash_trading", "0.08", req.address)
@@ -254,7 +255,7 @@ async def metadata_fingerprint_endpoint(req: SentinelModuleRequest):
     Pricing: $0.05
     """
     try:
-        from app.scanners.sentinel_pipeline import run_metadata_fingerprint
+        from app.domains.scanners.sentinel_pipeline import run_metadata_fingerprint
 
         result = await run_metadata_fingerprint(req.address, req.chain)
         await record_x402_payment("metadata_fingerprint", "0.05", req.address)
@@ -279,7 +280,7 @@ async def sentiment_check_endpoint(req: SentinelModuleRequest):
     Pricing: $0.05
     """
     try:
-        from app.scanners.sentinel_pipeline import run_sentiment
+        from app.domains.scanners.sentinel_pipeline import run_sentiment
 
         result = await run_sentiment(req.address, req.chain)
         await record_x402_payment("sentiment_check", "0.05", req.address)
@@ -312,7 +313,7 @@ async def pumpfun_analysis_endpoint(req: SentinelModuleRequest):
                 f"Received chain={req.chain}. Use chain='solana'.",
             )
 
-        from app.scanners.sentinel_pipeline import run_pumpfun_analysis
+        from app.domains.scanners.sentinel_pipeline import run_pumpfun_analysis
 
         result = await run_pumpfun_analysis(req.address)
         await record_x402_payment("pumpfun_analysis", "0.08", req.address)

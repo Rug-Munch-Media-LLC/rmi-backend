@@ -760,7 +760,7 @@ class RugImminencePredictor:
         try:
             # Try social velocity analyzer
             try:
-                from app.scanners.social_velocity import SocialVelocityAnalyzer
+                from app.domains.scanners.social_velocity import SocialVelocityAnalyzer
 
                 analyzer = SocialVelocityAnalyzer()
                 velocity = await analyzer.analyze(result.token_address)
@@ -799,7 +799,7 @@ class RugImminencePredictor:
 
             # Check for recent FUD/panic signals
             try:
-                from app.scanners.sentiment_analyzer import SentimentAnalyzer
+                from app.domains.scanners.sentiment_analyzer import SentimentAnalyzer
 
                 sentiment = SentimentAnalyzer()
                 sent_result = await sentiment.analyze_token_sentiment(
@@ -837,7 +837,7 @@ class RugImminencePredictor:
         try:
             # Try honeypot detector
             try:
-                from app.scanners.honeypot_detector import HoneypotDetector
+                from app.domains.scanners.honeypot_detector import HoneypotDetector
 
                 hp = HoneypotDetector()
                 hp_result = await hp.detect(result.token_address, result.chain)
@@ -863,7 +863,7 @@ class RugImminencePredictor:
 
             # Check ownership status
             try:
-                from app.scanners.contract_authority import ContractAuthorityScanner
+                from app.domains.scanners.contract_authority import ContractAuthorityScanner
 
                 auth = ContractAuthorityScanner()
                 authority = await auth.scan(result.token_address, result.chain)
@@ -907,7 +907,7 @@ class RugImminencePredictor:
         try:
             # Check recent LP changes via on-chain data
             try:
-                from app.scanners.liquidity_verifier import LiquidityVerifier
+                from app.domains.scanners.liquidity_verifier import LiquidityVerifier
 
                 verifier = LiquidityVerifier()
                 lp_status = await verifier.verify(
@@ -959,7 +959,7 @@ class RugImminencePredictor:
                             sig.flags.append("liquidity_drop")
                             sig.evidence.append(f"Liquidity dropped {abs(liq_change):.0f}% in 24h")
                 except Exception:
-                    pass
+                    logger.debug("liquidity change parse failed", exc_info=True)
 
             sig.confidence = min(0.7, 0.3 + (sig.score / 40))
 
@@ -1083,7 +1083,7 @@ class RugImminencePredictor:
                     if pairs:
                         return data
         except Exception:
-            pass
+            logger.debug("dexscreener fetch failed", exc_info=True)
         return None
 
     async def _resolve_deployer(self, address: str, chain: str) -> str | None:
@@ -1120,9 +1120,8 @@ class RugImminencePredictor:
                         },
                     )
                     # This doesn't work directly - need the creation tx
-                    pass
         except Exception:
-            pass
+            logger.debug("deployer resolve failed", exc_info=True)
         return None
 
     async def _check_wallet_age(self, wallet: str, chain: str) -> dict | None:
@@ -1180,7 +1179,7 @@ class RugImminencePredictor:
         result = {"locked": False, "unlocked": True, "unlock_date": None}
 
         try:
-            from app.scanners.liquidity_verifier import LiquidityVerifier
+            from app.domains.scanners.liquidity_verifier import LiquidityVerifier
 
             verifier = LiquidityVerifier()
             lp_info = await verifier.check_lock(address, chain)

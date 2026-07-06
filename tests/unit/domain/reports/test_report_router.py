@@ -1,6 +1,6 @@
 """Tests for app/domain/reports/router.py - report router tests."""
 
-from app.domain.reports.router import router
+from app.domains.reports.router import router
 
 
 class TestReportRouter:

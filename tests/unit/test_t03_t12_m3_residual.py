@@ -1,10 +1,11 @@
 """Unit tests for T03 (news clusterer) and T12 (CertStream match_brand)."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from app.domain.news.clusterer import NewsItem, cluster_items
-from app.domain.threat.certstream_listener import match_brand
+from app.domains.news.clusterer import NewsItem, cluster_items
+from app.domains.threat.certstream_listener import match_brand
 
 
 # ── T03: clusterer tests ───────────────────────────────────────────
@@ -16,19 +17,25 @@ def test_clusterer_groups_similar_stories():
             id="a1",
             title="Bitcoin hits new all-time high above 120000",
             body="BTC surged past 120000 today as ETF inflows hit record",
-            source="coindesk", url="https://coindesk.com/1", published_at=base,
+            source="coindesk",
+            url="https://coindesk.com/1",
+            published_at=base,
         ),
         NewsItem(
             id="a2",
             title="Bitcoin hits new all-time high above 120000",
             body="BTC surged past 120000 today as ETF inflows hit record",
-            source="the block", url="https://theblock.co/2", published_at=base + timedelta(minutes=5),
+            source="the block",
+            url="https://theblock.co/2",
+            published_at=base + timedelta(minutes=5),
         ),
         NewsItem(
             id="b1",
             title="Ethereum upgrade scheduled for next month",
             body="Core developers announce Pectra hard fork for July",
-            source="decrypt", url="https://decrypt.co/3", published_at=base + timedelta(minutes=2),
+            source="decrypt",
+            url="https://decrypt.co/3",
+            published_at=base + timedelta(minutes=2),
         ),
     ]
     stories = cluster_items(items)
@@ -46,9 +53,12 @@ def test_clusterer_handles_singleton():
     base = datetime(2026, 6, 23, 12, 0, tzinfo=UTC)
     items = [
         NewsItem(
-            id="x1", title="Unique story nobody else is covering",
+            id="x1",
+            title="Unique story nobody else is covering",
             body="Something happened once",
-            source="reddit", url="https://reddit.com/x", published_at=base,
+            source="reddit",
+            url="https://reddit.com/x",
+            published_at=base,
         ),
     ]
     stories = cluster_items(items)
@@ -61,14 +71,20 @@ def test_clusterer_respects_time_window():
     base = datetime(2026, 6, 23, 12, 0, tzinfo=UTC)
     items = [
         NewsItem(
-            id="m1", title="Bitcoin hits new high",
+            id="m1",
+            title="Bitcoin hits new high",
             body="BTC surged past $120K",
-            source="coindesk", url="", published_at=base,
+            source="coindesk",
+            url="",
+            published_at=base,
         ),
         NewsItem(
-            id="m2", title="Bitcoin hits new high",
+            id="m2",
+            title="Bitcoin hits new high",
             body="BTC surged past $120K",
-            source="the block", url="", published_at=base + timedelta(hours=2),
+            source="the block",
+            url="",
+            published_at=base + timedelta(hours=2),
         ),
     ]
     # With 30-min windows, these are in separate buckets → 2 singleton stories

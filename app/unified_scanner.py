@@ -156,7 +156,7 @@ async def _cache_get(key: str) -> dict | None:
         if cached:
             return json.loads(cached)
     except Exception:
-        pass
+        logger.debug("wallet cache get failed", exc_info=True)
     return None
 
 
@@ -175,7 +175,7 @@ async def _cache_set(key: str, data: dict, ttl: int = 3600):
         await r.setex(f"rmi:wallet_cache:{key}", ttl, json.dumps(data))
         await r.close()
     except Exception:
-        pass
+        logger.debug("wallet cache set failed", exc_info=True)
 
 
 # ═══════════════════════════════════════════
@@ -232,6 +232,7 @@ async def _helius_call(method: str, params: list) -> dict | None:
                 if resp.status_code in (401, 429):
                     continue
         except Exception:
+            logger.debug("helius call failed, trying next key", exc_info=True)
             continue
     return None
 
@@ -362,7 +363,7 @@ async def _fetch_moralis_wallet(address: str, chain: str) -> dict[str, Any]:
                     result["tx_count"] = len(txs)
                     result["data_sources"] = [*result.get("data_sources", []), "moralis_tx"]
     except Exception:
-        pass
+        logger.debug("moralis wallet fetch failed", exc_info=True)
 
     return result
 
@@ -415,13 +416,15 @@ async def _fetch_etherscan_wallet(address: str, chain: str) -> dict[str, Any]:
                         first_ts = int(txs[0].get("timeStamp", 0))
                         last_ts = int(txs[-1].get("timeStamp", 0))
                         if first_ts:
-                            result["wallet_age_days"] = int((datetime.now(UTC).timestamp() - first_ts) / 86400)
+                            result["wallet_age_days"] = int(
+                                (datetime.now(UTC).timestamp() - first_ts) / 86400
+                            )
                         if last_ts:
                             result["last_tx"] = last_ts
                         result["tx_count_sample"] = len(txs)
                         result["data_sources"] = ["etherscan"]
     except Exception:
-        pass
+        logger.debug("etherscan wallet fetch failed", exc_info=True)
 
     return result
 
@@ -434,7 +437,7 @@ async def _fetch_etherscan_wallet(address: str, chain: str) -> dict[str, Any]:
 async def _fetch_sentinel_labels(address: str, chain: str) -> dict[str, Any]:
     """Get rich labels from SENTINEL address_labeler (6 sources)."""
     try:
-        from app.scanners.address_labeler import AddressLabeler
+        from app.domains.scanners.address_labeler import AddressLabeler
 
         labeler = AddressLabeler()
         result = await labeler.analyze(address, chain)
@@ -477,7 +480,9 @@ async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
         return {"scanned": 0, "risks": [], "deployers_to_flag": []}
 
     # Sort by amount (largest first), cap at 5 for speed
-    sorted_tokens = sorted(tokens, key=lambda t: float(t.get("amount", 0) if isinstance(t, dict) else 0), reverse=True)
+    sorted_tokens = sorted(
+        tokens, key=lambda t: float(t.get("amount", 0) if isinstance(t, dict) else 0), reverse=True
+    )
     mints = []
     for token in sorted_tokens[:5]:  # Top 5 by balance
         mint = token.get("mint", "") if isinstance(token, dict) else token
@@ -722,8 +727,10 @@ async def _trace_funding_source(address: str, chain: str) -> dict[str, Any]:
                 return {
                     "source": source,
                     "source_label": source_label.get("label", "unknown"),
-                    "is_cex": "exchange" in str(source_label).lower() or "cex" in str(source_label).lower(),
-                    "is_mixer": "mixer" in str(source_label).lower() or "tornado" in str(source_label).lower(),
+                    "is_cex": "exchange" in str(source_label).lower()
+                    or "cex" in str(source_label).lower(),
+                    "is_mixer": "mixer" in str(source_label).lower()
+                    or "tornado" in str(source_label).lower(),
                     "hops": 1,
                 }
         return {"source": "unknown", "hops": 0}
@@ -735,7 +742,7 @@ async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
     """Basic cross-chain entity resolution - FREE tier (no Wallet Memory Bank)."""
     try:
         # Check SENTINEL labels first
-        from app.scanners.address_labeler import AddressLabeler
+        from app.domains.scanners.address_labeler import AddressLabeler
 
         labeler = AddressLabeler()
         labels = await labeler.analyze(address, chain)
@@ -754,7 +761,9 @@ async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
         return {"label": "unknown", "source": "none", "chains": [chain]}
 
 
-async def _calculate_basic_pnl(address: str, chain: str, tokens: list, native_balance: float = 0) -> dict[str, Any]:
+async def _calculate_basic_pnl(
+    address: str, chain: str, tokens: list, native_balance: float = 0
+) -> dict[str, Any]:
     """Basic PnL calculation - FREE tier (no GMGN)."""
     try:
         total_value = native_balance or 0
@@ -765,14 +774,18 @@ async def _calculate_basic_pnl(address: str, chain: str, tokens: list, native_ba
             mints = [t.get("mint", "") for t in tokens[:10] if t.get("mint")]
             if mints:
                 async with httpx.AsyncClient(timeout=8.0) as client:
-                    resp = await client.get("https://quote-api.jup.ag/v6/price", params={"ids": ",".join(mints[:5])})
+                    resp = await client.get(
+                        "https://quote-api.jup.ag/v6/price", params={"ids": ",".join(mints[:5])}
+                    )
                     if resp.status_code == 200:
                         prices = resp.json().get("data", {})
                         for mint, pdata in prices.items():
                             price = float(pdata.get("price", 0))
                             for t in tokens:
                                 if t.get("mint") == mint:
-                                    balance = float(t.get("amount", 0)) / (10 ** (t.get("decimals", 0) or 0))
+                                    balance = float(t.get("amount", 0)) / (
+                                        10 ** (t.get("decimals", 0) or 0)
+                                    )
                                     total_value += balance * price
 
         return {
@@ -810,7 +823,9 @@ async def _close_data_flywheel(deployers: list):
         logger.warning(f"Data flywheel failed: {e}")
 
 
-async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "free") -> dict[str, Any]:
+async def scan_wallet(
+    wallet_address: str, chain: str = "solana", tier: str = "free"
+) -> dict[str, Any]:
     """Unified wallet scanner - SENTINEL + Helius/Moralis/Etherscan pool + Wallet Memory + Token Scanner."""
     import time
 
@@ -852,7 +867,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
                             "sol_balance": bal / 1e9 if bal else 0,
                             "data_sources": ["solana_public"],
                         }
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
     else:
         # EVM chain: Moralis (primary) + Etherscan family (fallback)
@@ -860,7 +875,9 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         etherscan = await _fetch_etherscan_wallet(wallet_address, chain)
         if etherscan and not onchain.get("wallet_age_days"):
             onchain["wallet_age_days"] = etherscan.get("wallet_age_days", 0)
-            onchain["data_sources"] = onchain.get("data_sources", []) + etherscan.get("data_sources", [])
+            onchain["data_sources"] = onchain.get("data_sources", []) + etherscan.get(
+                "data_sources", []
+            )
 
     if onchain:
         factors.wallet_age_days = onchain.get("wallet_age_days", 0)
@@ -877,31 +894,38 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
     # ── DexScreener volume + labels (FREE tier, all chains) ──
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": wallet_address})
+            resp = await client.get(
+                "https://api.dexscreener.com/latest/dex/search", params={"q": wallet_address}
+            )
             if resp.status_code == 200:
                 pairs = resp.json().get("pairs", [])
                 if pairs:
-                    factors.total_volume_usd = sum(float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs)
+                    factors.total_volume_usd = sum(
+                        float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs
+                    )
                     factors.dex_swaps = len(pairs)
                     factors.token_launches_participated = sum(
                         1
                         for p in pairs
                         if p.get("pairCreatedAt")
                         and (
-                            datetime.now(UTC) - datetime.fromtimestamp(p.get("pairCreatedAt", 0) / 1000, tz=UTC)
+                            datetime.now(UTC)
+                            - datetime.fromtimestamp(p.get("pairCreatedAt", 0) / 1000, tz=UTC)
                         ).total_seconds()
                         / 3600
                         < 24
                     )
                     data_sources.append("dexscreener")
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # ── SENTINEL address labels (6-source label resolution, FREE tier) ──
     sentinel_labels = await _fetch_sentinel_labels(wallet_address, chain)
     if sentinel_labels:
         factors.entity_label = sentinel_labels.get("category", "")
-        factors.is_labeled_scammer = factors.is_labeled_scammer or "scam" in str(sentinel_labels).lower()
+        factors.is_labeled_scammer = (
+            factors.is_labeled_scammer or "scam" in str(sentinel_labels).lower()
+        )
         factors.is_labeled_sanctioned = (
             factors.is_labeled_sanctioned
             or "sanction" in str(sentinel_labels).lower()
@@ -910,10 +934,14 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         factors.is_labeled_exchange = (
             "exchange" in str(sentinel_labels).lower() or "cex" in str(sentinel_labels).lower()
         )
-        factors.is_labeled_bot = "bot" in str(sentinel_labels).lower() or "mev" in str(sentinel_labels).lower()
+        factors.is_labeled_bot = (
+            "bot" in str(sentinel_labels).lower() or "mev" in str(sentinel_labels).lower()
+        )
         factors.is_labeled_whale = "whale" in str(sentinel_labels).lower()
         factors.is_labeled_insider = "insider" in str(sentinel_labels).lower()
-        factors.entity_confidence = max(factors.entity_confidence, sentinel_labels.get("risk_score", 50))
+        factors.entity_confidence = max(
+            factors.entity_confidence, sentinel_labels.get("risk_score", 50)
+        )
         data_sources.append("sentinel_labels")
 
         # ── FREE: External threat intelligence (HAPI, MistTrack, TRM sanctions) ──
@@ -942,7 +970,9 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         wallet_memory = await _fetch_wallet_memory(wallet_address, chain)
         if wallet_memory:
             factors.linked_wallets_count = len(wallet_memory.get("linked_wallets", []))
-            factors.cluster_size = wallet_memory.get("linked_wallets_count", factors.linked_wallets_count)
+            factors.cluster_size = wallet_memory.get(
+                "linked_wallets_count", factors.linked_wallets_count
+            )
             factors.cluster_id = wallet_memory.get("entity_id", "")
             factors.cross_chain_funding = bool(wallet_memory.get("cross_chain_presence"))
             scam_assoc = wallet_memory.get("scam_associations", [])
@@ -970,7 +1000,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
                 factors.unrealized_pnl_usd = float(pnl.get("unrealized", 0))
                 factors.win_rate = float(intel.get("win_rate", 0))
                 data_sources.append("gmgn")
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # Entity clustering
@@ -983,8 +1013,10 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
                 factors.cluster_size = max(factors.cluster_size, cluster.get("size", 0))
                 factors.cluster_shared_funding = cluster.get("shared_funding", False)
                 factors.known_cluster_type = cluster.get("type", "")
-                factors.linked_wallets_count = max(factors.linked_wallets_count, cluster.get("member_count", 0))
-        except Exception:
+                factors.linked_wallets_count = max(
+                    factors.linked_wallets_count, cluster.get("member_count", 0)
+                )
+        except Exception:  # noqa: S110
             pass
 
     # ── FREE: Token portfolio risk scan (parallel + enrichments) ──
@@ -999,7 +1031,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         # Data flywheel: flag deployers of scam tokens
         deployers = token_scan.get("deployers_to_flag", [])
         if deployers:
-            asyncio.create_task(_close_data_flywheel(deployers))
+            asyncio.create_task(_close_data_flywheel(deployers))  # noqa: RUF006
 
     # ── FREE: Funding source tracing ──
     funding = await _trace_funding_source(wallet_address, chain)
@@ -1024,7 +1056,9 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
     native_bal = onchain.get("sol_balance", onchain.get("native_balance", 0)) if onchain else 0
     basic_pnl = await _calculate_basic_pnl(wallet_address, chain, token_list, native_bal)
     if basic_pnl:
-        factors.current_balance_usd = max(factors.current_balance_usd or 0, basic_pnl.get("estimated_value_usd", 0))
+        factors.current_balance_usd = max(
+            factors.current_balance_usd or 0, basic_pnl.get("estimated_value_usd", 0)
+        )
         factors.realized_pnl_usd = factors.realized_pnl_usd or 0  # keep if GMGN set it
         data_sources.append("jupiter_pnl")
 
@@ -1037,7 +1071,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
             anomaly = await detect_wallet_anomaly(wallet_address, chain)
             if anomaly:
                 factors.sybil_score = anomaly.get("sybil_score", 0)
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # Portfolio tracker
@@ -1053,7 +1087,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
                 factors.stablecoin_ratio = portfolio.get("stablecoin_pct", 0)
                 factors.bluechip_ratio = portfolio.get("bluechip_pct", 0)
                 factors.memecoin_ratio = portfolio.get("memecoin_pct", 0)
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     # ═══════════════════════════════════════════
@@ -1285,7 +1319,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
     }
 
     # Cache result for 1hr
-    asyncio.create_task(_cache_set(cache_key, result, ttl=3600))
+    asyncio.create_task(_cache_set(cache_key, result, ttl=3600))  # noqa: RUF006
 
     return result
 
@@ -1320,7 +1354,9 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                         continue
                     age_hours = 999
                     if created:
-                        age_hours = (now - datetime.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600
+                        age_hours = (
+                            now - datetime.fromtimestamp(created / 1000, tz=UTC)
+                        ).total_seconds() / 3600
                     trending_score = (vol * 0.6 + liq * 0.3) / max(age_hours, 1)
                     trending.append(
                         {
@@ -1361,12 +1397,14 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                             "price_usd": float(attrs.get("base_token_price_usd", 0)),
                             "liquidity_usd": float(attrs.get("reserve_in_usd", 0)),
                             "volume_24h": float(attrs.get("volume_usd", {}).get("h24", 0)),
-                            "price_change_24h": float(attrs.get("price_change_percentage", {}).get("h24", 0)),
+                            "price_change_24h": float(
+                                attrs.get("price_change_percentage", {}).get("h24", 0)
+                            ),
                             "source": "geckoterminal",
                         }
                     )
                 sources_used.append("geckoterminal")
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         try:
@@ -1388,7 +1426,7 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                         }
                     )
                 sources_used.append("coingecko")
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     seen = set()
@@ -1432,7 +1470,9 @@ async def get_new_launches(chain: str = "solana", since_seconds: int = 300) -> d
     launches = []
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
-            resp = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": chain, "limit": 50})
+            resp = await client.get(
+                "https://api.dexscreener.com/latest/dex/search", params={"q": chain, "limit": 50}
+            )
             if resp.status_code == 200:
                 pairs = resp.json().get("pairs", [])
                 for pair in pairs:
@@ -1453,7 +1493,7 @@ async def get_new_launches(chain: str = "solana", since_seconds: int = 300) -> d
                                 "dex": pair.get("dexId", ""),
                             }
                         )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     chain_key = chain or "all"

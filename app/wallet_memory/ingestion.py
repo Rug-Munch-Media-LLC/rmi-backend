@@ -29,7 +29,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import is_evm, is_solana
-from app.scanners.dev_reputation import ETHERSCAN_NETWORKS
+from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 
 logger = logging.getLogger("wallet_memory.ingestion")
 
@@ -139,7 +139,7 @@ class NormalizedTransaction:
         tx_hash: str = "",
         tx_type: str = "transfer",
         token_address: str = "",
-        token_value_raw: str = "0",
+        token_value_raw: str = "0",  # noqa: S107
         token_value_decimal: float = 0.0,
         transfer_type: str = "native",
         block_number: int = 0,
@@ -495,7 +495,9 @@ class WalletIngestionPipeline:
 
     # ── Normalization ──────────────────────────────────────────────
 
-    def _normalize_transactions(self, raw_txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
+    def _normalize_transactions(
+        self, raw_txs: list[dict], address: str, chain: str
+    ) -> list[NormalizedTransaction]:
         """Convert raw API responses into NormalizedTransaction objects."""
         normalized = []
         addr_lower = address.lower().strip()
@@ -507,7 +509,9 @@ class WalletIngestionPipeline:
 
         return normalized
 
-    def _normalize_helius(self, txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
+    def _normalize_helius(
+        self, txs: list[dict], address: str, chain: str
+    ) -> list[NormalizedTransaction]:
         """Parse Helius Enhanced Transactions API response."""
         normalized = []
 
@@ -516,7 +520,11 @@ class WalletIngestionPipeline:
                 # Helius Enhanced Transaction schema
                 tx_hash = tx.get("signature", "")
                 timestamp_ms = tx.get("timestamp", 0)
-                ts = datetime.fromtimestamp(timestamp_ms, tz=UTC) if timestamp_ms else datetime.now(UTC)
+                ts = (
+                    datetime.fromtimestamp(timestamp_ms, tz=UTC)
+                    if timestamp_ms
+                    else datetime.now(UTC)
+                )
 
                 block_slot = tx.get("slot", 0)
                 tx.get("fee", 0) or 0
@@ -540,8 +548,8 @@ class WalletIngestionPipeline:
                             programs_involved.add(ip)
 
                 # Detect token deployments: create/mint instructions
-                spl_token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                token_metadata_program = "metaqbxxU9dKaqAta4M99M7C5pWm7adgGpSxq9BDpL4"
+                spl_token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"  # noqa: S105
+                token_metadata_program = "metaqbxxU9dKaqAta4M99M7C5pWm7adgGpSxq9BDpL4"  # noqa: S105
                 token_deploy_programs = {spl_token_program, token_metadata_program}
                 if token_deploy_programs & programs_involved:
                     is_deploy = True
@@ -569,7 +577,9 @@ class WalletIngestionPipeline:
                                     timestamp=ts,
                                     amount=amount_sol,
                                     chain_id=chain,
-                                    program=",".join(programs_involved) if programs_involved else "system",
+                                    program=",".join(programs_involved)
+                                    if programs_involved
+                                    else "system",
                                     tx_hash=tx_hash,
                                     tx_type="send" if is_send else "receive",
                                     transfer_type="native",
@@ -607,7 +617,9 @@ class WalletIngestionPipeline:
                                 timestamp=ts,
                                 amount=dec_val,
                                 chain_id=chain,
-                                program=",".join(programs_involved) if programs_involved else "spl-token",
+                                program=",".join(programs_involved)
+                                if programs_involved
+                                else "spl-token",
                                 tx_hash=tx_hash,
                                 tx_type="send" if is_send else "receive",
                                 token_address=token_addr,
@@ -643,7 +655,9 @@ class WalletIngestionPipeline:
 
         return normalized
 
-    def _normalize_etherscan(self, txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
+    def _normalize_etherscan(
+        self, txs: list[dict], address: str, chain: str
+    ) -> list[NormalizedTransaction]:
         """Parse Etherscan-family API response."""
         normalized = []
 
@@ -819,7 +833,9 @@ class WalletIngestionPipeline:
                     is_scam=False,
                     risk_score=0.0,
                 )
-                logger.info(f"Recorded deployer event: {tx.address} deployed {token_addr} on {tx.chain_id}")
+                logger.info(
+                    f"Recorded deployer event: {tx.address} deployed {token_addr} on {tx.chain_id}"
+                )
 
             except Exception as e:
                 logger.debug(f"Deployer event record failed: {e}")

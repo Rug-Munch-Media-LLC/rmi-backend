@@ -168,7 +168,7 @@ async def investigation_graph(req: GraphRequest):
     )
 
     # ── Convert to cytoscape.js JSON ──────────────────────────
-    NODE_COLORS = {
+    node_colors = {
         "wallet": "#3498db",
         "token": "#2ecc71",
         "contract": "#e67e22",
@@ -177,7 +177,7 @@ async def investigation_graph(req: GraphRequest):
         "chain": "#1abc9c",
         "address": "#95a5a6",
     }
-    NODE_SHAPES = {
+    node_shapes = {
         "wallet": "ellipse",
         "token": "round-rectangle",
         "contract": "rectangle",
@@ -198,8 +198,8 @@ async def investigation_graph(req: GraphRequest):
                     "id": key,
                     "label": nd.get("label", nd.get("id", "")),
                     "type": ntype,
-                    "color": NODE_COLORS.get(ntype, "#95a5a6"),
-                    "shape": NODE_SHAPES.get(ntype, "ellipse"),
+                    "color": node_colors.get(ntype, "#95a5a6"),
+                    "shape": node_shapes.get(ntype, "ellipse"),
                     "size": 45 if key == raw.get("center") else 30,
                     "metadata": nd.get("metadata", {}),
                 },
@@ -246,7 +246,7 @@ async def fund_flow_sankey(req: GraphRequest):
     address = req.address.strip()
 
     # Get fund flow data using existing visualizer
-    from app.scanners.fund_flow_visualizer import (
+    from app.domains.scanners.fund_flow_visualizer import (
         _build_flow_graph,
         _fetch_evm_wallets,
         _fetch_solana_wallets,
@@ -271,7 +271,9 @@ async def fund_flow_sankey(req: GraphRequest):
         sankey_nodes.append(
             {
                 "id": idx,
-                "name": n.address[:10] + "..." + n.address[-6:] if len(n.address) > 16 else n.address,
+                "name": n.address[:10] + "..." + n.address[-6:]
+                if len(n.address) > 16
+                else n.address,
                 "address": n.address,
                 "role": n.role,
                 "amount_usd": n.amount_usd,
@@ -293,14 +295,14 @@ async def fund_flow_sankey(req: GraphRequest):
     # Also generate cytoscape nodes/edges for graph overlay
     cy_nodes = []
     cy_edges = []
-    ROLE_COLORS = {
+    role_colors = {
         "creator": "#9b59b6",
         "funder": "#2ecc71",
         "lp": "#f1c40f",
         "seller": "#e74c3c",
         "other": "#95a5a6",
     }
-    ROLE_LABELS = {
+    role_labels = {
         "creator": "Creator/Deployer",
         "funder": "Early Funder",
         "lp": "LP Holder",
@@ -314,9 +316,9 @@ async def fund_flow_sankey(req: GraphRequest):
             {
                 "data": {
                     "id": n.address,
-                    "label": f"{ROLE_LABELS.get(n.role, n.role)}\n{short}",
+                    "label": f"{role_labels.get(n.role, n.role)}\n{short}",
                     "type": n.role,
-                    "color": ROLE_COLORS.get(n.role, "#95a5a6"),
+                    "color": role_colors.get(n.role, "#95a5a6"),
                     "size": 40 if n.role == "creator" else 28,
                     "amount_usd": n.amount_usd,
                 },

@@ -1,7 +1,6 @@
 """Tests for app/domain/reports/generator.py - report generation tests."""
 
-
-from app.domain.reports.generator import (
+from app.domains.reports.generator import (
     _compute_risk_token,
     _compute_risk_wallet,
 )
@@ -13,14 +12,18 @@ class TestRiskComputation:
     def test_compute_risk_token_low_risk(self):
         """Test risk score for low-risk token."""
         token_data = {
-            "token": type('Token', (), {
-                'is_honeypot': False,
-                'is_mintable': False,
-                'is_proxy': False,
-                'tax_buy_bps': 100,
-                'tax_sell_bps': 100,
-                'risk_factors': [],
-            })()
+            "token": type(
+                "Token",
+                (),
+                {
+                    "is_honeypot": False,
+                    "is_mintable": False,
+                    "is_proxy": False,
+                    "tax_buy_bps": 100,
+                    "tax_sell_bps": 100,
+                    "risk_factors": [],
+                },
+            )()
         }
         score, _factors, tier = _compute_risk_token(token_data)
         assert score < 25
@@ -38,14 +41,18 @@ class TestRiskComputation:
         A score of 100 with all those flags = CRITICAL.
         """
         token_data = {
-            "token": type('Token', (), {
-                'is_honeypot': True,
-                'is_mintable': True,
-                'is_proxy': True,
-                'tax_buy_bps': 2000,
-                'tax_sell_bps': 2000,
-                'risk_factors': ['test1', 'test2'],
-            })()
+            "token": type(
+                "Token",
+                (),
+                {
+                    "is_honeypot": True,
+                    "is_mintable": True,
+                    "is_proxy": True,
+                    "tax_buy_bps": 2000,
+                    "tax_sell_bps": 2000,
+                    "risk_factors": ["test1", "test2"],
+                },
+            )()
         }
         score, _factors, tier = _compute_risk_token(token_data)
         assert score >= 75  # Multiple critical flags → high score
@@ -54,14 +61,18 @@ class TestRiskComputation:
     def test_compute_risk_token_max_risk(self):
         """Test risk score is capped at 100."""
         token_data = {
-            "token": type('Token', (), {
-                'is_honeypot': True,
-                'is_mintable': True,
-                'is_proxy': True,
-                'tax_buy_bps': 5000,
-                'tax_sell_bps': 5000,
-                'risk_factors': ['a', 'b', 'c', 'd', 'e'],
-            })()
+            "token": type(
+                "Token",
+                (),
+                {
+                    "is_honeypot": True,
+                    "is_mintable": True,
+                    "is_proxy": True,
+                    "tax_buy_bps": 5000,
+                    "tax_sell_bps": 5000,
+                    "risk_factors": ["a", "b", "c", "d", "e"],
+                },
+            )()
         }
         score, _factors, _tier = _compute_risk_token(token_data)
         assert score == 100  # Should be capped
@@ -69,10 +80,14 @@ class TestRiskComputation:
     def test_compute_risk_wallet_low_risk(self):
         """Test risk score for low-risk wallet."""
         wallet_data = {
-            "wallet": type('Wallet', (), {
-                'is_suspicious': False,
-                'tx_count': 100,
-            })(),
+            "wallet": type(
+                "Wallet",
+                (),
+                {
+                    "is_suspicious": False,
+                    "tx_count": 100,
+                },
+            )(),
             "entity": {},
             "news": [],
         }
@@ -83,10 +98,14 @@ class TestRiskComputation:
     def test_compute_risk_wallet_high_risk(self):
         """Test risk score for high-risk wallet."""
         wallet_data = {
-            "wallet": type('Wallet', (), {
-                'is_suspicious': True,
-                'tx_count': 15000,
-            })(),
+            "wallet": type(
+                "Wallet",
+                (),
+                {
+                    "is_suspicious": True,
+                    "tx_count": 15000,
+                },
+            )(),
             "entity": {"wallets": ["a", "b", "c", "d", "e"]},
             "news": [],
         }
@@ -100,7 +119,8 @@ class TestTemplateFallback:
 
     def test_template_fallback_executive_summary(self):
         """Test executive summary template."""
-        from app.domain.reports.generator import _template_fallback
+        from app.domains.reports.generator import _template_fallback
+
         ctx = {
             "subject_id": "eth:0x123",
             "risk_score": 75,
@@ -114,7 +134,8 @@ class TestTemplateFallback:
 
     def test_template_fallback_recommendation(self):
         """Test recommendation template."""
-        from app.domain.reports.generator import _template_fallback
+        from app.domains.reports.generator import _template_fallback
+
         ctx = {
             "subject_id": "eth:0x123",
             "risk_score": 75,
