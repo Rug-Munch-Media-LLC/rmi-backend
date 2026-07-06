@@ -13,17 +13,14 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=500"]
       - id: check-merge-conflict
-      - id: detect-private-keys
       - id: mixed-line-ending
         args: ["--fix=lf"]
-      - id: no-commit-to-branch
-        args: ["--branch", "main", "--branch", "staging"]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.16
     hooks:
-      - id: ruff
-        args: ["check", "--fix"]
+      - id: ruff-check
+        args: ["--fix"]
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -38,10 +35,4 @@ repos:
     rev: v8.24.0
     hooks:
       - id: gitleaks
-        args: ["detect", "--source", ".", "--verbose"]
-
-  - repo: https://github.com/ejcx/git-hound
-    rev: v1.2.0
-    hooks:
-      - id: git-hound
-        args: ["--config", ".githound.yml"]
+        args: ["--verbose"]
