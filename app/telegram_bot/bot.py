@@ -1,6 +1,6 @@
 """Backward-compat shim — moved to app.telegram_bot.rugmunchbot.bot in P3B."""
-from app.telegram_bot.rugmunchbot.bot import *  # noqa: F401,F403
-from app.telegram_bot.rugmunchbot.bot import (  # noqa: F401
+from app.domains.telegram.rugmunchbot.bot import *  # noqa: F401,F403
+from app.domains.telegram.rugmunchbot.bot import (  # noqa: F401
     RugMunchBot,
     main,
     cmd_start,

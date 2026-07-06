@@ -6,7 +6,7 @@ Re-exports the canonical public API of the @rugmunchbot. Implementation
 lives in app.telegram_bot.rugmunchbot.bot (moved verbatim from
 app.telegram_bot.bot on 2026-07-07).
 """
-from app.telegram_bot.rugmunchbot.bot import (  # noqa: F401
+from app.domains.telegram.rugmunchbot.bot import (  # noqa: F401
     RugMunchBot,
     main,
     cmd_start,
