@@ -48,6 +48,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
+exclude = ["app._archive*", "app._archive.**"]
 namespaces = false
 
 [tool.ruff]
@@ -56,6 +57,7 @@ target-version = "py311"
 extend-exclude = [
     "_legacy_main.py",
     "app/legacy/",
+    "app/_archive/",
     "alembic/versions/",
     "build/",
     "dist/",
@@ -106,6 +108,7 @@ plugins = ["pydantic.mypy"]
 exclude = [
     "_legacy_main.py",
     "app/legacy/",
+    "app/_archive/",
     "alembic/versions/",
     "tests/",
 ]

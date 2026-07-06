@@ -89,12 +89,18 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.security_intel",  # /api/v1/security/*  (31 routes, crypto security stack). Depends on LIVE app.{cross_chain_correlator,ml_anomaly,onchain_analyzer}.
     "app.routers.mev_sniper",  # /api/v1/mev-sniper/*  (2 routes: /signals + /chains). No internal app.* deps. MEV Sniper = premium scanner feature.
     #
-    # DEFERRED (1) — needs APIRouter:
-    #   "app.tool_fingerprint" — module only (no `router` APIRouter attribute).
-    #   773 lines, scam-infra detection logic. Wire-in requires a thin
-    #   router wrapper exposing the fingerprint functions as endpoints
-    #   (e.g. POST /api/v1/tool-fingerprint/analyze). Defer until wrapper
-    #   is written.
+    # Wire-in Wave 3 — AUDIT-2026-Q3.md Phase 2.3 — mounted 2026-07-07.
+    "app.routers.unified_scanner_router",  # /api/v2/scanner/{token,wallet}/scan  (2 routes, v2 scanner).
+    #
+    # DEFERRED Wave 3 (2):
+    #   "app.routers.unified_wallet_scanner" — NO `router` APIRouter attribute.
+    #     Module exposes `get_wallet_scanner()` consumed by unified_scanner_router.
+    #     Wire-in deferred: not a router, would shadow /api/v2/scanner/wallet/scan
+    #     if exposed as a thin wrapper. Already reachable from app.unified_wallet_scanner
+    #     which is imported by unified_scanner_router.
+    #   "app.routers.admin_extensions" — DORMANT per audit (darkroom-specific, 25 routes
+    #     at /api/v1/admin/*). Would shadow /api/v1/admin/alerts_webhook (mounted Wave 1).
+    #     Kept in tree per audit, not wired.
 ]
 
 
