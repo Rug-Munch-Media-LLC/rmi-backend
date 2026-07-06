@@ -1,5 +1,5 @@
 """
-eth-labels DataBus Provider — 115K+ labeled addresses across 15+ EVM chains.
+eth-labels DataBus Provider - 115K+ labeled addresses across 15+ EVM chains.
 Queries the SQLite database built from dawsbot/eth-labels.
 """
 

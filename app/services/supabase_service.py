@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RMI Supabase Service — Unified backend layer for all Supabase tables.
+RMI Supabase Service - Unified backend layer for all Supabase tables.
 Replaces scattered REST calls with a clean, typed service interface.
 """
 
@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 import httpx
 from dotenv import load_dotenv
 
-# Ensure .env is loaded before reading env vars — override stale Docker env
+# Ensure .env is loaded before reading env vars - override stale Docker env
 load_dotenv("/app/.env", override=True)
 
 

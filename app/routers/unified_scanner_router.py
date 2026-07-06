@@ -1,4 +1,4 @@
-"""Unified Scanner Router v3 — matches WalletScanner v3 fields."""
+"""Unified Scanner Router v3 - matches WalletScanner v3 fields."""
 
 import logging
 
@@ -59,7 +59,7 @@ async def scan_token(request: Request, body: TokenScanRequest):
             "scanned_at": result.scanned_at,
         }
     except Exception as e:
-        raise HTTPException(500, f"Scan failed: {str(e)[:200]}")
+        raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
 
 
 @router.post("/wallet/scan")
@@ -94,4 +94,4 @@ async def scan_wallet(request: Request, body: WalletScanRequest):
             "scanned_at": result.scanned_at,
         }
     except Exception as e:
-        raise HTTPException(500, f"Scan failed: {str(e)[:200]}")
+        raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e

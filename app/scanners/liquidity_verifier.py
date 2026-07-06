@@ -1,5 +1,7 @@
+from typing import ClassVar
+
 """
-SENTINEL — Liquidity Lock Verification
+SENTINEL - Liquidity Lock Verification
 ========================================
 Verifies LP token locks against known locker platforms, detects fake locks,
 split-lock scams, and monitors lock expiry dates.
@@ -11,22 +13,22 @@ Supported platforms:
   - Mudra (BSC)
   - Solana LP Burn verification
 
-Data sources (direct API calls — no self.api_base):
+Data sources (direct API calls - no self.api_base):
   EVM chains: Etherscan-family APIs (token holders, contract verification)
                Moralis (token holders, wallet balances)
   Solana:     Helius DAS API (token account info, owner verification)
               Helius Enhanced Transactions (LP burn events)
 """
 
-import logging
-import os
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from enum import Enum
+import logging  # noqa: E402
+import os  # noqa: E402
+from dataclasses import dataclass, field  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
+from enum import Enum  # noqa: E402
 
-import httpx
+import httpx  # noqa: E402
 
-from app.chain_registry import get_known_lockers, is_solana
+from app.chain_registry import get_known_lockers, is_solana  # noqa: E402
 
 logger = logging.getLogger("liquidity_verifier")
 
@@ -243,9 +245,8 @@ class LiquidityVerifier:
         chain_lockers = get_known_lockers(chain)
         return chain_lockers.get(address.lower() if not is_solana(chain) else address)
 
-    # Known stablecoin / wrapped token symbols — LP lock check is irrelevant
-    STABLECOIN_SYMBOLS: ClassVar[dict] =
-{
+    # Known stablecoin / wrapped token symbols - LP lock check is irrelevant
+    STABLECOIN_SYMBOLS: ClassVar[dict] ={
         "USDC",
         "USDT",
         "DAI",
@@ -303,9 +304,9 @@ class LiquidityVerifier:
         6. Detect split-lock scams
         7. For Solana: check LP burn
 
-        NOTE: Stablecoins and wrapped tokens are skipped — LP lock is irrelevant.
+        NOTE: Stablecoins and wrapped tokens are skipped - LP lock is irrelevant.
         """
-        # Skip stablecoins/wrapped tokens — they don't need LP locks
+        # Skip stablecoins/wrapped tokens - they don't need LP locks
         if self._is_stablecoin(symbol):
             return LockReport(
                 token_address=token_address,
@@ -327,7 +328,7 @@ class LiquidityVerifier:
                 lp_burned=False,
                 risk_score=0,
                 risk_level="LOW",
-                warnings=["Stablecoin/wrapped token — LP lock check not applicable"],
+                warnings=["Stablecoin/wrapped token - LP lock check not applicable"],
             )
 
         lock_details = []
@@ -361,7 +362,7 @@ class LiquidityVerifier:
                     lp_burned=True,
                     risk_score=0,
                     risk_level="LOW",
-                    warnings=["LP tokens burned — safest mechanism"],
+                    warnings=["LP tokens burned - safest mechanism"],
                 )
 
         # For EVM chains, query LP holders and check lockers
@@ -393,7 +394,7 @@ class LiquidityVerifier:
             elif "lock" in holder.get("label", "").lower() and not self.is_known_locker(
                 holder.get("address", ""), chain
             ):
-                # Unknown/unverified locker — potential fake
+                # Unknown/unverified locker - potential fake
                 lock_details.append(
                     LockDetail(
                         locker_address=holder.get("address", ""),
@@ -494,7 +495,7 @@ class LiquidityVerifier:
                 # Some tokens embed "LP Burned" in metadata
                 description = (metadata.get("description", "") or "").lower()
                 if "lp burned" in description or "liquidity burned" in description:
-                    # Weak signal — corroborate with burn-address check
+                    # Weak signal - corroborate with burn-address check
                     pass
         except Exception:
             pass
@@ -590,13 +591,13 @@ class LiquidityVerifier:
                 warnings.append("WARNING: LP fully locked but on UNVERIFIED platform")
         elif locked_pct >= 70:
             score += 15
-            warnings.append(f"MODERATE: LP {locked_pct:.1f}% locked — significant lockup")
+            warnings.append(f"MODERATE: LP {locked_pct:.1f}% locked - significant lockup")
         elif locked_pct >= 30:
             score += 35
-            warnings.append(f"HIGH: LP only {locked_pct:.1f}% locked — moderate rug risk")
+            warnings.append(f"HIGH: LP only {locked_pct:.1f}% locked - moderate rug risk")
         else:
             score += 55
-            warnings.append(f"CRITICAL: LP only {locked_pct:.1f}% locked — HIGH rug pull risk")
+            warnings.append(f"CRITICAL: LP only {locked_pct:.1f}% locked - HIGH rug pull risk")
 
         if fake_lock:
             score += 40

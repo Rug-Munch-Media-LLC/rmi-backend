@@ -284,7 +284,7 @@ async def ghost_tags(request: Request, _=Depends(_verify_admin)):
 
 @router.get("/content/analytics")
 async def ghost_analytics(request: Request, _=Depends(_verify_admin)):
-    """Get Ghost analytics computed from local data — no Ghost Pro required."""
+    """Get Ghost analytics computed from local data - no Ghost Pro required."""
     try:
         import httpx
 
@@ -335,7 +335,7 @@ async def ghost_analytics(request: Request, _=Depends(_verify_admin)):
             "views_today": 0,
             "views_this_month": 0,
             "source": "ghost_content_api",
-            "note": "Analytics computed from Ghost Content API — no Ghost Pro required",
+            "note": "Analytics computed from Ghost Content API - no Ghost Pro required",
         }
     except Exception as e:
         return {"error": str(e)}
@@ -351,7 +351,7 @@ async def ghost_publish(request: Request, post_id: str, _=Depends(_verify_admin)
 
         session = _get_session_cookie()
         if not session:
-            return {"error": "No Ghost session cookie — login at /ghost first"}
+            return {"error": "No Ghost session cookie - login at /ghost first"}
 
         cookie_header = session.split("\t")
         cookie = f"{cookie_header[5]}={cookie_header[6]}" if len(cookie_header) > 6 else session
@@ -514,7 +514,7 @@ def _brightdata_client(timeout: int = 30):
 @router.get("/dify/status")
 async def dify_status(request: Request, _=Depends(_verify_admin)):
     """Check Dify connection status."""
-    # Hardcoded — Docker DNS resolves unreliably in gunicorn workers
+    # Hardcoded - Docker DNS resolves unreliably in gunicorn workers
     dify_url = "http://172.23.0.4:5001"
     dify_key = os.getenv("DIFY_APP_KEY", "app-nIpKWvytqS3JGNNmD0Iuz0cG")
 
@@ -675,7 +675,7 @@ class DifyChatRequest(BaseModel):
 @router.post("/dify/chat")
 async def dify_chat(request: Request, req: DifyChatRequest, _=Depends(_verify_admin)):
     """Send a message to Dify advisor."""
-    # Hardcoded — Docker DNS resolves unreliably in gunicorn workers
+    # Hardcoded - Docker DNS resolves unreliably in gunicorn workers
     dify_url = "http://172.23.0.4:5001"
     dify_key = os.getenv("DIFY_APP_KEY", "app-nIpKWvytqS3JGNNmD0Iuz0cG")
 
@@ -813,7 +813,7 @@ async def admin_network(request: Request, _=Depends(_verify_admin)):
 
 @router.get("/mail/sent")
 async def mail_sent(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)):
-    """Get sent emails (placeholder — requires SMTP sent tracking)."""
+    """Get sent emails (placeholder - requires SMTP sent tracking)."""
     return {"emails": [], "total": 0, "note": "Sent folder requires SMTP sent tracking"}
 
 

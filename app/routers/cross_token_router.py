@@ -1,5 +1,5 @@
 """
-Cross-Token Tracking API Router — Track wallets across multiple tokens.
+Cross-Token Tracking API Router - Track wallets across multiple tokens.
 Connects to /api/v1/cross-token/*
 """
 
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/cross-token", tags=["cross-token"])
 
-# Lazy import — cross_token.py has broken internal deps
+# Lazy import - cross_token.py has broken internal deps
 PROJECT_TOKENS = {
     "CRM": "Eme5T2s2HB7B8W4YgLG1eReQpnadEVUnQBRjaKTdBAGS",
     "SOSANA": "SoSaNaTokenAddressPlaceholder123456789",
@@ -51,9 +51,9 @@ async def track_affiliations(req: CrossTokenRequest):
             "project_count": len(affiliations),
         }
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}") from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from e
 
 
 @router.get("/connections/{wallet}")
@@ -72,9 +72,9 @@ async def get_cross_connections(wallet: str):
             "total_affiliations": len(affiliations),
         }
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from e
 
 
 @router.get("/health")

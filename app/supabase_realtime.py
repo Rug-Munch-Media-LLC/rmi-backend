@@ -1,5 +1,5 @@
 """
-Supabase Realtime Bridge — live PostgreSQL changes → Redis pub/sub → WebSocket clients.
+Supabase Realtime Bridge - live PostgreSQL changes → Redis pub/sub → WebSocket clients.
 Uses proper WebSocket protocol via 'websockets' library (httpx doesn't support WS upgrades).
 """
 
@@ -53,7 +53,7 @@ class SupabaseRealtimeBridge:
         )
         self._running = True
         asyncio.create_task(self._realtime_loop())
-        logger.info("Supabase Realtime bridge started — %d tables → Redis", len(TABLE_CHANNELS))
+        logger.info("Supabase Realtime bridge started - %d tables → Redis", len(TABLE_CHANNELS))
 
     async def stop(self):
         self._running = False
@@ -101,7 +101,7 @@ class SupabaseRealtimeBridge:
                             continue
 
             except Exception as e:
-                logger.warning("Realtime WS disconnected: %s — reconnecting in %ds", e, self._reconnect_delay)
+                logger.warning("Realtime WS disconnected: %s - reconnecting in %ds", e, self._reconnect_delay)
                 await asyncio.sleep(self._reconnect_delay)
                 self._reconnect_delay = min(self._reconnect_delay * 2, 60)
 

@@ -2,7 +2,7 @@
 Helius DAS (Digital Asset Standard) Client
 Uses existing Helius API keys to fetch indexed Solana token data.
 
-The DAS API provides indexed/aggregated data — no need for Solana Tracker
+The DAS API provides indexed/aggregated data - no need for Solana Tracker
 or other third-party indexers for basic token metadata and holder queries.
 
 Endpoints:

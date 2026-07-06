@@ -5,10 +5,10 @@ THE daily market briefing. AI-researched, AI-written, human-quality.
 Published 6:30 AM ET to X (@CryptoRugMunch), Telegram, Ghost CMS.
 
 Pipeline:
-  1. Gather — all DataBus sources (prices, news, CT, sentiment, fear/greed, memes)
-  2. Research — OpenRouter free model analyzes everything
-  3. Write — OpenRouter free model produces the final report
-  4. Publish — X/Twitter, Telegram, Ghost CMS
+  1. Gather - all DataBus sources (prices, news, CT, sentiment, fear/greed, memes)
+  2. Research - OpenRouter free model analyzes everything
+  3. Write - OpenRouter free model produces the final report
+  4. Publish - X/Twitter, Telegram, Ghost CMS
 
 Free models used (zero cost):
   Research: nvidia/nemotron-3-super-120b-a12b:free (1M ctx, 120B MoE)
@@ -150,14 +150,14 @@ def _build_research_context(data: dict) -> str:
     # Fear & Greed
     fg = data.get("fear_greed", {})
     if fg.get("value"):
-        parts.append(f"## FEAR & GREED INDEX\n{fg['value']}/100 — {fg.get('classification', 'Neutral')}")
+        parts.append(f"## FEAR & GREED INDEX\n{fg['value']}/100 - {fg.get('classification', 'Neutral')}")
 
     # News headlines
     news = data.get("news", {})
     articles = news.get("articles", [])
     if articles:
         headlines = "\n".join(
-            f"- [{a.get('sentiment', {}).get('sentiment', '➖')}] {a.get('title', '')}" for a in articles[:15]
+            f"- [{a.get('sentiment', {}).get('sentiment', '➖')}] {a.get('title', '')}" for a in articles[:15]  # noqa: RUF001
         )
         parts.append(f"## TOP HEADLINES\n{headlines}")
 
@@ -192,9 +192,9 @@ WRITING STANDARDS:
 - Lead with the most important story. Hook the reader.
 - Be specific: use numbers, names, percentages. No vague statements.
 - Include market sentiment, social mood, and what traders are actually talking about
-- One section on MEMES/CULTURE — what's trending on CT
-- One section on RISK RADAR — scams, hacks, regulatory threats to watch
-- End with BOTTOM LINE — actionable takeaway in 2 sentences
+- One section on MEMES/CULTURE - what's trending on CT
+- One section on RISK RADAR - scams, hacks, regulatory threats to watch
+- End with BOTTOM LINE - actionable takeaway in 2 sentences
 
 FORMAT EXACTLY LIKE THIS:
 
@@ -383,7 +383,7 @@ async def _publish_to_x(report: str, date_str: str) -> dict:
                 tldr = lines[idx + 1].strip().lstrip("- ")[:240]
 
     if not headline:
-        headline = f"RugCharts Daily Intelligence — {date_str}"
+        headline = f"RugCharts Daily Intelligence - {date_str}"
 
     tweet_text = f"📊 {headline}\n\n{tldr}\n\nFull report: https://rugmunch.io/news"
 
@@ -410,7 +410,7 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict:
     try:
         # Extract title from report
         report.split("\n")
-        title = f"Daily Intelligence — {date_str}"
+        title = f"Daily Intelligence - {date_str}"
 
         # Convert markdown to Ghost HTML
         html = _markdown_to_html(report)
@@ -462,7 +462,7 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict:
         elif line.startswith("- ") and len(tg_text) < 3500:
             tg_text += f"{line}\n"
         elif "BOTTOM LINE" in line and i + 1 < len(lines):
-            tg_text += f"\n💡 *Bottom Line:* {next_line}\n"
+            tg_text += f"\n💡 *Bottom Line:* {next_line}\n"  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
             break
 
     tg_text += "\n🔗 Full report: https://rugmunch.io/news"

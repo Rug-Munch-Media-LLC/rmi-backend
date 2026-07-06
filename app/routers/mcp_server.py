@@ -131,12 +131,12 @@ def _desc(tool_id: str, pricing: dict) -> str:
         "tw_timeline": "X/Twitter timeline feed -- curated crypto timeline from top analysts, whales, and project accounts.",
         "urlcheck": "URL security checker -- scan crypto URLs for phishing patterns, credential harvesting, and known scam infrastructure.",
         "wallet": "Wallet analysis -- comprehensive wallet assessment: holdings, risk score, labels, transaction patterns, and entity identification.",
-        "wallet_graph": "Wallet transaction graph -- visualize address relationships, money flows, and interaction networks for forensic investigation.",
-        "wallet_pnl": "Wallet PnL calculator -- realized and unrealized gains, win rate, average ROI, and complete trade performance history.",
-        "wash_trading": "Wash trading detector -- identify artificial volume, self-trades, and coordinated buy-sell patterns across DEXs.",
+        "wallet_graph": "Wallet transaction graph -- visualize address relationships, money flows, and interaction networks for forensic investigation.",  # noqa: F601
+        "wallet_pnl": "Wallet PnL calculator -- realized and unrealized gains, win rate, average ROI, and complete trade performance history.",  # noqa: F601
+        "wash_trading": "Wash trading detector -- identify artificial volume, self-trades, and coordinated buy-sell patterns across DEXs.",  # noqa: F601
         "whale": "Whale tracker -- monitor large holder activity, recent transfers, accumulation trends, and wallet classification.",
-        "whale_accumulation": "Whale accumulation monitor -- detect when large wallets are building positions, track accumulation rate and entry timing.",
-        "whale_profile": "Whale profile -- deep analysis of a whale wallet: strategy classification, historical performance, holdings breakdown, and influence.",
+        "whale_accumulation": "Whale accumulation monitor -- detect when large wallets are building positions, track accumulation rate and entry timing.",  # noqa: F601
+        "whale_profile": "Whale profile -- deep analysis of a whale wallet: strategy classification, historical performance, holdings breakdown, and influence.",  # noqa: F601
     }
     return FALLBACKS.get(
         tool_id,
@@ -242,7 +242,7 @@ def _input_schema(tool_id: str) -> dict:
 # ================================================================
 
 # CORS headers are added per-route in response headers.
-# APIRouter doesn't support middleware — CORS is handled in each endpoint.
+# APIRouter doesn't support middleware - CORS is handled in each endpoint.
 
 
 # ================================================================
@@ -631,7 +631,7 @@ async def mcp_capabilities():
 
 @router.post("/mcp")
 async def mcp_jsonrpc(request: Request):
-    """MCP Streamable HTTP transport — handle JSON-RPC requests.
+    """MCP Streamable HTTP transport - handle JSON-RPC requests.
 
     Methods: initialize, tools/list, tools/call, resources/list, prompts/list, ping
     """
@@ -694,12 +694,12 @@ async def mcp_jsonrpc(request: Request):
                         "properties": {
                             "result": {
                                 "type": "object",
-                                "description": "Tool-specific result data — varies by tool. Contains analysis, scores, metrics, or fetched data.",
+                                "description": "Tool-specific result data - varies by tool. Contains analysis, scores, metrics, or fetched data.",
                             },
                             "status": {
                                 "type": "string",
                                 "enum": ["ok", "error", "no_data"],
-                                "description": "Result status: ok (success), error (failure), no_data (no results found — eligible for refund)",
+                                "description": "Result status: ok (success), error (failure), no_data (no results found - eligible for refund)",
                             },
                             "error": {
                                 "type": "string",
@@ -831,7 +831,7 @@ async def mcp_jsonrpc(request: Request):
             async with httpx.AsyncClient(timeout=45) as client:
                 resp = await client.post(url, json=arguments, headers=headers)
                 if resp.status_code == 402:
-                    # Payment required — return the payment info as tool result
+                    # Payment required - return the payment info as tool result
                     result = resp.json()
                     return JSONResponse(
                         {
@@ -970,20 +970,20 @@ async def mcp_call_tool(tool_id: str, request: Request):
                 else JSONResponse(content=result, status_code=resp.status_code)
             )
     except httpx.ConnectError:
-        raise HTTPException(status_code=502, detail="Backend unavailable")
+        raise HTTPException(status_code=502, detail="Backend unavailable") from None
     except Exception as e:
         logger.error(f"MCP tool failed: {tool_id}: {e}")
-        raise HTTPException(status_code=502, detail=f"Tool execution failed: {str(e)[:200]}")
+        raise HTTPException(status_code=502, detail=f"Tool execution failed: {str(e)[:200]}") from e
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PLATFORM MANIFEST — Auto-updating source of truth
+# PLATFORM MANIFEST - Auto-updating source of truth
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/mcp/manifest")
 async def platform_manifest():
-    """Complete platform manifest — auto-generated from live tool counts."""
+    """Complete platform manifest - auto-generated from live tool counts."""
     from app.caching_shield.platform_manifest import get_platform_manifest
 
     return get_platform_manifest()
@@ -1012,7 +1012,7 @@ async def membership_plans():
 
 @router.get("/mcp/earnings")
 async def earnings_dashboard():
-    """Live earnings dashboard — wallet balances, revenue by source."""
+    """Live earnings dashboard - wallet balances, revenue by source."""
     from app.caching_shield.earnings_tracker import fetch_wallet_earnings, get_earnings_report
 
     wallets = await fetch_wallet_earnings()
@@ -1111,14 +1111,14 @@ async def mcp_news_comments(article_id: str):
 
 @router.get("/mcp/daily-data")
 async def daily_market_data():
-    """Enhanced daily data — price action, sentiment, security, whales, prediction markets."""
+    """Enhanced daily data - price action, sentiment, security, whales, prediction markets."""
     from app.caching_shield.daily_data import get_daily_rundown_data
 
     return await get_daily_rundown_data()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# RMI NEWS NETWORK — 30 sources, community interaction
+# RMI NEWS NETWORK - 30 sources, community interaction
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -1200,13 +1200,13 @@ async def daily_data():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SOCIAL FEED — X/Twitter + Reddit
+# SOCIAL FEED - X/Twitter + Reddit
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/news/social")
 async def social_feed(limit_twitter: int = 30, limit_reddit: int = 20):
-    """Combined X/Twitter + Reddit crypto feed — cached, Nitter fallback."""
+    """Combined X/Twitter + Reddit crypto feed - cached, Nitter fallback."""
     from app.caching_shield.social_feed import get_social_feed
 
     return await get_social_feed(limit_twitter, limit_reddit)
@@ -1214,7 +1214,7 @@ async def social_feed(limit_twitter: int = 30, limit_reddit: int = 20):
 
 @router.get("/news/social/twitter")
 async def twitter_feed(limit: int = 30):
-    """Top 50 crypto X/Twitter accounts — via Nitter (free, cached)."""
+    """Top 50 crypto X/Twitter accounts - via Nitter (free, cached)."""
     from app.caching_shield.social_feed import get_twitter_feed
 
     return await get_twitter_feed(limit)
@@ -1222,7 +1222,7 @@ async def twitter_feed(limit: int = 30):
 
 @router.get("/news/social/reddit")
 async def reddit_feed(limit: int = 20):
-    """Top crypto subreddits — free, no auth."""
+    """Top crypto subreddits - free, no auth."""
     from app.caching_shield.social_feed import get_reddit_feed
 
     return await get_reddit_feed(limit)

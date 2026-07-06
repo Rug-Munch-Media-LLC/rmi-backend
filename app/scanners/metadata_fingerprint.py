@@ -1,5 +1,5 @@
 """
-SENTINEL — Metadata Fingerprinting Engine
+SENTINEL - Metadata Fingerprinting Engine
 ==========================================
 Hashes and compares token metadata across chains to detect copycat tokens,
 scam reruns, and coordinated launch campaigns. Uses HTML structure hashing,
@@ -23,6 +23,7 @@ import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from html.parser import HTMLParser
+from typing import ClassVar
 
 import httpx
 
@@ -30,7 +31,7 @@ logger = logging.getLogger("metadata_fingerprint")
 
 
 # ---------------------------------------------------------------------------
-# HTML structure extractor — strips text content, keeps tag hierarchy
+# HTML structure extractor - strips text content, keeps tag hierarchy
 # ---------------------------------------------------------------------------
 
 
@@ -125,8 +126,7 @@ class MetadataFingerprinter:
     """
 
     # Known social domains for normalisation
-    _SOCIAL_DOMAINS: ClassVar[dict] =
-{
+    _SOCIAL_DOMAINS: ClassVar[dict] ={
         "twitter.com",
         "x.com",
         "t.me",
@@ -339,9 +339,8 @@ class MetadataFingerprinter:
     # Warning generation
     # ------------------------------------------------------------------
 
-    # Known stablecoin / wrapped token symbols — these legitimately have no description
-    STABLECOIN_SYMBOLS: ClassVar[dict] =
-{
+    # Known stablecoin / wrapped token symbols - these legitimately have no description
+    STABLECOIN_SYMBOLS: ClassVar[dict] ={
         "USDC",
         "USDT",
         "DAI",
@@ -400,7 +399,7 @@ class MetadataFingerprinter:
             elif overall >= 0.5:
                 warnings.append(f"LINKED: partial metadata overlap with {addr[:12]}... (similarity {(overall):.0%})")
 
-        # Skip NO_DESCRIPTION for stablecoins/wrapped tokens — they don't need marketing copy
+        # Skip NO_DESCRIPTION for stablecoins/wrapped tokens - they don't need marketing copy
         if not meta.description and not self._is_stablecoin_or_wrapped(meta.symbol):
             warnings.append("NO_DESCRIPTION: token has no description text")
 
@@ -465,7 +464,7 @@ class MetadataFingerprinter:
         return sorted(domains)
 
     # ------------------------------------------------------------------
-    # API fetch — DexScreener + Birdeye direct calls
+    # API fetch - DexScreener + Birdeye direct calls
     # ------------------------------------------------------------------
 
     async def _fetch_metadata(self, token_address: str, chain: str) -> TokenMetadata:
@@ -539,7 +538,7 @@ class MetadataFingerprinter:
             if self.birdeye_key:
                 headers["X-API-KEY"] = self.birdeye_key
 
-            # Token security endpoint — social/website data
+            # Token security endpoint - social/website data
             resp = await self.birdeye_client.get(
                 f"{self.BIRDEYE_BASE}/defi/token_security",
                 params={"address": token_address, "chain": birdeye_chain},
@@ -563,7 +562,7 @@ class MetadataFingerprinter:
                         elif key == "website":
                             birdeye_website = val
 
-            # Token list endpoint — description
+            # Token list endpoint - description
             resp2 = await self.birdeye_client.get(
                 f"{self.BIRDEYE_BASE}/defi/v3/token/list",
                 params={"address": token_address, "chain": birdeye_chain},

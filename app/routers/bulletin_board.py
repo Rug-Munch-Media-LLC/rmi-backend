@@ -4,22 +4,22 @@ RMI Bulletin Board API Router
 Full REST API for bulletin board management.
 
 Public endpoints (no auth):
-  GET /api/v1/bulletin/posts          — List published posts
-  GET /api/v1/bulletin/posts/{slug}  — Get single post by slug
-  GET /api/v1/bulletin/categories    — List categories
+  GET /api/v1/bulletin/posts          - List published posts
+  GET /api/v1/bulletin/posts/{slug}  - Get single post by slug
+  GET /api/v1/bulletin/categories    - List categories
 
 Admin endpoints (require admin session):
-  POST /api/v1/admin/bulletin/posts           — Create post
-  PUT /api/v1/admin/bulletin/posts/{id}       — Update post
-  DELETE /api/v1/admin/bulletin/posts/{id}    — Delete (archive) post
-  GET /api/v1/admin/bulletin/posts            — List all posts (admin view)
-  POST /api/v1/admin/bulletin/posts/{id}/publish   — Publish post
-  POST /api/v1/admin/bulletin/posts/{id}/unpublish — Unpublish post
-  POST /api/v1/admin/bulletin/posts/{id}/pin       — Pin/unpin post
-  GET /api/v1/admin/bulletin/stats           — Board statistics
-  GET /api/v1/admin/bulletin/scheduled       — List scheduled posts
-  POST /api/v1/admin/bulletin/process-scheduled — Process scheduled posts
-  POST /api/v1/admin/bulletin/process-expired — Archive expired posts
+  POST /api/v1/admin/bulletin/posts           - Create post
+  PUT /api/v1/admin/bulletin/posts/{id}       - Update post
+  DELETE /api/v1/admin/bulletin/posts/{id}    - Delete (archive) post
+  GET /api/v1/admin/bulletin/posts            - List all posts (admin view)
+  POST /api/v1/admin/bulletin/posts/{id}/publish   - Publish post
+  POST /api/v1/admin/bulletin/posts/{id}/unpublish - Unpublish post
+  POST /api/v1/admin/bulletin/posts/{id}/pin       - Pin/unpin post
+  GET /api/v1/admin/bulletin/stats           - Board statistics
+  GET /api/v1/admin/bulletin/scheduled       - List scheduled posts
+  POST /api/v1/admin/bulletin/process-scheduled - Process scheduled posts
+  POST /api/v1/admin/bulletin/process-expired - Archive expired posts
 """
 
 from fastapi import APIRouter, Body, HTTPException, Request
@@ -30,6 +30,7 @@ from app.bulletin_board import (
     BulletinBoardManager,
     PostCategory,
     PostStatus,
+    award_badge,
 )
 
 router = APIRouter(prefix="/api/v1/bulletin-board", tags=["bulletin-board"])
@@ -602,14 +603,14 @@ async def get_leaderboard(limit: int = 20):
 
 
 # ═══════════════════════════════════════════════════
-# X402 BOT POSTING — $1 per post for bots/agents
+# X402 BOT POSTING - $1 per post for bots/agents
 # ═══════════════════════════════════════════════════
 
 
 @router.post("/x402/bot-post")
 async def x402_bot_post(request: Request, data: dict):
     """
-    Bot posting via x402 — $1 TO JOIN (one-time, 30-day membership).
+    Bot posting via x402 - $1 TO JOIN (one-time, 30-day membership).
     Pay $1 once, post unlimited for 30 days. Includes badges.
     """
     from app.bulletin_board import verify_x402_bot
@@ -624,7 +625,7 @@ async def x402_bot_post(request: Request, data: dict):
         raise HTTPException(400, "Missing: bot_address, tx_hash, title, content")
 
     if not await verify_x402_bot(tx_hash, bot_addr):
-        raise HTTPException(402, "$1 to join — send USDC to x402 address, get tx_hash, post 30 days unlimited")
+        raise HTTPException(402, "$1 to join - send USDC to x402 address, get tx_hash, post 30 days unlimited")
 
     post = await BulletinBoardManager.create_post(
         title=f"[BOT] {title}",
@@ -653,7 +654,7 @@ async def x402_bot_post(request: Request, data: dict):
 async def x402_bot_info():
     """Info for bots wanting to join the Bulletin Board."""
     return {
-        "service": "RMI Bulletin Board — x402 Bot Membership",
+        "service": "RMI Bulletin Board - x402 Bot Membership",
         "price": "$1.00 TO JOIN (30 days unlimited posting, one-time)",
         "payment": "Send $1 USDC to rugmunch.io/x402 payment address, receive tx_hash",
         "membership_includes": [
@@ -661,7 +662,7 @@ async def x402_bot_info():
             "Comment and vote on any post",
             "Earn badges: Verified Bot 🤖, Bot Pro ⚡, API Pioneer 🔌",
             "Your posts show 🤖 badge so humans know you're a bot",
-            "Full x402 API access — automate everything",
+            "Full x402 API access - automate everything",
         ],
         "categories": [
             "alert",

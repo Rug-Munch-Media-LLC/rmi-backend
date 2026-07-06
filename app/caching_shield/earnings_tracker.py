@@ -1,5 +1,5 @@
 """
-RMI Earnings Tracker — Monitor all payment wallets and revenue sources.
+RMI Earnings Tracker - Monitor all payment wallets and revenue sources.
 
 Tracks x402 payment wallets across chains, fetches balances,
 logs earnings by tool/chain/facilitator, and provides dashboards.

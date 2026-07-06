@@ -1,5 +1,5 @@
 """
-RMI Fallback Data Engine — Maximum Data Retrieval
+RMI Fallback Data Engine - Maximum Data Retrieval
 ====================================================
 When primary APIs fail, this engine tries EVERY publicly available method
 to get the data before triggering a refund. Uses scraping, AI search,
@@ -125,7 +125,7 @@ async def fetch_page_text(url: str, timeout: int = 10) -> str | None:
                 parser.feed(html)
                 return "\n".join(parser.text[:200])  # Limit to first 200 text blocks
     except Exception as e:
-        logger.debug(f"Page fetch failed: {url} — {e}")
+        logger.debug(f"Page fetch failed: {url} - {e}")
     return None
 
 
@@ -255,7 +255,7 @@ async def scrape_dexscreener_web(address: str) -> dict:
 
 async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
     """
-    GeckoTerminal API — free, no key required.
+    GeckoTerminal API - free, no key required.
     Similar to DexScreener, good backup.
     """
     chain_map = {
@@ -294,7 +294,7 @@ async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
 
 async def fetch_dexlab(address: str) -> dict:
     """
-    DexLab — Solana-specific DEX data.
+    DexLab - Solana-specific DEX data.
     """
     try:
         import aiohttp
@@ -321,7 +321,7 @@ async def fetch_dexlab(address: str) -> dict:
 
 async def fetch_step_finance(address: str) -> dict:
     """
-    Step Finance — Solana DeFi analytics.
+    Step Finance - Solana DeFi analytics.
     """
     try:
         import aiohttp
@@ -341,7 +341,7 @@ async def fetch_step_finance(address: str) -> dict:
 
 async def fetch_moonrank(address: str) -> dict:
     """
-    MoonRank — Solana token analytics.
+    MoonRank - Solana token analytics.
     """
     try:
         import aiohttp
@@ -361,7 +361,7 @@ async def fetch_moonrank(address: str) -> dict:
 
 async def fetch_unchained(address: str) -> dict:
     """
-    Unchained Capital — alternative on-chain data.
+    Unchained Capital - alternative on-chain data.
     """
     try:
         import aiohttp
@@ -384,7 +384,7 @@ async def fetch_unchained(address: str) -> dict:
 
 async def fetch_jito_search(address: str) -> dict:
     """
-    Jito bundle search — check if token is being bundled (MEV activity).
+    Jito bundle search - check if token is being bundled (MEV activity).
     """
     try:
         import aiohttp
@@ -404,7 +404,7 @@ async def fetch_jito_search(address: str) -> dict:
 
 async def fetch_orca_pools(address: str) -> dict:
     """
-    Orca pools — check liquidity on Orca DEX.
+    Orca pools - check liquidity on Orca DEX.
     """
     try:
         import aiohttp
@@ -424,7 +424,7 @@ async def fetch_orca_pools(address: str) -> dict:
 
 async def fetch_raydium_pools(address: str) -> dict:
     """
-    Raydium pools — check liquidity on Raydium DEX.
+    Raydium pools - check liquidity on Raydium DEX.
     """
     try:
         import aiohttp

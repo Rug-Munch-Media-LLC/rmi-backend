@@ -1,5 +1,5 @@
 """
-RMI AI Pipeline v2 — Production Grade
+RMI AI Pipeline v2 - Production Grade
 ======================================
 Caching, fallbacks, rate limiting, smart prompts.
 All 12 modules battle-tested against Ollama Cloud.
@@ -56,7 +56,7 @@ def _cached_call(system: str, prompt: str, max_tokens: int = 250, temp: float = 
 # ── 1. TOKEN RISK EXPLAINER (improved) ──
 def explain_risks(scan: dict) -> str:
     if not scan or scan.get("safety_score") is None:
-        return "<b>Unable to analyze</b> — no scanner data."
+        return "<b>Unable to analyze</b> - no scanner data."
     score = scan.get("safety_score", 50)
     flags = scan.get("risk_flags", [])
     green = scan.get("green_flags", [])

@@ -43,7 +43,7 @@ class Token(BaseModel):
 
 
 class TokenDetail(BaseModel):
-    """Full token details — metadata + supply + verification."""
+    """Full token details - metadata + supply + verification."""
 
     address: str
     chain: str

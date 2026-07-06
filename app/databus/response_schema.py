@@ -13,7 +13,7 @@ class SchemaValidator:
     that doesn't match, the DataBus falls back to the next provider.
     """
 
-    SCHEMAS = {
+    SCHEMAS = {  # noqa: RUF012
         "token_price": {
             "required": ["price_usd"],
             "optional": ["change_24h", "volume_24h", "market_cap"],

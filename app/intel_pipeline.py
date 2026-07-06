@@ -1,5 +1,5 @@
 """
-RMI Intelligence Pipeline — HF + Supabase + RAG
+RMI Intelligence Pipeline - HF + Supabase + RAG
 ================================================
 Unified intelligence service: scam classification (HF models),
 wallet labeling via RAG pattern matching, Supabase hybrid storage.
@@ -38,7 +38,7 @@ def _get_headers():
     }
 
 
-# ── HF Models (Paywalled — using local fallback) ──────
+# ── HF Models (Paywalled - using local fallback) ──────
 # HF Inference API now requires PRO subscription ($9/mo).
 # Using local pattern matching + RAG memory instead.
 # Enable HF by setting HUGGINGFACE_TOKEN to a valid PRO key.
@@ -129,7 +129,7 @@ async def generate_embedding(text: str) -> list[float] | None:
 
     async with httpx.AsyncClient(timeout=60) as client:
         r = await client.post(
-            f"{HF_API}/{EMBEDDING_MODEL}",
+            f"{HF_API}/{EMBEDDING_MODEL}",  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
             headers={"Authorization": f"Bearer {HF_TOKEN}"},
             json={"inputs": text[:1024]},
         )

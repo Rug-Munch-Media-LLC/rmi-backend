@@ -97,7 +97,7 @@ print()
 for collection, desired_ttl in TTL_POLICY.items():
     result = redis_eval(LUA_BATCH, 0, collection, str(desired_ttl))
     # Result format: one integer per line (Lua array serializes as newline-separated)
-    lines = [l.strip() for l in result.splitlines() if l.strip()]
+    lines = [l.strip() for l in result.splitlines() if l.strip()]  # noqa: E741
     if len(lines) == 3:
         try:
             scanned = int(lines[0].lstrip("[").rstrip(","))

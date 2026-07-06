@@ -9,13 +9,13 @@ Run via cron every 1-5 minutes:
   */2 * * * * cd /root/backend && python3 scripts/health_monitor.py >> /var/log/rmi_health.log 2>&1
 
 Environment variables:
-  HEALTH_WEBHOOK_URL  — webhook URL for alerts (Slack, Discord, PagerDuty, etc.)
-  BACKEND_URL         — backend health endpoint (default: http://localhost:8000/health)
-  REDIS_HOST          — Redis host (default: localhost)
-  REDIS_PORT          — Redis port (default: 6379)
-  REDIS_PASSWORD      — Redis password (default: empty)
-  BASE_WORKER_URL     — Base worker health endpoint
-  SOLANA_WORKER_URL   — Solana worker health endpoint
+  HEALTH_WEBHOOK_URL  - webhook URL for alerts (Slack, Discord, PagerDuty, etc.)
+  BACKEND_URL         - backend health endpoint (default: http://localhost:8000/health)
+  REDIS_HOST          - Redis host (default: localhost)
+  REDIS_PORT          - Redis port (default: 6379)
+  REDIS_PASSWORD      - Redis password (default: empty)
+  BASE_WORKER_URL     - Base worker health endpoint
+  SOLANA_WORKER_URL   - Solana worker health endpoint
 
 Author: RMI Development
 Date: 2026-05-20
@@ -45,7 +45,7 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 BASE_WORKER_URL = os.getenv("BASE_WORKER_URL", "http://localhost:8000/api/v1/x402/fallback/status")
 SOLANA_WORKER_URL = os.getenv("SOLANA_WORKER_URL", "")
 CHECK_TIMEOUT = 10  # seconds
-ALERT_COOLDOWN = 300  # 5 minutes — don't re-alert for same service within this window
+ALERT_COOLDOWN = 300  # 5 minutes - don't re-alert for same service within this window
 
 # Track last alert time per service to avoid spam
 _last_alerts: dict = {}
@@ -163,7 +163,7 @@ def check_solana_worker() -> dict:
 def send_alert(results: list):
     """POST alert to webhook for any down services."""
     if not HEALTH_WEBHOOK_URL:
-        logger.warning("HEALTH_WEBHOOK_URL not set — skipping alert dispatch")
+        logger.warning("HEALTH_WEBHOOK_URL not set - skipping alert dispatch")
         return
 
     down_services = [r for r in results if r.get("status") == "down"]
@@ -184,7 +184,7 @@ def send_alert(results: list):
     # Support multiple webhook formats
     # Slack/Discord format
     payload = {
-        "text": f"RMI Health Alert — {len(alertable)} service(s) down",
+        "text": f"RMI Health Alert - {len(alertable)} service(s) down",
         "attachments": [
             {
                 "title": "Service Health Alert",
@@ -209,7 +209,7 @@ def send_alert(results: list):
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
-            logger.info(f"Alert sent to webhook: HTTP {resp.status} — {len(alertable)} services down")
+            logger.info(f"Alert sent to webhook: HTTP {resp.status} - {len(alertable)} services down")
     except Exception as e:
         logger.error(f"Failed to send alert to webhook: {e}")
 
@@ -233,7 +233,7 @@ def send_recovery_alert(recovered: list):
 
     lines = [f"**{s['service']}** is back UP" for s in alertable]
     payload = {
-        "text": f"RMI Recovery — {len(alertable)} service(s) recovered",
+        "text": f"RMI Recovery - {len(alertable)} service(s) recovered",
         "attachments": [
             {
                 "title": "Service Recovery",
@@ -344,7 +344,7 @@ def main():
         elif status == "not_configured":
             logger.info(f"  {r['service']}: not configured (skipped)")
         else:
-            logger.error(f"  {r['service']}: DOWN — {r.get('error', 'unknown')}")
+            logger.error(f"  {r['service']}: DOWN - {r.get('error', 'unknown')}")
 
     # Send alerts for down services
     send_alert(results)

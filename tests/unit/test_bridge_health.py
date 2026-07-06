@@ -75,7 +75,7 @@ class TestSecurityScore:
 
     @pytest.mark.asyncio
     async def test_wormhole_exploit_penalty(self):
-        """Wormhole had a $326M exploit — should be reflected in scoring."""
+        """Wormhole had a $326M exploit - should be reflected in scoring."""
         from app.bridge_health_monitor import BRIDGE_REGISTRY, BridgeHealthMonitor
 
         monitor = BridgeHealthMonitor()
@@ -88,7 +88,7 @@ class TestSecurityScore:
 
     @pytest.mark.asyncio
     async def test_chainlink_ccip_immutability_bonus(self):
-        """CCIP is non-upgradeable — should get a bonus."""
+        """CCIP is non-upgradeable - should get a bonus."""
         from app.bridge_health_monitor import BRIDGE_REGISTRY, BridgeHealthMonitor
 
         monitor = BridgeHealthMonitor()

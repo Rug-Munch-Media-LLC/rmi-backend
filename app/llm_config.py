@@ -5,9 +5,9 @@ Single source of truth for all LLM providers and models.
 Imported by all RAG/content modules to avoid scattered config.
 
 Provider chain:
-  PRIMARY:   DeepSeek v4 Flash (cheap, fast) — HyDE, query expansion, chunking
-  CONTENT:   NVIDIA Nemotron 3 Super (free) — reports, briefings, writeups
-  ANALYSIS:  DeepSeek v4 Pro (promo pricing) — agentic investigation
+  PRIMARY:   DeepSeek v4 Flash (cheap, fast) - HyDE, query expansion, chunking
+  CONTENT:   NVIDIA Nemotron 3 Super (free) - reports, briefings, writeups
+  ANALYSIS:  DeepSeek v4 Pro (promo pricing) - agentic investigation
   FALLBACK:  OpenRouter (auto-routes to best available free model)
 """
 
@@ -125,7 +125,7 @@ async def generate_content(
         resp = await client.post(config["base_url"], headers=headers, json=payload)
 
         if resp.status_code == 429:
-            # Rate limited — try fast config
+            # Rate limited - try fast config
             logger.warning("Nemotron rate-limited, falling back to DeepSeek Flash")
             fast_cfg = get_fast_config()
             payload["model"] = fast_cfg["model"]

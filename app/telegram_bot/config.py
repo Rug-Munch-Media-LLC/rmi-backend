@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CryptoRugMunch Bot — Configuration
+CryptoRugMunch Bot - Configuration
 ===================================
 Tiers, channels, API endpoints, DEX ref links, and constants.
 """
@@ -27,14 +27,14 @@ ENTERPRISE_CONTACT = "biz@rugmunch.io"
 
 SOCIAL_LINKS = {
     "website": {"emoji": "🌐", "name": "RugMunch.io", "url": WEBSITE_URL},
-    "twitter": {"emoji": "𝕏", "name": "Twitter/X", "url": TWITTER_URL},
+    "twitter": {"emoji": "𝕏", "name": "Twitter/X", "url": TWITTER_URL},  # noqa: RUF001
     "channel": {"emoji": "📢", "name": "Alerts Channel", "url": TELEGRAM_CHANNEL},
     "group": {"emoji": "💬", "name": "Community Chat", "url": TELEGRAM_GROUP},
 }
 
 # Bot profile (set via BotFather API on startup)
 BOT_DESCRIPTION = (
-    "🛡️ RugMunch Intelligence — The Bloomberg Terminal of Shitcoins\n\n"
+    "🛡️ RugMunch Intelligence - The Bloomberg Terminal of Shitcoins\n\n"
     "Scan any token across 77+ chains for honeypots, rug pulls, bundles, "
     "fake volume, and dev wallet history. AI-powered risk scoring with "
     "real-time alerts.\n\n"
@@ -169,7 +169,7 @@ USER_REF_LINKS = {
 # ══════════════════════════════════════════════
 # TOP-UP PACKS (Buy extra when you run out)
 # ══════════════════════════════════════════════
-# One-time purchases via Telegram Stars. No expiry —
+# One-time purchases via Telegram Stars. No expiry -
 # top-up balance carries over forever until used.
 TOP_UP_PACKS = {
     "scans_10": {
@@ -235,7 +235,7 @@ SCAN_PACKS = {
     },
     "wallet_forensic": {
         "name": "🕵️ Wallet Forensic Report",
-        "description": "Full wallet investigation — P&L, connections, history",
+        "description": "Full wallet investigation - P&L, connections, history",
         "includes": [
             "Transaction history",
             "Counterparty analysis",
@@ -247,7 +247,7 @@ SCAN_PACKS = {
     },
     "bundle_investigation": {
         "name": "🕸️ Bundle Investigation",
-        "description": "Full cluster analysis — find every connected wallet",
+        "description": "Full cluster analysis - find every connected wallet",
         "includes": [
             "Funding source map",
             "Timing correlation",

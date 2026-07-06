@@ -1,7 +1,7 @@
 """
-BNB Chain Pieverse Facilitator [OFFLINE — NXDOMAIN]
+BNB Chain Pieverse Facilitator [OFFLINE - NXDOMAIN]
 ====================================================
-STATUS: OFFLINE — api.pieverse.xyz DNS is NXDOMAIN (dead domain).
+STATUS: OFFLINE - api.pieverse.xyz DNS is NXDOMAIN (dead domain).
 Do not route payments to this facilitator. Kept for reference only.
 BNB Chain x402 facilitator with instant settlement.
 Supports USDC and USDT on BSC mainnet.
@@ -26,7 +26,7 @@ logger = logging.getLogger("facilitator.pieverse")
 
 
 class PieverseFacilitator(Facilitator):
-    """BNB Chain Pieverse facilitator — instant settlement for BSC.
+    """BNB Chain Pieverse facilitator - instant settlement for BSC.
 
     OFFLINE: api.pieverse.xyz DNS is NXDOMAIN. This facilitator is dead.
     """
@@ -51,7 +51,7 @@ class PieverseFacilitator(Facilitator):
 
     @property
     def priority(self) -> int:
-        return 999  # Dead facilitator — lowest possible priority
+        return 999  # Dead facilitator - lowest possible priority
 
     @property
     def verify_url(self) -> str | None:
@@ -75,7 +75,7 @@ class PieverseFacilitator(Facilitator):
         payload: dict[str, Any],
         requirements: dict[str, Any] | None = None,
     ) -> VerificationResult:
-        # OFFLINE: api.pieverse.xyz is NXDOMAIN — refuse all verifications
+        # OFFLINE: api.pieverse.xyz is NXDOMAIN - refuse all verifications
         return self._format_error("Pieverse facilitator is OFFLINE (api.pieverse.xyz NXDOMAIN)")
 
     async def _verify_live(
@@ -138,11 +138,11 @@ class PieverseFacilitator(Facilitator):
             return self._format_error(f"Pieverse internal error: {e}")
 
     async def health(self) -> bool:
-        # OFFLINE: api.pieverse.xyz is NXDOMAIN — always return False
+        # OFFLINE: api.pieverse.xyz is NXDOMAIN - always return False
         return False
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
-        # OFFLINE: api.pieverse.xyz is NXDOMAIN — refuse all settlements
+        # OFFLINE: api.pieverse.xyz is NXDOMAIN - refuse all settlements
         return SettlementResult(
             settled=False,
             reason="Pieverse facilitator is OFFLINE (api.pieverse.xyz NXDOMAIN)",

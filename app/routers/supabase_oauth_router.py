@@ -1,5 +1,5 @@
 """
-Supabase OAuth Router — Social + Web3 Auth.
+Supabase OAuth Router - Social + Web3 Auth.
 Supports: GitHub, Google (Gmail), Discord, X (Twitter), + Wallet (EVM/Solana).
 Account linking: Connect multiple auth methods to one user account.
 
@@ -75,7 +75,7 @@ def _get_supabase():
     try:
         import os
 
-        from supabase import Client, create_client
+        from supabase import Client, create_client  # noqa: F401
 
         url = os.getenv("SUPABASE_URL", "")
         key = os.getenv("SUPABASE_KEY", "")
@@ -297,7 +297,7 @@ async def oauth_start(provider: str, redirect_uri: str | None = None):
             "instructions": "Redirect user to oauth_url. After auth, they'll be redirected to your callback.",
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/callback/{provider}")
@@ -374,7 +374,7 @@ async def oauth_callback(provider: str, request: Request):
         }
     except Exception as e:
         logger.error(f"OAuth callback failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/link")
@@ -437,11 +437,11 @@ async def get_current_user(access_token: str = Query(None, description="Supabase
             "last_login": db_user.get("last_login"),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/health")
-async def oauth_health():
+async def oauth_health():  # noqa: F811
     """OAuth service health check."""
     supabase = _get_supabase()
     return {
@@ -454,7 +454,7 @@ async def oauth_health():
 
 
 @router.get("/")
-async def oauth_root():
+async def oauth_root():  # noqa: F811
     """OAuth service info."""
     return {
         "service": "RMI OAuth",

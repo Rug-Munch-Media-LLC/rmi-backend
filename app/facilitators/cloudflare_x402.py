@@ -2,7 +2,7 @@
 Cloudflare x402 Facilitator
 ============================
 Official x402.org facilitator for Base Sepolia and Ethereum mainnet.
-Deferred settlement — payments batched and settled later.
+Deferred settlement - payments batched and settled later.
 
 Used as a fallback when Coinbase CDP and PayAI are both unavailable.
 """
@@ -155,7 +155,7 @@ class CloudflareX402Facilitator(Facilitator):
     # ── Settlement ────────────────────────────────────────────
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
-        """Settle a verified payment via Cloudflare x402 (deferred — may queue)."""
+        """Settle a verified payment via Cloudflare x402 (deferred - may queue)."""
         try:
             timeout = aiohttp.ClientTimeout(total=30)
             async with aiohttp.ClientSession(timeout=timeout) as session:

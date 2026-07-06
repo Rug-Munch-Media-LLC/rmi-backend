@@ -1,5 +1,5 @@
 """
-Forensics API Router — Deep contract scan + cross-chain correlation + risk reports.
+Forensics API Router - Deep contract scan + cross-chain correlation + risk reports.
 Connects to /api/v1/forensics/*
 """
 
@@ -39,9 +39,9 @@ async def deep_scan(req: DeepScanRequest):
         result = deep_scan_contract(req.contract_address, chain=req.chain)
         return {"contract": req.contract_address, "chain": req.chain, "scan": result}
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Scanner unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Scanner unavailable: {e}") from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from e
 
 
 @router.post("/batch-scan")
@@ -53,9 +53,9 @@ async def batch_deep_scan(req: BatchScanRequest):
         result = batch_deep_scan(req.contracts, chain=req.chain)
         return {"contracts": len(req.contracts), "chain": req.chain, "results": result}
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from e
 
 
 @router.post("/risk-report")
@@ -67,9 +67,9 @@ async def risk_report(req: RiskReportRequest):
         report = RugRiskReport(token_address=req.token_address, chain=req.chain)
         return {"token_address": req.token_address, "chain": req.chain, "report": str(report)}
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from e
 
 
 @router.post("/cross-chain")
@@ -95,9 +95,9 @@ async def cross_chain_correlate(addresses: list[str] = Query(...), chains: list[
             ],
         }
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from e
 
 
 @router.get("/health")
@@ -115,6 +115,6 @@ async def threat_check(req: ThreatCheckRequest):
         result = await feeds.full_check(address=req.address, chain_id=req.chain_id)
         return result
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from e

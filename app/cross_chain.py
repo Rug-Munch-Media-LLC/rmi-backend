@@ -1,5 +1,5 @@
 """
-Cross-Chain Entity Resolution — Behavioral fingerprinting across blockchains.
+Cross-Chain Entity Resolution - Behavioral fingerprinting across blockchains.
 
 Answers: "This ETH scammer = this Solana address = this BSC deployer."
 Uses behavioral fingerprinting + funding source graph to link identities
@@ -178,7 +178,7 @@ def resolve_cross_chain_identity(
         funding_analysis = analyze_funding_chain(address, funding_sources, chain)
         evidence.append(f"Funding touches {len(funding_analysis['chains_involved'])} chains")
         if funding_analysis["mixer_funded"]:
-            evidence.append("Mixer-funded — possible laundering")
+            evidence.append("Mixer-funded - possible laundering")
         if funding_analysis["cross_chain_hops"] > 0:
             evidence.append(f"{funding_analysis['cross_chain_hops']} cross-chain funding hops detected")
 
@@ -188,7 +188,7 @@ def resolve_cross_chain_identity(
             evidence.append(f"Label match: {hint}")
 
     # 4. Transaction pattern similarity
-    # (placeholder — would compare tx timing, gas patterns, DEX preferences)
+    # (placeholder - would compare tx timing, gas patterns, DEX preferences)
 
     # ── Aggregate ──
     resolved = False

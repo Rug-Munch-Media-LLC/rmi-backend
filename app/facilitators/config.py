@@ -45,8 +45,8 @@ class FacilitatorConfig:
         default_factory=lambda: os.getenv("CLOUDFLARE_X402_URL", "https://x402.org/facilitator")
     )
 
-    # ── BNB Chain Pieverse [OFFLINE — NXDOMAIN — DISABLED] ──
-    # api.pieverse.xyz DNS is NXDOMAIN — this facilitator is dead
+    # ── BNB Chain Pieverse [OFFLINE - NXDOMAIN - DISABLED] ──
+    # api.pieverse.xyz DNS is NXDOMAIN - this facilitator is dead
     # Disabled: enables_at_zero and skips default URL on timeout
     pieverse_api_key: str = field(default_factory=lambda: os.getenv("PIEVERSE_API_KEY", ""))
     pieverse_verify_url: str = field(default_factory=lambda: "")
@@ -66,8 +66,8 @@ class FacilitatorConfig:
     )
     asterpay_sepa_iban: str = field(default_factory=lambda: os.getenv("ASTERPAY_SEPA_IBAN", ""))
 
-    # ── MERX x402 for TRON [OFFLINE — NXDOMAIN — DISABLED] ──
-    # api.merx.finance DNS is NXDOMAIN — this facilitator is dead
+    # ── MERX x402 for TRON [OFFLINE - NXDOMAIN - DISABLED] ──
+    # api.merx.finance DNS is NXDOMAIN - this facilitator is dead
     merx_tron_api_key: str = field(default_factory=lambda: os.getenv("MERX_TRON_API_KEY", ""))
     merx_tron_verify_url: str = field(default_factory=lambda: "")
     merx_tron_settle_url: str = field(default_factory=lambda: "")
@@ -77,8 +77,8 @@ class FacilitatorConfig:
     primev_agent_id: str = field(default_factory=lambda: os.getenv("PRIMEV_AGENT_ID", "23175"))
     primev_api_key: str = field(default_factory=lambda: os.getenv("PRIMEV_API_KEY", ""))
 
-    # ── Satoshi Facilitator (Bitcoin) [OFFLINE — NXDOMAIN — DISABLED] ──
-    # api.satoshi.dev DNS is NXDOMAIN — this facilitator is dead
+    # ── Satoshi Facilitator (Bitcoin) [OFFLINE - NXDOMAIN - DISABLED] ──
+    # api.satoshi.dev DNS is NXDOMAIN - this facilitator is dead
     satoshi_api_key: str = field(default_factory=lambda: os.getenv("SATOSHI_API_KEY", ""))
     satoshi_verify_url: str = field(default_factory=lambda: "")
     satoshi_settle_url: str = field(default_factory=lambda: "")

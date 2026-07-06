@@ -1,5 +1,5 @@
 """
-RugMaps API Router — RMI's interactive wallet visualization.
+RugMaps API Router - RMI's interactive wallet visualization.
 Self-contained engine, no BubbleMaps.com API dependency.
 Connects to /api/v1/rugmaps/*
 """
@@ -26,7 +26,7 @@ def _get_rm():
 
         return get_bubble_maps_pro()
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}") from e
 
 
 @router.post("/map")
@@ -39,9 +39,9 @@ async def generate_rug_map(req: RugMapsRequest):
         )
         return result.to_dict()
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from e
 
 
 @router.get("/analyze/{address}")
@@ -110,7 +110,7 @@ async def token_holder_graph(
         result = await rm.generate_map(center_wallet=token_address, depth=3, min_strength=0.05)
         d = result.to_dict()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Graph generation failed: {str(e)[:200]}")
+        raise HTTPException(status_code=500, detail=f"Graph generation failed: {str(e)[:200]}") from e
 
     nodes = d.get("nodes", [])
     links = d.get("links", [])
@@ -247,7 +247,7 @@ async def auto_label_wallet(request: dict):
             "count": len(all_labels),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/auto-label/stats")
@@ -259,4 +259,4 @@ async def auto_label_stats():
         labeler = get_auto_labeler()
         return {"status": "ok", **labeler.get_stats()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e

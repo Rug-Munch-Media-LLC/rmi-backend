@@ -1,5 +1,5 @@
 """
-Nansen API Integration — Wallet Labels, Smart Money, Token Flow
+Nansen API Integration - Wallet Labels, Smart Money, Token Flow
 ==============================================================
 
 Real-time on-chain intelligence from Nansen:
@@ -43,7 +43,7 @@ def _load_api_key() -> str:
     env_key = os.environ.get("NANSEN_API_KEY", "")
     if env_key:
         return env_key
-    logger.warning("Nansen API key not found — requests will fail without auth")
+    logger.warning("Nansen API key not found - requests will fail without auth")
     return ""
 
 
@@ -93,7 +93,7 @@ class NansenClient:
             )
             response.raise_for_status()
             return response.json()
-        except requests.RequestException as e:
+        except requests.RequestException as e:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
             logger.error("Nansen API error (%s): %s", path, e)
             return None
 

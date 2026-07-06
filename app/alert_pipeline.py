@@ -1,5 +1,5 @@
 """
-RMI Alert Pipeline — Real-time threat intelligence from scanners.
+RMI Alert Pipeline - Real-time threat intelligence from scanners.
 =================================================================
 Feeds the Live Intel panel, WebSocket streams, and alert endpoints.
 
@@ -153,7 +153,7 @@ async def get_recent_alerts(limit: int = 20, severity: str = "") -> list[dict]:
         return []
 
 
-# ── Alert generators — called by cron jobs or on-demand ──────────
+# ── Alert generators - called by cron jobs or on-demand ──────────
 
 
 async def scan_solana_new_pairs(limit: int = 5) -> int:

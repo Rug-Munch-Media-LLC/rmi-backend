@@ -442,7 +442,7 @@ def merge_and_deduplicate(all_labels):
     merged = []
     dupes_resolved = 0
 
-    for addr, entries in by_address.items():
+    for addr, entries in by_address.items():  # noqa: B007
         if len(entries) == 1:
             merged.append(entries[0])
         else:
@@ -481,17 +481,17 @@ def main():
     print(f"\nTotal raw labels: {len(all_labels):,}")
 
     # Chain distribution
-    chains = Counter(l["chain"] for l in all_labels)
+    chains = Counter(l["chain"] for l in all_labels)  # noqa: E741
     print(f"Chain distribution: {dict(chains)}")
 
     # Source distribution
-    sources = Counter(l["source"] for l in all_labels)
+    sources = Counter(l["source"] for l in all_labels)  # noqa: E741
     print("Source distribution:")
     for src, cnt in sources.most_common():
         print(f"  {src}: {cnt:,}")
 
     # Entity type distribution
-    entities = Counter(l.get("entity_type", "unknown") for l in all_labels)
+    entities = Counter(l.get("entity_type", "unknown") for l in all_labels)  # noqa: E741
     print("\nEntity type distribution:")
     for ent, cnt in entities.most_common():
         print(f"  {ent}: {cnt:,}")
@@ -504,7 +504,7 @@ def main():
 
     # Save clean CSVs by chain
     for chain in ["ethereum", "solana", "tron", "unknown"]:
-        chain_labels = [l for l in merged if l["chain"] == chain]
+        chain_labels = [l for l in merged if l["chain"] == chain]  # noqa: E741
         if not chain_labels:
             continue
 
@@ -523,7 +523,7 @@ def main():
             ]
             writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
             writer.writeheader()
-            for label in sorted(chain_labels, key=lambda l: l["address"]):
+            for label in sorted(chain_labels, key=lambda l: l["address"]):  # noqa: E741
                 writer.writerow(label)
 
         print(f"  Saved {outpath}: {len(chain_labels):,} labels")

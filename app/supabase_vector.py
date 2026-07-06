@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-TIER-1 VECTOR STORE — Supabase pgvector
+TIER-1 VECTOR STORE - Supabase pgvector
 =======================================
 Replaces brute-force Redis cosine search with proper ANN indexing.
-Uses Supabase pgvector extension — IVFFlat/HNSW indexes.
+Uses Supabase pgvector extension - IVFFlat/HNSW indexes.
 Scales to millions of documents with sub-20ms queries.
 
 Architecture:
@@ -46,7 +46,7 @@ def _get_headers():
 # Table configuration
 VECTOR_TABLE = "rag_vectors"
 
-# Dynamic embedding dimension — determined by the active model.
+# Dynamic embedding dimension - determined by the active model.
 # Local BGE-small = 384, BGE-M3/OpenRouter = 3072, etc.
 # Set via env var or detect at runtime from the embedder.
 EMBEDDING_DIM = int(os.environ.get("RAG_EMBEDDING_DIM", "0"))  # 0 = auto-detect
@@ -253,7 +253,7 @@ class SupabaseVectorStore:
                 logger.warning(f"Falling back to Redis vector store. Error: {e}")
 
         if not self._table_ready:
-            logger.warning("pgvector unavailable — using Redis fallback for vector search")
+            logger.warning("pgvector unavailable - using Redis fallback for vector search")
             self._table_ready = False  # Signal to use Redis fallback
 
         return self._table_ready
@@ -409,7 +409,7 @@ class SupabaseVectorStore:
                     "similarity_threshold": min_similarity,
                 },
             )
-            # search_embeddings returns [] for no matches — that's a valid result
+            # search_embeddings returns [] for no matches - that's a valid result
             if results is not None:
                 return [
                     {
@@ -439,7 +439,7 @@ class SupabaseVectorStore:
         # Pad or truncate to match the table column dimension
         embedding_padded = pad_vector(query_embedding, TABLE_DIM)
 
-        # Format embedding as pgvector literal — safe since it's all floats
+        # Format embedding as pgvector literal - safe since it's all floats
         embedding_literal = "[" + ",".join(f"{x:.8f}" for x in embedding_padded) + "]"
 
         # Escape single quotes in collection name to prevent SQL injection
@@ -495,7 +495,7 @@ class SupabaseVectorStore:
         # Get text search results
         text_results = []
         try:
-            # Escape user input for PostgreSQL text search — prevent SQL injection
+            # Escape user input for PostgreSQL text search - prevent SQL injection
             safe_query_text = query_text.replace("'", "''").replace("\\", "\\\\")
             safe_collection = collection.replace("'", "''") if collection else ""
             collection_filter = f"AND collection = '{safe_collection}'" if safe_collection else ""

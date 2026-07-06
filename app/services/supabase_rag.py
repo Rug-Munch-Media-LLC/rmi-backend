@@ -2,7 +2,7 @@
 """
 Supabase vector search helper (RAG integration).
 Uses the existing search_embeddings RPC already installed on the project.
-No pinecone/weaviate needed — SQL + pgvector.
+No pinecone/weaviate needed - SQL + pgvector.
 """
 
 import os
@@ -11,7 +11,7 @@ from typing import Any
 import httpx
 from dotenv import load_dotenv
 
-# Load env vars dynamically — override stale Docker env
+# Load env vars dynamically - override stale Docker env
 load_dotenv("/app/.env", override=True)
 
 
@@ -77,7 +77,7 @@ async def store_embedding(
 ) -> dict | None:
     """
     Store an embedding for later retrieval.
-    Idempotent — uses ON CONFLICT (document_id) for upsert via REST.
+    Idempotent - uses ON CONFLICT (document_id) for upsert via REST.
     """
     url = f"{_get_url()}/rest/v1/embeddings"
     payload = {

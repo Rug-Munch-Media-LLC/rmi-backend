@@ -1,4 +1,4 @@
-"""Database connection pooling — Redis + Postgres with auto-reconnect."""
+"""Database connection pooling - Redis + Postgres with auto-reconnect."""
 
 import logging
 import os

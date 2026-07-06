@@ -1,13 +1,13 @@
 """
-Multi-Modal RAG — Vision + Text retrieval for crypto security.
+Multi-Modal RAG - Vision + Text retrieval for crypto security.
 
 Capabilities:
-  1. Token logo analysis — stolen artwork detection via perceptual hashing
-  2. Screenshot OCR — extract addresses, contracts, amounts from images
-  3. Chart pattern analysis — detect pump/dump, rug pull patterns in price charts
+  1. Token logo analysis - stolen artwork detection via perceptual hashing
+  2. Screenshot OCR - extract addresses, contracts, amounts from images
+  3. Chart pattern analysis - detect pump/dump, rug pull patterns in price charts
 
 Uses:
-  - Perceptual hashing (pHash) for image similarity — zero API cost
+  - Perceptual hashing (pHash) for image similarity - zero API cost
   - DeepSeek v4 Flash vision for description/captioning (via LLM_API_KEY)
   - Text embedding via existing BGE-small for cross-modal retrieval
 
@@ -28,10 +28,10 @@ def compute_image_hash(image_bytes: bytes, hash_size: int = 16) -> str:
     """
     Compute perceptual hash (pHash) of an image.
 
-    Uses average hashing — resize to hash_size×hash_size, convert to grayscale,
+    Uses average hashing - resize to hash_sizexhash_size, convert to grayscale,  # noqa: RUF002
     compute average, threshold each pixel. Returns hex string.
 
-    Pure Python implementation — no OpenCV/pillow dependency.
+    Pure Python implementation - no OpenCV/pillow dependency.
     """
     # Parse minimal BMP/PNG header to get pixel data
     try:
@@ -186,7 +186,7 @@ class TokenLogoDB:
                 "confidence": "high",
                 "matched_logos": very_high,
                 "summary": f"Logo appears stolen from {very_high[0]['symbol']} "
-                f"({very_high[0]['chain']}) — {very_high[0]['similarity']:.1%} similarity",
+                f"({very_high[0]['chain']}) - {very_high[0]['similarity']:.1%} similarity",
             }
         elif high:
             return {
@@ -194,7 +194,7 @@ class TokenLogoDB:
                 "confidence": "medium",
                 "matched_logos": high,
                 "summary": f"Logo similar to {high[0]['symbol']} "
-                f"({high[0]['chain']}) — {high[0]['similarity']:.1%} similarity",
+                f"({high[0]['chain']}) - {high[0]['similarity']:.1%} similarity",
             }
         return {
             "suspected_theft": False,
@@ -224,7 +224,7 @@ async def describe_image(
 
         if not LLM_API_KEY:
             logger.warning("No LLM key available for image description")
-            return "Image description unavailable — no LLM API key configured"
+            return "Image description unavailable - no LLM API key configured"
 
         TASK_PROMPTS = {
             "describe": "Describe this image in detail. What crypto-related content does it show?",
@@ -295,7 +295,7 @@ async def describe_image(
         return f"Image analysis failed: {e}"
 
 
-# ── Screenshot OCR — lightweight text extraction ─────────────────
+# ── Screenshot OCR - lightweight text extraction ─────────────────
 
 
 def extract_text_from_image_hints(image_bytes: bytes) -> dict[str, list[str]]:

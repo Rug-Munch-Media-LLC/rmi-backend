@@ -1,4 +1,4 @@
-"""Auth alerts router — /api/v1/alerts/*.
+"""Auth alerts router - /api/v1/alerts/*.
 
 Stub implementation for the alerts domain. Real implementations
 will wire up to user-configured alert rules and notification channels
@@ -52,7 +52,7 @@ async def create_alert(rule: AlertRule) -> dict[str, str]:
     """
     raise HTTPException(
         status_code=501,
-        detail="Alert persistence not yet implemented — coming in v5.1",
+        detail="Alert persistence not yet implemented - coming in v5.1",
     )
 
 
@@ -61,5 +61,5 @@ async def delete_alert(rule_id: str) -> dict[str, str]:
     """Delete an alert rule by ID."""
     raise HTTPException(
         status_code=501,
-        detail="Alert persistence not yet implemented — coming in v5.1",
+        detail="Alert persistence not yet implemented - coming in v5.1",
     )

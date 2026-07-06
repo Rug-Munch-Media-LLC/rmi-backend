@@ -1,9 +1,9 @@
 """
-SENTINEL — Three Hop Gas Trace Module
+SENTINEL - Three Hop Gas Trace Module
 ======================================
 Traces deployer gas money up to 3 wallet hops deep to identify
 funding sources. Flags projects where the gas chain dead-ends at a
-freshly created exchange hot wallet with zero prior history — a classic
+freshly created exchange hot wallet with zero prior history - a classic
 sniper/rug deployment pattern.
 
 Key insight: professional ruggers fund deployer wallets through
@@ -194,7 +194,7 @@ class GasTraceAnalyzer:
                 break
 
             if funding is None:
-                # No funding source found — dead end
+                # No funding source found - dead end
                 report.dead_end = True
                 report.dead_end_reason = "no_funding_tx"
                 report.trace_complete = False
@@ -255,7 +255,7 @@ class GasTraceAnalyzer:
                 report.trace_complete = True
                 logger.info(f"Gas trace reached max {self.MAX_HOPS} hops to {source_address}")
         else:
-            # Loop completed without break — all hops exhausted
+            # Loop completed without break - all hops exhausted
             report.trace_complete = True
 
         # Calculate risk label
@@ -368,7 +368,7 @@ class GasTraceAnalyzer:
             if txs and len(txs) > 0:
                 sorted_tx = sorted(txs, key=lambda x: x.get("block_time", 0))
                 earliest = sorted_tx[0]
-                # Determine sender — depends on Solscan's response format
+                # Determine sender - depends on Solscan's response format
                 sender = (
                     earliest.get("signer", [None])[0]
                     if isinstance(earliest.get("signer"), list)
@@ -433,7 +433,7 @@ class GasTraceAnalyzer:
                 result["dead_end_reason"] = "cex_legitimate"
                 result["relationship"] = f"cex_hot_wallet_{cex_name}"
             else:
-                # CEX wallet with low TX count — suspicious, flag as dead end
+                # CEX wallet with low TX count - suspicious, flag as dead end
                 result["is_dead_end"] = True
                 result["dead_end_reason"] = "fresh_cex_wallet"
                 result["is_fresh"] = True
@@ -466,9 +466,9 @@ class GasTraceAnalyzer:
             result["relationship"] = "fresh_wallet (no history)"
             return result
 
-        # ── Step 4: Not CEX, not fresh — continue tracing
+        # ── Step 4: Not CEX, not fresh - continue tracing
         if tx_count == 0:
-            # Wallet with 0 TXs — dead end
+            # Wallet with 0 TXs - dead end
             result["is_dead_end"] = True
             result["dead_end_reason"] = "empty_wallet"
             result["relationship"] = "empty_wallet"
@@ -495,7 +495,7 @@ class GasTraceAnalyzer:
 
     async def _check_fresh_wallet(self, first_seen_ts: int, tx_count: int, chain: str) -> bool:
         """
-        Determine if a wallet is 'fresh' — created within FRESH_WALLET_DAYS
+        Determine if a wallet is 'fresh' - created within FRESH_WALLET_DAYS
         and has virtually no history.
         """
         if tx_count > 2:

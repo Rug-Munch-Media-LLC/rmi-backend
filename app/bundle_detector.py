@@ -1,5 +1,5 @@
 """
-Bundle Detection Engine — Atomic block co-occurrence analysis.
+Bundle Detection Engine - Atomic block co-occurrence analysis.
 Detects Jito bundles, Flashbots bundles, and coordinated launches.
 Implements: atomic-block grouping, common funder, temporal clustering,
 distribution anomaly detection, holder concentration scoring.
@@ -174,7 +174,7 @@ class BundleDetector:
             result.temporal_score = 0.3
 
     def _distribution_anomaly_signal(self, result: BundleDetection, holders: list[dict]):
-        """Check for flat/rounded amounts — hallmark of bundled distribution."""
+        """Check for flat/rounded amounts - hallmark of bundled distribution."""
         amounts = []
         for h in holders:
             amt = h.get("amount", 0)

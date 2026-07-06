@@ -3,9 +3,9 @@ CoinStats, Mobula, and CryptoNews DataBus Providers
 ===================================================
 Three free/freemium API providers for enhanced crypto intelligence.
 
-1. CoinStats — Per-wallet DeFi resolution across 10K+ protocols
-2. Mobula — Long-tail DEX token pricing (10K free credits/month)
-3. CryptoNews — Free unlimited news API (no key needed)
+1. CoinStats - Per-wallet DeFi resolution across 10K+ protocols
+2. Mobula - Long-tail DEX token pricing (10K free credits/month)
+3. CryptoNews - Free unlimited news API (no key needed)
 """
 
 import logging
@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger("databus.api_providers")
 
 # ═══════════════════════════════════════════════════════════════
-# 1. COINSTATS — Per-Wallet DeFi Resolution
+# 1. COINSTATS - Per-Wallet DeFi Resolution
 # Free tier: public API, no key needed for basic endpoints
 # ═══════════════════════════════════════════════════════════════
 
@@ -21,7 +21,7 @@ COINSTATS_BASE = "https://openapiv1.coinstats.app"
 
 
 async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
-    """Resolve a wallet's complete DeFi position — collateral, borrows, LPs, rewards."""
+    """Resolve a wallet's complete DeFi position - collateral, borrows, LPs, rewards."""
     import aiohttp
 
     try:
@@ -70,7 +70,7 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 2. MOBULA — Long-tail DEX Token Pricing
+# 2. MOBULA - Long-tail DEX Token Pricing
 # Free tier: 10,000 credits/month, no rate limit
 # ═══════════════════════════════════════════════════════════════
 
@@ -80,7 +80,7 @@ MOBULA_BASE = "https://api.mobula.io/api/1"
 async def fetch_mobula_market(
     asset: str | None = None, blockchain: str | None = None, limit: int = 20
 ) -> dict:
-    """Fetch market data from Mobula — covers long-tail tokens missed by CMC/CG."""
+    """Fetch market data from Mobula - covers long-tail tokens missed by CMC/CG."""
     import aiohttp
 
     mobula_key = __import__("os").environ.get("MOBULA_API_KEY", "")
@@ -108,7 +108,7 @@ async def fetch_mobula_market(
                         "tokens": tokens[:limit],
                         "count": len(tokens),
                         "query": {"asset": asset, "blockchain": blockchain},
-                        "source": "Mobula (free tier — 10K credits/month)",
+                        "source": "Mobula (free tier - 10K credits/month)",
                         "url": "https://docs.mobula.io",
                         "credits_remaining": resp.headers.get("x-credits-remaining", "unknown"),
                     }
@@ -121,7 +121,7 @@ async def fetch_mobula_market(
 
 
 async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dict:
-    """Fetch wallet portfolio via Mobula — balances, tokens, transaction history."""
+    """Fetch wallet portfolio via Mobula - balances, tokens, transaction history."""
     import aiohttp
 
     mobula_key = __import__("os").environ.get("MOBULA_API_KEY", "")
@@ -157,7 +157,7 @@ async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dic
 
 
 # ═══════════════════════════════════════════════════════════════
-# 3. CRYPTONEWS (cryptocurrency.cv) — Free unlimited news API
+# 3. CRYPTONEWS (cryptocurrency.cv) - Free unlimited news API
 # No API key, no rate limits, REST + RSS
 # ═══════════════════════════════════════════════════════════════
 
@@ -167,7 +167,7 @@ CRYPTONEWS_BASE = "https://cryptocurrency.cv/api"
 async def fetch_crypto_news(
     category: str | None = None, source: str | None = None, limit: int = 20
 ) -> dict:
-    """Fetch crypto news from cryptocurrency.cv — free, no key, unlimited."""
+    """Fetch crypto news from cryptocurrency.cv - free, no key, unlimited."""
     import aiohttp
 
     try:

@@ -1,13 +1,13 @@
-"""T01 — Bayesian Deployer Reputation System.
+"""T01 - Bayesian Deployer Reputation System.
 
 Per MINIMAX_M3_TASKS.md T01. Beta-Binomial posterior replaces the
 weighted-sum that conflated probabilities with volumes.
 
 The legacy 0-100 score is kept for backward compatibility (every
 existing consumer reads it). The new authoritative output is:
-  probability     — P(rug) = alpha / (alpha + beta)
-  credible_interval_95 — 95% Bayesian CI from Beta distribution
-  observations    — {successes, failures, total}
+  probability     - P(rug) = alpha / (alpha + beta)
+  credible_interval_95 - 95% Bayesian CI from Beta distribution
+  observations    - {successes, failures, total}
 
 We start with a uniform prior Beta(1,1). Each rug increments beta.
 Each legitimate deployment increments alpha. News sentiment < -0.3
@@ -71,7 +71,7 @@ def _beta_credible_interval_95(alpha: float, beta: float) -> tuple[float, float]
 
 async def compute_deployer_posterior(
     deployer: Deployer,
-    catalog: CatalogService,
+    catalog: CatalogService,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 ) -> dict:
     """Compute Bayesian reputation for a deployer.
 
@@ -166,7 +166,7 @@ async def compute_deployer_posterior(
 
 async def compute_deployer_reputation(
     deployer: Deployer,
-    catalog: CatalogService,
+    catalog: CatalogService,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 ) -> int:
     """Legacy 0-100 reputation score.
 

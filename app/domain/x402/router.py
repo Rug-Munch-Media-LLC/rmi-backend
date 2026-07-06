@@ -1,10 +1,10 @@
 """T34 x402 Paid Tools Catalog.
 
 Per v4.0 §T34. Endpoints:
-  GET  /api/v1/x402/catalog    — list all tools with pricing tiers
-  GET  /api/v1/x402/usage      — per-agent usage stats
-  GET  /api/v1/x402/receipts/{tx_hash}  — payment receipt
-  POST /api/v1/x402/verify     — verify a payment header
+  GET  /api/v1/x402/catalog    - list all tools with pricing tiers
+  GET  /api/v1/x402/usage      - per-agent usage stats
+  GET  /api/v1/x402/receipts/{tx_hash}  - payment receipt
+  POST /api/v1/x402/verify     - verify a payment header
 """
 from __future__ import annotations
 
@@ -129,7 +129,7 @@ async def receipt(tx_hash: str) -> ReceiptResponse:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(500, f"receipt_query_fail: {e}")
+        raise HTTPException(500, f"receipt_query_fail: {e}") from e
 
 
 @router.post("/verify")

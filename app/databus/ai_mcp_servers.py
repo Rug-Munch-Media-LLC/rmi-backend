@@ -1,12 +1,12 @@
 """
-RMI AI-POWERED MCP SERVERS — Local Ollama, Zero API Cost
+RMI AI-POWERED MCP SERVERS - Local Ollama, Zero API Cost
 =========================================================
 8 unique MCP servers using local AI models.
-qwen2.5-coder:7b — primary (coding, analysis)
-llama3.2:3b — fast fallback (classification, summarization)
-nomic-embed-text — RAG embeddings
-dolphin-mistral:7b — creative/uncensored tasks
-smollm2:1.7b — ultra-fast simple tasks
+qwen2.5-coder:7b - primary (coding, analysis)
+llama3.2:3b - fast fallback (classification, summarization)
+nomic-embed-text - RAG embeddings
+dolphin-mistral:7b - creative/uncensored tasks
+smollm2:1.7b - ultra-fast simple tasks
 """
 
 import json
@@ -29,7 +29,7 @@ def gredis():
 
 
 def trial(fp: str, tool: str, limit: int = 5) -> dict:
-    # Premium AI tools — lower free tier, costs us CPU
+    # Premium AI tools - lower free tier, costs us CPU
     r, k = gredis(), f"mcp:trial:{tool}:{fp}"
     c = int(r.get(k) or 0)
     if c < limit:
@@ -59,7 +59,7 @@ def ask(prompt: str, model: str = "qwen2.5-coder:7b", tokens: int = 250) -> str:
 
 
 # ═══════════════════════════════════════════════════
-# MCP #1: CONTRACT EXPLAINER — AI explains smart contracts
+# MCP #1: CONTRACT EXPLAINER - AI explains smart contracts
 # ═══════════════════════════════════════════════════
 def explain_contract(address: str, chain: str = "ethereum", fp: str = "anon") -> dict:
     """AI explains what a smart contract does. Uses qwen2.5-coder. 5 free/day. $0.10 premium."""
@@ -94,7 +94,7 @@ Explain: 1) What this contract does 2) Any risks 3) Key functions. Be concise.""
 
 
 # ═══════════════════════════════════════════════════
-# MCP #2: TX FORENSICS NARRATOR — AI narrates wallet activity
+# MCP #2: TX FORENSICS NARRATOR - AI narrates wallet activity
 # ═══════════════════════════════════════════════════
 def narrate_wallet(address: str, chain: str = "ethereum", fp: str = "anon") -> dict:
     """AI narrates what a wallet is doing. 5 free/day. $0.10 premium."""
@@ -133,7 +133,7 @@ Narrate: What is this wallet doing? Trading? Accumulating? Laundering? Be specif
 
 
 # ═══════════════════════════════════════════════════
-# MCP #3: RUG PULL PREDICTOR — AI predicts rug risk
+# MCP #3: RUG PULL PREDICTOR - AI predicts rug risk
 # ═══════════════════════════════════════════════════
 def predict_rug(address: str, chain: str = "ethereum", fp: str = "anon") -> dict:
     """AI rug pull prediction. Combines on-chain data + AI analysis. 3 free/day. $0.15 premium."""
@@ -170,7 +170,7 @@ def predict_rug(address: str, chain: str = "ethereum", fp: str = "anon") -> dict
 
 
 # ═══════════════════════════════════════════════════
-# MCP #4: NEWS TL;DR — AI summarizes crypto news
+# MCP #4: NEWS TL;DR - AI summarizes crypto news
 # ═══════════════════════════════════════════════════
 def news_tldr(topic: str = "", fp: str = "anon") -> dict:
     """AI summarizes latest crypto news. Uses dolphin-mistral. 10 free/day. $0.05 premium."""
@@ -198,7 +198,7 @@ def news_tldr(topic: str = "", fp: str = "anon") -> dict:
 
 
 # ═══════════════════════════════════════════════════
-# MCP #5: WALLET PROFILER — AI profiles wallet identity
+# MCP #5: WALLET PROFILER - AI profiles wallet identity
 # ═══════════════════════════════════════════════════
 def profile_wallet(address: str, fp: str = "anon") -> dict:
     """AI wallet identity profiling. 5 free/day. $0.08 premium."""
@@ -225,7 +225,7 @@ def profile_wallet(address: str, fp: str = "anon") -> dict:
 
 
 # ═══════════════════════════════════════════════════
-# MCP #6: CODE AUDITOR — AI reviews Solidity for bugs
+# MCP #6: CODE AUDITOR - AI reviews Solidity for bugs
 # ═══════════════════════════════════════════════════
 def audit_code(code: str, fp: str = "anon") -> dict:
     """AI reviews Solidity code. 3 free/day. $0.15 premium."""
@@ -244,7 +244,7 @@ def audit_code(code: str, fp: str = "anon") -> dict:
 
 
 # ═══════════════════════════════════════════════════
-# MCP #7: SENTIMENT ORACLE — AI market sentiment
+# MCP #7: SENTIMENT ORACLE - AI market sentiment
 # ═══════════════════════════════════════════════════
 def sentiment_oracle(token: str = "bitcoin", fp: str = "anon") -> dict:
     """AI market sentiment. Analyzes news + labels. 10 free/day. $0.05 premium."""
@@ -271,7 +271,7 @@ def sentiment_oracle(token: str = "bitcoin", fp: str = "anon") -> dict:
 
 
 # ═══════════════════════════════════════════════════
-# MCP #8: CROSS-CHAIN STORY — AI traces multi-chain flows
+# MCP #8: CROSS-CHAIN STORY - AI traces multi-chain flows
 # ═══════════════════════════════════════════════════
 def trace_story(address: str, fp: str = "anon") -> dict:
     """AI traces fund flows across chains. 5 free/day. $0.12 premium."""

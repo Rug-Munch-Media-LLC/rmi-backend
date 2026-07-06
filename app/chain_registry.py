@@ -1,5 +1,5 @@
 """
-SENTINEL — Multi-Chain Registry & Configuration
+SENTINEL - Multi-Chain Registry & Configuration
 ================================================
 Centralized chain definitions, RPC endpoints, explorer APIs,
 and data source configurations for all 13 supported chains.
@@ -692,7 +692,7 @@ def get_explorer_url(chain_name: str, address: str, tx: str = "") -> str:
     if not cfg:
         return ""
     if tx:
-        return f"{cfg.explorer_url}/tx/{tx}" if cfg.is_evm else f"{cfg.explorer_url}/tx/{tx}"
+        return f"{cfg.explorer_url}/tx/{tx}" if cfg.is_evm else f"{cfg.explorer_url}/tx/{tx}"  # noqa: RUF034
     if cfg.is_solana:
         return f"{cfg.explorer_url}/account/{address}"
     return f"{cfg.explorer_url}/address/{address}"

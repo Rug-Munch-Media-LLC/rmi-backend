@@ -5,12 +5,12 @@ Signal detection layer on top of prediction market data.
 Transforms raw market data into actionable intelligence.
 
 Signal Types:
-  1. PROBABILITY_SWING  — Sudden odds shift before news breaks (early warning)
-  2. CROSS_SOURCE_GAP   — Disagreement between sources (arbitrage/uncertainty)
-  3. MARKET_SCANNER_DIVERGENCE — Market says safe, scanner says danger (or vice versa)
-  4. TOKEN_RISK_SIGNAL  — Prediction markets flagging a specific token
-  5. ECOSYSTEM_RISK     — Broad risk indicators (depeg odds, exploit probability)
-  6. VOLUME_SURGE       — Unusual trading volume on a security market
+  1. PROBABILITY_SWING  - Sudden odds shift before news breaks (early warning)
+  2. CROSS_SOURCE_GAP   - Disagreement between sources (arbitrage/uncertainty)
+  3. MARKET_SCANNER_DIVERGENCE - Market says safe, scanner says danger (or vice versa)
+  4. TOKEN_RISK_SIGNAL  - Prediction markets flagging a specific token
+  5. ECOSYSTEM_RISK     - Broad risk indicators (depeg odds, exploit probability)
+  6. VOLUME_SURGE       - Unusual trading volume on a security market
 
 Each signal has:
   - severity: critical | high | medium | low | info
@@ -73,7 +73,7 @@ class PredictionMarketIntel:
     HIGH_VOLUME = 50_000  # $50K minimum for high-confidence signals
 
     # Security-relevant search queries for ecosystem monitoring
-    ECOSYSTEM_QUERIES = [
+    ECOSYSTEM_QUERIES = [  # noqa: RUF012
         "crypto hack",
         "defi exploit",
         "crypto exchange insolvent",
@@ -215,7 +215,7 @@ class PredictionMarketIntel:
                         insight=(
                             f"At {m.probability_yes * 100:.0f}% probability with ${m.volume_usd:,.0f} in volume, "
                             f"traders are putting real money behind this outcome. "
-                            f"This is not sentiment — it's financial conviction."
+                            f"This is not sentiment - it's financial conviction."
                         ),
                         evidence=[self._market_summary(m)],
                         action=(

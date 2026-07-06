@@ -1,5 +1,5 @@
 """
-RAG Chunking Engine — 2026 Modern Standards
+RAG Chunking Engine - 2026 Modern Standards
 ============================================
 Recursive character splitting with configurable strategies per content type.
 Content-hash dedup via Redis. Quality scoring for ingestion filtering.
@@ -53,7 +53,7 @@ def recursive_chunk(
     separators: list[str] | None = None,
 ) -> list[str]:
     """
-    Recursive character splitting — tries to split at natural boundaries.
+    Recursive character splitting - tries to split at natural boundaries.
     Separator hierarchy: paragraph → line → sentence → word → character.
 
     Args:
@@ -129,7 +129,7 @@ def sentence_chunk(
     overlap: float = 0.15,
 ) -> list[str]:
     """
-    Sentence-aware chunking — never splits mid-sentence.
+    Sentence-aware chunking - never splits mid-sentence.
     Groups sentences to hit target chunk size.
     """
     if not text:
@@ -211,7 +211,7 @@ def chunk_document(
     elif strat_name == "fixed":
         return fixed_chunk(text, size, overlap)
     elif strat_name == "semantic":
-        # Semantic chunking requires embedding every sentence — expensive.
+        # Semantic chunking requires embedding every sentence - expensive.
         # Fall back to recursive for now; semantic can be added later.
         logger.info("Semantic chunking requested, falling back to recursive")
         return recursive_chunk(text, size, overlap)

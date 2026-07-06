@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DataBus Cache Warmer — called by cron every 5 minutes.
+DataBus Cache Warmer - called by cron every 5 minutes.
 Seeds top-10 most-missed chains if not present, then starts/verifies
 the background warm loop.
 """

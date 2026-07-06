@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#5 — On-Chain CV for Tokens. One-page report: age, holders, liquidity, contract risks,
+"""#5 - On-Chain CV for Tokens. One-page report: age, holders, liquidity, contract risks,
 social signals, price history. Shareable permalink."""
 
 import os
@@ -49,7 +49,7 @@ def _generate_summary(cv: dict) -> str:
     return (
         f"{cv.get('symbol', '?')} is a {age}-day-old token on {cv.get('chain', '?').upper()} "
         f"with ${liq:,.0f} liquidity and {cv.get('holders', 0)} holders. "
-        f"SENTINEL rates it {safety}/100 — {verdict}."
+        f"SENTINEL rates it {safety}/100 - {verdict}."
     )
 
 
@@ -69,7 +69,7 @@ async def get_token_cv(chain: str, address: str):
             scan = resp.json()
 
     except Exception as e:
-        raise HTTPException(502, f"Scan failed: {e}")
+        raise HTTPException(502, f"Scan failed: {e}") from e
 
     free = scan.get("free", {})
     pro = scan.get("pro", {})

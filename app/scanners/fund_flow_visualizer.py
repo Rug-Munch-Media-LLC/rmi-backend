@@ -1,5 +1,5 @@
 """
-SENTINEL — Fund Flow Visualization
+SENTINEL - Fund Flow Visualization
 ====================================
 Generates an SVG directed graph showing token fund flow:
   creator → funders → LP → early sellers
@@ -339,7 +339,7 @@ def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple:
     else:
         # Use a placeholder
         _add_node("UNKNOWN_CREATOR", "creator", 0)
-        risk_flags.append("Creator address not found — fund origin untraceable")
+        risk_flags.append("Creator address not found - fund origin untraceable")
 
     creator_key = (creator_addr or "UNKNOWN_CREATOR").lower()
 
@@ -440,15 +440,15 @@ def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple:
 
     # Risk flag generation
     if len(nodes) <= 2:
-        risk_flags.append("Very few wallets identified — possible low-activity or new token")
+        risk_flags.append("Very few wallets identified - possible low-activity or new token")
     creator_as_holder = any(n.address.lower() == creator_key and n.role != "creator" for n in nodes)
     if creator_as_holder:
-        risk_flags.append("Creator still holds significant tokens — centralization risk")
+        risk_flags.append("Creator still holds significant tokens - centralization risk")
 
     total_sellers = len([n for n in nodes if n.role == "seller"])
     total_funders = len([n for n in nodes if n.role == "funder"])
     if total_sellers > total_funders * 2:
-        risk_flags.append("More sellers than funders — early dumping pattern")
+        risk_flags.append("More sellers than funders - early dumping pattern")
 
     return nodes, edges, risk_flags
 

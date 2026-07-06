@@ -1,5 +1,5 @@
 """
-Multi-Layer Cache Manager — L1 In-Memory + L2 Redis with Smart TTLs.
+Multi-Layer Cache Manager - L1 In-Memory + L2 Redis with Smart TTLs.
 
 Provides a two-level caching strategy:
   L1: In-memory dict (fast, per-process, bounded size)
@@ -32,26 +32,26 @@ logger = logging.getLogger(__name__)
 
 # fmt: off
 SMART_TTLS: dict[str, int] = {
-    "token_meta":    86400,   # 24 hours — token name/symbol/logo rarely change
+    "token_meta":    86400,   # 24 hours - token name/symbol/logo rarely change
     "deployer":      0,       # Permanent (0 = never expire in L1, Redis TTL omitted)
-    "contract_code": 3600,    # 1 hour — contract code is immutable but may redeploy
-    "holders":        300,    # 5 minutes — holder count changes frequently
-    "holder_list":    120,    # 2 minutes — individual holder data can shift
-    "price":          10,    # 10 seconds — price is highly volatile
-    "liquidity":      30,    # 30 seconds — liquidity changes but slower than price
-    "volume":         30,    # 30 seconds — same reasoning
-    "market_cap":     60,    # 1 minute — derived from price × supply
-    "social":         900,   # 15 minutes — social media data updates slowly
-    "metadata":      3600,    # 1 hour — token metadata is semi-static
-    "rpc":             60,    # 1 minute — generic RPC responses
-    "rpc_account":     30,    # 30 seconds — account state (balance, etc.)
-    "rpc_block":       15,    # 15 seconds — block data is fresh
-    "rpc_tx":          60,    # 1 minute — confirmed transactions
-    "scanner":        300,    # 5 minutes — scanner results (risk scores, etc.)
-    "entity":        3600,    # 1 hour — entity labeling by address
-    "news":           600,    # 10 minutes — news articles
-    "trending":       300,    # 5 minutes — trending tokens
-    "default":        120,    # 2 minutes — catch-all
+    "contract_code": 3600,    # 1 hour - contract code is immutable but may redeploy
+    "holders":        300,    # 5 minutes - holder count changes frequently
+    "holder_list":    120,    # 2 minutes - individual holder data can shift
+    "price":          10,    # 10 seconds - price is highly volatile
+    "liquidity":      30,    # 30 seconds - liquidity changes but slower than price
+    "volume":         30,    # 30 seconds - same reasoning
+    "market_cap":     60,    # 1 minute - derived from price x supply
+    "social":         900,   # 15 minutes - social media data updates slowly
+    "metadata":      3600,    # 1 hour - token metadata is semi-static
+    "rpc":             60,    # 1 minute - generic RPC responses
+    "rpc_account":     30,    # 30 seconds - account state (balance, etc.)
+    "rpc_block":       15,    # 15 seconds - block data is fresh
+    "rpc_tx":          60,    # 1 minute - confirmed transactions
+    "scanner":        300,    # 5 minutes - scanner results (risk scores, etc.)
+    "entity":        3600,    # 1 hour - entity labeling by address
+    "news":           600,    # 10 minutes - news articles
+    "trending":       300,    # 5 minutes - trending tokens
+    "default":        120,    # 2 minutes - catch-all
 }
 # fmt: on
 
@@ -302,7 +302,7 @@ class RpcCache:
                 if ttl > 0:
                     await self._redis.setex(redis_key, ttl, raw)
                 else:
-                    # Permanent — no expiry
+                    # Permanent - no expiry
                     await self._redis.set(redis_key, raw)
             except Exception as e:
                 logger.debug(f"Redis set error for {key}: {e}")
@@ -317,7 +317,7 @@ class RpcCache:
     ) -> Any:
         """Get cached value or fetch fresh via factory function.
 
-        This is the primary convenience method — it combines get() + set()
+        This is the primary convenience method - it combines get() + set()
         in a single call. If the value is cached and not expired, returns it
         immediately. Otherwise, calls factory_fn(), caches the result, and
         returns it.
@@ -351,9 +351,9 @@ class RpcCache:
         """Remove all cached entries matching a key pattern.
 
         For L1, uses simple string matching (fnmatch-style with *):
-          - "price:*:*" — invalidates all price entries
-          - "*:solana:*" — invalidates all Solana entries
-          - "price:solana:*" — invalidates a specific token's price
+          - "price:*:*" - invalidates all price entries
+          - "*:solana:*" - invalidates all Solana entries
+          - "price:solana:*" - invalidates a specific token's price
 
         For L2, uses Redis SCAN + pattern matching.
 

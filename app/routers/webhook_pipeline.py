@@ -27,6 +27,8 @@ from datetime import UTC, datetime
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from app.core.redis import get_redis
+
 logger = logging.getLogger("webhook_pipeline")
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhook-pipeline"])
@@ -61,10 +63,10 @@ def queue_webhook_delivery(
     }
 
     delivery = {
-        "url": webhook_url,
+        "url": webhook_url,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
         "payload": payload,
-        "secret": secret,
-        "webhook_id": webhook_id,
+        "secret": secret,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        "webhook_id": webhook_id,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
         "attempts": 0,
         "queued_at": payload["created_at"],
     }

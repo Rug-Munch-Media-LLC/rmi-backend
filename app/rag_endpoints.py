@@ -1,5 +1,5 @@
 """
-RAG optimization endpoints — included via APIRouter for clean git history.
+RAG optimization endpoints - included via APIRouter for clean git history.
 Confidence scoring, Solidity chunking, deployer reputation, cross-chain,
 multi-modal, investigation narratives, graph RAG, streaming, email.
 """

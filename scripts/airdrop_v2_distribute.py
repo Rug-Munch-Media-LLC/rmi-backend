@@ -28,12 +28,12 @@ class QualifiedHolder:
 
 class AirdropV2Distributor:
     def __init__(self, snapshot_path: str = "/root/backend/data/airdrop_v2_snapshot.json"):
-        self.snapshot = json.load(open(snapshot_path))
-        self.qualification = json.load(open("/root/backend/data/airdrop_v2_qualification.json"))
+        self.snapshot = json.load(open(snapshot_path))  # noqa: SIM115
+        self.qualification = json.load(open("/root/backend/data/airdrop_v2_qualification.json"))  # noqa: SIM115
         try:
             self.redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
             self.redis.ping()
-        except:
+        except:  # noqa: E722
             self.redis = None
             print("Warning: Redis not available, using local checks only")
 
@@ -45,7 +45,7 @@ class AirdropV2Distributor:
         patterns = ["scammer", "blacklist", "rug", "honeypot", "bot", "sniper"]
         blacklist_file = Path("/root/backend/data/blacklist_patterns.json")
         if blacklist_file.exists():
-            data = json.load(open(blacklist_file))
+            data = json.load(open(blacklist_file))  # noqa: SIM115
             patterns.extend(data.get("patterns", []))
         return patterns
 
@@ -61,7 +61,7 @@ class AirdropV2Distributor:
                         for pattern in self.blacklist_patterns:
                             if pattern in value_str:
                                 return True, f"Redis label: {key}={value}"
-            except:
+            except:  # noqa: E722
                 pass
 
         # Check local scam lists
@@ -69,10 +69,10 @@ class AirdropV2Distributor:
         if scam_dir.exists():
             for f in scam_dir.glob("*.json"):
                 try:
-                    data = json.load(open(f))
+                    data = json.load(open(f))  # noqa: SIM115
                     if address in str(data):
                         return True, f"Found in {f.name}"
-                except:
+                except:  # noqa: E722
                     pass
 
         return False, None
@@ -191,7 +191,7 @@ class AirdropV2Distributor:
     def save_distribution(self, output_path: str, token_address: str, total_amount: float, chain: str = "solana"):
         """Save distribution list to file"""
         result = self.generate_distribution_list(token_address, total_amount, chain)
-        json.dump(result, open(output_path, "w"), indent=2)
+        json.dump(result, open(output_path, "w"), indent=2)  # noqa: SIM115
         print(f"Distribution saved to: {output_path}")
         print(f"Total recipients: {result['total_qualified']}")
         print(f"Total excluded: {result['total_excluded']}")

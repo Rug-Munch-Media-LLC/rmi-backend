@@ -1,5 +1,5 @@
 """
-🧠 RMI Crypto AI Agent — DataBus-Powered
+🧠 RMI Crypto AI Agent - DataBus-Powered
 ==========================================
 THE consumer-facing AI for Telegram and web. All data flows through DataBus.
 
@@ -57,7 +57,7 @@ AGENT_CHAINS = {
 
 
 def _databus_fetch(data_type: str, **params) -> dict | None:
-    """Fetch data from DataBus — single source of truth."""
+    """Fetch data from DataBus - single source of truth."""
     try:
         payload = json.dumps({"data_type": data_type, **params}).encode()
         req = Request(
@@ -106,7 +106,7 @@ def _detect_intent(text: str) -> dict:
     return {"chains": chains_to_query[:3]}
 
 
-RMI_PERSONA = """You are the RMI Crypto AI — powered by Rug Munch Intelligence.
+RMI_PERSONA = """You are the RMI Crypto AI - powered by Rug Munch Intelligence.
 You run on DataBus: 93 chains, 116 providers, 3,480-doc knowledge base.
 You are direct, security-first, and data-driven. Never give financial advice.
 Use Telegram HTML format. Keep responses scannable. Warn about scams immediately."""
@@ -118,7 +118,7 @@ async def cmd_ai(update, ctx):
     text = " ".join(ctx.args) if ctx.args else ""
 
     if not text:
-        chains_list = "\n".join(f"<code>{k}</code> — {v}" for k, v in list(AGENT_CHAINS.items())[:6])
+        chains_list = "\n".join(f"<code>{k}</code> - {v}" for k, v in list(AGENT_CHAINS.items())[:6])
         await msg.reply_text(
             f"<b>🧠 RMI Crypto AI</b>\n\n"
             f"Ask anything. I query DataBus for real-time data:\n\n{chains_list}\n\n"

@@ -1,4 +1,4 @@
-"""T28 RSS Ingest — populates news_items + crypto_news from RSS feeds.
+"""T28 RSS Ingest - populates news_items + crypto_news from RSS feeds.
 
 Sources (v4.0 master stack): 5+ RSS feeds
 - CoinDesk

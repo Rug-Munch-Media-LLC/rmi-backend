@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#15 — Chain Comparability Index. Compare tokens across chains: price, liquidity,
+"""#15 - Chain Comparability Index. Compare tokens across chains: price, liquidity,
 volume, tx count. Detect arbitrage and inflated-volume scams."""
 
 import os

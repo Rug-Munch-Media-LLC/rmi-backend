@@ -11,7 +11,7 @@ How it works:
    - Transaction exists and confirmed
    - Output to our wallet exists
    - Correct amount (sats)
-4. Payment verified on-chain — no third-party facilitator
+4. Payment verified on-chain - no third-party facilitator
 
 Since BTC is not a stablecoin, we price tools in sats based on
 current BTC/USD rate. Payment amounts are in satoshis.
@@ -76,7 +76,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
 
     @property
     def is_fee_free(self) -> bool:
-        return True  # Self-verified — no facilitator fee
+        return True  # Self-verified - no facilitator fee
 
     @property
     def supported_networks(self) -> NetworkSupport:
@@ -89,7 +89,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
 
     @property
     def description(self) -> str:
-        return "Bitcoin Self-Verify — BTC via Mempool.space (fee-free, 1-conf)"
+        return "Bitcoin Self-Verify - BTC via Mempool.space (fee-free, 1-conf)"
 
     # ── Verification ───────────────────────────────────────────
 
@@ -237,9 +237,9 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
             return False
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
-        """Self-verified — no explicit settlement needed."""
+        """Self-verified - no explicit settlement needed."""
         return SettlementResult(
             settled=True,
-            reason="Bitcoin self-verified — on-chain settlement",
+            reason="Bitcoin self-verified - on-chain settlement",
             facilitator=self.name,
         )

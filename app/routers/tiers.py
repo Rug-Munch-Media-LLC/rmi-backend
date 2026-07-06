@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════
-# 4-TIER PRICING — Competitive with market
+# 4-TIER PRICING - Competitive with market
 # ═══════════════════════════════════════════
 # CoinGecko API: Free 30/min, Pro $129/mo
 # CoinMarketCap: Free 10K/mo, Pro $79/mo
@@ -96,7 +96,7 @@ TIERS = {
     },
 }
 
-# Payment options — 16 chains, crypto only
+# Payment options - 16 chains, crypto only
 PAYMENTS = {
     "solana": [
         {"token": "SOL", "wallet": "G1uZFfsdxK2PuH2Em5LhRkEcptxHWe4vy5BZak67QyKv"},

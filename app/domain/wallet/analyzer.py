@@ -125,7 +125,7 @@ class WalletAnalyzer:
             flags.append(ScanFlag(
                 code="dust_tokens",
                 severity=RiskLevel.MEDIUM,
-                message=f"{dust_count} dust tokens detected — possible airdrop farm or spam exposure.",
+                message=f"{dust_count} dust tokens detected - possible airdrop farm or spam exposure.",
                 evidence={"dust_count": dust_count},
             ))
 

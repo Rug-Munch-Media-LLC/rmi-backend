@@ -1,5 +1,5 @@
 """
-DataBus Core — THE Single Source of Truth
+DataBus Core - THE Single Source of Truth
 ==========================================
 
 Every data request in the entire platform routes through this class.
@@ -209,7 +209,7 @@ class DataBus:
         self.cache.stale_refresh_callback = self._swr_refresh
 
     async def initialize(self):
-        """Async init — load vault keys and build provider chains."""
+        """Async init - load vault keys and build provider chains."""
         if self._initialized:
             return
         async with self._init_lock:
@@ -279,7 +279,7 @@ class DataBus:
         if self._warm_running:
             return
         self._warm_running = True
-        # Hot data types to prefetch — ONLY free/local endpoints to save credits
+        # Hot data types to prefetch - ONLY free/local endpoints to save credits
         self._warm_types = [
             {"data_type": "market_overview", "kwargs": {}},
             {"data_type": "trending", "kwargs": {}},
@@ -309,7 +309,7 @@ class DataBus:
         while self._warm_running:
             try:
                 for item in self._warm_types:
-                    try:
+                    try:  # noqa: SIM105
                         await self.fetch(
                             data_type=item["data_type"],
                             force_fresh=True,
@@ -401,7 +401,7 @@ class DataBus:
         dedup_key = self._dedup.make_key(data_type, **kwargs)
         future, is_duplicate = await self._dedup.get_or_create(dedup_key)
         if is_duplicate:
-            # Another request is already fetching this — wait for it
+            # Another request is already fetching this - wait for it
             self._stats["dedup_hits"] += 1
             try:
                 result = await asyncio.wait_for(future, timeout=30)
@@ -409,7 +409,7 @@ class DataBus:
             except Exception:
                 pass
 
-        # ── 5.5 LOCAL PRECHECK — RAG / Scanner / Labels / Redis (FREE) ──
+        # ── 5.5 LOCAL PRECHECK - RAG / Scanner / Labels / Redis (FREE) ──
         # Before calling ANY external API, check our own databases.
         # This preserves credits and returns faster for data we already have.
         local_result = await self._local_precheck(data_type, **kwargs)
@@ -494,7 +494,7 @@ class DataBus:
         # ── 11. RESOLVE DEDUP ──
         self._dedup.resolve(dedup_key, result)
 
-        # ── 12. ACCESS CONTROL — Package response based on who's asking ──
+        # ── 12. ACCESS CONTROL - Package response based on who's asking ──
         consumer = access_controller.identify_consumer(
             request=request,
             admin_key=admin_key,
@@ -517,7 +517,7 @@ class DataBus:
         """Check our own databases BEFORE calling external APIs.
 
         Priority order: RAG → Scanner → Wallet Labels → Redis price cache.
-        All of these are FREE — we NEVER pay for data we already have.
+        All of these are FREE - we NEVER pay for data we already have.
 
         Returns formatted result dict if found, None if we need external APIs.
         """

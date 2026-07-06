@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Auto-Research Agent — daily crypto research report. Cron at 7am.
+"""Auto-Research Agent - daily crypto research report. Cron at 7am.
 Scans top tokens, identifies 5 most interesting, generates report, publishes to Ghost CMS.
 Fully automated: LLM writes → LLM reviews → publishes."""
 
@@ -46,7 +46,7 @@ async def generate_report(market_data: dict) -> str:
 Data: {context}
 
 Format:
-# RMI Daily Crypto Research — {datetime.now(UTC).strftime("%B %d, %Y")}
+# RMI Daily Crypto Research - {datetime.now(UTC).strftime("%B %d, %Y")}
 
 ## Market Overview
 [2-3 sentences on market conditions, fear & greed, top movers]
@@ -61,7 +61,7 @@ Format:
 [If any token shows scam patterns, flag it here]
 
 ## Trading Signal
-[One actionable signal based on data — BUY/SELL/WATCH/AVOID]
+[One actionable signal based on data - BUY/SELL/WATCH/AVOID]
 
 Keep under 500 words. Professional tone. Include data where available."""
 
@@ -82,7 +82,7 @@ Keep under 500 words. Professional tone. Include data where available."""
         pass
 
     # Fallback: basic report from data
-    return f"""# RMI Daily Crypto Research — {datetime.now(UTC).strftime("%B %d, %Y")}
+    return f"""# RMI Daily Crypto Research - {datetime.now(UTC).strftime("%B %d, %Y")}
 
 ## Market Overview
 Market data unavailable. Please check rugmunch.io for live updates.
@@ -104,7 +104,7 @@ No signal generated. Premium subscribers receive automated signals daily.
 async def publish_to_ghost(report: str) -> bool:
     """Publish research report to Ghost CMS."""
     if not GHOST_KEY:
-        print("Ghost not configured — report not published")
+        print("Ghost not configured - report not published")
         return False
 
     try:
@@ -114,7 +114,7 @@ async def publish_to_ghost(report: str) -> bool:
                 json={
                     "posts": [
                         {
-                            "title": f"RMI Daily Research — {datetime.now(UTC).strftime('%B %d, %Y')}",
+                            "title": f"RMI Daily Research - {datetime.now(UTC).strftime('%B %d, %Y')}",
                             "html": report,
                             "status": "draft",
                             "tags": ["daily-research", "crypto"],
@@ -130,7 +130,7 @@ async def publish_to_ghost(report: str) -> bool:
 
 
 async def main():
-    print(f"RMI Auto-Research Agent — {datetime.now(UTC).isoformat()}")
+    print(f"RMI Auto-Research Agent - {datetime.now(UTC).isoformat()}")
     print("=" * 60)
 
     # 1. Gather data

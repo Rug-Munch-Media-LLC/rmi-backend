@@ -1,5 +1,5 @@
 """
-SENTINEL — Enhanced Bundle & Sniper Detection
+SENTINEL - Enhanced Bundle & Sniper Detection
 =============================================
 Detects coordinated wallet groups that purchase simultaneously at token launch,
 funded by the same source, often in the same block.
@@ -20,6 +20,7 @@ DexScreener (pairs/trades), Solscan (account transfers, transaction detail).
 import logging
 import os
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 import httpx
 
@@ -93,16 +94,14 @@ class BundleDetector:
     """
 
     # Known Jito tip program IDs
-    JITO_PROGRAMS: ClassVar[dict] =
-{
+    JITO_PROGRAMS: ClassVar[dict] ={
         "Jito4APyf6rDt1pD1jH3nD3is4v7TwzFNWjjMP7B2RK",
         "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5",
         "ADuCadRmgjMe6UzXVxR1Kn9CS2CXAf8bjiKkC4xFcegX",
     }
 
     # Known bundler program IDs (Smithii, Printr, etc.)
-    BUNDLER_PROGRAMS: ClassVar[dict] =
-{
+    BUNDLER_PROGRAMS: ClassVar[dict] ={
         "Smithii": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
         "PumpFun": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
         "LaunchLab": "LaunchLabzbP1j4R7KzEFmYSF3EXGnZ6tY7AZ8eg3P2qJ",
@@ -276,7 +275,7 @@ class BundleDetector:
 
     def _cluster_by_behavior(self, buyers: list) -> list[BehaviorCluster]:
         """Cluster wallets by identical trading patterns."""
-        # Placeholder — requires transaction-level analysis
+        # Placeholder - requires transaction-level analysis
         # Real implementation groups by: same DEX, same trade size, same slippage, same route
         return []
 
@@ -473,7 +472,7 @@ class BundleDetector:
 
 
 # Type alias for early buyer data placeholder
-from dataclasses import dataclass as _dataclass
+from dataclasses import dataclass as _dataclass  # noqa: E402
 
 
 @_dataclass

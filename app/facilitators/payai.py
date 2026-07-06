@@ -3,7 +3,7 @@ PayAI x402 Facilitator
 =======================
 Hosted facilitator that verifies x402 payments via the PayAI API.
 Supports Base (mainnet + Sepolia) and Solana (mainnet + devnet)
-with USDC token — settlement is deferred (batched by PayAI).
+with USDC token - settlement is deferred (batched by PayAI).
 
 Priority: 20 (second after Coinbase CDP for Base; primary for Solana)
 """
@@ -35,7 +35,7 @@ class PayAIFacilitator(Facilitator):
 
     Routes Base and Solana USDC payments through PayAI's verification API.
     Settlements are batched by PayAI (DEFERRED), so no explicit settle()
-    call is needed — the default base-class no-op handles this.
+    call is needed - the default base-class no-op handles this.
     """
 
     # ── Identity ───────────────────────────────────────────────────

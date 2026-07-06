@@ -1,16 +1,16 @@
 """
-News Router — THE Crypto News Aggregator Feed
+News Router - THE Crypto News Aggregator Feed
 =============================================
 200+ sources. Real data only. No fake articles.
 
 Endpoints:
-  GET /api/v1/news/feed       — Full aggregated feed with filters
-  GET /api/v1/news/sources    — Active sources list with counts
-  GET /api/v1/news/sentiment  — Real-time sentiment overview
-  GET /api/v1/news/headlines  — Top headlines only
-  GET /api/v1/news/stats      — Source/category statistics
-  POST /api/v1/news/comment   — Comment on article (social)
-  GET /api/v1/news/comments/:article_id — Get comments for article
+  GET /api/v1/news/feed       - Full aggregated feed with filters
+  GET /api/v1/news/sources    - Active sources list with counts
+  GET /api/v1/news/sentiment  - Real-time sentiment overview
+  GET /api/v1/news/headlines  - Top headlines only
+  GET /api/v1/news/stats      - Source/category statistics
+  POST /api/v1/news/comment   - Comment on article (social)
+  GET /api/v1/news/comments/:article_id - Get comments for article
 """
 
 import asyncio
@@ -83,7 +83,7 @@ _NEWS_CACHE = []
 _CACHE_TS: datetime | None = None
 _CACHE_TTL = timedelta(minutes=3)
 
-# In-memory comments store (ephemeral — persists via Redis later)
+# In-memory comments store (ephemeral - persists via Redis later)
 _COMMENTS: dict[str, list[dict]] = {}
 
 # ─── Helpers ──────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ async def get_news_feed(
             # Background refresh
             asyncio.create_task(_refresh_cache(include_rss, include_reddit, include_internal))
         else:
-            # First load or forced refresh — fetch inline but with limits
+            # First load or forced refresh - fetch inline but with limits
             try:
                 from app.news_service import get_news_service
 
@@ -163,7 +163,7 @@ async def get_news_feed(
                 if _NEWS_CACHE:
                     result = _NEWS_CACHE
                 else:
-                    raise HTTPException(status_code=500, detail=f"News aggregation failed: {e!s}")
+                    raise HTTPException(status_code=500, detail=f"News aggregation failed: {e!s}") from e
 
     articles = result.get("articles", [])
 
@@ -207,7 +207,7 @@ async def get_headlines(
     count: int = Query(10, ge=1, le=50),
     category: str | None = Query(None),
 ):
-    """Top headlines only — fast, lightweight."""
+    """Top headlines only - fast, lightweight."""
     feed = await get_news_feed(limit=count, category=category, include_reddit=False)
     return {
         "headlines": [
@@ -351,7 +351,7 @@ async def post_scanner_alert(token_name: str, chain: str, risk_score: float, add
     content_hash = hashlib.md5(f"internal:{address}:{chain}".encode()).hexdigest()
     article = {
         "id": f"rmi-{content_hash[:12]}",
-        "title": f"RMI Scanner: {token_name} ({chain.upper()}) — Risk {risk_score}/100",
+        "title": f"RMI Scanner: {token_name} ({chain.upper()}) - Risk {risk_score}/100",
         "url": f"https://rugmunch.io/scanner?address={address}&chain={chain}",
         "description": f"Scanner detected {token_name} on {chain}. Risk: {risk_score}/100. Flags: {flags}. Address: {address}",
         "source": "RMI Scanner",

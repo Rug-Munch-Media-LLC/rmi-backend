@@ -99,7 +99,7 @@ async def _fetch_json(
             if resp.status == 200:
                 return await resp.json()
     except Exception as e:
-        logger.debug(f"Fetch failed: {url} — {e}")
+        logger.debug(f"Fetch failed: {url} - {e}")
     return None
 
 
@@ -385,7 +385,7 @@ def _score_governance_risk(
     # Top 10 concentration
     if top_10_holder_pct >= TOP_10_CRITICAL_PCT:
         score += 20
-        flags.append(f"HIGH: Top 10 holders control {top_10_holder_pct:.1f}% — cartel risk")
+        flags.append(f"HIGH: Top 10 holders control {top_10_holder_pct:.1f}% - cartel risk")
     elif top_10_holder_pct >= TOP_10_HIGH_PCT:
         score += 10
         flags.append(f"MEDIUM: Top 10 holders control {top_10_holder_pct:.1f}%")
@@ -395,7 +395,7 @@ def _score_governance_risk(
         # Timelock
         if params.is_governance_contract and not params.has_timelock:
             score += 25
-            flags.append("CRITICAL: No timelock — single-transaction governance takeover")
+            flags.append("CRITICAL: No timelock - single-transaction governance takeover")
         elif not params.has_timelock and not params.is_governance_contract:
             score += 10
             flags.append("MEDIUM: No governance timelock detected")
@@ -405,13 +405,13 @@ def _score_governance_risk(
             if params.quorum_threshold_pct < LOW_QUORUM_PCT:
                 score += 20
                 flags.append(
-                    f"HIGH: Quorum only {params.quorum_threshold_pct:.2f}% — "
+                    f"HIGH: Quorum only {params.quorum_threshold_pct:.2f}% - "
                     f"flash-loan governance attack feasible"
                 )
             elif params.quorum_threshold_pct < 2.0:
                 score += 10
                 flags.append(
-                    f"MEDIUM: Quorum {params.quorum_threshold_pct:.2f}% — below industry standard"
+                    f"MEDIUM: Quorum {params.quorum_threshold_pct:.2f}% - below industry standard"
                 )
 
         # Timelock too short
@@ -420,7 +420,7 @@ def _score_governance_risk(
             if timelock_hours < MIN_TIMELOCK_HOURS:
                 score += 10
                 flags.append(
-                    f"MEDIUM: Timelock only {timelock_hours:.1f}h — insufficient reaction window"
+                    f"MEDIUM: Timelock only {timelock_hours:.1f}h - insufficient reaction window"
                 )
 
         # Very short voting period
@@ -428,7 +428,7 @@ def _score_governance_risk(
             if params.voting_period_blocks < 200:  # ~40 min on ETH
                 score += 15
                 flags.append(
-                    f"HIGH: Voting period only {params.voting_period_blocks} blocks — "
+                    f"HIGH: Voting period only {params.voting_period_blocks} blocks - "
                     f"too short for community coordination"
                 )
             elif params.voting_period_blocks < 1000:
@@ -439,7 +439,7 @@ def _score_governance_risk(
         if params.proposal_threshold_pct > 0 and params.proposal_threshold_pct < 0.1:
             score += 5
             flags.append(
-                f"MEDIUM: Proposal threshold {params.proposal_threshold_pct:.3f}% — "
+                f"MEDIUM: Proposal threshold {params.proposal_threshold_pct:.3f}% - "
                 f"anyone can propose"
             )
 
@@ -452,7 +452,7 @@ def _score_governance_risk(
         if flash_loan_feasible:
             score += 15
             flags.append(
-                "CRITICAL: Flash-loan governance attack feasible — "
+                "CRITICAL: Flash-loan governance attack feasible - "
                 "borrow tokens, pass malicious proposal, repay in one tx"
             )
 
@@ -553,22 +553,22 @@ async def detect_governance_attack(
             warnings.append(
                 "FLASH-LOAN GOVERNANCE ATTACK: Quorum threshold is low enough "
                 "that an attacker can borrow enough tokens via flash loan, "
-                "pass any proposal, and repay — all in one transaction."
+                "pass any proposal, and repay - all in one transaction."
             )
         if result.top_holder_pct > 50:
             warnings.append(
-                f"A single wallet controls {result.top_holder_pct:.1f}% — "
+                f"A single wallet controls {result.top_holder_pct:.1f}% - "
                 f"they can unilaterally pass any governance action."
             )
     if not result.is_governed and not is_solana(chain):
         warnings.append(
-            "Token does not appear to have on-chain governance — "
+            "Token does not appear to have on-chain governance - "
             "no governor contract detected in verified source."
         )
     if result.is_governed and result.governance_params:
         if not result.governance_params.get("has_timelock"):
             warnings.append(
-                "Governance actions can execute instantly — no timelock delay protects holders."
+                "Governance actions can execute instantly - no timelock delay protects holders."
             )
     result.warnings = warnings
 

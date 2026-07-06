@@ -1,5 +1,5 @@
 """
-SENTINEL — Decompiler Analyzer (Heimdall + whatsABI-style)
+SENTINEL - Decompiler Analyzer (Heimdall + whatsABI-style)
 ==========================================================
 Analyzes unverified contracts using Heimdall-rs decompilation and
 whatsABI-style function selector extraction from bytecode.
@@ -82,34 +82,34 @@ KNOWN_RUG_SELECTORS: dict[str, str] = {
 # ── Dangerous function name patterns (checked in decompiled source) ──
 
 DANGEROUS_NAME_PATTERNS = [
-    (r"withdrawAll", "withdrawAll — can drain contract balance"),
-    (r"drain\b", "drain — rug-pull indicator"),
-    (r"setOwner\b", "setOwner — ownership manipulation"),
-    (r"emergencyWithdraw", "emergencyWithdraw — can bypass locks"),
-    (r"\bmint\b", "mint — unlimited supply risk"),
-    (r"\brug\b", "rug — explicit rug function"),
-    (r"pullFunds", "pullFunds — can extract funds"),
-    (r"takeFunds", "takeFunds — can extract funds"),
-    (r"sweepFunds", "sweepFunds — can sweep balances"),
-    (r"rescueTokens", "rescueTokens — can steal tokens"),
-    (r"takeOwnership", "takeOwnership — ownership takeover"),
-    (r"forceWithdraw", "forceWithdraw — bypasses withdrawal limits"),
-    (r"\bdump\b", "dump — sell-off function"),
-    (r"manualWithdraw", "manualWithdraw — admin-controlled withdrawal"),
-    (r"adminWithdraw", "adminWithdraw — admin-controlled withdrawal"),
-    (r"ownerWithdraw", "ownerWithdraw — owner-controlled withdrawal"),
-    (r"setSwapAndLiquify", "setSwapAndLiquify — can disable trading"),
-    (r"setTradingEnabled", "setTradingEnabled — can freeze trading"),
-    (r"setCooldownEnabled", "setCooldownEnabled — can trap holders"),
-    (r"setBot\b", "setBot — can blacklist addresses"),
-    (r"blacklist", "blacklist — can freeze individual wallets"),
-    (r"setExcludedFromFee", "setExcludedFromFee — fee evasion for insiders"),
-    (r"setMaxBuyAmount", "setMaxBuyAmount — can restrict buying"),
-    (r"setMaxTxAmount", "setMaxTxAmount — can restrict transactions"),
-    (r"setMaxWalletAmount", "setMaxWalletAmount — can restrict holdings"),
-    (r"setFees\b", "setFees — can change fee to 100%"),
-    (r"setFeeRate", "setFeeRate — can change fee rate"),
-    (r"setTaxRate", "setTaxRate — can change tax rate"),
+    (r"withdrawAll", "withdrawAll - can drain contract balance"),
+    (r"drain\b", "drain - rug-pull indicator"),
+    (r"setOwner\b", "setOwner - ownership manipulation"),
+    (r"emergencyWithdraw", "emergencyWithdraw - can bypass locks"),
+    (r"\bmint\b", "mint - unlimited supply risk"),
+    (r"\brug\b", "rug - explicit rug function"),
+    (r"pullFunds", "pullFunds - can extract funds"),
+    (r"takeFunds", "takeFunds - can extract funds"),
+    (r"sweepFunds", "sweepFunds - can sweep balances"),
+    (r"rescueTokens", "rescueTokens - can steal tokens"),
+    (r"takeOwnership", "takeOwnership - ownership takeover"),
+    (r"forceWithdraw", "forceWithdraw - bypasses withdrawal limits"),
+    (r"\bdump\b", "dump - sell-off function"),
+    (r"manualWithdraw", "manualWithdraw - admin-controlled withdrawal"),
+    (r"adminWithdraw", "adminWithdraw - admin-controlled withdrawal"),
+    (r"ownerWithdraw", "ownerWithdraw - owner-controlled withdrawal"),
+    (r"setSwapAndLiquify", "setSwapAndLiquify - can disable trading"),
+    (r"setTradingEnabled", "setTradingEnabled - can freeze trading"),
+    (r"setCooldownEnabled", "setCooldownEnabled - can trap holders"),
+    (r"setBot\b", "setBot - can blacklist addresses"),
+    (r"blacklist", "blacklist - can freeze individual wallets"),
+    (r"setExcludedFromFee", "setExcludedFromFee - fee evasion for insiders"),
+    (r"setMaxBuyAmount", "setMaxBuyAmount - can restrict buying"),
+    (r"setMaxTxAmount", "setMaxTxAmount - can restrict transactions"),
+    (r"setMaxWalletAmount", "setMaxWalletAmount - can restrict holdings"),
+    (r"setFees\b", "setFees - can change fee to 100%"),
+    (r"setFeeRate", "setFeeRate - can change fee rate"),
+    (r"setTaxRate", "setTaxRate - can change tax rate"),
 ]
 
 # ── Anchor IDL known patterns for Solana ─────────────────────────────
@@ -462,7 +462,7 @@ class DecompilerAnalyzer:
         # Unverified contract is already somewhat suspicious
         if not report.is_verified:
             score += 15
-            warnings.append("MEDIUM: Contract source is NOT verified — analysis via decompilation")
+            warnings.append("MEDIUM: Contract source is NOT verified - analysis via decompilation")
 
         # Known rug function selector matches
         for match in report.known_rug_matches:
@@ -591,7 +591,7 @@ class DecompilerAnalyzer:
             if idl_data:
                 report.solana_anchor_risks = self._check_anchor_risks(idl_data)
             else:
-                report.warnings.append("Could not extract Anchor IDL — limited analysis for Solana program")
+                report.warnings.append("Could not extract Anchor IDL - limited analysis for Solana program")
 
         # 4. Compute risk
         self._compute_risk(report)

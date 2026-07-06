@@ -52,7 +52,7 @@ class CoinbaseCDPFacilitator(Facilitator):
 
         if not self._api_key_id:
             logger.warning(
-                "Coinbase CDP not configured — set CDP_API_KEY_ID + CDP_API_KEY_SECRET. "
+                "Coinbase CDP not configured - set CDP_API_KEY_ID + CDP_API_KEY_SECRET. "
                 "Register at https://portal.cdp.coinbase.com/"
             )
 
@@ -104,7 +104,7 @@ class CoinbaseCDPFacilitator(Facilitator):
 
     @property
     def description(self) -> str:
-        return "Coinbase CDP — fee-free USDC on Base/Polygon/Arbitrum/Solana, 1K free tx/mo"
+        return "Coinbase CDP - fee-free USDC on Base/Polygon/Arbitrum/Solana, 1K free tx/mo"
 
     # ── Auth ───────────────────────────────────────────────────
 

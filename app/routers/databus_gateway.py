@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#10 — DataBus Public API Gateway Router. Free tier + x402 paid tier."""
+"""#10 - DataBus Public API Gateway Router. Free tier + x402 paid tier."""
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel

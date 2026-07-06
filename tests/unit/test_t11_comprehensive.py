@@ -26,7 +26,7 @@ print("="*60)
 print("CITATION VALIDATOR TESTS")
 print("="*60)
 
-from app.domain.reports.citation_validator import validate_section
+from app.domain.reports.citation_validator import validate_section  # noqa: E402
 
 
 def test_valid_citation():
@@ -124,7 +124,7 @@ print("\n" + "="*60)
 print("HEALTH MODULE TESTS")
 print("="*60)
 
-from app.core.health import DomainHealth, register_health_check
+from app.core.health import DomainHealth, register_health_check  # noqa: E402
 
 
 def test_domain_health_creation():
@@ -185,7 +185,7 @@ print("\n" + "="*60)
 print("RISK COMPUTATION TESTS")
 print("="*60)
 
-from app.domain.reports.generator import _compute_risk_token, _compute_risk_wallet
+from app.domain.reports.generator import _compute_risk_token, _compute_risk_wallet  # noqa: E402
 
 
 def test_compute_risk_token_low():
@@ -248,7 +248,7 @@ print("\n" + "="*60)
 print("TEMPLATE FALLBACK TESTS")
 print("="*60)
 
-from app.domain.reports.generator import _template_fallback
+from app.domain.reports.generator import _template_fallback  # noqa: E402
 
 
 def test_template_fallback_executive_summary():

@@ -1,4 +1,4 @@
-"""x402 Framework Adapter — base class for all AI framework integrations.
+"""x402 Framework Adapter - base class for all AI framework integrations.
 
 Same pattern for every framework:
   1. Wrap a tool call
@@ -16,7 +16,8 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 
@@ -67,7 +68,7 @@ class x402Adapter(ABC):
         return json.loads(text) if isinstance(text, str) else text
 
     def check_available(self, tool: str) -> tuple[bool, float, str]:
-        """Check if a tool can be called — returns (available, price_usd, message).
+        """Check if a tool can be called - returns (available, price_usd, message).
 
         First checks trials, then checks prepaid credits/budget.
         """
@@ -98,7 +99,7 @@ class x402Adapter(ABC):
     def record_usage(self, tool: str, cost_usd: float):
         """Record tool usage for budget tracking."""
         self._spent_this_month += cost_usd
-        logger.info(f"x402: called {tool} — ${cost_usd:.4f} (monthly: ${self._spent_this_month:.2f})")
+        logger.info(f"x402: called {tool} - ${cost_usd:.4f} (monthly: ${self._spent_this_month:.2f})")
 
     def list_tools(self, category: str = "") -> list[dict]:
         """List available tools with prices."""

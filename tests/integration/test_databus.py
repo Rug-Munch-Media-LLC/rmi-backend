@@ -27,7 +27,7 @@ class TestDataBusCache:
 
 
 class TestCircuitBreakers:
-    """Test provider circuit breakers — 3 failures → open → half-open → closed."""
+    """Test provider circuit breakers - 3 failures → open → half-open → closed."""
 
     @pytest.mark.integration
     async def test_circuit_opens_after_three_failures(self):
@@ -46,7 +46,7 @@ class TestCircuitBreakers:
 
 
 class TestProviderFallback:
-    """Test provider chain fallback — first fails, second succeeds."""
+    """Test provider chain fallback - first fails, second succeeds."""
 
     @pytest.mark.integration
     async def test_fallback_to_secondary_provider(self):
@@ -62,7 +62,7 @@ class TestProviderFallback:
 class TestDataBusSmoke:
     """Smoke tests for all 78 DataBus provider chains."""
 
-    CHAINS = [
+    CHAINS = [  # noqa: RUF012
         "token_price",
         "market_overview",
         "trending",

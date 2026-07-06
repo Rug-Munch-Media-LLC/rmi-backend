@@ -1,9 +1,9 @@
 """
-Institutional-grade x402 tools — portfolio risk, DeFi analysis, MEV detection.
+Institutional-grade x402 tools - portfolio risk, DeFi analysis, MEV detection.
 
-Cross-Chain Portfolio Risk — unified risk across chains
-DeFi Position Analyzer — LP, impermanent loss, yield sustainability
-MEV/Sandwich Detection — sandwich attacks, frontrunning, arbitrage extraction
+Cross-Chain Portfolio Risk - unified risk across chains
+DeFi Position Analyzer - LP, impermanent loss, yield sustainability
+MEV/Sandwich Detection - sandwich attacks, frontrunning, arbitrage extraction
 """
 
 import hashlib
@@ -282,13 +282,13 @@ async def portfolio_risk(req: PortfolioRequest):
             "flag_count": len(risk_flags),
             "sources_used": list(set(sources)),
             "recommendation": (
-                "Portfolio appears healthy — continue monitoring"
+                "Portfolio appears healthy - continue monitoring"
                 if portfolio_tier == "LOW_RISK"
-                else "Some risk factors detected — review flagged wallets"
+                else "Some risk factors detected - review flagged wallets"
                 if portfolio_tier == "MODERATE"
-                else "Elevated risk — several wallets have concerning signals"
+                else "Elevated risk - several wallets have concerning signals"
                 if portfolio_tier == "ELEVATED"
-                else "HIGH RISK — multiple critical flags across portfolio. Immediate review recommended."
+                else "HIGH RISK - multiple critical flags across portfolio. Immediate review recommended."
             ),
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -298,7 +298,7 @@ async def portfolio_risk(req: PortfolioRequest):
 
     except Exception as e:
         logger.error(f"Portfolio risk failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -308,7 +308,7 @@ async def portfolio_risk(req: PortfolioRequest):
 
 @router.post("/defi_position")
 async def defi_position(req: DeFiRequest):
-    """Analyze DeFi positions — LP holdings, impermanent loss, yield sustainability.
+    """Analyze DeFi positions - LP holdings, impermanent loss, yield sustainability.
 
     Checks: liquidity provision, staking positions, lending positions,
     yield farming exposure, impermanent loss estimation, and protocol risk.
@@ -389,7 +389,7 @@ async def defi_position(req: DeFiRequest):
 
         # ── DeFiLlama protocol TVL context ──
         try:
-            async with aiohttp.ClientSession() as s:
+            async with aiohttp.ClientSession() as s:  # noqa: SIM117
                 async with s.get("https://api.llama.fi/protocols", timeout=aiohttp.ClientTimeout(total=8)) as r:
                     if r.status == 200:
                         data = await r.json()
@@ -411,7 +411,7 @@ async def defi_position(req: DeFiRequest):
                         if protocol_risks:
                             for pr in protocol_risks:
                                 if pr.get("audits", 0) == 0:
-                                    warnings.append(f"No audits found for {pr['name']} — protocol risk elevated")
+                                    warnings.append(f"No audits found for {pr['name']} - protocol risk elevated")
         except Exception:
             pass
 
@@ -434,11 +434,11 @@ async def defi_position(req: DeFiRequest):
             "warnings": warnings if warnings else None,
             "overall_risk": risk_level,
             "recommendation": (
-                "Positions appear healthy — standard monitoring sufficient"
+                "Positions appear healthy - standard monitoring sufficient"
                 if risk_level == "low"
-                else "Some risk factors — review impermanent loss exposure and protocol audits"
+                else "Some risk factors - review impermanent loss exposure and protocol audits"
                 if risk_level == "moderate"
-                else "HIGH RISK — significant IL exposure and/or unaudited protocols. Consider reducing position sizes."
+                else "HIGH RISK - significant IL exposure and/or unaudited protocols. Consider reducing position sizes."
             ),
             "sources_used": sources,
             "performance_ms": round((time.time() - t0) * 1000, 1),
@@ -450,7 +450,7 @@ async def defi_position(req: DeFiRequest):
 
     except Exception as e:
         logger.error(f"DeFi position failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -460,7 +460,7 @@ async def defi_position(req: DeFiRequest):
 
 @router.post("/mev_detect")
 async def mev_detect(req: MEVRequest):
-    """Detect MEV exploitation — sandwich attacks, frontrunning, backrunning.
+    """Detect MEV exploitation - sandwich attacks, frontrunning, backrunning.
 
     Analyzes transaction history for MEV patterns:
     - Sandwich attacks (buy before, sell after)
@@ -561,7 +561,7 @@ async def mev_detect(req: MEVRequest):
 
                                     for block, bt in block_txs.items():
                                         if len(bt) >= 3:
-                                            # Multiple txs in same block — possible sandwich
+                                            # Multiple txs in same block - possible sandwich
                                             buys = [
                                                 t
                                                 for t in bt
@@ -581,7 +581,7 @@ async def mev_detect(req: MEVRequest):
                                                         "pattern": "possible_sandwich",
                                                         "buys_in_block": len(buys),
                                                         "sells_in_block": len(sells),
-                                                        "detail": f"Block {block} has {len(buys)} incoming + {len(sells)} outgoing — possible sandwich attack",
+                                                        "detail": f"Block {block} has {len(buys)} incoming + {len(sells)} outgoing - possible sandwich attack",
                                                     }
                                                 )
             except Exception:
@@ -631,7 +631,7 @@ async def mev_detect(req: MEVRequest):
                                             "pattern": "extreme_volatility",
                                             "pair": f"{p.get('baseToken', {}).get('symbol', '?')}/{p.get('quoteToken', {}).get('symbol', '?')}",
                                             "price_change_24h": pc.get("h24"),
-                                            "detail": f"Extreme {pc.get('h24')}% price movement — possible MEV extraction impact",
+                                            "detail": f"Extreme {pc.get('h24')}% price movement - possible MEV extraction impact",
                                         }
                                     )
         except Exception:
@@ -641,13 +641,13 @@ async def mev_detect(req: MEVRequest):
         total_signals = len(mev_attacks) + len(risk_signals)
         if total_signals >= 5 or mev_exposure_usd > 10000:
             risk_level = "critical"
-            recommendation = "CRITICAL — significant MEV exploitation detected. Immediate review of trading strategy and RPC endpoint required."
+            recommendation = "CRITICAL - significant MEV exploitation detected. Immediate review of trading strategy and RPC endpoint required."
         elif total_signals >= 2 or mev_exposure_usd > 1000:
             risk_level = "high"
-            recommendation = "High MEV exposure — consider using Flashbots/MEV protection RPC"
+            recommendation = "High MEV exposure - consider using Flashbots/MEV protection RPC"
         elif total_signals >= 1:
             risk_level = "moderate"
-            recommendation = "Some MEV activity detected — monitor and consider MEV-protected transactions"
+            recommendation = "Some MEV activity detected - monitor and consider MEV-protected transactions"
         else:
             risk_level = "low"
             recommendation = "No significant MEV exploitation detected"
@@ -683,4 +683,4 @@ async def mev_detect(req: MEVRequest):
 
     except Exception as e:
         logger.error(f"MEV detect failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

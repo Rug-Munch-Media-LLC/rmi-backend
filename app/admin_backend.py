@@ -1,24 +1,24 @@
 """
-RMI Admin Backend — Complete Administration System
+RMI Admin Backend - Complete Administration System
 ===================================================
 A hardened, feature-rich admin panel for the RugMunch Intelligence Platform.
 
 Features:
-  • Role-Based Access Control (RBAC) — superadmin, admin, moderator, viewer
-  • Audit Logging — every action logged with IP, timestamp, before/after state
-  • Rate Limiting — per-endpoint, per-user, per-IP limits
-  • IP Blocking / Allowlisting — ban bad actors by IP
-  • 2FA Support — TOTP-based two-factor authentication
-  • Session Management — active sessions, force logout, expiry control
-  • System Health — real-time metrics, disk, memory, CPU, service status
-  • User Management — CRUD, ban/unban, role assignment, activity tracking
-  • Configuration Management — env vars, feature flags, system settings
-  • Security Dashboard — failed logins, blocked IPs, threat alerts
-  • Content Management — announcements, blog posts, SEO settings
-  • Financial Dashboard — x402 revenue, payment tracking, analytics
-  • API Key Management — rotate, revoke, scope-limited keys
-  • Webhook Management — configure, test, monitor webhooks
-  • Backup & Restore — database, config, snapshot management
+  • Role-Based Access Control (RBAC) - superadmin, admin, moderator, viewer
+  • Audit Logging - every action logged with IP, timestamp, before/after state
+  • Rate Limiting - per-endpoint, per-user, per-IP limits
+  • IP Blocking / Allowlisting - ban bad actors by IP
+  • 2FA Support - TOTP-based two-factor authentication
+  • Session Management - active sessions, force logout, expiry control
+  • System Health - real-time metrics, disk, memory, CPU, service status
+  • User Management - CRUD, ban/unban, role assignment, activity tracking
+  • Configuration Management - env vars, feature flags, system settings
+  • Security Dashboard - failed logins, blocked IPs, threat alerts
+  • Content Management - announcements, blog posts, SEO settings
+  • Financial Dashboard - x402 revenue, payment tracking, analytics
+  • API Key Management - rotate, revoke, scope-limited keys
+  • Webhook Management - configure, test, monitor webhooks
+  • Backup & Restore - database, config, snapshot management
 
 Security:
   - All endpoints require admin authentication (JWT + role check)
@@ -309,7 +309,7 @@ class SecurityManager:
     """
 
     # Rate limits: (max_requests, window_seconds)
-    RATE_LIMITS = {
+    RATE_LIMITS = {  # noqa: RUF012
         "default": (60, 60),  # 60/minute
         "login": (5, 300),  # 5/5min (strict for login)
         "admin_write": (30, 60),  # 30/minute for write ops
@@ -400,7 +400,7 @@ class SecurityManager:
             await r.setex(key, duration_hours * 3600, json.dumps(data))
             await r.sadd("blocked_ips:all", ip)
 
-            logger.warning(f"IP blocked: {ip} for {duration_hours}h — {reason}")
+            logger.warning(f"IP blocked: {ip} for {duration_hours}h - {reason}")
             return True
 
         except Exception as e:

@@ -1,5 +1,5 @@
 """
-SOSANA CRM Investigation — Detailed case data API (BACKEND ONLY, not public).
+SOSANA CRM Investigation - Detailed case data API (BACKEND ONLY, not public).
 Exposes investigation data: wallets, entities, financials, evidence, risk assessment.
 """
 
@@ -37,7 +37,7 @@ class SOSANACRM:
         return self._data or {}
 
     def summary(self) -> dict:
-        """Case overview — safe to expose."""
+        """Case overview - safe to expose."""
         d = self.data
         return {
             "case_id": d.get("case_id"),

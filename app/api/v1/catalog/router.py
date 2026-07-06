@@ -1,4 +1,4 @@
-"""T27B HTTP routes — CatalogService endpoints.
+"""T27B HTTP routes - CatalogService endpoints.
 
 Per v4.0 §T27. The thin HTTP layer over app.catalog.service.CatalogService.
 """
@@ -66,7 +66,7 @@ async def get_token(chain: str, address: str) -> dict:
     try:
         c = Chain(chain)
     except ValueError:
-        raise HTTPException(400, f"unknown chain: {chain}")
+        raise HTTPException(400, f"unknown chain: {chain}") from None
     tok = await get_catalog().get_token(c, address)
     if not tok:
         raise HTTPException(404, "token not found")
@@ -75,23 +75,23 @@ async def get_token(chain: str, address: str) -> dict:
 
 @router.get("/tokens/{chain}/{address}/risk")
 async def get_token_risk(chain: str, address: str) -> dict:
-    """Recipe 3 — Real-time risk score. Composes Redis + Postgres + Neo4j."""
+    """Recipe 3 - Real-time risk score. Composes Redis + Postgres + Neo4j."""
     try:
         c = Chain(chain)
     except ValueError:
-        raise HTTPException(400, f"unknown chain: {chain}")
+        raise HTTPException(400, f"unknown chain: {chain}") from None
     return await get_catalog().get_token_risk(c, address)
 
 
 @router.post("/tokens/risky-by-deployer")
 async def risky_tokens(req: FindRiskyTokensRequest) -> dict:
-    """Recipe 1 — Find tokens deployed by wallets with rug history."""
+    """Recipe 1 - Find tokens deployed by wallets with rug history."""
     chain_enum = None
     if req.chain:
         try:
             chain_enum = Chain(req.chain)
         except ValueError:
-            raise HTTPException(400, f"unknown chain: {req.chain}")
+            raise HTTPException(400, f"unknown chain: {req.chain}") from None
     tokens = await get_catalog().find_tokens_by_deployer_history(
         min_rug_count=req.min_rug_count, chain=chain_enum, limit=req.limit
     )
@@ -107,7 +107,7 @@ async def get_wallet(chain: str, address: str) -> dict:
     try:
         c = Chain(chain)
     except ValueError:
-        raise HTTPException(400, f"unknown chain: {chain}")
+        raise HTTPException(400, f"unknown chain: {chain}") from None
     w = await get_catalog().get_wallet(c, address)
     if not w:
         raise HTTPException(404, "wallet not found")
@@ -148,7 +148,7 @@ async def attach_rag(chain: str, address: str, req: AttachRagRequest) -> dict:
     try:
         c = Chain(chain)
     except ValueError:
-        raise HTTPException(400, f"unknown chain: {chain}")
+        raise HTTPException(400, f"unknown chain: {chain}") from None
     ok = await get_catalog().attach_rag_to_token(c, address, req.qdrant_point_id)
     if not ok:
         raise HTTPException(404, "token not found or update failed")

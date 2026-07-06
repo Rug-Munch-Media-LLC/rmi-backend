@@ -1,10 +1,10 @@
 """
-Free MCP Server Integrations — Boar Blockchain, Solana Token Analysis, autonsol
+Free MCP Server Integrations - Boar Blockchain, Solana Token Analysis, autonsol
 
 Adds free, keyless MCP data sources to the caching shield fallback engine.
-All three require NO API keys — pure free data.
+All three require NO API keys - pure free data.
 
-Boar Blockchain (50 tools): EVM data — balances, txs, blocks, ENS, ERC-20
+Boar Blockchain (50 tools): EVM data - balances, txs, blocks, ENS, ERC-20
 Solana Token Analysis (6 tools): Risk scoring 0-100, pump.fun signals, momentum
 autonsol/sol-mcp: Real-time token risk + rug flags
 
@@ -26,7 +26,7 @@ logger = logging.getLogger("mcp_sources")
 # Smithery MCP endpoints (HTTP transport)
 BOAR_URL = "https://server.smithery.ai/@boar-network/blockchain-advanced/mcp"
 SOLANA_TOKEN_URL = "https://server.smithery.ai/@insomniactools/solana-agentkit-mcp/mcp"
-AUTONSOL_URL = "https://server.smithery.ai/..."  # placeholder — need exact URL
+AUTONSOL_URL = "https://server.smithery.ai/..."  # placeholder - need exact URL
 
 # Cache
 _l1: dict[str, tuple] = {}
@@ -94,7 +94,7 @@ class MCPDataSources:
         return None
 
     # ═══════════════════════════════════════════════════════════════════════
-    # BOAR BLOCKCHAIN — EVM Data (50 tools, FREE, keyless)
+    # BOAR BLOCKCHAIN - EVM Data (50 tools, FREE, keyless)
     # ═══════════════════════════════════════════════════════════════════════
 
     async def evm_balance(self, address: str, chain: str = "ethereum") -> dict | None:
@@ -153,7 +153,7 @@ class MCPDataSources:
         return await self._mcp_call(BOAR_URL, "get_block", args, ttl=60)
 
     # ═══════════════════════════════════════════════════════════════════════
-    # SOLANA TOKEN ANALYSIS — Risk Scoring (6 tools, NO AUTH)
+    # SOLANA TOKEN ANALYSIS - Risk Scoring (6 tools, NO AUTH)
     # ═══════════════════════════════════════════════════════════════════════
 
     async def solana_risk_score(self, mint: str) -> dict | None:
@@ -190,7 +190,7 @@ class MCPDataSources:
         )
 
     # ═══════════════════════════════════════════════════════════════════════
-    # AUTONSOL/SOL-MCP — Rug Detection (FREE)
+    # AUTONSOL/SOL-MCP - Rug Detection (FREE)
     # ═══════════════════════════════════════════════════════════════════════
 
     async def rug_check(self, mint: str) -> dict | None:

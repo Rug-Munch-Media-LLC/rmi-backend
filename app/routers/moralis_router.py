@@ -1,7 +1,7 @@
 """
-Moralis API Router — Wallet auth (SIWE/SIWS) + Data endpoints.
+Moralis API Router - Wallet auth (SIWE/SIWS) + Data endpoints.
 Key 1: Data API (wallets, tokens, NFTs, whale tracking, streams)
-Key 2: Auth API (Sign-In With Ethereum/Solana — Phantom, MetaMask, etc.)
+Key 2: Auth API (Sign-In With Ethereum/Solana - Phantom, MetaMask, etc.)
 """
 
 import logging
@@ -47,7 +47,7 @@ class StreamCreateRequest(BaseModel):
     topic0: list[str] | None = None
 
 
-# ── Auth Endpoints (Key 2 — Wallet Login) ────────────────────
+# ── Auth Endpoints (Key 2 - Wallet Login) ────────────────────
 
 
 @router.post("/auth/challenge/evm")
@@ -66,7 +66,7 @@ async def evm_challenge(req: AuthChallengeRequest):
             return {"status": "ok", "challenge": result}
         raise HTTPException(status_code=502, detail="Moralis challenge failed")
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
 
 
 @router.post("/auth/challenge/solana")
@@ -84,12 +84,12 @@ async def solana_challenge(req: SolanaChallengeRequest):
             return {"status": "ok", "challenge": result}
         raise HTTPException(status_code=502, detail="Moralis challenge failed")
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
 
 
 @router.post("/auth/verify/evm")
 async def verify_evm(req: VerifySignatureRequest):
-    """Verify EVM wallet signature — returns JWT token for authenticated session."""
+    """Verify EVM wallet signature - returns JWT token for authenticated session."""
     try:
         from app.moralis_connector import get_moralis_connector
 
@@ -102,12 +102,12 @@ async def verify_evm(req: VerifySignatureRequest):
             return {"status": "ok", "auth": result}
         raise HTTPException(status_code=401, detail="Signature verification failed")
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
 
 
 @router.post("/auth/verify/solana")
 async def verify_solana(req: VerifySignatureRequest):
-    """Verify Solana wallet signature — returns JWT token for authenticated session."""
+    """Verify Solana wallet signature - returns JWT token for authenticated session."""
     try:
         from app.moralis_connector import get_moralis_connector
 
@@ -120,10 +120,10 @@ async def verify_solana(req: VerifySignatureRequest):
             return {"status": "ok", "auth": result}
         raise HTTPException(status_code=401, detail="Signature verification failed")
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
 
 
-# ── Data Endpoints (Key 1 — Wallet Intelligence) ─────────────
+# ── Data Endpoints (Key 1 - Wallet Intelligence) ─────────────
 
 
 @router.post("/wallet/tokens")
@@ -136,9 +136,9 @@ async def wallet_tokens(req: WalletQuery):
         tokens = await mc.get_wallet_tokens(req.address, req.chain)
         return {"address": req.address, "chain": req.chain, "tokens": tokens[: req.limit]}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/wallet/nfts")
@@ -151,9 +151,9 @@ async def wallet_nfts(req: WalletQuery):
         nfts = await mc.get_wallet_nfts(req.address, req.chain, req.limit)
         return {"address": req.address, "chain": req.chain, "nfts": nfts}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/wallet/balance")
@@ -166,9 +166,9 @@ async def wallet_balance(req: WalletQuery):
         balance = await mc.get_wallet_native_balance(req.address, req.chain)
         return {"address": req.address, "chain": req.chain, "balance": balance}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/wallet/transfers")
@@ -181,9 +181,9 @@ async def wallet_transfers(req: WalletQuery):
         transfers = await mc.get_wallet_token_transfers(req.address, req.chain, req.limit)
         return {"address": req.address, "chain": req.chain, "transfers": transfers}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/token/{token_address}/price")
@@ -196,9 +196,9 @@ async def token_price(token_address: str, chain: str = "eth"):
         price = await mc.get_token_price(token_address, chain)
         return {"token": token_address, "chain": chain, "price": price}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/token/{token_address}/metadata")
@@ -211,9 +211,9 @@ async def token_metadata(token_address: str, chain: str = "eth"):
         metadata = await mc.get_token_metadata(token_address, chain)
         return {"token": token_address, "chain": chain, "metadata": metadata}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/token/{token_address}/holders")
@@ -226,9 +226,9 @@ async def token_holders(token_address: str, chain: str = "eth", limit: int = 20)
         holders = await mc.get_token_holders(token_address, chain, limit)
         return {"token": token_address, "chain": chain, "holders": holders}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 # ── Streams Management ───────────────────────────────────────
@@ -244,9 +244,9 @@ async def list_streams():
         streams = await mc.list_streams()
         return {"streams": streams}
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/streams/create")
@@ -267,7 +267,7 @@ async def create_stream(req: StreamCreateRequest):
             return {"status": "created", "stream": stream}
         raise HTTPException(status_code=502, detail="Stream creation failed")
     except ImportError:
-        raise HTTPException(status_code=503, detail="Moralis connector not available")
+        raise HTTPException(status_code=503, detail="Moralis connector not available") from None
 
 
 # ── Health ────────────────────────────────────────────────────

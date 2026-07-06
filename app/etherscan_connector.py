@@ -1,5 +1,5 @@
 """
-Etherscan Family Connector — EVM Block Explorers.
+Etherscan Family Connector - EVM Block Explorers.
 Single API works for: Ethereum, BSC, Polygon, Avalanche, Fantom, Arbitrum, Optimism, Base.
 Free tier: 5 req/sec, 100,000 calls/day.
 

@@ -1,4 +1,4 @@
-"""DataBus Key Affinity — Consistent Hashing for API Key Selection"""
+"""DataBus Key Affinity - Consistent Hashing for API Key Selection"""
 
 import hashlib
 import logging

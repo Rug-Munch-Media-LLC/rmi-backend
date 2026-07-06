@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Fine-Tuning Pipeline — Real-CATS data → qwen2.5-coder:7b via Ollama.
+"""Fine-Tuning Pipeline - Real-CATS data → qwen2.5-coder:7b via Ollama.
 Usage: python3 fine_tune.py  (runs 2-4 hours, keep overnight)
-Result: rmi-scam-detector:7b — specialist model at 95%+ rug detection accuracy."""
+Result: rmi-scam-detector:7b - specialist model at 95%+ rug detection accuracy."""
 
 import json
 import os
@@ -145,13 +145,13 @@ def generate_training_data(samples: list[dict]) -> str:
         is_scam = s.get("is_scam", False) or any(
             w in str(s.get("label", "")).lower() for w in ["scam", "honeypot", "rug"]
         )
-        classification = "SCAM — " + (
+        classification = "SCAM - " + (
             "Honeypot detected. Unverified contract with mint authority. Avoid."
             if is_scam
             else "Token appears legitimate. Verified contract with renounced mint. Caution still advised."
         )
         if not is_scam:
-            classification = "SAFE — Token shows good metrics. Verified contract, renounced mint, sufficient liquidity. Standard due diligence recommended."
+            classification = "SAFE - Token shows good metrics. Verified contract, renounced mint, sufficient liquidity. Standard due diligence recommended."
 
         example = TRAINING_TEMPLATE.format(
             token_name=s.get("name", "Unknown"),
@@ -173,7 +173,7 @@ def generate_training_data(samples: list[dict]) -> str:
 
 
 def main():
-    print(f"RMI Fine-Tuning Pipeline — {BASE_MODEL} → {OUTPUT_MODEL}")
+    print(f"RMI Fine-Tuning Pipeline - {BASE_MODEL} → {OUTPUT_MODEL}")
     print("=" * 50)
 
     samples = load_real_cats(500)
@@ -192,7 +192,7 @@ def main():
     print("\nThen test with:")
     print(f"  ollama run {OUTPUT_MODEL} 'Is token 0xabc with mint authority enabled and 0% LP locked a scam?'")
 
-    # Actual fine-tuning (commented for safety — uncomment to run overnight)
+    # Actual fine-tuning (commented for safety - uncomment to run overnight)
     try:
         print("\nStarting fine-tuning... (this takes 2-4 hours)")
         result = subprocess.run(

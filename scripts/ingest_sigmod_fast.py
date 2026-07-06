@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """FAST batch ingest SIGMOD P&D dataset directly into Redis.
-Skips the HTTP API bottleneck — writes Redis keys directly.
+Skips the HTTP API bottleneck - writes Redis keys directly.
 """
 
 import csv
@@ -12,9 +12,9 @@ import sys
 sys.path.insert(0, "/root/backend")
 os.chdir("/root/backend")
 
-import redis.asyncio as redis
+import redis.asyncio as redis  # noqa: E402
 
-from app.crypto_embeddings import get_embedder
+from app.crypto_embeddings import get_embedder  # noqa: E402
 
 CSV_PATH = "/root/tools/dark-collection/sigmod-pnd/Data/Telegram/Labeled/pred_pump_message.csv"
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")

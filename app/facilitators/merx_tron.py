@@ -1,7 +1,7 @@
 """
-MERX x402 for TRON Facilitator [OFFLINE — NXDOMAIN]
+MERX x402 for TRON Facilitator [OFFLINE - NXDOMAIN]
 ====================================================
-STATUS: OFFLINE — api.merx.finance DNS is NXDOMAIN (dead domain).
+STATUS: OFFLINE - api.merx.finance DNS is NXDOMAIN (dead domain).
 Do not route payments to this facilitator. Kept for reference only.
 First TRON x402 facilitator. Supports USDT, USDC, USDD on TRON mainnet.
 Sub-3-second confirmation for micropayments.
@@ -27,7 +27,7 @@ logger = logging.getLogger("facilitator.merx_tron")
 
 
 class MerxTronFacilitator(Facilitator):
-    """MERX x402 — TRON mainnet facilitator with sub-3s confirmation.
+    """MERX x402 - TRON mainnet facilitator with sub-3s confirmation.
 
     OFFLINE: api.merx.finance DNS is NXDOMAIN. This facilitator is dead.
     """
@@ -52,7 +52,7 @@ class MerxTronFacilitator(Facilitator):
 
     @property
     def priority(self) -> int:
-        return 999  # Dead facilitator — lowest possible priority
+        return 999  # Dead facilitator - lowest possible priority
 
     @property
     def verify_url(self) -> str | None:
@@ -75,14 +75,14 @@ class MerxTronFacilitator(Facilitator):
 
     @property
     def description(self) -> str:
-        return "MERX x402 — TRON USDT/USDC/USDD micropayments, sub-3s"
+        return "MERX x402 - TRON USDT/USDC/USDD micropayments, sub-3s"
 
     async def verify(
         self,
         payload: dict[str, Any],
         requirements: dict[str, Any] | None = None,
     ) -> VerificationResult:
-        # OFFLINE: api.merx.finance is NXDOMAIN — refuse all verifications
+        # OFFLINE: api.merx.finance is NXDOMAIN - refuse all verifications
         return self._format_error("MERX TRON facilitator is OFFLINE (api.merx.finance NXDOMAIN)")
 
     async def _verify_live(
@@ -158,11 +158,11 @@ class MerxTronFacilitator(Facilitator):
             return self._format_error(f"MERX TRON internal error: {e}")
 
     async def health(self) -> bool:
-        # OFFLINE: api.merx.finance is NXDOMAIN — always return False
+        # OFFLINE: api.merx.finance is NXDOMAIN - always return False
         return False
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
-        # OFFLINE: api.merx.finance is NXDOMAIN — refuse all settlements
+        # OFFLINE: api.merx.finance is NXDOMAIN - refuse all settlements
         return SettlementResult(
             settled=False,
             reason="MERX TRON facilitator is OFFLINE (api.merx.finance NXDOMAIN)",

@@ -1,4 +1,4 @@
-"""T12 — CertStream phishing domain monitor (G04 FIX adjacent).
+"""T12 - CertStream phishing domain monitor (G04 FIX adjacent).
 
 Per MINIMAX_M3_TASKS.md T12. Watches Certificate Transparency logs in real
 time for domains that spoof crypto brands (MetaMask, Ledger, Coinbase,
@@ -6,7 +6,7 @@ etc). When a match is found, fires a Telegram alert via the existing
 bot and persists the domain to Postgres `threat_domains`.
 
 Run as a background task in lifespan.py. If CertStream is down, log and
-continue — never break startup.
+continue - never break startup.
 
 Why this matters: phishing sites clone crypto brands and steal wallet
 seeds. CT logs show new domains BEFORE they go live, giving a 48h lead
@@ -80,7 +80,7 @@ def match_brand(domain: str, brands: list[str] | None = None) -> str | None:
         if not brand_clean:
             continue
         if brand_clean in main_clean and main_clean != brand_clean:
-            # Phishing variant — not the official domain
+            # Phishing variant - not the official domain
             return brand
     return None
 
@@ -174,7 +174,7 @@ async def _persist_domain(domain: str, brand: str, issued_at: datetime | None, i
 
 
 # ── CertStream WebSocket listener ──────────────────────────────────
-# Public CertStream (CaliDog) — the canonical free CT feed.
+# Public CertStream (CaliDog) - the canonical free CT feed.
 CERTSTREAM_URL = os.getenv(
     "CERTSTREAM_URL", "wss://certstream.calidog.io/"
 )

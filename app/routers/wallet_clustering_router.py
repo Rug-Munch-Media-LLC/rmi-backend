@@ -1,5 +1,5 @@
 """
-Wallet Clustering API Router — Cluster detection, funding paths, risk analysis.
+Wallet Clustering API Router - Cluster detection, funding paths, risk analysis.
 Connects to /api/v1/wallet-clusters/*
 """
 
@@ -45,7 +45,7 @@ def _get_detector():
 
         return ClusterDetectionPro()
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}") from e
 
 
 def _get_engine():
@@ -54,7 +54,7 @@ def _get_engine():
 
         return get_clustering_engine()
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}") from e
 
 
 @router.post("/detect")
@@ -298,7 +298,7 @@ async def scan_contract_clusters(req: ContractScanRequest):
             from app.unified_provider import get_unified_provider
 
             provider = get_unified_provider()
-            for h in holders[:5]:  # Limit API calls — feed top 5 holders
+            for h in holders[:5]:  # Limit API calls - feed top 5 holders
                 txs = await provider.get_wallet_transactions(h, limit=10)
                 from datetime import datetime
 

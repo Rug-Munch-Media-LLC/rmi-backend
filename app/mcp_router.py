@@ -1,5 +1,5 @@
 """
-MCP Router — Receives tool execution requests from Cloudflare X402 Workers.
+MCP Router - Receives tool execution requests from Cloudflare X402 Workers.
 Exposes /mcp/tools (catalog) and /mcp/execute (tool execution).
 This is what the worker calls when x402 payment is verified.
 """
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/mcp", tags=["mcp-router"])
 
 # ═══════════════════════════════════════════════════════════
-# TOOL CATALOG — What the worker fetches on startup
+# TOOL CATALOG - What the worker fetches on startup
 # ═══════════════════════════════════════════════════════════
 TOOLS = {
     # Security
@@ -340,7 +340,7 @@ async def mcp_tools():
 
 @router.post("/execute/{tool_id}")
 async def mcp_execute(tool_id: str, request: Request):
-    """Execute a tool — called by Cloudflare Worker after x402 payment verified."""
+    """Execute a tool - called by Cloudflare Worker after x402 payment verified."""
     tool = TOOLS.get(tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail=f"Tool {tool_id} not found")
@@ -359,7 +359,7 @@ async def mcp_execute(tool_id: str, request: Request):
         if f"{{{key}}}" in endpoint and key in body:
             endpoint = endpoint.replace(f"{{{key}}}", body[key])
 
-    # Internal calls bypass auth — add internal API key header
+    # Internal calls bypass auth - add internal API key header
     internal_headers = {}
     auth_token = os.getenv("RMI_AUTH_TOKEN", "")
     if auth_token:

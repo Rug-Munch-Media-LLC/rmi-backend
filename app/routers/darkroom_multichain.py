@@ -201,7 +201,7 @@ async def create_campaign(request: Request, body: CreateCampaignRequest, _=Depen
 
     except Exception as e:
         logger.error(f"Create campaign failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Create failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Create failed: {e!s}") from e
 
 
 @router.post("/campaign/crm-preset")
@@ -267,7 +267,7 @@ async def create_crm_preset(request: Request, body: CRMPresetRequest, _=Depends(
 
     except Exception as e:
         logger.error(f"CRM preset failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Preset failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Preset failed: {e!s}") from e
 
 
 @router.post("/snapshot")
@@ -317,7 +317,7 @@ async def execute_snapshot(request: Request, body: ExecuteSnapshotRequest, _=Dep
 
     except Exception as e:
         logger.error(f"Snapshot failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Snapshot failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Snapshot failed: {e!s}") from e
 
 
 @router.post("/snapshot/upload")
@@ -355,7 +355,7 @@ async def upload_snapshot(request: Request, body: UploadSnapshotRequest, _=Depen
 
     except Exception as e:
         logger.error(f"Upload snapshot failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e!s}") from e
 
 
 @router.post("/snapshot/manual")
@@ -395,7 +395,7 @@ async def add_manual_holders(request: Request, body: ManualHoldersRequest, _=Dep
 
     except Exception as e:
         logger.error(f"Manual holders failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed: {e!s}") from e
 
 
 @router.post("/distribute")
@@ -417,7 +417,7 @@ async def execute_distribution(request: Request, body: ExecuteDistributionReques
 
     except Exception as e:
         logger.error(f"Distribution failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Distribution failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Distribution failed: {e!s}") from e
 
 
 @router.post("/launch")
@@ -504,7 +504,7 @@ async def full_multichain_launch(request: Request, body: CRMv2LaunchRequest, _=D
 
     except Exception as e:
         logger.error(f"Full launch failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Launch failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Launch failed: {e!s}") from e
 
 
 @router.get("/campaign/{campaign_id}")
@@ -523,7 +523,7 @@ async def get_campaign(request: Request, campaign_id: str, _=Depends(_verify_adm
         raise
     except Exception as e:
         logger.error(f"Get campaign failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}") from e
 
 
 @router.get("/campaign/{campaign_id}/holders")
@@ -550,7 +550,7 @@ async def get_campaign_holders(
         raise
     except Exception as e:
         logger.error(f"Get holders failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}") from e
 
 
 @router.post("/link-addresses")
@@ -573,7 +573,7 @@ async def link_addresses(request: Request, body: LinkAddressesRequest, _=Depends
 
     except Exception as e:
         logger.error(f"Link addresses failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Link failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Link failed: {e!s}") from e
 
 
 @router.get("/link-addresses/{address}/{chain}")
@@ -589,7 +589,7 @@ async def get_linked_addresses(request: Request, address: str, chain: str, _=Dep
 
     except Exception as e:
         logger.error(f"Get links failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}") from e
 
 
 @router.post("/campaign/tiered")
@@ -638,4 +638,4 @@ async def create_tiered_campaign(request: Request, body: CreateTieredCampaignReq
 
     except Exception as e:
         logger.error(f"Tiered campaign failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Create failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Create failed: {e!s}") from e

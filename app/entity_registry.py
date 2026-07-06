@@ -1,9 +1,9 @@
 """
-Known Entity Registry — Exchange, DeFi, and Infrastructure address recognition.
+Known Entity Registry - Exchange, DeFi, and Infrastructure address recognition.
 Excludes legitimate infrastructure from cluster/bundle analysis.
 Integrates CryptoScamDB, Forta, Januus free risk scores.
 
-Paper ref: Article 3, Section 2 — Free Datasets and Labelled-Address Repositories
+Paper ref: Article 3, Section 2 - Free Datasets and Labelled-Address Repositories
 """
 
 import json
@@ -111,7 +111,7 @@ class EntityMatch:
 
 
 class EntityRegistry:
-    """Known entity recognition — excludes infrastructure from analysis."""
+    """Known entity recognition - excludes infrastructure from analysis."""
 
     def __init__(self):
         self._exchange_addrs: set[str] = set()

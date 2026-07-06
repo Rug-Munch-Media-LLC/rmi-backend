@@ -1,4 +1,4 @@
-"""T29 Research Report Generator — HTTP routes.
+"""T29 Research Report Generator - HTTP routes.
 
 Per v4.0 §T29. POST /api/v1/reports/generate composes a research report
 from every data source, sold via x402 at $5/report.
@@ -69,9 +69,9 @@ async def generate_report(req: GenerateRequest) -> GenerateResponse:
         else:
             report = await generate_wallet_report(catalog, chain, address, model=req.model)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
     except Exception as e:
-        raise HTTPException(500, f"report_generation_failed: {e}")
+        raise HTTPException(500, f"report_generation_failed: {e}") from e
     if req.save:
         await save_report(catalog, report)
     # Derive risk_factors from sections (parse them back if needed)
@@ -134,4 +134,4 @@ async def get_report(report_id: str) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(500, f"get_report_fail: {e}")
+        raise HTTPException(500, f"get_report_fail: {e}") from e

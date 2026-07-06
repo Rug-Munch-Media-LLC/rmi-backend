@@ -129,7 +129,7 @@ class PythPriceFeedProvider:
             publish_time = price_info.get("publish_time")
 
             # Convert price to decimal format
-            if price and expo:
+            if price and expo:  # noqa: SIM108
                 # Price is stored as integer with exponent
                 price_decimal = int(price) * (10**expo)
             else:

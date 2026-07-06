@@ -1,5 +1,5 @@
 """
-Local MCP Client — Pull open-source MCP servers from GitHub, run locally, route through caching shield.
+Local MCP Client - Pull open-source MCP servers from GitHub, run locally, route through caching shield.
 
 Architecture:
   GitHub MCP repos → local clone → stdio transport → cache wrapper → our tooling

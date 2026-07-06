@@ -1,5 +1,5 @@
 """
-Tests for mev_protection.py — MEV Shield Analysis
+Tests for mev_protection.py - MEV Shield Analysis
 """
 
 import asyncio
@@ -31,7 +31,7 @@ async def test_mempool_risk() -> None:
     assert isinstance(result, MevFactor)
     assert 0.0 <= result.score <= 1.0
     assert result.name == "mempool_activity"
-    print(f"  Score: {result.score:.2f} — {result.finding}")
+    print(f"  Score: {result.score:.2f} - {result.finding}")
     print(f"  Suggestion: {result.suggestion}")
     print("  ✅ PASS")
 
@@ -43,17 +43,17 @@ async def test_slippage_risk() -> None:
     # Low slippage (0.5%)
     low = await _check_slippage_risk(50)
     assert low.score <= 0.3
-    print(f"  Low (0.5%): score={low.score:.2f} — {low.finding}")
+    print(f"  Low (0.5%): score={low.score:.2f} - {low.finding}")
 
     # Medium slippage (1%)
     med = await _check_slippage_risk(100)
     assert 0.3 <= med.score <= 0.7
-    print(f"  Med (1.0%): score={med.score:.2f} — {med.finding}")
+    print(f"  Med (1.0%): score={med.score:.2f} - {med.finding}")
 
     # High slippage (3%+)
     high = await _check_slippage_risk(500)
     assert high.score >= 0.7
-    print(f"  High (5%): score={high.score:.2f} — {high.finding}")
+    print(f"  High (5%): score={high.score:.2f} - {high.finding}")
 
     print("  ✅ PASS")
 
@@ -65,15 +65,15 @@ async def test_gas_price_risk() -> None:
     # Low slippage (0.5%)
     low = await _check_gas_price_risk(5.0)
     assert low.score <= 0.3
-    print(f"  Low (5 gwei): score={low.score:.2f} — {low.finding}")
+    print(f"  Low (5 gwei): score={low.score:.2f} - {low.finding}")
 
     med = await _check_gas_price_risk(25.0)
     assert 0.3 <= med.score <= 0.6
-    print(f"  Med (25 gwei): score={med.score:.2f} — {med.finding}")
+    print(f"  Med (25 gwei): score={med.score:.2f} - {med.finding}")
 
     high = await _check_gas_price_risk(75.0)
     assert high.score >= 0.6
-    print(f"  High (75 gwei): score={high.score:.2f} — {high.finding}")
+    print(f"  High (75 gwei): score={high.score:.2f} - {high.finding}")
 
     print("  ✅ PASS")
 
@@ -84,28 +84,28 @@ async def test_timing_risk() -> None:
     result = await _check_timing_risk()
     assert isinstance(result, MevFactor)
     assert 0.0 <= result.score <= 1.0
-    print(f"  Score: {result.score:.2f} — {result.finding}")
+    print(f"  Score: {result.score:.2f} - {result.finding}")
     print(f"  Suggestion: {result.suggestion}")
     print("  ✅ PASS")
 
 
 async def test_historical_mev() -> None:
     """Test historical MEV check (fallback mode, no actual detector loaded)."""
-    print("\n🧪 test_historical_mev (fallback — no real detector)")
+    print("\n🧪 test_historical_mev (fallback - no real detector)")
     result = await _check_historical_mev("ethereum")
     assert isinstance(result, MevFactor)
     assert result.score > 0  # Should have default chain risk score
-    print(f"  Score: {result.score:.2f} — {result.finding}")
+    print(f"  Score: {result.score:.2f} - {result.finding}")
     print("  ✅ PASS")
 
 
 async def test_liquidity_risk() -> None:
-    """Test pool liquidity assessment (no real pair — should return unknown)."""
+    """Test pool liquidity assessment (no real pair - should return unknown)."""
     print("\n🧪 test_liquidity_risk (no pair address)")
     result = await _check_pool_liquidity(None, "ethereum")
     assert isinstance(result, MevFactor)
     assert result.name == "pool_liquidity"
-    print(f"  Score: {result.score:.2f} — {result.finding}")
+    print(f"  Score: {result.score:.2f} - {result.finding}")
     print("  ✅ PASS")
 
 
@@ -129,7 +129,7 @@ async def test_full_analysis() -> None:
     print(f"  Est. Loss: {result.estimated_loss_bps} bps")
 
     for f in result.factors:
-        print(f"    {f.name:25s} {f.score:.2f} — {f.finding}")
+        print(f"    {f.name:25s} {f.score:.2f} - {f.finding}")
 
     print("  ✅ PASS")
 
@@ -139,7 +139,7 @@ async def test_full_high_risk() -> None:
     print("\n🧪 test_full_high_risk")
     result = await analyze_transaction_risk(
         chain="ethereum",
-        slippage_bps=500,  # 5% — reckless
+        slippage_bps=500,  # 5% - reckless
         gas_price_gwei=200.0,  # Premium gas
     )
     assert result.risk_level in (MevRiskLevel.HIGH, MevRiskLevel.CRITICAL)
@@ -186,7 +186,7 @@ async def test_result_to_dict() -> None:
 
 async def main() -> bool:
     print("=" * 60)
-    print("MEV Shield Analysis — Test Suite")
+    print("MEV Shield Analysis - Test Suite")
     print("=" * 60)
 
     tests = [

@@ -1,4 +1,4 @@
-"""Deep Intelligence Router — 12 Unaccounted Features API
+"""Deep Intelligence Router - 12 Unaccounted Features API
 
 Endpoints for:
 1. Deployer Reputation Score
@@ -83,7 +83,7 @@ async def api_deployer_reputation(
         return result
     except Exception as e:
         logger.error(f"Deployer reputation error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 2. Pre-flight Transaction Simulator ────────────────────────────────
@@ -102,7 +102,7 @@ async def api_preflight_simulate(
         return result
     except Exception as e:
         logger.error(f"Preflight simulation error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 3. Liquidity Lock Authenticity ────────────────────────────────────
@@ -113,13 +113,13 @@ async def api_liquidity_lock(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
 ):
-    """Analyze liquidity lock authenticity — not just 'is it locked?' but meaningful analysis."""
+    """Analyze liquidity lock authenticity - not just 'is it locked?' but meaningful analysis."""
     try:
         result = await liquidity_lock_authenticity(token_address, chain)
         return result
     except Exception as e:
         logger.error(f"Liquidity lock error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 4. Volume Authenticity Engine ──────────────────────────────────────
@@ -136,7 +136,7 @@ async def api_volume_authenticity(
         return result
     except Exception as e:
         logger.error(f"Volume authenticity error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 5. Slow Rug Detector ──────────────────────────────────────────────
@@ -153,7 +153,7 @@ async def api_slow_rug_detector(
         return result
     except Exception as e:
         logger.error(f"Slow rug detector error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 6. Funding Source Tracer ──────────────────────────────────────────
@@ -170,7 +170,7 @@ async def api_funding_source(
         return result
     except Exception as e:
         logger.error(f"Funding source error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 7. Ownership Theater Detector ─────────────────────────────────────
@@ -187,7 +187,7 @@ async def api_ownership_theater(
         return result
     except Exception as e:
         logger.error(f"Ownership theater error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 8. Exit Liquidity Calculator ──────────────────────────────────────
@@ -205,7 +205,7 @@ async def api_exit_liquidity(
         return result
     except Exception as e:
         logger.error(f"Exit liquidity error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 9. Token Lifespan Predictor ────────────────────────────────────────
@@ -222,7 +222,7 @@ async def api_lifespan_predictor(
         return result
     except Exception as e:
         logger.error(f"Lifespan predictor error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 10. Post-Purchase Monitor ─────────────────────────────────────────
@@ -233,13 +233,13 @@ async def api_post_purchase_monitor(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
 ):
-    """Live risk monitoring — detect contract changes, fee increases, liquidity drops."""
+    """Live risk monitoring - detect contract changes, fee increases, liquidity drops."""
     try:
         result = await post_purchase_monitor(token_address, chain)
         return result
     except Exception as e:
         logger.error(f"Post purchase monitor error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 11. Cross-Chain Identity Resolution ────────────────────────────────
@@ -256,7 +256,7 @@ async def api_cross_chain_identity(
         return result
     except Exception as e:
         logger.error(f"Cross-chain identity error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── 12. Social-Onchain Correlation ─────────────────────────────────────
@@ -273,7 +273,7 @@ async def api_social_onchain_correlation(
         return result
     except Exception as e:
         logger.error(f"Social correlation error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── COMPOSITE: Full Deep Intelligence Report ────────────────────────────
@@ -291,7 +291,7 @@ async def api_full_report(
         return result
     except Exception as e:
         logger.error(f"Full deep intel error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── Batch: Multiple tokens at once ────────────────────────────────────

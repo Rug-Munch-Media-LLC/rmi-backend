@@ -1,4 +1,4 @@
-"""Ethereum wallet labels CSV source — 51K EVM labels via DuckDB."""
+"""Ethereum wallet labels CSV source - 51K EVM labels via DuckDB."""
 from __future__ import annotations
 
 import asyncio

@@ -5,7 +5,7 @@ Fake volume detection across 4 layers: statistical, graph, heuristic, ML.
 Produces Authentic Score (100 - fake_volume%) with bootstrap confidence intervals.
 
 Wired into DataBus as 'volume_authenticity' chain.
-Powers the RugCharts competitive moat — no other platform shows this.
+Powers the RugCharts competitive moat - no other platform shows this.
 
 Reference: Cong et al. (2023), Victor & Weintraud (2021), Niedermayer (2024)
 """
@@ -278,7 +278,7 @@ class VolumeAuthenticityScorer:
         buy_sell: 0.15
     """
 
-    DEFAULT_WEIGHTS = {
+    DEFAULT_WEIGHTS = {  # noqa: RUF012
         "statistical": 0.25,
         "vl_ratio": 0.20,
         "wallet_concentration": 0.20,
@@ -336,7 +336,7 @@ class VolumeAuthenticityScorer:
         # Normalize: redistribute unused weight
         fake_pct = (weighted_sum / weight_total) * 100
 
-        # Confidence: method coverage × data sufficiency
+        # Confidence: method coverage x data sufficiency
         method_coverage = len(breakdown) / len(self.weights)
         data_suff = min(tx_count / 1000, 1.0)
         conf = method_coverage * data_suff

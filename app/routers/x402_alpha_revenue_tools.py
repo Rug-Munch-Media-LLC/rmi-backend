@@ -1,10 +1,10 @@
 """
-RMI Alpha Tools — High-Value Revenue Tools
+RMI Alpha Tools - High-Value Revenue Tools
 ============================================
 Three premium alpha tools that bots will pay for:
-1. whale_copy_trade — Real-time copy trade engine
-2. rug_predictor_live — 5-minute rug prediction
-3. whale_cluster — Coordinated whale cluster detection
+1. whale_copy_trade - Real-time copy trade engine
+2. rug_predictor_live - 5-minute rug prediction
+3. whale_cluster - Coordinated whale cluster detection
 
 All tools use DataBus + DexScreener + RAG enrichment.
 Price points: $0.10-$0.50 per call.
@@ -23,6 +23,8 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.core.redis import get_redis
+
 logger = logging.getLogger("alpha_tools")
 
 router = APIRouter(prefix="/api/v1/x402-tools", tags=["alpha-tools"])
@@ -36,7 +38,7 @@ async def fetch_dexscreener(path: str, params: dict | None = None) -> dict | Non
 
     url = f"https://api.dexscreener.com/latest/dex/{path}"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
             async with session.get(url, params=params) as resp:
                 if resp.status == 200:
                     return await resp.json()
@@ -52,7 +54,7 @@ async def fetch_geckoterminal(path: str) -> dict | None:
     url = f"https://api.geckoterminal.com/api/v2/{path}"
     headers = {"Accept": "application/json"}
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
             async with session.get(url, headers=headers) as resp:
                 if resp.status == 200:
                     return await resp.json()
@@ -71,7 +73,7 @@ async def fetch_helius(path: str, params: dict | None = None) -> dict | None:
 
     url = f"https://api.helius.xyz/v0/{path}?api-key={api_key}"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
             async with session.get(url, params=params) as resp:
                 if resp.status == 200:
                     return await resp.json()
@@ -80,7 +82,7 @@ async def fetch_helius(path: str, params: dict | None = None) -> dict | None:
     return None
 
 
-async def whale_copy_trade(req: WhaleCopyTradeRequest):
+async def whale_copy_trade(req: WhaleCopyTradeRequest):  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     """Real-time copy trade engine.
 
     Input a smart money wallet, get their exact last 24h trades with
@@ -273,7 +275,7 @@ class RugPredictorLiveRequest(BaseModel):
 
 @router.post("/rug_predictor_live")
 async def rug_predictor_live(req: RugPredictorLiveRequest):
-    """Live rug predictor — analyzes tokens in their first 5-30 minutes.
+    """Live rug predictor - analyzes tokens in their first 5-30 minutes.
 
     Watches new tokens in real-time, scores them, and alerts before the rug.
 
@@ -308,7 +310,7 @@ async def rug_predictor_live(req: RugPredictorLiveRequest):
             {
                 "signal": "low_liquidity",
                 "severity": "critical",
-                "message": f"Liquidity only ${liquidity_usd:.0f} — extremely vulnerable to rug",
+                "message": f"Liquidity only ${liquidity_usd:.0f} - extremely vulnerable to rug",
                 "weight": 25,
             }
         )
@@ -318,7 +320,7 @@ async def rug_predictor_live(req: RugPredictorLiveRequest):
             {
                 "signal": "low_liquidity",
                 "severity": "high",
-                "message": f"Liquidity ${liquidity_usd:.0f} — high risk",
+                "message": f"Liquidity ${liquidity_usd:.0f} - high risk",
                 "weight": 15,
             }
         )
@@ -331,7 +333,7 @@ async def rug_predictor_live(req: RugPredictorLiveRequest):
             {
                 "signal": "lp_not_locked",
                 "severity": "critical",
-                "message": "Liquidity pool is NOT locked — creator can remove at any time",
+                "message": "Liquidity pool is NOT locked - creator can remove at any time",
                 "weight": 20,
             }
         )
@@ -347,7 +349,7 @@ async def rug_predictor_live(req: RugPredictorLiveRequest):
             {
                 "signal": "price_crash",
                 "severity": "critical",
-                "message": f"Price down {h1_change}% in 1 hour — active rug in progress",
+                "message": f"Price down {h1_change}% in 1 hour - active rug in progress",
                 "weight": 25,
             }
         )
@@ -362,7 +364,7 @@ async def rug_predictor_live(req: RugPredictorLiveRequest):
                 {
                     "signal": "extreme_volume",
                     "severity": "high",
-                    "message": f"Volume/Liquidity ratio {vol_liq_ratio:.1f}x — suspicious activity",
+                    "message": f"Volume/Liquidity ratio {vol_liq_ratio:.1f}x - suspicious activity",
                     "weight": 10,
                 }
             )
@@ -381,7 +383,7 @@ async def rug_predictor_live(req: RugPredictorLiveRequest):
                 {
                     "signal": "mass_selling",
                     "severity": "high",
-                    "message": f"{sell_ratio * 100:.0f}% of transactions are sells — panic selling",
+                    "message": f"{sell_ratio * 100:.0f}% of transactions are sells - panic selling",
                     "weight": 15,
                 }
             )
@@ -396,7 +398,7 @@ async def rug_predictor_live(req: RugPredictorLiveRequest):
                 {
                     "signal": "brand_new_pair",
                     "severity": "medium",
-                    "message": f"Pair is only {age_hours * 60:.0f} minutes old — highest risk window",
+                    "message": f"Pair is only {age_hours * 60:.0f} minutes old - highest risk window",
                     "weight": 10,
                 }
             )
@@ -405,19 +407,19 @@ async def rug_predictor_live(req: RugPredictorLiveRequest):
     # ── Determine Verdict ─────────────────────────────────────────
     if rug_score >= 70:
         verdict = "CRITICAL_RUG"
-        action = "AVOID — High probability of active or imminent rug"
+        action = "AVOID - High probability of active or imminent rug"
     elif rug_score >= 50:
         verdict = "HIGH_RISK"
-        action = "AVOID — Multiple red flags detected"
+        action = "AVOID - Multiple red flags detected"
     elif rug_score >= 30:
         verdict = "MEDIUM_RISK"
-        action = "CAUTION — Some warning signs, monitor closely"
+        action = "CAUTION - Some warning signs, monitor closely"
     elif rug_score >= 15:
         verdict = "LOW_RISK"
-        action = "MONITOR — Minor concerns but mostly clean"
+        action = "MONITOR - Minor concerns but mostly clean"
     else:
         verdict = "SAFE"
-        action = "Relatively clean — standard risk management applies"
+        action = "Relatively clean - standard risk management applies"
 
     return JSONResponse(
         content={
@@ -531,10 +533,10 @@ async def whale_cluster(req: WhaleClusterRequest):
     # Risk assessment
     if any(c["size"] >= 5 for c in clusters):
         cluster_data["risk_assessment"] = "high"
-        cluster_data["risk_message"] = "Large coordinated cluster detected — possible wash trading or insider network"
+        cluster_data["risk_message"] = "Large coordinated cluster detected - possible wash trading or insider network"
     elif any(c["size"] >= 3 for c in clusters):
         cluster_data["risk_assessment"] = "medium"
-        cluster_data["risk_message"] = "Medium cluster detected — wallets showing coordinated behavior"
+        cluster_data["risk_message"] = "Medium cluster detected - wallets showing coordinated behavior"
     else:
         cluster_data["risk_assessment"] = "low"
         cluster_data["risk_message"] = "No significant clusters detected"
@@ -629,21 +631,21 @@ def register_alpha_tool_prices():
                     "price_atoms": "250000",
                     "category": "alpha",
                     "trial_free": 1,
-                    "description": "Real-time copy trade engine — find smart money trades with entry/exit prices, PnL, and follow suggestions",
+                    "description": "Real-time copy trade engine - find smart money trades with entry/exit prices, PnL, and follow suggestions",
                 },
                 "rug_predictor_live": {
                     "price_usd": 0.50,
                     "price_atoms": "500000",
                     "category": "security",
                     "trial_free": 1,
-                    "description": "Live rug predictor — analyzes tokens in first 5-30 minutes with 6-signal rug probability scoring",
+                    "description": "Live rug predictor - analyzes tokens in first 5-30 minutes with 6-signal rug probability scoring",
                 },
                 "whale_cluster": {
                     "price_usd": 0.30,
                     "price_atoms": "300000",
                     "category": "intelligence",
                     "trial_free": 1,
-                    "description": "Coordinated whale cluster detection — identify wash trading, insider networks, and pump groups",
+                    "description": "Coordinated whale cluster detection - identify wash trading, insider networks, and pump groups",
                 },
             }
         )

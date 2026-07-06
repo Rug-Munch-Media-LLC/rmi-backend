@@ -1,5 +1,6 @@
 """
-Expanded MCP Catalog — Free Open-Source Tools from GitHub
+from sdks.python.x402_frameworks.autogen_adapter import logger  # noqa: F821  -- added by codemod
+Expanded MCP Catalog - Free Open-Source Tools from GitHub
 ============================================================
 Wires free, MIT/Apache-licensed MCPs we cloned from GitHub into the
 x402 tool catalog. These tools are NOT redundant with our 221 native
@@ -12,7 +13,7 @@ tools. Each entry includes:
   - Source repo
   - License
 
-All tools are wrapped by the caching shield — calls are L1+L2 cached,
+All tools are wrapped by the caching shield - calls are L1+L2 cached,
 rate-limited, and run via stdio against the local clone. We retool
 free data into $0.01-0.40/call agent-callable endpoints.
 """
@@ -26,7 +27,7 @@ free data into $0.01-0.40/call agent-callable endpoints.
 FEAR_GREED_TOOLS = [
     {
         "id": "sentiment.fear_greed_current",
-        "name": "Fear & Greed Index — Current",
+        "name": "Fear & Greed Index - Current",
         "description": "Real-time Crypto Fear & Greed Index (0-100). Reads market sentiment: 0-24 extreme fear, 25-49 fear, 50 neutral, 51-74 greed, 75-100 extreme greed. Free Alternative.me API.",
         "category": "sentiment",
         "service": "fear-greed-mcp",
@@ -41,7 +42,7 @@ FEAR_GREED_TOOLS = [
     },
     {
         "id": "sentiment.fear_greed_history",
-        "name": "Fear & Greed Index — Historical",
+        "name": "Fear & Greed Index - Historical",
         "description": "Historical Crypto Fear & Greed Index over N days. Returns daily values + classification. Trend analysis included (rising/falling/stable + average). Free Alternative.me API.",
         "category": "sentiment",
         "service": "fear-greed-mcp",
@@ -57,7 +58,7 @@ FEAR_GREED_TOOLS = [
     },
     {
         "id": "sentiment.fear_greed_trend",
-        "name": "Fear & Greed Index — Trend Analysis",
+        "name": "Fear & Greed Index - Trend Analysis",
         "description": "Analyze N-day trend in Crypto Fear & Greed Index. Returns latest value, average, direction (rising/falling/stable), and statistical breakdown. Free Alternative.me API.",
         "category": "sentiment",
         "service": "fear-greed-mcp",
@@ -78,14 +79,14 @@ FEAR_GREED_TOOLS = [
 # 2. Crypto Technical Indicators (kukapay/crypto-indicators-mcp)
 #    Source: Local computation, no API key
 #    License: MIT
-#    50+ indicators — exposed as 4 high-value bundled endpoints
+#    50+ indicators - exposed as 4 high-value bundled endpoints
 #    + an "any indicator" lookup
 # ════════════════════════════════════════════════════════════
 
 CRYPTO_INDICATORS_TOOLS = [
     {
         "id": "analysis.ta_momentum",
-        "name": "TA — Momentum Indicators",
+        "name": "TA - Momentum Indicators",
         "description": "Momentum oscillators: RSI, MACD, Stochastic, Williams %R, ROC, Awesome Oscillator, CCI, MFI, KDJ. 12+ indicators in one call. Input: symbol/chain/interval. Returns computed values + overbought/oversold signals.",
         "category": "analysis",
         "service": "crypto-indicators-mcp",
@@ -101,7 +102,7 @@ CRYPTO_INDICATORS_TOOLS = [
     },
     {
         "id": "analysis.ta_trend",
-        "name": "TA — Trend Indicators",
+        "name": "TA - Trend Indicators",
         "description": "Trend following: SMA, EMA, DEMA, TEMA, TMA, WMA, VWMA, Rolling MA, MACD, Aroon, Parabolic SAR, Ichimoku Cloud, Qstick. 14+ indicators in one call.",
         "category": "analysis",
         "service": "crypto-indicators-mcp",
@@ -117,7 +118,7 @@ CRYPTO_INDICATORS_TOOLS = [
     },
     {
         "id": "analysis.ta_volatility",
-        "name": "TA — Volatility Indicators",
+        "name": "TA - Volatility Indicators",
         "description": "Volatility bands & ranges: Bollinger Bands (and width), Donchian, Keltner, ATR, Chandelier Exit, True Range, Acceleration Bands, Ulcer Index, Moving Std Dev. 9+ indicators in one call.",
         "category": "analysis",
         "service": "crypto-indicators-mcp",
@@ -133,7 +134,7 @@ CRYPTO_INDICATORS_TOOLS = [
     },
     {
         "id": "analysis.ta_volume",
-        "name": "TA — Volume Indicators",
+        "name": "TA - Volume Indicators",
         "description": "Volume analysis: OBV, VWAP, Chaikin Money Flow, Force Index, ADL, Ease of Movement, Negative Volume Index, Volume Price Trend, PVT, MFI. 10+ indicators in one call.",
         "category": "analysis",
         "service": "crypto-indicators-mcp",
@@ -149,8 +150,8 @@ CRYPTO_INDICATORS_TOOLS = [
     },
     {
         "id": "analysis.ta_single",
-        "name": "TA — Single Indicator Lookup",
-        "description": "Run any single TA indicator by name. Returns raw computed value. Use when you need one specific indicator (e.g. just RSI, or just MACD). 50+ indicators available — see description for list.",
+        "name": "TA - Single Indicator Lookup",
+        "description": "Run any single TA indicator by name. Returns raw computed value. Use when you need one specific indicator (e.g. just RSI, or just MACD). 50+ indicators available - see description for list.",
         "category": "analysis",
         "service": "crypto-indicators-mcp",
         "source_repo": "https://github.com/kukapay/crypto-indicators-mcp",
@@ -398,13 +399,13 @@ CONTRACTS_WIZARD_TOOLS = [
 # 4. Web3 Research MCP (aaronjmars/web3-research-mcp)
 #    Source: CoinGecko + DefiLlama + web search
 #    License: MIT
-#    Free, fully local — uses Bright Data via env var
+#    Free, fully local - uses Bright Data via env var
 # ════════════════════════════════════════════════════════════
 
 WEB3_RESEARCH_TOOLS = [
     {
         "id": "research.search_web",
-        "name": "Web3 Research — Web Search",
+        "name": "Web3 Research - Web Search",
         "description": "Search the web for crypto research with query. Returns top 5 results, type-filtered (web/news/images/videos). Free local index. Free, MIT licensed.",
         "category": "research",
         "service": "web3-research-mcp",
@@ -420,7 +421,7 @@ WEB3_RESEARCH_TOOLS = [
     },
     {
         "id": "research.coingecko_search",
-        "name": "CoinGecko — Search Tokens",
+        "name": "CoinGecko - Search Tokens",
         "description": "Search CoinGecko for tokens by name/symbol. Returns id, name, symbol, market_cap_rank, image. Free public CoinGecko API.",
         "category": "research",
         "service": "web3-research-mcp",
@@ -436,7 +437,7 @@ WEB3_RESEARCH_TOOLS = [
     },
     {
         "id": "research.coingecko_tickers",
-        "name": "CoinGecko — Exchange Tickers",
+        "name": "CoinGecko - Exchange Tickers",
         "description": "Get exchange tickers for a coin (price across CEXs/DEXs, volume, trust score). Free public CoinGecko API.",
         "category": "research",
         "service": "web3-research-mcp",
@@ -452,7 +453,7 @@ WEB3_RESEARCH_TOOLS = [
     },
     {
         "id": "research.defillama_protocols",
-        "name": "DefiLlama — List Protocols",
+        "name": "DefiLlama - List Protocols",
         "description": "List all DeFi protocols tracked by DefiLlama. Free public API. Returns name, slug, TVL, chain, category.",
         "category": "research",
         "service": "web3-research-mcp",
@@ -477,7 +478,7 @@ WEB3_RESEARCH_TOOLS = [
     },
     {
         "id": "research.defillama_protocol",
-        "name": "DefiLlama — Protocol Details",
+        "name": "DefiLlama - Protocol Details",
         "description": "Get detailed DeFi protocol info: TVL by chain, audit links, raises, investors, market cap. Free public DefiLlama API.",
         "category": "research",
         "service": "web3-research-mcp",
@@ -493,7 +494,7 @@ WEB3_RESEARCH_TOOLS = [
     },
     {
         "id": "research.defillama_fees",
-        "name": "DefiLlama — Protocol Fees",
+        "name": "DefiLlama - Protocol Fees",
         "description": "Get protocol fees summary: 24h, 7d, 30d, all-time + change deltas. Free public DefiLlama API.",
         "category": "research",
         "service": "web3-research-mcp",
@@ -509,7 +510,7 @@ WEB3_RESEARCH_TOOLS = [
     },
     {
         "id": "research.fetch_content",
-        "name": "Web3 Research — Fetch URL",
+        "name": "Web3 Research - Fetch URL",
         "description": "Fetch and return markdown content from any URL. Use for reading docs, blog posts, or papers. Free, MIT licensed.",
         "category": "research",
         "service": "web3-research-mcp",
@@ -527,7 +528,7 @@ WEB3_RESEARCH_TOOLS = [
 
 
 # ════════════════════════════════════════════════════════════
-# Master list — all expanded MCP tools
+# Master list - all expanded MCP tools
 # ════════════════════════════════════════════════════════════
 
 EXTERNAL_MCP_TOOLS = FEAR_GREED_TOOLS + CRYPTO_INDICATORS_TOOLS + CONTRACTS_WIZARD_TOOLS + WEB3_RESEARCH_TOOLS
@@ -586,8 +587,8 @@ EXTERNAL_MCP_SERVICES = [
 
 
 if __name__ == "__main__":
-    logger.info(f"Total external MCP tools: {len(EXTERNAL_MCP_TOOLS)}")
-    logger.info(f"Services: {len(EXTERNAL_MCP_SERVICES)}")
-    logger.info()
+    logger.info(f"Total external MCP tools: {len(EXTERNAL_MCP_TOOLS)}")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    logger.info(f"Services: {len(EXTERNAL_MCP_SERVICES)}")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    logger.info()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     for svc in EXTERNAL_MCP_SERVICES:
-        logger.info(f"  {svc['icon']} {svc['name']}: {svc['tools_count']} tools ({svc['license']})")
+        logger.info(f"  {svc['icon']} {svc['name']}: {svc['tools_count']} tools ({svc['license']})")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue

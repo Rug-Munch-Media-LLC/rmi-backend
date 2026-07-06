@@ -5,13 +5,13 @@ AI-powered early warning system that predicts imminent rug pulls BEFORE they hap
 
 Architecture:
   Fuses 7 signal categories into one predictive score:
-    1. LP HEALTH (25%)   — Lock duration, depth changes, mint/burn events
-    2. DEPLOYER RISK (20%) — Previous rugs, funding patterns, dev wallet activity
-    3. SMART MONEY FLOW (15%) — Insider sells, dev exits, deployer→CEX transfers
-    4. BUNDLE PATTERN (15%) — Coordinated launch, identical amounts, common funder
-    5. SOCIAL VELOCITY (10%) — Sudden hype / shill spikes vs real engagement
-    6. CONTRACT RISK (10%) — Honeypot, ownership, proxy patterns
-    7. LIQUIDITY MIGRATION (5%) — LP moves from known to unknown, withdrawal patterns
+    1. LP HEALTH (25%)   - Lock duration, depth changes, mint/burn events
+    2. DEPLOYER RISK (20%) - Previous rugs, funding patterns, dev wallet activity
+    3. SMART MONEY FLOW (15%) - Insider sells, dev exits, deployer→CEX transfers
+    4. BUNDLE PATTERN (15%) - Coordinated launch, identical amounts, common funder
+    5. SOCIAL VELOCITY (10%) - Sudden hype / shill spikes vs real engagement
+    6. CONTRACT RISK (10%) - Honeypot, ownership, proxy patterns
+    7. LIQUIDITY MIGRATION (5%) - LP moves from known to unknown, withdrawal patterns
 
 Each signal has configurable weights and threshold-based scoring.
 Produces: RIPScore (0-100), Imminence (LOW/MEDIUM/HIGH/CRITICAL), and
@@ -109,7 +109,7 @@ class RIPResult:
         """One-line summary for alerts."""
         emoji = self.imminence.emoji
         return (
-            f"{emoji} RIP {self.score:.0f}/100 — {self.token_symbol or self.token_address[:10]} "
+            f"{emoji} RIP {self.score:.0f}/100 - {self.token_symbol or self.token_address[:10]} "
             f"on {self.chain}: {self.imminence.value.upper()} imminence. "
             f"{len(self.warnings)} warnings, {len(self.recommendations)} recommendations."
         )
@@ -120,7 +120,7 @@ class RIPResult:
             f"{self.imminence.emoji} **Rug Pull Imminence Report**",
             f"Token: {self.token_name or self.token_symbol or self.token_address[:18]}...",
             f"Chain: {self.chain.upper()}",
-            f"Score: **{self.score:.0f}/100** — {self.imminence.value.upper()} imminence",
+            f"Score: **{self.score:.0f}/100** - {self.imminence.value.upper()} imminence",
             f"Scanned: {self.last_updated} ({self.scan_duration_ms:.0f}ms)",
         ]
 
@@ -205,7 +205,7 @@ SIGNAL_NAMES = {
     "liquidity_migration": "Liquidity Migration",
 }
 
-# Known safe LP lockers — loaded from env var for configurability.
+# Known safe LP lockers - loaded from env var for configurability.
 # Format: comma-separated hex addresses (e.g., 0x1234...,0x5678...)
 # Falls back to well-known lockers if env var is not set.
 _KNOWN_LP_LOCKERS: list[str] | None = None
@@ -281,7 +281,7 @@ class RugImminencePredictor:
                     return result
             except (ValueError, TypeError):
                 pass
-            # Expired or invalid timestamp — remove from cache
+            # Expired or invalid timestamp - remove from cache
             del self._cache[key]
         return None
 
@@ -452,14 +452,14 @@ class RugImminencePredictor:
                 if liquidity_usd < 1000:
                     sig.score += 40
                     sig.flags.append("critically_low_liquidity")
-                    sig.evidence.append(f"Liquidity ${liquidity_usd:.0f} < $1K — extreme risk")
+                    sig.evidence.append(f"Liquidity ${liquidity_usd:.0f} < $1K - extreme risk")
                 elif liquidity_usd < 10000:
                     sig.score += 20
                     sig.flags.append("low_liquidity")
-                    sig.evidence.append(f"Liquidity ${liquidity_usd:.0f} < $10K — low")
+                    sig.evidence.append(f"Liquidity ${liquidity_usd:.0f} < $10K - low")
                 elif liquidity_usd > 100000:
                     sig.score -= 15
-                    sig.evidence.append(f"Liquidity ${liquidity_usd:.0f} — healthy")
+                    sig.evidence.append(f"Liquidity ${liquidity_usd:.0f} - healthy")
 
                 # Volume vs liquidity ratio (high ratio = potential manipulation)
                 if liquidity_usd > 0 and volume_24h > 0:
@@ -468,12 +468,12 @@ class RugImminencePredictor:
                         sig.score += 15
                         sig.flags.append("high_volume_liquidity_ratio")
                         sig.evidence.append(
-                            f"Volume/Liquidity ratio {vol_liq_ratio:.1f}x — potential wash trading"
+                            f"Volume/Liquidity ratio {vol_liq_ratio:.1f}x - potential wash trading"
                         )
                     elif vol_liq_ratio < 0.1:
                         sig.score += 10
                         sig.flags.append("low_activity")
-                        sig.evidence.append("Volume/Liquidity ratio < 0.1x — dead token")
+                        sig.evidence.append("Volume/Liquidity ratio < 0.1x - dead token")
 
                 # Sell/buy ratio > 2 = distribution
                 if buys > 0 and sells > 0:
@@ -482,13 +482,13 @@ class RugImminencePredictor:
                         sig.score += 15
                         sig.flags.append("sell_pressure")
                         sig.evidence.append(
-                            f"Sell/Buy ratio {sell_buy_ratio:.1f}x — distribution pressure"
+                            f"Sell/Buy ratio {sell_buy_ratio:.1f}x - distribution pressure"
                         )
                     elif sell_buy_ratio < 0.3:
                         sig.score += 5
                         sig.flags.append("buy_pressure")
                         sig.evidence.append(
-                            f"Buy pressure dominates ({sell_buy_ratio:.1f}x) — potential manipulation"
+                            f"Buy pressure dominates ({sell_buy_ratio:.1f}x) - potential manipulation"
                         )
 
                 # Try to get LP lock info (via contract analysis)
@@ -502,18 +502,18 @@ class RugImminencePredictor:
                     elif lock_info.get("unlocked") is True:
                         sig.score += 25
                         sig.flags.append("unlocked_liquidity")
-                        sig.evidence.append("LP UNLOCKED — liquidity can be pulled at any time")
+                        sig.evidence.append("LP UNLOCKED - liquidity can be pulled at any time")
                     else:
                         sig.score += 10
                         sig.flags.append("unknown_lock_status")
-                        sig.evidence.append("LP lock status unknown — assume unlocked")
+                        sig.evidence.append("LP lock status unknown - assume unlocked")
                 except Exception:
                     sig.score += 5  # Penalize for missing data
                     result.sources_failed.append("lp_lock_check")
 
             else:
                 sig.score += 15  # No DexScreener data = suspicious
-                sig.evidence.append("No DEX pool data found — token may have no real liquidity")
+                sig.evidence.append("No DEX pool data found - token may have no real liquidity")
 
             sig.confidence = min(1.0, sig.score / 50) if sig.score > 0 else 0.3
 
@@ -555,7 +555,7 @@ class RugImminencePredictor:
                     sig.score += 25
                     sig.flags.append("new_deployer_wallet")
                     sig.evidence.append(
-                        "Deployer wallet < 7 days old — HIGH risk of disposable wallet"
+                        "Deployer wallet < 7 days old - HIGH risk of disposable wallet"
                     )
                 elif age_info.get("age_days", 999) < 30:
                     sig.score += 15
@@ -586,7 +586,7 @@ class RugImminencePredictor:
                 sig.score += 10
                 sig.flags.append("serial_deployer")
                 sig.evidence.append(
-                    f"Deployer created {total_tokens} tokens — potential serial deployer"
+                    f"Deployer created {total_tokens} tokens - potential serial deployer"
                 )
 
             if active_tokens == 0 and total_tokens > 0:
@@ -721,13 +721,13 @@ class RugImminencePredictor:
                 if detection.top10_holder_pct > 90:
                     sig.score += 10
                     sig.evidence.append(
-                        f"Top 10 holders: {detection.top10_holder_pct:.0f}% — extreme concentration"
+                        f"Top 10 holders: {detection.top10_holder_pct:.0f}% - extreme concentration"
                     )
 
                 if detection.identical_amount_count > 3:
                     sig.score += 10
                     sig.evidence.append(
-                        f"{detection.identical_amount_count} identical purchases — coordinated"
+                        f"{detection.identical_amount_count} identical purchases - coordinated"
                     )
             else:
                 sig.score -= 10  # Clean launch = lower risk
@@ -775,7 +775,7 @@ class RugImminencePredictor:
                         sig.score += 15
                         sig.flags.append("massive_mention_spike")
                         sig.evidence.append(
-                            f"Social mentions spiked {mention_spike:.0f}% — suspicious coordinated hype"
+                            f"Social mentions spiked {mention_spike:.0f}% - suspicious coordinated hype"
                         )
                     elif mention_spike > 200:
                         sig.score += 8
@@ -872,16 +872,16 @@ class RugImminencePredictor:
                 if authority:
                     if authority.get("ownership_renounced", False):
                         sig.score -= 15
-                        sig.evidence.append("Ownership renounced — lower risk")
+                        sig.evidence.append("Ownership renounced - lower risk")
                     else:
                         sig.score += 15
                         sig.flags.append("active_ownership")
-                        sig.evidence.append("Ownership NOT renounced — owner can manipulate")
+                        sig.evidence.append("Ownership NOT renounced - owner can manipulate")
 
                     if authority.get("has_proxy", False):
                         sig.score += 10
                         sig.flags.append("upgradable_proxy")
-                        sig.evidence.append("Upgradable proxy contract — implementation can change")
+                        sig.evidence.append("Upgradable proxy contract - implementation can change")
             except (ImportError, AttributeError):
                 result.sources_failed.append("contract_authority")
 
@@ -929,12 +929,12 @@ class RugImminencePredictor:
                     if lp_status.get("single_sided_add", False):
                         sig.score += 10
                         sig.flags.append("single_sided_lp")
-                        sig.evidence.append("Single-sided LP addition — potential manipulation")
+                        sig.evidence.append("Single-sided LP addition - potential manipulation")
 
                     if lp_status.get("lp_to_cex", False):
                         sig.score += 25
                         sig.flags.append("lp_to_exchange")
-                        sig.evidence.append("LP tokens transferred to CEX — preparing to exit")
+                        sig.evidence.append("LP tokens transferred to CEX - preparing to exit")
 
                 else:
                     sig.evidence.append("No recent LP migration detected")
@@ -974,9 +974,9 @@ class RugImminencePredictor:
     def _generate_warnings(self, result: RIPResult) -> None:
         """Generate human-readable warnings from flags."""
         flag_warnings = {
-            "honeypot": "⚠️ HONEYPOT: Token cannot be sold — users are trapped",
+            "honeypot": "⚠️ HONEYPOT: Token cannot be sold - users are trapped",
             "unlocked_liquidity": "⚠️ LP UNLOCKED: Creator can pull all liquidity at any moment",
-            "lp_removed": "⚠️ LP REMOVED: Liquidity has been withdrawn — imminent rug",
+            "lp_removed": "⚠️ LP REMOVED: Liquidity has been withdrawn - imminent rug",
             "known_rug_deployer": "⚠️ KNOWN RUG DEPLOYER: This wallet has rugged before",
             "deployer_cashing_out": "⚠️ DEPLOYER CASHING OUT: Sending funds to exchanges",
             "insider_selling": "⚠️ INSIDER SELLING: Team/insiders are dumping",
@@ -988,7 +988,7 @@ class RugImminencePredictor:
             "single_sided_lp": "⚠️ SINGLE-SIDED LP: Potential price manipulation",
             "lp_to_exchange": "⚠️ LP TO CEX: Liquidity tokens sent to exchange",
             "sell_pressure": "⚠️ SELL PRESSURE: More sells than buys",
-            "massive_mention_spike": "⚠️ HYPE SPIKE: Social mentions up 500%+ — suspicious",
+            "massive_mention_spike": "⚠️ HYPE SPIKE: Social mentions up 500%+ - suspicious",
             "serial_deployer": "⚠️ SERIAL DEPLOYER: Created 5+ tokens",
             "concentrated_holdings": "⚠️ CONCENTRATED HOLDINGS: Top 10 own >80% of supply",
             "holder_exodus": "⚠️ HOLDER EXODUS: Large drop in holder count",
@@ -1005,26 +1005,26 @@ class RugImminencePredictor:
             if result.score < 30:
                 result.warnings.append("✅ No imminent rug indicators detected")
             else:
-                result.warnings.append("🔍 Some risk signals present — monitor closely")
+                result.warnings.append("🔍 Some risk signals present - monitor closely")
 
     def _generate_recommendations(self, result: RIPResult) -> None:
         """Generate actionable recommendations from flags."""
         flag_recos = {
-            "unlocked_liquidity": "Sell immediately if holding — LP can be pulled any moment",
-            "lp_removed": "EXIT NOW — liquidity has been withdrawn",
-            "honeypot": "Do not buy — cannot sell, you will lose funds",
-            "known_rug_deployer": "Avoid this token — creator has rugged before",
-            "deployer_cashing_out": "Consider selling — team is exiting",
-            "insider_selling": "Reduce position — insiders are dumping",
-            "bundled_launch": "Do NOT trust the holder distribution — it's fabricated",
+            "unlocked_liquidity": "Sell immediately if holding - LP can be pulled any moment",
+            "lp_removed": "EXIT NOW - liquidity has been withdrawn",
+            "honeypot": "Do not buy - cannot sell, you will lose funds",
+            "known_rug_deployer": "Avoid this token - creator has rugged before",
+            "deployer_cashing_out": "Consider selling - team is exiting",
+            "insider_selling": "Reduce position - insiders are dumping",
+            "bundled_launch": "Do NOT trust the holder distribution - it's fabricated",
             "active_ownership": "Monitor owner wallet for mint/blacklist transactions",
-            "upgradable_proxy": "Watch for implementation changes — could become a honeypot",
-            "coordinated_shilling": "Ignore FOMO — the hype is artificial",
+            "upgradable_proxy": "Watch for implementation changes - could become a honeypot",
+            "coordinated_shilling": "Ignore FOMO - the hype is artificial",
             "new_deployer_wallet": "Wait 30+ days before considering investment",
             "sell_pressure": "Do not buy into distribution",
-            "massive_mention_spike": "Ignore sudden hype — likely a coordinated pump",
+            "massive_mention_spike": "Ignore sudden hype - likely a coordinated pump",
             "concentrated_holdings": "High risk of price manipulation by top holders",
-            "holder_exodus": "Smart money is leaving — follow them",
+            "holder_exodus": "Smart money is leaving - follow them",
         }
 
         priority_flags = ["honeypot", "lp_removed", "unlocked_liquidity", "deployer_cashing_out"]
@@ -1034,7 +1034,7 @@ class RugImminencePredictor:
                 for flag in priority_flags:
                     if flag in sig.flags:
                         result.recommendations.insert(
-                            0, f"🔴 URGENT — {flag_recos.get(flag, 'Exit position')}"
+                            0, f"🔴 URGENT - {flag_recos.get(flag, 'Exit position')}"
                         )
 
         for sig in result.signals.values():
@@ -1044,7 +1044,7 @@ class RugImminencePredictor:
 
         if not result.recommendations:
             if result.score < 30:
-                result.recommendations.append("✅ No urgent action needed — low risk")
+                result.recommendations.append("✅ No urgent action needed - low risk")
             elif result.score < 55:
                 result.recommendations.append("📊 Monitor token closely for the next 24-48 hours")
             else:
@@ -1119,7 +1119,7 @@ class RugImminencePredictor:
                             "params": [address],
                         },
                     )
-                    # This doesn't work directly — need the creation tx
+                    # This doesn't work directly - need the creation tx
                     pass
         except Exception:
             pass

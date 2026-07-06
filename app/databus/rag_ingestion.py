@@ -1,5 +1,5 @@
 """
-Rug Munch Intelligence — RAG Ingestion Pipeline
+Rug Munch Intelligence - RAG Ingestion Pipeline
 =================================================
 Nightly indexing of ALL data sources into the RAG system.
 Feeds: news, CT rundown, market data, social metrics, on-chain data.
@@ -18,9 +18,9 @@ logger = logging.getLogger("rag_ingestion")
 
 
 async def nightly_rag_index(**kw) -> dict:
-    """Nightly RAG indexing — embeds all new content from all sources.
+    """Nightly RAG indexing - embeds all new content from all sources.
 
-    Called by cron at 3AM UTC. Idempotent — only indexes new content.
+    Called by cron at 3AM UTC. Idempotent - only indexes new content.
     """
     indexed = {"collections": {}, "total_docs": 0, "errors": []}
 
@@ -177,7 +177,7 @@ async def _embed_batch(docs: list[dict], collection: str) -> int:
 
 
 async def rag_health_check(**kw) -> dict:
-    """Check RAG system health — collections, doc counts, storage."""
+    """Check RAG system health - collections, doc counts, storage."""
     try:
         import redis
 

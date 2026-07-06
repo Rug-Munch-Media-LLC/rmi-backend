@@ -43,7 +43,7 @@ except ImportError:
     _HAS_COINCURVE = False
 
 try:
-    from ecdsa import NIST256p, NIST384p, NIST521p, SECP256k1, SigningKey
+    from ecdsa import NIST256p, NIST384p, NIST521p, SECP256k1, SigningKey  # noqa: F401
 
     _HAS_ECDSA = True
 except ImportError:
@@ -141,7 +141,7 @@ SUPPORTED_CHAINS: dict[str, ChainConfig] = {
         hd_path="m/84'/0'/0'/0/0",
         slip44=0,
         address_pattern="^bc1[a-zA-Z0-9]{39,59}$",
-        description="Bitcoin Native SegWit (P2WPKH) — lowest fees",
+        description="Bitcoin Native SegWit (P2WPKH) - lowest fees",
     ),
     # EVM family (all share same key format)
     "eth": ChainConfig(
@@ -265,7 +265,7 @@ SUPPORTED_CHAINS: dict[str, ChainConfig] = {
         hd_path="m/44'/3'/0'/0/0",
         slip44=3,
         address_pattern="^D[a-zA-Z0-9]{33}$",
-        description="Dogecoin — much wow",
+        description="Dogecoin - much wow",
     ),
     "ltc": ChainConfig(
         "ltc",
@@ -275,7 +275,7 @@ SUPPORTED_CHAINS: dict[str, ChainConfig] = {
         hd_path="m/44'/2'/0'/0/0",
         slip44=2,
         address_pattern="^(L|M|ltc1)[a-zA-Z0-9]{25,62}$",
-        description="Litecoin — silver to Bitcoin's gold",
+        description="Litecoin - silver to Bitcoin's gold",
     ),
     "bch": ChainConfig(
         "bch",
@@ -295,7 +295,7 @@ SUPPORTED_CHAINS: dict[str, ChainConfig] = {
         hd_path="m/44'/5'/0'/0/0",
         slip44=5,
         address_pattern="^X[a-zA-Z0-9]{33}$",
-        description="Dash — digital cash",
+        description="Dash - digital cash",
     ),
     "zec": ChainConfig(
         "zec",
@@ -305,7 +305,7 @@ SUPPORTED_CHAINS: dict[str, ChainConfig] = {
         hd_path="m/44'/133'/0'/0/0",
         slip44=133,
         address_pattern="^(t1|t3|zs1)[a-zA-Z0-9]{25,90}$",
-        description="Zcash — privacy-focused",
+        description="Zcash - privacy-focused",
     ),
     # ED25519 family
     "ada": ChainConfig(
@@ -412,7 +412,7 @@ SUPPORTED_CHAINS: dict[str, ChainConfig] = {
         hd_path="",
         slip44=128,
         address_pattern="^[48][a-zA-Z0-9]{94}$",
-        description="Monero — ultimate privacy coin",
+        description="Monero - ultimate privacy coin",
     ),
 }
 
@@ -430,7 +430,7 @@ class WalletResult:
     address: str
     private_key_hex: str
     public_key_hex: str = ""
-    mnemonic: str = ""  # Optional — only for HD wallets
+    mnemonic: str = ""  # Optional - only for HD wallets
     derivation_path: str = ""
     address_type: str = ""  # "legacy", "segwit", "bech32", etc.
     created_at: str = ""
@@ -547,7 +547,7 @@ class WalletFactory:
             pub = pk.get_verifying_key().to_string("uncompressed")[1:]
         else:
             priv_hex = secrets.token_hex(32)
-            # Can't derive pubkey without library — still usable for key storage
+            # Can't derive pubkey without library - still usable for key storage
             pub = b""
 
         address = "0x" + hashlib.sha3_256(pub).hexdigest()[-40:] if pub else "0x" + secrets.token_hex(20)
@@ -805,7 +805,7 @@ class WalletFactory:
         )
 
     def _generate_monero(self, cfg: ChainConfig) -> WalletResult:
-        # Monero needs special libraries — placeholder with note
+        # Monero needs special libraries - placeholder with note
         return WalletResult(
             chain="",
             chain_name="",

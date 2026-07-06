@@ -1,5 +1,5 @@
 """
-Intelligent Webhook Processors — Smart event analysis.
+Intelligent Webhook Processors - Smart event analysis.
 Processes Helius, Moralis, and custom webhook events with:
 - Whale detection (large transfers)
 - Cluster correlation (linked wallets)
@@ -10,6 +10,7 @@ Processes Helius, Moralis, and custom webhook events with:
 
 import hashlib
 import logging
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -53,7 +54,7 @@ class IntelligentWebhookProcessor:
     WHALE_THRESHOLD_USD = 100000.0  # USD
 
     # Known scam patterns
-    SCAM_PATTERNS = {
+    SCAM_PATTERNS = {  # noqa: RUF012
         "dust_attack": {
             "min_amount": 0.000001,
             "max_amount": 0.001,

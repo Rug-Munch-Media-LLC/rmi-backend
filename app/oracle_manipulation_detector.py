@@ -3,23 +3,23 @@ Oracle Manipulation Detector
 =============================
 Advanced detection of price oracle manipulation attacks across all
 supported EVM chains. Oracle attacks represent the #1 DeFi exploit
-category by value lost ($1B+ in 2024 alone) — this module catches
+category by value lost ($1B+ in 2024 alone) - this module catches
 the full spectrum of oracle-based manipulations.
 
 What it detects:
-  1. TWAP Oracle Manipulation — Short-term price manipulation that
+  1. TWAP Oracle Manipulation - Short-term price manipulation that
      poisons TWAP oracles (Uniswap V2/V3, Balancer, Curve)
-  2. Chainlink Oracle Staleness/Age — Stale price feeds, price
+  2. Chainlink Oracle Staleness/Age - Stale price feeds, price
      deviation beyond sanity bounds, expected vs actual update timing
-  3. Flash Loan-Backed Price Manipulation — Flash loans used to
+  3. Flash Loan-Backed Price Manipulation - Flash loans used to
      artificially move AMM pool prices before interacting with oracles
-  4. LP Pool Price Divergence — Abnormal price deviation between
+  4. LP Pool Price Divergence - Abnormal price deviation between
      correlated pools/pairs (e.g., ETH/USDC vs ETH/DAI)
-  5. Cross-Exchange Price Divergence — Price gaps between DEX and
+  5. Cross-Exchange Price Divergence - Price gaps between DEX and
      CEX rates exceeding healthy arbitrage bounds
-  6. Sandwich Price Impact — MEV-style manipulation that distorts
+  6. Sandwich Price Impact - MEV-style manipulation that distorts
      oracle reads within a block
-  7. Lending Protocol Oracle Exploit — Detecting attacks that exploit
+  7. Lending Protocol Oracle Exploit - Detecting attacks that exploit
      manipulated oracle prices (liquidation avoidance, minting
      undercollateralized loans)
 
@@ -81,7 +81,7 @@ class OracleType(Enum):
         for member in cls:
             if member.value == s.lower():
                 return member
-        logger.warning("Unknown oracle type '%s' — defaulting to CUSTOM", s)
+        logger.warning("Unknown oracle type '%s' - defaulting to CUSTOM", s)
         return cls.CUSTOM
 
 
@@ -113,9 +113,9 @@ class Severity(Enum):
 
 
 # Chainlink-specific constants
-CHAINLINK_FEED_UPDATE_THRESHOLD_SECONDS = 7200  # 2 hours — stale after this
-CHAINLINK_DEVIATION_THRESHOLD = 0.02  # 2% — max expected deviation
-CHAINLINK_HEARTBEAT_SECONDS = 3600  # 1 hour — expected update interval
+CHAINLINK_FEED_UPDATE_THRESHOLD_SECONDS = 7200  # 2 hours - stale after this
+CHAINLINK_DEVIATION_THRESHOLD = 0.02  # 2% - max expected deviation
+CHAINLINK_HEARTBEAT_SECONDS = 3600  # 1 hour - expected update interval
 
 # TWAP manipulation thresholds
 TWAP_MANIPULATION_THRESHOLD_PCT = 0.05  # 5% TWAP deviation = suspicious
@@ -583,7 +583,7 @@ class OracleManipulationDetector:
                         observed_price=twap.average_price,
                         expected_price=twap.median_price,
                         deviation_pct=twap.std_dev_pct * 100,
-                        description=f"TWAP manipulation risk: {risk:.1%} — std dev {twap.std_dev_pct:.2%} across {len(twap.samples)} samples",
+                        description=f"TWAP manipulation risk: {risk:.1%} - std dev {twap.std_dev_pct:.2%} across {len(twap.samples)} samples",
                         evidence=[
                             f"std_dev={twap.std_dev_pct:.4f}",
                             f"min={twap.min_price:.6f}",
@@ -756,7 +756,7 @@ class OracleManipulationDetector:
 
         report.end_time = time.time()
         logger.info(
-            "Scan complete: %s — %d pools checked, %d incidents (%d critical, %d high) in %.1fs",
+            "Scan complete: %s - %d pools checked, %d incidents (%d critical, %d high) in %.1fs",
             self.chain,
             report.pools_checked,
             report.total_incidents,
@@ -975,7 +975,7 @@ class OracleManipulationDetector:
 
         now = time.time()
 
-        # Simulate feed age — most are healthy, ~5% are stale
+        # Simulate feed age - most are healthy, ~5% are stale
         is_stale_sim = random.random() < 0.05
         age = random.uniform(300, 3600)  # 5 min to 1 hour normally
         if is_stale_sim:
@@ -1102,7 +1102,7 @@ class OracleManipulationDetector:
 
 
 def _detect_twap_manipulation(twap: TWAPWindow) -> PriceManipulation | None:
-    """Quick TWAP manipulation check — usable without instantiating the detector."""
+    """Quick TWAP manipulation check - usable without instantiating the detector."""
     risk = twap.manipulation_risk()
     if risk < TWAP_MANIPULATION_THRESHOLD_PCT * 2:
         return None
@@ -1212,7 +1212,7 @@ def _calculate_twap_from_samples(samples: list[PriceSnapshot]) -> TWAPWindow | N
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Oracle Manipulation Detector — detect price oracle attacks across EVM chains"
+        description="Oracle Manipulation Detector - detect price oracle attacks across EVM chains"
     )
     parser.add_argument("--pool", type=str, help="Analyze a specific pool address")
     parser.add_argument("--tx", type=str, help="Analyze a specific transaction hash")
@@ -1241,11 +1241,11 @@ def main():
     if args.blocks is not None and (args.blocks < 1 or args.blocks > 10000):
         parser.error(f"Blocks must be 1-10000, got: {args.blocks}")
     if args.chain and args.chain not in SUPPORTED_CHAINS and (not args.chains):
-        logger.warning("Unknown chain '%s' — proceeding anyway", args.chain)
+        logger.warning("Unknown chain '%s' - proceeding anyway", args.chain)
     if args.chains:
         for c in [c.strip() for c in args.chains.split(",")]:
             if c not in SUPPORTED_CHAINS:
-                logger.warning("Unknown chain '%s' in --chains — proceeding anyway", c)
+                logger.warning("Unknown chain '%s' in --chains - proceeding anyway", c)
 
     logging.basicConfig(
         level=logging.INFO,
@@ -1271,12 +1271,12 @@ def main():
             for read in reads:
                 status = "STALE" if read.is_stale() else "FRESH"
                 print(
-                    f"[{status}] {read.oracle_address} — price={read.reported_price} age={read.price_age_seconds:.0f}s"
+                    f"[{status}] {read.oracle_address} - price={read.reported_price} age={read.price_age_seconds:.0f}s"
                 )
     else:
         report = asyncio.run(detector.scan(blocks_back=args.blocks, chains=chains))
         if args.monitor:
-            print(f"Monitoring {args.chain} — Ctrl+C to stop")
+            print(f"Monitoring {args.chain} - Ctrl+C to stop")
             try:
                 while True:
                     report = asyncio.run(detector.scan(blocks_back=args.blocks, chains=chains))

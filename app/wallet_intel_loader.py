@@ -1,5 +1,5 @@
 """
-Wallet Intelligence Loader — loads investigation data into Redis at startup.
+Wallet Intelligence Loader - loads investigation data into Redis at startup.
 Sources:
   - omega_forensic_v5 wallet_database.json (15 labeled criminal network wallets)
   - SOSANA-CRM-2024.json (full investigation: wallets, persons, orgs, tokens, financials)

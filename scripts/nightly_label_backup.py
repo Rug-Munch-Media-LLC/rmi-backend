@@ -65,7 +65,7 @@ def validate_labels():
             "invalids": invalids,
             "unique": len(seen),
         }
-        print(f"  {fname}: {count:,} rows, {dupes} dupes, {invalids} invalid — {results[fname]['status']}")
+        print(f"  {fname}: {count:,} rows, {dupes} dupes, {invalids} invalid - {results[fname]['status']}")
 
     # Validate manifest
     if os.path.exists(MANIFEST_PATH):
@@ -138,7 +138,7 @@ def create_backup():
 def upload_to_r2(archive_path: str) -> bool:
     """Upload backup to R2 cloud storage."""
     if not all([R2_ENDPOINT, R2_KEY, R2_SECRET]):
-        print("R2 not configured — skipping cloud upload")
+        print("R2 not configured - skipping cloud upload")
         return False
 
     try:
@@ -160,7 +160,7 @@ def upload_to_r2(archive_path: str) -> bool:
         print(f"Uploaded to R2: wallet-labels/{fname}")
         return True
     except ImportError:
-        print("boto3 not installed — skipping R2 upload")
+        print("boto3 not installed - skipping R2 upload")
         return False
     except Exception as e:
         print(f"R2 upload failed: {e}")
@@ -221,7 +221,7 @@ def sync_to_redis():
 
 
 def main():
-    print(f"=== Wallet Label Nightly Backup — {datetime.now().isoformat()} ===\n")
+    print(f"=== Wallet Label Nightly Backup - {datetime.now().isoformat()} ===\n")
 
     # 1. Validate
     validation = validate_labels()

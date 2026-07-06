@@ -45,7 +45,7 @@ class TestCitationValidator:
         Per T05 spec: validator must (1) parse [N,M,K] correctly AND
         (2) verify claim is supported by source content. With the strict
         default threshold, the literal claim 'This is supported by'
-        won't match 'Source one content' terms — so it should fail
+        won't match 'Source one content' terms - so it should fail
         the support check (unciteable_count > 0).
         """
         result = validate_section(

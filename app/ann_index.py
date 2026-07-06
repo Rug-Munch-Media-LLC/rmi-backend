@@ -161,7 +161,7 @@ class ANNIndex:
         import faiss
 
         if n_valid < MIN_DOCS_FOR_ANN:
-            # Flat index — exact search, small collection
+            # Flat index - exact search, small collection
             index = faiss.IndexFlatIP(dims)  # inner product (cosine after norm)
             index_type = "flat"
         else:
@@ -320,7 +320,7 @@ class ANNIndex:
         if not raw_hits:
             return []
 
-        # Hydrate from Redis — batch-fetch all matched docs
+        # Hydrate from Redis - batch-fetch all matched docs
         r = await self._get_redis()
         keys = [f"rag:{collection}:{doc_id}" for doc_id, _, _ in raw_hits]
         pipe = r.pipeline()

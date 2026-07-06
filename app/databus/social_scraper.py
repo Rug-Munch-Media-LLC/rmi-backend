@@ -286,7 +286,7 @@ class XWebScraper:
 
 # Convenience function for cron jobs
 async def run_social_scan():
-    """Run a full social scan — called by cron every 6 hours."""
+    """Run a full social scan - called by cron every 6 hours."""
     cache = get_cache()
     scraper = XWebScraper(cache)
 

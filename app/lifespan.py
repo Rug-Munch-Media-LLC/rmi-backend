@@ -1,4 +1,4 @@
-"""RMI Backend — lifespan (startup/shutdown).
+"""RMI Backend - lifespan (startup/shutdown).
 
 Per v4.0 §T01 + ADR-0001, lifespan wires up cross-cutting concerns:
   - Structured logging (structlog)
@@ -6,7 +6,7 @@ Per v4.0 §T01 + ADR-0001, lifespan wires up cross-cutting concerns:
   - Long-term memory (M1: fact_store seed)
   - Observability (M4: OpenTelemetry + Langfuse)
 
-All initializations are isolated — one failure does not break startup.
+All initializations are isolated - one failure does not break startup.
 Per v3 unfuck rule #7: add_middleware must be at module level, NOT
 in lifespan. So this file only does setup() calls and yield.
 """
@@ -43,7 +43,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("error_handlers_skipped err=%s", exc)
 
-    # 3. M1 — long-term memory (fact_store seed)
+    # 3. M1 - long-term memory (fact_store seed)
     try:
         from app.agents.fact_store import seed_facts
         seeded = await seed_facts()
@@ -51,7 +51,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("fact_store_seed_skipped err=%s", exc)
 
-    # 4. M4 — OpenTelemetry tracing
+    # 4. M4 - OpenTelemetry tracing
     try:
         from app.core.tracing import setup_otel
         otel_ok = setup_otel()
@@ -59,7 +59,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("otel_init_failed err=%s", exc)
 
-    # 5. M4 — Langfuse (LLM tracing)
+    # 5. M4 - Langfuse (LLM tracing)
     try:
         from app.core.langfuse import init_langfuse
         lf_ok = init_langfuse()
@@ -67,7 +67,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("langfuse_init_failed err=%s", exc)
 
-    # 6. T07 — GlitchTip error tracking
+    # 6. T07 - GlitchTip error tracking
     try:
         from app.core.observability import setup_sentry
         sentry_ok = setup_sentry()
@@ -75,7 +75,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("sentry_init_failed err=%s", exc)
 
-    # 7. T12 — CertStream phishing domain monitor (background task)
+    # 7. T12 - CertStream phishing domain monitor (background task)
     certstream_task = None
     try:
         from app.domain.threat.certstream_listener import start_listener

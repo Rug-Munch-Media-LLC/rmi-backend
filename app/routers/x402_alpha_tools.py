@@ -1,10 +1,10 @@
 """
-RMI Alpha Tools — the signals that make us best-in-class.
+RMI Alpha Tools - the signals that make us best-in-class.
 
-Composite Score — one number combining all RMI signals for instant decisions
-Smart Money Tracker — P&L-based profitable wallet identification
-Token Clone Detector — bytecode + metadata similarity to known rugs
-Wash Trading & Insider Detection — artificial volume and coordinated buying patterns
+Composite Score - one number combining all RMI signals for instant decisions
+Smart Money Tracker - P&L-based profitable wallet identification
+Token Clone Detector - bytecode + metadata similarity to known rugs
+Wash Trading & Insider Detection - artificial volume and coordinated buying patterns
 """
 
 import hashlib
@@ -274,32 +274,32 @@ async def composite_score(req: TokenRequest):
         if composite >= 80:
             verdict, recommendation = (
                 "STRONG_BUY",
-                "All signals positive — low risk, healthy market, positive sentiment",
+                "All signals positive - low risk, healthy market, positive sentiment",
             )
         elif composite >= 65:
             verdict, recommendation = (
                 "BUY",
-                "Generally favorable — some minor flags, standard caution advised",
+                "Generally favorable - some minor flags, standard caution advised",
             )
         elif composite >= 50:
             verdict, recommendation = (
                 "HOLD",
-                "Mixed signals — wait for clearer direction or reduce position",
+                "Mixed signals - wait for clearer direction or reduce position",
             )
         elif composite >= 35:
             verdict, recommendation = (
                 "CAUTION",
-                "Multiple risk signals — significant due diligence required",
+                "Multiple risk signals - significant due diligence required",
             )
         elif composite >= 20:
             verdict, recommendation = (
                 "HIGH_RISK",
-                "Dangerous — multiple critical flags, high rug probability",
+                "Dangerous - multiple critical flags, high rug probability",
             )
         else:
             verdict, recommendation = (
                 "AVOID",
-                "EXTREME RISK — confirmed scam indicators, do not interact",
+                "EXTREME RISK - confirmed scam indicators, do not interact",
             )
 
         result = {
@@ -323,7 +323,7 @@ async def composite_score(req: TokenRequest):
         return result
     except Exception as e:
         logger.error(f"Composite score failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -333,7 +333,7 @@ async def composite_score(req: TokenRequest):
 
 @router.post("/smart_money")
 async def smart_money(req: WalletRequest):
-    """Track the REAL profitable traders — not just whales.
+    """Track the REAL profitable traders - not just whales.
 
     Uses on-chain transaction analysis to identify wallets with:
     - High win rate (>60%)
@@ -492,10 +492,10 @@ async def smart_money(req: WalletRequest):
             "follow_score": follow_score,
             "tier": tier,
             "follow_worthiness": {
-                "ELITE_TRADER": "Consistently profitable — worth copy-trading with caution",
-                "PROFITABLE": "Above-average win rate — monitor for entries",
-                "ACTIVE": "Active trader — needs more track record",
-                "UNPROVEN": "Insufficient data — do not copy-trade yet",
+                "ELITE_TRADER": "Consistently profitable - worth copy-trading with caution",
+                "PROFITABLE": "Above-average win rate - monitor for entries",
+                "ACTIVE": "Active trader - needs more track record",
+                "UNPROVEN": "Insufficient data - do not copy-trade yet",
             }.get(tier, ""),
             "risk_warnings": [
                 "Past performance does not guarantee future results",
@@ -510,7 +510,7 @@ async def smart_money(req: WalletRequest):
         return result
     except Exception as e:
         logger.error(f"Smart money failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -639,7 +639,7 @@ async def clone_detect(req: CloneRequest):
             verdict = f"CRITICAL: {clone_count} similar tokens found, {dead_clones} appear dead/rugged"
         elif clone_count >= 3:
             risk_level = "high"
-            verdict = f"HIGH: {clone_count} similar tokens — possible clone pattern"
+            verdict = f"HIGH: {clone_count} similar tokens - possible clone pattern"
         elif clone_count >= 1:
             risk_level = "moderate"
             verdict = f"MODERATE: {clone_count} similar token(s) found"
@@ -665,7 +665,7 @@ async def clone_detect(req: CloneRequest):
         return result
     except Exception as e:
         logger.error(f"Clone detect failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -705,7 +705,7 @@ async def wash_trade_detect(req: WashTradeRequest):
 
         # ── DexScreener volume/price analysis ──
         try:
-            async with aiohttp.ClientSession() as s:
+            async with aiohttp.ClientSession() as s:  # noqa: SIM117
                 async with s.get(
                     f"https://api.dexscreener.com/latest/dex/tokens/{addr}",
                     timeout=aiohttp.ClientTimeout(total=8),
@@ -731,7 +731,7 @@ async def wash_trade_detect(req: WashTradeRequest):
                                     {
                                         "type": "wash_trading",
                                         "severity": "high",
-                                        "detail": f"${vol:,.0f} volume with only {pc}% price change — classic wash pattern",
+                                        "detail": f"${vol:,.0f} volume with only {pc}% price change - classic wash pattern",
                                         "volume_usd": vol,
                                         "price_change_pct": pc,
                                     }
@@ -753,7 +753,7 @@ async def wash_trade_detect(req: WashTradeRequest):
                                     {
                                         "type": "volume_anomaly",
                                         "severity": "medium",
-                                        "detail": f"Volume {vol / liq:.0f}x liquidity — possible coordinated trading",
+                                        "detail": f"Volume {vol / liq:.0f}x liquidity - possible coordinated trading",
                                     }
                                 )
 
@@ -766,7 +766,7 @@ async def wash_trade_detect(req: WashTradeRequest):
                                         {
                                             "type": "insider_pattern",
                                             "severity": "high",
-                                            "detail": f"New token ({age_h:.1f}h): {buys} buys vs {sells} sells ({tx_ratio:.0f}x) — possible insider accumulation",
+                                            "detail": f"New token ({age_h:.1f}h): {buys} buys vs {sells} sells ({tx_ratio:.0f}x) - possible insider accumulation",
                                         }
                                     )
                                 elif tx_ratio > 3:
@@ -787,7 +787,7 @@ async def wash_trade_detect(req: WashTradeRequest):
                         {
                             "type": "verified_listing",
                             "severity": "info",
-                            "detail": "Listed on CoinGecko — reduced wash trading probability",
+                            "detail": "Listed on CoinGecko - reduced wash trading probability",
                         }
                     )
         except Exception:
@@ -796,7 +796,7 @@ async def wash_trade_detect(req: WashTradeRequest):
         # ── Assessment ──
         if wash_score >= 50:
             wash_level = "CRITICAL"
-            wash_detail = "Strong wash trading indicators — likely artificial volume"
+            wash_detail = "Strong wash trading indicators - likely artificial volume"
         elif wash_score >= 25:
             wash_level = "HIGH"
             wash_detail = "Suspicious trading patterns detected"
@@ -850,4 +850,4 @@ async def wash_trade_detect(req: WashTradeRequest):
         return result
     except Exception as e:
         logger.error(f"Wash trade failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

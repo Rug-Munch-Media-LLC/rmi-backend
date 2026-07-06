@@ -1,8 +1,8 @@
 """
-Local MCP Server Proxy — makes free local MCP servers accessible via REST API.
+Local MCP Server Proxy - makes free local MCP servers accessible via REST API.
 Reads tool definitions from MCP server manifests and proxies tool calls.
 
-Local servers run via stdio — we spawn them on demand with a process cache.
+Local servers run via stdio - we spawn them on demand with a process cache.
 All data is FREE to call (no API keys, just local compute/RPC queries).
 """
 
@@ -88,7 +88,7 @@ SERVER_REGISTRY = {
             {
                 "id": "evmscope_token_info",
                 "name": "Token Info",
-                "description": "Token metadata — name, symbol, decimals, supply",
+                "description": "Token metadata - name, symbol, decimals, supply",
             },
             {
                 "id": "evmscope_token_holders",
@@ -160,7 +160,7 @@ SERVER_REGISTRY = {
             {
                 "id": "polymarket_market_detail",
                 "name": "Market Detail",
-                "description": "Detailed market data — prices, volume, liquidity",
+                "description": "Detailed market data - prices, volume, liquidity",
             },
             {
                 "id": "polymarket_orderbook",
@@ -209,7 +209,7 @@ SERVER_REGISTRY = {
             {
                 "id": "research_coingecko",
                 "name": "CoinGecko Research",
-                "description": "Deep CoinGecko data — prices, markets, exchanges",
+                "description": "Deep CoinGecko data - prices, markets, exchanges",
             },
             {
                 "id": "research_defillama",
@@ -247,7 +247,7 @@ SERVER_REGISTRY = {
     },
 }
 
-# Process cache — keep server processes alive for 5 min
+# Process cache - keep server processes alive for 5 min
 _proc_cache: dict[str, tuple[subprocess.Popen, float]] = {}
 _CACHE_TTL = 300  # 5 minutes
 

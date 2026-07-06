@@ -1,4 +1,4 @@
-"""RMI Backend — Auth middleware and API key verification."""
+"""RMI Backend - Auth middleware and API key verification."""
 
 import os
 

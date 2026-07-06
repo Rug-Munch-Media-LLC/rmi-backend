@@ -31,6 +31,7 @@ OUR SOLUTIONS:
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import ClassVar
 
 import numpy as np
 
@@ -165,8 +166,7 @@ class BubbleMapsPro:
     """
 
     # Node type colors
-    TYPE_COLORS: ClassVar[dict] =
-{
+    TYPE_COLORS: ClassVar[dict] ={
         "center": "#ff6b6b",
         "scammer": "#ff0000",
         "suspected_scammer": "#ff6b6b",
@@ -179,8 +179,7 @@ class BubbleMapsPro:
     }
 
     # Risk colors (gradient)
-    RISK_COLORS: ClassVar[dict] =
-{
+    RISK_COLORS: ClassVar[dict] ={
         "safe": "#00ff00",
         "low": "#90ee90",
         "medium": "#ffd700",

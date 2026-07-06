@@ -160,7 +160,7 @@ async def analyze_launch_fairness_endpoint(
     body: LaunchFairnessRequest,
 ) -> LaunchFairnessResponse:
     """
-    Analyze token launch fairness — detect sniped distributions, bundled launches,
+    Analyze token launch fairness - detect sniped distributions, bundled launches,
     bot activity, LP manipulation, and presale concentration.
 
     Returns a fairness score (0-100) with per-signal breakdown and evidence.
@@ -199,7 +199,7 @@ async def analyze_launch_fairness_endpoint(
         result["tier"] = "premium"
         result["price_usd"] = 0.10
 
-        # ── Cache result (short TTL — fairness data changes quickly) ──
+        # ── Cache result (short TTL - fairness data changes quickly) ──
         await _set_cache(cache_key, result, ttl=120)
 
         logger.info(

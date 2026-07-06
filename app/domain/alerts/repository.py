@@ -1,4 +1,4 @@
-"""Repository — async Redis storage for alert subscriptions.
+"""Repository - async Redis storage for alert subscriptions.
 
 Storage layout (matches legacy for cutover):
     Hash key: "rmi:alerts"

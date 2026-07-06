@@ -5,25 +5,25 @@ Advanced detection of coordinated pump-and-dump schemes, fake volume generation,
 wash trading rings, and systematic market manipulation across all 13 supported chains.
 
 What it detects:
-  1. Coordinated Buy Groups — Multiple fresh wallets buying the same token within
+  1. Coordinated Buy Groups - Multiple fresh wallets buying the same token within
      the same block/minute, indicating a pre-arranged pump group
-  2. Volume Anomalies — Short-term volume spikes (5x-100x+) vs 24h/7d averages
+  2. Volume Anomalies - Short-term volume spikes (5x-100x+) vs 24h/7d averages
      that indicate artificial or coordinated trading activity
-  3. Wash Trading Rings — Circular transfers between controlled wallets creating
+  3. Wash Trading Rings - Circular transfers between controlled wallets creating
      fake volume, detected through cluster analysis and trade pattern matching
-  4. Price-Volume Divergence — Pump in price without commensurate organic volume
+  4. Price-Volume Divergence - Pump in price without commensurate organic volume
      growth, indicating artificial price manipulation
-  5. Lifecycle Pattern Matching — Known pump-dump lifecycle stages:
+  5. Lifecycle Pattern Matching - Known pump-dump lifecycle stages:
      deploy → small LP → coordinated buys → social shill → LP removal → dump
-  6. Pre-Pump Accumulation — Wallets accumulating before coordinated buys,
+  6. Pre-Pump Accumulation - Wallets accumulating before coordinated buys,
      suggesting insider knowledge or orchestrated setup
-  7. Social Signal Correlation — Cross-reference with social spike timing
+  7. Social Signal Correlation - Cross-reference with social spike timing
      to identify coordinated shilling campaigns
-  8. Post-Pump Distribution Analysis — Tracking how dumped tokens flow back
+  8. Post-Pump Distribution Analysis - Tracking how dumped tokens flow back
      to organizers through mixer/intermediary wallets
 
 Competitive advantage:
-  - Existing tools (DEXTools, DexScreener, TokenSniffer) show raw data — we
+  - Existing tools (DEXTools, DexScreener, TokenSniffer) show raw data - we
     analyze patterns and produce actionable risk scores
   - Cross-chain coordinated detection catches groups operating on multiple chains
   - Combines on-chain data with social timing for holistic analysis
@@ -246,7 +246,7 @@ class PumpDumpAnalysisResult:
         lines = [
             f"# 🚨 Pump & Dump Analysis: {self.token_symbol} ({self.token_name})",
             f"**Token:** `{self.token_address[:20]}...` | **Chain:** {self.chain.title()}",
-            f"**Risk Score:** {self.risk_score:.0f}/100 — **{self.risk_level.upper()}**",
+            f"**Risk Score:** {self.risk_score:.0f}/100 - **{self.risk_level.upper()}**",
             "",
         ]
         if self.error:
@@ -296,7 +296,7 @@ class PumpDumpAnalysisResult:
 
         if self.price_pump:
             p = self.price_pump
-            lines.append(f"## Price Pump Detected — {p.pump_pct:.0f}% pump")
+            lines.append(f"## Price Pump Detected - {p.pump_pct:.0f}% pump")
             lines.append(f"- Price: ${p.price_before_pump:.6f} → ${p.price_peak:.6f}")
             lines.append(
                 f"- Current: ${p.current_price:.6f} (dump: {p.dump_pct_from_peak:.0f}% from peak)"
@@ -924,7 +924,7 @@ class PumpDumpDetector:
                     {
                         "finding_type": ManipulationType.LIFECYCLE_MATCH,
                         "severity": FindingSeverity.HIGH,
-                        "description": f"Pair less than 24h old with volume {vol_24h / liquidity_usd:.0f}x liquidity — pump pattern",
+                        "description": f"Pair less than 24h old with volume {vol_24h / liquidity_usd:.0f}x liquidity - pump pattern",
                         "detail": f"Age: ~{pair_age_hours:.0f}h | LP: ${liquidity_usd:,.0f} | Volume: ${vol_24h:,.0f}",
                         "evidence": {
                             "pair_age_hours": pair_age_hours,

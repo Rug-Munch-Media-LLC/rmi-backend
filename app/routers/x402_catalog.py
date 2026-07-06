@@ -1,4 +1,4 @@
-"""Dynamic MCP Tool Catalog — reads from gateway configs + external MCP servers
+"""Dynamic MCP Tool Catalog - reads from gateway configs + external MCP servers
 Expanded to include 200+ tools across 40+ services
 """
 
@@ -341,14 +341,14 @@ def get_catalog():
 
     # ── Primary source: TOOL_PRICES + DATABUS_TOOLS (170 total, single source of truth) ──
     try:
-        from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES
+        from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES  # noqa: F401
 
         all_tools = {}
         services = set()
         categories = set()
 
         for tool_id, pricing in TOOL_PRICES.items():
-            desc = pricing.get("description", f"{tool_id} — crypto intelligence tool")
+            desc = pricing.get("description", f"{tool_id} - crypto intelligence tool")
             category = pricing.get("category", "analysis")
             chains = []
             # If it's a per-chain variant, show the specific chain
@@ -382,7 +382,7 @@ def get_catalog():
 
             for tool_id, pricing in DATABUS_TOOLS.items():
                 if tool_id not in all_tools:
-                    desc = pricing.get("description", f"{tool_id} — DataBus crypto intelligence")
+                    desc = pricing.get("description", f"{tool_id} - DataBus crypto intelligence")
                     category = pricing.get("category", "data")
                     all_tools[tool_id] = {
                         "id": tool_id,
@@ -438,7 +438,7 @@ def get_catalog():
                         if chain_dir.upper() not in all_tools[tid].get("chains", []):
                             all_tools[tid]["chains"].append(chain_dir.upper())
                     else:
-                        # New tool from gateway not in TOOL_PRICES — add it
+                        # New tool from gateway not in TOOL_PRICES - add it
                         t["chains"] = [chain_dir.upper()]
                         all_tools[tid] = t
                         services.add("rmi-native")
@@ -449,7 +449,7 @@ def get_catalog():
     for t in route_tools:
         tid = t["id"]
         if tid in all_tools:
-            # Enrich — route definitions may have more accurate descriptions
+            # Enrich - route definitions may have more accurate descriptions
             if not all_tools[tid].get("description") or all_tools[tid].get("description", "").startswith("Tool:"):
                 all_tools[tid]["description"] = t.get("description", all_tools[tid].get("description", ""))
         else:
@@ -516,7 +516,7 @@ def get_catalog():
         # Check if this base has chain variants
         chain_variants = [t for t in all_tools if t.startswith(base + "_")]
         if chain_variants and not tool.get("chain"):
-            # This is a base tool — it supports all chains its variants cover
+            # This is a base tool - it supports all chains its variants cover
             variant_chains = []
             for v in chain_variants:
                 v_chain = all_tools[v].get("chain", "")

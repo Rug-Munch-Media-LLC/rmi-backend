@@ -1,5 +1,5 @@
 """
-Human-Facing Tool Catalog API — SmartCalls Marketplace
+Human-Facing Tool Catalog API - SmartCalls Marketplace
 ======================================================
 Source of truth: /mcp/manifest + tool_registry + membership_plans + agent_skills.
 The MCP server is the bot-side. This is the human-side mirror.
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/v1/smart-calls", tags=["smart-calls"])
 
 
 # ════════════════════════════════════════════════════════════
-# TRIAL TIERS — same logic as bot side
+# TRIAL TIERS - same logic as bot side
 # ════════════════════════════════════════════════════════════
 
 TRIAL_TIERS = {
@@ -78,7 +78,7 @@ def _classify_price_tier(price_usd: float) -> str:
 
 
 # ════════════════════════════════════════════════════════════
-# CACHE — short TTL so updates flow through fast
+# CACHE - short TTL so updates flow through fast
 # ════════════════════════════════════════════════════════════
 
 _cache: dict[str, Any] = {}
@@ -118,7 +118,7 @@ def _build_marketplace_data() -> dict[str, Any]:
         )
 
         external_services = list(EXTERNAL_MCP_SERVICES)
-        # Build ID set for detection — these IDs are the free open-source MCP tools
+        # Build ID set for detection - these IDs are the free open-source MCP tools
         external_tool_ids = {t["id"] for t in EXTERNAL_MCP_TOOLS}
     except ImportError:
         external_services = []
@@ -298,13 +298,13 @@ def _build_marketplace_data() -> dict[str, Any]:
 
 
 def invalidate():
-    """Force rebuild on next request — call after adding/updating tools."""
+    """Force rebuild on next request - call after adding/updating tools."""
     global _cache_time
     _cache_time = 0
 
 
 # ════════════════════════════════════════════════════════════
-# ENDPOINTS — SmartCalls Marketplace
+# ENDPOINTS - SmartCalls Marketplace
 # ════════════════════════════════════════════════════════════
 
 
@@ -318,7 +318,7 @@ async def marketplace(
     search: str | None = None,
     limit: int = Query(500, ge=0, le=1000),
 ):
-    """Full marketplace — all tools, scan packs, subscriptions, streams, research, skills."""
+    """Full marketplace - all tools, scan packs, subscriptions, streams, research, skills."""
     data = _build_marketplace_data()
     tools = list(data["tools"])
 
@@ -368,7 +368,7 @@ async def marketplace(
 
 @router.get("/marketplace/stats")
 async def marketplace_stats():
-    """Counts only — counts always match the bot side."""
+    """Counts only - counts always match the bot side."""
     data = _build_marketplace_data()
     return {
         "version": data["version"],
@@ -500,7 +500,7 @@ async def get_tool(tool_id: str):
 
 @router.post("/invalidate")
 async def invalidate_cache():
-    """Force rebuild — call after adding tools or updating pricing."""
+    """Force rebuild - call after adding tools or updating pricing."""
     invalidate()
     return {"status": "ok"}
 
@@ -518,7 +518,7 @@ async def call_tool(tool_id: str, request: Request):
       - Built-in device fingerprint header handling
       - Returns trial balance after execution
 
-    Identical payment logic — both paths go through the same enforcement.
+    Identical payment logic - both paths go through the same enforcement.
     """
     # Delegate to the existing x402 endpoint
     # Forward the request internally

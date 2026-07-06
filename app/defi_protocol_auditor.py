@@ -160,7 +160,7 @@ class SafetyReport:
 
         lines = [
             f"{icon} **{self.protocol_name}** (on {self.chain})",
-            f"   Overall Safety: {self.overall_score():.0%} — **{level.value.upper()}** risk",
+            f"   Overall Safety: {self.overall_score():.0%} - **{level.value.upper()}** risk",
             f"   Red Flags: {len(self.red_flags)} | Warnings: {len(self.warnings)} | Positives: {len(self.positives)}",
             "",
         ]
@@ -342,7 +342,7 @@ async def _generate_ai_summary(report: SafetyReport) -> str:
             f"Category Scores:\n"
         )
         for cat in report.categories():
-            prompt += f"  - {cat.name}: {cat.score:.0%} — {cat.details}\n"
+            prompt += f"  - {cat.name}: {cat.score:.0%} - {cat.details}\n"
 
         if report.red_flags:
             prompt += "\nRed Flags:\n" + "\n".join(f"  ⛔ {f}" for f in report.red_flags)
@@ -516,7 +516,7 @@ class DefiProtocolAuditor:
             open_source = data.get("openSource", False)
             report.audit_score.score = 0.5 if open_source else 0.3
             report.audit_score.details = "Audit status unknown" + (
-                " (open source — better transparency)" if open_source else ""
+                " (open source - better transparency)" if open_source else ""
             )
             return
 
@@ -540,7 +540,7 @@ class DefiProtocolAuditor:
                 audit_details.append(f"✅ Audited by {auditor} ({date})")
             elif auditor:
                 max_score = max(max_score, 0.3)
-                audit_details.append(f"⚠️ Audited by {auditor} ({date}) — unknown firm")
+                audit_details.append(f"⚠️ Audited by {auditor} ({date}) - unknown firm")
             else:
                 audit_details.append("📄 Audit on file")
 
@@ -551,7 +551,7 @@ class DefiProtocolAuditor:
         if audit_details and not any(
             any(firm in ad.lower() for firm in REPUTABLE_AUDITORS) for ad in str(audit_details).split(";")
         ):
-            report.audit_score.flags.append("No audits from well-known firms — verify independently")
+            report.audit_score.flags.append("No audits from well-known firms - verify independently")
 
     def _score_tvl(self, report: SafetyReport, data: dict | None):
         """Score based on TVL data."""
@@ -583,25 +583,25 @@ class DefiProtocolAuditor:
         # Scoring: higher TVL = more "too big to fail" safety
         if total_tvl > 1_000_000_000:  # $1B+
             report.tvl_score.score = 0.95
-            report.tvl_score.details = f"Very high TVL (${total_tvl:,.0f}) — strong market confidence"
+            report.tvl_score.details = f"Very high TVL (${total_tvl:,.0f}) - strong market confidence"
         elif total_tvl > 100_000_000:  # $100M+
             report.tvl_score.score = 0.85
-            report.tvl_score.details = f"High TVL (${total_tvl:,.0f}) — healthy protocol"
+            report.tvl_score.details = f"High TVL (${total_tvl:,.0f}) - healthy protocol"
         elif total_tvl > 10_000_000:  # $10M+
             report.tvl_score.score = 0.70
-            report.tvl_score.details = f"Moderate TVL (${total_tvl:,.0f}) — established"
+            report.tvl_score.details = f"Moderate TVL (${total_tvl:,.0f}) - established"
         elif total_tvl > 1_000_000:  # $1M+
             report.tvl_score.score = 0.50
-            report.tvl_score.details = f"Low TVL (${total_tvl:,.0f}) — higher risk"
+            report.tvl_score.details = f"Low TVL (${total_tvl:,.0f}) - higher risk"
         elif total_tvl > 100_000:  # $100K+
             report.tvl_score.score = 0.30
-            report.tvl_score.details = f"Very low TVL (${total_tvl:,.0f}) — high risk"
+            report.tvl_score.details = f"Very low TVL (${total_tvl:,.0f}) - high risk"
         else:
             report.tvl_score.score = 0.10
-            report.tvl_score.details = "Minimal TVL — possible ghost protocol"
+            report.tvl_score.details = "Minimal TVL - possible ghost protocol"
 
         if not tvl_stable:
-            report.tvl_score.flags.append("TVL fluctuated >50% in the last week — potential exit or attack")
+            report.tvl_score.flags.append("TVL fluctuated >50% in the last week - potential exit or attack")
 
         # Age check
         start_date = data.get("listedAt", 0)
@@ -630,7 +630,7 @@ class DefiProtocolAuditor:
         # Trending bonus
         if trending:
             score = min(1.0, score + 0.15)
-            report.social_score.flags.append("Currently trending on CoinGecko — high visibility")
+            report.social_score.flags.append("Currently trending on CoinGecko - high visibility")
 
         # Rug mention penalty
         if rug_mentions > 5:
@@ -639,7 +639,7 @@ class DefiProtocolAuditor:
 
         # Very few mentions is a warning (unless it's a very new protocol)
         if mentions < 10 and not trending:
-            report.social_score.flags.append("Very low social engagement — limited community visibility")
+            report.social_score.flags.append("Very low social engagement - limited community visibility")
 
         report.social_score.score = score
         report.social_score.details = f"Social mentions: {mentions} in 24h | Positive ratio: {positive_ratio:.0%}" + (
@@ -697,13 +697,13 @@ class DefiProtocolAuditor:
         if isinstance(chains, list) and len(chains) >= 3:
             # Multi-chain = more legit
             report.deployer_score.score = 0.7
-            report.deployer_score.details = f"Deployed on {len(chains)} chains — moderate distribution"
+            report.deployer_score.details = f"Deployed on {len(chains)} chains - moderate distribution"
         elif isinstance(chains, list) and len(chains) >= 1:
             report.deployer_score.score = 0.5
             report.deployer_score.details = f"Deployed on {len(chains)} chain(s)"
         else:
             report.deployer_score.score = 0.4
-            report.deployer_score.details = "Single-chain protocol — limited track record"
+            report.deployer_score.details = "Single-chain protocol - limited track record"
 
         # Fork detection
         if data.get("forkedFrom"):
@@ -712,7 +712,7 @@ class DefiProtocolAuditor:
                 report.deployer_score.score = min(1.0, report.deployer_score.score + 0.1)
                 report.deployer_score.details += f" (forked from {fork})"
             elif isinstance(fork, str):
-                report.deployer_score.flags.append(f"Forked from {fork} — verify original is legit")
+                report.deployer_score.flags.append(f"Forked from {fork} - verify original is legit")
 
     def _score_liquidity(self, report: SafetyReport, data: dict | None):
         """Score based on liquidity status."""
@@ -760,7 +760,7 @@ class DefiProtocolAuditor:
 
         # Red flag if overall score is critical
         if report.overall_score() < 0.3:
-            report.red_flags.insert(0, "Protocol has CRITICAL risk profile — avoid if possible")
+            report.red_flags.insert(0, "Protocol has CRITICAL risk profile - avoid if possible")
 
         # Warnings
         for cat in report.categories():

@@ -1,5 +1,5 @@
 """
-RMI PREMIUM MCP SERVERS — Bot Attractors → x402 Revenue
+RMI PREMIUM MCP SERVERS - Bot Attractors → x402 Revenue
 =========================================================
 8 new MCP servers designed for maximum bot adoption.
 Each: free tier → rate limit → x402 micropayment upsell.
@@ -38,7 +38,7 @@ def trial(fingerprint: str, tool: str, limit: int = 10) -> dict:
 
 
 # ═══════════════════════════════════════════════════
-# MCP #1: WHALE ALERT — Real-time large transfers
+# MCP #1: WHALE ALERT - Real-time large transfers
 # ═══════════════════════════════════════════════════
 def whale_alert(
     chain: str = "ethereum", min_value: float = 1000000, fingerprint: str = "anon"

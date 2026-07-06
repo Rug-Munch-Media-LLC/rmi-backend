@@ -1,4 +1,4 @@
-"""T05 — RAG Citation Validator.
+"""T05 - RAG Citation Validator.
 
 Per RMIV5 §T05 (G05 FIX). After an LLM generates a report section from
 retrieved RAG chunks, every claim in the output must cite a source by
@@ -23,7 +23,7 @@ Pipeline:
 Why this exists:
   Reports that hallucinate destroy trust. Every claim in a $5 report
   must be backed by a source we can show. If we can't find support,
-  we say so — explicitly — rather than fabricating.
+  we say so - explicitly - rather than fabricating.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from typing import Any
 # ── Regexes ──────────────────────────────────────────────────────────
 # Match inline citations like "...some claim [1]..." or "[2, 3]" or "[1-3]"
 _CITATION_RE = re.compile(r"\[(\d+(?:\s*[,\-]\s*\d+)*)\]")
-# Match sentences (rough — splits on .!? followed by whitespace + uppercase)
+# Match sentences (rough - splits on .!? followed by whitespace + uppercase)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\d])")
 # Key term extraction (rough): words with 4+ chars, lowercase, no stopwords
 _STOPWORDS = frozenset(
@@ -173,13 +173,13 @@ def _claim_supported_by_source(claim: str, source_text: str, threshold: float = 
     A claim is "supported" if at least `threshold` of its key terms
     appear in the source. Threshold 0.4 = 40% overlap required.
 
-    This is a heuristic — it catches obvious fabrications (where the
+    This is a heuristic - it catches obvious fabrications (where the
     LLM cites a source but the claim isn't in it) without being so
     strict that paraphrased but accurate claims get flagged.
     """
     claim_terms = _key_terms(claim)
     if not claim_terms:
-        # No key terms (very short sentence) — assume supported
+        # No key terms (very short sentence) - assume supported
         return True
     source_terms = _key_terms(source_text)
     if not source_terms:
@@ -205,9 +205,9 @@ def validate_section(
                             must appear in source for claim to be
                             considered supported (default 0.4 = 40%).
         on_unciteable: What to do with unsupported claims.
-                       "strip" (default) — replace with [Data not available]
-                       "keep"  — leave as-is, flag in citations report
-                       "drop"  — remove the sentence entirely
+                       "strip" (default) - replace with [Data not available]
+                       "keep"  - leave as-is, flag in citations report
+                       "drop"  - remove the sentence entirely
 
     Returns:
         {
@@ -219,9 +219,9 @@ def validate_section(
         }
     """
     if not sources:
-        # No sources provided — every claim is unciteable
+        # No sources provided - every claim is unciteable
         return {
-            "validated_text": ("[Data not available — no RAG sources retrieved]" if on_unciteable == "strip" else text),
+            "validated_text": ("[Data not available - no RAG sources retrieved]" if on_unciteable == "strip" else text),
             "citations": [],
             "unciteable_count": _count_sentences(text),
             "validation_rate": 0.0,
@@ -234,21 +234,21 @@ def validate_section(
 
     for sent, indices in sentences:
         if not indices:
-            # No citations at all — unciteable
+            # No citations at all - unciteable
             unciteable_count += 1
             citations.append({"claim": sent, "source_idx": 0, "source_text": "", "supported": False})
             if on_unciteable == "strip":
                 validated_sentences.append("[Data not available]")
             elif on_unciteable == "keep":
                 validated_sentences.append(sent)
-            # "drop" — add nothing
+            # "drop" - add nothing
             continue
 
-        # Filter out out-of-range indices (defensive — extract_citation_indices
+        # Filter out out-of-range indices (defensive - extract_citation_indices
         # already does this, but defense-in-depth for malformed input)
         valid_indices = [i for i in indices if 1 <= i <= len(sources)]
         if not valid_indices:
-            # All citations were out of range — unciteable
+            # All citations were out of range - unciteable
             unciteable_count += 1
             citations.append(
                 {
@@ -264,7 +264,7 @@ def validate_section(
                 validated_sentences.append(sent)
             continue
 
-        # We have at least one valid citation — check each one
+        # We have at least one valid citation - check each one
         best_source_idx = valid_indices[0]
         source_text = sources[best_source_idx - 1]  # [1] = sources[0]
         supported = _claim_supported_by_source(sent, source_text, threshold=min_support_overlap)
@@ -294,7 +294,7 @@ def validate_section(
                 validated_sentences.append("[Data not available]")
             elif on_unciteable == "keep":
                 validated_sentences.append(sent)
-            # "drop" — add nothing
+            # "drop" - add nothing
         else:
             validated_sentences.append(sent)
 

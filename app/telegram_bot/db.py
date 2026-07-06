@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CryptoRugMunch Bot — Database Layer
+CryptoRugMunch Bot - Database Layer
 ====================================
 SQLite-based user tracking, subscriptions, scan counts, watchlists.
 """

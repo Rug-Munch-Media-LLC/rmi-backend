@@ -6,14 +6,14 @@ Every tool from TOOL_PRICES + expanded_mcp_catalog is auto-exposed here.
 Adding a tool anywhere in the system? It's automatically picked up here.
 
 Endpoints:
-  GET /api/v1/catalog                  — Full catalog grouped by category + service
-  GET /api/v1/catalog/search?q=        — Free-text search
-  GET /api/v1/catalog/featured          — Curated featured tools (5 per category)
-  GET /api/v1/catalog/by-trial          — Grouped by trial count
-  GET /api/v1/catalog/by-price          — Grouped by price tier (free/$0.01/$0.05/etc)
-  GET /api/v1/catalog/by-chain/{chain}  — Tools for a specific chain
-  GET /api/v1/catalog/{tool_id}         — Single tool with full metadata
-  GET /api/v1/catalog/stats             — Catalog statistics
+  GET /api/v1/catalog                  - Full catalog grouped by category + service
+  GET /api/v1/catalog/search?q=        - Free-text search
+  GET /api/v1/catalog/featured          - Curated featured tools (5 per category)
+  GET /api/v1/catalog/by-trial          - Grouped by trial count
+  GET /api/v1/catalog/by-price          - Grouped by price tier (free/$0.01/$0.05/etc)
+  GET /api/v1/catalog/by-chain/{chain}  - Tools for a specific chain
+  GET /api/v1/catalog/{tool_id}         - Single tool with full metadata
+  GET /api/v1/catalog/stats             - Catalog statistics
 
 Trial policy tiers (per tool):
   simple: 5 free trials (sentiment, info, lookup)
@@ -53,17 +53,17 @@ PRICE_TIERS = {
 
 # Categories and their complexity (determines trial count)
 CATEGORY_TRIAL_DEFAULTS = {
-    # Simple lookup/info — high trial count
+    # Simple lookup/info - high trial count
     "sentiment": "simple",
     "social": "simple",
     "api": "simple",
     "research": "simple",
-    # Standard analysis — medium trial count
+    # Standard analysis - medium trial count
     "analysis": "standard",
     "intelligence": "standard",
     "market": "standard",
     "monitoring": "standard",
-    # Premium/heavy — low trial count
+    # Premium/heavy - low trial count
     "security": "premium",
     "forensics": "premium",
     "premium": "premium",
@@ -101,12 +101,12 @@ def _classify_price_tier(price_usd: float) -> str:
 
 
 # ════════════════════════════════════════════════════════════
-# Cache — rebuild catalog from sources on demand
+# Cache - rebuild catalog from sources on demand
 # ════════════════════════════════════════════════════════════
 
 _catalog_cache: dict[str, Any] = {}
 _catalog_cache_time: float = 0
-CATALOG_CACHE_TTL = 30  # 30 seconds — short enough to pick up new tools quickly
+CATALOG_CACHE_TTL = 30  # 30 seconds - short enough to pick up new tools quickly
 
 
 def _get_full_catalog() -> dict[str, Any]:
@@ -117,7 +117,7 @@ def _get_full_catalog() -> dict[str, Any]:
     if _catalog_cache and (now - _catalog_cache_time) < CATALOG_CACHE_TTL:
         return _catalog_cache
 
-    # Source 1: x402 enforcement (TOOL_PRICES) — authoritative for our 221 native tools
+    # Source 1: x402 enforcement (TOOL_PRICES) - authoritative for our 221 native tools
     try:
         from app.routers.x402_enforcement import TOOL_PRICES
 
@@ -200,7 +200,7 @@ def _get_full_catalog() -> dict[str, Any]:
     for t in enriched:
         by_price[t["price_tier"]].append(t)
 
-    # Build featured set — top 5 from each major category
+    # Build featured set - top 5 from each major category
     major_cats = ["security", "intelligence", "market", "analysis", "social", "defi"]
     featured = []
     for cat in major_cats:
@@ -238,7 +238,7 @@ def _get_full_catalog() -> dict[str, Any]:
 
 
 def invalidate_catalog_cache():
-    """Force rebuild on next request — call after adding/updating tools."""
+    """Force rebuild on next request - call after adding/updating tools."""
     global _catalog_cache_time
     _catalog_cache_time = 0
 
@@ -355,7 +355,7 @@ async def search_catalog(
 
 @router.get("/featured")
 async def get_featured():
-    """Curated featured tools — 5 from each major category."""
+    """Curated featured tools - 5 from each major category."""
     cat = _get_full_catalog()
     return {
         "total": len(cat["featured"]),
@@ -424,7 +424,7 @@ async def get_by_service(service: str):
 
 @router.get("/stats")
 async def get_stats():
-    """Catalog statistics — counts, breakdown, pricing."""
+    """Catalog statistics - counts, breakdown, pricing."""
     cat = _get_full_catalog()
     return {
         "version": cat["version"],
@@ -468,7 +468,7 @@ async def get_tool(tool_id: str):
 async def invalidate():
     """Force catalog rebuild on next request. Call after adding tools."""
     invalidate_catalog_cache()
-    return {"status": "ok", "message": "Cache invalidated — next request will rebuild"}
+    return {"status": "ok", "message": "Cache invalidated - next request will rebuild"}
 
 
 # ════════════════════════════════════════════════════════════

@@ -4,13 +4,17 @@ import asyncio
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domain.scanner.modules import (
+    _get_deployer_info,
+    _get_holder_data,
+)
 
 logger = get_logger(__name__)
 
 # Re-export ScanResult for backward compatibility
-from app.domain.scanner.market_data import fetch_market_data
-from app.domain.scanner.models import ScanResult
-from app.domain.scanner.modules import (
+from app.domain.scanner.market_data import fetch_market_data  # noqa: E402
+from app.domain.scanner.models import ScanResult  # noqa: E402
+from app.domain.scanner.modules import (  # noqa: E402
     _check_blockscout,
     _check_defi_scanner,
     _check_honeypot_is,
@@ -293,4 +297,4 @@ async def quick_scan_text(token_address: str, chain: str = "solana") -> str:
 
 
 # Backward compatibility: re-export scan_token
-from app.domain.scanner.service import quick_scan_text, scan_token  # noqa: F401, E402
+from app.domain.scanner.service import scan_token  # noqa: E402, F811

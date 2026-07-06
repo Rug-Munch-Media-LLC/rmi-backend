@@ -1,5 +1,5 @@
 """
-SENTINEL — Proxy Detection + Implementation Analysis
+SENTINEL - Proxy Detection + Implementation Analysis
 ======================================================
 Resolves proxy contracts to their actual implementations and assesses
 the risk of upgradeable proxy patterns:
@@ -334,19 +334,19 @@ class ProxyDetector:
         if not report.is_proxy:
             return 0, "LOW", []
 
-        # Proxy exists — base risk
+        # Proxy exists - base risk
         score += 5
 
         # Upgradeable without timelock
         if report.can_upgrade and report.upgrade_timelock == 0:
             score += 35
             warnings.append(
-                "CRITICAL: Proxy is upgradeable with NO timelock — owner can change implementation instantly"
+                "CRITICAL: Proxy is upgradeable with NO timelock - owner can change implementation instantly"
             )
         elif report.can_upgrade and report.upgrade_timelock < 86400:
             score += 20
             warnings.append(
-                f"HIGH: Proxy timelock only {report.upgrade_timelock // 3600}h — insufficient reaction time"
+                f"HIGH: Proxy timelock only {report.upgrade_timelock // 3600}h - insufficient reaction time"
             )
         elif report.can_upgrade:
             score += 10
@@ -371,17 +371,17 @@ class ProxyDetector:
         # Old-style proxy (less secure)
         if report.proxy_type == "old_style":
             score += 10
-            warnings.append("MEDIUM: Old-style proxy — lacks EIP-1967 security features")
+            warnings.append("MEDIUM: Old-style proxy - lacks EIP-1967 security features")
 
         # No admin address found = unclear governance
         if report.is_proxy and not report.admin_address and not report.owner_address:
             score += 10
-            warnings.append("MEDIUM: Cannot determine proxy admin — unclear upgrade authority")
+            warnings.append("MEDIUM: Cannot determine proxy admin - unclear upgrade authority")
 
         # Solana upgradeable program
         if report.proxy_type == "solana_upgradeable":
             score += 25
-            warnings.append("HIGH: Solana program is upgradeable — authority can modify code")
+            warnings.append("HIGH: Solana program is upgradeable - authority can modify code")
 
         score = min(100, score)
 

@@ -1,5 +1,5 @@
 """
-RMI Agent System — Agent MUNCH Multi-Specialist Intelligence Operative
+RMI Agent System - Agent MUNCH Multi-Specialist Intelligence Operative
 ======================================================================
 
 9 specialized crypto intelligence operatives, each a distinct skill module
@@ -57,9 +57,9 @@ class AgentDef:
 
 MUNCH_BASE = """You are Agent MUNCH, a crypto intelligence operative for Rug Munch Intelligence.
 You are NOT a generic AI assistant. You are a highly trained specialist operative.
-Speak like briefing a client — direct, forensic, precise. Never say "I'm an AI" or "as an AI."
+Speak like briefing a client - direct, forensic, precise. Never say "I'm an AI" or "as an AI."
 Use threat classification: CRITICAL, HIGH, MEDIUM, LOW. Use confidence scores (0-100%).
-Reference real data when available. If you lack data, say "I need to pull [X] data — recommend running [tool]."
+Reference real data when available. If you lack data, say "I need to pull [X] data - recommend running [tool]."
 Never fabricate addresses, prices, or on-chain data. Be skeptical. Trust nothing until verified.
 """
 
@@ -111,7 +111,7 @@ Focus on: whale movement interpretation, DEX flow anomalies, volume spikes,
 Fear & Greed contextualization, sentiment divergence from on-chain data,
 prediction market signals, macro crypto conditions.
 During Extreme Greed periods, explicitly flag elevated scam and rug risk.
-Be data-driven — cite specific metrics, not vague observations.""",
+Be data-driven - cite specific metrics, not vague observations.""",
         model="qwen/qwen3-next-80b-a3b-instruct:free",
         fallbacks=["nvidia/nemotron-3-super-120b-a12b:free"],
         temperature=0.4,
@@ -218,12 +218,12 @@ Format: YIELD SAFETY SCORE with sustainability analysis, risk factors, and hones
         id="general",
         name="Agent MUNCH",
         icon="🕵️",
-        description="General crypto intelligence operative — your all-purpose specialist",
+        description="General crypto intelligence operative - your all-purpose specialist",
         system_prompt=MUNCH_BASE
         + """You are the default operative, skilled in all areas of crypto intelligence.
 You can discuss token security, wallet analysis, market conditions, DeFi risks,
 blockchain technology, trading strategies, and scam patterns with equal expertise.
-When a question falls outside your expertise, say "This requires [specialist name] deployment —
+When a question falls outside your expertise, say "This requires [specialist name] deployment -
 I recommend switching to that skill for deeper analysis."
 Always offer actionable next steps: "Recommend running [tool] at rugmunch.io for [specific analysis].""",
         model="google/gemma-4-31b-it:free",
@@ -509,7 +509,7 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                 "stream": True,
             }
 
-            async with httpx.AsyncClient(timeout=45) as c:
+            async with httpx.AsyncClient(timeout=45) as c:  # noqa: SIM117
                 async with c.stream("POST", base_url, json=body, headers=headers) as r:
                     if r.status_code == 200:
                         async for line in r.aiter_lines():

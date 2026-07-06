@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RMI AI Risk Explainer — Ollama Cloud Powered
+RMI AI Risk Explainer - Ollama Cloud Powered
 =============================================
 Takes raw scanner output → generates consumer-friendly risk explanations.
 Used by Telegram bot, website, and scanner API.
@@ -26,19 +26,19 @@ Rules:
 - Start with the safety score and risk level (SAFE/LOW/MEDIUM/HIGH/CRITICAL)
 - Mention the 1-2 most important risk flags with plain-English explanations
 - If there are green flags, mention the most reassuring one
-- Be direct and honest — call out scams clearly
+- Be direct and honest - call out scams clearly
 - Use Telegram HTML formatting: <b>bold</b> for key terms
 - Never give financial advice. End with "Always DYOR."
 
 Example output:
-"<b>Safety: 23/100 — HIGH RISK</b>. This token has <b>unlocked liquidity</b>, meaning the deployer can drain funds anytime. The <b>deployer wallet has 6 prior rugs</b>. No redeeming factors found. Avoid this token. Always DYOR."
+"<b>Safety: 23/100 - HIGH RISK</b>. This token has <b>unlocked liquidity</b>, meaning the deployer can drain funds anytime. The <b>deployer wallet has 6 prior rugs</b>. No redeeming factors found. Avoid this token. Always DYOR."
 """
 
 
 def explain_risks(scan: dict) -> str:
     """Generate a human-readable risk explanation from scanner data."""
     if not scan or scan.get("safety_score") is None:
-        return "<b>Unable to analyze</b> — no scanner data available."
+        return "<b>Unable to analyze</b> - no scanner data available."
 
     score = scan.get("safety_score", 50)
     flags = scan.get("risk_flags", [])
@@ -104,7 +104,7 @@ def _basic_explain(scan: dict) -> str:
     green = scan.get("green_flags", [])
     scan.get("name", scan.get("symbol", "This token"))
 
-    msg = [f"<b>Safety: {score}/100 — {level}</b>"]
+    msg = [f"<b>Safety: {score}/100 - {level}</b>"]
     if flags:
         msg.append(f"Risk flags: {', '.join(flags[:3])}")
     if green:
@@ -184,4 +184,4 @@ if __name__ == "__main__":
     }
     print(explain_risks(test))
     print()
-    print(classify_news("$4M rug pull on Solana — deployer drained LP", ""))
+    print(classify_news("$4M rug pull on Solana - deployer drained LP", ""))

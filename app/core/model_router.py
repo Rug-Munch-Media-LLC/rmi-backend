@@ -1,4 +1,4 @@
-"""Intelligent Model Router — auto-routes to best provider by task type, cost, latency.
+"""Intelligent Model Router - auto-routes to best provider by task type, cost, latency.
 Priority: real-time → Cerebras (9ms), cheap → Ollama ($0), complex → DeepSeek, bulk → Mistral."""
 
 from dataclasses import dataclass
@@ -6,13 +6,13 @@ from enum import Enum
 
 
 class TaskType(Enum):
-    FAST = "fast"  # < 100ms needed — Cerebras, Groq
-    CHEAP = "cheap"  # cost-sensitive — Ollama, Mistral free tier
-    COMPLEX = "complex"  # reasoning needed — DeepSeek V4 Pro
-    BULK = "bulk"  # high volume — Mistral Small 4
-    VISION = "vision"  # image understanding — Gemini
-    EMBED = "embed"  # embeddings — Mistral Embed
-    CODE = "code"  # code generation — DeepSeek, qwen2.5-coder
+    FAST = "fast"  # < 100ms needed - Cerebras, Groq
+    CHEAP = "cheap"  # cost-sensitive - Ollama, Mistral free tier
+    COMPLEX = "complex"  # reasoning needed - DeepSeek V4 Pro
+    BULK = "bulk"  # high volume - Mistral Small 4
+    VISION = "vision"  # image understanding - Gemini
+    EMBED = "embed"  # embeddings - Mistral Embed
+    CODE = "code"  # code generation - DeepSeek, qwen2.5-coder
 
 
 ROUTING_TABLE = {

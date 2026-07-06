@@ -4,7 +4,7 @@ Ingest free scam data sources into RAG known_scams collection.
 
 Sources:
 1. MetaMask eth-phishing-detect blacklist (~198K domains)
-2. CryptoScamDB API (if available — currently 502)
+2. CryptoScamDB API (if available - currently 502)
 3. ChainAbuse API (needs API key)
 
 The MetaMask list is the largest accessible source of confirmed scam domains.
@@ -207,7 +207,7 @@ async def main():
         total_errors += csdb_errors
         logger.info(f"CryptoScamDB: {csdb_ingested} docs ingested, {csdb_errors} errors")
     else:
-        logger.warning("Skipping CryptoScamDB — API unavailable")
+        logger.warning("Skipping CryptoScamDB - API unavailable")
 
     logger.info(f"TOTAL: {total_ingested} docs ingested, {total_errors} errors")
 

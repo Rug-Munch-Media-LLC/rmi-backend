@@ -1,12 +1,12 @@
 """
-Wallet Risk Scoring — Composite risk across all intelligence sources.
+Wallet Risk Scoring - Composite risk across all intelligence sources.
 =====================================================================
 Score range: 0-100
 
 Components:
-  Label risk         (0-40)  — from label categories (scam, sanctioned, etc.)
-  Cluster risk       (0-30)  — from entity membership (linked scam wallets)
-  Deployer history   (0-30)  — from past token deployments (rug rate, lifespan)
+  Label risk         (0-40)  - from label categories (scam, sanctioned, etc.)
+  Cluster risk       (0-30)  - from entity membership (linked scam wallets)
+  Deployer history   (0-30)  - from past token deployments (rug rate, lifespan)
 
 Risk levels:
   0-19   minimal

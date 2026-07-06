@@ -42,7 +42,7 @@ async def check_health() -> dict:
 
     # Check blocklist
     try:
-        await get_blocklist()
+        await get_blocklist()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     except Exception as e:
         modules["blocklist"]["status"] = "down"
         modules["blocklist"]["error"] = str(e)

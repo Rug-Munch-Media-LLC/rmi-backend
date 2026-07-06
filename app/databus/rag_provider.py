@@ -1,5 +1,5 @@
 """
-DataBus RAG Provider — wire the world-class RAG engine into DataBus.
+DataBus RAG Provider - wire the world-class RAG engine into DataBus.
 """
 
 import logging

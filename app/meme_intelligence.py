@@ -18,7 +18,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv("/app/.env", override=True)
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

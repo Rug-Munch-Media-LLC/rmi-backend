@@ -1,5 +1,5 @@
 """
-BSC + Polygon DataBus Providers — Free public APIs, no key needed.
+BSC + Polygon DataBus Providers - Free public APIs, no key needed.
 BscScan/PolygonScan free tier: balance, transactions, token transfers.
 Rate limited to 1 req/5 sec per IP. No API key required for basic use.
 """
@@ -21,7 +21,7 @@ async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) 
 
     url = apis.get(action, apis["balance"])
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession() as session:  # noqa: SIM117
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
@@ -55,7 +55,7 @@ async def _fetch_polygon_data(address: str = "", action: str = "balance", **kwar
 
     url = apis.get(action, apis["balance"])
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession() as session:  # noqa: SIM117
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status == 200:
                     data = await resp.json()

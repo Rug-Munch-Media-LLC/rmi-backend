@@ -1,4 +1,4 @@
-"""Stub for ollama_api router — local dev fallback."""
+"""Stub for ollama_api router - local dev fallback."""
 
 from fastapi import APIRouter
 

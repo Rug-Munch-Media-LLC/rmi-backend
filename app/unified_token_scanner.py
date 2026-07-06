@@ -1,5 +1,5 @@
 """
-Unified Token Scanner — v2.0 (DataBus-Powered)
+Unified Token Scanner - v2.0 (DataBus-Powered)
 ================================================
 SINGLE source of truth for ALL token scanning at RMI.
 
@@ -23,7 +23,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -92,17 +92,15 @@ class UnifiedTokenScanner:
         result = await scanner.scan("0x...", "ethereum", tier="pro")
     """
 
-    # Phase 1: Core identity — always run, needed for scoring
-    CORE_CHAINS: ClassVar[list] =
-[
+    # Phase 1: Core identity - always run, needed for scoring
+    CORE_CHAINS: ClassVar[list] =[
         "token_price",
         "token_metadata",
         "token_security",
     ]
 
-    # Phase 2: Deep analysis — parallel, all free
-    DEEP_CHAINS: ClassVar[list] =
-[
+    # Phase 2: Deep analysis - parallel, all free
+    DEEP_CHAINS: ClassVar[list] =[
         "holder_data",
         "holder_health",
         "liquidity_risk",
@@ -111,9 +109,8 @@ class UnifiedTokenScanner:
         "volume_authenticity",
     ]
 
-    # Phase 3: Premium — requires pro/elite tier
-    PREMIUM_CHAINS: ClassVar[list] =
-[
+    # Phase 3: Premium - requires pro/elite tier
+    PREMIUM_CHAINS: ClassVar[list] =[
         "bundle_detect",
         "cluster_map",
         "dev_finder",
@@ -126,9 +123,8 @@ class UnifiedTokenScanner:
         "fresh_wallet_analysis",
     ]
 
-    # Phase 4: Intelligence — always free, enrich the report
-    INTEL_CHAINS: ClassVar[list] =
-[
+    # Phase 4: Intelligence - always free, enrich the report
+    INTEL_CHAINS: ClassVar[list] =[
         "smart_money",
         "whale_alerts",
         "token_launches",
@@ -147,9 +143,9 @@ class UnifiedTokenScanner:
         Full token security scan.
 
         Runs phases in dependency order:
-          1. Core (price, meta, security) — needed for scoring
+          1. Core (price, meta, security) - needed for scoring
           2. Deep (holders, liquidity, dev, rug, volume)
-          3. Premium (bundle, cluster, sniper, MEV, wash — tier-gated)
+          3. Premium (bundle, cluster, sniper, MEV, wash - tier-gated)
           4. Intel (smart money, whales, launches, cross-chain)
         """
         start = time.monotonic()
@@ -162,7 +158,7 @@ class UnifiedTokenScanner:
         )
 
         try:
-            # ── Phase 1: Core (sequential — needed for scoring) ──
+            # ── Phase 1: Core (sequential - needed for scoring) ──
             core_results = await self._fetch_batch(self.CORE_CHAINS, params, admin_key, timeout=15)
             self._merge_core(result, core_results)
 
@@ -251,7 +247,7 @@ class UnifiedTokenScanner:
             r.symbol = str(meta.get("symbol", "") or "")
             r.age_hours = float(meta.get("age_hours", 0) or 0)
 
-        # Security checks (GoPlus — 42 checks)
+        # Security checks (GoPlus - 42 checks)
         security = data.get("token_security", {})
         if isinstance(security, dict):
             r.security = security

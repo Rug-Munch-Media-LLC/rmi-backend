@@ -1,5 +1,5 @@
 """
-Chain Data Cache — In-memory TTL cache for RPC results.
+Chain Data Cache - In-memory TTL cache for RPC results.
 Minimizes Helius API calls on free tier (100k credits/month).
 Includes startup warming for hot wallets.
 """

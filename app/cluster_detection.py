@@ -166,7 +166,7 @@ class ClusterDetectionPro:
     """
 
     # Signal weights for confidence calculation
-    SIGNAL_WEIGHTS = {
+    SIGNAL_WEIGHTS = {  # noqa: RUF012
         "temporal_proximity": 0.20,
         "common_counterparties": 0.15,
         "behavioral_similarity": 0.20,
@@ -281,7 +281,7 @@ class ClusterDetectionPro:
         # Find wallets appearing together frequently
         cooccurrence = defaultdict(lambda: defaultdict(int))
 
-        for window, window_wallets in time_windows.items():
+        for window, window_wallets in time_windows.items():  # noqa: B007
             if len(window_wallets) < 2:
                 continue
             wallet_list = list(window_wallets)
@@ -453,7 +453,7 @@ class ClusterDetectionPro:
 
         graph = defaultdict(set)
 
-        for (w1, w2), sim in similarity_matrix.items():
+        for (w1, w2), sim in similarity_matrix.items():  # noqa: B007
             graph[w1].add(w2)
             graph[w2].add(w1)
 
@@ -582,7 +582,7 @@ class ClusterDetectionPro:
                 clusters_dict[label].append(wallet)
 
         clusters = []
-        for label, cluster_wallets in clusters_dict.items():
+        for label, cluster_wallets in clusters_dict.items():  # noqa: B007
             if len(cluster_wallets) >= 2:
                 cluster = WalletCluster(
                     cluster_id=f"ml_{len(clusters)}",

@@ -85,7 +85,7 @@ class ScanFlag(BaseModel):
 
 
 class WalletAnalysis(BaseModel):
-    """Full wallet analysis — risk + tokens + recent activity."""
+    """Full wallet analysis - risk + tokens + recent activity."""
 
     address: str
     chain: str

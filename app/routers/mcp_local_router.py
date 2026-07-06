@@ -1,4 +1,4 @@
-"""Local MCP Proxy Router — free local MCP server proxy.
+"""Local MCP Proxy Router - free local MCP server proxy.
 NOTE: Auth via X-Admin-Key is disabled due to Docker pycache issue.
 Secure via nginx IP whitelist or firewall in production.
 Frontend already requires adminKey in React Query hooks (enabled: !!adminKey)."""

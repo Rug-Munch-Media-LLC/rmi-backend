@@ -1,9 +1,9 @@
 """
-SENTINEL — Flash Loan Attack Detector
+SENTINEL - Flash Loan Attack Detector
 ======================================
 Detects if a token's trades were sandwiched by flash loans.
 Pattern: huge buy in block N, huge sell in block N or N+1, wallet had
-near-zero balance before the trade — classic flash-loan manipulation.
+near-zero balance before the trade - classic flash-loan manipulation.
 
 Uses direct API calls: DexScreener (trades/pairs), Birdeye (trades),
 Solscan/Etherscan (account history), Helius (parsed transactions).
@@ -311,7 +311,7 @@ class FlashLoanDetector:
         report.analyzed_trade_count = len(trades) or 1
 
         if not trades:
-            # No trade data available — cannot detect flash loans
+            # No trade data available - cannot detect flash loans
             report.risk_score = 0
             report.risk_level = "LOW"
             report.warnings = ["No trade data available for flash-loon analysis"]
