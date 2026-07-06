@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Helius Syndicate Tracker — CRM V1 Investigation Engine
+Helius Syndicate Tracker - CRM V1 Investigation Engine
 Tracks SOSANA syndicate wallets through Helius enhanced data.
 Monitors the CRM V1 contract (Eme5T2s2HB7B8W4YgLG1eReQpnadEVUnQBRjaKTdBAGS)
 and all related wallets for movement, coordination, and new activity.

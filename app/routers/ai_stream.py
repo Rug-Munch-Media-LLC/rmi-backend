@@ -1,4 +1,4 @@
-"""SSE Response Streaming — real-time token streaming for AI endpoints."""
+"""SSE Response Streaming - real-time token streaming for AI endpoints."""
 
 import asyncio
 import json

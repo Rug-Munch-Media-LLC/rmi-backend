@@ -1,14 +1,14 @@
-"""x402 MCP Server — payment gateway for AI agents.
+"""x402 MCP Server - payment gateway for AI agents.
 
 Auto-discovered by Claude Code, Cursor, opencode, aider, Windsurf, Hermes.
 No integration guide needed. Every MCP client can use x402 natively.
 
 Tools:
-  x402_create_invoice — Get a priced payment challenge for any tool
-  x402_verify_payment — Verify an on-chain payment
-  x402_list_tools    — Browse all 274+ tools with prices
-  x402_check_balance — Check remaining trials and usage
-  x402_get_usage     — View call history and spending
+  x402_create_invoice - Get a priced payment challenge for any tool
+  x402_verify_payment - Verify an on-chain payment
+  x402_list_tools    - Browse all 274+ tools with prices
+  x402_check_balance - Check remaining trials and usage
+  x402_get_usage     - View call history and spending
 
 Usage in any MCP client:
   Claude Code:   @x402 list_tools
@@ -95,7 +95,7 @@ TOOLS = [
     },
     {
         "name": "x402_get_usage",
-        "description": "View detailed usage history — total calls, total spend, per-tool breakdown, and recent transactions.",
+        "description": "View detailed usage history - total calls, total spend, per-tool breakdown, and recent transactions.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -116,9 +116,8 @@ TOOLS = [
 
 async def handle_mcp_call(tool_name: str, arguments: dict[str, Any]) -> dict:
     """Route MCP tool calls to the appropriate handler."""
-    from app.routers.x402_enforcement import _ensure_tool_prices, TOOL_PRICES, build_402_response
-    from app.domain.x402.middleware import create_invoice, get_tool_price_usd
-    import json
+    from app.domain.x402.middleware import create_invoice
+    from app.routers.x402_enforcement import TOOL_PRICES, _ensure_tool_prices
 
     if tool_name == "x402_create_invoice":
         tool = arguments.get("tool", "")
@@ -127,11 +126,10 @@ async def handle_mcp_call(tool_name: str, arguments: dict[str, Any]) -> dict:
         return {"content": [{"type": "text", "text": json.dumps(invoice, indent=2)}]}
 
     if tool_name == "x402_verify_payment":
-        from app.routers.x402_enforcement import _verify_refund_ownership
         tx_hash = arguments.get("tx_hash", "")
         tool = arguments.get("tool", "")
         amount = arguments.get("amount_usd", 0)
-        pay_to = os.getenv("X402_PAYMENT_ADDRESS", "")
+        os.getenv("X402_PAYMENT_ADDRESS", "")
         return {
             "content": [{
                 "type": "text",
@@ -178,7 +176,7 @@ async def handle_mcp_call(tool_name: str, arguments: dict[str, Any]) -> dict:
         trial_tools = {k: v for k, v in TOOL_PRICES.items() if v.get("trial_free", 0) > 0}
         balances = {}
         for tid, tp in list(trial_tools.items())[:10]:
-            can, rem = check_trial(tid, agent, tp.get("trial_free", 3))
+            _can, rem = check_trial(tid, agent, tp.get("trial_free", 3))
             balances[tid] = {"remaining": rem, "total": tp.get("trial_free", 3)}
         return {
             "content": [{

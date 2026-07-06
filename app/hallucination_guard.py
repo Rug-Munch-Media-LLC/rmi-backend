@@ -1,5 +1,5 @@
 """
-Hallucination Guard Module — NLI-based hallucination detection for RAG outputs.
+Hallucination Guard Module - NLI-based hallucination detection for RAG outputs.
 
 Primary method: Cross-encoder NLI model (DeBERTa-v3) scores (context, answer) pairs.
 Secondary method: LLM self-check via OpenRouter API when DeBERTa is unavailable.
@@ -95,7 +95,7 @@ class CitationVerificationResult:
 
 
 # ---------------------------------------------------------------------------
-# Claim splitter — simple sentence-level extraction
+# Claim splitter - simple sentence-level extraction
 # ---------------------------------------------------------------------------
 
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
@@ -359,7 +359,7 @@ class HallucinationGuard:
             )
 
     # -----------------------------------------------------------------------
-    # Public API — single check
+    # Public API - single check
     # -----------------------------------------------------------------------
 
     async def check_answer(self, answer: str, context: str) -> CheckResult:
@@ -429,7 +429,7 @@ class HallucinationGuard:
 
         # Faithful = no flagged contradictions. A claim is only flagged when
         # contradiction > entailment AND contradiction > neutral (line 411).
-        # High neutral scores just mean "not enough info to confirm" — not a hallucination.
+        # High neutral scores just mean "not enough info to confirm" - not a hallucination.
         is_faithful = len(flagged_claims) == 0
         confidence = (avg_entailment + (1.0 - avg_contradiction)) / 2.0 if is_faithful else 1.0 - avg_contradiction
 
@@ -442,7 +442,7 @@ class HallucinationGuard:
         )
 
     # -----------------------------------------------------------------------
-    # Public API — multi-source check
+    # Public API - multi-source check
     # -----------------------------------------------------------------------
 
     async def check_answer_with_sources(self, answer: str, sources: list[dict[str, Any]]) -> CheckResult:
@@ -622,7 +622,7 @@ class HallucinationGuard:
                     detail["reason"] = f"Contradiction detected (p={contradiction:.2f})"
                     unsupported.append(detail)
                 else:
-                    # Neutral — the source doesn't contradict but doesn't entail either
+                    # Neutral - the source doesn't contradict but doesn't entail either
                     detail["supported"] = False
                     detail["score"] = scores
                     detail["reason"] = "Citation does not support claim (neutral)"
@@ -708,5 +708,5 @@ class HallucinationGuard:
 
 
 async def get_guard() -> HallucinationGuard:
-    """Async singleton accessor — the recommended entry point."""
+    """Async singleton accessor - the recommended entry point."""
     return await HallucinationGuard.get_guard()

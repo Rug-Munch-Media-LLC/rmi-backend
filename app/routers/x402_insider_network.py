@@ -57,7 +57,7 @@ def _get_redis():
     return _redis
 
 
-_CACHE_TTL = 600  # 10 minutes — insider networks don't change rapidly
+_CACHE_TTL = 600  # 10 minutes - insider networks don't change rapidly
 
 
 # ── Request Models ─────────────────────────────────────────────

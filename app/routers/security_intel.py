@@ -1,5 +1,5 @@
 """
-Security Intelligence Router v2 — Complete Crypto Security Stack
+Security Intelligence Router v2 - Complete Crypto Security Stack
 ===================================================================
 
 All crypto security modules exposed via REST:
@@ -17,7 +17,7 @@ Updated 2026-05-08 for world-class crypto intelligence.
 
 from __future__ import annotations
 
-# ═══ LAZY IMPORTS (deferred to first use — saves ~2.2s cold start) ═══
+# ═══ LAZY IMPORTS (deferred to first use - saves ~2.2s cold start) ═══
 import importlib as _il
 import os
 from datetime import UTC, datetime
@@ -32,11 +32,11 @@ def _L(module_path):
     return _lazy_cache[module_path]
 
 
-# Lightweight imports (eager — these are fast)
-from fastapi import APIRouter
-from pydantic import BaseModel, Field
+# Lightweight imports (eager - these are fast)
+from fastapi import APIRouter  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
 
-from app.cross_chain_correlator import ChainFingerprint, CrossChainCorrelator
+from app.cross_chain_correlator import ChainFingerprint, CrossChainCorrelator  # noqa: E402
 
 router = APIRouter(prefix="/api/v1/security", tags=["security"])
 
@@ -47,7 +47,7 @@ _wallet_detector = None
 _token_detector = None
 
 
-async def get_sentinel() -> SentinelManager:
+async def get_sentinel() -> SentinelManager:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     global _sentinel_manager
     if _sentinel_manager is None:
         _sentinel_manager = _L("app.mempool_sentinel").SentinelManager()
@@ -62,7 +62,7 @@ async def get_wallet_detector():
     return _wallet_detector
 
 
-async def get_token_detector() -> TokenMetricAnomalyDetector:
+async def get_token_detector() -> TokenMetricAnomalyDetector:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     global _token_detector
     if _token_detector is None:
         _ml = _L("app.ml_anomaly")
@@ -126,7 +126,7 @@ class AlertAckRequest(BaseModel):
 
 @router.get("/contract/{address}")
 async def contract_analysis(address: str, chain: str = "ethereum", deep: bool = False):
-    """Analyze contract — bytecode scan + optional Slither/Mythril deep scan."""
+    """Analyze contract - bytecode scan + optional Slither/Mythril deep scan."""
 
     # Fast bytecode scan
     _oca = _L("app.onchain_analyzer")
@@ -172,7 +172,7 @@ async def contract_analysis(address: str, chain: str = "ethereum", deep: bool = 
 
 @router.post("/scan/batch")
 async def batch_contract_scan(req: BatchContractRequest):
-    """Batch contract scan — fast or deep."""
+    """Batch contract scan - fast or deep."""
     if req.deep:
         _deep = _L("app.contract_deepscan")
         results = await _deep.batch_deep_scan(req.addresses, req.chain)

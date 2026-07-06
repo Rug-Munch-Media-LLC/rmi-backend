@@ -1,4 +1,4 @@
-"""eth-labels.db source — 115K EVM labels from local SQLite.
+"""eth-labels.db source - 115K EVM labels from local SQLite.
 
 Schema (verified):
   accounts(id, chain_id, address, label, name_tag, created_at, updated_at)

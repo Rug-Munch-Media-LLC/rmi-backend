@@ -1,4 +1,4 @@
-"""T27 CatalogService — unified read/write API for RMI.
+"""T27 CatalogService - unified read/write API for RMI.
 
 Per v4.0 §T27. The CatalogService is the ONLY sanctioned way to read or
 write catalog data. Domain facades call this; they never touch stores directly.
@@ -91,7 +91,7 @@ class CatalogService:
     """Unified read/write API for RMI data.
 
     Use `get_catalog()` to get the singleton instance. All methods are
-    async and graceful-degrade — if a store is unreachable, the method
+    async and graceful-degrade - if a store is unreachable, the method
     returns None or an empty result with a logged warning.
     """
 
@@ -109,7 +109,7 @@ class CatalogService:
         async with self._init_lock:
             if self._redis is not None:
                 return  # already init
-            # Redis (always try first — used for everything)
+            # Redis (always try first - used for everything)
             try:
                 import redis.asyncio as aioredis
 
@@ -364,7 +364,7 @@ class CatalogService:
             log.warning("recipe1_stores_unavailable")
             return []
         try:
-            # Step 1: Neo4j — find wallets with rug_count >= min_rug_count
+            # Step 1: Neo4j - find wallets with rug_count >= min_rug_count
             with self._neo_driver.session() as s:
                 wallets = [
                     r["w.wallet_id"]
@@ -376,7 +376,7 @@ class CatalogService:
                 ]
             if not wallets:
                 return []
-            # Step 2: Postgres — find tokens deployed by those wallets
+            # Step 2: Postgres - find tokens deployed by those wallets
             async with self._pg_pool.acquire() as conn:
                 query = (
                     "SELECT * FROM tokens WHERE deployer_wallet_id = ANY($1::text[]) "
@@ -397,7 +397,7 @@ class CatalogService:
     async def get_token_risk(
         self, chain: Chain, address: str
     ) -> dict[str, Any]:
-        """Real-time risk score — composes Redis cache + Postgres + Neo4j.
+        """Real-time risk score - composes Redis cache + Postgres + Neo4j.
 
         Returns dict (not Token) because it's a cross-store projection.
         Cache TTL 60s.

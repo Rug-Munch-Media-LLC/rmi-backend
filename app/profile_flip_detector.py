@@ -66,7 +66,7 @@ _FLAG_REGISTRARS = {
 # Suspicious TLDs
 _FLAG_TLDS = {".xyz", ".top", ".vip", ".cc", ".work", ".click", ".loan", ".date"}
 
-# Social profile flip keywords — sudden changes often precede scams
+# Social profile flip keywords - sudden changes often precede scams
 _FLIP_KEYWORDS = {
     "rebrand",
     "migration",
@@ -122,10 +122,10 @@ async def _fetch(url: str, timeout: int = 10, headers: dict | None = None, max_r
         except (TimeoutError, aiohttp.ClientError) as e:
             if attempt < max_retries:
                 wait = 2**attempt
-                logger.debug(f"Fetch failed: {url} — {e}, retrying in {wait}s")
+                logger.debug(f"Fetch failed: {url} - {e}, retrying in {wait}s")
                 await asyncio.sleep(wait)
             else:
-                logger.debug(f"Fetch failed after {max_retries} retries: {url} — {e}")
+                logger.debug(f"Fetch failed after {max_retries} retries: {url} - {e}")
     return None
 
 

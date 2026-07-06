@@ -1,7 +1,7 @@
 """
 Multi-Account Google Cloud Manager
 ====================================
-Drop service account JSON files into /root/.secrets/google/ —
+Drop service account JSON files into /root/.secrets/google/ -
 the system auto-discovers them, manages tokens, and provides
 unified access across all accounts. No console needed ever again.
 
@@ -172,7 +172,7 @@ class MultiCloudManager:
             ordered = sorted(ordered, key=lambda a: 0 if a.project_id == preferred_project else 1)
 
         for acc in ordered:
-            if acc.project_id == "cryptorugmunch":  # Primary — always try first
+            if acc.project_id == "cryptorugmunch":  # Primary - always try first
                 vecs = await acc.embed_vertex(texts)
                 if vecs:
                     return vecs, acc.project_id

@@ -1,4 +1,4 @@
-"""Content API — Ghost-powered unified feed."""
+"""Content API - Ghost-powered unified feed."""
 
 from fastapi import APIRouter, Request
 

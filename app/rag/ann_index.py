@@ -1,7 +1,7 @@
-"""M3 RAG ANN Index — numpy-based cosine similarity with Redis persistence.
+"""M3 RAG ANN Index - numpy-based cosine similarity with Redis persistence.
 
 Why numpy + Redis (not FAISS):
-- 13 collections × ~5K docs = ~65K total — small enough for in-process numpy
+- 13 collections x ~5K docs = ~65K total - small enough for in-process numpy  # noqa: RUF002
 - No FAISS native dep, no rebuild on container restart
 - Vector + metadata stored as JSON in Redis; loaded into a numpy matrix
   on first search, then kept in process memory for fast repeated queries
@@ -24,7 +24,7 @@ from app.rag.embeddings import EMBEDDING_DIM
 
 log = logging.getLogger(__name__)
 
-# Lazy import — Redis client is created on first use, after app.core.redis is ready
+# Lazy import - Redis client is created on first use, after app.core.redis is ready
 _redis_client = None
 
 
@@ -147,7 +147,7 @@ class ANNIndex:
             arr = arr / n
 
         if doc_id in self._ids:
-            # Update — replace vector
+            # Update - replace vector
             idx = self._ids.index(doc_id)
             self._matrix[idx] = arr
         else:

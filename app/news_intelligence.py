@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RMI News Intelligence v3 — Industry Best
+RMI News Intelligence v3 - Industry Best
 =========================================
 AI-powered news pipeline: categorization, sentiment, trending, briefing.
 Uses MiniMax ($20/mo flat) + Ollama Cloud.
@@ -31,7 +31,7 @@ def analyze_article(title: str, content: str = "") -> dict:
 
     category = classify_news(title, content)
 
-    # Sentiment via MiniMax (batched — 1 call per article is fine at flat rate)
+    # Sentiment via MiniMax (batched - 1 call per article is fine at flat rate)
     sentiment = "neutral"
     try:
         k = os.getenv("OLLAMA_API_KEY", "")

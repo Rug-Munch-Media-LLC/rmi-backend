@@ -1,9 +1,9 @@
-"""Health routes — /health, /live, /ready.
+"""Health routes - /health, /live, /ready.
 
 Per RMIV5 v4.0 §T33. Provides basic Kubernetes-style health endpoints:
-  - /health  — full health (deep checks)
-  - /live    — liveness (process alive, no deps)
-  - /ready   — readiness (critical deps reachable)
+  - /health  - full health (deep checks)
+  - /live    - liveness (process alive, no deps)
+  - /ready   - readiness (critical deps reachable)
 
 Emits Prometheus HEALTH_CHECK_DURATION + HEALTH_CHECK_STATUS gauges per store.
 """
@@ -19,6 +19,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.core.metrics import HEALTH_CHECK_DURATION, HEALTH_CHECK_STATUS
+from app.telegram_bot.requirements import httpx
 
 router = APIRouter(tags=["health"])
 

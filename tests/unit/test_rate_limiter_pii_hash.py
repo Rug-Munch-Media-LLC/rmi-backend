@@ -1,4 +1,4 @@
-"""Unit tests for app/core/rate_limiter.py — PII HMAC-hash protection (T06).
+"""Unit tests for app/core/rate_limiter.py - PII HMAC-hash protection (T06).
 
 These tests verify that user identifiers (wallet addresses, API keys)
 are NEVER stored in plaintext in Redis keys. The rate limiter must
@@ -24,7 +24,7 @@ class TestHashIdentifier:
     """The core HMAC hash function."""
 
     def test_same_identifier_same_day_same_hash(self) -> None:
-        """Deterministic within a UTC day — rate limiting must work."""
+        """Deterministic within a UTC day - rate limiting must work."""
         h1 = _hash_identifier("0xTestWallet123")
         h2 = _hash_identifier("0xTestWallet123")
         assert h1 == h2
@@ -36,7 +36,7 @@ class TestHashIdentifier:
         assert h1 != h2
 
     def test_hash_is_fixed_length_hex(self) -> None:
-        """Hash output is always 32-char hex — safe for Redis keys."""
+        """Hash output is always 32-char hex - safe for Redis keys."""
         h = _hash_identifier("anything")
         assert len(h) == 32
         assert all(c in "0123456789abcdef" for c in h)
@@ -68,7 +68,7 @@ class TestHashIdentifier:
 
     def test_unicode_identifier_does_not_crash(self) -> None:
         """Edge case: unicode should hash without error."""
-        h = _hash_identifier("wallet-α-β-γ-123")
+        h = _hash_identifier("wallet-alpha-beta-gamma-123")
         assert len(h) == 32
 
 

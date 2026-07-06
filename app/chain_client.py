@@ -1,5 +1,5 @@
 """
-Multi-Provider Chain Client — Rate-limited with fallback rotation.
+Multi-Provider Chain Client - Rate-limited with fallback rotation.
 Helius (primary) → Birdeye → QuickNode → DexScreener.
 Free tier: ~5 req/sec. Caching layer in unified_provider.
 """

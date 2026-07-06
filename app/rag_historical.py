@@ -1,5 +1,5 @@
 """
-RAG Historical Scam Ingestion — Rekt DB, Chainabuse, TRM, Elliptic
+RAG Historical Scam Ingestion - Rekt DB, Chainabuse, TRM, Elliptic
 ==================================================================
 Ingests historical crypto scam and hack data into RAG collections.
 Sources: Rekt DB (3K+ DeFi hacks), Chainabuse (scam reports),
@@ -39,7 +39,7 @@ SOURCES = {
         "url": "https://de.fi/rekt-database",
         "collection": "defi_hacks",
         "content_type": "scam_report",
-        "description": "3,000+ DeFi hacks since 2020 — the most comprehensive exploit database",
+        "description": "3,000+ DeFi hacks since 2020 - the most comprehensive exploit database",
         "cadence": "weekly",
     },
     "chainabuse": {
@@ -71,7 +71,7 @@ SOURCES = {
         "url": "https://immunefi.com",
         "collection": "vuln_patterns",
         "content_type": "contract_code",
-        "description": "Bug bounty reports — real vulnerability patterns",
+        "description": "Bug bounty reports - real vulnerability patterns",
         "cadence": "weekly",
     },
     "certik": {
@@ -87,7 +87,7 @@ SOURCES = {
         "url": "https://www.trmlabs.com/reports-and-whitepapers/2026-crypto-crime-report",
         "collection": "crime_reports",
         "content_type": "annual_report",
-        "description": "Annual crypto crime typologies and trends — $158B illicit volume in 2025",
+        "description": "Annual crypto crime typologies and trends - $158B illicit volume in 2025",
         "cadence": "yearly",
     },
     "elliptic_scams": {
@@ -121,7 +121,7 @@ async def scrape_rekt_db() -> list[dict]:
                 for item in data[:500]:  # Limit per run
                     docs.append(
                         {
-                            "text": f"DeFi Hack: {item.get('name', 'Unknown')} — "
+                            "text": f"DeFi Hack: {item.get('name', 'Unknown')} - "
                             f"${item.get('amount', 0):,.0f} lost on {item.get('chain', 'Unknown')}. "
                             f"Vulnerability: {item.get('vulnerability', 'Unknown')}. "
                             f"Date: {item.get('date', 'Unknown')}. "
@@ -165,7 +165,7 @@ async def scrape_chainabuse() -> list[dict]:
                     address = item.get("address", "")
                     docs.append(
                         {
-                            "text": f"Scam Report: {item.get('title', 'Unknown')} — "
+                            "text": f"Scam Report: {item.get('title', 'Unknown')} - "
                             f"Address {address} on {item.get('chain', 'Unknown')}. "
                             f"Type: {item.get('scam_type', 'Unknown')}. "
                             f"Description: {item.get('description', '')}. "
@@ -200,7 +200,7 @@ async def scrape_slowmist() -> list[dict]:
                 for item in data[:200]:
                     docs.append(
                         {
-                            "text": f"SlowMist Analysis: {item.get('title', 'Unknown')} — "
+                            "text": f"SlowMist Analysis: {item.get('title', 'Unknown')} - "
                             f"${item.get('amount', 0):,.0f} lost. "
                             f"Root cause: {item.get('root_cause', 'Unknown')}. "
                             f"Attack vector: {item.get('attack_vector', 'Unknown')}. "
@@ -248,7 +248,7 @@ async def scrape_rekt_news() -> list[dict]:
 
                     docs.append(
                         {
-                            "text": f"Rekt News: {title} — {amount} lost. {description}",
+                            "text": f"Rekt News: {title} - {amount} lost. {description}",
                             "source": "rekt_news",
                             "url": link,
                             "category": "defi_hack",

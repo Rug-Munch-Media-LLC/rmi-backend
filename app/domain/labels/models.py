@@ -76,14 +76,14 @@ class Label:
         if not labels:
             raise ValueError("Cannot merge empty label list")
         # Sort by confidence desc, take best as base
-        sorted_labels = sorted(labels, key=lambda l: -l.confidence)
+        sorted_labels = sorted(labels, key=lambda l: -l.confidence)  # noqa: E741
         base = sorted_labels[0]
-        sources = list({l.source for l in labels})
+        sources = list({l.source for l in labels})  # noqa: E741
         merged_attrs = dict(base.attributes)
-        for l in labels[1:]:
+        for l in labels[1:]:  # noqa: E741
             merged_attrs.update(l.attributes)
         # Update verified_at to most recent
-        verified_at = max(l.verified_at for l in labels)
+        verified_at = max(l.verified_at for l in labels)  # noqa: E741
         return cls(
             address=base.address,
             chain=base.chain,

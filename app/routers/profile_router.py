@@ -278,8 +278,8 @@ async def signup(req: ProfileCreate):
     except Exception as e:
         error_msg = str(e).lower()
         if "duplicate" in error_msg or "already" in error_msg or "unique" in error_msg:
-            raise HTTPException(status_code=409, detail="Username or email already taken")
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+            raise HTTPException(status_code=409, detail="Username or email already taken") from e
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/login")
@@ -331,8 +331,8 @@ async def login(req: LoginRequest):
         raise
     except Exception as e:
         if "invalid" in str(e).lower() or "credentials" in str(e).lower():
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+            raise HTTPException(status_code=401, detail="Invalid email or password") from e
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/logout")
@@ -384,7 +384,7 @@ async def change_password(req: PasswordChange, authorization: str = Header(None)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.post("/password/reset/request")
@@ -437,7 +437,7 @@ async def confirm_password_reset(req: PasswordResetConfirm):
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=500, detail="Invalid or expired reset token")
+        raise HTTPException(status_code=500, detail="Invalid or expired reset token") from None
 
 
 @router.get("/me")
@@ -533,7 +533,7 @@ async def get_farcaster_profile(fid: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/social/resolve-ens/{address}")
@@ -545,7 +545,7 @@ async def resolve_ens(address: str):
         name = await resolve_ens_name(address)
         return {"address": address, "ens_name": name}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/social/farcaster-handle/{handle:path}")
@@ -564,7 +564,7 @@ async def resolve_farcaster(handle: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @router.get("/social")
@@ -574,7 +574,7 @@ async def list_socialfi_integrations():
         "available": [
             {
                 "platform": "farcaster",
-                "description": "Decentralized social network — connect FID to fetch profile, casts, followers",
+                "description": "Decentralized social network - connect FID to fetch profile, casts, followers",
                 "endpoints": [
                     "GET /social/farcaster/{fid}",
                     "GET /social/farcaster-handle/{handle}",
@@ -582,14 +582,14 @@ async def list_socialfi_integrations():
             },
             {
                 "platform": "ens",
-                "description": "Ethereum Name Service — resolve .eth names to addresses and vice versa",
+                "description": "Ethereum Name Service - resolve .eth names to addresses and vice versa",
                 "endpoints": [
                     "GET /social/resolve-ens/{address}",
                 ],
             },
             {
                 "platform": "lens",
-                "description": "Lens Protocol — decentralized social graph (coming soon)",
+                "description": "Lens Protocol - decentralized social graph (coming soon)",
                 "endpoints": [],
             },
         ]
@@ -965,7 +965,7 @@ async def follow_user(target_username: str, authorization: str = Header(None)):
 
     except Exception as e:
         if "duplicate" in str(e).lower():
-            raise HTTPException(status_code=409, detail="Already following")
+            raise HTTPException(status_code=409, detail="Already following") from e
         raise
 
     return {"status": "ok", "following": target_username}

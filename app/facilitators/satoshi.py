@@ -1,7 +1,7 @@
 """
-Satoshi Facilitator — Bitcoin-Focused x402 [OFFLINE — NXDOMAIN]
+Satoshi Facilitator - Bitcoin-Focused x402 [OFFLINE - NXDOMAIN]
 ===============================================================
-STATUS: OFFLINE — api.satoshi.dev DNS is NXDOMAIN (dead domain).
+STATUS: OFFLINE - api.satoshi.dev DNS is NXDOMAIN (dead domain).
 Do not route payments to this facilitator. Kept for reference only.
 Independent x402 facilitator for Bitcoin-focused pay-per-call services.
 Supports BTC payment with settlement on Base, Base Sepolia,
@@ -28,7 +28,7 @@ logger = logging.getLogger("facilitator.satoshi")
 
 class SatoshiFacilitator(Facilitator):
     """
-    Satoshi Facilitator — Bitcoin x402 pay-per-call.
+    Satoshi Facilitator - Bitcoin x402 pay-per-call.
     Users pay in BTC, settled on Base/Solana.
 
     OFFLINE: api.satoshi.dev DNS is NXDOMAIN. This facilitator is dead.
@@ -54,7 +54,7 @@ class SatoshiFacilitator(Facilitator):
 
     @property
     def priority(self) -> int:
-        return 999  # Dead facilitator — lowest possible priority
+        return 999  # Dead facilitator - lowest possible priority
 
     @property
     def verify_url(self) -> str | None:
@@ -82,14 +82,14 @@ class SatoshiFacilitator(Facilitator):
 
     @property
     def description(self) -> str:
-        return "Satoshi Facilitator — Bitcoin pay-per-call, cross-chain settlement"
+        return "Satoshi Facilitator - Bitcoin pay-per-call, cross-chain settlement"
 
     async def verify(
         self,
         payload: dict[str, Any],
         requirements: dict[str, Any] | None = None,
     ) -> VerificationResult:
-        # OFFLINE: api.satoshi.dev is NXDOMAIN — refuse all verifications
+        # OFFLINE: api.satoshi.dev is NXDOMAIN - refuse all verifications
         return self._format_error("Satoshi facilitator is OFFLINE (api.satoshi.dev NXDOMAIN)")
 
     async def _verify_live(
@@ -133,7 +133,7 @@ class SatoshiFacilitator(Facilitator):
                     return self._format_error(f"Satoshi: {data.get('error', f'HTTP {resp.status}')}")
 
                 if data.get("isValid") or data.get("verified"):
-                    settlement_chain = data.get("settlementChain", "base" if not is_btc else "base")
+                    settlement_chain = data.get("settlementChain", "base" if not is_btc else "base")  # noqa: RUF034
                     return self._format_success(
                         tx_hash=data.get("txHash") or data.get("btcTxid"),
                         payer=data.get("payer") or data.get("btcAddress"),
@@ -157,11 +157,11 @@ class SatoshiFacilitator(Facilitator):
             return self._format_error(f"Satoshi internal error: {e}")
 
     async def health(self) -> bool:
-        # OFFLINE: api.satoshi.dev is NXDOMAIN — always return False
+        # OFFLINE: api.satoshi.dev is NXDOMAIN - always return False
         return False
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
-        # OFFLINE: api.satoshi.dev is NXDOMAIN — refuse all settlements
+        # OFFLINE: api.satoshi.dev is NXDOMAIN - refuse all settlements
         return SettlementResult(
             settled=False,
             reason="Satoshi facilitator is OFFLINE (api.satoshi.dev NXDOMAIN)",

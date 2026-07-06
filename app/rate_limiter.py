@@ -47,7 +47,7 @@ class ProviderLimit:
     timeout: float = 15.0
 
 
-# Configured limits — auto-detected from credit status
+# Configured limits - auto-detected from credit status
 PROVIDERS: list[ProviderLimit] = []
 
 
@@ -55,7 +55,7 @@ def configure_providers(has_openrouter_credits: bool = True):
     """Configure provider limits based on credit status."""
     global PROVIDERS
 
-    # OpenRouter — different limits based on credit status
+    # OpenRouter - different limits based on credit status
     or_rpd = 1000 if has_openrouter_credits else 50
 
     PROVIDERS = [
@@ -98,13 +98,13 @@ def configure_providers(has_openrouter_credits: bool = True):
             free=True,
             priority=105,
         ),
-        # ── Tier 1d: Google Vertex AI (768d, Cloud credits — separate from AI Studio) ──
+        # ── Tier 1d: Google Vertex AI (768d, Cloud credits - separate from AI Studio) ──
         ProviderLimit(
             id="vertex_ai",
             name="Google Vertex AI",
             model="text-embedding-004",
             dims=768,
-            base_url="vertex",  # Special — handled by gcloud_manager
+            base_url="vertex",  # Special - handled by gcloud_manager
             key_env="",
             rpm=50,
             rpd=5000,
@@ -225,7 +225,7 @@ class RateTracker:
             )
             await self._redis.ping()
         except Exception as e:
-            logger.warning(f"RateTracker Redis unavailable: {e} — memory-only mode")
+            logger.warning(f"RateTracker Redis unavailable: {e} - memory-only mode")
             self._redis = None
 
     async def _get_counts(self, provider_id: str) -> dict[str, int]:
@@ -449,7 +449,7 @@ class EmbeddingDispatcher:
         """Smart embed with quality-tier routing.
 
         task: 'scam_detection', 'user_search', 'news_ingestion', 'bulk_ingestion', etc.
-        Routes to appropriate provider tier — saves premium credits for critical tasks.
+        Routes to appropriate provider tier - saves premium credits for critical tasks.
         """
         from app.embed_tiers import get_allowed_providers, get_min_dims, get_tier
 
@@ -472,7 +472,7 @@ class EmbeddingDispatcher:
         if not to_embed:
             return cached, "cache"
 
-        # Pick best available provider — filtered by tier
+        # Pick best available provider - filtered by tier
         vectors = None
         provider_name = "none"
 

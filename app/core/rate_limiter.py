@@ -1,4 +1,4 @@
-"""3-Tier Rate Limiter — Free/Pro/Enterprise with crypto paywall.
+"""3-Tier Rate Limiter - Free/Pro/Enterprise with crypto paywall.
 Realistic limits for 31GB RAM, 12 vCPU, 42 containers. Competitive with market.
 
 FREE:  100 req/day, 10 req/min, 10 SENTINEL scans/day

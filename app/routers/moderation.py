@@ -1,4 +1,4 @@
-"""Content Moderation Pipeline — AI-powered spam/scam/NSFW detection for user content."""
+"""Content Moderation Pipeline - AI-powered spam/scam/NSFW detection for user content."""
 
 import os
 import re

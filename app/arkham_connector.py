@@ -64,7 +64,7 @@ class ArkhamClient:
 
     def __init__(self, cache_ttl: int = 120):
         if not ARKHAM_API_KEY:
-            logger.warning("ARKHAM_API_KEY not set — ArkhamClient will return auth errors")
+            logger.warning("ARKHAM_API_KEY not set - ArkhamClient will return auth errors")
         self.headers = {
             "API-Key": ARKHAM_API_KEY,
             "accept": "application/json",

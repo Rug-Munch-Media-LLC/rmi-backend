@@ -1,5 +1,5 @@
 """
-SENTINEL — RAG Citation Integration
+SENTINEL - RAG Citation Integration
 =====================================
 Shared utility for all scanner modules to query RAG for relevant research,
 known scams, and forensic reports, then include structured citations in their output.

@@ -232,7 +232,7 @@ class FreeSolscanClient:
 
     @staticmethod
     def top_address_transfers(address: str, range_days: int = 7) -> list | None:
-        """Get top transfers to/from an address — KEY for gas funding traces."""
+        """Get top transfers to/from an address - KEY for gas funding traces."""
         return _request(
             "/account/top-transfer",
             {
@@ -282,7 +282,7 @@ class FreeSolscanClient:
 
     @staticmethod
     def get_wallet_funding_sources(wallet: str, days: int = 30) -> list[dict]:
-        """Trace where a wallet got its initial SOL from — KEY for exchange funding %."""
+        """Trace where a wallet got its initial SOL from - KEY for exchange funding %."""
         transfers = FreeSolscanClient.top_address_transfers(wallet, range_days=days)
         if not transfers:
             return []
@@ -354,7 +354,7 @@ KNOWN_EXCHANGE_WALLETS = {
     "7CNAohxBYpFi8zAAfNcRpt7Hjn2FyuKVs2aHXV5Wpump": "OKX",
     "BHwdGGP9LFLBdPZWuY6mk8mGG9i7WwfUuRG4vxWaFkqA": "OKX",
     # Bybit
-    "AC5RDfQFmDS1deWZos921JfqscXdByf8BKHs5ACWJTSc": "Bybit",
+    "AC5RDfQFmDS1deWZos921JfqscXdByf8BKHs5ACWJTSc": "Bybit",  # noqa: F601
     "6FzX58J2q7Wd1j5GmU5uZJhKLnG9zQZxYGvZk2Jx6WqD": "Bybit",
     # Jupiter / DEX aggregator
     "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": "Jupiter DEX",

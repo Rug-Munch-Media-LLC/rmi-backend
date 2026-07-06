@@ -3,7 +3,7 @@ Entity Extraction + Exact-Match Lookup for Crypto RAG
 =====================================================
 Fast regex-based entity extraction for crypto-specific entities.
 Redis-backed exact-match index that bypasses vector similarity for
-entity-heavy queries — critical because cosine similarity CANNOT
+entity-heavy queries - critical because cosine similarity CANNOT
 find 0xabc123... addresses or exact $SYMBOL tokens.
 
 Entity types:
@@ -179,14 +179,14 @@ class EntityExtractionResult:
 
 
 # ════════════════════════════════════════════════════════════════════
-# extract_entities — pure function, no I/O
+# extract_entities - pure function, no I/O
 # ════════════════════════════════════════════════════════════════════
 
 
 def extract_entities(text: str) -> EntityExtractionResult:
     """
     Extract crypto-specific entities from *text* using regex only.
-    No external API or ML model required — runs in microseconds.
+    No external API or ML model required - runs in microseconds.
 
     Matching strategy:
       - Transaction hashes are matched first (64 hex chars); their spans
@@ -228,7 +228,7 @@ def extract_entities(text: str) -> EntityExtractionResult:
     solana_set: set[str] = set()
     for m in _SOLANA_ADDRESS_RE.finditer(text):
         val = m.group(0)
-        # Filter out common English words — purely alpha strings <= 10 chars
+        # Filter out common English words - purely alpha strings <= 10 chars
         if len(val) <= 10 and val.isalpha():
             continue
         # Skip ENS domains (covered separately)
@@ -303,7 +303,7 @@ def extract_entities(text: str) -> EntityExtractionResult:
 
 
 # ════════════════════════════════════════════════════════════════════
-# EntityLookup — Redis-backed exact-match index
+# EntityLookup - Redis-backed exact-match index
 # ════════════════════════════════════════════════════════════════════
 
 
@@ -696,7 +696,7 @@ def reciprocal_rank_fusion(
 
 
 # ════════════════════════════════════════════════════════════════════
-# hybrid_query — the main entry point for entity-aware RAG
+# hybrid_query - the main entry point for entity-aware RAG
 # ════════════════════════════════════════════════════════════════════
 
 
@@ -732,10 +732,10 @@ async def hybrid_query(
 
     Returns:
         Dict with keys:
-          results           — merged, RRF-ranked list
-          entity_extraction — EntityExtractionResult.to_dict()
-          entity_docs       — docs from exact-match lookup
-          vector_docs       — docs from vector search
+          results           - merged, RRF-ranked list
+          entity_extraction - EntityExtractionResult.to_dict()
+          entity_docs       - docs from exact-match lookup
+          vector_docs       - docs from vector search
     """
     # Late import to avoid circular dependency at module level
     from app.rag_service import search_multi_collection

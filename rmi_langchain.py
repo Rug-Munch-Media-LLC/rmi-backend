@@ -33,7 +33,7 @@ except ImportError:
     LANGCHAIN_AVAILABLE = False
 
 try:
-    from rmi_sdk import RMI, ToolResult
+    from rmi_sdk import RMI, ToolResult  # noqa: F401
 
     SDK_AVAILABLE = True
 except ImportError:
@@ -145,7 +145,7 @@ if LANGCHAIN_AVAILABLE and SDK_AVAILABLE:
             run_manager: CallbackManagerForToolRun | None = None,
             **kwargs: Any,
         ) -> str:
-            # Use sync version for now — async SDK available separately
+            # Use sync version for now - async SDK available separately
             return self._run(run_manager=run_manager, **kwargs)
 
     class RMIScanTool(RMITool):
@@ -170,7 +170,7 @@ if LANGCHAIN_AVAILABLE and SDK_AVAILABLE:
 
     class RMIHoneypotTool(RMITool):
         name: str = "rmi_honeypot"
-        description: str = "Check if a token is a honeypot — tokens you can buy but cannot sell. Returns honeypot status and risk factors."
+        description: str = "Check if a token is a honeypot - tokens you can buy but cannot sell. Returns honeypot status and risk factors."
         args_schema: type[BaseModel] = HoneypotInput
 
     class RMISentimentTool(RMITool):
@@ -197,18 +197,18 @@ if LANGCHAIN_AVAILABLE and SDK_AVAILABLE:
 
     class RMIMarketOverviewTool(RMITool):
         name: str = "rmi_market_overview"
-        description: str = "Get current market overview — prices, volumes, trends across major chains and tokens."
+        description: str = "Get current market overview - prices, volumes, trends across major chains and tokens."
         args_schema: type[BaseModel] = MarketOverviewInput
 
     class RMINarrativeTool(RMITool):
         name: str = "rmi_narrative"
-        description: str = "Get current market narrative — what is the market saying RIGHT NOW? Returns trending narratives, sentiment, and community focus."
+        description: str = "Get current market narrative - what is the market saying RIGHT NOW? Returns trending narratives, sentiment, and community focus."
         args_schema: type[BaseModel] = NarrativeInput
 
     class RMIForensicsTool(RMITool):
         name: str = "rmi_forensics"
         description: str = (
-            "Run deep wallet forensics — transaction history, fund flows, connected addresses, and risk analysis."
+            "Run deep wallet forensics - transaction history, fund flows, connected addresses, and risk analysis."
         )
         args_schema: type[BaseModel] = ForensicsInput
 

@@ -6,7 +6,7 @@ Links wallets across Solana/Ethereum/BSC/Base using:
 - Behavioral fingerprinting (same patterns on different chains)
 - Known entity databases
 
-Paper ref: Section 5.3 — Cross-Chain Fragmentation
+Paper ref: Section 5.3 - Cross-Chain Fragmentation
 """
 
 import logging
@@ -48,7 +48,7 @@ class CrossChainCorrelator:
     """Multi-chain entity resolution engine."""
 
     # Known CEX deposit addresses (common pivot points)
-    CEX_PATTERNS = {
+    CEX_PATTERNS = {  # noqa: RUF012
         "binance": [
             "Binance",
             "Binance 1",
@@ -67,7 +67,7 @@ class CrossChainCorrelator:
     }
 
     # Name resolution providers
-    NAME_PROVIDERS = {
+    NAME_PROVIDERS = {  # noqa: RUF012
         "ethereum": "https://api.ensideas.com/ens/resolve/",
         "solana": "https://sns-sdk.solana.domain/",
     }
@@ -97,7 +97,7 @@ class CrossChainCorrelator:
                 chain_a, addr_a = keys[i].split(":", 1)
                 chain_b, addr_b = keys[j].split(":", 1)
                 if chain_a == chain_b:
-                    continue  # Same chain — use regular clustering
+                    continue  # Same chain - use regular clustering
 
                 link = self._compare_fingerprints(
                     addr_a, chain_a, fingerprints[keys[i]], addr_b, chain_b, fingerprints[keys[j]]

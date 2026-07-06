@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
 """
-ULTIMATE CRYPTO EMBEDDER — Rug Munch Intelligence
+ULTIMATE CRYPTO EMBEDDER - Rug Munch Intelligence
 ===================================================
 Multi-head embedding system purpose-built for crypto scam/rug detection.
 
 Architecture:
   PRIMARY:   OpenRouter NVIDIA Nemotron (2048d, multimodal, FREE)
-  FALLBACK:  Local BGE-small-en-v1.5 (384-dim) — runs on CPU, zero API, zero cost
+  FALLBACK:  Local BGE-small-en-v1.5 (384-dim) - runs on CPU, zero API, zero cost
   FALLBACK:  HuggingFace BGE-M3 (1024d) if token has inference permissions
-  SPECIALTY: Crypto-aware hashing — contract bytecode sim, tx pattern fingerprints
+  SPECIALTY: Crypto-aware hashing - contract bytecode sim, tx pattern fingerprints
 
 Embedding Heads:
-  SEMANTIC    — token descriptions, scam narratives, news (OpenRouter/HF)
-  CODE        — smart contract similarity (AST-aware + bytecode hash)
-  BEHAVIORAL  — transaction patterns, wallet behavior vectors (numeric → float[])
-  ENTITY      — wallet labels, cluster IDs, known scammer fingerprints
+  SEMANTIC    - token descriptions, scam narratives, news (OpenRouter/HF)
+  CODE        - smart contract similarity (AST-aware + bytecode hash)
+  BEHAVIORAL  - transaction patterns, wallet behavior vectors (numeric → float[])
+  ENTITY      - wallet labels, cluster IDs, known scammer fingerprints
 
 Collections:
-  wallet_profiles   — wallet behavior + labels
-  token_analysis    — token metadata + risk signals
-  scam_patterns     — known rug/honeypot signatures
-  forensic_reports  — investigation findings
-  market_intel      — news, trends, alerts
-  contract_audits   — smart contract code + audit results
-  known_scams       — verified scam DB entries
+  wallet_profiles   - wallet behavior + labels
+  token_analysis    - token metadata + risk signals
+  scam_patterns     - known rug/honeypot signatures
+  forensic_reports  - investigation findings
+  market_intel      - news, trends, alerts
+  contract_audits   - smart contract code + audit results
+  known_scams       - verified scam DB entries
 """
 
 import asyncio
@@ -57,22 +57,22 @@ DIMS = {
     "BAAI/bge-large-en-v1.5": 1024,
     "BAAI/bge-small-en-v1.5": 384,
     "nvidia/llama-nemotron-embed-vl-1b-v2:free": 2048,
-    "rmi/qwen3-embedding:4b": 2048,  # deprecated — using bge-m3 1024d instead
+    "rmi/qwen3-embedding:4b": 2048,  # deprecated - using bge-m3 1024d instead
     "crypto_behavioral": 64,
     "crypto_code_hash": 128,
 }
 
-# Default model per head — ONE embedder: bge-m3 1024d
+# Default model per head - ONE embedder: bge-m3 1024d
 HEAD_DEFAULTS = {
-    "semantic": "rmi/bge-m3",  # OUR OWN — 1024d via Ollama, zero cost
-    "code": "rmi/bge-m3",  # OUR OWN — 1024d via Ollama
-    "behavioral": "crypto_behavioral",  # LOCAL — numeric vectors, zero cost
-    "entity": "crypto_behavioral",  # LOCAL — numeric vectors, zero cost
+    "semantic": "rmi/bge-m3",  # OUR OWN - 1024d via Ollama, zero cost
+    "code": "rmi/bge-m3",  # OUR OWN - 1024d via Ollama
+    "behavioral": "crypto_behavioral",  # LOCAL - numeric vectors, zero cost
+    "entity": "crypto_behavioral",  # LOCAL - numeric vectors, zero cost
 }
 
 # Primary embedding model: OUR OWN bge-m3 via Ollama (1024d)
 OR_PRIMARY_EMBED = "rmi/bge-m3"
-# OpenRouter fallback: NVIDIA Nemotron (2048d, free) — only if key works
+# OpenRouter fallback: NVIDIA Nemotron (2048d, free) - only if key works
 OR_PAID_FALLBACK = "nvidia/llama-nemotron-embed-vl-1b-v2:free"
 # Always-available local fallback: BGE-small (384d, CPU, zero cost)
 OR_FALLBACK_EMBED = "local/bge-small-en-v1.5"
@@ -286,7 +286,7 @@ def extract_transaction_features(tx_data: dict) -> np.ndarray:
     # Token interaction count
     tokens_seen = set()
     for tx in txs:
-        for field in ["token", "mint", "token_address", "contract"]:
+        for field in ["token", "mint", "token_address", "contract"]:  # noqa: F402
             if field in tx:
                 tokens_seen.add(str(tx[field]))
     vec[23] = min(len(tokens_seen) / 100.0, 1.0)
@@ -398,7 +398,7 @@ def extract_wallet_features(wallet_data: dict) -> np.ndarray:
 
 
 # ══════════════════════════════════════════════════════════════════════
-# LOCAL BGE EMBEDDER (primary — always available, zero cost)
+# LOCAL BGE EMBEDDER (primary - always available, zero cost)
 # ══════════════════════════════════════════════════════════════════════
 
 
@@ -406,7 +406,7 @@ class LocalBGEEmbedder:
     """
     Local BAAI BGE-small-en-v1.5 embedder.
     Runs on CPU, ~80MB RAM, 384-dim vectors.
-    Loaded lazily — first call initializes the model.
+    Loaded lazily - first call initializes the model.
     FALLBACK only. Primary is Ollama bge-m3.
     """
 
@@ -433,7 +433,7 @@ class LocalBGEEmbedder:
 
 
 # ══════════════════════════════════════════════════════════════════════
-# PRIMARY EMBEDDER — Our own Ollama bge-m3 (1024d, zero external API)
+# PRIMARY EMBEDDER - Our own Ollama bge-m3 (1024d, zero external API)
 # ══════════════════════════════════════════════════════════════════════
 
 
@@ -480,7 +480,7 @@ class OllamaBGEEmbedder:
 
 
 class OpenRouterEmbedder:
-    """OpenRouter embedding API — NVIDIA Nemotron primary, bge-m3 fallback."""
+    """OpenRouter embedding API - NVIDIA Nemotron primary, bge-m3 fallback."""
 
     BASE = "https://openrouter.ai/api/v1/embeddings"
     MODEL = OR_PRIMARY_EMBED
@@ -524,7 +524,7 @@ class OpenRouterEmbedder:
 
 
 class HuggingFaceEmbedder:
-    """HuggingFace Inference API — free tier fallback."""
+    """HuggingFace Inference API - free tier fallback."""
 
     BASE = "https://api-inference.huggingface.co/models"
     MODEL = "BAAI/bge-m3"
@@ -558,10 +558,10 @@ class HuggingFaceEmbedder:
                 # Handle both shapes: list of floats or list of list of floats
                 if isinstance(data, list) and len(data) > 0:
                     if isinstance(data[0], list):
-                        # Already [[float]] — take the first (mean-pooled usually)
-                        results.append(data[0] if len(data) == 1 else data[0])
+                        # Already [[float]] - take the first (mean-pooled usually)
+                        results.append(data[0] if len(data) == 1 else data[0])  # noqa: RUF034
                     else:
-                        # Flat [float] — wrap it
+                        # Flat [float] - wrap it
                         results.append(data)
                 else:
                     logger.warning(f"HF returned unexpected shape: {type(data)}")
@@ -590,13 +590,13 @@ class ContractCodeEmbedder:
         """
         Generate a combined 320-dim contract embedding:
         - 128 dims: structural features (local)
-        - 192 dims: semantic understanding (API) — only for non-trivial code
+        - 192 dims: semantic understanding (API) - only for non-trivial code
         """
         structural = extract_contract_features(code)
 
         if semantic_embedder and len(code) > 50:
             # Extract the meaningful parts (not just imports/boilerplate)
-            # Take first 4000 chars — enough for the key logic
+            # Take first 4000 chars - enough for the key logic
             code_snippet = code[:4000]
             try:
                 semantic_vec = await semantic_embedder.embed_one(f"Smart contract code: {code_snippet[:3000]}")
@@ -996,7 +996,7 @@ Code patterns: {"; ".join(code_snippets or [])[:3000]}"""
         Assumes vector layout: [semantic | code(128) | behavioral(64) | wallet(64)]
         """
         if len(vec_a) != len(vec_b):
-            # Different dims — use common prefix
+            # Different dims - use common prefix
             min_len = min(len(vec_a), len(vec_b))
             return CryptoEmbedder.cosine_similarity(vec_a[:min_len], vec_b[:min_len])
 
@@ -1083,7 +1083,7 @@ Code patterns: {"; ".join(code_snippets or [])[:3000]}"""
                 pipe.get(k)
             results = await pipe.execute()
 
-            # Compute similarities — compare only common prefix dimensions
+            # Compute similarities - compare only common prefix dimensions
             scored = []
             for _i, data in enumerate(results):
                 if not data:
@@ -1149,7 +1149,7 @@ Code patterns: {"; ".join(code_snippets or [])[:3000]}"""
 
 KNOWN_SCAM_PATTERNS = [
     {
-        "name": "Honeypot — Sell Disabled",
+        "name": "Honeypot - Sell Disabled",
         "description": "Token where only the creator can sell. Buyers are trapped. Implemented via maxSellAmount=0, tradingEnabled=false, or blacklist of all non-owner addresses.",
         "indicators": [
             "maxSellAmount=0",
@@ -1242,7 +1242,7 @@ KNOWN_SCAM_PATTERNS = [
         "code_snippets": [],
     },
     {
-        "name": "Honeypot — Max Tx Limit",
+        "name": "Honeypot - Max Tx Limit",
         "description": "Token with maxTxAmount set so low that only tiny amounts can be sold, trapping larger holders.",
         "indicators": [
             "maxTxAmount < 0.1% supply",

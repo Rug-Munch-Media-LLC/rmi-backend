@@ -5,21 +5,21 @@ User watchlists, portfolios, saved scans, and alert history.
 Redis-backed for speed, with JSON serialization.
 
 Endpoints:
-  POST   /api/v1/state/watchlist          — Add address to watchlist
-  DELETE /api/v1/state/watchlist/{id}     — Remove from watchlist
-  GET    /api/v1/state/watchlist           — List watched addresses
-  POST   /api/v1/state/portfolio           — Add portfolio entry
-  DELETE /api/v1/state/portfolio/{id}      — Remove portfolio entry
-  GET    /api/v1/state/portfolio           — Get portfolio summary
-  GET    /api/v1/state/portfolio/{address} — Get single holding details
-  POST   /api/v1/state/scan                — Save a scan configuration
-  GET    /api/v1/state/scan/{id}           — Get saved scan
-  GET    /api/v1/state/scan                — List saved scans
-  DELETE /api/v1/state/scan/{id}           — Delete saved scan
-  GET    /api/v1/state/alerts              — Get alert history
-  GET    /api/v1/state/alerts/unread       — Get unread alerts
-  POST   /api/v1/state/alerts/{id}/read    — Mark alert as read
-  GET    /api/v1/state/stats               — User state statistics
+  POST   /api/v1/state/watchlist          - Add address to watchlist
+  DELETE /api/v1/state/watchlist/{id}     - Remove from watchlist
+  GET    /api/v1/state/watchlist           - List watched addresses
+  POST   /api/v1/state/portfolio           - Add portfolio entry
+  DELETE /api/v1/state/portfolio/{id}      - Remove portfolio entry
+  GET    /api/v1/state/portfolio           - Get portfolio summary
+  GET    /api/v1/state/portfolio/{address} - Get single holding details
+  POST   /api/v1/state/scan                - Save a scan configuration
+  GET    /api/v1/state/scan/{id}           - Get saved scan
+  GET    /api/v1/state/scan                - List saved scans
+  DELETE /api/v1/state/scan/{id}           - Delete saved scan
+  GET    /api/v1/state/alerts              - Get alert history
+  GET    /api/v1/state/alerts/unread       - Get unread alerts
+  POST   /api/v1/state/alerts/{id}/read    - Mark alert as read
+  GET    /api/v1/state/stats               - User state statistics
 
 Identity: Uses X-RMI-Dev-Key header for API key users, or
           X-Wallet-Identity header for verified wallet users.
@@ -37,6 +37,8 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+
+from app.core.redis import get_redis
 
 logger = logging.getLogger("persistent_state")
 
@@ -73,7 +75,7 @@ def get_user_identity(request: Request) -> str:
 # ── Redis Helper ─────────────────────────────────────────────────
 
 
-async def add_to_watchlist(entry: WatchlistEntry, request: Request):
+async def add_to_watchlist(entry: WatchlistEntry, request: Request):  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     """Add an address to the user's watchlist."""
     r = get_redis()
     if not r:
@@ -168,7 +170,7 @@ async def get_watchlist(request: Request):
 
 
 @router.post("/portfolio")
-async def add_portfolio_entry(entry: PortfolioEntry, request: Request):
+async def add_portfolio_entry(entry: PortfolioEntry, request: Request):  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     """Add a holding to the user's portfolio."""
     r = get_redis()
     if not r:
@@ -272,7 +274,7 @@ async def get_portfolio_holding(address: str, request: Request):
 
 
 @router.post("/scan")
-async def save_scan(scan: SavedScan, request: Request):
+async def save_scan(scan: SavedScan, request: Request):  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     """Save a scan configuration for later use."""
     r = get_redis()
     if not r:

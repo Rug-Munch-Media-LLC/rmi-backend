@@ -176,7 +176,7 @@ async def create_snapshot(request: Request, body: SnapshotRequest, _=Depends(_ve
         raise
     except Exception as e:
         logger.error(f"Snapshot failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Snapshot failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Snapshot failed: {e!s}") from e
 
 
 @router.post("/execute")
@@ -248,7 +248,7 @@ async def execute_airdrop(request: Request, body: AirdropExecuteRequest, _=Depen
         raise
     except Exception as e:
         logger.error(f"Airdrop execution failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Airdrop failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Airdrop failed: {e!s}") from e
 
 
 @router.post("/team")
@@ -276,7 +276,7 @@ async def allocate_team(request: Request, body: TeamAllocationRequest, _=Depends
         raise
     except Exception as e:
         logger.error(f"Team allocation failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Team allocation failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Team allocation failed: {e!s}") from e
 
 
 @router.post("/antisniper")
@@ -313,7 +313,7 @@ async def apply_antisniper(request: Request, body: AntiSniperRequest, _=Depends(
         raise
     except Exception as e:
         logger.error(f"Anti-sniper failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Anti-sniper failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Anti-sniper failed: {e!s}") from e
 
 
 @router.post("/launch")
@@ -398,7 +398,7 @@ async def full_launch(request: Request, body: FullLaunchRequest, _=Depends(_veri
         raise
     except Exception as e:
         logger.error(f"Full launch failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Launch failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Launch failed: {e!s}") from e
 
 
 @router.post("/trading/enable")
@@ -426,7 +426,7 @@ async def enable_trading(request: Request, body: EnableTradingRequest, _=Depends
         raise
     except Exception as e:
         logger.error(f"Enable trading failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Enable trading failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Enable trading failed: {e!s}") from e
 
 
 @router.get("/campaign/{campaign_id}")
@@ -445,7 +445,7 @@ async def get_campaign(request: Request, campaign_id: str, _=Depends(_verify_adm
         raise
     except Exception as e:
         logger.error(f"Get campaign failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}") from e
 
 
 @router.get("/vesting/{schedule_id}")
@@ -471,7 +471,7 @@ async def get_vesting(request: Request, schedule_id: str, _=Depends(_verify_admi
         raise
     except Exception as e:
         logger.error(f"Get vesting failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Get failed: {e!s}") from e
 
 
 # ── Helpers ───────────────────────────────────────────────────

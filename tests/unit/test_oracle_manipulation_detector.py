@@ -3,7 +3,7 @@ Tests for Oracle Manipulation Detector
 =======================================
 Covers core detection heuristics: TWAP manipulation, Chainlink staleness,
 flash loan-backed manipulation, cross-pool divergence, severity
-classification, sandwich detection, and data model serialization —
+classification, sandwich detection, and data model serialization -
 all without requiring network calls.
 """
 
@@ -71,7 +71,7 @@ class TestOracleRead(unittest.TestCase):
             oracle_type=OracleType.CHAINLINK,
             reported_price=3200.0,
             expected_price=3200.0,
-            price_age_seconds=300,  # 5 min — fresh
+            price_age_seconds=300,  # 5 min - fresh
         )
         self.assertFalse(read.is_stale())
 
@@ -84,7 +84,7 @@ class TestOracleRead(unittest.TestCase):
             oracle_type=OracleType.CHAINLINK,
             reported_price=3200.0,
             expected_price=3200.0,
-            price_age_seconds=86400,  # 24 hours — very stale
+            price_age_seconds=86400,  # 24 hours - very stale
         )
         self.assertTrue(read.is_stale())
 
@@ -237,7 +237,7 @@ class TestTWAPWindow(unittest.TestCase):
         # Create volatile price samples (manipulation pattern)
         self.volatile_samples = []
         for i in range(10):
-            if i in (3, 4, 5):  # Spike in middle
+            if i in (3, 4, 5):  # Spike in middle  # noqa: SIM108
                 price = 3700.0
             else:
                 price = 3200.0

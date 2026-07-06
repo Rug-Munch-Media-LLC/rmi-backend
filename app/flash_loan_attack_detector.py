@@ -2,25 +2,25 @@
 Flash Loan Attack Detector
 ==========================
 Real-time detection and analysis of flash loan-based attacks across all
-supported EVM chains. Flash loans power >80% of major DeFi exploits —
+supported EVM chains. Flash loans power >80% of major DeFi exploits -
 this module catches them by tracing the borrow → manipulate → arbitrage/profit
 → repay lifecycle.
 
 What it does:
-  1. Flash Loan Detection — Identifies flash loan calls from known lending
+  1. Flash Loan Detection - Identifies flash loan calls from known lending
      protocols (Aave V2/V3, dYdX, Uniswap V3 flash swaps, Balancer, Euler,
      Radiant, Spark, and more)
-  2. Attack Lifecycle Tracing — Follows the complete lifecycle: borrow →
+  2. Attack Lifecycle Tracing - Follows the complete lifecycle: borrow →
      price manipulation / swap / exploit → profit extraction → repayment
-  3. Price Oracle Manipulation Detection — Flags flash loan txns that
+  3. Price Oracle Manipulation Detection - Flags flash loan txns that
      manipulate on-chain price oracles (TWAP manipulation, LP pool draining)
-  4. Multi-Step Attack Analysis — Detects chained flash loans across
+  4. Multi-Step Attack Analysis - Detects chained flash loans across
      multiple protocols in a single transaction bundle
-  5. Profit/Loss Calculation — Calculates attacker net profit and victim
+  5. Profit/Loss Calculation - Calculates attacker net profit and victim
      losses with USD estimates
-  6. Severity Scoring — Rates flash loan attacks by financial impact,
+  6. Severity Scoring - Rates flash loan attacks by financial impact,
      sophistication, and protocol risk
-  7. Real-Time Alert Generation — Produces structured alerts for the
+  7. Real-Time Alert Generation - Produces structured alerts for the
      RMI alert pipeline
 
 Competitive advantage:
@@ -93,7 +93,7 @@ SILO_FLASHLOAN_SIG = "0xab9c4b5d"
 SHARED_AAVE_FLASHLOAN_SIG = "0xab9c4b5d"
 
 FLASHLOAN_SIGNATURES: dict[str, str] = {
-    # Shared sig — protocol identified via provider address
+    # Shared sig - protocol identified via provider address
     SHARED_AAVE_FLASHLOAN_SIG: "flash_loan",
     AAVE_V3_FLASHLOAN_SIG: "aave_v3",
     DYDX_FLASHLOAN_SIG: "dydx",
@@ -106,7 +106,7 @@ FLASHLOAN_SIGNATURES: dict[str, str] = {
     MORPHO_FLASHLOAN_SIG: "morpho",
 }
 
-# Known flash loan provider addresses (simplified — in production these
+# Known flash loan provider addresses (simplified - in production these
 # come from an on-chain registry / DataBus)
 FLASHLOAN_PROVIDERS: dict[str, list[str]] = {
     "ethereum": [
@@ -310,7 +310,7 @@ class TransactionTrace:
             return None
         sig = self.input_data[:10].lower()
 
-        # Check for the shared AAVE signature — needs provider-based disambiguation
+        # Check for the shared AAVE signature - needs provider-based disambiguation
         if sig == SHARED_AAVE_FLASHLOAN_SIG:
             return _resolve_shared_aave_sig(self.to_address, self.chain)
 
@@ -674,7 +674,7 @@ def _resolve_shared_aave_sig(
     if addr_lower in aave_v3_addresses:
         return FlashLoanProtocol.AAVE_V3
 
-    # Unknown provider with shared sig — return UNKNOWN
+    # Unknown provider with shared sig - return UNKNOWN
     return FlashLoanProtocol.UNKNOWN
 
 
@@ -1397,7 +1397,7 @@ def _parse_cli_args() -> argparse.Namespace:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Flash Loan Attack Detector — Real-time DeFi exploit detection",
+        description="Flash Loan Attack Detector - Real-time DeFi exploit detection",
     )
     parser.add_argument(
         "--tx",

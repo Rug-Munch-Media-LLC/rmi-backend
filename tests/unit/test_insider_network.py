@@ -1,5 +1,5 @@
 """
-Tests for insider_network.py — Insider Web Mapper.
+Tests for insider_network.py - Insider Web Mapper.
 """
 
 from unittest.mock import patch

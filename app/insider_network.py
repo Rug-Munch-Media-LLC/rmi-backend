@@ -3,7 +3,7 @@ Insider Web Mapper
 ==================
 Map the complete network of insider-connected wallets across token projects.
 Reveals shared funding sources, coordinated trading rings, and team-to-team
-relationships — all using free-tier data sources.
+relationships - all using free-tier data sources.
 
 TOOL  : insider_network
 TIER  : premium / intelligence
@@ -11,11 +11,11 @@ PRICE : $0.10 (100000 atoms)
 TRIAL : 1 free check
 
 Data Sources (all free):
-- DexScreener — token pairs and holders
-- Solscan (public) — token holder lists
-- Etherscan/BscScan (public free tier) — EVM token holders
-- Birdeye public — holder data
-- Public RPCs — on-chain queries
+- DexScreener - token pairs and holders
+- Solscan (public) - token holder lists
+- Etherscan/BscScan (public free tier) - EVM token holders
+- Birdeye public - holder data
+- Public RPCs - on-chain queries
 """
 
 import asyncio
@@ -67,7 +67,7 @@ ADDRESS_PATTERN_SOLANA = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 # Cache for HTTP responses
 _cache: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 120  # 2 minutes
-_MAX_STALE_TTL = 600  # 10 minutes — refuse stale cache older than this
+_MAX_STALE_TTL = 600  # 10 minutes - refuse stale cache older than this
 
 
 # ── Data Models ───────────────────────────────────────────────────
@@ -202,7 +202,7 @@ async def _cached_get(
             _cache[cache_key] = (now, data)
             return data
         elif resp.status_code == 429:
-            # Rate limited — return stale cache if fresh enough
+            # Rate limited - return stale cache if fresh enough
             if cache_key in _cache:
                 cached_at, cached_data = _cache[cache_key]
                 if now - cached_at < _MAX_STALE_TTL:

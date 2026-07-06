@@ -1,12 +1,8 @@
-"""x402 documentation endpoints — embedded docs site + sandbox mode."""
+"""x402 documentation endpoints - embedded docs site + sandbox mode."""
 
 from __future__ import annotations
 
-import json
-import os
-import time
-
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["x402-Docs"])
@@ -17,7 +13,7 @@ DOCS_PAGE = """
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>x402 — Pay-per-Call AI Tools</title>
+<title>x402 - Pay-per-Call AI Tools</title>
 <style>
 :root{--bg:#0a0a0f;--fg:#e0e0e0;--accent:#4a6cf7;--green:#10b981;--mono:'SF Mono','Fira Code',monospace}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -130,7 +126,7 @@ GET /.well-known/x402
 </pre>
 
 <p style="margin-top:40px;font-size:12px;color:#666">
-x402 — Rug Munch Media LLC · Wyoming, USA · MIT License
+x402 - Rug Munch Media LLC · Wyoming, USA · MIT License
 </p>
 
 </div>
@@ -147,12 +143,12 @@ async def x402_docs_page():
 
 @router.post("/x402/sandbox/create-invoice")
 async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test")):
-    """Sandbox mode — create a test invoice without real payment.
+    """Sandbox mode - create a test invoice without real payment.
 
     Use ?mode=test to get a fake invoice for integration testing.
     The invoice includes a mock payment that self-verifies.
     """
-    from app.domain.x402.middleware import create_invoice, get_tool_price_usd
+    from app.domain.x402.middleware import create_invoice
 
     invoice = create_invoice(tool, "sandbox_user")
     if mode == "test":
@@ -166,7 +162,7 @@ async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test
 
 @router.post("/x402/sandbox/verify")
 async def sandbox_verify_payment(tx_hash: str = Query(...), tool: str = Query(...)):
-    """Sandbox mode — verify a test payment.
+    """Sandbox mode - verify a test payment.
 
     Accepts any tx_hash starting with '0xSANDBOX_' as valid.
     Returns mock verification result for integration testing.
@@ -179,6 +175,6 @@ async def sandbox_verify_payment(tx_hash: str = Query(...), tool: str = Query(..
             "amount_usd": 0.01,
             "chain": "base (sandbox)",
             "mode": "test",
-            "note": "SANDBOX: Payment verified. This was a test — no real USDC transferred.",
+            "note": "SANDBOX: Payment verified. This was a test - no real USDC transferred.",
         }
     raise HTTPException(status_code=400, detail="Invalid sandbox tx_hash. Use 0xSANDBOX_ prefix.")

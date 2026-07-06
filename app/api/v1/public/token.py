@@ -1,4 +1,4 @@
-"""Public token endpoints — /api/v1/token/*.
+"""Public token endpoints - /api/v1/token/*.
 
 Stub for unauthenticated token queries. Real implementation will
 fetch token metadata, holders, liquidity, and risk score.
@@ -43,7 +43,7 @@ async def get_token(
     """Fetch basic token metadata."""
     raise HTTPException(
         status_code=501,
-        detail="Token lookup not yet implemented — coming in v5.1",
+        detail="Token lookup not yet implemented - coming in v5.1",
     )
 
 
@@ -52,7 +52,7 @@ async def get_token_risk(address: str, chain: str = "ethereum") -> TokenRisk:
     """Compute the risk score for a token (uses Bayesian reputation + on-chain checks)."""
     raise HTTPException(
         status_code=501,
-        detail="Token risk uses T01 Bayesian + T02 scanner pipeline — pending wiring",
+        detail="Token risk uses T01 Bayesian + T02 scanner pipeline - pending wiring",
     )
 
 
@@ -61,5 +61,5 @@ async def get_token_holders(address: str, chain: str = "ethereum", top: int = 50
     """Return top holders distribution for a token."""
     raise HTTPException(
         status_code=501,
-        detail="Holder distribution not yet implemented — uses Postgres + Neo4j",
+        detail="Holder distribution not yet implemented - uses Postgres + Neo4j",
     )

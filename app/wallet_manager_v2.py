@@ -1,5 +1,5 @@
 """
-RMI Wallet Manager v2 — Enterprise Multi-Chain Wallet Management
+RMI Wallet Manager v2 - Enterprise Multi-Chain Wallet Management
 ===============================================================
 A production-grade wallet management system for crypto intelligence platforms.
 
@@ -8,21 +8,21 @@ Stellar, Ripple, Near, Aptos, Sui, TRON, Bitcoin variants, Litecoin, Dogecoin,
 Dash, Zcash, Tezos, Nano, TON, and more.
 
 Features:
-  • HD Wallet Generation (BIP39/BIP44/BIP49/BIP84) — 95+ chains via bip_utils
-  • Monero Support — ed25519-blake2b keygen + stealth address derivation
-  • Chain Registry — metadata, validation, derivation paths per chain
-  • Key Rotation & Expiry — automatic scheduled rotation
-  • Multi-signature Support — threshold signatures for high-value wallets
-  • Payment Integration — x402, premium subscriptions, marketplace
-  • Balance Monitoring — real-time balance tracking across all chains
-  • Transaction History — unified tx view with categorization
-  • Alert System — low balance, large tx, suspicious activity alerts
-  • Wallet Labels & Organization — tags, groups, notes
-  • Cold/Hot Wallet Separation — security tier management
-  • API Access — programmatic wallet management for bots/agents
-  • Audit Trail — complete history of all wallet operations
-  • Backup & Recovery — Shamir's Secret Sharing for mnemonic recovery
-  • ZK Ownership Proof — prove wallet ownership without exposing private key
+  • HD Wallet Generation (BIP39/BIP44/BIP49/BIP84) - 95+ chains via bip_utils
+  • Monero Support - ed25519-blake2b keygen + stealth address derivation
+  • Chain Registry - metadata, validation, derivation paths per chain
+  • Key Rotation & Expiry - automatic scheduled rotation
+  • Multi-signature Support - threshold signatures for high-value wallets
+  • Payment Integration - x402, premium subscriptions, marketplace
+  • Balance Monitoring - real-time balance tracking across all chains
+  • Transaction History - unified tx view with categorization
+  • Alert System - low balance, large tx, suspicious activity alerts
+  • Wallet Labels & Organization - tags, groups, notes
+  • Cold/Hot Wallet Separation - security tier management
+  • API Access - programmatic wallet management for bots/agents
+  • Audit Trail - complete history of all wallet operations
+  • Backup & Recovery - Shamir's Secret Sharing for mnemonic recovery
+  • ZK Ownership Proof - prove wallet ownership without exposing private key
 
 Security:
   - AES-256-GCM encryption with Argon2id key derivation (memory-hardened)
@@ -30,7 +30,7 @@ Security:
   - HSM-compatible key storage interface
   - Rate-limited wallet operations
   - IP-restricted access for sensitive operations
-  - Private keys NEVER stored in plaintext — encrypted at rest, cleared from memory
+  - Private keys NEVER stored in plaintext - encrypted at rest, cleared from memory
   - ZK address ownership verification (no private key exposure)
   - GPG vault integration for master encryption password
 
@@ -55,20 +55,20 @@ logger = logging.getLogger("wallet_manager_v2")
 # ── Crypto Imports ───────────────────────────────────────────────
 
 try:
-    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives import hashes  # noqa: F401
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
-    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+    from cryptography.hazmat.primitives.kdf.hkdf import HKDF  # noqa: F401
 
     _HAS_CRYPTO = True
 except ImportError:
     _HAS_CRYPTO = False
-    logger.warning("cryptography not installed — encryption disabled")
+    logger.warning("cryptography not installed - encryption disabled")
 
 try:
     from bip_utils import (
-        Bip32Ed25519Slip,
-        Bip32Secp256k1,
+        Bip32Ed25519Slip,  # noqa: F401
+        Bip32Secp256k1,  # noqa: F401
         Bip39MnemonicGenerator,
         Bip39SeedGenerator,
         Bip39WordsNum,
@@ -78,14 +78,14 @@ try:
         Bip49Coins,
         Bip84,
         Bip84Coins,
-        Monero,
-        MoneroCoins,
+        Monero,  # noqa: F401
+        MoneroCoins,  # noqa: F401
     )
 
     _HAS_BIP_UTILS = True
 except ImportError:
     _HAS_BIP_UTILS = False
-    logger.warning("bip_utils not installed — using fallback generation")
+    logger.warning("bip_utils not installed - using fallback generation")
 
 try:
     import base58
@@ -95,7 +95,7 @@ except ImportError:
     _HAS_BASE58 = False
 
 try:
-    from nacl.bindings import crypto_sign_ed25519_sk_to_seed
+    from nacl.bindings import crypto_sign_ed25519_sk_to_seed  # noqa: F401
     from nacl.signing import SigningKey as NaClSigningKey
 
     _HAS_NACL = True
@@ -103,15 +103,15 @@ except ImportError:
     _HAS_NACL = False
 
 try:
-    import monero
-    from monero import ed25519 as monero_ed25519
-    from monero.address import Address as MoneroAddress
-    from monero.seed import Seed as MoneroSeed
+    import monero  # noqa: F401
+    from monero import ed25519 as monero_ed25519  # noqa: F401
+    from monero.address import Address as MoneroAddress  # noqa: F401
+    from monero.seed import Seed as MoneroSeed  # noqa: F401
 
     _HAS_MONERO = True
 except ImportError:
     _HAS_MONERO = False
-    logger.info("monero-python not fully available — basic XMR support only")
+    logger.info("monero-python not fully available - basic XMR support only")
 
 # ── Enums ─────────────────────────────────────────────────────────
 
@@ -725,7 +725,7 @@ class WalletEncryption:
             raise ValueError("Encryption requires a password")
 
         if not _HAS_CRYPTO:
-            logger.warning("cryptography not installed — using dev fallback")
+            logger.warning("cryptography not installed - using dev fallback")
             return "DEV:" + base64.b64encode(plaintext.encode()).decode()
 
         salt = os.urandom(16)
@@ -798,7 +798,7 @@ class ShamirSecretSharing:
 
         # Generate random coefficients for polynomial of degree (threshold-1)
         coeffs = [secret_bytes]  # coeffs[0] = secret
-        for i in range(1, threshold):
+        for i in range(1, threshold):  # noqa: B007
             coeffs.append(os.urandom(len(secret_bytes)))
 
         # Evaluate polynomial at points x=1..total_shares
@@ -928,9 +928,8 @@ class ZKAddressVerifier:
         # Basic validation
         if not address.startswith("0x") or len(address) != 42:
             return False
-        if not signature.startswith("0x") or len(signature) < 130:
-            return False
-        return True  # Placeholder — real verification needs web3.py
+        # Placeholder - real verification needs web3.py
+        return signature.startswith("0x") and len(signature) >= 130
 
     @staticmethod
     def verify_ed25519_ownership(public_key_hex: str, challenge: str, signature_hex: str) -> bool:
@@ -952,11 +951,11 @@ class ZKAddressVerifier:
 
 class WalletManagerV2:
     """
-    Enterprise wallet management system — 95+ chains.
+    Enterprise wallet management system - 95+ chains.
     Handles generation, rotation, monitoring, payments, and recovery.
     """
 
-    # Persistent storage — under /app which is volume-mounted from host
+    # Persistent storage - under /app which is volume-mounted from host
     VAULT_PATH = "/app/data/wallets/vault_v2.json"
     KEYSTORE_PATH = "/app/data/wallets/keystore_v2.enc"
     PAYMENTS_PATH = "/app/data/wallets/payments_v2.jsonl"
@@ -988,7 +987,7 @@ class WalletManagerV2:
             except Exception as e:
                 logger.error(f"Vault load error: {e}")
         else:
-            logger.info("No vault found — starting fresh")
+            logger.info("No vault found - starting fresh")
 
     def _save_vault(self):
         """Save wallet vault to disk."""
@@ -1141,7 +1140,7 @@ class WalletManagerV2:
         self._wallets[wallet_id] = wallet
         self._save_vault()
 
-        logger.info(f"Wallet generated: {wallet_id} ({chain}) — {address}")
+        logger.info(f"Wallet generated: {wallet_id} ({chain}) - {address}")
         return wallet
 
     def _generate_bip_wallet(self, chain_meta: ChainMeta) -> tuple[str, str, str]:
@@ -1241,7 +1240,7 @@ class WalletManagerV2:
 
     def _generate_fallback(self, chain_meta: ChainMeta) -> tuple[str, str, str]:
         """Fallback wallet generation (dev only, not for production)."""
-        logger.warning(f"Using fallback keygen for {chain_meta.key} — NOT SECURE FOR PRODUCTION")
+        logger.warning(f"Using fallback keygen for {chain_meta.key} - NOT SECURE FOR PRODUCTION")
         priv = secrets.token_hex(32)
         pub = hashlib.sha256(priv.encode()).hexdigest()
 
@@ -1332,7 +1331,7 @@ class WalletManagerV2:
     def _store_mnemonic(self, wallet_id: str, mnemonic: str):
         """Store encrypted mnemonic in keystore."""
         if not self.encryption_password:
-            logger.warning("No encryption password — mnemonic not stored securely")
+            logger.warning("No encryption password - mnemonic not stored securely")
             return
 
         encrypted = WalletEncryption.encrypt(mnemonic, self.encryption_password)

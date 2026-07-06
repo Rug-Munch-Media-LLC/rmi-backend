@@ -1,7 +1,7 @@
 """
-Moralis Connector — Data API + Auth API.
+Moralis Connector - Data API + Auth API.
 Key 1: Data API (wallets, tokens, NFTs, streams, whale tracking)
-Key 2: Auth API (Sign-In With Ethereum/Solana — Phantom, MetaMask, etc.)
+Key 2: Auth API (Sign-In With Ethereum/Solana - Phantom, MetaMask, etc.)
 
 Free tier: 40,000 API credits/month (~1,333/day).
 Rate-limited to 3 req/sec with caching.

@@ -1,4 +1,4 @@
-"""T27A — Canonical entity models for the RMI data catalog.
+"""T27A - Canonical entity models for the RMI data catalog.
 
 Pydantic v2 (per ADR-0002). Every entity is persisted in exactly one primary
 store, with cross-store references (string IDs) to related entities in other
@@ -44,7 +44,7 @@ class Chain(StrEnum):
     AVALANCHE = "avalanche"
     FANTOM = "fantom"
     GNOSIS = "gnosis"
-    # EVM subnets (sample — full 96 in CHAIN_REGISTRY)
+    # EVM subnets (sample - full 96 in CHAIN_REGISTRY)
     SEPOLIA = "sepolia"
     LINEA = "linea"
     SCROLL = "scroll"
@@ -53,7 +53,7 @@ class Chain(StrEnum):
     MANTLE = "mantle"
 
 
-# Full chain registry — v4.0 says 96 chains. We track the canonical 20 here
+# Full chain registry - v4.0 says 96 chains. We track the canonical 20 here
 # plus extend via CHAIN_REGISTRY for the remaining 76. Adding a chain is a
 # one-line edit.
 CHAIN_REGISTRY: dict[str, dict[str, str]] = {
@@ -305,7 +305,7 @@ def utcnow() -> datetime:
 
 # ── RAG engine collections (kept here so catalog + RAG share the list) ─
 COLLECTIONS: list[str] = [
-    # Per v4.0 catalog/RAG bridge — these are the canonical 13 RAG
+    # Per v4.0 catalog/RAG bridge - these are the canonical 13 RAG
     # collections that also have Token/Wallet/etc cross-refs.
     "scam_intel",
     "deployer_history",

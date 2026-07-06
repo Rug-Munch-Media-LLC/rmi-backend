@@ -1,4 +1,4 @@
-"""x402 CrewAI adapter — multi-agent payment management.
+"""x402 CrewAI adapter - multi-agent payment management.
 
 CrewAI runs multiple agents that call tools in parallel. x402 manages
 a shared credit pool across all agents in a crew.
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 
 from .base import x402Adapter
 
@@ -29,7 +29,7 @@ logger = logging.getLogger("x402.crewai")
 
 
 class x402CrewAI(x402Adapter):
-    """CrewAI adapter — shared payment pool across all agents in a crew.
+    """CrewAI adapter - shared payment pool across all agents in a crew.
 
     Features:
     - Shared credit pool (all agents in a crew share a budget)
@@ -54,7 +54,7 @@ class x402CrewAI(x402Adapter):
         """
         return self.wrap_tool(tool_name)(tool_func)
 
-    def wrap_tool(self, tool_name: str, tool_func: Optional[Callable] = None) -> Callable:
+    def wrap_tool(self, tool_name: str, tool_func: Callable | None = None) -> Callable:
         def decorator(func: Callable) -> Callable:
             @functools.wraps(func)
             def wrapper(*args, **kwargs):

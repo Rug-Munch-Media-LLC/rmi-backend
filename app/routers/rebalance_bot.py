@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#20 — Cross-Chain Portfolio Rebalance Bot. Users set automated rebalancing rules.
+"""#20 - Cross-Chain Portfolio Rebalance Bot. Users set automated rebalancing rules.
 Executes via x402, monitors via DataBus. "Keep 50% USDC on Solana, 30% ETH on Arbitrum." """
 
 import os
@@ -61,7 +61,7 @@ async def delete_rule(rule_id: str):
 
 @router.get("/simulate/{user_id}")
 async def simulate_rebalance(user_id: str):
-    """Simulate rebalancing — check what would change without executing."""
+    """Simulate rebalancing - check what would change without executing."""
     user_rules = [r for rid, r in _rebalance_rules.items() if r["user_id"] == user_id and r["enabled"]]
     if not user_rules:
         return {"simulations": [], "note": "No enabled rules found"}
@@ -123,7 +123,7 @@ async def simulate_rebalance(user_id: str):
 
 @router.post("/execute/{rule_id}")
 async def execute_rebalance(rule_id: str, background_tasks: BackgroundTasks):
-    """Execute a rebalancing operation (simulation only — no real execution without x402)."""
+    """Execute a rebalancing operation (simulation only - no real execution without x402)."""
     rule = _rebalance_rules.get(rule_id)
     if not rule:
         raise HTTPException(404, "Rule not found")
@@ -131,7 +131,7 @@ async def execute_rebalance(rule_id: str, background_tasks: BackgroundTasks):
     if not rule["enabled"]:
         raise HTTPException(400, "Rule is disabled")
 
-    # Simulation mode — return what WOULD be executed
+    # Simulation mode - return what WOULD be executed
     async with httpx.AsyncClient(timeout=15) as client:
         trades_needed: list[dict] = []
         current_values: list[dict] = []

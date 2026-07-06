@@ -5,19 +5,19 @@ Comprehensive analysis of token contracts for honeypot traps, rug-pull
 patterns, sell restrictions, hidden malicious functions, and upgrade risks.
 
 What it detects:
-  1. Honeypot Mechanisms — Tokens that let you buy but not sell (high fees,
+  1. Honeypot Mechanisms - Tokens that let you buy but not sell (high fees,
      blacklists, cooldown timers, max sell limits, trading cooldowns)
-  2. Ownership/Admin Abuse — Owner-only mint functions, upgradable proxies
+  2. Ownership/Admin Abuse - Owner-only mint functions, upgradable proxies
      leading to malicious implementations, ownership renouncement status
-  3. Hidden Fee Structures — Buy/sell taxes, dynamic fees that change based
+  3. Hidden Fee Structures - Buy/sell taxes, dynamic fees that change based
      on time/volume/address, fee-to-owner sinks
-  4. Liquidity Trap Detection — Locked vs unlocked LP, liquidity pool drain
+  4. Liquidity Trap Detection - Locked vs unlocked LP, liquidity pool drain
      functions, fake burn mechanisms
-  5. Proxy & Upgrade Risks — EIP-1967/EIP-1822 proxy patterns, timelock
+  5. Proxy & Upgrade Risks - EIP-1967/EIP-1822 proxy patterns, timelock
      bypasses, unverified implementations
-  6. Blacklist/Whitelist Mechanisms — Address-level restrictions, trading
+  6. Blacklist/Whitelist Mechanisms - Address-level restrictions, trading
      pauses, max wallet limits, anti-whale caps
-  7. Malicious Function Patterns — Selfdestruct traps, hidden transfer
+  7. Malicious Function Patterns - Selfdestruct traps, hidden transfer
      functions, approve-based attacks, reentrancy vulnerabilities
 
 Competitive advantage:
@@ -25,7 +25,7 @@ Competitive advantage:
   - RugDoc focuses on specific chains and has delayed updates
   - Our solution is free, cross-chain (EVM + Solana), and integrates with
     existing RMI tooling (bridge_health_monitor, rug_imminence_predictor)
-  - Proactive pre-trade analysis — detect traps before buying, not after
+  - Proactive pre-trade analysis - detect traps before buying, not after
   - Uses multiple data sources with fallback for maximum coverage
 
 Usage:
@@ -64,10 +64,10 @@ logger = logging.getLogger(__name__)
 class FindingSeverity(Enum):
     """Severity level for security findings."""
 
-    CRITICAL = "critical"  # Definitely a scam/honeypot — do not trade
-    HIGH = "high"  # Strongly suspicious — high risk of trap
-    MEDIUM = "medium"  # Potentially risky — investigate further
-    LOW = "low"  # Minor concern — informational
+    CRITICAL = "critical"  # Definitely a scam/honeypot - do not trade
+    HIGH = "high"  # Strongly suspicious - high risk of trap
+    MEDIUM = "medium"  # Potentially risky - investigate further
+    LOW = "low"  # Minor concern - informational
     INFO = "info"  # Informational observation
 
 
@@ -234,7 +234,7 @@ class HoneypotAnalysisResult:
 
         lines = []
         lines.append("=" * 60)
-        lines.append(f"HONEYPOT ANALYSIS REPORT — {self.token.symbol or 'Unknown Token'}")
+        lines.append(f"HONEYPOT ANALYSIS REPORT - {self.token.symbol or 'Unknown Token'}")
         lines.append("=" * 60)
         lines.append(f"Token:     {self.token.address}")
         lines.append(f"Chain:     {self.token.chain}")
@@ -273,7 +273,7 @@ class HoneypotAnalysisResult:
             for i, h in enumerate(self.top_holders[:5], 1):
                 pct = h.get("percentage", 0)
                 addr = h.get("address", "?")[:12]
-                lines.append(f"  {i}. {addr}... — {pct:.1f}%")
+                lines.append(f"  {i}. {addr}... - {pct:.1f}%")
             lines.append("")
 
         if self.warnings:
@@ -303,7 +303,7 @@ class HoneypotAnalysisResult:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Constants — Known attack signatures and pattern databases
+# Constants - Known attack signatures and pattern databases
 # ═══════════════════════════════════════════════════════════════════
 
 # Known malicious function selectors (4-byte signature)
@@ -378,14 +378,14 @@ KNOWN_MALICIOUS_SELECTORS: dict[str, tuple[str, HoneypotType, str]] = {
     ),
     "0xe1f21c67": ("removeLiquidity(uint256,uint256)", HoneypotType.LIQUIDITY_DRAIN, ""),
     "0x02751cec": ("skim(address)", HoneypotType.UNKNOWN, ""),
-    "0xbc25cf77": ("sync()", HoneypotType.UNKNOWN, "Sync reserves — can manipulate price"),
+    "0xbc25cf77": ("sync()", HoneypotType.UNKNOWN, "Sync reserves - can manipulate price"),
     # Selfdestruct
     "0x41c0e1b5": (
         "selfdestruct()",
         HoneypotType.SELFDESTRUCT,
-        "Contract can selfdestruct — permanent loss",
+        "Contract can selfdestruct - permanent loss",
     ),
-    "0x00f714ce": ("kill()", HoneypotType.SELFDESTRUCT, "Kill function — can destroy contract"),
+    "0x00f714ce": ("kill()", HoneypotType.SELFDESTRUCT, "Kill function - can destroy contract"),
     # Proxy
     "0x3659cfe6": (
         "upgradeTo(address)",
@@ -470,7 +470,7 @@ HONEYPOT_THRESHOLDS = {
 
 
 # ═══════════════════════════════════════════════════════════════════
-# HTTP Helper — Async fetch with retry and fallback
+# HTTP Helper - Async fetch with retry and fallback
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -590,7 +590,7 @@ class HoneypotDetector:
         # Step 6: Market data and trading analysis
         await self._analyze_market_data(address, chain, result)
 
-        # Step 7: Deep scan (if enabled) — on-chain simulation
+        # Step 7: Deep scan (if enabled) - on-chain simulation
         if deep_scan or self.enable_deep_scan:
             await self._deep_scan(address, chain, result)
 
@@ -655,7 +655,7 @@ class HoneypotDetector:
         return info
 
     async def _analyze_fees(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
-        """Analyze token fee structure — buy/sell taxes."""
+        """Analyze token fee structure - buy/sell taxes."""
         # Check via DexScreener for known fee tokens
         try:
             data, _ = await fetch_with_fallback(
@@ -675,8 +675,8 @@ class HoneypotDetector:
                             SecurityFinding(
                                 finding_type=HoneypotType.SELL_RESTRICTION,
                                 severity=FindingSeverity.CRITICAL,
-                                description=f"Cannot sell tokens — 0 sells in 24h vs {buy_tx} buys",
-                                detail=f"Found on {pair.get('dexId', '?')} — {pair.get('pairAddress', '')[:12]}...",
+                                description=f"Cannot sell tokens - 0 sells in 24h vs {buy_tx} buys",
+                                detail=f"Found on {pair.get('dexId', '?')} - {pair.get('pairAddress', '')[:12]}...",
                             )
                         )
                     elif buy_tx > 50 and sell_tx < buy_tx * 0.05:
@@ -684,7 +684,7 @@ class HoneypotDetector:
                             SecurityFinding(
                                 finding_type=HoneypotType.HIGH_SELL_TAX,
                                 severity=FindingSeverity.HIGH,
-                                description="Extremely low sell volume — possible sell restriction",
+                                description="Extremely low sell volume - possible sell restriction",
                                 detail=f"Buys: {buy_tx}, Sells: {sell_tx} (ratio: {sell_tx / max(buy_tx, 1):.2%})",
                             )
                         )
@@ -724,7 +724,7 @@ class HoneypotDetector:
     async def _analyze_ownership(
         self, address: str, chain: str, result: HoneypotAnalysisResult
     ) -> None:
-        """Analyze ownership patterns — proxy, renouncement, admin keys."""
+        """Analyze ownership patterns - proxy, renouncement, admin keys."""
         chain_info = EVM_CHAINS.get(chain, {})
         rpc_url = chain_info.get("rpc", "")
         if not rpc_url:
@@ -804,7 +804,7 @@ class HoneypotDetector:
 
                 bytecode = resp.json().get("result", "")
                 if not bytecode or bytecode == "0x":
-                    result.warnings.append("No contract bytecode found — not a contract")
+                    result.warnings.append("No contract bytecode found - not a contract")
                     return
 
                 # Remove '0x' prefix
@@ -884,7 +884,7 @@ class HoneypotDetector:
                                     finding_type=HoneypotType.SELFDESTRUCT,
                                     severity=FindingSeverity.CRITICAL,
                                     description="SELFDESTRUCT opcode found in contract bytecode",
-                                    detail="Contract can be permanently destroyed — all funds lost",
+                                    detail="Contract can be permanently destroyed - all funds lost",
                                     code_reference="SELFDESTRUCT (0xff) in bytecode",
                                 )
                             )
@@ -895,7 +895,7 @@ class HoneypotDetector:
                         SecurityFinding(
                             finding_type=HoneypotType.PROXY_UPGRADE,
                             severity=FindingSeverity.MEDIUM,
-                            description="DELEGATECALL used — possible proxy or delegate pattern",
+                            description="DELEGATECALL used - possible proxy or delegate pattern",
                             detail="Contract uses delegatecall pattern for execution forwarding",
                             code_reference="DELEGATECALL (0xf4) in bytecode",
                         )
@@ -907,7 +907,7 @@ class HoneypotDetector:
     async def _analyze_liquidity(
         self, address: str, chain: str, result: HoneypotAnalysisResult
     ) -> None:
-        """Analyze liquidity status — locked vs unlocked LP."""
+        """Analyze liquidity status - locked vs unlocked LP."""
         # Check via DexScreener
         try:
             data, _ = await fetch_with_fallback(
@@ -931,7 +931,7 @@ class HoneypotDetector:
                                     else FindingSeverity.HIGH
                                 ),
                                 description=f"Extremely low liquidity: ${liquidity:.2f}",
-                                detail=f"Pool: {pair.get('dexId', '?')} — {pair_addr[:12]}...",
+                                detail=f"Pool: {pair.get('dexId', '?')} - {pair_addr[:12]}...",
                             )
                         )
 
@@ -941,7 +941,7 @@ class HoneypotDetector:
                         age_hours = (datetime.now(UTC).timestamp() - pair_created / 1000) / 3600
                         if age_hours < 1:
                             result.warnings.append(
-                                f"Pool is less than 1 hour old ({age_hours:.1f}h) — very high risk"
+                                f"Pool is less than 1 hour old ({age_hours:.1f}h) - very high risk"
                             )
                         elif age_hours < 24:
                             result.warnings.append(
@@ -1041,7 +1041,7 @@ class HoneypotDetector:
                             SecurityFinding(
                                 finding_type=HoneypotType.RUG_PULL,
                                 severity=FindingSeverity.HIGH,
-                                description=f"Suspicious pump pattern — +{price_change_h1:.0f}% in 1h with low liquidity",
+                                description=f"Suspicious pump pattern - +{price_change_h1:.0f}% in 1h with low liquidity",
                                 detail="Rapid price increase with low liquidity is a classic rug-pull setup",
                             )
                         )
@@ -1053,7 +1053,7 @@ class HoneypotDetector:
                                 finding_type=HoneypotType.RUG_PULL,
                                 severity=FindingSeverity.CRITICAL,
                                 description=f"Extreme price movement (+{price_change_h24:.0f}%) with low liquidity",
-                                detail="Classic honeypot pattern — pump price to attract buyers, then block sells",
+                                detail="Classic honeypot pattern - pump price to attract buyers, then block sells",
                             )
                         )
 
@@ -1063,7 +1063,7 @@ class HoneypotDetector:
                             SecurityFinding(
                                 finding_type=HoneypotType.RUG_PULL,
                                 severity=FindingSeverity.MEDIUM,
-                                description=f"Volume ({volume_h24:.0f}) is {volume_h24 / max(liquidity, 1):.0f}x liquidity — possible wash trading",
+                                description=f"Volume ({volume_h24:.0f}) is {volume_h24 / max(liquidity, 1):.0f}x liquidity - possible wash trading",
                             )
                         )
 
@@ -1072,7 +1072,7 @@ class HoneypotDetector:
             pass
 
     async def _deep_scan(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
-        """Deep scan — additional on-chain analysis for thorough detection.
+        """Deep scan - additional on-chain analysis for thorough detection.
 
         Simulates a buy and sell to test actual honeypot behavior.
         Requires RPC access to the chain.

@@ -1,4 +1,4 @@
-"""x402 tool manager — loads and exposes tool bundles across free/trial/premium tiers."""
+"""x402 tool manager - loads and exposes tool bundles across free/trial/premium tiers."""
 
 import logging
 from dataclasses import dataclass

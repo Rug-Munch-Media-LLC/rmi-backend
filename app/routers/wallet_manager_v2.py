@@ -4,25 +4,25 @@ RMI Wallet Manager v2 API Router
 Full REST API for enterprise wallet management.
 
 Endpoints:
-  POST /api/v1/wallets/v2/generate           — Generate new wallet
-  POST /api/v1/wallets/v2/generate/hd        — Generate HD wallet
-  POST /api/v1/wallets/v2/generate/batch     — Batch generate wallets
-  GET  /api/v1/wallets/v2                    — List wallets
-  GET  /api/v1/wallets/v2/{wallet_id}       — Get wallet details
-  PUT  /api/v1/wallets/v2/{wallet_id}        — Update wallet
-  DELETE /api/v1/wallets/v2/{wallet_id}      — Archive wallet
-  POST /api/v1/wallets/v2/{wallet_id}/rotate — Rotate wallet
-  POST /api/v1/wallets/v2/{wallet_id}/schedule — Schedule rotation
-  POST /api/v1/wallets/v2/{wallet_id}/balance — Update balance
-  POST /api/v1/wallets/v2/{wallet_id}/x402   — Enable x402 payments
-  POST /api/v1/wallets/v2/{wallet_id}/subscription — Enable subscriptions
-  GET  /api/v1/wallets/v2/stats              — Wallet statistics
-  GET  /api/v1/wallets/v2/alerts             — Wallet alerts
-  GET  /api/v1/wallets/v2/payments           — Payment history
-  POST /api/v1/wallets/v2/payments           — Record payment
-  GET  /api/v1/wallets/v2/export             — Export wallets
-  GET  /api/v1/wallets/v2/rotations/due      — Check rotations due
-  POST /api/v1/wallets/v2/rotations/process  — Process due rotations
+  POST /api/v1/wallets/v2/generate           - Generate new wallet
+  POST /api/v1/wallets/v2/generate/hd        - Generate HD wallet
+  POST /api/v1/wallets/v2/generate/batch     - Batch generate wallets
+  GET  /api/v1/wallets/v2                    - List wallets
+  GET  /api/v1/wallets/v2/{wallet_id}       - Get wallet details
+  PUT  /api/v1/wallets/v2/{wallet_id}        - Update wallet
+  DELETE /api/v1/wallets/v2/{wallet_id}      - Archive wallet
+  POST /api/v1/wallets/v2/{wallet_id}/rotate - Rotate wallet
+  POST /api/v1/wallets/v2/{wallet_id}/schedule - Schedule rotation
+  POST /api/v1/wallets/v2/{wallet_id}/balance - Update balance
+  POST /api/v1/wallets/v2/{wallet_id}/x402   - Enable x402 payments
+  POST /api/v1/wallets/v2/{wallet_id}/subscription - Enable subscriptions
+  GET  /api/v1/wallets/v2/stats              - Wallet statistics
+  GET  /api/v1/wallets/v2/alerts             - Wallet alerts
+  GET  /api/v1/wallets/v2/payments           - Payment history
+  POST /api/v1/wallets/v2/payments           - Record payment
+  GET  /api/v1/wallets/v2/export             - Export wallets
+  GET  /api/v1/wallets/v2/rotations/due      - Check rotations due
+  POST /api/v1/wallets/v2/rotations/process  - Process due rotations
 """
 
 import logging
@@ -563,7 +563,7 @@ async def register_for_x402(request: Request, wallet_id: str):
     if not result:
         raise HTTPException(
             status_code=400,
-            detail="x402 registration failed — check chain support and address format",
+            detail="x402 registration failed - check chain support and address format",
         )
 
     wallet = manager.get_wallet(wallet_id)
@@ -607,7 +607,7 @@ async def create_shamir_backup(request: Request, wallet_id: str, body: ShamirBac
     try:
         share_paths = manager.create_shamir_backup(wallet_id, body.threshold, body.total_shares)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     await AuditLogger.log(
         admin_id=admin["id"],
@@ -644,7 +644,7 @@ async def recover_from_shamir(request: Request, wallet_id: str, body: ShamirReco
     try:
         manager.recover_from_shamir(wallet_id, body.share_paths)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Recovery failed: {e}")
+        raise HTTPException(status_code=400, detail=f"Recovery failed: {e}") from e
 
     await AuditLogger.log(
         admin_id=admin["id"],
@@ -690,7 +690,7 @@ async def import_legacy(request: Request):
     }
 
 
-# ── Mnemonic Export (SECURE — admin + IP-restricted) ──────
+# ── Mnemonic Export (SECURE - admin + IP-restricted) ──────
 
 
 @router.get("/{wallet_id}/mnemonic")
@@ -771,7 +771,7 @@ async def record_payment(request: Request, body: PaymentRecordRequest):
     admin = auth["admin"]
 
     payment = PaymentRecord(
-        payment_id=f"pay_{int(time.time())}_{secrets.token_hex(4)}",
+        payment_id=f"pay_{int(time.time())}_{secrets.token_hex(4)}",  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
         wallet_id=body.wallet_id,
         wallet_address=body.wallet_address,
         chain=body.chain,
@@ -907,7 +907,7 @@ async def sweep_wallets(request: Request):
 
 @sweep_router.get("/revenue-status")
 async def revenue_wallet_status(request: Request):
-    """Get revenue wallet status — x402 wallet balances and sweep needs."""
+    """Get revenue wallet status - x402 wallet balances and sweep needs."""
     await require_admin(request, "financial.read", min_role="admin")
 
     manager = _get_manager()

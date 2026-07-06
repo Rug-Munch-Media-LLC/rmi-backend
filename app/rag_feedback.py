@@ -1,5 +1,5 @@
 """
-RAG Feedback Loop — Scanner results feed back into RAG
+RAG Feedback Loop - Scanner results feed back into RAG
 ======================================================
 
 When the SENTINEL scanner confirms a token is a scam/honeypot/rug,
@@ -77,7 +77,7 @@ async def record_scanner_result(
         doc_ids = await r.smembers(f"rag:entity:address:{address.lower()}")
 
         if not doc_ids:
-            # Try fuzzy — search for partial address in content
+            # Try fuzzy - search for partial address in content
             # Use Redis scan for efficiency
             cursor = 0
             pattern = "rag:known_scams:*"

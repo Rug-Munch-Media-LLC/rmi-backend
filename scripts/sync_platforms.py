@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Platform Auto-Sync — Keep all external directory listings in sync.
+Platform Auto-Sync - Keep all external directory listings in sync.
 
 One command updates all platform descriptions everywhere by reading
 the manifest and generating listing files for each directory.
@@ -70,7 +70,7 @@ def sync_all():
     # Backend README section
     readme_section = sync_to_readme()
     print(f"README section: {len(readme_section)} chars")
-    print(f"\nSync complete. Updated {m['version']} — {m['tools']['total']} tools.")
+    print(f"\nSync complete. Updated {m['version']} - {m['tools']['total']} tools.")
 
 
 if __name__ == "__main__":

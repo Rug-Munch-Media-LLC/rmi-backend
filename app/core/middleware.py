@@ -1,4 +1,4 @@
-"""RMI Backend — Core Middleware."""
+"""RMI Backend - Core Middleware."""
 
 import json
 import os

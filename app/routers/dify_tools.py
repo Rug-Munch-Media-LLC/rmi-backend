@@ -1,4 +1,4 @@
-"""#14 — Dify RMI Tool Suite. 15 crypto tools exposed as OpenAPI endpoints for Dify agents.
+"""#14 - Dify RMI Tool Suite. 15 crypto tools exposed as OpenAPI endpoints for Dify agents.
 Each tool is a standalone endpoint that Dify can call via API. Security: rate-limited, API-key gated, logged."""
 
 import os

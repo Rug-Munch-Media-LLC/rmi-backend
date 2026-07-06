@@ -100,7 +100,7 @@ def main():
             metadata[arxiv_id] = {}
         metadata[arxiv_id]["ingested"] = True
         metadata[arxiv_id]["chunk_count"] = success
-        print(f"  {arxiv_id}: {len(chunks)} chunks, {success} ingested — {title[:50]}")
+        print(f"  {arxiv_id}: {len(chunks)} chunks, {success} ingested - {title[:50]}")
 
     # Save updated metadata
     with open(METADATA_FILE, "w") as f:

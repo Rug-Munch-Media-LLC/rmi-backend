@@ -1,4 +1,4 @@
-"""Token domain — public API + health check."""
+"""Token domain - public API + health check."""
 from __future__ import annotations
 
 from app.core import health as health_mod
@@ -22,8 +22,8 @@ health_mod.register_health_check("token", _health_check)
 
 
 # Public API
-from app.domain.token.analyzer import TokenAnalyzer
-from app.domain.token.models import (
+from app.domain.token.analyzer import TokenAnalyzer  # noqa: E402
+from app.domain.token.models import (  # noqa: E402
     RiskLevel,
     Token,
     TokenDetail,
@@ -33,8 +33,8 @@ from app.domain.token.models import (
     TokenScanRequest,
     TokenScanResult,
 )
-from app.domain.token.repository import TokenRepository
-from app.domain.token.service import TokenService
+from app.domain.token.repository import TokenRepository  # noqa: E402
+from app.domain.token.service import TokenService  # noqa: E402
 
 __all__ = [
     "RiskLevel",

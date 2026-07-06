@@ -1,5 +1,5 @@
 """
-RMI Mega News Aggregator — Largest Free Crypto News Pipeline
+RMI Mega News Aggregator - Largest Free Crypto News Pipeline
 50+ RSS feeds, automatic dedup, sentiment scoring, multi-DB storage
 """
 
@@ -15,10 +15,10 @@ import httpx
 logger = logging.getLogger("rmi.news")
 
 # ═══════════════════════════════════════════════════════
-# 50+ CRYPTO RSS FEEDS — All Free, No API Keys
+# 50+ CRYPTO RSS FEEDS - All Free, No API Keys
 # ═══════════════════════════════════════════════════════
 RSS_FEEDS = [
-    # Tier 1 — Major outlets
+    # Tier 1 - Major outlets
     ("cointelegraph", "https://cointelegraph.com/rss"),
     ("decrypt", "https://decrypt.co/feed"),
     ("coindesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
@@ -34,28 +34,28 @@ RSS_FEEDS = [
     ("zycrypto", "https://zycrypto.com/feed/"),
     ("bitcoinist", "https://bitcoinist.com/feed/"),
     ("cryptonews", "https://cryptonews.com/feed/"),
-    # Tier 2 — Protocol/chain specific
+    # Tier 2 - Protocol/chain specific
     ("ethereum-blog", "https://blog.ethereum.org/feed.xml"),
     ("solana-blog", "https://solana.com/feed"),
     ("polkadot-blog", "https://polkadot.network/blog/feed/"),
     ("chainlink-blog", "https://blog.chain.link/feed/"),
     ("a16z-crypto", "https://a16zcrypto.com/feed/"),
-    # Tier 3 — Research / Data
+    # Tier 3 - Research / Data
     ("messari", "https://messari.io/feed"),
     ("glassnode", "https://insights.glassnode.com/feed/"),
     ("kaiko", "https://blog.kaiko.com/feed"),
     ("defillama", "https://defillama.com/feed"),
     ("dune-analytics", "https://dune.com/blog/rss.xml"),
-    # Tier 4 — DeFi / Trading
+    # Tier 4 - DeFi / Trading
     ("defi-pulse", "https://defipulse.com/blog/feed/"),
     ("bankless", "https://newsletter.banklesshq.com/feed"),
     ("the-defiant", "https://thedefiant.io/feed"),
     ("coingecko-buzz", "https://www.coingecko.com/en/blog/rss"),
     ("coinmarketcap", "https://coinmarketcap.com/feed/"),
-    # Tier 5 — Regulation
+    # Tier 5 - Regulation
     ("sec-crypto", "https://www.sec.gov/cgi-bin/rss?crypto"),
     ("cfpb", "https://www.consumerfinance.gov/feed/"),
-    # Tier 6 — Additional high-signal feeds
+    # Tier 6 - Additional high-signal feeds
     ("bitcoin-core", "https://bitcoincore.org/en/rss.xml"),
     ("bitcoin-ops", "https://bitcoinops.org/en/feed.xml"),
     ("lightning-blog", "https://lightning.engineering/rss/"),

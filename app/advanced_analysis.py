@@ -256,7 +256,7 @@ async def trace_funding(address: str, chain: str, max_hops: int = 5, max_depth: 
                 except Exception:
                     break
             else:
-                # EVM chains — use DexScreener pairs as proxy
+                # EVM chains - use DexScreener pairs as proxy
                 try:
                     resp = await client.get(
                         "https://api.dexscreener.com/latest/dex/search",

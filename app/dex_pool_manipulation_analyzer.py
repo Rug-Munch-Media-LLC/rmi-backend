@@ -437,7 +437,7 @@ class DEXPoolManipulationAnalyzer:
             evidence.append(f"Estimated profit from sandwich activity: ${total_profit_est:.2f}")
 
         if vulnerability_score > 0.3:
-            evidence.append(f"Large swap-to-reserve ratio ({swap_to_reserve:.4f}) — pool is thin")
+            evidence.append(f"Large swap-to-reserve ratio ({swap_to_reserve:.4f}) - pool is thin")
 
         if severity >= 0.2:
             signal = RiskSignal(
@@ -460,16 +460,16 @@ class DEXPoolManipulationAnalyzer:
 
         # Fee tier can indicate risk
         if pool.fee_tier == 0 and pool.version in ("v3", "clmm"):
-            risk_factors.append("Pool has 0% fee tier — possible fee manipulation")
+            risk_factors.append("Pool has 0% fee tier - possible fee manipulation")
             severity += 0.2
 
         if pool.fee_tier > 1000:  # >10%
-            risk_factors.append(f"High fee tier ({pool.fee_tier / 100}%) — likely rent-seeking")
+            risk_factors.append(f"High fee tier ({pool.fee_tier / 100}%) - likely rent-seeking")
             severity += 0.3
 
         # Pool with no liquidity
         if pool.total_liquidity_usd <= 0:
-            risk_factors.append("Pool has zero reported liquidity — possible ghost pool")
+            risk_factors.append("Pool has zero reported liquidity - possible ghost pool")
             severity += 0.3
 
         # Check if pool is very new with high liquidity (suspicious)
@@ -477,7 +477,7 @@ class DEXPoolManipulationAnalyzer:
             age_hours = (time.time() - pool.created_at) / 3600
             if age_hours < 24:
                 risk_factors.append(
-                    f"Pool is {age_hours:.1f}h old with ${pool.total_liquidity_usd:,.0f} liquidity — rapid ramp is suspicious"
+                    f"Pool is {age_hours:.1f}h old with ${pool.total_liquidity_usd:,.0f} liquidity - rapid ramp is suspicious"
                 )
                 severity += 0.15
 
@@ -508,7 +508,7 @@ class DEXPoolManipulationAnalyzer:
         # Check if swaps exist at all
         if not swaps and positions and pool.total_liquidity_usd > 10_000:
             risk_factors.append(
-                f"${pool.total_liquidity_usd:,.0f} liquidity with zero recent swaps — liquidity may be fake/unused"
+                f"${pool.total_liquidity_usd:,.0f} liquidity with zero recent swaps - liquidity may be fake/unused"
             )
             severity += 0.3
 
@@ -517,7 +517,7 @@ class DEXPoolManipulationAnalyzer:
             unique_owners = {p.owner for p in positions}
             if len(unique_owners) <= 1 and len(positions) > 1:
                 risk_factors.append(
-                    f"All {len(positions)} positions belong to a single owner — possible wash/self-dealing"
+                    f"All {len(positions)} positions belong to a single owner - possible wash/self-dealing"
                 )
                 severity += 0.35
 
@@ -587,7 +587,7 @@ class DEXPoolManipulationAnalyzer:
             # Large individual impact
             if max_impact > 5.0:
                 risk_factors.append(
-                    f"Single swap caused {max_impact:.2f}% price impact — pool is very thin"
+                    f"Single swap caused {max_impact:.2f}% price impact - pool is very thin"
                 )
             elif max_impact > 2.0:
                 risk_factors.append(f"Single swap caused {max_impact:.2f}% price impact")
@@ -595,7 +595,7 @@ class DEXPoolManipulationAnalyzer:
             # High average impact indicates thin pool
             if avg_impact > 1.0:
                 risk_factors.append(
-                    f"Average swap impact {avg_impact:.2f}% — persistent thin liquidity"
+                    f"Average swap impact {avg_impact:.2f}% - persistent thin liquidity"
                 )
 
             # Total price manipulation score
@@ -647,7 +647,7 @@ class DEXPoolManipulationAnalyzer:
             signal = RiskSignal(
                 category=RiskCategory.MEV_EXPOSURE,
                 severity=round(min(mev_ratio, 1.0), 2),
-                description=f"{rapid_trades}/{len(swaps)} trades in same block within 3s — high MEV activity",
+                description=f"{rapid_trades}/{len(swaps)} trades in same block within 3s - high MEV activity",
                 evidence=[
                     f"{rapid_trades} rapid trades detected in same block timestamps",
                     f"{mev_ratio * 100:.0f}% of trades are potential frontrun/backrun targets",
@@ -672,14 +672,14 @@ class DEXPoolManipulationAnalyzer:
 
         if (pair_key in common_pairs or pair_rev in common_pairs) and pool.fee_tier > 100:
             risk_factors.append(
-                f"High fee tier ({pool.fee_tier / 100}%) for common pair {pair_key} — above standard 0.01-1% range"
+                f"High fee tier ({pool.fee_tier / 100}%) for common pair {pair_key} - above standard 0.01-1% range"
             )
             severity += 0.3
 
-        # Zero fee with active liquidity — possible fee manipulation
+        # Zero fee with active liquidity - possible fee manipulation
         if pool.fee_tier == 0 and pool.total_liquidity_usd > 10_000:
             risk_factors.append(
-                "Zero fee tier with active liquidity — unusual, may indicate fee manipulation"
+                "Zero fee tier with active liquidity - unusual, may indicate fee manipulation"
             )
             severity += 0.2
 
@@ -772,7 +772,7 @@ class DEXPoolManipulationAnalyzer:
             recs.append("⚠️ Liquidity appears artificial. Cross-check with on-chain position data.")
 
         if RiskCategory.PRICE_MANIPULATION in categories:
-            recs.append("Monitor price closely — pool has shown abnormal price movements.")
+            recs.append("Monitor price closely - pool has shown abnormal price movements.")
 
         if RiskCategory.MEV_EXPOSURE in categories:
             recs.append("High MEV activity detected. Avoid placing market orders on this pool.")
@@ -785,7 +785,7 @@ class DEXPoolManipulationAnalyzer:
         if risk_score < 20 and not recs:
             recs.append("✅ Pool appears low risk based on available data.")
         elif not recs:
-            recs.append(f"Pool risk score: {risk_score:.0f}/100 — exercise standard caution.")
+            recs.append(f"Pool risk score: {risk_score:.0f}/100 - exercise standard caution.")
 
         return recs
 

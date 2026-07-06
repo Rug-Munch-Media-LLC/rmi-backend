@@ -55,7 +55,7 @@ class WatchAlertsRequest(BaseModel):
 
 @router.post("/token_watch_create")
 async def token_watch_create(req: WatchCreateRequest, request: Request):
-    """Create a token monitoring watch — alerts when conditions are met.
+    """Create a token monitoring watch - alerts when conditions are met.
 
     Paid x402 tool ($0.05). Monitors LP levels, price drops, lock status changes.
     Alerts delivered via WebSocket and optional webhook.
@@ -205,7 +205,7 @@ async def token_watch_check(req: WatchCreateRequest, request: Request):
         info = pair_data.get("info", {})
         if isinstance(info, dict):
             if not info.get("liquidityLocked", True):
-                warnings.append("LP NOT LOCKED — high rug risk")
+                warnings.append("LP NOT LOCKED - high rug risk")
             if info.get("renouncedOwnership"):
                 warnings.append("Ownership renounced (good sign)")
 

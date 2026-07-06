@@ -1,5 +1,5 @@
 """
-RMI Cache Manager — Unified caching layer with Redis + in-memory fallback.
+RMI Cache Manager - Unified caching layer with Redis + in-memory fallback.
 Proprietary system that auto-tracks credits, adapts TTLs, and monitors hit rates.
 
 Architecture:
@@ -31,7 +31,7 @@ from collections.abc import Callable
 from typing import Any
 
 # ═══════════════════════════════════════════════════════════════
-# PROVIDER CONFIG — TTLs, rate limits, credit tracking
+# PROVIDER CONFIG - TTLs, rate limits, credit tracking
 # ═══════════════════════════════════════════════════════════════
 PROVIDER_CONFIG = {
     "coingecko": {
@@ -334,9 +334,9 @@ class RMICache:
                 st["hits"] = st.get("hits", 0) + 1
                 return cached
 
-        # Cache miss — check rate limit before calling external API
+        # Cache miss - check rate limit before calling external API
         if not self._check_rate_limit(source):
-            # Rate limited — return stale data if available, else None
+            # Rate limited - return stale data if available, else None
             stale = self._mem_get(key)  # memory may have expired but better than nothing
             return stale
 

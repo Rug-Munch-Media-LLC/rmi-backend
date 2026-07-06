@@ -1,4 +1,4 @@
-"""Admin alerts webhook — /api/v1/admin/alerts/webhook.
+"""Admin alerts webhook - /api/v1/admin/alerts/webhook.
 
 Stub endpoint for receiving alert webhooks from external sources
 (monitoring, observability platforms).
@@ -28,5 +28,5 @@ async def receive_alert_webhook(payload: AlertWebhookPayload) -> dict[str, Any]:
     """Receive an alert webhook from external monitoring."""
     raise HTTPException(
         status_code=501,
-        detail="Alert webhook ingestion not yet implemented — pending T08 GlitchTip wiring",
+        detail="Alert webhook ingestion not yet implemented - pending T08 GlitchTip wiring",
     )

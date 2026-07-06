@@ -1,6 +1,6 @@
-"""RMI Backend — root entry point.
+"""RMI Backend - root entry point.
 
-Minimal — delegates everything to app.factory.create_app().
+Minimal - delegates everything to app.factory.create_app().
 
 Per v4.0 §T01 + modern factory pattern:
 - main.py is the entry point ONLY

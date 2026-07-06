@@ -1,19 +1,19 @@
 """
-RugCharts Intelligence Layer — 10 Immediate Wins
+RugCharts Intelligence Layer - 10 Immediate Wins
 =================================================
 Every feature uses existing DataBus infrastructure (Arkham, Helius, Redis, RAG).
 No new dependencies. No ML training. Pure immediate value.
 
-1. SMART MONEY FEED — What profitable wallets are buying right now
-2. WHALE ALERT STREAM — Real-time large transaction detection
-3. TOKEN LAUNCH SCANNER — New token detection + instant risk score
-4. INSIDER PATTERN DETECTOR — Pre-pump accumulation detection
-5. LIQUIDITY RISK MONITOR — LP health + pull detection
-6. HOLDER HEALTH SCORE — Distribution analysis (Gini, concentration, freshness)
-7. CROSS-CHAIN ENTITY INTEL — Same entity across chains via Arkham
-8. RUG PATTERN MATCHER — RAG-powered similarity to known rug pulls
-9. DEVELOPER REPUTATION — Deployer history across tokens
-10. INSTANT TOKEN REPORT — One-call comprehensive intel on any token
+1. SMART MONEY FEED - What profitable wallets are buying right now
+2. WHALE ALERT STREAM - Real-time large transaction detection
+3. TOKEN LAUNCH SCANNER - New token detection + instant risk score
+4. INSIDER PATTERN DETECTOR - Pre-pump accumulation detection
+5. LIQUIDITY RISK MONITOR - LP health + pull detection
+6. HOLDER HEALTH SCORE - Distribution analysis (Gini, concentration, freshness)
+7. CROSS-CHAIN ENTITY INTEL - Same entity across chains via Arkham
+8. RUG PATTERN MATCHER - RAG-powered similarity to known rug pulls
+9. DEVELOPER REPUTATION - Deployer history across tokens
+10. INSTANT TOKEN REPORT - One-call comprehensive intel on any token
 """
 
 import json
@@ -61,7 +61,7 @@ def _r():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 1. SMART MONEY FEED — Profitable wallets, what they're buying
+# 1. SMART MONEY FEED - Profitable wallets, what they're buying
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -163,7 +163,7 @@ async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 2. WHALE ALERT STREAM — Real-time large transaction detection
+# 2. WHALE ALERT STREAM - Real-time large transaction detection
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -257,7 +257,7 @@ async def whale_alert_stream(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 3. TOKEN LAUNCH SCANNER — New token detection + instant risk score
+# 3. TOKEN LAUNCH SCANNER - New token detection + instant risk score
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -372,7 +372,7 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 4. INSIDER PATTERN DETECTOR — Pre-pump accumulation
+# 4. INSIDER PATTERN DETECTOR - Pre-pump accumulation
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -470,14 +470,14 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 5. LIQUIDITY RISK MONITOR — LP health + pull detection
+# 5. LIQUIDITY RISK MONITOR - LP health + pull detection
 # ═══════════════════════════════════════════════════════════════════════
 
 
 async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Monitor liquidity pool health: LP lock, concentration, removal risk.
 
-    Critical for rug pull prevention — the #1 thing degens need to check.
+    Critical for rug pull prevention - the #1 thing degens need to check.
     """
     if not address:
         return None
@@ -592,7 +592,7 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 6. HOLDER HEALTH SCORE — Distribution analysis
+# 6. HOLDER HEALTH SCORE - Distribution analysis
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -717,7 +717,7 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 7. CROSS-CHAIN ENTITY INTEL — Same entity across chains via Arkham
+# 7. CROSS-CHAIN ENTITY INTEL - Same entity across chains via Arkham
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -808,7 +808,7 @@ async def cross_chain_entity(address: str = "", **kw) -> dict | None:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 8. RUG PATTERN MATCHER — RAG similarity to known rug pulls
+# 8. RUG PATTERN MATCHER - RAG similarity to known rug pulls
 # ═══════════════════════════════════════════════════════════════════════
 
 RUG_PATTERNS = [
@@ -820,7 +820,7 @@ RUG_PATTERNS = [
     },
     {
         "pattern": "honeypot_sell_tax_100",
-        "name": "Honeypot — 100% Sell Tax",
+        "name": "Honeypot - 100% Sell Tax",
         "severity": "CRITICAL",
         "description": "Buy works, sell reverts. Token is locked.",
     },
@@ -976,7 +976,7 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
             elif pattern["pattern"] == "honeypot_sell_tax_100":
                 if signals["is_new"] and signals["holder_count"] < 50:
                     score = 60
-                    evidence.append("New token with few holders — possible honeypot")
+                    evidence.append("New token with few holders - possible honeypot")
                 if signals["top_holder_pct"] > 90:
                     score += 20
                     evidence.append("Single wallet dominance")
@@ -1049,7 +1049,7 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 9. DEVELOPER REPUTATION — Deployer history tracking
+# 9. DEVELOPER REPUTATION - Deployer history tracking
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -1157,7 +1157,7 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 10. INSTANT TOKEN REPORT — One-call comprehensive intel
+# 10. INSTANT TOKEN REPORT - One-call comprehensive intel
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -1340,17 +1340,17 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         # Quick verdict
         sections = report["sections"]
         if sections.get("security", {}).get("band") == "DANGER":
-            report["quick_verdict"] = "EXTREME RISK — Multiple critical security failures detected"
+            report["quick_verdict"] = "EXTREME RISK - Multiple critical security failures detected"
         elif report["overall_risk"]["level"] == "CRITICAL":
-            report["quick_verdict"] = "HIGH RISK — Multiple red flags. Not recommended."
+            report["quick_verdict"] = "HIGH RISK - Multiple red flags. Not recommended."
         elif report["overall_risk"]["level"] == "HIGH":
-            report["quick_verdict"] = "ELEVATED RISK — Proceed with caution. Review details."
+            report["quick_verdict"] = "ELEVATED RISK - Proceed with caution. Review details."
         elif report["overall_risk"]["level"] == "MEDIUM":
-            report["quick_verdict"] = "MODERATE RISK — Standard for new tokens. Monitor closely."
+            report["quick_verdict"] = "MODERATE RISK - Standard for new tokens. Monitor closely."
         elif sections.get("entity", {}).get("name"):
-            report["quick_verdict"] = f"KNOWN ENTITY — {sections['entity']['name']}. Lower risk."
+            report["quick_verdict"] = f"KNOWN ENTITY - {sections['entity']['name']}. Lower risk."
         else:
-            report["quick_verdict"] = "LOW RISK — No significant concerns detected."
+            report["quick_verdict"] = "LOW RISK - No significant concerns detected."
 
         report["sections_count"] = len(report["sections"])
         report["source"] = "instant_token_report"

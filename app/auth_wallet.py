@@ -29,10 +29,8 @@ def verify_wallet_signature(message: str, signature: str, address: str) -> bool:
         return False
 
     # Basic signature length check
-    if len(signature) < 60:  # Typical sig is 65 hex chars for EVM
-        return False
-
-    return True
+    # Typical sig is 65 hex chars for EVM
+    return len(signature) >= 60
 
 
 def decode_signature(signature: str) -> tuple:

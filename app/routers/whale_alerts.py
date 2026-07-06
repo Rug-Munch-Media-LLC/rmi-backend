@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#4 — Whale Wallet Alert System. Monitors large transfers across all chains.
+"""#4 - Whale Wallet Alert System. Monitors large transfers across all chains.
 Users subscribe to addresses, get instant Telegram alerts on >$X movements."""
 
 import os

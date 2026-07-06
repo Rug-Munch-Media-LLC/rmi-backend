@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Helius Whale Watcher — Real-time large transfer monitoring
+Helius Whale Watcher - Real-time large transfer monitoring
 Detects whale movements, dumps, accumulation patterns across Solana.
 
 Features:

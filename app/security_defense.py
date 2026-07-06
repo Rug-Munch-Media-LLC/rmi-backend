@@ -1,19 +1,19 @@
 """
-RMI Security Defense System — Advanced Threat Protection
+RMI Security Defense System - Advanced Threat Protection
 ===========================================================
 Enterprise-grade security layer for the RugMunch Intelligence Platform.
 
 Features:
-  • Bot Detection — behavioral analysis, fingerprinting, challenge-response
-  • Anomaly Detection — statistical anomaly detection on requests
-  • Rate Limiting — adaptive rate limits per user/IP/endpoint
-  • IP Reputation — threat intelligence integration, blocklists
-  • Request Fingerprinting — identify automated tools, scrapers
-  • Geo-blocking — country-based access control
-  • Honeypot Endpoints — trap bad actors
-  • DDoS Protection — request flood detection, circuit breaker
-  • Vulnerability Scanning — automated security scanning
-  • Compliance Logging — GDPR/SOC2 audit trails
+  • Bot Detection - behavioral analysis, fingerprinting, challenge-response
+  • Anomaly Detection - statistical anomaly detection on requests
+  • Rate Limiting - adaptive rate limits per user/IP/endpoint
+  • IP Reputation - threat intelligence integration, blocklists
+  • Request Fingerprinting - identify automated tools, scrapers
+  • Geo-blocking - country-based access control
+  • Honeypot Endpoints - trap bad actors
+  • DDoS Protection - request flood detection, circuit breaker
+  • Vulnerability Scanning - automated security scanning
+  • Compliance Logging - GDPR/SOC2 audit trails
 
 Integrations:
   - AbuseIPDB for IP reputation
@@ -28,11 +28,12 @@ Date: 2026-05-31
 import json
 import logging
 import os
+import secrets
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 logger = logging.getLogger("rmi_security_defense")
 
@@ -173,8 +174,7 @@ class BotDetectionEngine:
     """
 
     # Known good bot patterns (allow these)
-    GOOD_BOTS: ClassVar[list] =
-[
+    GOOD_BOTS: ClassVar[list] =[
         "googlebot",
         "bingbot",
         "duckduckbot",
@@ -187,8 +187,7 @@ class BotDetectionEngine:
     ]
 
     # Known bad patterns (immediate block)
-    BAD_PATTERNS: ClassVar[list] =
-[
+    BAD_PATTERNS: ClassVar[list] =[
         "sqlmap",
         "nikto",
         "nmap",
@@ -485,8 +484,7 @@ class HoneypotSystem:
     Returns fake data and logs attacker behavior.
     """
 
-    HONEYPOT_ENDPOINTS: ClassVar[list] =
-[
+    HONEYPOT_ENDPOINTS: ClassVar[list] =[
         "/admin/config.php",
         "/api/v1/admin/backup",
         "/.env",
@@ -506,7 +504,7 @@ class HoneypotSystem:
 
     @staticmethod
     async def handle_honeypot(request: Any) -> dict[str, Any]:
-        """Handle honeypot request — log and return fake data."""
+        """Handle honeypot request - log and return fake data."""
         ip = request.client.host if request.client else ""
         ua = request.headers.get("user-agent", "")
         path = str(request.url.path)
@@ -581,8 +579,8 @@ class HoneypotSystem:
 class GeoBlocker:
     """Country-based access control."""
 
-    BLOCKED_COUNTRIES: set[str] = set()  # ISO country codes
-    ALLOWED_COUNTRIES: set[str] = set()  # If set, only allow these
+    BLOCKED_COUNTRIES: set[str] = set()  # ISO country codes  # noqa: RUF012
+    ALLOWED_COUNTRIES: set[str] = set()  # If set, only allow these  # noqa: RUF012
 
     @staticmethod
     async def check_country(ip: str) -> dict[str, Any]:

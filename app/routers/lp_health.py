@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#11 — Liquidity Pool Health Monitor. Tracks LPs across DEXes on all DataBus chains.
+"""#11 - Liquidity Pool Health Monitor. Tracks LPs across DEXes on all DataBus chains.
 Alerts on LP withdrawals, depletion, single-holder dominance."""
 
 import os

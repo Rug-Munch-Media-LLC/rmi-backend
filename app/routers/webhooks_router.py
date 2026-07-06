@@ -1,5 +1,5 @@
 """
-Webhook Receivers — Helius (Solana) + Moralis Streams (EVM).
+Webhook Receivers - Helius (Solana) + Moralis Streams (EVM).
 Processes real-time blockchain events: transfers, swaps, mints, whale activity.
 INTELLIGENT PROCESSING: Whale detection, cluster correlation, scam pattern matching.
 """
@@ -166,7 +166,7 @@ def _process_moralis_event(event: dict) -> dict:
                 result["type"] = "native_transfer"
                 result["value"] = str(float(native_value) / 1e18)
 
-        # Whale detection — flag transfers > 10 ETH equivalent
+        # Whale detection - flag transfers > 10 ETH equivalent
         try:
             val = float(event.get("value", "0")) / 1e18 if event.get("value") else 0
             if val > 10:
@@ -194,7 +194,7 @@ async def helius_webhook(request: Request):
     try:
         body = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
 
     # Helius can send single events or arrays
     events = body if isinstance(body, list) else [body]
@@ -237,7 +237,7 @@ async def moralis_webhook(request: Request):
     try:
         body = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
 
     # Moralis streams send arrays of confirmed/tx events
     confirmed = body.get("confirmed", body.get("logs", []))

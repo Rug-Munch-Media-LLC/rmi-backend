@@ -1,4 +1,4 @@
-"""M3 RAG Engine — three-pillar search + ingest.
+"""M3 RAG Engine - three-pillar search + ingest.
 
 The missing module that app/rag/service.py was importing (the legacy
 app.rag_engine was nuked during consolidation but never replaced).
@@ -7,7 +7,7 @@ Three-Pillar Search (per 2026 RAG standards):
   Pillar 1: ANN vector similarity (semantic match)
   Pillar 2: BM25-lite keyword search (lexical match)
   Pillar 3: Metadata filter (structured constraints)
-  Fusion: Reciprocal Rank Fusion (RRF) — k=60
+  Fusion: Reciprocal Rank Fusion (RRF) - k=60
 
 Ingest:
   - Chunk → embed → store in ANN index + Redis doc store
@@ -84,7 +84,7 @@ async def _keyword_search(
     """BM25-lite keyword search. Simple TF scoring on stored text.
 
     Returns Hits with score in [0, 1] (normalized). We don't pretend this
-    is real BM25 — but it's good enough for a fallback that surfaces
+    is real BM25 - but it's good enough for a fallback that surfaces
     lexically-matching docs the ANN might miss.
     """
     try:
@@ -168,7 +168,7 @@ def _reciprocal_rank_fusion(
     out: list[Hit] = []
     for doc_id, rrf_score in ranked[:top_k]:
         h = by_id[doc_id]
-        # Normalize to [0, 1] roughly — RRF max is ~3/k for 3 pillars
+        # Normalize to [0, 1] roughly - RRF max is ~3/k for 3 pillars
         norm = min(1.0, rrf_score * k / 3.0)
         out.append(
             Hit(

@@ -16,9 +16,9 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-import contextlib
+import contextlib  # noqa: E402
 
-from app.services.supabase_service import (
+from app.services.supabase_service import (  # noqa: E402
     award_badge,
     create_alert,
     create_bulletin_post,
@@ -31,7 +31,7 @@ from app.services.supabase_service import (
 )
 
 
-# Lazy auth dependency — avoids importing passlib+jose+bcrypt at module load
+# Lazy auth dependency - avoids importing jose+bcrypt at module load
 async def _require_public_profile(request: Request):
     from app.auth import require_public_profile
 
@@ -246,7 +246,7 @@ async def register_bot(bot: BotRegistrationIn):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Bot profile creation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Bot profile creation failed: {e}") from e
 
     # Create bot registration record
     try:
@@ -265,7 +265,7 @@ async def register_bot(bot: BotRegistrationIn):
             },
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Bot registration failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Bot registration failed: {e}") from e
 
     # Log the fee payment
     if bot.fee_paid > 0:
@@ -339,7 +339,7 @@ async def pay_bot_fee(bot_id: str, amount: float, tx_hash: str | None = None, cu
             },
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fee logging failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Fee logging failed: {e}") from e
 
     fees = _sb_get("bot_fee_log", {"bot_id": f"eq.{bot_id}", "select": "amount"})
     total_paid = sum(f.get("amount", 0) for f in fees)
@@ -357,7 +357,7 @@ async def pay_bot_fee(bot_id: str, amount: float, tx_hash: str | None = None, cu
 
 @router.post("/bots/{bot_id}/post")
 async def bot_create_post(bot_id: str, post: BulletinPostIn):
-    """Bot creates a post — must be registered and fee-paid."""
+    """Bot creates a post - must be registered and fee-paid."""
     reg = _sb_get("bot_registrations", {"bot_user_id": f"eq.{bot_id}", "status": "eq.active", "limit": "1"})
     if not reg:
         raise HTTPException(status_code=403, detail="Bot not registered or fee not paid")

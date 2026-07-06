@@ -1,5 +1,5 @@
 """
-Code-Aware Solidity Chunking — AST-based chunk boundaries.
+Code-Aware Solidity Chunking - AST-based chunk boundaries.
 
 Problem: Current chunking splits Solidity source at character boundaries (2500 chars).
 This cuts functions in half, splits modifiers from their functions, and destroys
@@ -63,7 +63,7 @@ def parse_solidity_ast(source: str) -> dict | None:
 
         return None
     except FileNotFoundError:
-        logger.debug("solc not found — falling back to regex chunking")
+        logger.debug("solc not found - falling back to regex chunking")
         return None
     except json.JSONDecodeError:
         logger.debug("solc AST output not valid JSON")
@@ -177,7 +177,7 @@ def chunk_solidity_ast(
             return chunks
 
     # Fallback: regex-based heuristic chunking for unparseable sources
-    logger.debug("AST chunking unavailable — using regex heuristics")
+    logger.debug("AST chunking unavailable - using regex heuristics")
     return _chunk_solidity_regex(source, target_size, max_size)
 
 
@@ -203,7 +203,7 @@ def _build_chunks_from_boundaries(
         if len(current) + len(segment) <= target_size or not current:
             current += segment + "\n\n"
         else:
-            # Current is big enough — flush it
+            # Current is big enough - flush it
             chunks.append(current.strip())
             current = segment + "\n\n"
 
@@ -276,7 +276,7 @@ def _chunk_solidity_regex(
                     if block.strip():
                         blocks.append(block.strip())
         else:
-            # No contract boundaries found — split by functions only
+            # No contract boundaries found - split by functions only
             sub_blocks = func_pattern.split(body)
             for block in sub_blocks:
                 if block.strip():
@@ -290,7 +290,7 @@ def _chunk_solidity_regex(
             chunks.append(current.strip())
             current = ""
         if len(block) > max_size:
-            # Block is too large — split at line boundaries
+            # Block is too large - split at line boundaries
             chunk_lines = block.split("\n")
             sub = ""
             for line in chunk_lines:

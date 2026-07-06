@@ -1,5 +1,5 @@
 """
-SENTINEL — Unified Pipeline Orchestrator
+SENTINEL - Unified Pipeline Orchestrator
 ==========================================
 Runs all 22 scanner modules in parallel with graceful degradation.
 If any module fails, the others still return results.
@@ -84,13 +84,13 @@ logger = logging.getLogger("sentinel_pipeline")
 
 @dataclass
 class SentinelConfig:
-    """Configuration for SENTINEL pipeline — API keys and shared clients."""
+    """Configuration for SENTINEL pipeline - API keys and shared clients."""
 
     # API keys
     helius_api_key: str = ""
     birdeye_api_key: str = ""
 
-    # Shared httpx clients (optional — created if not provided)
+    # Shared httpx clients (optional - created if not provided)
     dexscreener_client: httpx.AsyncClient | None = None
 
     def get_dexscreener_client(self) -> httpx.AsyncClient:
@@ -115,19 +115,19 @@ def dataclass_to_dict(obj: Any) -> Any:
     if obj is None:
         return None
 
-    # Dataclass instance — recurse into fields
+    # Dataclass instance - recurse into fields
     if hasattr(obj, "__dataclass_fields__"):
         return {f.name: dataclass_to_dict(getattr(obj, f.name)) for f in fields(obj)}
 
-    # List / tuple — recurse per element
+    # List / tuple - recurse per element
     if isinstance(obj, (list, tuple)):
         return [dataclass_to_dict(item) for item in obj]
 
-    # Dict — recurse per value
+    # Dict - recurse per value
     if isinstance(obj, dict):
         return {k: dataclass_to_dict(v) for k, v in obj.items()}
 
-    # Primitive (str, int, float, bool) — return as-is
+    # Primitive (str, int, float, bool) - return as-is
     return obj
 
 
@@ -166,10 +166,10 @@ class SentinelReport:
     decompiler_analysis: dict[str, Any] | None = None
     address_labels: dict[str, Any] | None = None
 
-    # Tier 3.5 — Wallet Memory Bank intelligence
+    # Tier 3.5 - Wallet Memory Bank intelligence
     wallet_intel: dict[str, Any] | None = None
 
-    # Tier 4 — Visualization
+    # Tier 4 - Visualization
     fund_flow: dict[str, Any] | None = None
     contract_diff: dict[str, Any] | None = None
 
@@ -213,7 +213,7 @@ class SentinelReport:
 # Default config for backward compatibility
 _default_config: SentinelConfig = SentinelConfig()
 
-# Module singletons — initialized lazily via _ensure_modules()
+# Module singletons - initialized lazily via _ensure_modules()
 _holder_analyzer: HolderAnalyzer | None = None
 _bundle_detector: BundleDetector | None = None
 _exchange_funder: ExchangeFunderDetector | None = None
@@ -244,7 +244,7 @@ _contract_diff: ContractDiffAnalyzer | None = None
 # Guilt by Association
 _guilt_association: GuiltAssociationAnalyzer | None = None
 
-# New — Sleep Cycle + Social Velocity + Bytecode + Block Zero + Gas Trace
+# New - Sleep Cycle + Social Velocity + Bytecode + Block Zero + Gas Trace
 _sleep_cycle: SleepCycleAnalyzer | None = None
 _social_velocity: SocialVelocityAnalyzer | None = None
 _bytecode_similarity: BytecodeSimilarityAnalyzer | None = None
@@ -366,7 +366,7 @@ def _extract_risk_hhi(report: HHIReport) -> float:
 
 
 def _extract_risk_bundle(report: BundleReport) -> float:
-    """Bundle report risk score — use bundle_risk_score if available, else heuristic."""
+    """Bundle report risk score - use bundle_risk_score if available, else heuristic."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     bundle_count = len(report.bundles) if hasattr(report, "bundles") and report.bundles else 0
@@ -374,7 +374,7 @@ def _extract_risk_bundle(report: BundleReport) -> float:
 
 
 def _extract_risk_exchange_fund(report: ExchangeFundReport) -> float:
-    """Exchange funding risk — higher CEX-funded ratio = more suspicious."""
+    """Exchange funding risk - higher CEX-funded ratio = more suspicious."""
     if hasattr(report, "cex_funded_percentage"):
         return min(float(report.cex_funded_percentage), 100)
     if hasattr(report, "risk_score"):
@@ -383,7 +383,7 @@ def _extract_risk_exchange_fund(report: ExchangeFundReport) -> float:
 
 
 def _extract_risk_lock(report: LockReport) -> float:
-    """Lock risk — unlocked/no lock = 80, locked = low risk."""
+    """Lock risk - unlocked/no lock = 80, locked = low risk."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     if hasattr(report, "is_locked") and not report.is_locked:
@@ -392,7 +392,7 @@ def _extract_risk_lock(report: LockReport) -> float:
 
 
 def _extract_risk_dev(report: DevReputationReport) -> float:
-    """Dev reputation risk — serial ruggers = high risk."""
+    """Dev reputation risk - serial ruggers = high risk."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     if hasattr(report, "rug_count"):
@@ -410,7 +410,7 @@ def _extract_risk_wash_trading(report: WashTradingReport) -> float:
 
 
 def _extract_risk_fingerprint(report: FingerprintReport) -> float:
-    """Metadata fingerprint risk — high similarity = higher risk."""
+    """Metadata fingerprint risk - high similarity = higher risk."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     if hasattr(report, "max_similarity"):
@@ -419,14 +419,14 @@ def _extract_risk_fingerprint(report: FingerprintReport) -> float:
 
 
 def _extract_risk_sentiment(report: SentimentReport) -> float:
-    """Sentiment risk — extreme hype = risky."""
+    """Sentiment risk - extreme hype = risky."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     return 30.0  # neutral default
 
 
 def _extract_risk_pumpfun(report: PumpFunReport) -> float:
-    """PumpFun risk — low graduation probability or high bot ratio = risky."""
+    """PumpFun risk - low graduation probability or high bot ratio = risky."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     if hasattr(report, "graduation_probability"):
@@ -435,7 +435,7 @@ def _extract_risk_pumpfun(report: PumpFunReport) -> float:
 
 
 def _extract_risk_guilt_association(report: GuiltAssociationReport) -> float:
-    """Guilt association risk — use guilt_score directly."""
+    """Guilt association risk - use guilt_score directly."""
     if hasattr(report, "guilt_score"):
         return float(report.guilt_score)
     if hasattr(report, "risk_score"):
@@ -444,21 +444,21 @@ def _extract_risk_guilt_association(report: GuiltAssociationReport) -> float:
 
 
 def _extract_risk_sleep_cycle(report) -> float:
-    """Sleep cycle risk — use sleep_score directly."""
+    """Sleep cycle risk - use sleep_score directly."""
     if hasattr(report, "sleep_score"):
         return float(report.sleep_score)
     return 0.0
 
 
 def _extract_risk_social_velocity(report) -> float:
-    """Social velocity risk — use velocity_score directly."""
+    """Social velocity risk - use velocity_score directly."""
     if hasattr(report, "velocity_score"):
         return float(report.velocity_score)
     return 0.0
 
 
 def _extract_risk_bytecode_similarity(report) -> float:
-    """Bytecode similarity risk — exact match = 100."""
+    """Bytecode similarity risk - exact match = 100."""
     if hasattr(report, "exact_match") and report.exact_match:
         return 100.0
     if hasattr(report, "similarity_score"):
@@ -467,14 +467,14 @@ def _extract_risk_bytecode_similarity(report) -> float:
 
 
 def _extract_risk_block_zero(report) -> float:
-    """Block zero sniper risk — farm confidence * 100."""
+    """Block zero sniper risk - farm confidence * 100."""
     if hasattr(report, "farm_confidence"):
         return float(report.farm_confidence) * 100
     return 0.0
 
 
 def _extract_risk_gas_trace(report) -> float:
-    """Gas trace — dead end = 100, cex funded = 0."""
+    """Gas trace - dead end = 100, cex funded = 0."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     if hasattr(report, "dead_end") and report.dead_end:
@@ -631,7 +631,7 @@ async def run_sentinel_scan(
     else:
         coros["wallet_intel"] = None
 
-    # Tier 4 — Visualization
+    # Tier 4 - Visualization
     coros["fund_flow"] = _fund_flow_visualizer.analyze(token_address, chain)
     coros["contract_diff"] = _contract_diff.analyze(token_address, chain)
 

@@ -1,4 +1,4 @@
-"""Catalog database schema — initial migration.
+"""Catalog database schema - initial migration.
 
 Creates the tables referenced by the v4.0 catalog models.
 Idempotent: safe to run multiple times.

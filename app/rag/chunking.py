@@ -1,4 +1,4 @@
-"""M3 RAG Chunking — recursive text chunking with MD5 dedup.
+"""M3 RAG Chunking - recursive text chunking with MD5 dedup.
 
 Why chunking matters:
 - Embedding models have context limits (bge-m3 = 8192 tokens, but we
@@ -9,7 +9,7 @@ Why chunking matters:
 Strategy (per 2026 RAG standards):
 - Recursive character split, paragraph → sentence → word boundaries
 - Overlap window preserves cross-chunk context
-- Quality score: (length / max_chunk) × (1 - special_char_ratio)
+- Quality score: (length / max_chunk) x (1 - special_char_ratio)  # noqa: RUF002
 - Skip chunks < min_chars (likely noise)
 """
 from __future__ import annotations

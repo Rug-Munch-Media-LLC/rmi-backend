@@ -46,9 +46,9 @@ class Alert:
 
     def to_telegram_message(self) -> str:
         """Format alert as Telegram message"""
-        level_emoji = {"CRITICAL": "🚨", "WARNING": "⚠️", "INFO": "ℹ️", "DEBUG": "🔍"}
+        level_emoji = {"CRITICAL": "🚨", "WARNING": "⚠️", "INFO": "ℹ️", "DEBUG": "🔍"}  # noqa: RUF001
         return (
-            f"{level_emoji.get(self.level, 'ℹ️')} *{self.alert_type.upper()}* [{self.level}]\n\n"
+            f"{level_emoji.get(self.level, 'ℹ️')} *{self.alert_type.upper()}* [{self.level}]\n\n"  # noqa: RUF001
             f" Wallet: `{self.wallet_address[:10]}...{self.wallet_address[-6:]}`\n"
             f" Token: `{self.token_symbol}`\n"
             f" Confidence: {self.confidence:.0%}\n\n"
@@ -307,7 +307,7 @@ async def get_recent_alerts(limit: int = 10):
 
         return {"success": True, "count": len(alerts), "alerts": alerts[:limit]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Background task: monitor alert queue

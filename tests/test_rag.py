@@ -6,7 +6,7 @@ Tests all core RAG modules: embeddings, ingestion, search, vector store,
 entity extraction, temporal decay, contextual chunking, hallucination guard.
 
 NOTE: This suite uses a custom @test() decorator + run_tests() runner.
-Do NOT run with pytest — it will produce false failures (pytest-asyncio
+Do NOT run with pytest - it will produce false failures (pytest-asyncio
 auto-collects these functions but they aren't standard pytest test items).
 
 Correct runner:
@@ -97,7 +97,7 @@ def test_contract_features_rug_detection():
     vec = extract_contract_features(rug_code)
     # The keyword list checks lowercased code; verify at least one rug dim is active
     rug_dims = [i for i, v in enumerate(vec[:56]) if v > 0]
-    # mint is in the list, onlyOwner is in the list — just verify code is non-zero
+    # mint is in the list, onlyOwner is in the list - just verify code is non-zero
     assert len(rug_dims) >= 1, "No rug pattern dims active in first 56 dims"
     # Also verify structural dims are populated (lines, functions, etc.)
     struct_dims = [i for i in range(32, 56) if vec[i] > 0]
@@ -520,7 +520,7 @@ async def test_cache_key_different_heads():
 
 
 # ══════════════════════════════════════════════════════════════════════
-# SUPABASE VECTOR STORE — SQL SAFETY (unit-level, no network)
+# SUPABASE VECTOR STORE - SQL SAFETY (unit-level, no network)
 # ══════════════════════════════════════════════════════════════════════
 
 
@@ -583,14 +583,14 @@ def test_cluster_labels():
 
 
 # ══════════════════════════════════════════════════════════════════════
-# RAG SERVICE — TTL MAP
+# RAG SERVICE - TTL MAP
 # ══════════════════════════════════════════════════════════════════════
 
 
 @test("TTL map: forensic_reports and scam_patterns have permanent TTL (0)")
 def test_ttl_permanent():
     # Read the TTL map from ingest_document function
-    # We verify by inspecting the source — TTL=0 means no expiry
+    # We verify by inspecting the source - TTL=0 means no expiry
     import inspect
 
     from app.rag_service import ingest_document

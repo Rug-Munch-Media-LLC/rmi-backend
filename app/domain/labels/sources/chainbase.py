@@ -1,4 +1,4 @@
-"""Chainbase source — placeholder, requires API key.
+"""Chainbase source - placeholder, requires API key.
 
 TODO: add CHAINBASE_API_KEY to gopass + env. Free tier: 50K calls/month.
 

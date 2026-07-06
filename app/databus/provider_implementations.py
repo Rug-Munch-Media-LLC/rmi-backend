@@ -1,14 +1,18 @@
 """
-DataBus Provider Implementations — External API Interfaces
+DataBus Provider Implementations - External API Interfaces
 ===========================================================
 
 All external API implementations for the DataBus providers.
 This module contains NO chain definitions or infrastructure.
 """
 
+import asyncio
+import datetime
 import os
 
 import httpx
+
+from sdks.python.x402_frameworks.autogen_adapter import logger
 
 
 async def _local_token_price(**kwargs) -> dict | None:
@@ -38,7 +42,7 @@ async def _local_token_price(**kwargs) -> dict | None:
 
 
 async def _dexscreener_price(**kwargs) -> dict | None:
-    """DexScreener — free, no key."""
+    """DexScreener - free, no key."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
     if not token:
         return None
@@ -53,7 +57,7 @@ async def _dexscreener_price(**kwargs) -> dict | None:
 
 
 async def _coingecko_price(**kwargs) -> dict | None:
-    """CoinGecko — free for low volume."""
+    """CoinGecko - free for low volume."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
     api_key = kwargs.get("api_key", "")
     try:
@@ -68,7 +72,7 @@ async def _coingecko_price(**kwargs) -> dict | None:
 
 
 async def _moralis_price(**kwargs) -> dict | None:
-    """Moralis — paid, high quality."""
+    """Moralis - paid, high quality."""
     token = kwargs.get("token", "")
     api_key = kwargs.get("api_key", "")
     try:
@@ -88,7 +92,7 @@ async def _moralis_price(**kwargs) -> dict | None:
 
 
 async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet", **kw) -> dict | None:
-    """Alchemy — get all token balances for an address."""
+    """Alchemy - get all token balances for an address."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -112,7 +116,7 @@ async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet
 
 
 async def _alchemy_token_metadata(contract: str = "", network: str = "eth-mainnet", **kw) -> dict | None:
-    """Alchemy — get token metadata."""
+    """Alchemy - get token metadata."""
     api_key = kw.get("api_key", "")
     if not contract or not api_key:
         return None
@@ -135,7 +139,7 @@ async def _alchemy_token_metadata(contract: str = "", network: str = "eth-mainne
     return None
 
 
-# ── PASSTHROUGH PROVIDERS — call our own backend endpoints ──────
+# ── PASSTHROUGH PROVIDERS - call our own backend endpoints ──────
 
 
 async def _passthrough_market_overview(**kwargs) -> dict | None:
@@ -189,11 +193,11 @@ async def _passthrough_alerts(**kwargs) -> dict | None:
     return {"count": 0, "alerts": []}
 
 
-# ── LOCAL DATA PROVIDERS — our own databases ───────────────────
+# ── LOCAL DATA PROVIDERS - our own databases ───────────────────
 
 
 async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
-    """Our 190K wallet labels from Redis — rmi:label:{chain}:{address} format."""
+    """Our 190K wallet labels from Redis - rmi:label:{chain}:{address} format."""
     if not address:
         return None
     try:
@@ -211,7 +215,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
             decode_responses=True,
             socket_connect_timeout=2,
         )
-        # Search across all chains — label key is rmi:label:{chain}:{address}
+        # Search across all chains - label key is rmi:label:{chain}:{address}
         chains = [
             "solana",
             "ethereum",
@@ -254,7 +258,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
 
 
 async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict | None:
-    """SENTINEL scanner — our own token security analysis."""
+    """SENTINEL scanner - our own token security analysis."""
     try:
         async with httpx.AsyncClient(timeout=30) as c:
             r = await c.post("http://localhost:8000/api/v1/token/scan", json={"address": address, "chain": chain})
@@ -266,7 +270,7 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
 
 
 async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict | None:
-    """RAG search — our 17K+ document knowledge base."""
+    """RAG search - our 17K+ document knowledge base."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.post(
@@ -280,13 +284,13 @@ async def _passthrough_rag(query: str = "", collection: str = "known_scams", **k
     return None
 
 
-# ── MORALIS WEB3 AI AGENTS — Full API Suite ──────────────────────
+# ── MORALIS WEB3 AI AGENTS - Full API Suite ──────────────────────
 
 _MORALIS_BASE = "https://deep-index.moralis.io/api/v2.2"
 
 
 async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) -> dict | None:
-    """Moralis — get wallet token balances with metadata."""
+    """Moralis - get wallet token balances with metadata."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -305,7 +309,7 @@ async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) ->
 
 
 async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> dict | None:
-    """Moralis — get wallet NFTs."""
+    """Moralis - get wallet NFTs."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -324,7 +328,7 @@ async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> d
 
 
 async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **kw) -> dict | None:
-    """Moralis — get wallet transaction history."""
+    """Moralis - get wallet transaction history."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -344,7 +348,7 @@ async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **
 
 
 async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> dict | None:
-    """Moralis — get token price via Token API."""
+    """Moralis - get token price via Token API."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -363,7 +367,7 @@ async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> d
 
 
 async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -> dict | None:
-    """Moralis — get token metadata."""
+    """Moralis - get token metadata."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -382,7 +386,7 @@ async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -
 
 
 async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict | None:
-    """Moralis — wallet net worth across chains."""
+    """Moralis - wallet net worth across chains."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -397,7 +401,7 @@ async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict | None:
 
 
 async def _moralis_search_tokens(query: str = "", **kw) -> dict | None:
-    """Moralis — search tokens by name/symbol/address."""
+    """Moralis - search tokens by name/symbol/address."""
     api_key = kw.get("api_key", "")
     if not query or not api_key:
         return None
@@ -416,11 +420,11 @@ async def _moralis_search_tokens(query: str = "", **kw) -> dict | None:
     return None
 
 
-# ── MCP BRIDGE — Call local MCP servers from DataBus ──────────────
+# ── MCP BRIDGE - Call local MCP servers from DataBus ──────────────
 
 
 async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | None:
-    """Universal MCP bridge — calls any local MCP server tool.
+    """Universal MCP bridge - calls any local MCP server tool.
 
     Uses subprocess to call MCP servers installed in /root/.hermes/mcp-servers/.
     Falls back to HTTP for configured HTTP MCP servers.
@@ -497,13 +501,13 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
     return None
 
 
-# ── ARKHAM INTELLIGENCE — Free trial month, premium entity data ──
+# ── ARKHAM INTELLIGENCE - Free trial month, premium entity data ──
 
 _ARKHAM_BASE = "https://api.arkhamintelligence.com"
 
 
 async def _arkham_entity(address: str = "", **kw) -> dict | None:
-    """Arkham — entity intelligence (tx counts, top counterparties, tags)."""
+    """Arkham - entity intelligence (tx counts, top counterparties, tags)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -519,7 +523,7 @@ async def _arkham_entity(address: str = "", **kw) -> dict | None:
 
 
 async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
-    """Arkham — top counterparties ranked by transaction volume."""
+    """Arkham - top counterparties ranked by transaction volume."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -540,7 +544,7 @@ async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
 
 
 async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
-    """Arkham — search entities by address prefix (up to 20 matches)."""
+    """Arkham - search entities by address prefix (up to 20 matches)."""
     api_key = kw.get("api_key", "")
     if not query or not api_key:
         return None
@@ -556,7 +560,7 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
 
 
 async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
-    """Arkham — portfolio via entity intelligence (includes balance info)."""
+    """Arkham - portfolio via entity intelligence (includes balance info)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -572,7 +576,7 @@ async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
 
 
 async def _arkham_transfers(address: str = "", **kw) -> dict | None:
-    """Arkham — transfer history via counterparties endpoint."""
+    """Arkham - transfer history via counterparties endpoint."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -593,7 +597,7 @@ async def _arkham_transfers(address: str = "", **kw) -> dict | None:
 
 
 async def _arkham_labels(address: str = "", **kw) -> dict | None:
-    """Arkham — labels extracted from entity intelligence (arkhamLabel field)."""
+    """Arkham - labels extracted from entity intelligence (arkhamLabel field)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
         return None
@@ -621,11 +625,11 @@ async def _arkham_labels(address: str = "", **kw) -> dict | None:
     return None
 
 
-# ── FREE FALLBACK PROVIDERS — never pay for what's free ──────────
+# ── FREE FALLBACK PROVIDERS - never pay for what's free ──────────
 
 
 async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
-    """DexScreener — free token metadata from pairs endpoint."""
+    """DexScreener - free token metadata from pairs endpoint."""
     token = mint or kw.get("token", "") or kw.get("contract", "")
     if not token:
         return None
@@ -655,7 +659,7 @@ async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
 
 
 async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
-    """DexScreener — free holder/liquidity data from pairs."""
+    """DexScreener - free holder/liquidity data from pairs."""
     token = mint or kw.get("token", "")
     if not token:
         return None
@@ -673,7 +677,7 @@ async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
 
 
 async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> dict | None:
-    """DexScreener — recent trades for a token (free, no API key required)."""
+    """DexScreener - recent trades for a token (free, no API key required)."""
     if not token:
         return None
     try:
@@ -698,7 +702,7 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
 
 
 async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw) -> dict | None:
-    """DexScreener — top profitable traders for a token."""
+    """DexScreener - top profitable traders for a token."""
     if not token:
         return None
     try:
@@ -720,7 +724,7 @@ async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw)
 
 
 async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw) -> dict | None:
-    """Etherscan — free transaction data (5 req/sec, no key needed for basic)."""
+    """Etherscan - free transaction data (5 req/sec, no key needed for basic)."""
     if not tx_hash:
         return None
     try:
@@ -762,7 +766,7 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
 
 
 async def _defillama_tvl(**kw) -> dict | None:
-    """DeFiLlama — global TVL and protocol data (completely free)."""
+    """DeFiLlama - global TVL and protocol data (completely free)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get("https://api.llama.fi/protocols")
@@ -781,7 +785,7 @@ async def _defillama_tvl(**kw) -> dict | None:
 
 
 async def _defillama_chains(**kw) -> dict | None:
-    """DeFiLlama — TVL by chain (completely free)."""
+    """DeFiLlama - TVL by chain (completely free)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get("https://api.llama.fi/chains")
@@ -800,7 +804,7 @@ async def _defillama_chains(**kw) -> dict | None:
 
 
 async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -> dict | None:
-    """Blockchair — address balance and tx count (free tier)."""
+    """Blockchair - address balance and tx count (free tier)."""
     if not address:
         return None
     try:
@@ -821,7 +825,7 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -
 
 
 async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
-    """Blockchair — chain statistics (free tier)."""
+    """Blockchair - chain statistics (free tier)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(f"https://api.blockchair.com/{chain}/stats")
@@ -841,7 +845,7 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
 
 
 async def _birdeye_overview(address: str = "", **kw) -> dict | None:
-    """Birdeye — token overview, liquidity, and holder stats (free tier)."""
+    """Birdeye - token overview, liquidity, and holder stats (free tier)."""
     api_key = kw.get("api_key", "") or os.getenv("BIRDEYE_API_KEY", "")
     if not address:
         return None
@@ -861,7 +865,7 @@ async def _birdeye_overview(address: str = "", **kw) -> dict | None:
 
 
 async def _birdeye_price(address: str = "", **kw) -> dict | None:
-    """Birdeye — real-time token price (free tier)."""
+    """Birdeye - real-time token price (free tier)."""
     api_key = kw.get("api_key", "") or os.getenv("BIRDEYE_API_KEY", "")
     if not address:
         return None
@@ -885,7 +889,7 @@ async def _birdeye_price(address: str = "", **kw) -> dict | None:
 
 
 async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
-    """Solana Tracker — real-time token price (2 keys, 5000 req/mo total)."""
+    """Solana Tracker - real-time token price (2 keys, 5000 req/mo total)."""
     if not mint:
         return None
     try:
@@ -901,7 +905,7 @@ async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
 
 
 async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
-    """Solana Tracker — detailed token metadata and stats."""
+    """Solana Tracker - detailed token metadata and stats."""
     if not mint:
         return None
     try:
@@ -917,7 +921,7 @@ async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
 
 
 async def _solana_tracker_trending(**kw) -> dict | None:
-    """Solana Tracker — trending tokens on Solana."""
+    """Solana Tracker - trending tokens on Solana."""
     try:
         from app.caching_shield.solana_tracker import get_solana_tracker
 
@@ -934,7 +938,7 @@ async def _solana_tracker_trending(**kw) -> dict | None:
 
 
 async def _messari_news(limit: int = 20, **kw) -> dict | None:
-    """Messari News API — curated crypto news with per-asset sentiment scores."""
+    """Messari News API - curated crypto news with per-asset sentiment scores."""
     api_key = kw.get("api_key", "") or os.getenv("MESSARI_API_KEY", "")
     if not api_key:
         return None
@@ -974,7 +978,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
 
 
 async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
-    """CoinDesk News API — institutional-grade crypto news with categorization."""
+    """CoinDesk News API - institutional-grade crypto news with categorization."""
     api_key = kw.get("api_key", "") or os.getenv("COINDESK_API_KEY", "")
     if not api_key:
         return None
@@ -995,7 +999,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
                                 "url": item.get("url", ""),
                                 "source": item.get("source", "CoinDesk"),
                                 "published_at": datetime.fromtimestamp(
-                                    item.get("published_on", 0), tz=timezone.utc
+                                    item.get("published_on", 0), tz=timezone.utc  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
                                 ).isoformat(),
                                 "description": item.get("body", ""),
                                 "category": item.get("categories", "news").lower(),
@@ -1013,7 +1017,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
 
 
 async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict | None:
-    """Santiment — GitHub dev activity and social volume (free tier: 100 calls/day)."""
+    """Santiment - GitHub dev activity and social volume (free tier: 100 calls/day)."""
     api_key = kw.get("api_key", "") or os.getenv("SANTIMENT_API_KEY", "")
     if not api_key or not project_slug:
         return None
@@ -1053,7 +1057,7 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict |
 
 
 async def _virustotal_url_scan(url: str, **kw) -> dict | None:
-    """VirusTotal — scan token website URLs for phishing/malware (free: 500 req/day)."""
+    """VirusTotal - scan token website URLs for phishing/malware (free: 500 req/day)."""
     api_key = kw.get("api_key", "") or os.getenv("VIRUSTOTAL_API_KEY", "")
     if not api_key or not url:
         return None
@@ -1082,7 +1086,7 @@ async def _virustotal_url_scan(url: str, **kw) -> dict | None:
 
 
 async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", **kw) -> dict | None:
-    """Dune Analytics — finds the first 5-minute buyers of a token.
+    """Dune Analytics - finds the first 5-minute buyers of a token.
     Uses dual-key fallback to double free tier capacity (10k CU/mo per key).
     Cached aggressively (4 hours) to preserve free tier.
     """

@@ -1,9 +1,9 @@
 """
-EVM Funding Source Tracer — Self-Built Blockchain Forensics
+EVM Funding Source Tracer - Self-Built Blockchain Forensics
 
 Traces where a wallet got its initial funding using our existing
 public RPC infrastructure and ClickHouse wallet labels. No external
-API needed — built entirely on our consensus RPC + local data.
+API needed - built entirely on our consensus RPC + local data.
 
 Chains supported: all 9 EVM chains in consensus_rpc (1, 56, 137, 8453,
 42161, 10, 43114, 250, 100)
@@ -200,7 +200,7 @@ async def trace_funding_source(
 async def _get_wallet_transactions(address: str, chain_id: int) -> list[dict]:
     """Get recent transactions for a wallet using Blockscout or Etherscan.
 
-    Uses our consensus RPC as fallback — walks getLogs for Transfer events.
+    Uses our consensus RPC as fallback - walks getLogs for Transfer events.
     """
     # Try Blockscout first (covers all chains, one key)
     blockscout_key = os.getenv("BLOCKSCOUT_API_KEY", "")
@@ -382,7 +382,7 @@ async def _classify_address(address: str, chain_id: int) -> tuple[str, str]:
     if is_contract:
         return ("contract", "contract")
 
-    # Strategy 3: Default — it's an externally owned account
+    # Strategy 3: Default - it's an externally owned account
     return ("eoa", "")
 
 

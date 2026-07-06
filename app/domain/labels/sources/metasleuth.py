@@ -1,4 +1,4 @@
-"""MetaSleuth (BlockSec AML) source — live API at aml.blocksec.com.
+"""MetaSleuth (BlockSec AML) source - live API at aml.blocksec.com.
 
 Endpoint: POST https://aml.blocksec.com/address-label/api/v3/labels
   Headers: API-KEY: <key>

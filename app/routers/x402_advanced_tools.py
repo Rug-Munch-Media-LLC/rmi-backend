@@ -1,12 +1,12 @@
 """
-Advanced x402 tools — caching, confidence, real-time streams, predictive scoring.
+Advanced x402 tools - caching, confidence, real-time streams, predictive scoring.
 
-Layer 1: Response caching (Redis, 60s TTL) — <50ms repeat calls
-Layer 2: Confidence scores — every data point gets low/medium/high
-Layer 3: SSE alert stream — real-time rug/whale/price alerts
-Layer 4: Rug probability — predictive 0-100 "will this rug in 24h?"
-Layer 5: Historical scanner data — time-series risk/liquidity/holders
-Layer 6: Narrative engine — what's the market saying RIGHT NOW
+Layer 1: Response caching (Redis, 60s TTL) - <50ms repeat calls
+Layer 2: Confidence scores - every data point gets low/medium/high
+Layer 3: SSE alert stream - real-time rug/whale/price alerts
+Layer 4: Rug probability - predictive 0-100 "will this rug in 24h?"
+Layer 5: Historical scanner data - time-series risk/liquidity/holders
+Layer 6: Narrative engine - what's the market saying RIGHT NOW
 """
 
 import asyncio
@@ -182,8 +182,8 @@ def compute_confidence(result: dict) -> dict:
         "interpretation": {
             "high": "Multiple verified sources confirm this data",
             "medium": "Adequate coverage from trusted sources",
-            "low": "Limited source coverage — verify independently",
-            "unverified": "Insufficient data — treat as directional only",
+            "low": "Limited source coverage - verify independently",
+            "unverified": "Insufficient data - treat as directional only",
         }.get(level, ""),
     }
 
@@ -341,7 +341,7 @@ async def rug_probability(req: AddressRequest):
                             {
                                 "signal": "honeypot_detected",
                                 "weight": 40,
-                                "detail": data.get("reason", "Cannot sell — confirmed honeypot"),
+                                "detail": data.get("reason", "Cannot sell - confirmed honeypot"),
                             }
                         )
                     sources.append("honeypot_check")
@@ -371,7 +371,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "critical_low_liquidity",
                                         "weight": 25,
-                                        "detail": f"Liquidity ${liq:,.0f} — extremely low, easy to drain",
+                                        "detail": f"Liquidity ${liq:,.0f} - extremely low, easy to drain",
                                     }
                                 )
                             elif liq < 10000:
@@ -380,7 +380,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "low_liquidity",
                                         "weight": 15,
-                                        "detail": f"Liquidity ${liq:,.0f} — below safe threshold",
+                                        "detail": f"Liquidity ${liq:,.0f} - below safe threshold",
                                     }
                                 )
                             elif liq < 50000:
@@ -389,7 +389,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "moderate_liquidity",
                                         "weight": 5,
-                                        "detail": f"Liquidity ${liq:,.0f} — moderate",
+                                        "detail": f"Liquidity ${liq:,.0f} - moderate",
                                     }
                                 )
 
@@ -400,7 +400,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "brand_new",
                                         "weight": 20,
-                                        "detail": f"Only {age_h:.1f}h old — highest rug risk window",
+                                        "detail": f"Only {age_h:.1f}h old - highest rug risk window",
                                     }
                                 )
                             elif 0 < age_h < 6:
@@ -409,7 +409,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "very_new",
                                         "weight": 12,
-                                        "detail": f"Only {age_h:.1f}h old — early risk period",
+                                        "detail": f"Only {age_h:.1f}h old - early risk period",
                                     }
                                 )
                             elif 0 < age_h < 24:
@@ -418,7 +418,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "new_token",
                                         "weight": 5,
-                                        "detail": f"{age_h:.0f}h old — still in risk window",
+                                        "detail": f"{age_h:.0f}h old - still in risk window",
                                     }
                                 )
 
@@ -429,7 +429,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "pump_dump_pattern",
                                         "weight": 10,
-                                        "detail": f"Volume {vol / liq:.0f}x liquidity — possible pump and dump",
+                                        "detail": f"Volume {vol / liq:.0f}x liquidity - possible pump and dump",
                                     }
                                 )
 
@@ -441,7 +441,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "price_crashing",
                                         "weight": 15,
-                                        "detail": f"Down {pc:.0f}% in 24h — possible exit scam in progress",
+                                        "detail": f"Down {pc:.0f}% in 24h - possible exit scam in progress",
                                     }
                                 )
                             elif pc < -20:
@@ -472,7 +472,7 @@ async def rug_probability(req: AddressRequest):
                             # Check top holder concentration from available data
                             top_pool = attrs.get("top_pool_id")
                             if top_pool:
-                                # Pool exists — check if it's the only one
+                                # Pool exists - check if it's the only one
                                 pass
         except Exception:
             pass
@@ -521,7 +521,7 @@ async def rug_probability(req: AddressRequest):
                                     {
                                         "signal": "social_spike",
                                         "weight": 5,
-                                        "detail": f"{len(recent)} social mentions — unusual activity",
+                                        "detail": f"{len(recent)} social mentions - unusual activity",
                                     }
                                 )
         except Exception:
@@ -532,19 +532,19 @@ async def rug_probability(req: AddressRequest):
 
         if probability >= 75:
             tier = "EXTREME_RISK"
-            recommendation = "DO NOT BUY — extremely high rug probability"
+            recommendation = "DO NOT BUY - extremely high rug probability"
         elif probability >= 50:
             tier = "HIGH_RISK"
-            recommendation = "Avoid — significant rug indicators present"
+            recommendation = "Avoid - significant rug indicators present"
         elif probability >= 25:
             tier = "MODERATE_RISK"
-            recommendation = "Caution — monitor closely before entry"
+            recommendation = "Caution - monitor closely before entry"
         elif probability >= 10:
             tier = "LOW_RISK"
-            recommendation = "Standard risk — normal market activity"
+            recommendation = "Standard risk - normal market activity"
         else:
             tier = "MINIMAL_RISK"
-            recommendation = "Low rug probability — relatively safe"
+            recommendation = "Low rug probability - relatively safe"
 
         result = {
             "tool": "Rug Probability Score",
@@ -568,7 +568,7 @@ async def rug_probability(req: AddressRequest):
 
     except Exception as e:
         logger.error(f"Rug probability failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -704,7 +704,7 @@ async def token_history(req: HistoryRequest):
 
     except Exception as e:
         logger.error(f"Token history failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -796,7 +796,7 @@ async def narrative_engine(req: NarrativeRequest):
                 "tool": "Narrative Engine",
                 "version": "1.0",
                 "address": token,
-                "narrative": "Insufficient data — no recent mentions found",
+                "narrative": "Insufficient data - no recent mentions found",
                 "sentiment": "neutral",
                 "confidence": "low",
                 "posts_analyzed": 0,
@@ -828,9 +828,9 @@ async def narrative_engine(req: NarrativeRequest):
         shill_signals = []
         reddit_posts = [p for p in posts if p.get("source") == "reddit"]
         if total_posts > 10 and positive > total_posts * 0.8:
-            shill_signals.append("Suspiciously high positive ratio — possible coordinated shilling")
+            shill_signals.append("Suspiciously high positive ratio - possible coordinated shilling")
         if len(reddit_posts) >= 3 and all(p.get("score", 0) == 0 for p in reddit_posts):
-            shill_signals.append("Same-timestamp posts detected — possible bot activity")
+            shill_signals.append("Same-timestamp posts detected - possible bot activity")
 
         # Build narrative summary
         subreddits = list({p.get("subreddit", "") for p in posts if p.get("subreddit")})
@@ -868,7 +868,7 @@ async def narrative_engine(req: NarrativeRequest):
 
     except Exception as e:
         logger.error(f"Narrative engine failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════

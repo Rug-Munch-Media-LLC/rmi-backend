@@ -1,5 +1,5 @@
 """
-RMI AI Pipeline v3 — Full Production
+RMI AI Pipeline v3 - Full Production
 =====================================
 Redis caching, FastAPI endpoints, usage tracking, retry logic.
 """

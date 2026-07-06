@@ -12,7 +12,7 @@ How it works:
    - Correct token contract (USDT/USDC/USDD)
    - Correct recipient (our wallet)
    - Correct amount (atomic units)
-4. Payment verified on-chain — no third-party facilitator
+4. Payment verified on-chain - no third-party facilitator
 
 Chains: TRON mainnet
 Tokens: USDT (TRC20), USDC (TRC20), USDD (TRC20)
@@ -79,7 +79,7 @@ class TronSelfVerifyFacilitator(Facilitator):
 
     @property
     def is_fee_free(self) -> bool:
-        return True  # Self-verified — no facilitator fee
+        return True  # Self-verified - no facilitator fee
 
     @property
     def supported_networks(self) -> NetworkSupport:
@@ -93,7 +93,7 @@ class TronSelfVerifyFacilitator(Facilitator):
 
     @property
     def description(self) -> str:
-        return "TRON Self-Verify — USDT/USDC/USDD via TronGrid (fee-free)"
+        return "TRON Self-Verify - USDT/USDC/USDD via TronGrid (fee-free)"
 
     # ── Verification ───────────────────────────────────────────
 
@@ -351,9 +351,9 @@ class TronSelfVerifyFacilitator(Facilitator):
             return False
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
-        """Self-verified — no explicit settlement needed."""
+        """Self-verified - no explicit settlement needed."""
         return SettlementResult(
             settled=True,
-            reason="TRON self-verified — instant settlement",
+            reason="TRON self-verified - instant settlement",
             facilitator=self.name,
         )

@@ -74,7 +74,7 @@ async def _burn_nonce(catalog, tx_hash: str) -> bool:
     Logs replay attempts for monitoring.
     """
     if not catalog or not catalog._health.redis:
-        # Without Redis we cannot prevent replay — fail closed (reject).
+        # Without Redis we cannot prevent replay - fail closed (reject).
         log.warning(f"x402_nocache_reject: tx_hash={tx_hash[:10]}...")
         return False
     key = f"x402:nonce:{tx_hash}"
@@ -87,7 +87,7 @@ async def _burn_nonce(catalog, tx_hash: str) -> bool:
         return bool(ok)
     except Exception as e:
         log.error(f"x402_nonce_burn_fail: {e}")
-        # Fail closed — reject if we can't burn atomically
+        # Fail closed - reject if we can't burn atomically
         return False
 
 
@@ -110,7 +110,7 @@ try:
         registry=_X402_REGISTRY,
     )
 except Exception:
-    # Prometheus not available — use no-op counter stubs
+    # Prometheus not available - use no-op counter stubs
     class _Stub:
         def labels(self, **kw): return self
         def inc(self, n: float = 1.0): pass
@@ -134,7 +134,8 @@ def get_tool_price_usd(tool: str) -> float:
 
     # Fallback: check the enforcement system's comprehensive price list
     try:
-        from routers.x402_enforcement import TOOL_PRICES as _FALLBACK_PRICES, _ensure_tool_prices
+        from routers.x402_enforcement import TOOL_PRICES as _FALLBACK_PRICES
+        from routers.x402_enforcement import _ensure_tool_prices
         _ensure_tool_prices()
         fp = _FALLBACK_PRICES.get(tool, {})
         return fp.get("price_usd", 0.01)
@@ -279,7 +280,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
     2. Transferred >= expected_amount_usd of USDC
     3. Was sent to our payment address
 
-    Supports Base (USDC) and Solana (USDC) — our primary payment chains.
+    Supports Base (USDC) and Solana (USDC) - our primary payment chains.
     Falls back to the main x402_enforcement self-verify for other chains.
     """
     if not tx_hash:
@@ -316,14 +317,11 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                 if receipt.get("status") != "0x1":
                     return False
 
-                from_address = receipt.get("from", "").lower()
+                receipt.get("from", "").lower()
                 to_address = receipt.get("to", "").lower()
 
                 # Check recipient matches our payment address
-                if to_address and pay_to.lower() != to_address:
-                    return False
-
-                return True
+                return not (to_address and pay_to.lower() != to_address)
         except Exception as e:
             logging.getLogger("wp.x402").error(f"Base tx verify failed: {e}")
             return False
@@ -338,9 +336,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                     "params": [tx_hash, {"encoding": "json", "maxSupportedTransactionVersion": 0}],
                 })
                 data = r.json()
-                if "result" not in data or data["result"] is None:
-                    return False
-                return True
+                return not ("result" not in data or data["result"] is None)
         except Exception as e:
             logging.getLogger("wp.x402").error(f"Solana tx verify failed: {e}")
             return False
@@ -381,16 +377,16 @@ async def require_payment(
     """
     agent_id = _agent_id_from_request(request)
     if not catalog or not catalog._health.redis:
-        # No rate limiting available — log and pass
+        # No rate limiting available - log and pass
         log.debug(f"x402_no_redis: {tool} by {agent_id}")
     else:
         await _check_rate_limit(catalog._redis, agent_id)
 
-    # Free tool — no payment required
+    # Free tool - no payment required
     if get_tool_price_usd(tool) == 0:
         return {"agent_id": agent_id, "tool": tool, "tier": "free", "paid_via_x402": None}
 
-    # Paid tool — check X-Payment header
+    # Paid tool - check X-Payment header
     if request is None:
         invoice = create_invoice(tool, agent_id)
         raise HTTPException(

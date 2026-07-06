@@ -5,12 +5,12 @@ Multi-Chain Scam Address Ingestion
 Aggregate blockchain scam addresses from multiple sources into RAG known_scams.
 
 Sources (address-level, chain-specific):
-  1. Etherscan phish-hack.csv        — 110 phishing/hack addresses (ETH/BSC/Polygon/etc)
-  2. Etherscan combined_labels.csv    — 3,472 scam-labeled addresses across 7 chains
-  3. Etherscan combined_labels.csv    — 46K+ labeled wallets → wallet_profiles collection
-  4. Solana token-registry JSON        — 55 explicitly flagged scam tokens (Solana)
-  5. Rekt hack database (JSON)         — DeFi exploit addresses (ETH/BSC/etc)
-  6. MetaMask phishing domains         — 198K phishing domains (domain-level, batched)
+  1. Etherscan phish-hack.csv        - 110 phishing/hack addresses (ETH/BSC/Polygon/etc)
+  2. Etherscan combined_labels.csv    - 3,472 scam-labeled addresses across 7 chains
+  3. Etherscan combined_labels.csv    - 46K+ labeled wallets → wallet_profiles collection
+  4. Solana token-registry JSON        - 55 explicitly flagged scam tokens (Solana)
+  5. Rekt hack database (JSON)         - DeFi exploit addresses (ETH/BSC/etc)
+  6. MetaMask phishing domains         - 198K phishing domains (domain-level, batched)
 
 Strategy:
   - ADDRESS-LEVEL data goes 1:1 into known_scams (high value for our scanners)
@@ -543,7 +543,7 @@ async def ingest_scamsniffer_github() -> dict[str, int]:
 
 
 async def ingest_phishdestroy() -> dict[str, int]:
-    """Ingest PhishDestroy destroylist — 140K curated crypto/web3 scam domains.
+    """Ingest PhishDestroy destroylist - 140K curated crypto/web3 scam domains.
 
     MIT licensed. Available as domains.txt, domains.csv, active_domains.json.
     We fetch the plain text list and batch it.

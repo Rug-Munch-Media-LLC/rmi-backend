@@ -1,5 +1,5 @@
 """
-Aggressive Caching Shield — WebSocket Broadcast Manager
+Aggressive Caching Shield - WebSocket Broadcast Manager
 Connection-pooled Redis pub/sub for real-time streaming to frontend users.
 
 The existing WebSocket code creates a new Redis connection per broadcast.
@@ -44,7 +44,7 @@ HEARTBEAT_INTERVAL = 30
 class WsClientManager:
     """Tracks connected WebSocket clients and handles broadcasting.
 
-    Does NOT own the WebSocket objects — those live in the FastAPI route handlers.
+    Does NOT own the WebSocket objects - those live in the FastAPI route handlers.
     This manages the Redis pub/sub bridge and client metadata.
     """
 
@@ -111,7 +111,7 @@ class WsClientManager:
     async def broadcast(self, channel: str, data: dict):
         """Publish data to a Redis channel for WebSocket subscribers.
 
-        Uses persistent Redis connection — no new connection per broadcast.
+        Uses persistent Redis connection - no new connection per broadcast.
         Falls back silently if Redis is unavailable (clients connected
         directly to WebSocket server still get messages).
         """

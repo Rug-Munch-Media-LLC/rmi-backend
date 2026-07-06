@@ -7,18 +7,18 @@ trust models. The free, comprehensive alternative to Defender and Hacken's
 paid bridge monitoring.
 
 What it does:
-  1. TVL Monitoring — Tracks Total Value Locked across 12 major bridges
+  1. TVL Monitoring - Tracks Total Value Locked across 12 major bridges
      (LayerZero, Stargate, Across, Wormhole, Hop, Synapse, Orbiter,
      Axelar, Celer cBridge, Connext, Chainlink CCIP, DeBridge)
-  2. Anomaly Detection — Flags sudden TVL drops, unusual withdrawal patterns,
+  2. Anomaly Detection - Flags sudden TVL drops, unusual withdrawal patterns,
      and large-value bridge transactions that may indicate an active exploit
-  3. Contract Health — Checks for proxy upgrades, pause status, and admin key
+  3. Contract Health - Checks for proxy upgrades, pause status, and admin key
      changes on bridge contract addresses
-  4. Trust Scoring — Rates each bridge on 5 factors: TVL depth, validator
+  4. Trust Scoring - Rates each bridge on 5 factors: TVL depth, validator
      decentralization, audit recency, exploit history, and upgrade mechanism
-  5. Cascade Risk — When one bridge shows exploit signs, scans all other
+  5. Cascade Risk - When one bridge shows exploit signs, scans all other
      bridges sharing similar security profiles for contagion risk
-  6. Alert Generation — Produces human-readable security bulletins and JSON
+  6. Alert Generation - Produces human-readable security bulletins and JSON
 
 Standalone usage:
     python3 bridge_health_monitor.py
@@ -153,7 +153,7 @@ BRIDGE_REGISTRY = {
         "defillama_slug": "wormhole",
         "audit_recency_days": 60,
         "total_exploit_loss_usd": 326_000_000,
-        "exploit_history": ["2022-02-02: $326M wETH exploit — guardian key compromise"],
+        "exploit_history": ["2022-02-02: $326M wETH exploit - guardian key compromise"],
         "validator_count": 19,
         "has_upgradeability": True,
         "has_pause": True,
@@ -383,7 +383,7 @@ class BridgeHealthReport:
 
         if self.contagion_risk:
             lines.append(
-                f"   📡 Contagion Risk — {len(self.contagion_risk)} bridges may be affected"
+                f"   📡 Contagion Risk - {len(self.contagion_risk)} bridges may be affected"
             )
             for b in self.contagion_risk:
                 lines.append(f"   ├─ {b}")
@@ -536,7 +536,7 @@ class BridgeHealthMonitor:
         tvl = await self._fetch_current_tvl(bridge.get("defillama_slug", ""))
         if tvl >= 1_000_000_000:  # $1B+
             tvl_score = 20  # High TVL = well-capitalized, battle-tested
-            strengths.append("High TVL (>$1B) — well-capitalized and battle-tested")
+            strengths.append("High TVL (>$1B) - well-capitalized and battle-tested")
         elif tvl >= 100_000_000:  # $100M+
             tvl_score = 15
         elif tvl >= 10_000_000:  # $10M+
@@ -563,10 +563,10 @@ class BridgeHealthMonitor:
                 dec_score = 10
         elif trust_model == TrustModel.OPTIMISTIC:
             dec_score = 20  # No trusted validators needed
-            strengths.append("Optimistic trust model — no active validator set required")
+            strengths.append("Optimistic trust model - no active validator set required")
         elif trust_model == TrustModel.INTENT_BASED:
             dec_score = 18
-            strengths.append("Intent-based architecture — minimal trust assumptions")
+            strengths.append("Intent-based architecture - minimal trust assumptions")
         elif trust_model == TrustModel.LIQUIDITY_NETWORK:
             dec_score = 12  # Depends on LP composition
         else:  # HYBRID
@@ -583,7 +583,7 @@ class BridgeHealthMonitor:
             audit_score = 10
         else:
             audit_score = 5
-            vulnerabilities.append(f"Audit is {audit_days} days old — recommend re-audit")
+            vulnerabilities.append(f"Audit is {audit_days} days old - recommend re-audit")
 
         # 4. Exploit history score (penalize past exploits)
         exploit_loss = bridge.get("total_exploit_loss_usd", 0)
@@ -592,30 +592,30 @@ class BridgeHealthMonitor:
             strengths.append("No history of major exploits")
         elif exploit_loss < 10_000_000:
             exploit_score = 10
-            vulnerabilities.append(f"Past exploit(s) — ${exploit_loss:,} total losses")
+            vulnerabilities.append(f"Past exploit(s) - ${exploit_loss:,} total losses")
         elif exploit_loss < 100_000_000:
             exploit_score = 5
-            vulnerabilities.append(f"Significant past exploit(s) — ${exploit_loss:,} total losses")
+            vulnerabilities.append(f"Significant past exploit(s) - ${exploit_loss:,} total losses")
         else:
             exploit_score = 0
-            vulnerabilities.append(f"Major past exploit(s) — ${exploit_loss:,} total losses")
+            vulnerabilities.append(f"Major past exploit(s) - ${exploit_loss:,} total losses")
 
         # 5. Upgrade risk score
         has_upgrade = bridge.get("has_upgradeability", True)
         has_pause = bridge.get("has_pause", False)
         if not has_upgrade:
             upgrade_score = 15
-            strengths.append("Non-upgradeable — immutable contracts")
+            strengths.append("Non-upgradeable - immutable contracts")
         elif has_pause:
             upgrade_score = 10
             vulnerabilities.append(
-                "Upgradeable with pause — admin can modify contracts, "
+                "Upgradeable with pause - admin can modify contracts, "
                 "but pause provides emergency response"
             )
         else:
             upgrade_score = 5
             vulnerabilities.append(
-                "Upgradeable without pause — admin can modify contracts "
+                "Upgradeable without pause - admin can modify contracts "
                 "with no emergency stop mechanism"
             )
 
@@ -700,7 +700,7 @@ class BridgeHealthMonitor:
                     severity="high",
                     description=(
                         f"7-day TVL decline of {tvl_snapshot.tvl_change_7d_pct:.1f}%. "
-                        f"Sustained capital outflow — protocol health concern."
+                        f"Sustained capital outflow - protocol health concern."
                     ),
                     detected_value=tvl_snapshot.tvl_change_7d_pct,
                     threshold_value=self.TVL_DROP_7D_DANGER_PCT,
@@ -738,7 +738,7 @@ class BridgeHealthMonitor:
                 if score_diff <= 10:  # Similar security profile
                     contagion.append(
                         f"{other_score.bridge_name} (score {other_score.overall_score}) "
-                        f"— shares similar security profile with compromised "
+                        f"- shares similar security profile with compromised "
                         f"{triggered_score.bridge_name} (diff: {score_diff:.0f} pts)"
                     )
 
@@ -861,7 +861,7 @@ class BridgeHealthMonitor:
     async def alert_if_exploit(self, bridge_filter: str | None = None) -> BridgeHealthReport | None:
         """Quick scan that returns a report only if exploit signals are detected.
 
-        Returns None if all bridges are healthy — useful for cron jobs
+        Returns None if all bridges are healthy - useful for cron jobs
         that only want to alert on anomalies.
         """
         report = await self.scan(bridge_filter)

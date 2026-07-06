@@ -1,4 +1,4 @@
-"""Cerebras provider — GPT-OSS-120B, fastest inference on Earth (9ms).
+"""Cerebras provider - GPT-OSS-120B, fastest inference on Earth (9ms).
 Free tier: 14,400 req/day, 1M tokens/day."""
 
 import logging
@@ -14,7 +14,7 @@ BASE = "https://api.cerebras.ai/v1"
 async def cerebras_chat(
     prompt: str, system: str | None = None, temperature: float = 0.7, max_tokens: int = 1024
 ) -> dict | None:
-    """GPT-OSS-120B via Cerebras — 9ms latency. Use for real-time, latency-sensitive tasks."""
+    """GPT-OSS-120B via Cerebras - 9ms latency. Use for real-time, latency-sensitive tasks."""
     if not CEREBRAS_KEY:
         return None
     messages = []

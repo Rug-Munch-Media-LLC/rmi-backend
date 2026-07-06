@@ -35,17 +35,17 @@ router = APIRouter(prefix="/api/v1/news", tags=["news"])
 
 # ── Time-decay scoring (per v4.0 §T28) ────────────────────────────
 SOURCE_AUTHORITY: dict[str, float] = {
-    # Tier 1 — major crypto-native outlets
+    # Tier 1 - major crypto-native outlets
     "coindesk": 1.0,
     "the block": 1.0,
     "decrypt": 1.0,
     "cointelegraph": 1.0,
-    # Tier 2 — solid crypto coverage
+    # Tier 2 - solid crypto coverage
     "beincrypto": 0.7,
     "u.today": 0.7,
     "crypto.news": 0.7,
     "blockworks": 0.8,
-    # Tier 3 — general / RSS aggregators
+    # Tier 3 - general / RSS aggregators
     "google-crypto": 0.5,
     "reddit-crypto": 0.4,
     "twitter-crypto": 0.3,
@@ -206,7 +206,7 @@ async def list_news(
             if category:
                 query += f" AND category = ${len(params)+1}"
                 params.append(category)
-            query += " ORDER BY ingested_at DESC LIMIT $%d OFFSET $%d" % (len(params)+1, len(params)+2)
+            query += " ORDER BY ingested_at DESC LIMIT $%d OFFSET $%d" % (len(params)+1, len(params)+2)  # noqa: UP031
             params.extend([limit, offset])
             async with catalog._pg_pool.acquire() as conn:
                 rows = await conn.fetch(query, *params)
@@ -245,7 +245,7 @@ async def list_news(
                 NewsItemOut(
                     news_id=s.cluster_id,
                     url=s.source_urls[0] if s.source_urls else "",
-                    title=f"[×{s.item_count}] {s.representative_title}",
+                    title=f"[x{s.item_count}] {s.representative_title}",
                     summary=f"Story across {len(s.sources)} sources. "
                             f"Sentiment: {s.sentiment_avg:.2f}. "
                             f"Item IDs: {','.join(s.item_ids[:5])}",
@@ -379,7 +379,7 @@ async def get_news(news_id: str) -> NewsItemOut:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(500, f"news_get_fail: {e}")
+        raise HTTPException(500, f"news_get_fail: {e}") from e
 
 
 # ── POST /api/v1/news/{news_id}/analyze ───────────────────────────

@@ -3,11 +3,11 @@ RugCharts Data Quality Engine
 ==============================
 Fixes false positives, enriches all responses, populates empty providers.
 
-1. Known Entity Registry — trusted addresses, exchanges, protocols
-2. Token vs Wallet Detection — don't scan wallets as tokens
-3. Data Enrichment — inject wallet labels, Arkham entities, RAG into every response
-4. Smart Tiering — clear free/premium/admin boundaries
-5. Provider Fallback Enhancement — when one returns empty, try harder
+1. Known Entity Registry - trusted addresses, exchanges, protocols
+2. Token vs Wallet Detection - don't scan wallets as tokens
+3. Data Enrichment - inject wallet labels, Arkham entities, RAG into every response
+4. Smart Tiering - clear free/premium/admin boundaries
+5. Provider Fallback Enhancement - when one returns empty, try harder
 """
 
 import json
@@ -107,7 +107,7 @@ KNOWN_ENTITIES = {
         "type": "burn",
         "trust": "NEUTRAL",
         "chains": ["ethereum", "bsc", "base", "arbitrum"],
-        "note": "Standard burn address — tokens sent here are destroyed",
+        "note": "Standard burn address - tokens sent here are destroyed",
     },
 }
 
@@ -160,7 +160,7 @@ def get_trust_bonus(address: str, chain: str = "") -> tuple[int, str]:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 2. DATA ENRICHMENT — Inject wallet labels, Arkham, RAG everywhere
+# 2. DATA ENRICHMENT - Inject wallet labels, Arkham, RAG everywhere
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -221,7 +221,7 @@ async def enrich_with_arkham(address: str) -> dict | None:
 
 
 async def enrich_response(result: dict, address: str, chain: str) -> dict:
-    """Universal response enrichment — injects labels, entities, trust into any result."""
+    """Universal response enrichment - injects labels, entities, trust into any result."""
     if not result or not isinstance(result, dict):
         return result
 
@@ -272,7 +272,7 @@ async def enrich_response(result: dict, address: str, chain: str) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 3. SMART TIERING — Clear free/premium/admin boundaries
+# 3. SMART TIERING - Clear free/premium/admin boundaries
 # ═══════════════════════════════════════════════════════════════════════
 
 TIER_DEFINITIONS = {
@@ -289,7 +289,7 @@ TIER_DEFINITIONS = {
             "ohlcv",
             "token_launches",
         ],
-        "description": "Basic charting, prices, trending — better than DexScreener free",
+        "description": "Basic charting, prices, trending - better than DexScreener free",
         "competitor_equivalent": "DexScreener free ($0) + Birdeye free ($0)",
     },
     "authenticated": {
@@ -311,7 +311,7 @@ TIER_DEFINITIONS = {
             "rag_search",
             "smart_money",
         ],
-        "description": "Wallet tracking, holder analysis, smart money — Nansen-level at $0",
+        "description": "Wallet tracking, holder analysis, smart money - Nansen-level at $0",
         "competitor_equivalent": "Nansen Lite ($100/mo) + DexScreener",
     },
     "premium": {
@@ -352,7 +352,7 @@ TIER_DEFINITIONS = {
         "name": "Admin",
         "rate_limit_rpm": 1000,
         "allowed_data_types": ["*"],
-        "description": "Full raw data access — Arkham, Moralis, all providers, no packaging",
+        "description": "Full raw data access - Arkham, Moralis, all providers, no packaging",
     },
 }
 
@@ -472,7 +472,7 @@ def tier_comparison_table() -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 4. ENHANCED TOKEN REPORT — Smart verdicts, narratives, comparables
+# 4. ENHANCED TOKEN REPORT - Smart verdicts, narratives, comparables
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -490,20 +490,20 @@ def smart_verdict(report: dict) -> str:
     if known.get("trust") == "SAFE":
         etype = known.get("type", "entity")
         if etype == "individual":
-            return f"KNOWN WALLET — {known['name']}. This is a personal wallet, not a token. Token security checks do not apply to wallet addresses. The entity is verified by Arkham Intelligence."
+            return f"KNOWN WALLET - {known['name']}. This is a personal wallet, not a token. Token security checks do not apply to wallet addresses. The entity is verified by Arkham Intelligence."
         elif etype == "stablecoin":
-            return f"KNOWN STABLECOIN — {known['name']}. Established, high-liquidity asset. Standard risk profile for stablecoins."
+            return f"KNOWN STABLECOIN - {known['name']}. Established, high-liquidity asset. Standard risk profile for stablecoins."
         elif etype == "protocol_token":
             return (
-                f"CORE PROTOCOL — {known['name']}. Fundamental blockchain infrastructure token. Extremely low rug risk."
+                f"CORE PROTOCOL - {known['name']}. Fundamental blockchain infrastructure token. Extremely low rug risk."
             )
         elif etype == "exchange":
-            return f"EXCHANGE WALLET — {known['name']}. This is an exchange hot wallet, not a token address."
-        return f"KNOWN SAFE ENTITY — {known['name']}. Verified by RugCharts entity registry."
+            return f"EXCHANGE WALLET - {known['name']}. This is an exchange hot wallet, not a token address."
+        return f"KNOWN SAFE ENTITY - {known['name']}. Verified by RugCharts entity registry."
 
     # ── Wallet addresses ──
     if report.get("address_type") == "wallet":
-        return "WALLET ADDRESS — This is a wallet, not a token contract. Token-specific security checks (honeypot, mint, taxes) are not applicable. Entity information and transaction history are shown below."
+        return "WALLET ADDRESS - This is a wallet, not a token contract. Token-specific security checks (honeypot, mint, taxes) are not applicable. Entity information and transaction history are shown below."
 
     # ── Real tokens: assess actual risk ──
     risks = []
@@ -513,10 +513,10 @@ def smart_verdict(report: dict) -> str:
         risks.append("CRITICAL security failures detected")
         risk_level += 3
     elif security.get("score", 0) >= 60:
-        risks.append("HIGH security risk — multiple concerns found")
+        risks.append("HIGH security risk - multiple concerns found")
         risk_level += 2
     elif security.get("score", 0) >= 40:
-        risks.append("MODERATE security concerns — review checks")
+        risks.append("MODERATE security concerns - review checks")
         risk_level += 1
 
     if rug.get("overall_risk") in ("CRITICAL", "HIGH"):
@@ -538,16 +538,16 @@ def smart_verdict(report: dict) -> str:
         risk_level += 1
 
     if not risks:
-        return "NO SIGNIFICANT CONCERNS — This token passes standard security checks. Standard trading risks apply. Always verify contract independently."
+        return "NO SIGNIFICANT CONCERNS - This token passes standard security checks. Standard trading risks apply. Always verify contract independently."
 
     if risk_level >= 5:
-        return f"EXTREME RISK — {'; '.join(risks)}. STRONGLY advise against trading this token."
+        return f"EXTREME RISK - {'; '.join(risks)}. STRONGLY advise against trading this token."
     elif risk_level >= 3:
-        return f"HIGH RISK — {'; '.join(risks)}. Proceed with extreme caution."
+        return f"HIGH RISK - {'; '.join(risks)}. Proceed with extreme caution."
     elif risk_level >= 2:
-        return f"ELEVATED RISK — {'; '.join(risks)}. Review all details before trading."
+        return f"ELEVATED RISK - {'; '.join(risks)}. Review all details before trading."
     else:
-        return f"MINOR CONCERNS — {'; '.join(risks)}. Standard due diligence recommended."
+        return f"MINOR CONCERNS - {'; '.join(risks)}. Standard due diligence recommended."
 
 
 async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> dict | None:

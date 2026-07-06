@@ -1,9 +1,9 @@
 """
-SENTINEL — Block Zero Sniper Analysis
+SENTINEL - Block Zero Sniper Analysis
 ======================================
 Detects team distribution farms by tracking the first 5 wallets that bought
 in block zero (or earliest block) and checking if they immediately split
-tokens into 50+ smaller wallets — a classic team distribution pattern
+tokens into 50+ smaller wallets - a classic team distribution pattern
 where devs prepare to dump on retail.
 
 Detection logic:
@@ -14,7 +14,7 @@ Detection logic:
   5. >50% of first buyers splitting → HIGH farm confidence
   6. >80% of first buyers splitting → CRITICAL farm confidence
 
-Data sources (direct API calls — no circular imports):
+Data sources (direct API calls - no circular imports):
   Solana:     Helius Enhanced Transactions, Solscan account transfers
   EVM:        Etherscan tokentx (blockscan-family API)
   Fallback:   Consensus RPC for earliest block estimation
@@ -103,7 +103,7 @@ class BlockZeroSniperAnalyzer:
     If those wallets immediately split tokens into 50+ smaller wallets,
     it's likely a team distribution farm preparing to dump.
 
-    This module is a pure analyzer — it accepts optional pre-fetched transaction
+    This module is a pure analyzer - it accepts optional pre-fetched transaction
     data via `earliest_transactions` and falls back to direct API calls if needed.
     """
 
@@ -217,7 +217,7 @@ class BlockZeroSniperAnalyzer:
         """Extract the first 5 unique buyer wallets from earliest transactions.
 
         Transactions are assumed to be sorted chronologically (earliest first).
-        A 'buyer' is the 'from' address — the wallet that initiated the purchase.
+        A 'buyer' is the 'from' address - the wallet that initiated the purchase.
         """
         seen: set = set()
         buyers: list[str] = []
@@ -252,7 +252,7 @@ class BlockZeroSniperAnalyzer:
 
         For Solana: uses Helius signature fetching + Solscan transfers.
         For EVM: uses Etherscan tokentx with wallet as address filter.
-        Returns list of SplitPath records — more than SPLIT_WALLET_THRESHOLD
+        Returns list of SplitPath records - more than SPLIT_WALLET_THRESHOLD
         unique 'to' addresses indicates a split.
         """
         if is_solana(chain):
@@ -268,7 +268,7 @@ class BlockZeroSniperAnalyzer:
     ) -> list[SplitPath]:
         """Trace Solana splits via Helius signatures for the wallet."""
         if not self._helius_key:
-            logger.warning("HELIUS_API_KEY not set — cannot trace Solana splits")
+            logger.warning("HELIUS_API_KEY not set - cannot trace Solana splits")
             return []
 
         splits: list[SplitPath] = []
@@ -424,7 +424,7 @@ class BlockZeroSniperAnalyzer:
     ) -> list[dict[str, Any]]:
         """Fetch earliest Solana token transactions via Helius."""
         if not self._helius_key:
-            logger.warning("HELIUS_API_KEY not set — cannot fetch Solana early txs")
+            logger.warning("HELIUS_API_KEY not set - cannot fetch Solana early txs")
             return []
 
         try:

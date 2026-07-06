@@ -3,7 +3,7 @@ Tests for Flash Loan Attack Detector
 =====================================
 Covers core detection heuristics: flash loan identification, attack type
 classification, severity scoring, sophistication analysis, and trace
-parsing — all without requiring network calls.
+parsing - all without requiring network calls.
 """
 
 import unittest

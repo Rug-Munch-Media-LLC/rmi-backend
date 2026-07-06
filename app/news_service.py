@@ -1,24 +1,24 @@
 """
-RMI News Aggregation Service — THE Crypto News Aggregator
+RMI News Aggregation Service - THE Crypto News Aggregator
 ==========================================================
 200+ sources across 15 tiers. Every feed verified. Real data only.
 
 Tiers:
-  Tier  1 — Security & Audit Firms (14)
-  Tier  2 — Major News Outlets (20)
-  Tier  3 — Research & Analytics (12)
-  Tier  4 — Protocol & Chain Blogs (15)
-  Tier  5 — DeFi Protocols (18)
-  Tier  6 — Exchange Blogs (12)
-  Tier  7 — VC & Investment Firms (12)
-  Tier  8 — Academic & Research Centers (8)
-  Tier  9 — Government & Regulatory (6)
-  Tier 10 — Newsletters (15)
-  Tier 11 — Reddit Communities (20)
-  Tier 12 — Developer & GitHub (5)
-  Tier 13 — Exploit & Hack Trackers (8)
-  Tier 14 — API Sources (CoinGecko, CryptoPanic, LunarCrush)
-  Tier 15 — RMI Internal (scanner, alerts, Ghost, RAG)
+  Tier  1 - Security & Audit Firms (14)
+  Tier  2 - Major News Outlets (20)
+  Tier  3 - Research & Analytics (12)
+  Tier  4 - Protocol & Chain Blogs (15)
+  Tier  5 - DeFi Protocols (18)
+  Tier  6 - Exchange Blogs (12)
+  Tier  7 - VC & Investment Firms (12)
+  Tier  8 - Academic & Research Centers (8)
+  Tier  9 - Government & Regulatory (6)
+  Tier 10 - Newsletters (15)
+  Tier 11 - Reddit Communities (20)
+  Tier 12 - Developer & GitHub (5)
+  Tier 13 - Exploit & Hack Trackers (8)
+  Tier 14 - API Sources (CoinGecko, CryptoPanic, LunarCrush)
+  Tier 15 - RMI Internal (scanner, alerts, Ghost, RAG)
 """
 
 import asyncio
@@ -76,7 +76,7 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 REDDIT_USER_AGENT = "RMI-News-Aggregator/3.0"
 
 # ═══════════════════════════════════════════════════════════════════
-# RSS FEEDS — 150+ sources across 10 tiers
+# RSS FEEDS - 150+ sources across 10 tiers
 # ═══════════════════════════════════════════════════════════════════
 
 RSS_FEEDS = [
@@ -443,7 +443,7 @@ CATEGORY_KEYWORDS = {
 
 
 class NewsService:
-    """Multi-source crypto news aggregator — 200+ sources, real data only."""
+    """Multi-source crypto news aggregator - 200+ sources, real data only."""
 
     def __init__(self):
         self.cache: dict[str, Any] = {}
@@ -823,7 +823,7 @@ class NewsService:
                 articles.append(
                     {
                         "id": f"scan-{content_hash[:12]}",
-                        "title": f"{token} ({chain.upper()}) — Risk: {risk}/100 [{flag_str}]",
+                        "title": f"{token} ({chain.upper()}) - Risk: {risk}/100 [{flag_str}]",
                         "url": f"https://rugmunch.io/scanner?address={address}&chain={chain}",
                         "description": f"Scanner flagged {token} on {chain}. Risk score: {risk}/100. Flags: {flag_str}. Address: {address[:8]}...",
                         "source": "RMI Scanner",
@@ -924,7 +924,7 @@ class NewsService:
         include_api: bool = True,
         include_internal: bool = True,
     ) -> list[dict[str, Any]]:
-        """Fetch from all sources. Heavy operation — call sparingly."""
+        """Fetch from all sources. Heavy operation - call sparingly."""
         all_sources = []
 
         # Build task list dynamically

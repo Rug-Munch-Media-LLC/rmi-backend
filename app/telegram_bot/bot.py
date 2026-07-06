@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CryptoRugMunch Bot v6 — The Bloomberg Terminal of Shitcoins
+CryptoRugMunch Bot v6 - The Bloomberg Terminal of Shitcoins
 ============================================================
 Production-grade: multi-chain scanning, wallet forensics, tiered subs,
 Telegram Stars payments, DEX ref revenue, referral system, AI chat,
@@ -149,7 +149,7 @@ def footer_links() -> str:
         f"\n{thin_sep('·', 28)}\n"
         f'🌐 <a href="{WEBSITE_URL}">rugmunch.io</a> | '
         f'<a href="{TELEGRAM_CHANNEL}">📢 Alerts</a> | '
-        f'<a href="{TWITTER_URL}">𝕏</a>'
+        f'<a href="{TWITTER_URL}">𝕏</a>'  # noqa: RUF001
     )
 
 
@@ -202,10 +202,10 @@ def paywall_text(user_id: int, action: str = "scan") -> str:
         f"📊 <b>{tc['name']} Tier:</b> {used}/{limit} used this week\n"
         f"🎁 <b>Bonus Balance:</b> {bonus} extra\n\n"
         f"<b>Unlock more power:</b>\n\n"
-        f"🔍 <b>Scout ($29.99/mo)</b> — 150 scans/wk + bundle detection\n"
-        f"🎯 <b>Hunter ($49.99/mo)</b> — 400 scans/wk + wallet forensics\n"
-        f"👑 <b>Pro ($99.99/mo)</b> — 1,000 scans/wk + smart money alerts\n\n"
-        f"Or buy one-time top-ups — <b>never expire!</b>\n"
+        f"🔍 <b>Scout ($29.99/mo)</b> - 150 scans/wk + bundle detection\n"
+        f"🎯 <b>Hunter ($49.99/mo)</b> - 400 scans/wk + wallet forensics\n"
+        f"👑 <b>Pro ($99.99/mo)</b> - 1,000 scans/wk + smart money alerts\n\n"
+        f"Or buy one-time top-ups - <b>never expire!</b>\n"
         f"🔋 10 scans = ⭐75 | 50 scans = ⭐300 | 100 scans = ⭐500"
     )
 
@@ -486,7 +486,7 @@ def format_scan_report(r: dict) -> str:
         for i, h in enumerate(r["top_holders"][:5], 1):
             tag = f" [{h['tag']}]" if h.get("tag") else ""
             cf = " 📄" if h.get("is_contract") else ""
-            lines.append(f"  {i}. <code>{short_addr(h['address'])}</code> — {h['pct']:.1f}%{tag}{cf}")
+            lines.append(f"  {i}. <code>{short_addr(h['address'])}</code> - {h['pct']:.1f}%{tag}{cf}")
 
     # Advanced
     adv = []
@@ -508,7 +508,7 @@ def format_scan_report(r: dict) -> str:
         soc_parts = []
         for stype, surl in socials.items():
             if stype == "twitter":
-                soc_parts.append(f'<a href="{surl}">𝕏</a>')
+                soc_parts.append(f'<a href="{surl}">𝕏</a>')  # noqa: RUF001
             elif stype == "telegram":
                 soc_parts.append(f'<a href="{surl}">📱</a>')
             elif stype == "website":
@@ -608,7 +608,7 @@ def format_wallet_report(r: dict) -> str:
         f"🏷️ Type: {'Exchange' if r['is_exchange'] else 'Contract' if r['is_contract'] else 'EOA (Wallet)'}",
     ]
     if r["is_fresh"]:
-        lines.append("🆕 <b>FRESH WALLET</b> (<7 days) — ⚠️ Higher risk")
+        lines.append("🆕 <b>FRESH WALLET</b> (<7 days) - ⚠️ Higher risk")
     if r["flags"]:
         lines.extend(["", "⚠️ <b>Flags</b>", d])
         for flag in r["flags"]:
@@ -619,7 +619,7 @@ def format_wallet_report(r: dict) -> str:
     if r["top_tokens"]:
         lines.extend(["", "🪙 <b>Top Holdings</b>", d])
         for i, t in enumerate(r["top_tokens"][:5], 1):
-            lines.append(f"  {i}. <b>{t.get('symbol', '???')}</b> — {fmt_number(t.get('value_usd', 0))}")
+            lines.append(f"  {i}. <b>{t.get('symbol', '???')}</b> - {fmt_number(t.get('value_usd', 0))}")
     if r["funding_source"]:
         lines.extend(["", f"🏦 <b>Funding Source:</b> {r['funding_source']}"])
     if r["connected_wallets"]:
@@ -688,7 +688,7 @@ def pricing_kb() -> InlineKeyboardMarkup:
         rows.append(
             [
                 InlineKeyboardButton(
-                    f"{t['emoji']} {t['name']} — ${t['price_monthly']}/mo",
+                    f"{t['emoji']} {t['name']} - ${t['price_monthly']}/mo",
                     callback_data=f"sub_{key}",
                 )
             ]
@@ -705,7 +705,7 @@ def topup_kb() -> InlineKeyboardMarkup:
         rows.append(
             [
                 InlineKeyboardButton(
-                    f"{pack['emoji']} {pack['name']} — ⭐{pack['stars']}",
+                    f"{pack['emoji']} {pack['name']} - ⭐{pack['stars']}",
                     callback_data=f"topup_{key}",
                 )
             ]
@@ -731,7 +731,7 @@ def social_kb() -> InlineKeyboardMarkup:
         [
             [
                 InlineKeyboardButton("🌐 Website", url=WEBSITE_URL),
-                InlineKeyboardButton("𝕏 Twitter", url=TWITTER_URL),
+                InlineKeyboardButton("𝕏 Twitter", url=TWITTER_URL),  # noqa: RUF001
             ],
             [
                 InlineKeyboardButton("📢 Alerts", url=TELEGRAM_CHANNEL),
@@ -787,8 +787,8 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"  📌 /scan <code>address</code> → full analysis\n"
         f"  📌 /help → see all commands\n\n"
         f"🆓 <b>Free:</b> {TIERS['free']['scans_per_week']} scans + {TIERS['free']['ai_msgs_per_week']} AI msgs/week\n"
-        f"⭐ <b>Premium from $29.99/mo</b> — unlock everything\n\n"
-        f'🌐 <a href="{WEBSITE_URL}">rugmunch.io</a> — full web scanner'
+        f"⭐ <b>Premium from $29.99/mo</b> - unlock everything\n\n"
+        f'🌐 <a href="{WEBSITE_URL}">rugmunch.io</a> - full web scanner'
     )
 
     kb = InlineKeyboardMarkup(
@@ -810,37 +810,37 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     d = thin_sep()
     text = (
-        f"📖 <b>RugMunch Intelligence — Command Guide</b>\n"
+        f"📖 <b>RugMunch Intelligence - Command Guide</b>\n"
         f"{sep()}\n\n"
         f"🔍 <b>TOKEN ANALYSIS</b>\n{d}\n"
-        f"/scan <code>address</code> — Full security scan\n"
-        f"/ta <code>address</code> — Technical analysis & signals\n"
-        f"/compare <code>addr1</code> <code>addr2</code> — Side-by-side\n"
-        f"/quick <code>symbol</code> — Quick price check (same as $TOKEN)\n\n"
+        f"/scan <code>address</code> - Full security scan\n"
+        f"/ta <code>address</code> - Technical analysis & signals\n"
+        f"/compare <code>addr1</code> <code>addr2</code> - Side-by-side\n"
+        f"/quick <code>symbol</code> - Quick price check (same as $TOKEN)\n\n"
         f"👛 <b>WALLET INTELLIGENCE</b>\n{d}\n"
-        f"/wallet <code>address</code> — Forensic wallet analysis\n"
-        f"/watch <code>address</code> [chain] — Add to watchlist\n"
-        f"/unwatch <code>address</code> — Remove from watchlist\n"
-        f"/watchlist — View your watchlist\n"
-        f"/alerts — Price & activity alerts\n\n"
+        f"/wallet <code>address</code> - Forensic wallet analysis\n"
+        f"/watch <code>address</code> [chain] - Add to watchlist\n"
+        f"/unwatch <code>address</code> - Remove from watchlist\n"
+        f"/watchlist - View your watchlist\n"
+        f"/alerts - Price & activity alerts\n\n"
         f"📊 <b>MARKET DATA</b>\n{d}\n"
-        f"/trending — Hot tokens right now\n"
-        f"/news — Latest crypto news\n\n"
+        f"/trending - Hot tokens right now\n"
+        f"/news - Latest crypto news\n\n"
         f"💳 <b>ACCOUNT & BILLING</b>\n{d}\n"
-        f"/account — Dashboard & usage stats\n"
-        f"/pricing — Subscription plans\n"
-        f"/topup — Buy extra scans (no expiry)\n"
-        f"/refer — Invite friends, earn scans\n\n"
+        f"/account - Dashboard & usage stats\n"
+        f"/pricing - Subscription plans\n"
+        f"/topup - Buy extra scans (no expiry)\n"
+        f"/refer - Invite friends, earn scans\n\n"
         f"📚 <b>EDUCATION</b>\n{d}\n"
-        f"/scamschool — Learn about crypto scams\n"
-        f"/rugcheck — Quick rug pull checklist\n\n"
+        f"/scamschool - Learn about crypto scams\n"
+        f"/rugcheck - Quick rug pull checklist\n\n"
         f"💡 <b>PRO TIPS</b>\n{d}\n"
         f"• Paste any <code>0x...</code> address to auto-scan\n"
         f"• Type <code>$PEPE</code> for instant price check\n"
         f"• Use inline mode: <code>@RugMunchBot address</code> in any chat\n"
         f"• Upgrade for bundle detection, wallet forensics & more\n"
         f"• Use /refer to earn free scans\n\n"
-        f'🌐 <a href="{WEBSITE_URL}">rugmunch.io</a> — Full web scanner with charts'
+        f'🌐 <a href="{WEBSITE_URL}">rugmunch.io</a> - Full web scanner with charts'
     )
     kb = InlineKeyboardMarkup(
         [
@@ -1087,7 +1087,7 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Quick price check — same as $TOKEN but as a command."""
+    """Quick price check - same as $TOKEN but as a command."""
     if not ctx.args:
         await update.message.reply_text(
             "🪙 Usage: /quick <code>SYMBOL</code>\nExample: /quick PEPE", parse_mode=ParseMode.HTML
@@ -1134,7 +1134,7 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_rugcheck(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Quick rug pull checklist — educational."""
+    """Quick rug pull checklist - educational."""
     text = (
         f"🚩 <b>Rug Pull Checklist</b>\n{sep()}\n\n"
         f"Before buying ANY token, check these:\n\n"
@@ -1296,9 +1296,9 @@ async def cmd_pricing(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = f"⭐ <b>Subscription Plans</b>\n{sep()}\n\n"
     for key, t in TIERS.items():
         if key == "free":
-            text += f"{t['emoji']} <b>{t['name']}</b> — $0\n{d}\n"
+            text += f"{t['emoji']} <b>{t['name']}</b> - $0\n{d}\n"
         else:
-            text += f"{t['emoji']} <b>{t['name']}</b> — <b>${t['price_monthly']}/mo</b>\n{d}\n"
+            text += f"{t['emoji']} <b>{t['name']}</b> - <b>${t['price_monthly']}/mo</b>\n{d}\n"
         for f in t["features"]:
             text += f"  • {f}\n"
         text += "\n"
@@ -1316,19 +1316,19 @@ async def cmd_pricing(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_topup(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = (
-        f"🔋 <b>Top Up — Buy Extra Usage</b>\n{sep()}\n\n"
+        f"🔋 <b>Top Up - Buy Extra Usage</b>\n{sep()}\n\n"
         f"Ran out of weekly scans? Buy bonus usage!\n\n"
-        f"✅ <b>No expiry</b> — carries over forever\n"
-        f"✅ <b>Stackable</b> — buy multiple times\n"
-        f"✅ <b>Instant</b> — available immediately\n\n"
+        f"✅ <b>No expiry</b> - carries over forever\n"
+        f"✅ <b>Stackable</b> - buy multiple times\n"
+        f"✅ <b>Instant</b> - available immediately\n\n"
         f"<b>Scan Packs:</b>\n"
-        f"  🔬 10 scans — ⭐75\n"
-        f"  🔬 50 scans — ⭐300\n"
-        f"  🔬 100 scans — ⭐500\n\n"
+        f"  🔬 10 scans - ⭐75\n"
+        f"  🔬 50 scans - ⭐300\n"
+        f"  🔬 100 scans - ⭐500\n\n"
         f"<b>AI Message Packs:</b>\n"
-        f"  🤖 10 messages — ⭐100\n"
-        f"  🤖 50 messages — ⭐400\n"
-        f"  🤖 100 messages — ⭐700\n\n"
+        f"  🤖 10 messages - ⭐100\n"
+        f"  🤖 50 messages - ⭐400\n"
+        f"  🤖 100 messages - ⭐700\n\n"
         f"💳 Pay with Telegram Stars ⭐"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=topup_kb())
@@ -1372,10 +1372,10 @@ async def cmd_refer(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"  1. Share your referral link\n"
         f"  2. Friend starts the bot via your link\n"
         f"  3. Both of you get 5 bonus scans instantly\n"
-        f"  4. No limits — refer as many as you want!"
+        f"  4. No limits - refer as many as you want!"
         f"{footer_links()}"
     )
-    share_text = quote(f"Check out RugMunch Intelligence — the best crypto scam detector on Telegram! 🛡️\n\n{link}")
+    share_text = quote(f"Check out RugMunch Intelligence - the best crypto scam detector on Telegram! 🛡️\n\n{link}")
     await update.message.reply_text(
         text,
         parse_mode=ParseMode.HTML,
@@ -1436,9 +1436,9 @@ async def cmd_watch(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if tier == "free":
             await update.message.reply_text(
                 "❌ Watchlists require <b>Scout tier</b> or higher.\n\n"
-                "🔍 <b>Scout ($29.99/mo)</b> — 10 watchlist slots\n"
-                "🎯 <b>Hunter ($49.99/mo)</b> — 50 slots + alerts\n"
-                "👑 <b>Pro ($99.99/mo)</b> — unlimited",
+                "🔍 <b>Scout ($29.99/mo)</b> - 10 watchlist slots\n"
+                "🎯 <b>Hunter ($49.99/mo)</b> - 50 slots + alerts\n"
+                "👑 <b>Pro ($99.99/mo)</b> - unlimited",
                 parse_mode=ParseMode.HTML,
                 reply_markup=pricing_kb(),
             )

@@ -1,5 +1,5 @@
 """
-Alerts Router — Token alert subscriptions
+Alerts Router - Token alert subscriptions
 """
 
 import json
@@ -21,7 +21,7 @@ class AlertRequest(BaseModel):
     webhook_url: str | None = None
 
 
-from app.auth import get_redis, require_auth
+from app.auth import get_redis, require_auth  # noqa: E402
 
 
 def _get_redis_sync():

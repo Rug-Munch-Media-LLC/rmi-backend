@@ -4,11 +4,11 @@ RugCharts Social Intelligence
 KOL tracking, shill detection, scam monitoring, social metrics.
 
 Features:
-  - KOL Performance Score — track historical calls, success rate
-  - Shill Campaign Detection — coordinated posting patterns
-  - Scam Channel Monitor — Telegram/Discord intelligence
-  - Social Sentiment — aggregate market mood from multiple platforms
-  - Daily Intel Report — Groq-powered market briefing
+  - KOL Performance Score - track historical calls, success rate
+  - Shill Campaign Detection - coordinated posting patterns
+  - Scam Channel Monitor - Telegram/Discord intelligence
+  - Social Sentiment - aggregate market mood from multiple platforms
+  - Daily Intel Report - Groq-powered market briefing
 """
 
 import hashlib
@@ -85,7 +85,7 @@ async def track_kol_call(
 
 
 async def get_kol_profile(handle: str, **kw) -> dict:
-    """Get a KOL's performance profile — call history, success rate, risk score."""
+    """Get a KOL's performance profile - call history, success rate, risk score."""
     key = _kol_key(handle)
     data = KOL_DATABASE.get(key, {"calls": [], "metrics": {}})
     m = data["metrics"]
@@ -283,7 +283,7 @@ async def scan_scam_channels(**kw) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# DAILY INTELLIGENCE REPORT — Groq-powered
+# DAILY INTELLIGENCE REPORT - Groq-powered
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -325,7 +325,7 @@ async def generate_daily_intel(**kw) -> dict:
     context = f"""MARKET DATA:
 {market_context}
 
-FEAR & GREED INDEX: {fear}/100 — {fear_label}
+FEAR & GREED INDEX: {fear}/100 - {fear_label}
 
 TOP NEWS HEADLINES:
 {chr(10).join(f"• {h}" for h in news_headlines[:8])}
@@ -352,11 +352,11 @@ Generate a professional Daily Intelligence Report for crypto investors."""
                                 "role": "system",
                                 "content": """You are a senior crypto intelligence analyst at RugCharts.
 Write a Daily Intelligence Report with these sections:
-1. MARKET SNAPSHOT — 2-3 sentences on today's market
-2. TOP 3 STORIES — the most important developments
-3. SENTIMENT ANALYSIS — what the market is feeling
-4. RISK RADAR — things to watch out for (scams, hacks, regulatory)
-5. BOTTOM LINE — actionable takeaway for investors
+1. MARKET SNAPSHOT - 2-3 sentences on today's market
+2. TOP 3 STORIES - the most important developments
+3. SENTIMENT ANALYSIS - what the market is feeling
+4. RISK RADAR - things to watch out for (scams, hacks, regulatory)
+5. BOTTOM LINE - actionable takeaway for investors
 
 Be direct, data-driven, no fluff. Use emojis sparingly. Format cleanly.""",
                             },

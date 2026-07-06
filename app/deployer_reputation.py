@@ -1,5 +1,5 @@
 """
-Pre-Crime Deployer Reputation — Behavioral fingerprint matching.
+Pre-Crime Deployer Reputation - Behavioral fingerprint matching.
 
 Goes beyond "this token IS a scam" to "this deployer's fingerprint
 matches known scammers who haven't rugged YET." Predictive risk scoring
@@ -85,7 +85,7 @@ SIGNALS = {
 KNOWN_PATTERNS = {
     "rug_pull_factory": {
         "vector": [25, 2, 1, 0, 0.3, 1],
-        "description": "Mass token deployer — dozens of unverified tokens, quick exits",
+        "description": "Mass token deployer - dozens of unverified tokens, quick exits",
         "risk_modifier": 0.85,
     },
     "honeypot_operator": {
@@ -95,7 +95,7 @@ KNOWN_PATTERNS = {
     },
     "phishing_ring": {
         "vector": [50, 1, 1, 0, 0.1, 1],
-        "description": "High-volume airdrop phishing — hundreds of identical tokens",
+        "description": "High-volume airdrop phishing - hundreds of identical tokens",
         "risk_modifier": 0.95,
     },
     "impersonation_scammer": {
@@ -284,13 +284,13 @@ def score_deployer_risk(
     parts = []
 
     if signal_count == 0 and mitigation_count > 0:
-        parts.append(f"Low risk ({risk_score:.0f}%) — strong positive signals")
+        parts.append(f"Low risk ({risk_score:.0f}%) - strong positive signals")
     elif signal_count == 0:
-        parts.append(f"Low risk ({risk_score:.0f}%) — insufficient data for assessment")
+        parts.append(f"Low risk ({risk_score:.0f}%) - insufficient data for assessment")
     elif risk_score >= 80:
-        parts.append(f"CRITICAL risk ({risk_score:.0f}%) — {signal_count} warning signals")
+        parts.append(f"CRITICAL risk ({risk_score:.0f}%) - {signal_count} warning signals")
     else:
-        parts.append(f"{label} risk ({risk_score:.0f}%) — {signal_count} signals")
+        parts.append(f"{label} risk ({risk_score:.0f}%) - {signal_count} signals")
 
     if best_match and best_similarity > 0.5:
         parts.append(f"fingerprint matches '{best_match['description']}' (similarity: {best_similarity:.2f})")

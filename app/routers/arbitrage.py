@@ -43,7 +43,7 @@ async def find_arbitrage(symbol: str, min_profit_pct: float = Query(0.5, ge=0.1)
         return {"symbol": symbol, "opportunities": [], "note": "Need at least 2 chains with liquidity"}
 
     # Find min/max price
-    listings.sort(key=lambda l: l["price_usd"])
+    listings.sort(key=lambda l: l["price_usd"])  # noqa: E741
     cheapest = listings[0]
     most_expensive = listings[-1]
 

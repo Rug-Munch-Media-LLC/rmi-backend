@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#1 — MEV Sniper Dashboard. Real-time new pair signals + SENTINEL risk scoring.
+"""#1 - MEV Sniper Dashboard. Real-time new pair signals + SENTINEL risk scoring.
 Surfaces snipeable launches across all chains with safety filtering."""
 
 import os

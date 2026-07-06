@@ -1,5 +1,5 @@
 """
-Unified Data Access Layer — Single entry point for ALL tool data calls.
+Unified Data Access Layer - Single entry point for ALL tool data calls.
 
 Every x402 tool, MCP tool, scanner, and API endpoint routes through here.
 Cache-first, rate-limited, multi-provider fallback. Never hit an API raw.

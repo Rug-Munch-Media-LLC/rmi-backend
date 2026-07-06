@@ -1,4 +1,4 @@
-"""Public routes — no authentication required.
+"""Public routes - no authentication required.
 
 Target: scanner, wallet lookup, token info, pricing, health.
 """

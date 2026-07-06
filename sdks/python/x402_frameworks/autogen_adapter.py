@@ -1,7 +1,7 @@
-"""x402 AutoGen adapter — agentic payment flows for multi-agent conversations.
+"""x402 AutoGen adapter - agentic payment flows for multi-agent conversations.
 
 AutoGen agents negotiate who pays for tool calls. x402 handles the
-payment transparently — agents request, verify, and deduct.
+payment transparently - agents request, verify, and deduct.
 
 Usage:
     from x402_frameworks import x402AutoGen
@@ -20,9 +20,8 @@ Usage:
 from __future__ import annotations
 
 import functools
-import json
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 
 from .base import x402Adapter
 
@@ -30,7 +29,7 @@ logger = logging.getLogger("x402.autogen")
 
 
 class x402AutoGen(x402Adapter):
-    """AutoGen adapter — handles payment for tool calls in multi-agent convos.
+    """AutoGen adapter - handles payment for tool calls in multi-agent convos.
 
     Features:
     - AutoGen function format: `as_function()` returns AutoGen-compatible spec
@@ -59,7 +58,7 @@ class x402AutoGen(x402Adapter):
             },
         }
 
-    def wrap_tool(self, tool_name: str, tool_func: Optional[Callable] = None) -> Callable:
+    def wrap_tool(self, tool_name: str, tool_func: Callable | None = None) -> Callable:
         def decorator(func: Callable) -> Callable:
             @functools.wraps(func)
             def wrapper(*args, **kwargs):

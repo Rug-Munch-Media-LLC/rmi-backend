@@ -1,10 +1,10 @@
 """
-Graph RAG — Community detection + narrative summaries from Knowledge Graph.
+Graph RAG - Community detection + narrative summaries from Knowledge Graph.
 
 Extends the existing Redis-backed Knowledge Graph (5,614 nodes) with:
-  1. Label propagation community detection — find scammer rings, exchange clusters
-  2. Community narrative synthesis — LLM-generated summaries per cluster
-  3. Graph-augmented retrieval — expand queries with community context
+  1. Label propagation community detection - find scammer rings, exchange clusters
+  2. Community narrative synthesis - LLM-generated summaries per cluster
+  3. Graph-augmented retrieval - expand queries with community context
 
 Produces structured community reports that answer:
   "What scammer rings are active right now?"
@@ -113,7 +113,7 @@ async def detect_communities(
     )
 
     result = []
-    for comm_id, (label, members) in enumerate(sorted_communities[:max_communities]):
+    for comm_id, (label, members) in enumerate(sorted_communities[:max_communities]):  # noqa: B007
         if len(members) < min_community_size:
             break
 

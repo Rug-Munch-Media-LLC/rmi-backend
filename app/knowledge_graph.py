@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Knowledge Graph — Wallet → Token → Scam Relationship Engine
+Knowledge Graph - Wallet → Token → Scam Relationship Engine
 =============================================================
 Builds and queries a knowledge graph from RAG document metadata.
 
@@ -763,7 +763,7 @@ async def build_graph_from_rag(
         coll_stats[coll] = {"docs": len(sample), "edges": edges}
         logger.info(f"KG built for {coll}: {len(sample)} docs, {edges} edges")
 
-    # Connection is managed by the singleton — do not close here
+    # Connection is managed by the singleton - do not close here
 
     return {
         "nodes_created": total_nodes,

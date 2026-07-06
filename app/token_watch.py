@@ -9,7 +9,7 @@ When conditions trigger, alerts fire via WebSocket and are stored in Redis.
 
 Pricing:
   - token_watch_create:  $0.05 (set up a watch)
-  - token_watch_alert:   $0.00  (alert delivery is free — it's the value prop)
+  - token_watch_alert:   $0.00  (alert delivery is free - it's the value prop)
 
 Watch conditions supported:
   - lp_drop_below:   LP locked % falls below threshold
@@ -105,7 +105,7 @@ class TokenWatchService:
     DEXSCREENER_SEARCH_URL = "https://api.dexscreener.com/latest/dex/search?q={address}"
 
     # Chain name mapping for Dexscreener
-    CHAIN_MAP = {
+    CHAIN_MAP = {  # noqa: RUF012
         "ethereum": "ethereum",
         "eth": "ethereum",
         "bsc": "bsc",
@@ -303,11 +303,11 @@ class TokenWatchService:
             # If LP is below threshold (absolute USD or % of peak)
             if lp_usd < watch.threshold:
                 triggered = True
-                message = f"LP for {watch.token_address[:10]}... dropped below ${watch.threshold:,.0f} — currently ${lp_usd:,.0f}"
+                message = f"LP for {watch.token_address[:10]}... dropped below ${watch.threshold:,.0f} - currently ${lp_usd:,.0f}"
                 severity = "critical"
             elif lp_pct_change > 20:  # More than 20% LP drop since last check
                 triggered = True
-                message = f"LP dropped {lp_pct_change:.1f}% since last check — ${lp_usd:,.0f} remaining"
+                message = f"LP dropped {lp_pct_change:.1f}% since last check - ${lp_usd:,.0f} remaining"
                 severity = "high"
 
         elif watch.condition == WatchCondition.LP_UNLOCKED:
@@ -317,7 +317,7 @@ class TokenWatchService:
                 liquidity_locked = info.get("liquidityLocked", False)
                 if not liquidity_locked and watch.last_value == 1:  # Was locked
                     triggered = True
-                    message = f"LP lock REMOVED for {watch.token_address[:10]}... — potential rug indicator"
+                    message = f"LP lock REMOVED for {watch.token_address[:10]}... - potential rug indicator"
                     severity = "critical"
                     watch.last_value = 0 if not liquidity_locked else 1
             else:
@@ -328,7 +328,7 @@ class TokenWatchService:
             watch.last_value = price_usd
             if price_usd < watch.threshold:
                 triggered = True
-                message = f"Price of {watch.token_address[:10]}... dropped below ${watch.threshold:.6f} — currently ${price_usd:.6f}"
+                message = f"Price of {watch.token_address[:10]}... dropped below ${watch.threshold:.6f} - currently ${price_usd:.6f}"
                 severity = "high"
 
         elif watch.condition == WatchCondition.PRICE_CHANGE:
@@ -339,7 +339,7 @@ class TokenWatchService:
                     direction = "up" if price_usd > watch.last_value else "down"
                     triggered = True
                     message = (
-                        f"Price {direction} {pct_change:.1f}% for {watch.token_address[:10]}... — ${price_usd:.6f}"
+                        f"Price {direction} {pct_change:.1f}% for {watch.token_address[:10]}... - ${price_usd:.6f}"
                     )
                     severity = "warning" if pct_change < 30 else "high"
             watch.last_value = price_usd
@@ -350,7 +350,7 @@ class TokenWatchService:
             if isinstance(info, dict):
                 info.get("socials", [])
                 # Check if renounced ownership, etc.
-                # This is a simplified check — full implementation would
+                # This is a simplified check - full implementation would
                 # use the contract_diff analysis
                 pass
 

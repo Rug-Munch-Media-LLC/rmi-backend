@@ -1,7 +1,7 @@
 """
 RugCharts X/CT Intelligence Pipeline
 =====================================
-"CT Rundown" — top 20 stories daily from Crypto Twitter.
+"CT Rundown" - top 20 stories daily from Crypto Twitter.
 Multi-method access: xurl (OAuth), cookie scraping, Groq AI analysis.
 
 Algorithm: engagement-weighted, diversity-scored, entity-resolved.
@@ -21,7 +21,7 @@ import httpx
 
 logger = logging.getLogger("x_intel")
 
-# ── TOP CT ACCOUNTS — Curated, diverse, high-signal ────────────────
+# ── TOP CT ACCOUNTS - Curated, diverse, high-signal ────────────────
 
 CT_ACCOUNTS = {
     # ── Tier 1: Must-track (breaking news, high signal) ──
@@ -101,7 +101,7 @@ CT_ACCOUNTS = {
         {"handle": "cburniske", "name": "Chris Burniske", "category": "vc", "weight": 0.85},
         {"handle": "CryptoHayes", "name": "Arthur Hayes", "category": "macro", "weight": 0.9},
     ],
-    # ── Tier 6: Extended — more voices, all verified ──
+    # ── Tier 6: Extended - more voices, all verified ──
     "extended": [
         {"handle": "matt_hougan", "name": "Matt Hougan", "category": "etf", "weight": 0.8},
         {"handle": "EricBalchunas", "name": "Eric Balchunas", "category": "etf", "weight": 0.85},

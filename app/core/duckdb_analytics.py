@@ -1,4 +1,4 @@
-"""DuckDB Embedded Analytics — RMI v5 §T13 (P2).
+"""DuckDB Embedded Analytics - RMI v5 §T13 (P2).
 
 Per RMIV5: small analytics queries (<1 GB) don't need ClickHouse.
 DuckDB is in-process, 10x faster, zero infrastructure. Drop-in for
@@ -9,7 +9,7 @@ ad-hoc queries on:
 
 Why DuckDB:
   - No server to operate (in-process, like SQLite but columnar)
-  - Native Parquet/CSV/JSON readers — no ETL needed
+  - Native Parquet/CSV/JSON readers - no ETL needed
   - Postgres wire protocol compatible (could expose as service later)
   - Vectorized execution, ~10x faster than ClickHouse for small queries
   - Can ATTACH Postgres as a read source for cross-DB joins
@@ -159,7 +159,7 @@ class DuckDBAnalytics:
         """
         # Bind parquet path to a table for the duration of the query
         bind_sql = f"SELECT * FROM read_parquet('{parquet_path}')"
-        if sql is None:
+        if sql is None:  # noqa: SIM108
             sql = bind_sql
         else:
             # Inject the parquet binding as a CTE the user can reference

@@ -1,18 +1,18 @@
 """
-DataBus Router — Unified API Endpoints
+DataBus Router - Unified API Endpoints
 ========================================
 
 Replaces the fractured caching_shield/router, cache_manager stats,
 and all connector-specific endpoints with a single clean interface.
 
-POST /api/v1/databus/fetch         — Fetch data (any type)
-GET  /api/v1/databus/health        — System health + cache stats
-GET  /api/v1/databus/capacity      — Credit report + recommendations
-GET  /api/v1/databus/chains         — List all provider chains
-POST /api/v1/databus/invalidate     — Clear cache (admin)
-GET  /api/v1/databus/vault/status   — Key pool status (admin, no key values)
-GET  /api/v1/databus/vault/reload   — Reload keys from vault (admin)
-GET  /api/v1/databus/fetch/{type}   — GET convenience for simple queries
+POST /api/v1/databus/fetch         - Fetch data (any type)
+GET  /api/v1/databus/health        - System health + cache stats
+GET  /api/v1/databus/capacity      - Credit report + recommendations
+GET  /api/v1/databus/chains         - List all provider chains
+POST /api/v1/databus/invalidate     - Clear cache (admin)
+GET  /api/v1/databus/vault/status   - Key pool status (admin, no key values)
+GET  /api/v1/databus/vault/reload   - Reload keys from vault (admin)
+GET  /api/v1/databus/fetch/{type}   - GET convenience for simple queries
 """
 
 import logging
@@ -21,6 +21,10 @@ import os
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.databus.core import databus
+from app.databus.social import (
+    X_DAILY_READ_BUDGET,
+    X_FREE_MONTHLY_READ_LIMIT,
+)
 
 logger = logging.getLogger("databus.router")
 
@@ -40,7 +44,7 @@ async def databus_fetch(request: Request):
     """
     Universal data fetch endpoint.
     Every response is packaged based on who's asking.
-    No raw data leaks — consumers only get what they're authorized for.
+    No raw data leaks - consumers only get what they're authorized for.
 
     Body: {
         "data_type": "token_price",         # required
@@ -131,7 +135,7 @@ async def databus_access_matrix(request: Request):
     if not _verify_admin(request):
         from app.databus.access_control import access_controller
 
-        # Non-admin sees a limited view — only their tier's access
+        # Non-admin sees a limited view - only their tier's access
         return {"note": "Full matrix requires admin key. Your access depends on your consumer type."}
     from app.databus.access_control import access_controller
 
@@ -370,7 +374,7 @@ async def prediction_signals(request: Request):
 
 @router.post("/batch")
 async def databus_batch(request: Request):
-    """#7 Batch DataBus — fetch multiple data types in one call.
+    """#7 Batch DataBus - fetch multiple data types in one call.
 
     Body: {
         "requests": [
@@ -427,7 +431,7 @@ async def databus_warm_stop(request: Request):
 
 @router.get("/providers/health")
 async def databus_providers_health(request: Request):
-    """#5 Provider Health Dashboard — per-provider success/failure/latency/circuit status."""
+    """#5 Provider Health Dashboard - per-provider success/failure/latency/circuit status."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
     if not databus._initialized:
@@ -472,7 +476,7 @@ async def databus_schema_validate(request: Request):
 
 @router.get("/social/x/profile/{username}")
 async def social_x_profile(username: str):
-    """Get X/Twitter user profile — cached 24h."""
+    """Get X/Twitter user profile - cached 24h."""
     from app.databus.social import SocialDataAggregator
 
     agg = SocialDataAggregator(databus.cache)
@@ -484,7 +488,7 @@ async def social_x_profile(username: str):
 
 @router.get("/social/x/tweets/{username}")
 async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)):
-    """Get recent tweets from user — cached 15min."""
+    """Get recent tweets from user - cached 15min."""
     from app.databus.social import SocialDataAggregator
 
     agg = SocialDataAggregator(databus.cache)
@@ -501,7 +505,7 @@ async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)):
 
 @router.get("/social/x/mentions")
 async def social_x_mentions(count: int = Query(20, ge=1, le=100)):
-    """Get mentions of @CryptoRugMunch — cached 15min."""
+    """Get mentions of @CryptoRugMunch - cached 15min."""
     from app.databus.social import SocialDataAggregator
 
     agg = SocialDataAggregator(databus.cache)
@@ -513,7 +517,7 @@ async def social_x_mentions(count: int = Query(20, ge=1, le=100)):
 
 @router.get("/social/x/engagement")
 async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-separated tweet IDs")):
-    """Get engagement metrics for tweets — cached 1h."""
+    """Get engagement metrics for tweets - cached 1h."""
     from app.databus.social import SocialDataAggregator
 
     agg = SocialDataAggregator(databus.cache)
@@ -524,7 +528,7 @@ async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-sep
 
 @router.get("/social/x/search")
 async def social_x_search(q: str = Query(..., description="Search query"), count: int = Query(10, ge=1, le=100)):
-    """Search X/Twitter — VERY expensive, cached 24h. Use sparingly."""
+    """Search X/Twitter - VERY expensive, cached 24h. Use sparingly."""
     from app.databus.social import SocialDataAggregator
 
     agg = SocialDataAggregator(databus.cache)
@@ -536,7 +540,7 @@ async def social_x_search(q: str = Query(..., description="Search query"), count
 
 @router.get("/social/kol/{username}")
 async def social_kol_reputation(username: str):
-    """KOL reputation score — cached 24h."""
+    """KOL reputation score - cached 24h."""
     from app.databus.social import SocialDataAggregator
 
     agg = SocialDataAggregator(databus.cache)
@@ -545,7 +549,7 @@ async def social_kol_reputation(username: str):
 
 @router.get("/social/sentiment")
 async def social_sentiment(username: str = Query("CryptoRugMunch")):
-    """Brand sentiment analysis — cached 1h."""
+    """Brand sentiment analysis - cached 1h."""
     from app.databus.social import SocialDataAggregator
 
     agg = SocialDataAggregator(databus.cache)
@@ -572,7 +576,7 @@ X_HANDLE = "CryptoRugMunch"
 
 @router.get("/social/x/discover")
 async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50, ge=1, le=100)):
-    """Discover tweets via web search — no API needed, works for free."""
+    """Discover tweets via web search - no API needed, works for free."""
     from app.databus.social_scraper import XWebScraper
 
     scraper = XWebScraper(databus.cache)
@@ -582,7 +586,7 @@ async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50
 
 @router.get("/social/x/engagement-report")
 async def social_x_engagement_report(handle: str = Query(X_HANDLE)):
-    """Get engagement report for a handle — avg likes, best tweets, posting frequency."""
+    """Get engagement report for a handle - avg likes, best tweets, posting frequency."""
     from app.databus.social_scraper import XWebScraper
 
     scraper = XWebScraper(databus.cache)
@@ -592,7 +596,7 @@ async def social_x_engagement_report(handle: str = Query(X_HANDLE)):
 
 @router.get("/social/x/mentions-discover")
 async def social_x_mentions_discover(handle: str = Query(X_HANDLE), limit: int = Query(20, ge=1, le=50)):
-    """Find tweets mentioning a handle — via web search."""
+    """Find tweets mentioning a handle - via web search."""
     from app.databus.social_scraper import XWebScraper
 
     scraper = XWebScraper(databus.cache)
@@ -716,7 +720,7 @@ async def bitquery_contract_events(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# INTELLIGENT WEBHOOK SYSTEM — Arkham, Helius, Moralis, Alchemy + custom
+# INTELLIGENT WEBHOOK SYSTEM - Arkham, Helius, Moralis, Alchemy + custom
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -732,7 +736,7 @@ async def receive_webhook(service: str, request: Request):
     try:
         from app.databus.webhooks import handle_webhook
     except ImportError:
-        raise HTTPException(501, "Webhook system not available")
+        raise HTTPException(501, "Webhook system not available") from None
 
     raw_body = await request.body()
     headers = dict(request.headers)
@@ -758,7 +762,7 @@ async def list_webhooks_endpoint():
 
         return await list_webhooks()
     except ImportError:
-        raise HTTPException(501, "Webhook system not available")
+        raise HTTPException(501, "Webhook system not available") from None
 
 
 @router.post("/webhooks/setup/{service}")
@@ -775,7 +779,7 @@ async def setup_webhook_endpoint(service: str, request: Request):
     try:
         from app.databus.webhooks import setup_webhook
     except ImportError:
-        raise HTTPException(501, "Webhook system not available")
+        raise HTTPException(501, "Webhook system not available") from None
 
     body = await request.json()
     result = await setup_webhook(
@@ -814,13 +818,13 @@ async def premium_dev_finder(token: str, chain: str = "solana", request: Request
 
 @router.get("/premium/snipers/{address}")
 async def premium_sniper_detect(address: str, chain: str = "solana", request: Request = None):
-    """Detect snipers — first-block buyers with fast dumps. Premium tier."""
+    """Detect snipers - first-block buyers with fast dumps. Premium tier."""
     return await databus.fetch("sniper_detect", address=address, chain=chain)
 
 
 @router.get("/premium/bot-farms/{address}")
 async def premium_bot_farms(address: str, chain: str = "solana", request: Request = None):
-    """Detect bot farms — identical behavior patterns. Premium tier."""
+    """Detect bot farms - identical behavior patterns. Premium tier."""
     return await databus.fetch("bot_farm_detect", address=address, chain=chain)
 
 
@@ -850,18 +854,18 @@ async def premium_mev(address: str, chain: str = "solana", request: Request = No
 
 @router.get("/premium/fresh-wallets/{address}")
 async def premium_fresh_wallets(address: str, chain: str = "solana", request: Request = None):
-    """Analyze fresh wallet concentration — high new-wallet % = rug risk. Premium tier."""
+    """Analyze fresh wallet concentration - high new-wallet % = rug risk. Premium tier."""
     return await databus.fetch("fresh_wallet_analysis", address=address, chain=chain)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# RUGCHARTS — Volume Authenticity, OHLCV, Token Security
+# RUGCHARTS - Volume Authenticity, OHLCV, Token Security
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/premium/volume-authenticity/{address}")
 async def premium_volume_auth(address: str, chain: str = "ethereum", request: Request = None):
-    """Fake volume % with bootstrap CI. The RugCharts moat — no one else does this."""
+    """Fake volume % with bootstrap CI. The RugCharts moat - no one else does this."""
     return await databus.fetch(
         "volume_authenticity",
         address=address,
@@ -889,7 +893,7 @@ async def ohlcv_candles(
 
 @router.get("/premium/security-scan/{address}")
 async def premium_security_scan(address: str, chain: str = "ethereum", request: Request = None):
-    """37+ security checks — GoPlus, honeypot, contract, liquidity, holders, rug pull indicators."""
+    """37+ security checks - GoPlus, honeypot, contract, liquidity, holders, rug pull indicators."""
     return await databus.fetch("token_security", address=address, chain=chain)
 
 
@@ -900,13 +904,13 @@ async def security_check_matrix():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# RUGCHARTS INTELLIGENCE — 10 Premium Endpoints
+# RUGCHARTS INTELLIGENCE - 10 Premium Endpoints
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/premium/smart-money")
 async def smart_money_endpoint(chain: str = "solana", limit: int = 20):
-    """What profitable wallets are buying right now — with entity labels."""
+    """What profitable wallets are buying right now - with entity labels."""
     return await databus.fetch("smart_money", chain=chain, limit=limit)
 
 
@@ -924,7 +928,7 @@ async def token_launches_endpoint(chain: str = "solana", limit: int = 50):
 
 @router.get("/premium/insider-detection/{address}")
 async def insider_detection_endpoint(address: str, chain: str = "solana"):
-    """Detect pre-pump accumulation — volume spikes before major price moves."""
+    """Detect pre-pump accumulation - volume spikes before major price moves."""
     return await databus.fetch("insider_detection", address=address, chain=chain)
 
 
@@ -972,7 +976,7 @@ async def tier_comparison_endpoint():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MARKET DATA — Free APIs: CoinGecko, Fear & Greed, Polymarket
+# MARKET DATA - Free APIs: CoinGecko, Fear & Greed, Polymarket
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -995,7 +999,7 @@ async def market_trending():
 
 
 @router.get("/market/prediction-markets")
-async def prediction_markets():
+async def prediction_markets():  # noqa: F811
     """Prediction markets from Polymarket. Free, no key needed."""
     return await databus.fetch("prediction_markets")
 
@@ -1013,19 +1017,19 @@ async def full_news(limit: int = 15):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# NEWS INTELLIGENCE — Multi-source, quality-scored, social-enabled
+# NEWS INTELLIGENCE - Multi-source, quality-scored, social-enabled
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/news/intel")
 async def news_intel(limit: int = 30):
-    """Complete news intelligence — 10+ sources, quality-scored, deduped, sentiment-tagged."""
+    """Complete news intelligence - 10+ sources, quality-scored, deduped, sentiment-tagged."""
     return await databus.fetch("news_intel", limit=limit)
 
 
 @router.get("/news/weekly-best")
 async def weekly_best(limit: int = 20):
-    """Curated weekly best — highest quality crypto journalism."""
+    """Curated weekly best - highest quality crypto journalism."""
     return await databus.fetch("weekly_best", limit=limit)
 
 
@@ -1037,7 +1041,7 @@ async def academic_papers(limit: int = 10):
 
 @router.get("/news/social")
 async def social_feed(limit: int = 30):
-    """Crypto social feed — X/Twitter + CryptoPanic sentiment."""
+    """Crypto social feed - X/Twitter + CryptoPanic sentiment."""
     return await databus.fetch("social_feed", limit=limit)
 
 
@@ -1079,58 +1083,58 @@ async def create_bb_from_article(content_hash: str, request: Request):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CT RUNDOWN — Crypto Twitter Intelligence
+# CT RUNDOWN - Crypto Twitter Intelligence
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/news/ct-rundown")
 async def ct_rundown(limit: int = 20):
-    """CT Rundown — top 20 Crypto Twitter stories, AI-summarized, category-diverse."""
+    """CT Rundown - top 20 Crypto Twitter stories, AI-summarized, category-diverse."""
     return await databus.fetch("ct_rundown", limit=limit)
 
 
 @router.get("/news/ct-accounts")
 async def ct_accounts():
-    """Curated CT account list — 150+ top accounts across 6 tiers."""
+    """Curated CT account list - 150+ top accounts across 6 tiers."""
     return await databus.fetch("ct_accounts")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SOCIAL INTELLIGENCE — KOL tracking, shill detection, Daily Intel
+# SOCIAL INTELLIGENCE - KOL tracking, shill detection, Daily Intel
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/social/kol/{handle}")
 async def kol_profile(handle: str):
-    """KOL performance profile — trust score, call history, win rate."""
+    """KOL performance profile - trust score, call history, win rate."""
     return await databus.fetch("kol_profile", handle=handle)
 
 
 @router.get("/social/kol-leaderboard")
 async def kol_leaderboard(limit: int = 20):
-    """KOL leaderboard — ranked by trust score and accuracy."""
+    """KOL leaderboard - ranked by trust score and accuracy."""
     return await databus.fetch("kol_leaderboard", limit=limit)
 
 
 @router.get("/social/shill-alerts")
 async def shill_alerts():
-    """Active shill campaigns — coordinated promotion, pump-and-dump patterns."""
+    """Active shill campaigns - coordinated promotion, pump-and-dump patterns."""
     return await databus.fetch("shill_detector")
 
 
 @router.get("/social/scam-monitor")
 async def scam_monitor():
-    """Scam channel monitoring — Telegram/Discord scam pattern detection."""
+    """Scam channel monitoring - Telegram/Discord scam pattern detection."""
     return await databus.fetch("scam_monitor")
 
 
 @router.get("/social/metrics")
 async def social_metrics():
-    """Social metrics — trending topics, sentiment, KOL activity."""
+    """Social metrics - trending topics, sentiment, KOL activity."""
     return await databus.fetch("social_metrics")
 
 
 @router.get("/intel/daily")
 async def daily_intel():
-    """Daily Intelligence Report — Groq AI-powered market briefing with all data sources."""
+    """Daily Intelligence Report - Groq AI-powered market briefing with all data sources."""
     return await databus.fetch("daily_intel")

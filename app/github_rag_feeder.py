@@ -1,5 +1,5 @@
 """
-RAG GitHub Feeder v2 — Declarative, Config-Driven
+RAG GitHub Feeder v2 - Declarative, Config-Driven
 ==================================================
 Add any GitHub repo as a RAG data source with minimal config.
 Auto-clones, extracts markdown/solidity/text, chunks, and ingests.
@@ -29,7 +29,7 @@ BACKEND = "http://localhost:8000"
 INGEST_URL = f"{BACKEND}/api/v1/rag/ingest"
 
 # ═══════════════════════════════════════════════════
-# DECLARATIVE SOURCE CONFIG — add repos here
+# DECLARATIVE SOURCE CONFIG - add repos here
 # ═══════════════════════════════════════════════════
 SOURCES = [
     {

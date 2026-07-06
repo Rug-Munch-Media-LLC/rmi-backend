@@ -1,20 +1,20 @@
 """
-RMI x402 MCP Server — Free Crypto Intelligence with Paid Upgrades
+RMI x402 MCP Server - Free Crypto Intelligence with Paid Upgrades
 ===============================================================
 Exposes RMI tools via Model Context Protocol with x402 micropayments.
 Free tier: 10 calls/day. Paid: $0.01 USDC/call via x402 (HTTP 402).
 
 Tools:
-  - search_news(query) — Search 500+ crypto news sources
-  - get_latest_news(limit) — Latest headlines
-  - get_token_price(mint) — Live token prices via Pyth/CoinGecko
-  - get_wallet_labels(address) — Entity resolution (82K+ labels)
-  - scan_token(address) — Security scan
-  - get_trending_tickers() — Most mentioned tokens
-  - get_news_sentiment() — Market sentiment analysis
-  - get_news_stats() — Aggregator statistics
+  - search_news(query) - Search 500+ crypto news sources
+  - get_latest_news(limit) - Latest headlines
+  - get_token_price(mint) - Live token prices via Pyth/CoinGecko
+  - get_wallet_labels(address) - Entity resolution (82K+ labels)
+  - scan_token(address) - Security scan
+  - get_trending_tickers() - Most mentioned tokens
+  - get_news_sentiment() - Market sentiment analysis
+  - get_news_stats() - Aggregator statistics
 
-Built by Rug Munch Intelligence — rugmunch.io
+Built by Rug Munch Intelligence - rugmunch.io
 """
 
 import json
@@ -102,7 +102,7 @@ def search_news(
                             "count": len(results),
                             "results": results,
                             "auth": auth,
-                            "attribution": "RMI — rugmunch.io",
+                            "attribution": "RMI - rugmunch.io",
                         }
 
     return {
@@ -110,7 +110,7 @@ def search_news(
         "count": len(results),
         "results": results,
         "auth": auth,
-        "attribution": "RMI — rugmunch.io",
+        "attribution": "RMI - rugmunch.io",
     }
 
 
@@ -140,7 +140,7 @@ def get_latest_news(
         "count": len(results),
         "results": results,
         "auth": auth,
-        "powered_by": "RMI — rugmunch.io",
+        "powered_by": "RMI - rugmunch.io",
     }
 
 
@@ -169,7 +169,7 @@ def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -
         "mint": mint,
         "price_usd": 68.27,
         "source": "Pyth Network",
-        "note": "Free tier — institutional grade",
+        "note": "Free tier - institutional grade",
     }
 
 
@@ -351,7 +351,7 @@ def get_news_sentiment() -> dict:
         "update_frequency": "5 minutes",
         "free_tier": "10 calls/day",
         "paid_tier": "$0.01 USDC/call via x402",
-        "attribution": "RMI — rugmunch.io",
+        "attribution": "RMI - rugmunch.io",
     }
 
 
@@ -372,14 +372,14 @@ def news_latest_resource() -> str:
         if article:
             a = json.loads(article)
             lines.append(f"[{a.get('source', '?')}] {a['title']}")
-    return "\n".join(lines) + "\n\n---\nPowered by RMI — rugmunch.io | Free crypto intelligence"
+    return "\n".join(lines) + "\n\n---\nPowered by RMI - rugmunch.io | Free crypto intelligence"
 
 
 @mcp.resource("rmi://pricing")
 def pricing_resource() -> str:
     """RMI pricing information."""
     return """
-RMI Crypto Intelligence — Pricing
+RMI Crypto Intelligence - Pricing
 ==================================
 Free Tier: 10 API calls/day, unlimited news search
 Paid Tier: $0.01 USDC/call via x402 (HTTP 402 Payment Required)

@@ -10,9 +10,9 @@ Features:
 - Chat history stored in SQLite + Redis
 
 Routes:
-- POST /api/v1/chat — Send message, get AI response
-- POST /api/v1/chat/stream — Streaming chat endpoint (SSE)
-- GET /api/v1/chat/history — User's chat history
+- POST /api/v1/chat - Send message, get AI response
+- POST /api/v1/chat/stream - Streaming chat endpoint (SSE)
+- GET /api/v1/chat/history - User's chat history
 """
 
 import json
@@ -40,8 +40,8 @@ ai_guard = AIGuard()
 
 # ── Auth ──
 # ── AI Router ──
-from app.ai_router import router as ai_router
-from app.auth import get_current_user, require_auth
+from app.ai_router import router as ai_router  # noqa: E402
+from app.auth import get_current_user, require_auth  # noqa: E402
 
 # ── DB path ──
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "rmi.db")
@@ -121,7 +121,7 @@ Capabilities:
 Rules:
 - Keep answers concise but deeply informative (2-4 sentences unless asked for depth)
 - When analyzing a token, always structure: Risk Score / Key Findings / Verdict
-- Never give financial advice — only security and intelligence analysis
+- Never give financial advice - only security and intelligence analysis
 - Reference tools naturally: Birdeye, GMGN, Helius, Solscan, Moralis, DexScreener, DeFiLlama
 - If asked about $CRM or cryptorugmunch, be objective but proud of the transparency
 
@@ -286,7 +286,7 @@ async def chat(
             max_tokens=req.max_tokens,
         )
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI provider error: {e}")
+        raise HTTPException(status_code=502, detail=f"AI provider error: {e}") from e
 
     if "error" in result:
         raise HTTPException(status_code=502, detail=result["error"])

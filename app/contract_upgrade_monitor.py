@@ -1,7 +1,7 @@
 """
 Contract Upgrade Monitor
 ========================
-Monitor proxy contract upgrades in real-time — detects malicious implementation
+Monitor proxy contract upgrades in real-time - detects malicious implementation
 swaps, hidden timelock changes, and privilege escalation through upgrade patterns.
 
 TOOL  : contract_upgrade_monitor
@@ -10,9 +10,9 @@ PRICE : $0.05 (50000 atoms)
 TRIAL : 2 free checks
 
 Data Sources (all free-tier):
-- Etherscan/BscScan/Polygonscan API — contract ABI, source code, tx history
+- Etherscan/BscScan/Polygonscan API - contract ABI, source code, tx history
 - OpenZeppelin proxy patterns (UUPS, Transparent, Beacon)
-- Public RPCs — storage slot reads for implementation address
+- Public RPCs - storage slot reads for implementation address
 - EIP-1967, EIP-1822, EIP-1167 storage slot standards
 """
 
@@ -81,7 +81,7 @@ DANGEROUS_SELECTORS = {
     "0x9b3b76cc": "upgradeBeaconTo(address,bytes)",
 }
 
-# Proxy storage diff threshold — if implementation changes within this window
+# Proxy storage diff threshold - if implementation changes within this window
 SUSPICIOUS_UPGRADE_WINDOW = 86400  # 24 hours
 
 # Cache helpers
@@ -524,7 +524,6 @@ async def check_timelock(address: str, chain: str) -> str | None:
     # Try to detect timelock by checking admin's own storage
     # Active timelocks have a minimum delay > 0
     try:
-        from eth_account import Account  # noqa: F401
 
         # Use storage slot to check if admin has timelock delay
         delay_slot = "0x0000000000000000000000000000000000000000000000000000000000000002"
@@ -551,18 +550,18 @@ def _assess_risk(
 
     # 1. No timelock is a risk
     risk += 10.0
-    factors.append("No timelock detected — upgrades can be instant")
+    factors.append("No timelock detected - upgrades can be instant")
 
     # 2. Beacon proxies have higher attack surface
     if proxy_info.proxy_type == "beacon":
         risk += 15.0
-        factors.append("Beacon proxy — multiple implementations share same beacon (wider attack surface)")
+        factors.append("Beacon proxy - multiple implementations share same beacon (wider attack surface)")
 
-    # 3. UUPS proxies — upgrade logic in implementation (higher risk if buggy)
+    # 3. UUPS proxies - upgrade logic in implementation (higher risk if buggy)
     if proxy_info.proxy_type == "eip1822":
         risk += 10.0
         factors.append(
-            "UUPS proxy — upgrade logic in implementation contract (vulnerable if implementation has upgrade bug)"
+            "UUPS proxy - upgrade logic in implementation contract (vulnerable if implementation has upgrade bug)"
         )
 
     # 4. Recent upgrades increase risk
@@ -584,15 +583,15 @@ def _assess_risk(
     # 6. Admin address not set (unusual for proxies)
     if not proxy_info.admin_address and proxy_info.proxy_type:
         risk += 5.0
-        factors.append("No admin address detected — upgrade authority unknown")
+        factors.append("No admin address detected - upgrade authority unknown")
 
     # 7. Implementation address hasn't changed (low risk)
     upgrade_count = len(upgrades)
     if upgrade_count == 0 and proxy_info.is_proxy:
         risk = max(risk - 10.0, 5.0)
-        factors.append("No upgrade history — proxy is stable")
+        factors.append("No upgrade history - proxy is stable")
     elif upgrade_count == 0:
-        factors.append("Not a proxy — no upgrade risk")
+        factors.append("Not a proxy - no upgrade risk")
 
     # Clamp
     risk = max(0.0, min(100.0, risk))
@@ -737,7 +736,7 @@ def format_upgrade_report(report: ContractUpgradeReport) -> str:
         for factor in report.risk_factors:
             lines.append(f"   • {factor}")
     else:
-        lines.append("✅ Not a proxy contract — no upgrade risk detected.")
+        lines.append("✅ Not a proxy contract - no upgrade risk detected.")
         if pi and pi.detected_selectors:
             lines.append("   (Proxy-like selectors found but no storage slot match)")
 

@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, "/root/backend")
 os.chdir("/root/backend")
 
-from app.wallet_manager_v2 import get_wallet_manager_v2
+from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402
 
 # Target addresses from fact_store (id=74)
 EVM_RECEIVING = "0x5761E0337a49819A8Cd4D35D76E882255Cb113b9".lower()

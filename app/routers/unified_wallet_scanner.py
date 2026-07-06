@@ -1,18 +1,18 @@
 """
-RMI Wallet Scanner v3 — AI-Powered, World-Class
+RMI Wallet Scanner v3 - AI-Powered, World-Class
 ================================================
 10 improvements over any wallet scanner on the market:
 
-1. RAG-POWERED ENTITY RESOLUTION — 20,985 docs of scammer intel
-2. AI WALLET PERSONA — Ollama Cloud behavioral profiling
-3. CROSS-CHAIN ACTIVITY — detect same entity across chains
-4. SCAM TOKEN EXPOSURE — risk score per holding, total exposure
-5. BEHAVIORAL PATTERN MATCHING — compare against known rugger DB
-6. TIME-SERIES ANOMALY — detect unusual tx patterns
-7. SMART MONEY OVERLAP — how much smart money is in same tokens
-8. SOCIAL GRAPH ANALYSIS — who they trade with, counterparty risk
-9. FLOW VISUALIZATION DATA — structured for frontend charts
-10. RISK FORECAST — AI predicts 7-day risk trajectory
+1. RAG-POWERED ENTITY RESOLUTION - 20,985 docs of scammer intel
+2. AI WALLET PERSONA - Ollama Cloud behavioral profiling
+3. CROSS-CHAIN ACTIVITY - detect same entity across chains
+4. SCAM TOKEN EXPOSURE - risk score per holding, total exposure
+5. BEHAVIORAL PATTERN MATCHING - compare against known rugger DB
+6. TIME-SERIES ANOMALY - detect unusual tx patterns
+7. SMART MONEY OVERLAP - how much smart money is in same tokens
+8. SOCIAL GRAPH ANALYSIS - who they trade with, counterparty risk
+9. FLOW VISUALIZATION DATA - structured for frontend charts
+10. RISK FORECAST - AI predicts 7-day risk trajectory
 
 All powered by DataBus + Ollama Cloud + RAG.
 """
@@ -81,9 +81,9 @@ class WalletScanResult:
 class UnifiedWalletScanner:
     """THE wallet scanner. Beats anything on the market."""
 
-    CORE = ["wallet_labels", "wallet_tokens", "wallet_net_worth"]
-    DEEP = ["wallet_transactions", "entity_intel", "cross_chain_entity"]
-    PREMIUM = ["arkham_counterparties", "arkham_portfolio"]
+    CORE = ["wallet_labels", "wallet_tokens", "wallet_net_worth"]  # noqa: RUF012
+    DEEP = ["wallet_transactions", "entity_intel", "cross_chain_entity"]  # noqa: RUF012
+    PREMIUM = ["arkham_counterparties", "arkham_portfolio"]  # noqa: RUF012
 
     async def scan(
         self, address: str, chain: str = "solana", tier: str = "free", admin_key: str | None = None

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#13 — Social-Seed Detection Engine. Watches X/Twitter for new token tickers,
+"""#13 - Social-Seed Detection Engine. Watches X/Twitter for new token tickers,
 cross-references against DataBus, runs SENTINEL scan, posts risk assessment."""
 
 import os

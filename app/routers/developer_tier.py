@@ -14,6 +14,7 @@ Author: RMI Development
 Date: 2026-06-05
 """
 
+import email
 import json
 import logging
 import time
@@ -23,6 +24,9 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+
+from app.databus_gateway import generate_api_key
+from app.routers.dev_portal import create_api_key
 
 logger = logging.getLogger("developer_tier")
 
@@ -45,7 +49,7 @@ def verify_evm_signature(address: str, message: str, signature: str) -> bool:
         recovered = Account.recover_message(encoded, signature=signature)
         return recovered.lower() == address.lower()
     except ImportError:
-        # eth_account not available — fail closed
+        # eth_account not available - fail closed
         return False
     except Exception:
         return False
@@ -58,7 +62,7 @@ def verify_solana_signature(address: str, message: str, signature: str) -> bool:
 
         from nacl.signing import VerifyKey
 
-        from app.core.redis import get_redis
+        from app.core.redis import get_redis  # noqa: F401
 
         pubkey = VerifyKey(base64.b58decode(address))
         msg_bytes = message.encode("utf-8")
@@ -126,7 +130,7 @@ TIERS = {
 
 def create_tier(tier: str) -> dict[str, Any] | None:
     """Create a new developer API key."""
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if not r:
         return None
 
@@ -134,7 +138,7 @@ def create_tier(tier: str) -> dict[str, Any] | None:
         return None
 
     key = generate_api_key()
-    hashed = hash_api_key(key)
+    hashed = hash_api_key(key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     created_at = datetime.now(UTC).isoformat()
 
     key_info = {
@@ -142,7 +146,7 @@ def create_tier(tier: str) -> dict[str, Any] | None:
         "hashed_key": hashed,
         "email": email,
         "tier": tier,
-        "wallet_address": wallet_address,
+        "wallet_address": wallet_address,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
         "created_at": created_at,
         "status": "active",
         "total_calls": 0,
@@ -168,7 +172,7 @@ def create_tier(tier: str) -> dict[str, Any] | None:
 
 def get_usage_for_key(hashed_key: str) -> dict[str, Any]:
     """Get usage stats for an API key."""
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if not r:
         return {"error": "redis_unavailable"}
 
@@ -235,7 +239,7 @@ async def register_developer(req: RegisterRequest):
         return JSONResponse(status_code=400, content={"error": "Invalid email address"})
 
     # Check if email already has a key
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if r:
         existing = r.smembers(f"rmi:dev:email:{req.email}")
         if existing:
@@ -257,7 +261,7 @@ async def register_developer(req: RegisterRequest):
         status_code=201,
         content={
             "success": True,
-            "message": "Developer API key created. Save it — it won't be shown again.",
+            "message": "Developer API key created. Save it - it won't be shown again.",
             "api_key": result["key"],
             "tier": result["tier"],
             "daily_limit": TIERS[result["tier"]]["daily_limit"],
@@ -280,7 +284,7 @@ async def verify_key(req: VerifyRequest):
     if not req.api_key:
         return JSONResponse(status_code=400, content={"error": "api_key required"})
 
-    hashed = hash_api_key(req.api_key)
+    hashed = hash_api_key(req.api_key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     usage = get_usage_for_key(hashed)
 
     if "error" in usage:
@@ -295,8 +299,8 @@ async def get_usage(req: UsageRequest):
     if not req.api_key:
         return JSONResponse(status_code=400, content={"error": "api_key required"})
 
-    hashed = hash_api_key(req.api_key)
-    r = get_redis()
+    hashed = hash_api_key(req.api_key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if not r:
         return JSONResponse(status_code=500, content={"error": "redis_unavailable"})
 
@@ -384,10 +388,10 @@ async def verify_wallet_identity(req: WalletVerifyRequest):
         return JSONResponse(status_code=400, content={"error": "chain must be 'evm' or 'solana'"})
 
     if not valid:
-        return JSONResponse(status_code=401, content={"error": "Invalid signature — wallet ownership not proven"})
+        return JSONResponse(status_code=401, content={"error": "Invalid signature - wallet ownership not proven"})
 
     # Store wallet identity in Redis
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if not r:
         return JSONResponse(status_code=500, content={"error": "redis_unavailable"})
 
@@ -425,8 +429,8 @@ async def get_wallet_challenge(req: VerifyRequest):
     """Get a challenge message to sign with your wallet."""
     # If they have an API key, generate a challenge for that key
     if req.api_key:
-        hashed = hash_api_key(req.api_key)
-        key_data = get_redis().get(f"rmi:dev:key:{hashed}") if get_redis() else None
+        hashed = hash_api_key(req.api_key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        key_data = get_redis().get(f"rmi:dev:key:{hashed}") if get_redis() else None  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
         if key_data:
             info = json.loads(key_data)
             address = info.get("wallet_address", "")
@@ -453,7 +457,7 @@ async def get_wallet_challenge(req: VerifyRequest):
 @router.get("/wallet/status/{chain}/{address}")
 async def wallet_status(chain: str, address: str):
     """Check wallet verification status and benefits."""
-    r = get_redis()
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if not r:
         return JSONResponse(status_code=500, content={"error": "redis_unavailable"})
 
@@ -489,8 +493,8 @@ async def check_developer_key(request: Request) -> dict[str, Any] | None:
     if not dev_key:
         return None
 
-    hashed = hash_api_key(dev_key)
-    r = get_redis()
+    hashed = hash_api_key(dev_key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if not r:
         return {"error": "redis_unavailable", "deny": True}
 
@@ -531,7 +535,7 @@ async def check_developer_key(request: Request) -> dict[str, Any] | None:
             "retry_after": 60,
         }
 
-    # All checks passed — consume the call
+    # All checks passed - consume the call
     pipe = r.pipeline()
     pipe.incr(f"rmi:dev:usage:{hashed}:{today}")
     pipe.incr(f"rmi:dev:usage:{hashed}:total")

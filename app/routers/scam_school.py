@@ -1,5 +1,5 @@
 """
-Scam School API — Interactive Crypto Education Platform
+Scam School API - Interactive Crypto Education Platform
 =========================================================
 Backend for the RMI Scam School: courses, lessons, progress tracking,
 gamification (XP, levels, badges, streaks), certificates, and quizzes.
@@ -34,7 +34,7 @@ async def get_current_user(request: Request) -> dict | None:
     return await _get_user(request)
 
 
-# ── Course Data (embedded — no external dependencies) ──
+# ── Course Data (embedded - no external dependencies) ──
 
 COURSES = [
     {
@@ -574,7 +574,7 @@ COURSES = [
                                 "It can't be traded",
                             ],
                             "correct": 1,
-                            "explanation": "Unverified contracts hide their source code. The deployer could have put anything in there — honeypots, backdoors, infinite mint functions. Always verify.",
+                            "explanation": "Unverified contracts hide their source code. The deployer could have put anything in there - honeypots, backdoors, infinite mint functions. Always verify.",
                         },
                     ]
                 },

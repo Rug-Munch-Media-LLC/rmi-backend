@@ -228,7 +228,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
                 "high_dilution_risk:circ_supply_less_than_30%_of_total"
             )
             profile.recommendations.append(
-                f"⚠ Only {ratio:.0%} of total supply is circulating — high dilution risk. "
+                f"⚠ Only {ratio:.0%} of total supply is circulating - high dilution risk. "
                 "Check vesting/unlock schedule."
             )
         elif ratio < 0.5:
@@ -251,7 +251,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
                 f"supply_exceeds_max:total_{total:.2f}_exceeds_max_{max_sup:.2f}"
             )
             profile.recommendations.append(
-                "🚨 Total supply exceeds max supply — possible mint/printing."
+                "🚨 Total supply exceeds max supply - possible mint/printing."
             )
         else:
             remaining = max_sup - total
@@ -262,7 +262,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
                     f"large_mint_headroom:{remaining_pct:.0f}%_of_max_supply_unminted"
                 )
                 profile.recommendations.append(
-                    f"🚨 {remaining_pct:.0f}% of max supply is unminted — significant dilution risk."
+                    f"🚨 {remaining_pct:.0f}% of max supply is unminted - significant dilution risk."
                 )
     else:
         # No max supply = potentially unlimited mint
@@ -270,7 +270,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
             score += 30
             profile.patterns_detected.append("no_max_supply_with_mint:unlimited_mint_possible")
             profile.recommendations.append(
-                "🚨 No max supply set AND mint function exists — potentially unlimited mint."
+                "🚨 No max supply set AND mint function exists - potentially unlimited mint."
             )
 
     # ── Burn amount ─────────────────────────────────────────────
@@ -280,7 +280,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
         if burn_pct > 50:
             score -= 15  # Heavy burning is generally positive
             profile.recommendations.append(
-                f"✅ {burn_pct:.0f}% of supply has been burned — strong deflationary pressure."
+                f"✅ {burn_pct:.0f}% of supply has been burned - strong deflationary pressure."
             )
 
     # ── Mint function analysis ──────────────────────────────────
@@ -289,7 +289,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
             score += 40
             profile.patterns_detected.append("unlimited_mint_function")
             profile.recommendations.append(
-                "🚨 Token has an unrestricted mint function — supply can be inflated at will."
+                "🚨 Token has an unrestricted mint function - supply can be inflated at will."
             )
         elif profile.mint_function_type == "ownable":
             score += 25
@@ -297,7 +297,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
             if not profile.is_renounced:
                 score += 10
                 profile.recommendations.append(
-                    "⚠ Owner-controlled mint function — supply can be increased if ownership is not renounced."
+                    "⚠ Owner-controlled mint function - supply can be increased if ownership is not renounced."
                 )
         elif profile.mint_function_type == "capped":
             score += 5
@@ -332,25 +332,25 @@ def _analyze_concentration(profile: TokenSupplyProfile) -> None:
             score += 50
             profile.patterns_detected.append("extreme_concentration:top_10_holds_>99%")
             profile.recommendations.append(
-                "🚨 Top 10 wallets hold >99% of supply — extremely concentrated, likely a scam."
+                "🚨 Top 10 wallets hold >99% of supply - extremely concentrated, likely a scam."
             )
         elif top10 >= CONCENTRATION_THRESHOLD_PCT:
             score += 40
             profile.patterns_detected.append("critical_concentration:top_10_holds_>90%")
             profile.recommendations.append(
-                f"🚨 Top 10 wallets hold {top10:.0f}% of supply — extreme concentration risk."
+                f"🚨 Top 10 wallets hold {top10:.0f}% of supply - extreme concentration risk."
             )
         elif top10 >= 70:
             score += 25
             profile.patterns_detected.append("high_concentration:top_10_holds_>70%")
             profile.recommendations.append(
-                f"⚠ Top 10 wallets hold {top10:.0f}% of supply — high concentration."
+                f"⚠ Top 10 wallets hold {top10:.0f}% of supply - high concentration."
             )
         elif top10 >= 50:
             score += 15
             profile.patterns_detected.append("moderate_concentration:top_10_holds_>50%")
             profile.recommendations.append(
-                f"⚠ Top 10 wallets hold {top10:.0f}% of supply — moderate concentration."
+                f"⚠ Top 10 wallets hold {top10:.0f}% of supply - moderate concentration."
             )
 
     # ── Top 50 holder concentration ─────────────────────────────
@@ -373,19 +373,19 @@ def _analyze_concentration(profile: TokenSupplyProfile) -> None:
             score += 40
             profile.patterns_detected.append("deployer_holds_majority")
             profile.recommendations.append(
-                f"🚨 Deployer holds {deployer_hold:.0f}% of supply — complete control, very high risk."
+                f"🚨 Deployer holds {deployer_hold:.0f}% of supply - complete control, very high risk."
             )
         elif deployer_hold > 20:
             score += 20
             profile.patterns_detected.append("deployer_holds_significant")
             profile.recommendations.append(
-                f"⚠ Deployer holds {deployer_hold:.0f}% of supply — significant insider allocation."
+                f"⚠ Deployer holds {deployer_hold:.0f}% of supply - significant insider allocation."
             )
         elif deployer_hold > 5:
             score += 10
             profile.patterns_detected.append("deployer_holds_moderate")
             profile.recommendations.append(
-                f"(i) Deployer holds {deployer_hold:.0f}% of supply — moderate allocation."
+                f"(i) Deployer holds {deployer_hold:.0f}% of supply - moderate allocation."
             )
 
     # ── Whale holdings analysis ─────────────────────────────────
@@ -411,13 +411,13 @@ def _analyze_liquidity(profile: TokenSupplyProfile) -> None:
         score += 50
         profile.patterns_detected.append("liquidity_removed")
         profile.recommendations.append(
-            "🚨 Liquidity has been removed from the pool — rug pull risk."
+            "🚨 Liquidity has been removed from the pool - rug pull risk."
         )
     elif profile.lock_status == LockStatus.UNLOCKED:
         score += 30
         profile.patterns_detected.append("liquidity_unlocked")
         profile.recommendations.append(
-            "🚨 LP tokens are unlocked — deployer can remove liquidity at any time."
+            "🚨 LP tokens are unlocked - deployer can remove liquidity at any time."
         )
     elif profile.lock_status == LockStatus.PARTIALLY_LOCKED:
         score += 15
@@ -439,7 +439,7 @@ def _analyze_liquidity(profile: TokenSupplyProfile) -> None:
     if profile.lp_token_pct_held_by_deployer > 50:
         score += 25
         profile.patterns_detected.append("deployer_holds_lp_majority")
-        profile.recommendations.append("🚨 Deployer holds >50% of LP tokens — can drain pool.")
+        profile.recommendations.append("🚨 Deployer holds >50% of LP tokens - can drain pool.")
     elif profile.lp_token_pct_held_by_deployer > 10:
         score += 10
         profile.patterns_detected.append("deployer_holds_significant_lp")
@@ -453,13 +453,13 @@ def _analyze_liquidity(profile: TokenSupplyProfile) -> None:
             score += 20
             profile.patterns_detected.append("very_new_pair:less_than_1_day_old")
             profile.recommendations.append(
-                "⚠ Liquidity pair is less than 1 day old — very high risk."
+                "⚠ Liquidity pair is less than 1 day old - very high risk."
             )
         elif profile.pair_age_days < 7:
             score += 10
             profile.patterns_detected.append(f"new_pair:{profile.pair_age_days:.0f}_days_old")
             profile.recommendations.append(
-                f"⚠ Pair is only {profile.pair_age_days:.0f} days old — higher risk."
+                f"⚠ Pair is only {profile.pair_age_days:.0f} days old - higher risk."
             )
         elif profile.pair_age_days > 30:
             score -= 10
@@ -471,12 +471,12 @@ def _analyze_liquidity(profile: TokenSupplyProfile) -> None:
             score += 25
             profile.patterns_detected.append("very_low_liquidity:<$1k")
             profile.recommendations.append(
-                "🚨 Very low liquidity (<$1K) — high slippage and manipulation risk."
+                "🚨 Very low liquidity (<$1K) - high slippage and manipulation risk."
             )
         elif profile.pair_liquidity_usd < 10000:
             score += 15
             profile.patterns_detected.append("low_liquidity:<$10k")
-            profile.recommendations.append("⚠ Low liquidity (<$10K) — moderate slippage risk.")
+            profile.recommendations.append("⚠ Low liquidity (<$10K) - moderate slippage risk.")
         elif profile.pair_liquidity_usd > 100000:
             score -= 10
             profile.patterns_detected.append("healthy_liquidity:>$100k")
@@ -500,13 +500,13 @@ def _compute_overall_risk(profile: TokenSupplyProfile) -> None:
         tax_score += 30
         profile.patterns_detected.append("dynamic_tax:tax_can_change")
         profile.recommendations.append(
-            "⚠ Dynamic tax detected — buy/sell tax can change at any time."
+            "⚠ Dynamic tax detected - buy/sell tax can change at any time."
         )
     if profile.has_blacklist:
         tax_score += 25
         profile.patterns_detected.append("blacklist_function")
         profile.recommendations.append(
-            "⚠ Token has a blacklist function — holders can be blocked from selling."
+            "⚠ Token has a blacklist function - holders can be blocked from selling."
         )
     if profile.buy_tax_pct > 10:
         tax_score += 15
@@ -515,24 +515,24 @@ def _compute_overall_risk(profile: TokenSupplyProfile) -> None:
         tax_score += 20
         profile.patterns_detected.append(f"very_high_sell_tax:{profile.sell_tax_pct:.1f}%")
         profile.recommendations.append(
-            f"🚨 Sell tax of {profile.sell_tax_pct:.0f}% is very high — may be a honeypot."
+            f"🚨 Sell tax of {profile.sell_tax_pct:.0f}% is very high - may be a honeypot."
         )
 
     ownership_score = 0.0
     if not profile.is_renounced:
         ownership_score += 15
         profile.patterns_detected.append("ownership_not_renounced")
-        profile.recommendations.append("⚠ Ownership is NOT renounced — contract can be modified.")
+        profile.recommendations.append("⚠ Ownership is NOT renounced - contract can be modified.")
     if profile.has_proxy_admin:
         ownership_score += 20
         profile.patterns_detected.append("proxy_admin:contract_can_be_upgraded")
         profile.recommendations.append(
-            "🚨 Token uses a proxy pattern with admin — contract can be upgraded (rug risk)."
+            "🚨 Token uses a proxy pattern with admin - contract can be upgraded (rug risk)."
         )
     if profile.has_multisig:
         ownership_score -= 10
         profile.patterns_detected.append("multisig_owner")
-        profile.recommendations.append("✅ Ownership uses multi-sig — adds security layer.")
+        profile.recommendations.append("✅ Ownership uses multi-sig - adds security layer.")
 
     profile.overall_risk_score = (
         profile.supply_risk_score * weights["supply"]

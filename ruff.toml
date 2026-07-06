@@ -10,6 +10,7 @@ ignore = [
     "E501",   # Line too long
     "RUF006", # create_task result unused (fire-and-forget patterns)
     "SIM102", # Nested if — existing code convention
+    "B008",   # function-call-in-default (FastAPI Depends pattern, intentional)
 ]
 
 [lint.per-file-ignores]

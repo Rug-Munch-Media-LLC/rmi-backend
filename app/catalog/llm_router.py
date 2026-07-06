@@ -1,4 +1,4 @@
-"""T27 LLM Router — sovereign-first LiteLLM proxy for catalog AI.
+"""T27 LLM Router - sovereign-first LiteLLM proxy for catalog AI.
 
 Per v4.0 §T28 (News analysis), §T29 (Report generation).
 
@@ -66,7 +66,7 @@ Be concise. Do not speculate beyond what the article says.
 class LLMRouter:
     """Async client for the self-hosted LiteLLM proxy.
 
-    Falls back to None if the proxy is unreachable — catalog operations
+    Falls back to None if the proxy is unreachable - catalog operations
     that need LLM output will skip the AI analysis but still complete
     the rest of the workflow.
     """
@@ -115,7 +115,7 @@ class LLMRouter:
             return None
 
     async def analyze_news(
-        self, news_item: NewsItem  # type: ignore  # noqa: F821
+        self, news_item: NewsItem  # type: ignore  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     ) -> str | None:
         """Generate AI analysis for a NewsItem. Per v4.0 §T28."""
         prompt = NEWS_ANALYSIS_PROMPT.format(

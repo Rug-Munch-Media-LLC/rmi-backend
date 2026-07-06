@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Ingest SIGMOD 2023 Pump & Dump dataset into RAG known_scams.
-36,696 labeled messages from Telegram pump channels — ground truth training data.
+36,696 labeled messages from Telegram pump channels - ground truth training data.
 """
 
 import asyncio

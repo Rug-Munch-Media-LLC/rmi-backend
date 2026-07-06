@@ -1,5 +1,5 @@
 """
-SENTINEL — PumpFun Token Analyzer (Solana Only)
+SENTINEL - PumpFun Token Analyzer (Solana Only)
 =================================================
 Analyzes Pump.fun tokens on Solana for bonding curve progress,
 unique buyer tracking, bot vs organic ratio, graduation probability,
@@ -109,14 +109,14 @@ class PumpFunAnalyzer:
     """Analyzes Pump.fun tokens for bonding curve progress, buyer quality,
     bot/organic ratio, and graduation/migration status.
 
-    Supports Solana only — Pump.fun does not operate on other chains.
+    Supports Solana only - Pump.fun does not operate on other chains.
     """
 
     def __init__(self, helius_api_key: str | None = None, dexscreener_client: httpx.AsyncClient | None = None):
         self.helius_api_key = helius_api_key or os.getenv("HELIUS_API_KEY", "")
         self.client = dexscreener_client or httpx.AsyncClient(timeout=20.0)
         if not self.helius_api_key:
-            logger.warning("HELIUS_API_KEY not set — Helius RPC calls will fail")
+            logger.warning("HELIUS_API_KEY not set - Helius RPC calls will fail")
 
     # ------------------------------------------------------------------
     # Public API
@@ -293,7 +293,7 @@ class PumpFunAnalyzer:
         then aggregates per-wallet statistics.
         """
         if not self.helius_api_key:
-            logger.warning("No Helius API key — skipping buyer analysis")
+            logger.warning("No Helius API key - skipping buyer analysis")
             return []
 
         buyer_map: dict[str, BuyerProfile] = {}
@@ -373,7 +373,7 @@ class PumpFunAnalyzer:
             parsed = ix.get("parsed") or {}
             prog = parsed.get("type") or ""
 
-            # Detect SOL transfers (SystemProgram) — funding/buying
+            # Detect SOL transfers (SystemProgram) - funding/buying
             if program_id == "11111111111111111111111111111111" and prog == "transfer":
                 info = parsed.get("info") or {}
                 source = info.get("source", "")
@@ -575,7 +575,7 @@ class PumpFunAnalyzer:
             warnings.append(f"MODERATE_BOT_RATIO: {bot_ratio:.0%} of buyers are likely bots")
 
         if len(buyers) < 10 and not curve.complete:
-            warnings.append(f"LOW_BUYERS: Only {len(buyers)} unique buyers — low organic interest")
+            warnings.append(f"LOW_BUYERS: Only {len(buyers)} unique buyers - low organic interest")
 
         # Check for single-wallet dominance
         if buyers:
@@ -587,6 +587,6 @@ class PumpFunAnalyzer:
                     warnings.append(f"WHALE_DOMINANCE: Top buyer holds {dominance:.0%} of total SOL invested")
 
         if curve.curve_progress < 10 and len(buyers) > 0:
-            warnings.append("EARLY_STAGE: Token is in very early bonding curve stage — high risk")
+            warnings.append("EARLY_STAGE: Token is in very early bonding curve stage - high risk")
 
         return warnings

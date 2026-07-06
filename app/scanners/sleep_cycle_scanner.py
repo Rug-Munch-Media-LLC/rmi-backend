@@ -1,7 +1,7 @@
-"""SENTINEL — Deployer Sleep Cycle Analysis
+"""SENTINEL - Deployer Sleep Cycle Analysis
 ===========================================
 Analyzes wallet deployment timestamps (hours of day, UTC) to detect
-abnormal sleep schedules. Humans sleep — if a project deploys at 4 AM
+abnormal sleep schedules. Humans sleep - if a project deploys at 4 AM
 local time for a suspected region and follows abnormal schedules, flag
 it as overseas farm.
 
@@ -12,7 +12,7 @@ Logic:
   - If no 8h sleep gap cluster detected → suspicious (bots dont sleep)
   - Human devs show predictable 8h gap clusters in deployment activity
 
-Pure computation module — no external API calls needed.
+Pure computation module - no external API calls needed.
 """
 
 import logging
@@ -76,12 +76,12 @@ class SleepCycleAnalyzer:
     to identify potential overseas farms operating outside normal business hours
     for their suspected region.
 
-    This is a pure computation module — no external API calls.
+    This is a pure computation module - no external API calls.
     """
 
-    # UTC hours considered "abnormal" — midnight to 5am
+    # UTC hours considered "abnormal" - midnight to 5am
     # These are sleep hours for Western timezones but productive hours in Asia
-    ABNORMAL_HOURS = list(range(0, 6))  # 12am-5am UTC
+    ABNORMAL_HOURS = list(range(0, 6))  # 12am-5am UTC  # noqa: RUF012
 
     def __init__(self):
         pass
@@ -109,7 +109,7 @@ class SleepCycleAnalyzer:
     def _find_largest_sleep_gap(hours: list[int]) -> int:
         """Find the largest stretch of consecutive *missing* hours.
 
-        This detects natural sleep windows — e.g., no deployments for 8
+        This detects natural sleep windows - e.g., no deployments for 8
         consecutive hours (22:00-06:00).  Also checks wrap-around so that
         e.g. hours [0,1,2,3,4, 10,11,12,13,14] yields a gap of 5 (5→10).
         """
@@ -225,7 +225,7 @@ class SleepCycleAnalyzer:
             else:
                 score += 10  # marginal gap
 
-        # 4c. Overly wide distribution — real humans concentrate (max 20 pts)
+        # 4c. Overly wide distribution - real humans concentrate (max 20 pts)
         if distinct_hours >= 18:
             score += 20  # deploying almost every hour
         elif distinct_hours >= 14:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#8 — Real-CATS Criminal Cluster Explorer. Interactive graph of 153K labeled tokens.
+"""#8 - Real-CATS Criminal Cluster Explorer. Interactive graph of 153K labeled tokens.
 Shows relationships: same deployer, funding source, code patterns. Rug adjacency graph."""
 
 import os
@@ -67,7 +67,7 @@ async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethere
 
 @router.get("/token/{token_address}")
 async def get_token_cluster(token_address: str, chain: str = Query("ethereum")):
-    """Get all related tokens for a given token — same deployer, same funder, code clones."""
+    """Get all related tokens for a given token - same deployer, same funder, code clones."""
     nodes: list[dict] = []
     edges: list[dict] = []
 
@@ -110,7 +110,7 @@ async def get_token_cluster(token_address: str, chain: str = Query("ethereum")):
                             edges.append({"source": sib_addr, "target": token_address[:16], "relationship": "sibling"})
 
     except Exception as e:
-        raise HTTPException(502, f"Scanner unavailable: {e}")
+        raise HTTPException(502, f"Scanner unavailable: {e}") from e
 
     return {"nodes": nodes, "edges": edges, "total_nodes": len(nodes), "total_edges": len(edges)}
 

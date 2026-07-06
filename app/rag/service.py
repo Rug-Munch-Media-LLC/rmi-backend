@@ -1,4 +1,4 @@
-"""RAG service — HTTP facade over the v3 RAG engine.
+"""RAG service - HTTP facade over the v3 RAG engine.
 
 Provides a clean async Pydantic surface for search, ingest, feedback.
 Delegates to the M3 engine in app.rag.engine (built per v3 unfuck plan).
@@ -157,10 +157,10 @@ class RAGService:
 async def init_rag() -> None:
     """Initialize the RAG system. Called from app.core.lifespan.
 
-    v3: no-op (the new engine is lazy — collections load on first search).
+    v3: no-op (the new engine is lazy - collections load on first search).
     Kept for backward compat with lifespan hooks.
     """
-    log.info("rag_init_started", note="v3 engine is lazy — no warmup needed")
+    log.info("rag_init_started", note="v3 engine is lazy - no warmup needed")
     try:
         # Touch the redis client to fail fast if misconfigured
         from app.core.redis import get_redis

@@ -1,7 +1,7 @@
 """
 RMI x402 Analytics Dashboard Endpoint
 =======================================
-GET /api/v1/x402/dashboard — Public analytics endpoint returning:
+GET /api/v1/x402/dashboard - Public analytics endpoint returning:
   - Total earnings, earnings by chain, earnings by tool, earnings by day
   - Trial usage counts (today, all-time, unique fingerprints, unique wallets)
   - Top tools by revenue, top tools by usage
@@ -196,7 +196,7 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
         if cursor == 0:
             break
 
-    # Also check x402-tool:* keys (from old record_x402_payment) — tool stats only, no double-count
+    # Also check x402-tool:* keys (from old record_x402_payment) - tool stats only, no double-count
     cursor = 0
     while True:
         cursor, keys = r.scan(cursor, match="x402-tool:*", count=500)
@@ -215,7 +215,7 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
 
                 tool_usage[tool] += 1
                 tool_revenue[tool] += amt_atoms
-                # Don't add to total_earnings_atoms — already counted from spent_tx
+                # Don't add to total_earnings_atoms - already counted from spent_tx
 
                 customer = data.get("customer", "")
                 if customer:
@@ -248,7 +248,7 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
                     amt_atoms = 0
 
                 tool_usage[tool] += 1
-                # Don't double-count totals from receipt keys — spent_tx is canonical
+                # Don't double-count totals from receipt keys - spent_tx is canonical
                 tool_revenue[tool] += amt_atoms
                 if chain:
                     pass  # Don't double-count chain earnings
@@ -443,7 +443,7 @@ async def x402_dashboard():
 
     except Exception as e:
         logger.error(f"Dashboard error: {e}")
-        raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)[:200]}")
+        raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)[:200]}") from e
 
 
 # ── Supabase table creation helper ──────────────────────────────────

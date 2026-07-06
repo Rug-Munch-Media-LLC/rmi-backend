@@ -1,4 +1,4 @@
-"""Service — business logic for alert subscriptions and event firing.
+"""Service - business logic for alert subscriptions and event firing.
 
 This is the only thing the api/ layer should call. It composes
 the repository (storage) and the broadcaster (WebSocket push).

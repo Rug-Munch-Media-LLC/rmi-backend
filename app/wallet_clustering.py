@@ -369,7 +369,7 @@ class WalletClusteringEngine:
 
         # Group similar wallets
         cluster_map = defaultdict(set)
-        for (w1, w2), sim in similarity_matrix.items():
+        for (w1, w2), sim in similarity_matrix.items():  # noqa: B007
             cluster_map[w1].add(w2)
             cluster_map[w2].add(w1)
 
@@ -478,7 +478,7 @@ class WalletClusteringEngine:
         visited = set()
         merged_clusters = []
 
-        for i, cluster in enumerate(clusters):
+        for i, cluster in enumerate(clusters):  # noqa: B007
             if i in visited:
                 continue
 

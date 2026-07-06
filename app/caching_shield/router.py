@@ -1,5 +1,5 @@
 """
-Aggressive Caching Shield — FastAPI Router
+Aggressive Caching Shield - FastAPI Router
 Monitor and control the caching shield via API endpoints.
 
 Mount in main.py:
@@ -7,10 +7,10 @@ Mount in main.py:
     app.include_router(router)
 
 Endpoints:
-  GET  /api/v1/cache/health — All shield components health + stats
-  GET  /api/v1/cache/stats  — Detailed cache statistics
-  POST /api/v1/cache/clear  — Clear L1 cache (admin)
-  GET  /api/v1/cache/rate-limits — Current rate limit bucket states
+  GET  /api/v1/cache/health - All shield components health + stats
+  GET  /api/v1/cache/stats  - Detailed cache statistics
+  POST /api/v1/cache/clear  - Clear L1 cache (admin)
+  GET  /api/v1/cache/rate-limits - Current rate limit bucket states
 """
 
 import os
@@ -125,7 +125,7 @@ async def solana_tracker_stats():
 
 @router.get("/capacity")
 async def capacity_report():
-    """Full API capacity analysis — all providers, keys, free APIs, and backend sources."""
+    """Full API capacity analysis - all providers, keys, free APIs, and backend sources."""
     from app.caching_shield.api_registry import list_all_sources
 
     return {

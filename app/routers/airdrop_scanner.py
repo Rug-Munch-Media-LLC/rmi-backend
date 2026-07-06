@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#12 — Multi-Chain Airdrop Scanner. Scans address across all chains for unclaimed airdrops,
+"""#12 - Multi-Chain Airdrop Scanner. Scans address across all chains for unclaimed airdrops,
 governance tokens, dust that became valuable. Free tier shows value, paid tier auto-claims."""
 
 import asyncio

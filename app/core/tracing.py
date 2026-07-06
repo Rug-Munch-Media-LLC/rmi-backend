@@ -1,4 +1,4 @@
-"""OpenTelemetry Tracing — request IDs, spans, Grafana Tempo export."""
+"""OpenTelemetry Tracing - request IDs, spans, Grafana Tempo export."""
 
 import os
 import time

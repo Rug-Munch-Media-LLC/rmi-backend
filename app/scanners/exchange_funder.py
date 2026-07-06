@@ -1,5 +1,5 @@
 """
-SENTINEL — Exchange-Funded Wallet Detection
+SENTINEL - Exchange-Funded Wallet Detection
 ==========================================
 Identifies wallets funded from known CEX hot wallets.
 Professional snipers create 10-50 fresh wallets, fund each from a CEX
@@ -73,7 +73,7 @@ class ExchangeFunderDetector:
     """
 
     # Dead/burn addresses for renounce verification
-    DEAD_ADDRESSES = {
+    DEAD_ADDRESSES = {  # noqa: RUF012
         "ethereum": [
             "0x000000000000000000000000000000000000dEaD",
             "0x0000000000000000000000000000000000000000",
@@ -169,19 +169,19 @@ class ExchangeFunderDetector:
         cex_pct = report.cex_funded_percentage
         if cex_pct > 50:
             score += 40
-            warnings.append(f"CRITICAL: {cex_pct:.1f}% of buyers funded from CEX — likely coordinated snipers")
+            warnings.append(f"CRITICAL: {cex_pct:.1f}% of buyers funded from CEX - likely coordinated snipers")
         elif cex_pct > 30:
             score += 25
-            warnings.append(f"HIGH: {cex_pct:.1f}% CEX-funded buyers — possible sniper operation")
+            warnings.append(f"HIGH: {cex_pct:.1f}% CEX-funded buyers - possible sniper operation")
         elif cex_pct > 15:
             score += 12
-            warnings.append(f"MODERATE: {cex_pct:.1f}% CEX-funded — some sniper activity")
+            warnings.append(f"MODERATE: {cex_pct:.1f}% CEX-funded - some sniper activity")
 
         # Fresh wallet percentage
         fresh_pct = report.fresh_wallet_percentage
         if fresh_pct > 40:
             score += 30
-            warnings.append(f"CRITICAL: {fresh_pct:.1f}% of buyers are fresh wallets — classic sniper pattern")
+            warnings.append(f"CRITICAL: {fresh_pct:.1f}% of buyers are fresh wallets - classic sniper pattern")
         elif fresh_pct > 20:
             score += 15
             warnings.append(f"MODERATE: {fresh_pct:.1f}% fresh wallets")
@@ -190,7 +190,7 @@ class ExchangeFunderDetector:
         instant_pct = report.instant_buy_percentage
         if instant_pct > 30:
             score += 25
-            warnings.append(f"HIGH: {instant_pct:.1f}% bought within 60s of funding — bot behavior")
+            warnings.append(f"HIGH: {instant_pct:.1f}% bought within 60s of funding - bot behavior")
         elif instant_pct > 10:
             score += 10
 
@@ -272,7 +272,7 @@ class ExchangeFunderDetector:
                     fresh_count += 1
 
             else:
-                # EVM chains — check against known CEX wallets list
+                # EVM chains - check against known CEX wallets list
                 # Fundsource tracing requires Etherscan API for EVM; use exchange lookup
                 exchange = self.identify_exchange(buyer, chain)
                 if exchange:

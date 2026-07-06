@@ -1,5 +1,5 @@
 """
-Auth Router — Complete authentication system (email, wallet, OAuth, Telegram)
+Auth Router - Complete authentication system (email, wallet, OAuth, Telegram)
 """
 
 import base64
@@ -12,9 +12,12 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Any
 
+import bcrypt
 from fastapi import APIRouter, HTTPException, Request
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
+
+from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +31,7 @@ try:
     PYOTP_AVAILABLE = True
 except ImportError:
     PYOTP_AVAILABLE = False
-    logger.warning("pyotp not installed — 2FA endpoints will return 503")
+    logger.warning("pyotp not installed - 2FA endpoints will return 503")
 
 TOTP_ISSUER = os.getenv("TOTP_ISSUER", "RugMunch Intelligence")
 TOTP_DIGITS = 6
@@ -83,20 +86,18 @@ def _generate_backup_codes(count: int = 8) -> list:
 
 def _hash_backup_code(code: str) -> str:
     """Hash a backup code for storage (same as password hashing)."""
-    return pwd_context.hash(code)
+    return hash_password(code)
 
 
 def _verify_backup_code(code: str, hashed: str) -> bool:
     """Verify a backup code against its hash."""
-    return pwd_context.verify(code, hashed)
+    return verify_password(code, hashed)
 
 
 # ── Config ──
 JWT_SECRET = os.getenv("JWT_SECRET", "rmi-jwt-secret-change-me")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
-
-import bcrypt
 
 
 def hash_password(password: str) -> str:
@@ -110,6 +111,45 @@ def verify_password(password: str, hashed: str) -> bool:
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
     except Exception:
         return False
+
+
+# ── Redis User Store ──
+def _get_user(user_id: str) -> dict[str, Any] | None:
+    """Fetch user record by id from Redis hash rmi:users."""
+    r = get_redis()
+    if not r:
+        return None
+    raw = r.hget("rmi:users", user_id)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def _get_user_by_email(email: str) -> dict[str, Any] | None:
+    """Fetch user record by email via rmi:users:email index → rmi:users hash."""
+    r = get_redis()
+    if not r:
+        return None
+    user_id = r.hget("rmi:users:email", email.lower())
+    if not user_id:
+        return None
+    if isinstance(user_id, bytes):
+        user_id = user_id.decode("utf-8")
+    return _get_user(user_id)
+
+
+def _save_user(user: dict[str, Any]) -> None:
+    """Persist user record to Redis hash rmi:users, refresh email index if present."""
+    r = get_redis()
+    if not r:
+        return
+    user_id = user["id"]
+    r.hset("rmi:users", user_id, json.dumps(user))
+    if user.get("email"):
+        r.hset("rmi:users:email", user["email"].lower(), user_id)
 
 
 # ── Helpers ──
@@ -230,7 +270,7 @@ class TwoFASetupResponse(BaseModel):
     secret: str
     qr_code: str  # base64 data URI
     uri: str  # otpauth:// URI
-    backup_codes: list  # plaintext — shown once
+    backup_codes: list  # plaintext - shown once
 
 
 class TwoFAEnableRequest(BaseModel):
@@ -482,7 +522,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://rugmunch.io")
 
 @router.get("/google/callback")
 async def google_callback(request: Request):
-    """Handle Google OAuth redirect — exchanges code, creates user, redirects to frontend with token."""
+    """Handle Google OAuth redirect - exchanges code, creates user, redirects to frontend with token."""
     from fastapi.responses import RedirectResponse
 
     code = request.query_params.get("code")
@@ -737,7 +777,7 @@ async def github_auth_url():
 
 @router.get("/github/callback")
 async def github_callback(request: Request):
-    """Handle GitHub OAuth redirect — exchanges code, creates user, redirects to frontend with token."""
+    """Handle GitHub OAuth redirect - exchanges code, creates user, redirects to frontend with token."""
     from fastapi.responses import RedirectResponse
 
     code = request.query_params.get("code")
@@ -849,7 +889,7 @@ async def x_auth_url():
 
 @router.get("/x/callback")
 async def x_callback(request: Request):
-    """Handle X/Twitter OAuth redirect — exchanges code, creates user, redirects to frontend with token."""
+    """Handle X/Twitter OAuth redirect - exchanges code, creates user, redirects to frontend with token."""
     from fastapi.responses import RedirectResponse
 
     code = request.query_params.get("code")
@@ -863,8 +903,6 @@ async def x_callback(request: Request):
 
     import httpx
 
-    from app.core.redis import get_redis
-
     client_id = os.getenv("X_CLIENT_ID")
     client_secret = os.getenv("X_CLIENT_SECRET")
     redirect_uri = os.getenv("X_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/x/callback")
@@ -873,7 +911,7 @@ async def x_callback(request: Request):
         return RedirectResponse(f"{FRONTEND_URL}/auth/callback?error=not_configured")
 
     async with httpx.AsyncClient() as client:
-        # X uses OAuth 2.0 — exchange code for token
+        # X uses OAuth 2.0 - exchange code for token
         resp = await client.post(
             "https://api.twitter.com/2/oauth2/token",
             data={
@@ -881,7 +919,7 @@ async def x_callback(request: Request):
                 "grant_type": "authorization_code",
                 "client_id": client_id,
                 "redirect_uri": redirect_uri,
-                "code_verifier": "challenge",  # X requires PKCE — we need to implement proper PKCE
+                "code_verifier": "challenge",  # X requires PKCE - we need to implement proper PKCE
             },
             auth=(client_id, client_secret),
             headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -929,7 +967,7 @@ async def x_callback(request: Request):
 
 
 # ── FastAPI Dependency Functions (for @router/@app endpoints) ──
-async def get_current_user(request: Request) -> dict[str, Any] | None:
+async def get_current_user(request: Request) -> dict[str, Any] | None:  # noqa: F811
     """Verify JWT from Authorization header (wallet or email)."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -957,7 +995,7 @@ async def require_auth(request: Request) -> dict[str, Any]:
 
 @router.post("/2fa/setup")
 async def twofa_setup(request: Request):
-    """Begin 2FA setup — generate secret + QR code. Returns plaintext secret + backup codes (shown once)."""
+    """Begin 2FA setup - generate secret + QR code. Returns plaintext secret + backup codes (shown once)."""
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")
 
@@ -987,13 +1025,13 @@ async def twofa_setup(request: Request):
         "secret": secret,
         "qr_code": qr_b64,
         "uri": uri,
-        "backup_codes": backup_codes,  # plaintext — shown once
+        "backup_codes": backup_codes,  # plaintext - shown once
     }
 
 
 @router.post("/2fa/enable")
 async def twofa_enable(req: TwoFAEnableRequest, request: Request):
-    """Enable 2FA — verify the first TOTP code, then persist."""
+    """Enable 2FA - verify the first TOTP code, then persist."""
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")
 
@@ -1032,7 +1070,7 @@ async def twofa_enable(req: TwoFAEnableRequest, request: Request):
 
 @router.post("/2fa/disable")
 async def twofa_disable(request: Request):
-    """Disable 2FA — requires current password for security."""
+    """Disable 2FA - requires current password for security."""
     user = await get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")

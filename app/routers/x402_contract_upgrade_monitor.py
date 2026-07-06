@@ -59,7 +59,7 @@ def _get_redis():
     return _redis
 
 
-_CACHE_TTL = 600  # 10 minutes — upgrade data doesn't change rapidly
+_CACHE_TTL = 600  # 10 minutes - upgrade data doesn't change rapidly
 
 
 # ── Request Models ─────────────────────────────────────────────

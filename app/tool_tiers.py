@@ -3,11 +3,11 @@ RMI Tool Tier System
 =====================
 Three-tier classification aligned with scan pack pricing:
 
-    BASIC   ($0.01-0.02) — Quick scans, lookups, health checks
-    PREMIUM ($0.05-0.10) — Advanced analysis, multi-source intelligence
-    ELITE   ($0.15-0.40) — Institutional forensic investigation
+    BASIC   ($0.01-0.02) - Quick scans, lookups, health checks
+    PREMIUM ($0.05-0.10) - Advanced analysis, multi-source intelligence
+    ELITE   ($0.15-0.40) - Institutional forensic investigation
 
-All descriptions are SOURCE-FREE — we describe what the tool DOES,
+All descriptions are SOURCE-FREE - we describe what the tool DOES,
 never where the data comes from. Every tool has a unique, original name
 that sells the intelligence value, not the data pipeline.
 
@@ -20,12 +20,12 @@ Tier logic:
 # ── Complete tool tier classification ──────────────────────────
 
 TOOL_TIERS = {
-    # ═══ BASIC TIER ($0.01-0.02) — Quick Scans & Lookups ═══
+    # ═══ BASIC TIER ($0.01-0.02) - Quick Scans & Lookups ═══
     "urlcheck": {
         "tier": "basic",
         "price_usd": 0.01,
         "name": "URL Threat Scanner",
-        "description": "Instant domain safety verification. Detects phishing sites, fake project pages, wallet drainers, and malicious redirects through structural analysis and behavioral fingerprinting — no blacklists needed.",
+        "description": "Instant domain safety verification. Detects phishing sites, fake project pages, wallet drainers, and malicious redirects through structural analysis and behavioral fingerprinting - no blacklists needed.",
         "trial_free": 3,
     },
     "pulse": {
@@ -88,7 +88,7 @@ TOOL_TIERS = {
         "tier": "basic",
         "price_usd": 0.02,
         "name": "Market Landscape Overview",
-        "description": "Bird's-eye view of the entire crypto market — major asset prices, dominance metrics, total value locked trends, and sector performance breakdowns.",
+        "description": "Bird's-eye view of the entire crypto market - major asset prices, dominance metrics, total value locked trends, and sector performance breakdowns.",
         "trial_free": 3,
     },
     "rugshield": {
@@ -98,7 +98,7 @@ TOOL_TIERS = {
         "description": "Pre-purchase safety check. Binary safe/unsafe verdict based on liquidity analysis, holder distribution, contract verification, and deployer history in under 3 seconds.",
         "trial_free": 3,
     },
-    # ═══ PREMIUM TIER ($0.05-0.10) — Advanced Intelligence ═══
+    # ═══ PREMIUM TIER ($0.05-0.10) - Advanced Intelligence ═══
     "audit": {
         "tier": "premium",
         "price_usd": 0.05,
@@ -491,7 +491,7 @@ TOOL_TIERS = {
         "description": "Comprehensive launch fairness audit analyzing sniped distributions, bundled allocations, bot activity, LP manipulation, and presale concentration. Returns 0-100 fairness score with per-signal evidence breakdown and risk classification.",
         "trial_free": 2,
     },
-    # ═══ ELITE TIER ($0.15-0.40) — Institutional Investigation ═══
+    # ═══ ELITE TIER ($0.15-0.40) - Institutional Investigation ═══
     "forensics": {
         "tier": "elite",
         "price_usd": 0.10,
@@ -666,7 +666,7 @@ TOOL_TIERS = {
         "tier": "basic",
         "price_usd": 0.02,
         "name": "Market Landscape Overview",
-        "description": "Aggregated market data from our daily engine + CoinGecko. Price action, fear/greed, top movers, whale activity, security alerts — all in one call.",
+        "description": "Aggregated market data from our daily engine + CoinGecko. Price action, fear/greed, top movers, whale activity, security alerts - all in one call.",
         "trial_free": 3,
         "databus_type": "market_overview",
     },
@@ -690,7 +690,7 @@ TOOL_TIERS = {
         "tier": "elite",
         "price_usd": 0.25,
         "name": "Arkham Portfolio Intelligence",
-        "description": "Full Arkham Intelligence portfolio data — all tokens, positions, and historical performance for any entity. Admin-grade institutional data.",
+        "description": "Full Arkham Intelligence portfolio data - all tokens, positions, and historical performance for any entity. Admin-grade institutional data.",
         "trial_free": 0,
         "databus_type": "arkham_portfolio",
     },

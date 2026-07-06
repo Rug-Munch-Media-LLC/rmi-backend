@@ -1,5 +1,5 @@
 """
-SENTINEL — Bytecode Similarity Hashing
+SENTINEL - Bytecode Similarity Hashing
 =======================================
 Hash compiled bytecode of a token and compare against a local DB of known
 scam contracts.  Detects recycled / cloned scam contracts via:
@@ -189,7 +189,7 @@ class BytecodeSimilarityAnalyzer:
             if new_type and not existing.get("scam_type"):
                 existing["scam_type"] = new_type
             existing["count"] = existing.get("count", 1) + 1
-            logger.info(f"Updated existing DB entry for hash {bytecode_hash[:12]}…")
+            logger.info(f"Updated existing DB entry for hash {bytecode_hash[:12]}...")
         else:
             entry: dict[str, Any] = {
                 "scam_type": metadata.get("scam_type", "unknown"),
@@ -200,7 +200,7 @@ class BytecodeSimilarityAnalyzer:
                 "notes": metadata.get("notes", ""),
             }
             self._db[bytecode_hash] = entry
-            logger.info(f"Added new scam bytecode entry: {bytecode_hash[:12]}… → {entry['scam_type']}")
+            logger.info(f"Added new scam bytecode entry: {bytecode_hash[:12]}... → {entry['scam_type']}")
 
         self._save_db()
 
@@ -404,7 +404,7 @@ class BytecodeSimilarityAnalyzer:
         # Load DB
         db = self._load_db()
         if not db:
-            report.warnings.append("Scam bytecode DB is empty — no comparisons possible")
+            report.warnings.append("Scam bytecode DB is empty - no comparisons possible")
             return report
 
         # Check for exact match
@@ -419,7 +419,7 @@ class BytecodeSimilarityAnalyzer:
                 f"Exact bytecode hash match! Recycled {report.matched_scam_type} scam "
                 f"found at {', '.join(report.matched_addresses[:3])}"
             )
-            logger.warning(f"Exact scam match: hash {bytecode_hash[:12]}… type={report.matched_scam_type}")
+            logger.warning(f"Exact scam match: hash {bytecode_hash[:12]}... type={report.matched_scam_type}")
             return report
 
         # Scan for partial matches via nibble similarity
@@ -433,7 +433,7 @@ class BytecodeSimilarityAnalyzer:
                 best_entry = entry_data
 
         if best_entry and best_score > 0:
-            report.similarity_score = min(best_score, 99)  # never 100 — that's exact
+            report.similarity_score = min(best_score, 99)  # never 100 - that's exact
             report.matched_scam_type = best_entry.get("scam_type", "unknown")
             report.matched_addresses = best_entry.get("addresses", [])
 

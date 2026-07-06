@@ -1,4 +1,4 @@
-"""Mistral AI provider for DataBus — Free tier: 1B tokens/month, 1 req/sec.
+"""Mistral AI provider for DataBus - Free tier: 1B tokens/month, 1 req/sec.
 Credit-conserving: uses Small 4 for bulk, Medium 3.5 only when needed."""
 
 import logging
@@ -11,16 +11,16 @@ logger = logging.getLogger(__name__)
 MISTRAL_KEY = os.getenv("MISTRAL_API_KEY", "")
 MISTRAL_BASE = "https://api.mistral.ai/v1"
 
-# Model selection by task — free tier optimized
+# Model selection by task - free tier optimized
 MODELS = {
-    "fast": "mistral-small-latest",  # Small 4 — 90% of calls, ~$0.1/1M tokens
-    "smart": "mistral-medium-latest",  # Medium 3.5 — complex analysis only
-    "embed": "mistral-embed",  # Embeddings — state of art
+    "fast": "mistral-small-latest",  # Small 4 - 90% of calls, ~$0.1/1M tokens
+    "smart": "mistral-medium-latest",  # Medium 3.5 - complex analysis only
+    "embed": "mistral-embed",  # Embeddings - state of art
     "code": "mistral-small-latest",  # Small 4 handles code well
     "moderate": "mistral-moderation-latest",  # Content moderation
 }
 
-# ⚠️ Deprecated — do NOT use
+# ⚠️ Deprecated - do NOT use
 # mistral-small-2506 → deprecated, retiring July 2026
 # mistral-medium-2508 → deprecated, retiring Aug 2026
 
@@ -59,14 +59,14 @@ async def mistral_chat(
                     "provider": "mistral",
                 }
             elif r.status_code == 429:
-                logger.warning("Mistral rate limit hit — waiting...")
+                logger.warning("Mistral rate limit hit - waiting...")
     except Exception as e:
         logger.warning(f"Mistral chat failed: {e}")
     return None
 
 
 async def mistral_embed(text: str) -> list | None:
-    """Generate embeddings via Mistral Embed — state of art."""
+    """Generate embeddings via Mistral Embed - state of art."""
     if not MISTRAL_KEY:
         return None
     try:
@@ -84,7 +84,7 @@ async def mistral_embed(text: str) -> list | None:
 
 
 async def mistral_moderate(text: str) -> dict | None:
-    """Content moderation — jailbreak, toxicity, PII detection."""
+    """Content moderation - jailbreak, toxicity, PII detection."""
     if not MISTRAL_KEY:
         return None
     try:

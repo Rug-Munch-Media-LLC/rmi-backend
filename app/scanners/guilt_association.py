@@ -1,5 +1,5 @@
 """
-SENTINEL — Guilt by Association Score
+SENTINEL - Guilt by Association Score
 ======================================
 Checks if a deployer wallet ever interacted with known fixed-float exchanges,
 mixing services, or laundering protocols prior to funding the contract.
@@ -35,25 +35,25 @@ logger = logging.getLogger("guilt_association")
 MIXER_ADDRESSES: dict[str, dict[str, str]] = {
     # ── Ethereum ────────────────────────────────────────────────────
     "ethereum": {
-        # Tornado Cash — mainnet pools (ETH)
+        # Tornado Cash - mainnet pools (ETH)
         "0x12D66f87A04A9E220743712cE6d9bB1B5616B8Fc": "Tornado.Cash: ETH 0.1",
         "0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936": "Tornado.Cash: ETH 1",
         "0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF": "Tornado.Cash: ETH 10",
         "0xA160cdAB225685dA1d56aa342Ad8841c3b53f291": "Tornado.Cash: ETH 100",
-        # Tornado Cash — DAI pools
+        # Tornado Cash - DAI pools
         "0xD4B88Df4D29F5CedD6857912842cff3b20C9CfaC": "Tornado.Cash: DAI 100",
         "0xFD8610d20aA15b7B2E3Be39B396a1bC3516c7144": "Tornado.Cash: DAI 1K",
         "0x07687e702b410Fa43f4cB4Af7FA097918ffD2730": "Tornado.Cash: DAI 10K",
-        # Tornado Cash — cUSDC pools
+        # Tornado Cash - cUSDC pools
         "0x23773E65ed146A459791799d01336DB255f264cf": "Tornado.Cash: cUSDC 100",
         "0x22aaA7720ddd5348AeA2bC6d5D42B0c1C3B2E0C1": "Tornado.Cash: cUSDC 1K",
-        # Tornado Cash — WBTC pools
+        # Tornado Cash - WBTC pools
         "0x03893a7c7463AE47D46bc7f091665f189365B1e7": "Tornado.Cash: WBTC 0.1",
         "0x2717c0E26d1fEa46Ad76B3E11b6C7A6B9C4B0E3a": "Tornado.Cash: WBTC 1",
-        # Tornado Cash — router / proxy contracts
+        # Tornado Cash - router / proxy contracts
         "0x5d38b4e4783e34e2301a2a76b7d8840e2f1b3e4c": "Tornado.Cash: Proxy",
         "0x330bdfade01ee9bf63c209ee2d0015b8e8f5d6f7": "Tornado.Cash: Governance",
-        # FixedFloat — known deposit addresses
+        # FixedFloat - known deposit addresses
         "0x4e9ce36e442e55ecd9025b9a6e0d88485d628a67": "FixedFloat: Deposit",
         "0x6b7a8c9d6f5a4b8c9d0e1f2a3b4c5d6e7f8a9b0c": "FixedFloat: Hot Wallet",
         # ChangeNOW
@@ -65,14 +65,14 @@ MIXER_ADDRESSES: dict[str, dict[str, str]] = {
         # Sinbad.money
         "0x28773e65ed146a459791799d01336db255f264cf": "Sinbad.money: ETH Mixer",
         "0x9b3d36a0c6b6b3c0b6f8e9a0b1c2d3e4f5a6b7c8": "Sinbad.money: Deposit",
-        # Wasabi Wallet — coordinator addresses (known)
+        # Wasabi Wallet - coordinator addresses (known)
         "0x980a9b6d5c0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c": "Wasabi Wallet: Coordinator",
-        # JoinMarket — coordinator addresses
+        # JoinMarket - coordinator addresses
         "0x1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d": "JoinMarket: Coordinator",
     },
     # ── Base ────────────────────────────────────────────────────────
     "base": {
-        # Tornado Cash forks on Base are uncommon — include known cross-chain mixers
+        # Tornado Cash forks on Base are uncommon - include known cross-chain mixers
         "0x6cc5f688a315f3dc28a7781717a9a798a59fda7b": "ChangeNOW: Deposit",
         "0x4e9ce36e442e55ecd9025b9a6e0d88485d628a67": "FixedFloat: Deposit",
         "0x0d8775f648430679a709e98d2b0cb6250d2887ef": "SideShift: Deposit",
@@ -84,7 +84,7 @@ MIXER_ADDRESSES: dict[str, dict[str, str]] = {
         "0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936": "Tornado.Cash: BSC 1 BNB",
         "0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF": "Tornado.Cash: BSC 10 BNB",
         "0xA160cdAB225685dA1d56aa342Ad8841c3b53f291": "Tornado.Cash: BSC 100 BNB",
-        # FixedFloat — cross-chain
+        # FixedFloat - cross-chain
         "0x4e9ce36e442e55ecd9025b9a6e0d88485d628a67": "FixedFloat: Deposit",
         "0x6cc5f688a315f3dc28a7781717a9a798a59fda7b": "ChangeNOW: Deposit",
         "0x0d8775f648430679a709e98d2b0cb6250d2887ef": "SideShift: Deposit",
@@ -211,7 +211,7 @@ class FlagEntry:
 class GuiltAssociationReport:
     """Report from Guilt by Association analysis.
 
-    guilt_score:      0–100, higher = more laundering evidence
+    guilt_score:      0-100, higher = more laundering evidence  # noqa: RUF002
     association_flags: list of specific interactions with known laundering services
     interacted_addresses: all addresses the deployer transacted with that
                          were checked against MIXER_ADDRESSES
@@ -246,20 +246,20 @@ class GuiltAssociationAnalyzer:
 
     # Number of recent transactions / transfers to check
     EVM_TX_LIMIT = 100
-    SOLANA_TX_PAGES = 3  # 3 pages × 40 txs = 120 transactions
-    SOLANA_TRANSFER_PAGES = 3  # 3 pages × 100 transfers = 300 transfers
+    SOLANA_TX_PAGES = 3  # 3 pages x 40 txs = 120 transactions
+    SOLANA_TRANSFER_PAGES = 3  # 3 pages x 100 transfers = 300 transfers
 
     def __init__(self):
         self._http = httpx.AsyncClient(timeout=15.0)
 
-        # Try to load FreeSolscanClient for Solana — gracefully degrade if unavailable
+        # Try to load FreeSolscanClient for Solana - gracefully degrade if unavailable
         self._solscan = None
         try:
             from app.free_solscan_client import FreeSolscanClient
 
             self._solscan = FreeSolscanClient
         except ImportError:
-            logger.warning("FreeSolscanClient not available — Solana guilt analysis limited")
+            logger.warning("FreeSolscanClient not available - Solana guilt analysis limited")
 
     async def analyze(self, deployer_address: str, chain: str) -> GuiltAssociationReport:
         """Run guilt-by-association analysis on a deployer wallet.
@@ -403,7 +403,7 @@ class GuiltAssociationAnalyzer:
         mixer funding within 30 days.
         """
         if not self._solscan:
-            report.errors.append("FreeSolscanClient unavailable — cannot analyze Solana")
+            report.errors.append("FreeSolscanClient unavailable - cannot analyze Solana")
             return
 
         mixers = MIXER_ADDRESSES.get("solana", {})
@@ -575,7 +575,7 @@ class GuiltAssociationAnalyzer:
         if report.recent_mixer_funding:
             score = 100
             warnings.append(
-                "CRITICAL: Deployer received funds FROM a known mixer within 30 days — direct laundering signal"
+                "CRITICAL: Deployer received funds FROM a known mixer within 30 days - direct laundering signal"
             )
             report.risk_label = "critical"
             report.guilt_score = score
@@ -660,7 +660,7 @@ class GuiltAssociationAnalyzer:
 
 
 async def run_guilt_association(deployer_address: str, chain: str = "ethereum") -> dict[str, Any]:
-    """Convenience runner — returns a plain dict for pipeline integration."""
+    """Convenience runner - returns a plain dict for pipeline integration."""
     analyzer = GuiltAssociationAnalyzer()
     try:
         report = await analyzer.analyze(deployer_address, chain)

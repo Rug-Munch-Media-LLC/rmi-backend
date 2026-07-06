@@ -7,7 +7,7 @@ import os
 import subprocess
 import urllib.request
 
-code = open("/app/app/mev_sandwich_detector.py").read()[:5000]
+code = open("/app/app/mev_sandwich_detector.py").read()[:5000]  # noqa: SIM115
 
 # Get MiniMax API key
 key = ""

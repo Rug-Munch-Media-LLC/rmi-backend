@@ -60,7 +60,7 @@ class BirdeyeClient:
             ratio = liq / mcap
             if ratio < 0.05:
                 score += 25
-                flags.append("CRITICAL: Liquidity/MCap < 5% — easy manipulation")
+                flags.append("CRITICAL: Liquidity/MCap < 5% - easy manipulation")
             elif ratio < 0.15:
                 score += 15
                 flags.append("WARNING: Low liquidity ratio")
@@ -74,10 +74,10 @@ class BirdeyeClient:
         avg_chg = sum(changes) / max(len(changes), 1)
         if avg_chg > 20:
             score += 20
-            flags.append("EXTREME volatility — pump/dump in progress")
+            flags.append("EXTREME volatility - pump/dump in progress")
         elif avg_chg > 5:
             score += 10
-            flags.append("High volatility — watch for manipulation")
+            flags.append("High volatility - watch for manipulation")
         elif avg_chg < 1:
             signals.append("Stable price action")
 
@@ -85,7 +85,7 @@ class BirdeyeClient:
         holders = d.get("holder", 0) or 0
         if holders < 20:
             score += 20
-            flags.append(f"Very few holders ({holders}) — high concentration")
+            flags.append(f"Very few holders ({holders}) - high concentration")
         elif holders < 100:
             score += 10
             flags.append(f"Low holder count ({holders})")
@@ -95,7 +95,7 @@ class BirdeyeClient:
         # Check wallet change for suspicious activity
         uw_change = d.get("uniqueWallet30mChangePercent", 0) or 0
         if uw_change > 50:
-            flags.append(f"Suspicious +{uw_change:.0f}% wallet growth in 30m — possible bots")
+            flags.append(f"Suspicious +{uw_change:.0f}% wallet growth in 30m - possible bots")
         elif uw_change > 20:
             flags.append(f"Rapid wallet growth +{uw_change:.0f}%")
 
@@ -105,10 +105,10 @@ class BirdeyeClient:
             mins = (datetime.utcnow().timestamp() - last_trade) / 60
             if mins > 60:
                 score += 15
-                flags.append(f"No trades for {int(mins)} min — possible dead token")
+                flags.append(f"No trades for {int(mins)} min - possible dead token")
             elif mins > 30:
                 score += 5
-                flags.append(f"Low activity — last trade {int(mins)} min ago")
+                flags.append(f"Low activity - last trade {int(mins)} min ago")
             else:
                 signals.append("Active trading")
 
@@ -119,23 +119,23 @@ class BirdeyeClient:
         has_desc = bool(ext.get("description"))
         if not has_web and not has_social:
             score += 10
-            flags.append("No website or socials — anonymous project")
+            flags.append("No website or socials - anonymous project")
         elif not has_web:
             score += 5
-            flags.append("No website — transparency concern")
+            flags.append("No website - transparency concern")
         elif has_desc:
-            signals.append("Complete metadata — transparent project")
+            signals.append("Complete metadata - transparent project")
 
-        # 6. VOLUME/MARKET CAP RATIO (0-10 pts) — wash trading detection
+        # 6. VOLUME/MARKET CAP RATIO (0-10 pts) - wash trading detection
         v24h = d.get("v24hUSD", 0) or 0
         if mcap > 0 and v24h > 0:
             v_ratio = v24h / mcap
             if v_ratio > 5:
                 score += 10
-                flags.append(f"Volume {v_ratio:.1f}x MarketCap — WASH TRADING likely")
+                flags.append(f"Volume {v_ratio:.1f}x MarketCap - WASH TRADING likely")
             elif v_ratio > 2:
                 score += 5
-                flags.append(f"Volume {v_ratio:.1f}x MarketCap — possible wash trading")
+                flags.append(f"Volume {v_ratio:.1f}x MarketCap - possible wash trading")
             elif v_ratio > 0.1:
                 signals.append("Healthy volume/market cap ratio")
 
@@ -144,9 +144,9 @@ class BirdeyeClient:
         sell24h = d.get("sell24h", 0) or 0
         if buy24h > 0 and sell24h > 0:
             if sell24h > buy24h * 2:
-                flags.append("Heavy sell pressure — 2x more sells than buys")
+                flags.append("Heavy sell pressure - 2x more sells than buys")
             elif buy24h > sell24h * 1.5:
-                signals.append("Buy pressure dominant — bullish signal")
+                signals.append("Buy pressure dominant - bullish signal")
 
         # VERDICT
         if score >= 60:

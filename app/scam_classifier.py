@@ -1,5 +1,5 @@
 """
-SENTINEL AI — Self-Training Scam Classifier
+SENTINEL AI - Self-Training Scam Classifier
 ============================================
 
 Turns 5,000+ historical token scans into a self-improving ML model.
@@ -14,7 +14,7 @@ Features extracted from all 45 enrichments + market data + SENTINEL modules.
 The model learns which COMBINATIONS of signals predict scams, catching
 patterns that static rules miss entirely.
 
-Premium feature: "AI-Powered Risk Score" — ML confidence alongside rules-based score.
+Premium feature: "AI-Powered Risk Score" - ML confidence alongside rules-based score.
 """
 
 import json
@@ -33,7 +33,7 @@ MODEL_PATH = os.path.join(MODEL_DIR, "scam_classifier_xgb.pkl")
 FEATURE_NAMES_PATH = os.path.join(MODEL_DIR, "scam_classifier_features.json")
 
 # ──────────────────────────────────────────────────────────────
-# Feature Extraction — 80+ features from enrichment data
+# Feature Extraction - 80+ features from enrichment data
 # ──────────────────────────────────────────────────────────────
 
 
@@ -262,7 +262,7 @@ class ScamClassifier:
             features = extract_features(scan)
             is_scam = scan.get("is_scam", False) or scan.get("verdict") == "scam"
 
-            if not X_list:  # First sample — record feature names
+            if not X_list:  # First sample - record feature names
                 self.feature_names = sorted(features.keys())
 
             # Build feature vector in consistent order

@@ -1,5 +1,5 @@
 """
-SENTINEL — Wash Trading / Circular Transfer Detection
+SENTINEL - Wash Trading / Circular Transfer Detection
 ==============================================
 Builds directed graph of token transfers and detects:
   - Multi-hop circular trades (A→B→C→D→A over days)
@@ -10,7 +10,7 @@ Builds directed graph of token transfers and detects:
 Uses networkx for graph cycle detection with time-decay weighting.
 A transfer graph with >15% cycle volume indicates wash trading.
 
-Data sources (direct API calls — no self.api_base):
+Data sources (direct API calls - no self.api_base):
   Solana:     Helius Enhanced Transactions API (parsed transfers)
               Helius DAS API (token metadata)
   EVM chains: Moralis (token transfer history)
@@ -21,6 +21,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import ClassVar
 
 import httpx
 
@@ -34,7 +35,7 @@ try:
     HAS_NETWORKX = True
 except ImportError:
     HAS_NETWORKX = False
-    logger.warning("networkx not installed — wash trading cycle detection disabled. pip install networkx")
+    logger.warning("networkx not installed - wash trading cycle detection disabled. pip install networkx")
 
 # ── API Keys ────────────────────────────────────────────────
 
@@ -123,8 +124,7 @@ class WashTradingDetector:
     """
 
     # Known DEX router addresses for cross-DEX detection
-    DEX_ROUTERS: ClassVar[dict] =
-{
+    DEX_ROUTERS: ClassVar[dict] ={
         "solana": {
             "JUP4Fb2cqiRUr6pNQqvZJQ2SjYqQsBfFidNFBFNB2eq": "Jupiter",
             "675kPX9MHTjS2zt1qfr1NYHuzeL7Gxq8RcE3E4A8N2W5": "Raydium AMM",
@@ -380,7 +380,7 @@ class WashTradingDetector:
 
                     # Also check native SOL transfers for round-trip detection
                     for native_transfer in tx.get("nativeTransfers", []):
-                        # Native transfers are SOL — include if they might be part of wash
+                        # Native transfers are SOL - include if they might be part of wash
                         from_addr = native_transfer.get("fromUserAccount", native_transfer.get("from", ""))
                         to_addr = native_transfer.get("toUserAccount", native_transfer.get("to", ""))
                         amount = float(native_transfer.get("amount", 0) or 0) / 1e9  # lamports to SOL
@@ -661,9 +661,9 @@ class WashTradingDetector:
         # Calculate risk
         warnings = []
         if wash_score > 50:
-            warnings.append(f"CRITICAL: {wash_score:.0f}% wash trading detected — likely artificial volume")
+            warnings.append(f"CRITICAL: {wash_score:.0f}% wash trading detected - likely artificial volume")
         elif wash_score > 25:
-            warnings.append(f"HIGH: {wash_score:.0f}% wash trading detected — significant volume inflation")
+            warnings.append(f"HIGH: {wash_score:.0f}% wash trading detected - significant volume inflation")
         elif wash_score > 10:
             warnings.append(f"MODERATE: {wash_score:.0f}% wash trading detected")
 

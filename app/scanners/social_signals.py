@@ -1,12 +1,17 @@
+import asyncio
+import os
+
+from app.apify_tools import logger
+
 # CoinGecko trending + social signal enrichment
 # Uses existing COINGECKO_API_KEY from .env
 # Free tier: 10K calls/month, no additional cost
 
 
-async def _check_coingecko_trending() -> Optional[Dict[str, Any]]:
-    """CoinGecko trending — top-15 most searched coins (social signal).
+async def _check_coingecko_trending() -> Optional[Dict[str, Any]]:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    """CoinGecko trending - top-15 most searched coins (social signal).
 
-    Tracks what retail is actively searching for — strong leading indicator
+    Tracks what retail is actively searching for - strong leading indicator
     of pump-and-dump targets. Free tier, uses existing API key.
     Cost: $0 (existing CoinGecko free tier).
     """
@@ -49,6 +54,6 @@ async def _check_coingecko_trending() -> Optional[Dict[str, Any]]:
                 "all_trending": trending,
                 "data_source": "coingecko_trending",
             }
-    except (asyncio.TimeoutError, Exception) as e:
+    except (TimeoutError, Exception) as e:
         logger.warning(f"CoinGecko trending failed: {e}")
         return None

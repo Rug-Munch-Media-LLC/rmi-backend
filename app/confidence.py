@@ -1,5 +1,5 @@
 """
-Confidence Scoring Module — Composite 0-100 risk/confidence score.
+Confidence Scoring Module - Composite 0-100 risk/confidence score.
 
 Combines multiple signals into a single interpretable score with
 human-readable breakdown. Goes beyond "this might be a scam" to
@@ -62,7 +62,7 @@ def score_confidence(
             "score": 0,
             "label": "INCONCLUSIVE",
             "breakdown": {},
-            "summary": "No evidence found — insufficient data for confidence assessment.",
+            "summary": "No evidence found - insufficient data for confidence assessment.",
             "details": [],
         }
 
@@ -75,7 +75,7 @@ def score_confidence(
     if concentration > 0.8:
         details.append("Strong signal: top results highly concentrated")
     elif concentration < 0.3:
-        details.append("Weak signal: results are scattered — low confidence pattern")
+        details.append("Weak signal: results are scattered - low confidence pattern")
 
     # 2. Similarity Quality
     sim_quality = _score_similarity(results)
@@ -83,7 +83,7 @@ def score_confidence(
     if sim_quality > 0.8:
         details.append("High semantic similarity to known patterns")
     elif sim_quality < 0.5:
-        details.append("Low similarity — no strong matches found")
+        details.append("Low similarity - no strong matches found")
 
     # 3. Source Corroboration
     corroboration = _score_corroboration(results)
@@ -92,7 +92,7 @@ def score_confidence(
     if unique_sources >= 3:
         details.append(f"Corroborated by {unique_sources} independent sources")
     elif unique_sources == 0:
-        details.append("No source metadata available — cannot verify independence")
+        details.append("No source metadata available - cannot verify independence")
 
     # 4. Reranker Margin
     margin = _score_reranker_margin(results)
@@ -100,7 +100,7 @@ def score_confidence(
     if margin > 0.8:
         details.append("Clear leader: top result significantly stronger than alternatives")
     elif margin < 0.3 and len(results) > 1:
-        details.append("Close race — multiple results nearly equal")
+        details.append("Close race - multiple results nearly equal")
 
     # 5. Temporal Freshness
     freshness = _score_freshness(results)
@@ -108,7 +108,7 @@ def score_confidence(
     if freshness > 0.8:
         details.append("Evidence is recent (< 7 days)")
     elif freshness < 0.3:
-        details.append("Evidence is old (> 90 days) — may be stale")
+        details.append("Evidence is old (> 90 days) - may be stale")
 
     # 6. Entity Exact-Match Bonus
     entity_bonus = _score_entity_match(entity_matches, query)
@@ -131,19 +131,19 @@ def score_confidence(
     # ── Label ─────────────────────────────────────────────────────
     if score >= 90:
         label = "CRITICAL"
-        summary = f"Extremely high confidence ({score}%) — multiple strong corroborating signals."
+        summary = f"Extremely high confidence ({score}%) - multiple strong corroborating signals."
     elif score >= 75:
         label = "HIGH"
-        summary = f"High confidence ({score}%) — strong evidence from multiple signals."
+        summary = f"High confidence ({score}%) - strong evidence from multiple signals."
     elif score >= 55:
         label = "MEDIUM"
-        summary = f"Moderate confidence ({score}%) — some signals present but not definitive."
+        summary = f"Moderate confidence ({score}%) - some signals present but not definitive."
     elif score >= 30:
         label = "LOW"
-        summary = f"Low confidence ({score}%) — weak or conflicting signals."
+        summary = f"Low confidence ({score}%) - weak or conflicting signals."
     else:
         label = "INCONCLUSIVE"
-        summary = f"Insufficient evidence ({score}%) — need more data for assessment."
+        summary = f"Insufficient evidence ({score}%) - need more data for assessment."
 
     # Add signal count to summary
     signal_count = sum(1 for v in components.values() if v > 0.3)
@@ -182,7 +182,7 @@ def _score_concentration(results: list[dict]) -> float:
 
 
 def _score_similarity(results: list[dict]) -> float:
-    """Raw semantic similarity quality — how close are top results?"""
+    """Raw semantic similarity quality - how close are top results?"""
     sims = [r.get("similarity", 0) or r.get("combined_score", 0) for r in results[:3]]
     sims = [s for s in sims if s is not None and s > 0]
     if not sims:
@@ -263,7 +263,7 @@ def _score_entity_match(entity_matches: list[str] | None, query: str) -> float:
         eth_match = re.search(r"0x[a-fA-F0-9]{40}", query)
         sol_match = re.search(r"[1-9A-HJ-NP-Za-km-z]{32,44}", query)
         if eth_match or sol_match:
-            return 0.5  # query contains an address — strong signal
+            return 0.5  # query contains an address - strong signal
         return 0.0
 
     # Score based on match count
