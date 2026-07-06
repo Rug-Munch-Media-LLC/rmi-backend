@@ -22,88 +22,74 @@ def run_test(name, fn):
 # ─────────────────────────────────────────────────────────────────────
 # CITATION VALIDATOR TESTS
 # ─────────────────────────────────────────────────────────────────────
-print("="*60)
+print("=" * 60)
 print("CITATION VALIDATOR TESTS")
-print("="*60)
+print("=" * 60)
 
-from app.domain.reports.citation_validator import validate_section  # noqa: E402
+from app.domains.reports.citation_validator import validate_section  # noqa: E402
 
 
 def test_valid_citation():
     result = validate_section(
-        'Risk score 75/100 [1]. Token flagged [2].',
-        ['Risk score 75/100 detected', 'Token flagged as suspicious'],
-        on_unciteable='strip'
+        "Risk score 75/100 [1]. Token flagged [2].",
+        ["Risk score 75/100 detected", "Token flagged as suspicious"],
+        on_unciteable="strip",
     )
-    assert result['validation_rate'] == 1.0
-    assert result['unciteable_count'] == 0
+    assert result["validation_rate"] == 1.0
+    assert result["unciteable_count"] == 0
 
 
 def test_invalid_citation():
     result = validate_section(
-        'Risk score 75/100 [99].',
-        ['Only source 1 available'],
-        on_unciteable='strip'
+        "Risk score 75/100 [99].", ["Only source 1 available"], on_unciteable="strip"
     )
-    assert result['unciteable_count'] == 1
-    assert 'Data not available' in result['validated_text']
+    assert result["unciteable_count"] == 1
+    assert "Data not available" in result["validated_text"]
 
 
 def test_no_citations():
-    result = validate_section(
-        'This has no citations.',
-        ['Source text'],
-        on_unciteable='strip'
-    )
-    assert result['validation_rate'] == 0.0
-    assert result['unciteable_count'] == 1
+    result = validate_section("This has no citations.", ["Source text"], on_unciteable="strip")
+    assert result["validation_rate"] == 0.0
+    assert result["unciteable_count"] == 1
 
 
 def test_empty_sources():
-    result = validate_section(
-        'Some text [1].',
-        [],
-        on_unciteable='strip'
-    )
-    assert result['validation_rate'] == 0.0
-    assert 'Data not available' in result['validated_text']
+    result = validate_section("Some text [1].", [], on_unciteable="strip")
+    assert result["validation_rate"] == 0.0
+    assert "Data not available" in result["validated_text"]
 
 
 def test_validation_report_structure():
-    result = validate_section('Test [1].', ['Source'])
-    assert 'validated_text' in result
-    assert 'citations' in result
-    assert 'unciteable_count' in result
-    assert 'validation_rate' in result
-    assert isinstance(result['citations'], list)
+    result = validate_section("Test [1].", ["Source"])
+    assert "validated_text" in result
+    assert "citations" in result
+    assert "unciteable_count" in result
+    assert "validation_rate" in result
+    assert isinstance(result["citations"], list)
 
 
 def test_citation_range():
     result = validate_section(
-        'Token risk is high [1-2].',
-        ['Token risk is high', 'Risk score elevated'],
-        on_unciteable='strip'
+        "Token risk is high [1-2].",
+        ["Token risk is high", "Risk score elevated"],
+        on_unciteable="strip",
     )
-    assert result['validation_rate'] == 1.0
+    assert result["validation_rate"] == 1.0
 
 
 def test_multiple_citations():
     result = validate_section(
-        'Token is risky [1]. Risk factors detected [2]. High buy tax [3].',
-        ['Token is risky', 'Risk factors detected', 'High buy tax detected'],
-        on_unciteable='strip'
+        "Token is risky [1]. Risk factors detected [2]. High buy tax [3].",
+        ["Token is risky", "Risk factors detected", "High buy tax detected"],
+        on_unciteable="strip",
     )
-    assert result['validation_rate'] == 1.0
+    assert result["validation_rate"] == 1.0
 
 
 def test_keep_unciteable():
-    result = validate_section(
-        'Test [99].',
-        ['Source'],
-        on_unciteable='keep'
-    )
-    assert result['unciteable_count'] == 1
-    assert 'Test [99].' in result['validated_text']
+    result = validate_section("Test [99].", ["Source"], on_unciteable="keep")
+    assert result["unciteable_count"] == 1
+    assert "Test [99]." in result["validated_text"]
 
 
 print("\nRunning citation validator tests...")
@@ -120,9 +106,9 @@ run_test("test_keep_unciteable", test_keep_unciteable)
 # ─────────────────────────────────────────────────────────────────────
 # HEALTH MODULE TESTS
 # ─────────────────────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("HEALTH MODULE TESTS")
-print("="*60)
+print("=" * 60)
 
 from app.core.health import DomainHealth, register_health_check  # noqa: E402
 
@@ -165,6 +151,7 @@ def test_domain_health_large_details():
 def test_health_registry():
     def mock_health():
         return DomainHealth(name="mock", healthy=True)
+
     register_health_check("mock", mock_health)
 
 
@@ -181,53 +168,89 @@ run_test("test_health_registry", test_health_registry)
 # ─────────────────────────────────────────────────────────────────────
 # RISK COMPUTATION TESTS
 # ─────────────────────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("RISK COMPUTATION TESTS")
-print("="*60)
+print("=" * 60)
 
-from app.domain.reports.generator import _compute_risk_token, _compute_risk_wallet  # noqa: E402
+from app.domains.reports.generator import _compute_risk_token, _compute_risk_wallet  # noqa: E402
 
 
 def test_compute_risk_token_low():
-    token_data = {"token": type('Token', (), {
-        'is_honeypot': False, 'is_mintable': False, 'is_proxy': False,
-        'tax_buy_bps': 100, 'tax_sell_bps': 100, 'risk_factors': [],
-    })()}
+    token_data = {
+        "token": type(
+            "Token",
+            (),
+            {
+                "is_honeypot": False,
+                "is_mintable": False,
+                "is_proxy": False,
+                "tax_buy_bps": 100,
+                "tax_sell_bps": 100,
+                "risk_factors": [],
+            },
+        )()
+    }
     score, _factors, tier = _compute_risk_token(token_data)
     assert score < 25
     assert tier.name == "LOW"
 
 
 def test_compute_risk_token_high():
-    token_data = {"token": type('Token', (), {
-        'is_honeypot': True, 'is_mintable': True, 'is_proxy': True,
-        'tax_buy_bps': 2000, 'tax_sell_bps': 2000, 'risk_factors': ['a', 'b'],
-    })()}
+    token_data = {
+        "token": type(
+            "Token",
+            (),
+            {
+                "is_honeypot": True,
+                "is_mintable": True,
+                "is_proxy": True,
+                "tax_buy_bps": 2000,
+                "tax_sell_bps": 2000,
+                "risk_factors": ["a", "b"],
+            },
+        )()
+    }
     score, _factors, tier = _compute_risk_token(token_data)
     assert score >= 75
     assert tier.name in ["HIGH", "CRITICAL"]
 
 
 def test_compute_risk_token_max():
-    token_data = {"token": type('Token', (), {
-        'is_honeypot': True, 'is_mintable': True, 'is_proxy': True,
-        'tax_buy_bps': 5000, 'tax_sell_bps': 5000, 'risk_factors': ['a', 'b', 'c', 'd', 'e'],
-    })()}
+    token_data = {
+        "token": type(
+            "Token",
+            (),
+            {
+                "is_honeypot": True,
+                "is_mintable": True,
+                "is_proxy": True,
+                "tax_buy_bps": 5000,
+                "tax_sell_bps": 5000,
+                "risk_factors": ["a", "b", "c", "d", "e"],
+            },
+        )()
+    }
     score, _factors, _tier = _compute_risk_token(token_data)
     assert score == 100
 
 
 def test_compute_risk_wallet_low():
-    wallet_data = {"wallet": type('Wallet', (), {'is_suspicious': False, 'tx_count': 100})(),
-                   "entity": {}, "news": []}
+    wallet_data = {
+        "wallet": type("Wallet", (), {"is_suspicious": False, "tx_count": 100})(),
+        "entity": {},
+        "news": [],
+    }
     score, _factors, tier = _compute_risk_wallet(wallet_data)
     assert score < 25
     assert tier.name == "LOW"
 
 
 def test_compute_risk_wallet_high():
-    wallet_data = {"wallet": type('Wallet', (), {'is_suspicious': True, 'tx_count': 15000})(),
-                   "entity": {"wallets": ["a", "b", "c", "d", "e"]}, "news": []}
+    wallet_data = {
+        "wallet": type("Wallet", (), {"is_suspicious": True, "tx_count": 15000})(),
+        "entity": {"wallets": ["a", "b", "c", "d", "e"]},
+        "news": [],
+    }
     score, _factors, tier = _compute_risk_wallet(wallet_data)
     assert score >= 50
     assert tier.name in ["MEDIUM", "HIGH", "CRITICAL"]
@@ -244,22 +267,28 @@ run_test("test_compute_risk_wallet_high", test_compute_risk_wallet_high)
 # ─────────────────────────────────────────────────────────────────────
 # TEMPLATE FALLBACK TESTS
 # ─────────────────────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("TEMPLATE FALLBACK TESTS")
-print("="*60)
+print("=" * 60)
 
-from app.domain.reports.generator import _template_fallback  # noqa: E402
+from app.domains.reports.generator import _template_fallback  # noqa: E402
 
 
 def test_template_fallback_executive_summary():
-    result = _template_fallback("executive_summary", {"subject_id": "eth:0x1", "risk_score": 75, "risk_tier": "HIGH", "risk_factors": "test"})
+    result = _template_fallback(
+        "executive_summary",
+        {"subject_id": "eth:0x1", "risk_score": 75, "risk_tier": "HIGH", "risk_factors": "test"},
+    )
     assert "Executive Summary" in result
     assert "75" in result
     assert "HIGH" in result
 
 
 def test_template_fallback_recommendation():
-    result = _template_fallback("recommendation", {"subject_id": "eth:0x1", "risk_score": 75, "risk_tier": "HIGH", "risk_factors": "test"})
+    result = _template_fallback(
+        "recommendation",
+        {"subject_id": "eth:0x1", "risk_score": 75, "risk_tier": "HIGH", "risk_factors": "test"},
+    )
     assert "AVOID" in result
 
 
@@ -301,9 +330,9 @@ run_test("test_template_fallback_social_signals", test_template_fallback_social_
 # ─────────────────────────────────────────────────────────────────────
 # SUMMARY
 # ─────────────────────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print(f"TOTAL: {tests_passed} passed, {tests_failed} failed")
-print("="*60)
+print("=" * 60)
 
 if tests_failed > 0:
     sys.exit(1)

@@ -120,8 +120,8 @@ warn_unreachable = true
 
 [[tool.mypy.overrides]]
 # Domain layer is the strictest — no FastAPI leakage allowed.
-module = ["app.domain.*"]
-disallow_any_express_imports = true
+module = ["app.domains.*"]
+disallow_any_explicit = true
 disallow_any_decorated = false  # Pydantic decorators need this
 no_implicit_optional = true
 warn_return_any = true
@@ -129,7 +129,7 @@ warn_return_any = true
 [[tool.mypy.overrides]]
 # Core (cross-cutting) is also strict.
 module = ["app.core.*"]
-disallow_any_express_imports = true
+disallow_any_explicit = true
 no_implicit_optional = true
 
 [[tool.mypy.overrides]]

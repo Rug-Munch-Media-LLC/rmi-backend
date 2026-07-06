@@ -10,6 +10,7 @@ Resolved sources:
 
 Other SENTINEL modules live in tools/evidence_tools.py and tools/report_tools.py.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -34,7 +35,7 @@ async def address_labels_endpoint(req: SentinelModuleRequest):
     known scammer, deployer, etc.).
     """
     try:
-        from app.scanners.sentinel_pipeline import run_address_labels
+        from app.domains.scanners.sentinel_pipeline import run_address_labels
 
         result = await run_address_labels(req.address, req.chain)
         await record_x402_payment("address_labels", "0.08", req.address)

@@ -18,6 +18,7 @@ Address labels live in tools/label_tools.py.
 TIER 1 modules (holder analysis, bundle detect, etc.) live in
 tools/evidence_tools.py.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -42,7 +43,7 @@ async def flash_loan_detect_endpoint(req: SentinelModuleRequest):
     volume exceeding pool liquidity ratio.
     """
     try:
-        from app.scanners.sentinel_pipeline import run_flash_loan_detection
+        from app.domains.scanners.sentinel_pipeline import run_flash_loan_detection
 
         result = await run_flash_loan_detection(req.address, req.chain)
         await record_x402_payment("flash_loan_detect", "0.08", req.address)
@@ -70,7 +71,7 @@ async def pump_dump_detect_endpoint(req: SentinelModuleRequest):
     and rug pull lifecycle stage (deploy/pump/distribution/dump).
     """
     try:
-        from app.scanners.sentinel_pipeline import run_pump_dump_detection
+        from app.domains.scanners.sentinel_pipeline import run_pump_dump_detection
 
         result = await run_pump_dump_detection(req.address, req.chain)
         await record_x402_payment("pump_dump_detect", "0.08", req.address)
@@ -98,7 +99,7 @@ async def oracle_manipulation_endpoint(req: SentinelModuleRequest):
     Critical for lending/borrowing protocols that rely on price feeds.
     """
     try:
-        from app.scanners.sentinel_pipeline import run_oracle_manipulation
+        from app.domains.scanners.sentinel_pipeline import run_oracle_manipulation
 
         result = await run_oracle_manipulation(req.address, req.chain)
         await record_x402_payment("oracle_manipulation", "0.08", req.address)
@@ -157,7 +158,7 @@ async def proxy_detect_endpoint(req: SentinelModuleRequest):
     rug contract patterns. Essential for EVM tokens behind proxies.
     """
     try:
-        from app.scanners.sentinel_pipeline import run_proxy_detection
+        from app.domains.scanners.sentinel_pipeline import run_proxy_detection
 
         result = await run_proxy_detection(req.address, req.chain)
         await record_x402_payment("proxy_detect", "0.08", req.address)
@@ -185,7 +186,7 @@ async def static_analysis_endpoint(req: SentinelModuleRequest):
     and active threat alerts.
     """
     try:
-        from app.scanners.sentinel_pipeline import run_static_analysis
+        from app.domains.scanners.sentinel_pipeline import run_static_analysis
 
         result = await run_static_analysis(req.address, req.chain)
         await record_x402_payment("static_analysis", "0.12", req.address)
@@ -213,7 +214,7 @@ async def decompiler_analysis_endpoint(req: SentinelModuleRequest):
     Essential for tokens with unverified source code.
     """
     try:
-        from app.scanners.sentinel_pipeline import run_decompiler_analysis
+        from app.domains.scanners.sentinel_pipeline import run_decompiler_analysis
 
         result = await run_decompiler_analysis(req.address, req.chain)
         await record_x402_payment("decompiler_analysis", "0.10", req.address)
@@ -237,7 +238,7 @@ async def fund_flow_endpoint(req: SentinelModuleRequest):
     Pricing: $0.10
     """
     try:
-        from app.scanners.sentinel_pipeline import run_fund_flow
+        from app.domains.scanners.sentinel_pipeline import run_fund_flow
 
         result = await run_fund_flow(req.address, req.chain)
         await record_x402_payment("fund_flow", "0.10", req.address)
@@ -265,7 +266,7 @@ async def contract_diff_endpoint(req: SentinelModuleRequest):
     (withdrawAll, drain, setOwner, emergencyWithdraw) and rug-specific bytecode patterns.
     """
     try:
-        from app.scanners.sentinel_pipeline import run_contract_diff
+        from app.domains.scanners.sentinel_pipeline import run_contract_diff
 
         result = await run_contract_diff(req.address, req.chain)
         await record_x402_payment("contract_diff", "0.10", req.address)
