@@ -32,7 +32,7 @@ Read these files in order:
 
 ## The Server
 
-ALL work happens on netcup (100.100.18.18).
+ALL work happens on Talos (100.104.130.92).
 
 ```
 ssh netcup
