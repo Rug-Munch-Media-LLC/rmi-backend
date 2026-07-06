@@ -6,10 +6,11 @@ Import: `from app.config import settings`
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,7 +34,14 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # ── Auth ────────────────────────────────────────────────────────
-    jwt_secret: str = Field(default="dev-secret-CHANGE-ME")
+    jwt_secret: str = Field(  # required, no default, fail-fast in prod
+        min_length=32,
+        description=(
+            "HMAC secret for JWT. Required. Must be >= 32 chars. "
+            "Generate with: openssl rand -hex 32. "
+            "Set via gopass (rmi/prod/jwt_secret) or JWT_SECRET env var."
+        ),
+    )
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24
 
@@ -67,6 +75,21 @@ class Settings(BaseSettings):
         "contract_audit",
         "phishing_db",
     ]
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def _jwt_secret_must_be_set_in_prod(cls, v: str) -> str:
+        """Reject the dev default in production.
+
+        Pydantic-settings binds v from env (or rejects via min_length above).
+        Here we only enforce the dev placeholder cannot leak into a prod boot.
+        """
+        if v == "dev-secret-CHANGE-ME" and os.getenv("ENVIRONMENT", "dev") == "prod":
+            raise ValueError(
+                "jwt_secret must be set to a non-default value in production. "
+                "Set via gopass (rmi/prod/jwt_secret) or JWT_SECRET env var."
+            )
+        return v
 
 
 @lru_cache(maxsize=1)
