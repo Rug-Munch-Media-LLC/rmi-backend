@@ -18,6 +18,7 @@ Time-decay scoring for /trending:
   social_velocity: tweets/shares in last hour (1 + n/100, capped at 2x)
   abs(sentiment): polarizing news ranks higher
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -30,7 +31,11 @@ from app.catalog.llm_router import LLMRouter
 from app.catalog.models import utcnow
 from app.catalog.service import get_catalog
 
-router = APIRouter(prefix="/api/v1/news", tags=["news"])
+# Prefix is /api/v1 (not /api/v1/news) per Phase 2 Wave 2 (AUDIT-2026-Q3.md):
+# the catch-all endpoints moved to /api/v1/articles/{news_id} so that
+# app.routers.news can mount /api/v1/news/{feed,headlines,sources,...}
+# without being shadowed by a {news_id} catch-all.
+router = APIRouter(prefix="/api/v1", tags=["news"])
 
 
 # ── Time-decay scoring (per v4.0 §T28) ────────────────────────────
@@ -145,7 +150,7 @@ def _adapt_legacy_row(row: dict) -> NewsItemOut:
 
 
 # ── POST /api/v1/news (list with filters) ─────────────────────────
-@router.post("", response_model=NewsListResponse)
+@router.post("/news", response_model=NewsListResponse)
 async def list_news(
     chain: str | None = None,
     token: str | None = None,
@@ -168,10 +173,10 @@ async def list_news(
             query = "SELECT news_id, url, title, summary, source, published_at, sentiment_score, chains_mentioned, tokens_mentioned FROM news_items WHERE published_at > $1"
             params: list[Any] = [cutoff]
             if chain:
-                query += f" AND ${len(params)+1} = ANY(chains_mentioned)"
+                query += f" AND ${len(params) + 1} = ANY(chains_mentioned)"
                 params.append(chain)
             if token:
-                query += f" AND ${len(params)+1} = ANY(tokens_mentioned)"
+                query += f" AND ${len(params) + 1} = ANY(tokens_mentioned)"
                 params.append(token)
             if sort == "sentiment":
                 query += " ORDER BY sentiment_score ASC NULLS LAST"
@@ -196,6 +201,7 @@ async def list_news(
                 )
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).warning(f"news_list_new_fail: {e}")
 
     # Legacy fallback (crypto_news)
@@ -204,9 +210,12 @@ async def list_news(
             query = "SELECT id, title, content, url, source, sentiment, tickers, published, ingested_at FROM crypto_news WHERE 1=1"
             params = []
             if category:
-                query += f" AND category = ${len(params)+1}"
+                query += f" AND category = ${len(params) + 1}"
                 params.append(category)
-            query += " ORDER BY ingested_at DESC LIMIT $%d OFFSET $%d" % (len(params)+1, len(params)+2)  # noqa: UP031
+            query += " ORDER BY ingested_at DESC LIMIT $%d OFFSET $%d" % (
+                len(params) + 1,
+                len(params) + 2,
+            )  # noqa: UP031
             params.extend([limit, offset])
             async with catalog._pg_pool.acquire() as conn:
                 rows = await conn.fetch(query, *params)
@@ -214,11 +223,13 @@ async def list_news(
                 items.append(_adapt_legacy_row(dict(r)))
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).warning(f"news_list_legacy_fail: {e}")
 
     # T03: cluster into stories if requested
     if clustered and items:
         from app.domain.news.clusterer import NewsItem, cluster_items, persist_clusters
+
         cluster_items_list = [
             NewsItem(
                 id=it.news_id,
@@ -235,6 +246,7 @@ async def list_news(
         # persist in background (don't block response)
         try:
             import asyncio
+
             asyncio.create_task(persist_clusters(stories))
         except Exception:
             pass
@@ -247,8 +259,8 @@ async def list_news(
                     url=s.source_urls[0] if s.source_urls else "",
                     title=f"[x{s.item_count}] {s.representative_title}",
                     summary=f"Story across {len(s.sources)} sources. "
-                            f"Sentiment: {s.sentiment_avg:.2f}. "
-                            f"Item IDs: {','.join(s.item_ids[:5])}",
+                    f"Sentiment: {s.sentiment_avg:.2f}. "
+                    f"Item IDs: {','.join(s.item_ids[:5])}",
                     source=", ".join(s.sources[:3]),
                     published_at=s.last_updated,
                     chains_mentioned=[],
@@ -262,7 +274,7 @@ async def list_news(
 
 
 # ── GET /api/v1/news/trending ─────────────────────────────────────
-@router.get("/trending", response_model=NewsListResponse)
+@router.get("/news/trending", response_model=NewsListResponse)
 async def trending_news(
     window_hours: int = Query(168, ge=1, le=720),
     limit: int = Query(20, ge=1, le=100),
@@ -299,12 +311,11 @@ async def trending_news(
                 tokens_mentioned=list(r["tokens_mentioned"] or []),
                 sentiment_score=r["sentiment_score"],
             )
-            item.score = round(
-                trend_score(hours_old, item.source, item.sentiment_score), 4
-            )
+            item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
             items.append(item)
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).warning(f"trending_new_fail: {e}")
 
     # Fallback: crypto_news (legacy) if no new items
@@ -333,14 +344,17 @@ async def trending_news(
                 items.append(item)
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).warning(f"trending_legacy_fail: {e}")
 
     items.sort(key=lambda x: x.score or 0, reverse=True)
     return NewsListResponse(items=items[:limit], total=len(items), offset=0)
 
 
-# ── GET /api/v1/news/{news_id} ────────────────────────────────────
-@router.get("/{news_id}", response_model=NewsItemOut)
+# ── GET /api/v1/articles/{news_id} ────────────────────────────────
+# Moved off /api/v1/news/{news_id} per Phase 2 Wave 2 (AUDIT-2026-Q3.md)
+# so app.routers.news (feed/headlines/sources/...) can coexist.
+@router.get("/articles/{news_id}", response_model=NewsItemOut)
 async def get_news(news_id: str) -> NewsItemOut:
     """Single news item. Searches both news_items and crypto_news."""
     catalog = get_catalog()
@@ -382,8 +396,9 @@ async def get_news(news_id: str) -> NewsItemOut:
         raise HTTPException(500, f"news_get_fail: {e}") from e
 
 
-# ── POST /api/v1/news/{news_id}/analyze ───────────────────────────
-@router.post("/{news_id}/analyze", response_model=NewsAnalysisResponse)
+# ── POST /api/v1/articles/{news_id}/analyze ───────────────────────
+# Same move rationale as GET /api/v1/articles/{news_id} above.
+@router.post("/articles/{news_id}/analyze", response_model=NewsAnalysisResponse)
 async def analyze_news(news_id: str) -> NewsAnalysisResponse:
     """Generate LLM analysis via LiteLLM. Falls back to None if LLM unreachable."""
     catalog = get_catalog()
@@ -441,9 +456,7 @@ async def analyze_news(news_id: str) -> NewsAnalysisResponse:
             return NewsAnalysisResponse(
                 news_id=news_id, analysis=None, error="LLM router unavailable"
             )
-        return NewsAnalysisResponse(
-            news_id=news_id, analysis=analysis, model="deepseek-v3"
-        )
+        return NewsAnalysisResponse(news_id=news_id, analysis=analysis, model="deepseek-v3")
     except HTTPException:
         raise
     except Exception as e:
