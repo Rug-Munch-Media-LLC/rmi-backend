@@ -509,7 +509,7 @@ async def call_tool(name: str, arguments: dict) -> dict:
             return {"error": f"news_query_fail: {e}"}
 
     if name == "generate_report":
-        from app.domain.reports.generator import generate_token_report, generate_wallet_report
+        from app.domains.reports.generator import generate_token_report, generate_wallet_report
 
         chain, address = arguments["subject_id"].split(":", 1)
         try:
@@ -517,7 +517,7 @@ async def call_tool(name: str, arguments: dict) -> dict:
                 report = await generate_token_report(catalog, chain, address)
             else:
                 report = await generate_wallet_report(catalog, chain, address)
-            from app.domain.reports.generator import save_report
+            from app.domains.reports.generator import save_report
 
             await save_report(catalog, report)
             return {

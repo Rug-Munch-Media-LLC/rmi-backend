@@ -1519,7 +1519,7 @@ async def x402_enforcement_middleware(request: Request, call_next) -> Response:
     Intercepts /api/v1/x402-tools/* and returns 402 if no valid payment and no trials.
 
     This middleware is kept for backward compatibility. New routes should use
-    app.domain.x402.middleware.require_payment() decorator instead.
+    app.domains.x402.middleware.require_payment() decorator instead.
     """
     path = request.url.path
 

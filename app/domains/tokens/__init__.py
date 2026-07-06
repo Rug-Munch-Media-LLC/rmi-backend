@@ -6,7 +6,7 @@ Re-exports the canonical public API of the token deployer. Implementation
 lives in app.tokens.deployer (moved verbatim from app.token_deployer on
 2026-07-07).
 """
-from app.tokens.deployer import (  # noqa: F401
+from app.domains.tokens.deployer import (  # noqa: F401
     ChainDeployer,
     DeployParams,
     DeploymentStorage,

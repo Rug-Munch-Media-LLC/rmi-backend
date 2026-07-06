@@ -148,7 +148,7 @@ async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test
     Use ?mode=test to get a fake invoice for integration testing.
     The invoice includes a mock payment that self-verifies.
     """
-    from app.domain.x402.middleware import create_invoice
+    from app.domains.x402.middleware import create_invoice
 
     invoice = create_invoice(tool, "sandbox_user")
     if mode == "test":
