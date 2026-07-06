@@ -1,4 +1,4 @@
-"""Pydantic schemas - re-exports from app.auth.
+"""Pydantic schemas - re-exports from app.domains.auth.
 
 Phase 3B of AUDIT-2026-Q3.md.
 
