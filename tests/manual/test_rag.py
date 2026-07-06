@@ -305,9 +305,9 @@ def test_entity_evm():
     from app.entity_extraction import extract_entities
 
     result = extract_entities("Send funds to 0xdAC17F958D2ee523a2206206994597C13D831ec7")
-    assert "0xdac17f958d2ee523a2206206994597c13d831ec7" in [a.lower() for a in result.evm_addresses], (
-        f"EVM address not found: {result.evm_addresses}"
-    )
+    assert "0xdac17f958d2ee523a2206206994597c13d831ec7" in [
+        a.lower() for a in result.evm_addresses
+    ], f"EVM address not found: {result.evm_addresses}"
 
 
 @test("extract_entities: token symbol detection")
@@ -316,8 +316,12 @@ def test_entity_symbol():
 
     result = extract_entities("Price of $ETH and $SOL surging")
     symbols_upper = [s.upper() for s in result.token_symbols]
-    assert "ETH" in symbols_upper or "$ETH" in result.token_symbols, f"ETH not found: {result.token_symbols}"
-    assert "SOL" in symbols_upper or "$SOL" in result.token_symbols, f"SOL not found: {result.token_symbols}"
+    assert "ETH" in symbols_upper or "$ETH" in result.token_symbols, (
+        f"ETH not found: {result.token_symbols}"
+    )
+    assert "SOL" in symbols_upper or "$SOL" in result.token_symbols, (
+        f"SOL not found: {result.token_symbols}"
+    )
 
 
 @test("extract_entities: chain name detection")
@@ -476,7 +480,9 @@ def test_chunk_boundaries():
 def test_heuristic_context():
     from app.contextual_chunking import _generate_heuristic_context
 
-    ctx = _generate_heuristic_context("# DeFi Analysis\n\nFull document text...", "chunk about exploits", 0, 5)
+    ctx = _generate_heuristic_context(
+        "# DeFi Analysis\n\nFull document text...", "chunk about exploits", 0, 5
+    )
     assert "DeFi Analysis" in ctx, f"Title not in context: {ctx}"
     assert "Chunk 1 of 5" in ctx, f"Position not in context: {ctx}"
 
@@ -563,19 +569,25 @@ def test_get_dim_fallback():
 def test_scam_patterns_structure():
     from app.crypto_embeddings import KNOWN_SCAM_PATTERNS
 
-    assert len(KNOWN_SCAM_PATTERNS) >= 10, f"Expected >= 10 patterns, got {len(KNOWN_SCAM_PATTERNS)}"
+    assert len(KNOWN_SCAM_PATTERNS) >= 10, (
+        f"Expected >= 10 patterns, got {len(KNOWN_SCAM_PATTERNS)}"
+    )
     for p in KNOWN_SCAM_PATTERNS:
         assert "name" in p, f"Pattern missing name: {p}"
         assert "description" in p, f"Pattern missing description: {p}"
         assert "severity" in p, f"Pattern missing severity: {p}"
-        assert p["severity"] in ("low", "medium", "high", "critical"), f"Invalid severity: {p['severity']}"
+        assert p["severity"] in ("low", "medium", "high", "critical"), (
+            f"Invalid severity: {p['severity']}"
+        )
 
 
 @test("CLUSTER_LABEL_TEMPLATES: has 10 templates")
 def test_cluster_labels():
     from app.bundle_cluster_rag import CLUSTER_LABEL_TEMPLATES
 
-    assert len(CLUSTER_LABEL_TEMPLATES) == 10, f"Expected 10 templates, got {len(CLUSTER_LABEL_TEMPLATES)}"
+    assert len(CLUSTER_LABEL_TEMPLATES) == 10, (
+        f"Expected 10 templates, got {len(CLUSTER_LABEL_TEMPLATES)}"
+    )
     labels = [t["label"] for t in CLUSTER_LABEL_TEMPLATES]
     assert "insider_trading_ring" in labels, "Missing insider_trading_ring"
     assert "wash_trading_farm" in labels, "Missing wash_trading_farm"
@@ -808,9 +820,9 @@ async def test_query_expand():
     assert len(variants) >= 3, f"Expected >=3 variants, got {len(variants)}: {variants}"
     # Should contain synonym expansions
     variants_lower = [v.lower() for v in variants]
-    assert any("honeypot" in v or "liquidity drain" in v or "exit scam" in v for v in variants_lower), (
-        f"No crypto synonyms found in: {variants}"
-    )
+    assert any(
+        "honeypot" in v or "liquidity drain" in v or "exit scam" in v for v in variants_lower
+    ), f"No crypto synonyms found in: {variants}"
 
 
 @test("query_transform: step_back generalizes questions")
@@ -819,7 +831,9 @@ async def test_query_step_back():
 
     result = await step_back_query("Is $SOL a rug pull?")
     # Should produce a broader query
-    assert "rug pull" in result.lower() or "token" in result.lower(), f"Step-back didn't generalize: {result}"
+    assert "rug pull" in result.lower() or "token" in result.lower(), (
+        f"Step-back didn't generalize: {result}"
+    )
 
 
 @test("query_transform: auto router picks correct strategy")
@@ -850,7 +864,9 @@ async def test_query_passthrough():
 def test_ragas_golden_set():
     from app.ragas_eval import GOLDEN_TEST_SET
 
-    assert len(GOLDEN_TEST_SET) >= 40, f"Expected >=40 golden test pairs, got {len(GOLDEN_TEST_SET)}"
+    assert len(GOLDEN_TEST_SET) >= 40, (
+        f"Expected >=40 golden test pairs, got {len(GOLDEN_TEST_SET)}"
+    )
     for entry in GOLDEN_TEST_SET:
         assert "query" in entry, f"Missing query field: {entry}"
         assert "collection" in entry, f"Missing collection field: {entry}"
