@@ -1,0 +1,28 @@
+pre-commit:
+  parallel: true
+  commands:
+    envsitter:
+      run: envsitter scan --filePath .env.example
+    gitleaks:
+      run: gitleaks detect --verbose --redact --no-git
+    ruff:
+      run: ruff check --fix && ruff format
+pre-push:
+  parallel: true
+  commands:
+    mypy:
+      run: mypy --strict .
+      tags: [python]
+    bandit:
+      run: bandit -r .
+      tags: [python]
+    deptry:
+      run: deptry .
+      tags: [python]
+    gitleaks-full:
+      run: gitleaks detect --verbose --redact
+commit-msg:
+  commands:
+    commitlint:
+      run: commitlint --edit "$1"
+
