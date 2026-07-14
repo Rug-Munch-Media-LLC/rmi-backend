@@ -206,6 +206,13 @@ def _load_mbal(con, base_dir: str) -> dict:
             continue
         fpath = os.path.join(base_dir, fname)
         tag = fname.replace(".csv", "")[:30]
+        # Security: validate tag and path don't contain SQL-injectable characters
+        if "'" in fpath:
+            continue
+        if not tag or any(
+            c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in tag
+        ):
+            continue
         try:
             con.execute(f"""
                 INSERT INTO mbal_labels (address, chain, category, label, source)
@@ -658,9 +665,7 @@ if __name__ == "__main__":
         for addr in test_addrs:
             result = engine.lookup_address(addr)
             if result:
-                print(
-                    f"  {addr[:20]}... → risk={result['risk_score']:.2f} label={result['best_label']}"
-                )
+                pass
             else:
                 logger.info(f"  {addr[:20]}... → not found")
         # Test label search

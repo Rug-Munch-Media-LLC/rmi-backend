@@ -9,6 +9,8 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, Query
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 router = APIRouter(prefix="/api/v1/contract-analyzer", tags=["contract-analyzer"])
 
 BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
@@ -75,7 +77,12 @@ async def _get_contract_bytecode(address: str, chain: str) -> dict[str, Any]:
             # Get bytecode
             resp = await client.get(
                 f"{api_base}",
-                params={"module": "proxy", "action": "eth_getCode", "address": address, "apikey": "YourApiKeyToken"},
+                params={
+                    "module": "proxy",
+                    "action": "eth_getCode",
+                    "address": address,
+                    "apikey": "YourApiKeyToken",
+                },
             )
             if resp.status_code == 200:
                 result["bytecode"] = resp.json().get("result", "")
@@ -128,7 +135,7 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
                             "function": name,
                             "selector": selector,
                             "risk": "HIGH" if score >= 10 else "MEDIUM",
-                            "explanation": f"Contract has {name} function - {'can create unlimited tokens' if 'mint' in name.lower() else 'may be used to manipulate trading'}",
+                            "explanation": f"Contract has {name} function - {'can create unlimited tokens' if 'mint' in name.lower() else 'may be used to manipulate trading'}",  # noqa: E501
                         }
                     )
                     break
@@ -150,7 +157,13 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
                     break
 
     risk_level = (
-        "CRITICAL" if risk_score >= 50 else "HIGH" if risk_score >= 25 else "MEDIUM" if risk_score >= 10 else "LOW"
+        "CRITICAL"
+        if risk_score >= 50
+        else "HIGH"
+        if risk_score >= 25
+        else "MEDIUM"
+        if risk_score >= 10
+        else "LOW"
     )
     return {"risk_score": min(100, risk_score), "risk_level": risk_level, "findings": findings}
 
@@ -167,7 +180,7 @@ async def analyze_contract(address: str, chain: str = Query("ethereum")):
             resp = await client.post(
                 f"{BACKEND}/api/v1/token/scan",
                 json={"token_address": address, "chain": chain},
-                headers={"X-RMI-Key": "rmi-internal-2026"},
+                headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             if resp.status_code == 200:
                 sentinel = resp.json()
@@ -207,5 +220,7 @@ async def detect_mint_function(address: str, chain: str = Query("ethereum")):
         "has_mint_function": len(found) > 0,
         "mint_functions": found,
         "risk": "HIGH" if len(found) > 0 else "LOW",
-        "note": "Mint functions allow creating new tokens - typical of scams" if found else "No mint function detected",
+        "note": "Mint functions allow creating new tokens - typical of scams"
+        if found
+        else "No mint function detected",
     }

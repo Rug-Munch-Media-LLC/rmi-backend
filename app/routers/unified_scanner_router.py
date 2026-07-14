@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from app.core.internal_key import INTERNAL_API_KEY
 from app.unified_token_scanner import get_token_scanner
 from app.unified_wallet_scanner import get_wallet_scanner
 
@@ -23,7 +24,7 @@ class WalletScanRequest(BaseModel):
 
 
 def _get_tier(request):
-    if request.headers.get("X-RMI-Key") == "rmi-internal-2026":
+    if request.headers.get("X-RMI-Key") == INTERNAL_API_KEY:
         return "admin"
     if request.headers.get("X-Payment-Verified") == "true":
         return "pro"
@@ -40,7 +41,9 @@ async def scan_token(request: Request, body: TokenScanRequest):
     admin_key = _get_admin_key(request)
     try:
         scanner = get_token_scanner()
-        result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
+        result = await scanner.scan(
+            address=body.address, chain=body.chain, tier=tier, admin_key=admin_key
+        )
         return {
             "status": "ok",
             "token": result.token_address,
@@ -68,7 +71,9 @@ async def scan_wallet(request: Request, body: WalletScanRequest):
     admin_key = _get_admin_key(request)
     try:
         scanner = get_wallet_scanner()
-        result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
+        result = await scanner.scan(
+            address=body.address, chain=body.chain, tier=tier, admin_key=admin_key
+        )
         return {
             "status": "ok",
             "address": result.address,

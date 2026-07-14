@@ -20,6 +20,7 @@ For v1, we use a simplified flow:
   - Payment verification stubbed (returns True for now)
   - The 402 challenge includes a payment_url the agent hits
 """
+
 from __future__ import annotations
 
 import base64
@@ -40,21 +41,70 @@ log = logging.getLogger(__name__)
 # ── Pricing per v4.0 §T34 ───────────────────────────────────────────
 PRICING: dict[str, dict[str, Any]] = {
     # free_tier: bool, pro_cents: int (USD cents), ent_cents: int
-    "get_token_risk":            {"free_tier": True,  "pro_cents": 1,    "ent_cents": 1,    "description": "Real-time token risk score"},
-    "get_wallet_analysis":       {"free_tier": True,  "pro_cents": 1,    "ent_cents": 1,    "description": "Wallet activity + reputation"},
-    "get_deployer_reputation":   {"free_tier": False, "pro_cents": 2,    "ent_cents": 1,    "description": "Deployer reputation score"},
-    "get_news_sentiment":        {"free_tier": True,  "pro_cents": 1,    "ent_cents": 1,    "description": "Latest news + sentiment"},
-    "generate_report":           {"free_tier": False, "pro_cents": 500,  "ent_cents": 400,  "description": "Full AI research report"},
-    "query_catalog":             {"free_tier": False, "pro_cents": 5,    "ent_cents": 3,    "description": "Natural language catalog query"},
-    "find_similar_tokens":       {"free_tier": False, "pro_cents": 3,    "ent_cents": 2,    "description": "Vector-similar tokens"},
-    "resolve_entity":            {"free_tier": False, "pro_cents": 10,   "ent_cents": 5,    "description": "Cross-chain entity resolution"},
-    "search_rag":                {"free_tier": True,  "pro_cents": 1,    "ent_cents": 1,    "description": "RAG semantic search"},
-    "bulk_ingest":               {"free_tier": False, "pro_cents": 10,   "ent_cents": 5,    "description": "Bulk RAG ingestion"},
+    "get_token_risk": {
+        "free_tier": True,
+        "pro_cents": 1,
+        "ent_cents": 1,
+        "description": "Real-time token risk score",
+    },
+    "get_wallet_analysis": {
+        "free_tier": True,
+        "pro_cents": 1,
+        "ent_cents": 1,
+        "description": "Wallet activity + reputation",
+    },
+    "get_deployer_reputation": {
+        "free_tier": False,
+        "pro_cents": 2,
+        "ent_cents": 1,
+        "description": "Deployer reputation score",
+    },
+    "get_news_sentiment": {
+        "free_tier": True,
+        "pro_cents": 1,
+        "ent_cents": 1,
+        "description": "Latest news + sentiment",
+    },
+    "generate_report": {
+        "free_tier": False,
+        "pro_cents": 500,
+        "ent_cents": 400,
+        "description": "Full AI research report",
+    },
+    "query_catalog": {
+        "free_tier": False,
+        "pro_cents": 5,
+        "ent_cents": 3,
+        "description": "Natural language catalog query",
+    },
+    "find_similar_tokens": {
+        "free_tier": False,
+        "pro_cents": 3,
+        "ent_cents": 2,
+        "description": "Vector-similar tokens",
+    },
+    "resolve_entity": {
+        "free_tier": False,
+        "pro_cents": 10,
+        "ent_cents": 5,
+        "description": "Cross-chain entity resolution",
+    },
+    "search_rag": {
+        "free_tier": True,
+        "pro_cents": 1,
+        "ent_cents": 1,
+        "description": "RAG semantic search",
+    },
+    "bulk_ingest": {
+        "free_tier": False,
+        "pro_cents": 10,
+        "ent_cents": 5,
+        "description": "Bulk RAG ingestion",
+    },
 }
 
 # Free tier daily limit
 FREE_DAILY_LIMIT = 5
-
 
 
 # ── Nonce burn (replay protection) ──────────────────────────────
@@ -112,11 +162,14 @@ try:
 except Exception:
     # Prometheus not available - use no-op counter stubs
     class _Stub:
-        def labels(self, **kw): return self
-        def inc(self, n: float = 1.0): pass
+        def labels(self, **kw):
+            return self
+
+        def inc(self, n: float = 1.0):
+            pass
+
     _X402_REPLAY_COUNTER = _Stub()
     _X402_REVENUE_COUNTER = _Stub()
-
 
 
 def get_tool_price_usd(tool: str) -> float:
@@ -134,8 +187,8 @@ def get_tool_price_usd(tool: str) -> float:
 
     # Fallback: check the enforcement system's comprehensive price list
     try:
-        from routers.x402_enforcement import TOOL_PRICES as _FALLBACK_PRICES
-        from routers.x402_enforcement import _ensure_tool_prices
+        from routers.x402_enforcement import TOOL_PRICES as _FALLBACK_PRICES, _ensure_tool_prices
+
         _ensure_tool_prices()
         fp = _FALLBACK_PRICES.get(tool, {})
         return fp.get("price_usd", 0.01)
@@ -217,13 +270,17 @@ async def _check_rate_limit(redis, agent_id: str) -> None:
 
 # ── HMAC key from env ────────────────────────────────────────────
 
+
 def _get_hmac_key() -> bytes:
     """Load HMAC signing key from environment. Never hardcoded."""
-    key = os.getenv("X402_HMAC_KEY", "")
+    key = os.getenv("X402_HMAC_KEY")
     if not key:
-        key = os.getenv("ADMIN_API_KEY", os.getenv("WP_ADMIN_KEY", "dev-key-only-for-local"))
-        if "dev" not in key:
-            logging.getLogger("wp.x402").warning("X402_HMAC_KEY not set, using ADMIN_API_KEY")
+        key = os.getenv("ADMIN_API_KEY")
+        if not key:
+            raise RuntimeError(
+                "Either X402_HMAC_KEY or ADMIN_API_KEY environment variable is required"
+            )
+        logging.getLogger("wp.x402").warning("X402_HMAC_KEY not set, using ADMIN_API_KEY")
     return key.encode()
 
 
@@ -244,7 +301,9 @@ def create_invoice(tool: str, agent_id: str) -> dict:
         "tool": tool,
         "agent_id": agent_id,
         "amount_usd": amount_usd,
-        "amount_wei": int(amount_usd * 1e18 / float(os.getenv("X402_ETH_PRICE_USD", "3000"))) if amount_usd > 0 else 0,
+        "amount_wei": int(amount_usd * 1e18 / float(os.getenv("X402_ETH_PRICE_USD", "3000")))
+        if amount_usd > 0
+        else 0,
         "pay_to": pay_to or "0xRMI_PLATFORM_WALLET (set X402_PAYMENT_ADDRESS)",
         "chain": os.getenv("X402_PAYMENT_CHAIN", "base"),
         "created_at": datetime.now(UTC).isoformat(),
@@ -289,6 +348,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
     # Route to the production x402 enforcement system
     try:
         from app.routers.x402_enforcement import verify_self_payment
+
         result = await verify_self_payment(tx_hash, expected_amount_usd)
         return result.get("verified", False)
     except ImportError:
@@ -300,15 +360,21 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
     if tx_hash.startswith("0x") and len(tx_hash) == 66:
         try:
             import httpx
+
             pay_to = os.getenv("X402_PAYMENT_ADDRESS", "")
             if not pay_to:
                 return False
 
             async with httpx.AsyncClient(timeout=15) as c:
-                r = await c.post("https://mainnet.base.org", json={
-                    "jsonrpc": "2.0", "id": 1, "method": "eth_getTransactionReceipt",
-                    "params": [tx_hash],
-                })
+                r = await c.post(
+                    "https://mainnet.base.org",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "eth_getTransactionReceipt",
+                        "params": [tx_hash],
+                    },
+                )
                 data = r.json()
                 if "result" not in data or data["result"] is None:
                     return False
@@ -330,11 +396,20 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
     if len(tx_hash) == 88:  # Solana base58 signature length
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=15) as c:
-                r = await c.post("https://api.mainnet-beta.solana.com", json={
-                    "jsonrpc": "2.0", "id": 1, "method": "getTransaction",
-                    "params": [tx_hash, {"encoding": "json", "maxSupportedTransactionVersion": 0}],
-                })
+                r = await c.post(
+                    "https://api.mainnet-beta.solana.com",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getTransaction",
+                        "params": [
+                            tx_hash,
+                            {"encoding": "json", "maxSupportedTransactionVersion": 0},
+                        ],
+                    },
+                )
                 data = r.json()
                 return not ("result" not in data or data["result"] is None)
         except Exception as e:
@@ -344,7 +419,9 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
     return False
 
 
-async def record_receipt(catalog, tx_hash: str, tool: str, agent_id: str, amount_usd: float) -> bool:
+async def record_receipt(
+    catalog, tx_hash: str, tool: str, agent_id: str, amount_usd: float
+) -> bool:
     """Log the payment receipt to x402_receipts table."""
     if not catalog._health.postgres:
         return False
@@ -353,8 +430,11 @@ async def record_receipt(catalog, tx_hash: str, tool: str, agent_id: str, amount
             await conn.execute(
                 """INSERT INTO x402_receipts (tx_hash, agent_id, tool, amount_usd, chain, paid_at, tier)
                    VALUES ($1, $2, $3, $4, $5, NOW(), $6)
-                   ON CONFLICT (tx_hash) DO NOTHING""",
-                tx_hash, agent_id, tool, amount_usd,
+                   ON CONFLICT (tx_hash) DO NOTHING""",  # noqa: E501
+                tx_hash,
+                agent_id,
+                tool,
+                amount_usd,
                 os.getenv("X402_PAYMENT_CHAIN", "base"),
                 os.getenv("X402_DEFAULT_TIER", "pro"),
             )
@@ -395,7 +475,7 @@ async def require_payment(
                 "error": "payment_required",
                 "invoice": invoice,
                 "payment_url": f"{os.getenv('X402_PAYMENT_URL', 'https://pay.rugmunch.io')}/{invoice['id']}",
-                "instructions": "Pay on-chain, then retry with X-Payment header (base64 of {tx_hash, signature})",
+                "instructions": "Pay on-chain, then retry with X-Payment header (base64 of {tx_hash, signature})",  # noqa: E501
             },
         )
 
@@ -408,7 +488,7 @@ async def require_payment(
                 "error": "payment_required",
                 "invoice": invoice,
                 "payment_url": f"{os.getenv('X402_PAYMENT_URL', 'https://pay.rugmunch.io')}/{invoice['id']}",
-                "instructions": "Pay on-chain, then retry with X-Payment header (base64 of {tx_hash, signature})",
+                "instructions": "Pay on-chain, then retry with X-Payment header (base64 of {tx_hash, signature})",  # noqa: E501
             },
         )
 
@@ -426,16 +506,14 @@ async def require_payment(
             detail={
                 "error": "payment_already_used",
                 "tx_hash": tx_hash,
-                "message": "This payment receipt has already been used. Each tx_hash can only be used once.",
+                "message": "This payment receipt has already been used. Each tx_hash can only be used once.",  # noqa: E501
             },
         )
     _X402_REVENUE_COUNTER.labels(tool=tool, tier="pro").inc(int(get_tool_price_usd(tool) * 100))
 
     # Record the receipt
     if catalog:
-        await record_receipt(
-            catalog, tx_hash, tool, agent_id, get_tool_price_usd(tool)
-        )
+        await record_receipt(catalog, tx_hash, tool, agent_id, get_tool_price_usd(tool))
 
     return {
         "agent_id": agent_id,

@@ -15,6 +15,8 @@ from typing import Any
 
 import redis
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 logger = logging.getLogger(__name__)
 
 # ── Configuration ──
@@ -22,8 +24,6 @@ logger = logging.getLogger(__name__)
 FREE_DAILY_LIMIT = int(os.getenv("FREE_SCAN_LIMIT", "5"))
 PRO_DAILY_LIMIT = int(os.getenv("PRO_SCAN_LIMIT", "100"))
 ELITE_DAILY_LIMIT = int(os.getenv("ELITE_SCAN_LIMIT", "0"))  # 0 = unlimited
-
-INTERNAL_API_KEY = os.getenv("RMI_INTERNAL_KEY", "rmi-internal-2026")
 
 # Redis setup
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -98,7 +98,7 @@ PREMIUM_UPSELL = {
             "free": {
                 "daily_limit": FREE_DAILY_LIMIT,
                 "price": "$0",
-                "features": ["5 scans/day", "Basic safety score", "DexScreener data"],
+                "features": ["5 scans/day", "Basic safety score", "DEX market data"],
             },
             "starter": {
                 "daily_limit": 50,
@@ -279,7 +279,11 @@ def increment_scan_usage(
     if is_internal or is_x402_paid:
         return {"recorded": False, "total_today": 0, "remaining": -1}
 
-    daily_limit = ELITE_DAILY_LIMIT if tier == "elite" else (PRO_DAILY_LIMIT if tier == "pro" else FREE_DAILY_LIMIT)
+    daily_limit = (
+        ELITE_DAILY_LIMIT
+        if tier == "elite"
+        else (PRO_DAILY_LIMIT if tier == "pro" else FREE_DAILY_LIMIT)
+    )
 
     try:
         r = _get_redis()
@@ -327,7 +331,9 @@ def is_internal_request(request) -> bool:
         return True
 
     # Check for x402 payment (already paid)
-    x402_version = request.headers.get("X-Payment-Version", "") if hasattr(request, "headers") else ""
+    x402_version = (
+        request.headers.get("X-Payment-Version", "") if hasattr(request, "headers") else ""
+    )
     if x402_version:
         return False  # x402 is not internal, but it's paid - handled separately
 

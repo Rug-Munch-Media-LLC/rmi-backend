@@ -9,6 +9,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 router = APIRouter(prefix="/api/v1/criminal-clusters", tags=["criminal-clusters"])
 
 BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
@@ -38,7 +40,8 @@ async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethere
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
-                f"{BACKEND}/api/v1/eth-labels/search", params={"address": deployer_address, "type": "deployer"}
+                f"{BACKEND}/api/v1/eth-labels/search",
+                params={"address": deployer_address, "type": "deployer"},
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -77,7 +80,7 @@ async def get_token_cluster(token_address: str, chain: str = Query("ethereum")):
             resp = await client.post(
                 f"{BACKEND}/api/v1/token/scan",
                 json={"token_address": token_address, "chain": chain},
-                headers={"X-RMI-Key": "rmi-internal-2026"},
+                headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             if resp.status_code == 200:
                 scan = resp.json()
@@ -95,19 +98,43 @@ async def get_token_cluster(token_address: str, chain: str = Query("ethereum")):
         # Get deployer info
         deployer = scan.get("pro", {}).get("deployer_address", "")
         if deployer:
-            nodes.append({"id": deployer[:16], "label": f"Deployer {deployer[:8]}", "type": "deployer"})
-            edges.append({"source": deployer[:16], "target": token_address[:16], "relationship": "deployed"})
+            nodes.append(
+                {"id": deployer[:16], "label": f"Deployer {deployer[:8]}", "type": "deployer"}
+            )
+            edges.append(
+                {"source": deployer[:16], "target": token_address[:16], "relationship": "deployed"}
+            )
 
             # Get siblings (same deployer)
             async with httpx.AsyncClient(timeout=10) as client:
-                resp2 = await client.get(f"{BACKEND}/api/v1/eth-labels/search", params={"address": deployer})
+                resp2 = await client.get(
+                    f"{BACKEND}/api/v1/eth-labels/search", params={"address": deployer}
+                )
                 if resp2.status_code == 200:
                     for sibling in resp2.json().get("labels", [])[:10]:
                         sib_addr = sibling.get("contract_address", "")[:16]
                         if sib_addr and sib_addr != token_address[:16]:
-                            nodes.append({"id": sib_addr, "label": sibling.get("name", sib_addr), "type": "token"})
-                            edges.append({"source": deployer[:16], "target": sib_addr, "relationship": "deployed"})
-                            edges.append({"source": sib_addr, "target": token_address[:16], "relationship": "sibling"})
+                            nodes.append(
+                                {
+                                    "id": sib_addr,
+                                    "label": sibling.get("name", sib_addr),
+                                    "type": "token",
+                                }
+                            )
+                            edges.append(
+                                {
+                                    "source": deployer[:16],
+                                    "target": sib_addr,
+                                    "relationship": "deployed",
+                                }
+                            )
+                            edges.append(
+                                {
+                                    "source": sib_addr,
+                                    "target": token_address[:16],
+                                    "relationship": "sibling",
+                                }
+                            )
 
     except Exception as e:
         raise HTTPException(502, f"Scanner unavailable: {e}") from e
@@ -121,7 +148,9 @@ async def search_clusters(q: str = Query(..., min_length=2), limit: int = Query(
     results: list[dict] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"{BACKEND}/api/v1/eth-labels/search", params={"q": q, "limit": limit})
+            resp = await client.get(
+                f"{BACKEND}/api/v1/eth-labels/search", params={"q": q, "limit": limit}
+            )
             if resp.status_code == 200:
                 results = resp.json().get("labels", [])
     except Exception:

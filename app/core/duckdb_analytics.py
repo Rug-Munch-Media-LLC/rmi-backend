@@ -30,6 +30,7 @@ Per RMIV5 v4.0 §T31 (perf gap): ClickHouse has 2 GB memory cap +
 network overhead. DuckDB handles "give me counts by chain" in <10ms
 with zero setup.
 """
+
 from __future__ import annotations
 
 import logging
@@ -108,11 +109,17 @@ class DuckDBAnalytics:
         try:
             cursor = self._conn.execute(sql, params or [])
             columns = [d[0] for d in cursor.description] if cursor.description else []
-            rows = cursor.fetchmany(max_rows) if max_rows is not None and max_rows > 0 else cursor.fetchall()
+            rows = (
+                cursor.fetchmany(max_rows)
+                if max_rows is not None and max_rows > 0
+                else cursor.fetchall()
+            )
             elapsed_ms = (time.monotonic() - start) * 1000
             log.info(
                 "duckdb_query rows=%d columns=%d took_ms=%.2f",
-                len(rows), len(columns), elapsed_ms,
+                len(rows),
+                len(columns),
+                elapsed_ms,
             )
             return [dict(zip(columns, row, strict=False)) for row in rows]
         except Exception as e:
@@ -141,7 +148,11 @@ class DuckDBAnalytics:
         Returns:
             list of dicts.
         """
-        pg_url = os.getenv("PG_URL") or os.getenv("DATABASE_URL") or "postgres://rmi:postgres@localhost:5432/rmi"
+        pg_url = (
+            os.getenv("PG_URL")
+            or os.getenv("DATABASE_URL")
+            or "postgres://rmi:postgres@localhost:5432/rmi"
+        )
         self._attach_postgres(pg_url)
         return self.query(sql)
 
@@ -157,6 +168,9 @@ class DuckDBAnalytics:
             db.query_parquet('s3://bucket/export.parquet')
             db.query_parquet('/tmp/*.parquet', 'SELECT count(*) AS n FROM parquet')
         """
+        # Security: validate path doesn't contain SQL-injectable characters
+        if "'" in parquet_path:
+            raise ValueError(f"Invalid parquet path (contains quote): {parquet_path!r}")
         # Bind parquet path to a table for the duration of the query
         bind_sql = f"SELECT * FROM read_parquet('{parquet_path}')"
         if sql is None:  # noqa: SIM108
@@ -187,17 +201,22 @@ class DuckDBAnalytics:
         Returns:
             Number of rows exported.
         """
+        # Security: validate path doesn't contain SQL-injectable characters
+        if "'" in output_path:
+            raise ValueError(f"Invalid output path (contains quote): {output_path!r}")
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         # Use COPY (SELECT ... ) TO 'file.parquet' (FORMAT PARQUET) for direct export
         start = time.monotonic()
         self._conn.execute(f"COPY ({sql}) TO ? (FORMAT PARQUET)", [output_path, *(params or [])])
         elapsed_ms = (time.monotonic() - start) * 1000
-        # Count rows
+        # Count rows - validated path, safe for string interpolation
         rows = self.query(f"SELECT count(*) AS n FROM '{output_path}'")
         n = rows[0]["n"] if rows else 0
         log.info(
             "duckdb_export_parquet rows=%d path=%s took_ms=%.2f",
-            n, output_path, elapsed_ms,
+            n,
+            output_path,
+            elapsed_ms,
         )
         return int(n)
 
@@ -212,7 +231,7 @@ class DuckDBAnalytics:
     def list_tables(self) -> list[str]:
         """List all registered tables."""
         rows = self.query(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main' ORDER BY table_name"
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main' ORDER BY table_name"  # noqa: E501
         )
         return [r["table_name"] for r in rows]
 
