@@ -18,7 +18,7 @@ Premium feature: "AI-Powered Risk Score" - ML confidence alongside rules-based s
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import pickle
 from datetime import UTC, datetime
@@ -26,7 +26,7 @@ from typing import Any
 
 import numpy as np
 
-logger = logging.getLogger("sentinel.ai")
+logger = get_logger("sentinel.ai")
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "scam_classifier_xgb.pkl")

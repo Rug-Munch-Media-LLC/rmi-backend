@@ -5,12 +5,12 @@ Streams wallet labels, scan results, and embedding usage to BigQuery.
 All usage counts against free tier (1TB queries/month - we'll use <1%).
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 from app.gcloud_manager import get_gcloud
 
-logger = logging.getLogger("bigquery.pipeline")
+logger = get_logger("bigquery.pipeline")
 
 
 async def stream_wallet_labels(labels: list) -> dict:

@@ -22,7 +22,7 @@ Date: 2026-05-23
 from __future__ import annotations
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import time
@@ -37,7 +37,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.redis import get_redis
 
-logger = logging.getLogger("x402_enforcement")
+logger = get_logger("x402_enforcement")
 
 # ── Payment address globals (initialized by _ensure_pay_addresses) ──
 EVM_PAY_TO: str | None = None

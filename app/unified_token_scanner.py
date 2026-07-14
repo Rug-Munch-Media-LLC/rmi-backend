@@ -19,13 +19,13 @@ Architecture:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ═══════════════════════════════════════════════════════════════

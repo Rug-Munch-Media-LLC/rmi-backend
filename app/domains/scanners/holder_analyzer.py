@@ -14,7 +14,7 @@ Uses direct API calls: DexScreener (pairs/market), Birdeye (overview),
 Solscan (holders), Helius (account metadata).
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -25,7 +25,7 @@ from app.birdeye_client import BirdeyeClient
 from app.chain_registry import is_solana
 from app.free_solscan_client import FreeSolscanClient
 
-logger = logging.getLogger("holder_analyzer")
+logger = get_logger("holder_analyzer")
 
 
 @dataclass

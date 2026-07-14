@@ -18,14 +18,14 @@ Strategy:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
 
 import redis.asyncio as aioredis
 
-logger = logging.getLogger("rpc_rate_limiter")
+logger = get_logger("rpc_rate_limiter")
 
 # ── Provider Rate Limits ───────────────────────────────────────────────────
 

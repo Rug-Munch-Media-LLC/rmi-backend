@@ -2,7 +2,7 @@
 """#10 - DataBus Public API Gateway. Free tier + x402 paid tier. 102 chains, 119 providers."""
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass
@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 DATABUS_BASE = os.environ.get("DATABUS_URL", "http://localhost:8000/api/v1/databus")
 X402_VERIFY_URL = os.environ.get("X402_VERIFY_URL", "http://localhost:8000/api/v1/x402/verify")

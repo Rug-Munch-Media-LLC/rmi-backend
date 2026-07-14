@@ -46,7 +46,7 @@ CLI:
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
@@ -59,7 +59,7 @@ import httpx
 from app.chain_client import ChainClient
 from app.chain_registry import is_solana
 
-logger = logging.getLogger("pump_dump_detector")
+logger = get_logger("pump_dump_detector")
 
 # ── Constants ────────────────────────────────────────────────────────
 

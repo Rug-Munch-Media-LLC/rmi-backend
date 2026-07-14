@@ -7,10 +7,10 @@ Sources:
 
 import csv
 import json
-import logging
+from app.core.logging import get_logger
 import os
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 LABELS_BASE = "/app/data/wallet-labels"
 

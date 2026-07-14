@@ -1,9 +1,9 @@
 """DataBus Response Schema Validation"""
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-logger = logging.getLogger("databus.response_schema")
+logger = get_logger("databus.response_schema")
 
 
 class SchemaValidator:

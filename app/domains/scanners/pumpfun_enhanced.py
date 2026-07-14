@@ -4,9 +4,9 @@ Integrates wallet trade analysis, PnL computation, and delay-to-first-sell
 from haccer/pumpfun-research (MIT licensed, open source).
 """
 
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Key patterns extracted from pumpfun-research:
 # 1. Batch pulls pump.fun BUY/SELL activity via Helius

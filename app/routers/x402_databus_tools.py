@@ -23,14 +23,14 @@ Security:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-logger = logging.getLogger("x402_databus_tools")
+logger = get_logger("x402_databus_tools")
 
 router = APIRouter(prefix="/api/v1/x402-databus", tags=["x402-databus-tools"])
 

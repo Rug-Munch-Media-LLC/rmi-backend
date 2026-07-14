@@ -20,13 +20,13 @@ with a clear upgrade path to a full SPLADE model.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import math
 import re
 from collections import Counter
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Stopwords (crypto-domain-aware) ────────────────────────────────────
 STOPWORDS = frozenset(

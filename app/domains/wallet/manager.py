@@ -41,7 +41,7 @@ Date: 2026-06-02
 import base64
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import secrets
 import time
@@ -50,7 +50,7 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
-logger = logging.getLogger("wallet_manager_v2")
+logger = get_logger("wallet_manager_v2")
 
 # ── Crypto Imports ───────────────────────────────────────────────
 

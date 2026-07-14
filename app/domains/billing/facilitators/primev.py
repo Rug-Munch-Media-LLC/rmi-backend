@@ -6,7 +6,7 @@ via mev-commit preconfirmations.
 ERC-8004 registered (Agent #23175).
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -21,7 +21,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.primev")
+logger = get_logger("facilitator.primev")
 
 
 class PrimevFacilitator(Facilitator):

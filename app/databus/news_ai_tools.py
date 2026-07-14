@@ -12,10 +12,10 @@ All powered by local Ollama - no external API costs.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import time
 
-logger = logging.getLogger("rmi.news.ai")
+logger = get_logger("rmi.news.ai")
 
 # Ollama endpoint
 OLLAMA_URL = "http://ollama:11434/api/generate"

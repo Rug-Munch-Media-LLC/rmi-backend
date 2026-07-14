@@ -20,14 +20,14 @@ Changes from v3.0:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
-logger = logging.getLogger("rmi_mcp_v3")
+logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp"])
 
 MCP_PROTOCOL_VERSION = "2024-11-05"

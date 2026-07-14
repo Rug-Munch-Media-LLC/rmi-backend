@@ -13,12 +13,12 @@ Cache strategy:
 Cron: Every 6 hours, discover new tweets, extract content, update metrics.
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 from app.databus.cache import CacheLayer, get_cache
 
-logger = logging.getLogger("databus.social_scraper")
+logger = get_logger("databus.social_scraper")
 
 # Twitter handle for our account
 OUR_HANDLE = "CryptoRugMunch"

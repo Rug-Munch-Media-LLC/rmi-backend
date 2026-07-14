@@ -20,12 +20,12 @@ The legacy 0-100 score is derived deterministically from probability:
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 import math
 
 from app.catalog.models import Deployer, utcnow
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 # ── Prior adjustments (Bayesian update weights) ────────────────

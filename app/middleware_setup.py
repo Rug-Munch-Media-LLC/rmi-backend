@@ -10,9 +10,9 @@ This module owns every middleware registration. Adding a new middleware:
 
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def register_middleware(app) -> None:

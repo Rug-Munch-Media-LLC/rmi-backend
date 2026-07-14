@@ -13,7 +13,7 @@ Renders SVG inline (no external layout library) with top-to-bottom
 layout, color-coded roles, and edge thickness proportional to amount.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass
 from typing import Any
@@ -22,7 +22,7 @@ import httpx
 
 from app.chain_registry import is_evm, is_solana
 
-logger = logging.getLogger("fund_flow_visualizer")
+logger = get_logger("fund_flow_visualizer")
 
 # ─── Output directory ────────────────────────────────────────────────
 

@@ -9,12 +9,13 @@ Extended with RMI security intelligence
 import base64
 import hashlib
 import logging
+from app.core.logging import get_logger
 import time
 from typing import Any
 
 import cloudscraper
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ─── Token Generator ──────────────────────────────────────────────────────────
 

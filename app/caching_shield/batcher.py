@@ -18,12 +18,12 @@ when fetching data for multiple tokens/wallets simultaneously.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-logger = logging.getLogger("rpc_batcher")
+logger = get_logger("rpc_batcher")
 
 # Maximum requests per batch (provider limits are typically 20-100)
 MAX_BATCH_SIZE = 20

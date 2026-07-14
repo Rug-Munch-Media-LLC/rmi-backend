@@ -12,7 +12,7 @@ and Cursor connect via:
 from __future__ import annotations
 
 import json
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -29,7 +29,7 @@ from app.mcp.server import (
 )
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class JsonRpcRequest(BaseModel):

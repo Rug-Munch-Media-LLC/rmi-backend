@@ -11,14 +11,14 @@ Arkham + Helius + Moralis + local data. Multi-method fallbacks.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import datetime
 
 import httpx
 import redis
 
-logger = logging.getLogger("premium_scanner")
+logger = get_logger("premium_scanner")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

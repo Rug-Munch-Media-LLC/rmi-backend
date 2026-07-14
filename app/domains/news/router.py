@@ -200,9 +200,9 @@ async def list_news(
                     )
                 )
         except Exception as e:
-            import logging
+            from app.core.logging import get_logger
 
-            logging.getLogger(__name__).warning(f"news_list_new_fail: {e}")
+            get_logger(__name__).warning(f"news_list_new_fail: {e}")
 
     # Legacy fallback (crypto_news)
     if not items and catalog._health.postgres:
@@ -222,9 +222,9 @@ async def list_news(
             for r in rows:
                 items.append(_adapt_legacy_row(dict(r)))
         except Exception as e:
-            import logging
+            from app.core.logging import get_logger
 
-            logging.getLogger(__name__).warning(f"news_list_legacy_fail: {e}")
+            get_logger(__name__).warning(f"news_list_legacy_fail: {e}")
 
     # T03: cluster into stories if requested
     if clustered and items:
@@ -314,9 +314,9 @@ async def trending_news(
             item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
             items.append(item)
     except Exception as e:
-        import logging
+        from app.core.logging import get_logger
 
-        logging.getLogger(__name__).warning(f"trending_new_fail: {e}")
+        get_logger(__name__).warning(f"trending_new_fail: {e}")
 
     # Fallback: crypto_news (legacy) if no new items
     if not items:
@@ -343,9 +343,9 @@ async def trending_news(
                 item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
                 items.append(item)
         except Exception as e:
-            import logging
+            from app.core.logging import get_logger
 
-            logging.getLogger(__name__).warning(f"trending_legacy_fail: {e}")
+            get_logger(__name__).warning(f"trending_legacy_fail: {e}")
 
     items.sort(key=lambda x: x.score or 0, reverse=True)
     return NewsListResponse(items=items[:limit], total=len(items), offset=0)

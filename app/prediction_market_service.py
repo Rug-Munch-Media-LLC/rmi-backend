@@ -39,14 +39,14 @@ Pitfalls:
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("prediction_market")
+logger = get_logger("prediction_market")
 
 # ── API Endpoints ────────────────────────────────────────────────
 

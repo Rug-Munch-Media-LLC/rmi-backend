@@ -24,14 +24,14 @@ Author: RMI Analytics Team
 Date: 2026-05-31
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-logger = logging.getLogger("rmi_analytics")
+logger = get_logger("rmi_analytics")
 
 
 # ── Data Models ─────────────────────────────────────────────

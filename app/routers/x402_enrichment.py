@@ -24,12 +24,12 @@ Storage impact: ~500 Redis keys at steady state, 0 ClickHouse writes.
 
 import datetime
 import json
-import logging
+from app.core.logging import get_logger
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger("x402.enrich")
+logger = get_logger("x402.enrich")
 
 # ── Which tool categories get enrichment ────────────────────────
 # Wallet-centric tools: enrich with labels, scam checking

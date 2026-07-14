@@ -27,12 +27,12 @@ Specialists:
 import contextlib
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("agent.system")
+logger = get_logger("agent.system")
 
 # ═══════════════════════════════════════════════════════════
 # AGENT DEFINITIONS

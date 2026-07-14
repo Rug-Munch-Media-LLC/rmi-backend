@@ -8,7 +8,7 @@ First European-focused x402 infrastructure - allows users to
 pay in EUR or crypto and receive EUR via SEPA.
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -23,7 +23,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.asterpay")
+logger = get_logger("facilitator.asterpay")
 
 
 class AsterPayFacilitator(Facilitator):

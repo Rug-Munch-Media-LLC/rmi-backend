@@ -11,12 +11,12 @@ Architecture:
   - Returns: success/fail, expected output, tax rate, risk assessment
 """
 
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

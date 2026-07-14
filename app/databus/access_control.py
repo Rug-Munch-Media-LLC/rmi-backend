@@ -32,11 +32,11 @@ This ensures no consumer can enumerate our data sources or pull more than
 they're authorized for. The DataBus is the ONLY way to access external data.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from enum import Enum
 
-logger = logging.getLogger("databus.access_control")
+logger = get_logger("databus.access_control")
 
 
 class ConsumerType(Enum):

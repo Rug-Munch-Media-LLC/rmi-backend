@@ -13,7 +13,7 @@ No tool anywhere in the system makes a raw HTTP call. Period.
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections.abc import Callable
@@ -21,7 +21,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger("unified_data")
+logger = get_logger("unified_data")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CACHE

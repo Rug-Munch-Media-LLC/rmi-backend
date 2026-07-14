@@ -6,10 +6,10 @@ This module wraps security feature imports with graceful fallbacks to stubs
 if dependencies aren't available, preventing full router import failures.
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def safe_import(name: str, fallback_to_stub: bool = True) -> Any | None:

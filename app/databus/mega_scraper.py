@@ -6,12 +6,13 @@ Grabs EVERYTHING crypto. Biggest free news DB on the internet.
 import hashlib
 import json
 import logging
+from app.core.logging import get_logger
 import time
 from xml.etree import ElementTree as ET
 
 import httpx
 
-logger = logging.getLogger("rmi.scraper")
+logger = get_logger("rmi.scraper")
 
 # ═══════════════════════════════════════════════════════
 # SUBSTACK - 50+ top crypto newsletters (free RSS)

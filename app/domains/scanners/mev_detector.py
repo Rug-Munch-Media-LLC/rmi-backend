@@ -10,7 +10,7 @@ Known MEV bot databases:
   EVM: Flashbots builder labels, bloXroute, Eden, BuildAI
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 
@@ -18,7 +18,7 @@ import httpx
 
 from app.chain_registry import is_solana
 
-logger = logging.getLogger("mev_detector")
+logger = get_logger("mev_detector")
 
 # ─── Known MEV bot addresses ─────────────────────────────────────────
 

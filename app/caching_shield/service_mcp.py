@@ -19,13 +19,13 @@ Services wrapped:
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 
 import httpx
 
-logger = logging.getLogger("service_mcp")
+logger = get_logger("service_mcp")
 
 # Cache
 _l1: dict[str, tuple] = {}

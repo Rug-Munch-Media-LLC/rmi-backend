@@ -1,9 +1,9 @@
 """DataBus Key Affinity - Consistent Hashing for API Key Selection"""
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger("databus.key_affinity")
+logger = get_logger("databus.key_affinity")
 
 
 class KeyAffinitySelector:

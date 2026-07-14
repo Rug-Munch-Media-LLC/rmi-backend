@@ -1,10 +1,10 @@
 """Redis singleton - single source of truth for Redis connections."""
 
-import logging
+from app.core.logging import get_logger
 import os
 from typing import TYPE_CHECKING
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     import redis

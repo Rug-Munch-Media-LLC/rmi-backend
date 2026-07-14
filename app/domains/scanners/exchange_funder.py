@@ -12,7 +12,7 @@ Uses direct API calls: Solscan (account transfers, funding sources),
 Helius (signatures, parsed transactions), Birdeye (token overview).
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -23,7 +23,7 @@ from app.chain_client import ChainClient
 from app.chain_registry import get_cex_wallets, is_solana
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
-logger = logging.getLogger("exchange_funder")
+logger = get_logger("exchange_funder")
 
 
 @dataclass

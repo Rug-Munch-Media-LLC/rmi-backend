@@ -15,7 +15,7 @@ RMI_KEY = INTERNAL_API_KEY
 
 @router.get("/check/{address}")
 async def check_mev_risk(address: str, chain: str = Query("ethereum")):
-    """Check MEV risk before trading a token. Returns sandwich attack risk and protection recommendation."""  # noqa: E501
+    """Check MEV risk before trading a token. Returns sandwich attack risk and protection recommendation."""
     async with httpx.AsyncClient(timeout=15) as c:
         # Use existing MEV sandwich detector
         r = await c.get(
@@ -32,7 +32,7 @@ async def check_mev_risk(address: str, chain: str = Query("ethereum")):
 
         if sandwich_count > 10:
             risk = "CRITICAL"
-            recommendation = "This pool has heavy MEV activity. Use Flashbots Protect or MEV Blocker for this trade."  # noqa: E501
+            recommendation = "This pool has heavy MEV activity. Use Flashbots Protect or MEV Blocker for this trade."
             emoji = "🔴"
         elif sandwich_count > 3:
             risk = "HIGH"

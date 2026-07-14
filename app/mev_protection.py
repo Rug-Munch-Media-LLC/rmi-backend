@@ -27,7 +27,7 @@ Data Sources (all free):
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -43,7 +43,7 @@ __all__ = [
     "mev_shield_analysis",
 ]
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────
 

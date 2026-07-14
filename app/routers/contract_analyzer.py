@@ -135,7 +135,7 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
                             "function": name,
                             "selector": selector,
                             "risk": "HIGH" if score >= 10 else "MEDIUM",
-                            "explanation": f"Contract has {name} function - {'can create unlimited tokens' if 'mint' in name.lower() else 'may be used to manipulate trading'}",  # noqa: E501
+                            "explanation": f"Contract has {name} function - {'can create unlimited tokens' if 'mint' in name.lower() else 'may be used to manipulate trading'}",
                         }
                     )
                     break

@@ -6,7 +6,7 @@ Includes bot registration, fee tracking, and bot-specific endpoints.
 Uses direct Supabase REST API via httpx (no supabase-py dependency issues).
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import datetime
 
@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from app.core.secrets import get_secret_or_none
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 import contextlib  # noqa: E402
 

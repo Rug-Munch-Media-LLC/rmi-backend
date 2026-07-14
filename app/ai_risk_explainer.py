@@ -9,11 +9,11 @@ Cost: ~100 tokens per explanation = ~$0.0007 on Ollama Cloud
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from urllib.request import Request, urlopen
 
-logger = logging.getLogger("rmi.risk_explainer")
+logger = get_logger("rmi.risk_explainer")
 
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
 OLLAMA_URL = "https://ollama.com/v1/chat/completions"

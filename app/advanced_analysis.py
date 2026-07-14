@@ -10,14 +10,14 @@ Chains: solana, ethereum, base, bsc, arbitrum, polygon, avalanche,
         optimism, fantom, linea, zksync, scroll, mantle
 """
 
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ─── RPC ENDPOINTS ────────────────────────────────────────────────
 

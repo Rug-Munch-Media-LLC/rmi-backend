@@ -23,7 +23,7 @@ Watch conditions supported:
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import asdict, dataclass, field
@@ -33,7 +33,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger("token_watch")
+logger = get_logger("token_watch")
 
 
 # ─── Data Models ──────────────────────────────────────────────────────

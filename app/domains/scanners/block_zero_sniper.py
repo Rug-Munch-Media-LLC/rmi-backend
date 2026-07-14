@@ -20,7 +20,7 @@ Data sources (direct API calls - no circular imports):
   Fallback:   Consensus RPC for earliest block estimation
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -29,7 +29,7 @@ import httpx
 
 from app.chain_registry import is_evm, is_solana
 
-logger = logging.getLogger("block_zero_sniper")
+logger = get_logger("block_zero_sniper")
 
 # ── API Keys ────────────────────────────────────────────────────────────────
 

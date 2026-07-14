@@ -19,7 +19,7 @@ Data Sources (all free):
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -28,7 +28,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────
 

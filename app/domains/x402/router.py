@@ -8,7 +8,7 @@ Per v4.0 §T34. Endpoints:
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -94,7 +94,7 @@ async def usage(request: Request) -> UsageResponse:
                     "paid_at": r["paid_at"].isoformat() if r["paid_at"] else None,
                 })
         except Exception as e:
-            logging.getLogger(__name__).warning(f"usage_query_fail: {e}")
+            get_logger(__name__).warning(f"usage_query_fail: {e}")
     return UsageResponse(
         agent_id=agent_id, daily_calls=daily_calls, free_limit=5,
         paid_calls=paid_calls, total_usd=round(total_usd, 4),

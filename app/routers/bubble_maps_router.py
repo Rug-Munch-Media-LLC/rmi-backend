@@ -4,12 +4,12 @@ Self-contained engine, no BubbleMaps.com API dependency.
 Connects to /api/v1/rugmaps/*
 """
 
-import logging
+from app.core.logging import get_logger
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/rugmaps", tags=["rugmaps"])
 

@@ -19,7 +19,7 @@ Sources (all free):
 
 import asyncio
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import time
@@ -29,7 +29,7 @@ from datetime import UTC, datetime
 import feedparser
 import httpx
 
-logger = logging.getLogger("news_intel")
+logger = get_logger("news_intel")
 
 # ── Source Configuration ───────────────────────────────────────────
 

@@ -21,11 +21,11 @@ top-K results contain minimal duplicate/near-duplicate content.
 
 import contextlib
 import json
-import logging
+from app.core.logging import get_logger
 import math
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:

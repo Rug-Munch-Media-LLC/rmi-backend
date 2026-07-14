@@ -20,13 +20,13 @@ call `cluster_items(items) -> list[StoryCluster]`.
 from __future__ import annotations
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ── Tokenization ────────────────────────────────────────────────────

@@ -24,13 +24,13 @@ Architecture:
 from __future__ import annotations
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 
-logger = logging.getLogger("darkroom_multichain_airdrop")
+logger = get_logger("darkroom_multichain_airdrop")
 
 
 # ── Data Models ───────────────────────────────────────────────

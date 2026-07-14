@@ -12,14 +12,14 @@ Architecture:
 import hashlib
 import hmac
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import datetime
 
 import httpx
 import redis
 
-logger = logging.getLogger("webhooks")
+logger = get_logger("webhooks")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

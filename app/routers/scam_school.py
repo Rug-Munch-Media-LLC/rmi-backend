@@ -9,7 +9,7 @@ All data stored in Redis + Supabase backup.
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import secrets
 from datetime import datetime
@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from app.core.redis import get_redis
 
-logger = logging.getLogger("scam_school")
+logger = get_logger("scam_school")
 router = APIRouter(tags=["scam-school"])
 
 # ── Config ──

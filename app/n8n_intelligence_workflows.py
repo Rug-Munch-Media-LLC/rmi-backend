@@ -14,10 +14,10 @@ Integrations:
 - Forta: real-time threat detection
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── n8n Workflow Definitions ─────────────────────────────────
 

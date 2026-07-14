@@ -9,7 +9,7 @@ Read-through: Redis first, Supabase on miss.
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -23,7 +23,7 @@ load_dotenv("/app/.env", override=True)
 
 from pydantic import BaseModel, Field  # noqa: E402
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Lazy imports to avoid import-time failures ──
 try:

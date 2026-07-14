@@ -27,7 +27,7 @@ Usage:
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from typing import Any
@@ -38,7 +38,7 @@ from app.databus.providers import ProviderChain, ProviderTier, build_provider_ch
 from app.databus.security import security
 from app.databus.vault import DataBusVault, get_vault
 
-logger = logging.getLogger("databus.core")
+logger = get_logger("databus.core")
 
 
 class RequestDeduplicator:

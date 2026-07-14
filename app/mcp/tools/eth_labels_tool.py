@@ -7,10 +7,10 @@ with proper safety measures.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _safe_select_query(sql: str) -> bool:

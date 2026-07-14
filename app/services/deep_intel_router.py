@@ -16,7 +16,7 @@ Endpoints for:
 + Composite full report
 """
 
-import logging
+from app.core.logging import get_logger
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -36,7 +36,7 @@ from app.services.deep_intelligence import (
     volume_authenticity,
 )
 
-logger = logging.getLogger("deep_intel_router")
+logger = get_logger("deep_intel_router")
 
 router = APIRouter(prefix="/api/v1/deep-intel", tags=["deep-intelligence"])
 

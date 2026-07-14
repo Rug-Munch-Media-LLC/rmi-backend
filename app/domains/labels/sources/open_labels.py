@@ -7,11 +7,11 @@ For now returns []. Stub.
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 
 from app.domains.labels.models import Label
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 async def query_open_labels(address: str, chain: str = "ethereum") -> list[Label]:

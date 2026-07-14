@@ -5,7 +5,7 @@ Auth Router - Complete authentication system (email, wallet, OAuth, Telegram)
 import base64
 import io
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import secrets
@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from app.config import settings as _settings
 from app.core.redis import get_redis
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["auth"])
 

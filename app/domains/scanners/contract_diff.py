@@ -14,12 +14,12 @@ Key features:
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger("contract_diff")
+logger = get_logger("contract_diff")
 
 
 @dataclass

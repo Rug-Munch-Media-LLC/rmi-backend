@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from abc import ABC, abstractmethod
@@ -52,7 +52,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, ClassVar
 
-logger = logging.getLogger("darkroom_token_deployer")
+logger = get_logger("darkroom_token_deployer")
 
 # ── Deployment Record ─────────────────────────────────────────
 

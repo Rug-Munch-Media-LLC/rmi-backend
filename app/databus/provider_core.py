@@ -6,7 +6,7 @@ Circuit breakers, rate limiters, quota tracking, and core provider classes.
 This module contains NO external API implementations.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections.abc import Callable
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-logger = logging.getLogger("databus.providers.core")
+logger = get_logger("databus.providers.core")
 
 
 class ProviderTier(Enum):

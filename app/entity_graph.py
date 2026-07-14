@@ -9,11 +9,11 @@ and RugMaps pages.
 Premium feature: Visual forensics that sells in screenshots.
 """
 
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger("entity.graph")
+logger = get_logger("entity.graph")
 
 
 @dataclass

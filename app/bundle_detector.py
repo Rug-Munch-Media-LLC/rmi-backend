@@ -9,11 +9,11 @@ References:
 - HNUT: 78% early activity was bundled transactions
 """
 
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

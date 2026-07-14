@@ -8,7 +8,7 @@ The x402-rs facilitator runs as a Docker container alongside the backend,
 providing independent payment verification and settlement.
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -23,7 +23,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.x402_rs")
+logger = get_logger("facilitator.x402_rs")
 
 
 class X402RsFacilitator(Facilitator):

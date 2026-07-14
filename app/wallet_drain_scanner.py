@@ -18,12 +18,12 @@ Tier: Premium ($0.05)
 Endpoint: POST /api/v1/x402-tools/wallet_drain
 """
 
-import logging
+from app.core.logging import get_logger
 import re
 from datetime import UTC, datetime
 from typing import Any
 
-logger = logging.getLogger("wallet_drain_scanner")
+logger = get_logger("wallet_drain_scanner")
 
 # ── Free API sources ─────────────────────────────────────────────
 ETHERSCAN_API = (

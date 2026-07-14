@@ -11,11 +11,11 @@ But the SDK itself uses lazy init - setup_sentry() is called once at startup.
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 import os
 from typing import Any
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Config - defaults to local GlitchTip; override via env
 DEFAULT_DSN = "http://rmi-glitchtip-web:8000/1"

@@ -22,10 +22,10 @@ the smarter the RAG gets.
 """
 
 import contextlib
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-logger = logging.getLogger("rag.feedback")
+logger = get_logger("rag.feedback")
 
 # Weight adjustment constants
 SCAM_CONFIRMED_BOOST = 0.3  # +30% weight for confirmed scam matches

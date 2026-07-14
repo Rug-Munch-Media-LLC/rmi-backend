@@ -14,14 +14,14 @@ Tables:
 """
 
 import contextlib
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from typing import Any
 
 import duckdb
 
-logger = logging.getLogger("databus.duckdb_analytics")
+logger = get_logger("databus.duckdb_analytics")
 
 # ── Path discovery ────────────────────────────────────────────────
 

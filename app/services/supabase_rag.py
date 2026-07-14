@@ -11,6 +11,8 @@ from typing import Any
 import httpx
 from dotenv import load_dotenv
 
+from app.core.secrets import get_secret_or_none
+
 # Load env vars dynamically - override stale Docker env
 load_dotenv("/app/.env", override=True)
 
@@ -20,7 +22,11 @@ def _get_url():
 
 
 def _get_key():
-    return os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "") or os.environ.get("SUPABASE_SERVICE_KEY", "")
+    return (
+        get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
+        or get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+        or ""
+    )
 
 
 def _get_headers():

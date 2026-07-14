@@ -7,11 +7,11 @@ Paper ref: Article 3, Section 2 - Free Datasets and Labelled-Address Repositorie
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Known Exchange Hot Wallets ────────────────────────────
 # These are NOT clusters. They're infrastructure.

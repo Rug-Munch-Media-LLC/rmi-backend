@@ -9,14 +9,14 @@ Wired into DataBus as 'ohlcv' chain.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
 
 import redis
 
-logger = logging.getLogger("ohlcv_engine")
+logger = get_logger("ohlcv_engine")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

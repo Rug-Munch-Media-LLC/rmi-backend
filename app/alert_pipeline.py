@@ -18,12 +18,12 @@ Alert flow:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
 
-logger = logging.getLogger("alert_pipeline")
+logger = get_logger("alert_pipeline")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

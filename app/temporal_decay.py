@@ -19,12 +19,12 @@ where lambda = ln(2) / half_life
 Also supports recency boosting for very fresh content (<24h).
 """
 
-import logging
+from app.core.logging import get_logger
 import math
 from datetime import UTC, datetime
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Domain half-lives (days) ──────────────────────────────────────────
 HALF_LIVES: dict[str, float] = {

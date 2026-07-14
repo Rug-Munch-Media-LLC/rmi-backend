@@ -9,12 +9,16 @@ Access blockchain data for:
 - Transaction status
 """
 
-import logging
 from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
+# TODO: migrate to async httpx.AsyncClient — this class uses sync httpx.get()
+# but may be called from async contexts. See async-http-patterns skill for pattern.
 
 
 # ─── BLOCKCHAIR API ENDPOINTS ─────────────────────────────────────

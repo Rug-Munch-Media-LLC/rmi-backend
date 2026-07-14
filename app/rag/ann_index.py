@@ -14,7 +14,7 @@ Persistence shape (per collection):
 from __future__ import annotations
 
 import json
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass
 from typing import Any
 
@@ -22,7 +22,7 @@ import numpy as np
 
 from app.rag.embeddings import EMBEDDING_DIM
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Lazy import - Redis client is created on first use, after app.core.redis is ready
 _redis_client = None

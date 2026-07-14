@@ -8,14 +8,14 @@ Rate-limited to 3 req/sec with caching.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── API Keys ────────────────────────────────────────────────
 

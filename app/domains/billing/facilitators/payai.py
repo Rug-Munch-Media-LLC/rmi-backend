@@ -10,7 +10,7 @@ Priority: 20 (second after Coinbase CDP for Base; primary for Solana)
 
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -24,7 +24,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import get_config
 
-logger = logging.getLogger("facilitator.payai")
+logger = get_logger("facilitator.payai")
 
 # ── Verify URL ──────────────────────────────────────────────────────
 PAYAI_VERIFY_URL = "https://facilitator.payai.network/verify"

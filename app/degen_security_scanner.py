@@ -47,11 +47,13 @@ from collections import defaultdict  # noqa: E402
 from dataclasses import asdict, dataclass, field  # noqa: E402
 from datetime import datetime  # noqa: E402
 
+from app.core.logging import get_logger  # noqa: E402
+
 # Load the free solscan client
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -326,32 +328,32 @@ class DegenSecurityScanner:
         # ── Phase 1: Token Metadata ──────────────────────────────────────────
         logger.info("[1/7] Gathering token metadata...")
         await self._phase1_metadata(report)
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
 
         # ── Phase 2: Authority Analysis ──────────────────────────────────────
         logger.info("[2/7] Checking authorities...")
         await self._phase2_authorities(report)
-        time.sleep(0.2)
+        await asyncio.sleep(0.2)
 
         # ── Phase 3: Holder Analysis ─────────────────────────────────────────
         logger.info("[3/7] Analyzing holders...")
         await self._phase3_holders(report)
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
 
         # ── Phase 4: Funding Trace ───────────────────────────────────────────
         logger.info("[4/7] Tracing funding sources...")
         await self._phase4_funding(report)
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
 
         # ── Phase 5: Bundler & Sniper Detection ─────────────────────────────
         logger.info("[5/7] Detecting bundlers & snipers...")
         await self._phase5_bundlers_snipers(report)
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
 
         # ── Phase 6: LP & Market Analysis ────────────────────────────────────
         logger.info("[6/7] Analyzing liquidity pools...")
         await self._phase6_liquidity(report)
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
 
         # ── Phase 7: Advanced Detection ──────────────────────────────────────
         logger.info("[7/7] Advanced scam detection...")
@@ -386,7 +388,9 @@ class DegenSecurityScanner:
             supply_raw = token_data.get("supply", "0")
             try:
                 report.total_supply = (
-                    float(supply_raw) / (10**report.decimals) if report.decimals else float(supply_raw)
+                    float(supply_raw) / (10**report.decimals)
+                    if report.decimals
+                    else float(supply_raw)
                 )
             except Exception:
                 report.total_supply = 0
@@ -437,11 +441,15 @@ class DegenSecurityScanner:
                 self.critical_warnings.append(
                     f"🚨 MINT AUTHORITY ACTIVE: Dev can mint unlimited tokens! Authority: {mint_auth[:20]}..."
                 )
-                self.recommendations.append("Mint authority should be renounced for investor safety")
+                self.recommendations.append(
+                    "Mint authority should be renounced for investor safety"
+                )
 
             if not report.freeze_authority_renounced:
                 risk_score += 25
-                self.critical_warnings.append("❄️ FREEZE AUTHORITY ACTIVE: Dev can freeze any wallet!")
+                self.critical_warnings.append(
+                    "❄️ FREEZE AUTHORITY ACTIVE: Dev can freeze any wallet!"
+                )
                 self.recommendations.append("Freeze authority should be renounced immediately")
 
             if risk_score >= 45:
@@ -515,7 +523,9 @@ class DegenSecurityScanner:
         # Holder concentration risk
         if top_10_total > 80:
             report.holder_health_score = 10
-            self.critical_warnings.append(f"☠️ CATASTROPHIC CONCENTRATION: Top 10 holders own {top_10_total}%!")
+            self.critical_warnings.append(
+                f"☠️ CATASTROPHIC CONCENTRATION: Top 10 holders own {top_10_total}%!"
+            )
         elif top_10_total > 50:
             report.holder_health_score = 30
             self.critical_warnings.append(f"⚠️ DANGEROUS CONCENTRATION: Top 10 hold {top_10_total}%")
@@ -596,7 +606,9 @@ class DegenSecurityScanner:
             report.funding_risk = "LOW"  # Direct exchange = transparent
         elif organic_count > exchange_count * 2:
             report.funding_risk = "MEDIUM"  # Mostly anonymous funding
-            self.critical_warnings.append("⚠️ Deployer funded from non-exchange sources - possible obfuscation")
+            self.critical_warnings.append(
+                "⚠️ Deployer funded from non-exchange sources - possible obfuscation"
+            )
         elif mixer_detected:
             report.funding_risk = "CRITICAL"
             self.critical_warnings.append("🚨 MIXER FUNDING DETECTED: Deployer used a tumbler!")
@@ -689,7 +701,9 @@ class DegenSecurityScanner:
             # Calculate bundler impact
             bundler_supply_pct = len(report.bundler_wallets) * 0.5  # rough estimate
             report.bundler_percentage_of_supply = min(bundler_supply_pct, 100)
-            report.bundler_pattern = "synchronized_launch" if len(report.bundler_wallets) >= 5 else "clustered_buys"
+            report.bundler_pattern = (
+                "synchronized_launch" if len(report.bundler_wallets) >= 5 else "clustered_buys"
+            )
             report.bundler_risk = "HIGH" if len(report.bundler_wallets) >= 10 else "MEDIUM"
             self.critical_warnings.append(
                 f"🎯 BUNDLER DETECTED: {len(report.bundler_wallets)} wallets bought in coordinated pattern!"
@@ -699,7 +713,9 @@ class DegenSecurityScanner:
         report.snipers = sniper_candidates[:20]
         report.sniper_count = len(sniper_candidates)
         if sniper_candidates:
-            report.avg_sniper_entry_time_ms = round(statistics.mean(s.buy_time_ms for s in sniper_candidates), 0)
+            report.avg_sniper_entry_time_ms = round(
+                statistics.mean(s.buy_time_ms for s in sniper_candidates), 0
+            )
             report.sniper_volume_sol = round(sum(s.buy_amount_sol for s in sniper_candidates), 2)
 
         if report.sniper_count >= 15:
@@ -831,7 +847,9 @@ class DegenSecurityScanner:
         report.insiders_detected = insiders[:10]
         if len(insiders) >= 5:
             report.insider_risk = "HIGH"
-            self.critical_warnings.append(f"🕵️ INSIDER TRADING: {len(insiders)} wallets bought within 2min of launch")
+            self.critical_warnings.append(
+                f"🕵️ INSIDER TRADING: {len(insiders)} wallets bought within 2min of launch"
+            )
         elif len(insiders) >= 2:
             report.insider_risk = "MEDIUM"
 
@@ -884,7 +902,9 @@ class DegenSecurityScanner:
 
             if wash_pct > 50:
                 report.wash_trading_risk = "CRITICAL"
-                self.critical_warnings.append(f"🔄 WASH TRADING: {wash_pct:.0f}% of volume appears artificial!")
+                self.critical_warnings.append(
+                    f"🔄 WASH TRADING: {wash_pct:.0f}% of volume appears artificial!"
+                )
             elif wash_pct > 20:
                 report.wash_trading_risk = "HIGH"
             elif wash_pct > 5:
@@ -962,7 +982,9 @@ class DegenSecurityScanner:
                     report.sell_tax = round(estimated_tax, 1)
                     if estimated_tax > 20:
                         report.tax_risk = "HIGH"
-                        self.critical_warnings.append(f"💸 HEAVY SELL TAX ESTIMATED: ~{estimated_tax:.0f}%")
+                        self.critical_warnings.append(
+                            f"💸 HEAVY SELL TAX ESTIMATED: ~{estimated_tax:.0f}%"
+                        )
 
     # ═══════════════════════════════════════════════════════════════════════
     # FINAL SCORING
@@ -1090,18 +1112,17 @@ class DegenSecurityScanner:
             return None
         try:
             headers = {"X-API-KEY": self.birdeye_key}
-            # Price data
-            price_resp = httpx.get(
-                f"https://public-api.birdeye.so/defi/price?address={token_address}",
-                headers=headers,
-                timeout=10,
-            )
-            # Token overview
-            overview_resp = httpx.get(
-                f"https://public-api.birdeye.so/defi/token_overview?address={token_address}",
-                headers=headers,
-                timeout=10,
-            )
+            async with httpx.AsyncClient(timeout=10) as client:
+                # Price data
+                price_resp = await client.get(
+                    f"https://public-api.birdeye.so/defi/price?address={token_address}",
+                    headers=headers,
+                )
+                # Token overview
+                overview_resp = await client.get(
+                    f"https://public-api.birdeye.so/defi/token_overview?address={token_address}",
+                    headers=headers,
+                )
 
             result = {}
             if price_resp.status_code == 200:
@@ -1203,7 +1224,9 @@ def format_report(report: SecurityReport) -> str:
             f"   Honeypot: {'YES 🍯' if report.honeypot_detected else 'No'}",
             "",
             "━━━ MARKET DATA ━━━",
-            f"   Price: ${report.price_usd:.10f}" if report.price_usd < 0.001 else f"   Price: ${report.price_usd:.6f}",
+            f"   Price: ${report.price_usd:.10f}"
+            if report.price_usd < 0.001
+            else f"   Price: ${report.price_usd:.6f}",
             f"   Market Cap: ${report.market_cap:,.0f}",
             f"   24h Volume: ${report.volume_24h:,.0f}",
             f"   24h Change: {report.price_change_24h:+.2f}%",

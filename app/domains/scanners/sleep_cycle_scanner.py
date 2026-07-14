@@ -15,12 +15,12 @@ Logic:
 Pure computation module - no external API calls needed.
 """
 
-import logging
+from app.core.logging import get_logger
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-logger = logging.getLogger("sleep_cycle_scanner")
+logger = get_logger("sleep_cycle_scanner")
 
 
 # ── Region sleep windows (UTC) ──────────────────────────────────────────

@@ -5,7 +5,7 @@ Items 6-10 from the strategic roadmap.
 
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 import os
 import secrets
 import time
@@ -13,7 +13,7 @@ import time
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
-logger = logging.getLogger("x402.growth")
+logger = get_logger("x402.growth")
 
 router = APIRouter(prefix="/api/v1/x402", tags=["x402-Growth"])
 

@@ -20,7 +20,7 @@ Data sources (direct API calls - no self.api_base):
               Helius Enhanced Transactions (LP burn events)
 """
 
-import logging  # noqa: E402
+from app.core.logging import get_logger  # noqa: E402
 import os  # noqa: E402
 from dataclasses import dataclass, field  # noqa: E402
 from datetime import UTC, datetime  # noqa: E402
@@ -30,7 +30,7 @@ import httpx  # noqa: E402
 
 from app.chain_registry import get_known_lockers, is_solana  # noqa: E402
 
-logger = logging.getLogger("liquidity_verifier")
+logger = get_logger("liquidity_verifier")
 
 # ── API Keys ────────────────────────────────────────────────
 

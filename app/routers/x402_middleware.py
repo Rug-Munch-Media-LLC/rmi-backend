@@ -17,7 +17,7 @@ Date: 2026-05-03
 import contextlib
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
@@ -26,7 +26,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-logger = logging.getLogger("x402_middleware")
+logger = get_logger("x402_middleware")
 
 router = APIRouter(prefix="/api/v1/x402", tags=["x402-payment-middleware"])
 

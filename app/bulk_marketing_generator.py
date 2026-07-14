@@ -4,13 +4,13 @@ Uses Alibaba's best vision model for professional marketing graphics.
 All graphics follow EXACT brand guidelines. Uploads to Dropbox automatically.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 from PIL import Image, ImageDraw, ImageFont
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Paths ────────────────────────────────────────────────────
 

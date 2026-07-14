@@ -2,9 +2,9 @@
 DataBus RAG Provider - wire the world-class RAG engine into DataBus.
 """
 
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger("databus.rag_provider")
+logger = get_logger("databus.rag_provider")
 
 
 async def _rag_search_provider(**kwargs) -> dict | None:

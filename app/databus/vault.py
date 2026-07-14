@@ -16,14 +16,14 @@ Architecture:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 import subprocess
 import time
 from dataclasses import dataclass
 from enum import Enum
 
-logger = logging.getLogger("databus.vault")
+logger = get_logger("databus.vault")
 
 # ── Vault Key Discovery ─────────────────────────────────────────────────────
 

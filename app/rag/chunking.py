@@ -16,11 +16,11 @@ Strategy (per 2026 RAG standards):
 from __future__ import annotations
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import re
 from dataclasses import dataclass
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 DEFAULT_MAX_CHUNK = 512
 DEFAULT_OVERLAP = 64

@@ -16,13 +16,13 @@ Pump.fun bonding curve model:
   Graduation occurs at ~85 SOL raised (target moves, but signal is complete curve).
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 
 import httpx
 
-logger = logging.getLogger("pumpfun_analyzer")
+logger = get_logger("pumpfun_analyzer")
 
 # ---------------------------------------------------------------------------
 # Constants

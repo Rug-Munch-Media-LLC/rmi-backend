@@ -21,14 +21,14 @@ Endpoint: POST /api/v1/x402-tools/profile_flip
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import re
 from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger("profile_flip_detector")
+logger = get_logger("profile_flip_detector")
 
 # ── API Endpoints (free/public) ──────────────────────────────────
 DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/search?q={}"

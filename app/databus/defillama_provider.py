@@ -3,9 +3,9 @@ DeFiLlama DataBus Provider - Free, unlimited DeFi analytics.
 7,661 protocols across 350+ chains. No API key needed.
 """
 
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger("databus.defillama")
+logger = get_logger("databus.defillama")
 
 
 async def fetch_defillama_tvl(

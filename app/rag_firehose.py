@@ -60,7 +60,7 @@ Smart Ingestion:
 import asyncio
 import contextlib
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
@@ -69,7 +69,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger("rag.firehose")
+logger = get_logger("rag.firehose")
 
 # ──────────────────────────────────────────────────────────────
 # Configuration

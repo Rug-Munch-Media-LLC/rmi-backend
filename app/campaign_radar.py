@@ -11,12 +11,12 @@ Premium feature: "4 tokens detected from same entity - coordinated rug campaign"
 
 import asyncio
 import hashlib
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger("sentinel.campaign")
+logger = get_logger("sentinel.campaign")
 
 # In-memory recent scan cache (should be Redis-backed in production)
 _recent_scans: dict[str, dict[str, Any]] = {}  # "chain:address" → scan metadata

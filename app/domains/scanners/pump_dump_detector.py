@@ -12,7 +12,7 @@ coordinated pump-and-dump campaigns:
 Uses direct API calls: DexScreener, Birdeye, Solscan, Helius.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
@@ -25,7 +25,7 @@ from app.chain_client import ChainClient
 from app.chain_registry import is_solana
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
-logger = logging.getLogger("pump_dump_detector")
+logger = get_logger("pump_dump_detector")
 
 
 # ── Dataclasses ──────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ Run: cd /root/backend/app/telegram_bot && python3 bot.py
 
 import asyncio
 import logging
+from app.core.logging import get_logger
 import random
 import re
 import sys
@@ -83,7 +84,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     level=logging.INFO,
 )
-logger = logging.getLogger("rmi_bot")
+logger = get_logger("rmi_bot")
 
 # ══════════════════════════════════════════════
 # SPAM PROTECTION

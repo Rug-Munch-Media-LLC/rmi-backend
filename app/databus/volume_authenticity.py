@@ -11,7 +11,7 @@ Reference: Cong et al. (2023), Victor & Weintraud (2021), Niedermayer (2024)
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import math
 import os
 from collections import defaultdict
@@ -20,7 +20,7 @@ from datetime import datetime
 import numpy as np
 import redis
 
-logger = logging.getLogger("volume_authenticity")
+logger = get_logger("volume_authenticity")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

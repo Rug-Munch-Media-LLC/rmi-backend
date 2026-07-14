@@ -4,12 +4,12 @@ Wallet Authentication Helpers
 Wallet signature verification and user creation.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import datetime
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def verify_wallet_signature(message: str, signature: str, address: str) -> bool:

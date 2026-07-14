@@ -9,9 +9,9 @@ Usage (in main.py):
     await register_all_facilitators()
 """
 
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger("facilitator.startup")
+logger = get_logger("facilitator.startup")
 
 
 async def register_all_facilitators() -> None:

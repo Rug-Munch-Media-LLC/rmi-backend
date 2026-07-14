@@ -1,9 +1,9 @@
 """AI Guard middleware for x402 gateway. WAF-style filtering for malicious request patterns."""
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-logger = logging.getLogger("x402_ai_guard")
+logger = get_logger("x402_ai_guard")
 
 
 class AIGuardWrapper:

@@ -31,14 +31,14 @@ Rate limits:
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import time
 
 import httpx
 
 from app.databus.cache import CacheLayer, get_cache
 
-logger = logging.getLogger("databus.bitquery")
+logger = get_logger("databus.bitquery")
 
 # ── Configuration ──────────────────────────────────────────────
 BITQUERY_STREAMING_URL = "https://streaming.bitquery.io/graphql"

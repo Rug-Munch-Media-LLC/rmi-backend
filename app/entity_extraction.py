@@ -23,7 +23,7 @@ Redis key layout:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import threading
@@ -31,7 +31,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ════════════════════════════════════════════════════════════════════
 # Redis config (matches rag_service conventions)

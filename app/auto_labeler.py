@@ -19,13 +19,13 @@ Label categories:
 - pig_butchering: Slow buildup then sudden drain pattern
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections import Counter, defaultdict
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Label Definitions ─────────────────────────────────────────
 

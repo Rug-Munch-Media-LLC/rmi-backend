@@ -27,12 +27,12 @@ Token-2022 Extensions:
 
 import base64
 import hashlib
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import httpx
 
-logger = logging.getLogger("databus.spl_metadata")
+logger = get_logger("databus.spl_metadata")
 
 # Free public Solana RPCs (fallback chain)
 PUBLIC_RPC_ENDPOINTS = [

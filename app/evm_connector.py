@@ -11,10 +11,10 @@ Includes:
 - Chain abstraction (Ethereum, Base, Arbitrum, etc.)
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 try:

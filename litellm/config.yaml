@@ -1,0 +1,58 @@
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+model_list:
+  - model_name: deepseek-chat
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+      rpm: 60
+
+  - model_name: deepseek-reasoner
+    litellm_params:
+      model: deepseek/deepseek-reasoner
+      api_key: os.environ/DEEPSEEK_API_KEY
+      rpm: 15
+
+  - model_name: deepseek-v4-pro
+    litellm_params:
+      model: deepseek/deepseek-v4-pro
+      api_key: os.environ/DEEPSEEK_API_KEY
+      rpm: 30
+
+  - model_name: deepseek-v4-flash
+    litellm_params:
+      model: deepseek/deepseek-v4-flash
+      api_key: os.environ/DEEPSEEK_API_KEY
+      rpm: 60
+
+  - model_name: groq-llama
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: os.environ/GROQ_API_KEY
+      rpm: 30
+
+  - model_name: groq-qwen
+    litellm_params:
+      model: groq/qwen-2.5-32b
+      api_key: os.environ/GROQ_API_KEY
+      rpm: 30
+
+  - model_name: mistral-large
+    litellm_params:
+      model: mistral/mistral-large-latest
+      api_key: os.environ/MISTRAL_API_KEY
+      rpm: 5
+
+litellm_settings:
+  drop_params: true
+  set_verbose: true
+  request_timeout: 120
+  success_callback: ["langfuse", "callbacks.clickhouse_logger"]
+  failure_callback: ["langfuse", "callbacks.clickhouse_logger"]
+  callbacks: ["callbacks.clickhouse_logger"]
+
+router_settings:
+  routing_strategy: usage-based-routing
+  allowed_fails: 3
+  num_retries: 2

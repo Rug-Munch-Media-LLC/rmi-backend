@@ -9,11 +9,11 @@ Tier: Premium ($0.15)
 Endpoint: POST /api/v1/x402-tools/wash_trade_detect
 """
 
-import logging
+from app.core.logging import get_logger
 import re
 from typing import Any
 
-logger = logging.getLogger("wash_trading_detector")
+logger = get_logger("wash_trading_detector")
 
 # ── Free API sources for wash trading signals ─────────────────────
 DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/search?q={}"

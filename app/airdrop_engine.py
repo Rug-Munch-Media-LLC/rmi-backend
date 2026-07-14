@@ -23,7 +23,7 @@ Usage:
 from __future__ import annotations
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import asdict, dataclass, field
@@ -32,7 +32,7 @@ from typing import Any
 
 from app.token_deployer import TokenDeployerFactory, TokenDeployment, get_storage
 
-logger = logging.getLogger("darkroom_airdrop")
+logger = get_logger("darkroom_airdrop")
 
 
 # ── Data Models ───────────────────────────────────────────────

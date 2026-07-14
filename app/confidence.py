@@ -15,11 +15,11 @@ Signals weighted:
   - Entity exact-match bonus: direct address/token match (10%)
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Weights (sum to 1.0) ──────────────────────────────────────────
 WEIGHT_RETRIEVAL_CONCENTRATION = 0.25

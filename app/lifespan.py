@@ -12,14 +12,14 @@ in lifespan. So this file only does setup() calls and yield.
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 @asynccontextmanager

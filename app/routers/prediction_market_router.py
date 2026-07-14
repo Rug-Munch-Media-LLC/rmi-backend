@@ -19,7 +19,7 @@ Caching: Redis-backed, 30s-1hr TTL by endpoint.
 Rate limiting: Inherited from app-wide slowapi configuration.
 """
 
-import logging
+from app.core.logging import get_logger
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -29,7 +29,7 @@ from app.prediction_market_service import (
     get_prediction_market_service,
 )
 
-logger = logging.getLogger("prediction_market.router")
+logger = get_logger("prediction_market.router")
 
 router = APIRouter(prefix="/api/v1/prediction-markets", tags=["prediction-markets"])
 

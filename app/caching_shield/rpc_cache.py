@@ -14,7 +14,7 @@ per data point, well under Helius/QuickNode free limits.
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import random
 import time
@@ -25,7 +25,7 @@ import redis.asyncio as aioredis
 
 from app.consensus_rpc import ConsensusResult, get_consensus_rpc
 
-logger = logging.getLogger("rpc_cache")
+logger = get_logger("rpc_cache")
 
 # ── TTL Configuration ──────────────────────────────────────────────────────
 

@@ -8,9 +8,9 @@ Three free/freemium API providers for enhanced crypto intelligence.
 3. CryptoNews - Free unlimited news API (no key needed)
 """
 
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger("databus.api_providers")
+logger = get_logger("databus.api_providers")
 
 # ═══════════════════════════════════════════════════════════════
 # 1. COINSTATS - Per-Wallet DeFi Resolution

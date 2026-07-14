@@ -12,7 +12,7 @@ Integrations:
 - Pump.fun: new meme launches
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 
 from dotenv import load_dotenv
@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv("/app/.env", override=True)
 from datetime import UTC, datetime, timedelta  # noqa: E402
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Meme Intelligence Data Structures ─────────────────────────
 

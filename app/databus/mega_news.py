@@ -6,13 +6,14 @@ RMI Mega News Aggregator - Largest Free Crypto News Pipeline
 import hashlib
 import json
 import logging
+from app.core.logging import get_logger
 import re
 import time
 from xml.etree import ElementTree as ET
 
 import httpx
 
-logger = logging.getLogger("rmi.news")
+logger = get_logger("rmi.news")
 
 # ═══════════════════════════════════════════════════════
 # 50+ CRYPTO RSS FEEDS - All Free, No API Keys

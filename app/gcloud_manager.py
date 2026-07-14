@@ -18,10 +18,10 @@ Available services:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 
-logger = logging.getLogger("gcloud")
+logger = get_logger("gcloud")
 
 SA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "cryptorugmunch-sa.json")
 VAULT_PATH = "/root/.secrets/google-sa-cryptorugmunch.json"

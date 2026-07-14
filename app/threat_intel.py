@@ -10,7 +10,7 @@ Threat intel aggregation with:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass
 from datetime import datetime
@@ -19,7 +19,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ─── OFAC DATA SOURCES ───────────────────────────────────────────

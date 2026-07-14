@@ -8,7 +8,7 @@ These are the standout tools that make the RMI MCP server worth paying for:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import datetime
@@ -17,7 +17,7 @@ import aiohttp
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger("x402.premium")
+logger = get_logger("x402.premium")
 
 router = APIRouter()
 

@@ -16,10 +16,10 @@ Risk levels:
   80-100 critical
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-logger = logging.getLogger("wallet_memory.risk_scoring")
+logger = get_logger("wallet_memory.risk_scoring")
 
 
 class RiskScorer:

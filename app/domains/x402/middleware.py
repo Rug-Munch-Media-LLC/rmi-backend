@@ -27,7 +27,7 @@ import base64
 import hashlib
 import hmac
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 from typing import Any
@@ -35,7 +35,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 # ── Pricing per v4.0 §T34 ───────────────────────────────────────────
@@ -280,7 +280,7 @@ def _get_hmac_key() -> bytes:
             raise RuntimeError(
                 "Either X402_HMAC_KEY or ADMIN_API_KEY environment variable is required"
             )
-        logging.getLogger("wp.x402").warning("X402_HMAC_KEY not set, using ADMIN_API_KEY")
+        get_logger("wp.x402").warning("X402_HMAC_KEY not set, using ADMIN_API_KEY")
     return key.encode()
 
 
@@ -354,7 +354,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
     except ImportError:
         pass
     except Exception as e:
-        logging.getLogger("wp.x402").error(f"verify_payment_on_chain error: {e}")
+        get_logger("wp.x402").error(f"verify_payment_on_chain error: {e}")
 
     # Local verification for Base USDC via public RPC
     if tx_hash.startswith("0x") and len(tx_hash) == 66:
@@ -389,7 +389,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                 # Check recipient matches our payment address
                 return not (to_address and pay_to.lower() != to_address)
         except Exception as e:
-            logging.getLogger("wp.x402").error(f"Base tx verify failed: {e}")
+            get_logger("wp.x402").error(f"Base tx verify failed: {e}")
             return False
 
     # Solana verification via public RPC
@@ -413,7 +413,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                 data = r.json()
                 return not ("result" not in data or data["result"] is None)
         except Exception as e:
-            logging.getLogger("wp.x402").error(f"Solana tx verify failed: {e}")
+            get_logger("wp.x402").error(f"Solana tx verify failed: {e}")
             return False
 
     return False
@@ -430,7 +430,7 @@ async def record_receipt(
             await conn.execute(
                 """INSERT INTO x402_receipts (tx_hash, agent_id, tool, amount_usd, chain, paid_at, tier)
                    VALUES ($1, $2, $3, $4, $5, NOW(), $6)
-                   ON CONFLICT (tx_hash) DO NOTHING""",  # noqa: E501
+                   ON CONFLICT (tx_hash) DO NOTHING""",
                 tx_hash,
                 agent_id,
                 tool,
@@ -475,7 +475,7 @@ async def require_payment(
                 "error": "payment_required",
                 "invoice": invoice,
                 "payment_url": f"{os.getenv('X402_PAYMENT_URL', 'https://pay.rugmunch.io')}/{invoice['id']}",
-                "instructions": "Pay on-chain, then retry with X-Payment header (base64 of {tx_hash, signature})",  # noqa: E501
+                "instructions": "Pay on-chain, then retry with X-Payment header (base64 of {tx_hash, signature})",
             },
         )
 
@@ -488,7 +488,7 @@ async def require_payment(
                 "error": "payment_required",
                 "invoice": invoice,
                 "payment_url": f"{os.getenv('X402_PAYMENT_URL', 'https://pay.rugmunch.io')}/{invoice['id']}",
-                "instructions": "Pay on-chain, then retry with X-Payment header (base64 of {tx_hash, signature})",  # noqa: E501
+                "instructions": "Pay on-chain, then retry with X-Payment header (base64 of {tx_hash, signature})",
             },
         )
 
@@ -506,7 +506,7 @@ async def require_payment(
             detail={
                 "error": "payment_already_used",
                 "tx_hash": tx_hash,
-                "message": "This payment receipt has already been used. Each tx_hash can only be used once.",  # noqa: E501
+                "message": "This payment receipt has already been used. Each tx_hash can only be used once.",
             },
         )
     _X402_REVENUE_COUNTER.labels(tool=tool, tier="pro").inc(int(get_tool_price_usd(tool) * 100))

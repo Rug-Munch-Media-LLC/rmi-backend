@@ -19,13 +19,13 @@ Auto-detects credit status and adjusts limits accordingly.
 import asyncio
 import contextlib
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass
 from typing import Any
 
-logger = logging.getLogger("rate.limiter")
+logger = get_logger("rate.limiter")
 
 # ──────────────────────────────────────────────────────────────
 # Verified Provider Limits (June 2026)

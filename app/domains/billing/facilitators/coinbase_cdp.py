@@ -12,7 +12,7 @@ Docs: https://docs.cdp.coinbase.com/x402/welcome
 npm:  @coinbase/x402
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -27,7 +27,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import get_config
 
-logger = logging.getLogger("facilitator.coinbase_cdp")
+logger = get_logger("facilitator.coinbase_cdp")
 
 
 class CoinbaseCDPFacilitator(Facilitator):

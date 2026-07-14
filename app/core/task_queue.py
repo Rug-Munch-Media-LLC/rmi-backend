@@ -2,12 +2,12 @@
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections.abc import Callable
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")
 
 TASKS = {}

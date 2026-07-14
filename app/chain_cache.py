@@ -5,12 +5,12 @@ Includes startup warming for hot wallets.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import time
 from collections import OrderedDict
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Hot Wallets to Pre-Warm ──────────────────────────────
 # Top wallets by volume + known infrastructure that get hit on every scan.

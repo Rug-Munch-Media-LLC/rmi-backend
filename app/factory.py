@@ -19,12 +19,12 @@ Per v4.0 §T01 + ADR-0001 (strangler fig), this factory:
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 from typing import Final
 
 from fastapi import FastAPI
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 # ── Public constants ────────────────────────────────────────────────

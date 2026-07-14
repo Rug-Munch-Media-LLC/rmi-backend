@@ -29,7 +29,7 @@ Date: 2026-05-31
 
 import importlib
 import importlib.util
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from abc import ABC, abstractmethod
@@ -38,7 +38,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-logger = logging.getLogger("rmi_plugin_system")
+logger = get_logger("rmi_plugin_system")
 
 
 # ── Enums ─────────────────────────────────────────────────────

@@ -7,16 +7,19 @@ for comprehensive smart contract vulnerability detection.
 """
 
 import json
-import logging
 import os
 import subprocess
 import tempfile
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from app.core.logging import get_logger
 from app.telegram_bot.requirements import httpx
 
-logger = logging.getLogger(__name__)
+# TODO: migrate _fetch_source_code to async httpx.AsyncClient
+# Currently uses sync httpx.get() inside a sync function chain.
+
+logger = get_logger(__name__)
 
 
 # ─── VULNERABILITY CATEGORIES ─────────────────────────────────────

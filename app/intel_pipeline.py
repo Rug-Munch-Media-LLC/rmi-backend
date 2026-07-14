@@ -6,7 +6,7 @@ wallet labeling via RAG pattern matching, Supabase hybrid storage.
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
@@ -17,7 +17,7 @@ from app.core.secrets import get_secret_or_none
 
 load_dotenv("/app/.env", override=True)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_API = "https://api-inference.huggingface.co/models"

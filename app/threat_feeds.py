@@ -3,11 +3,11 @@ Free Threat Intelligence Feeds - CryptoScamDB, GoPlus, Januus.
 Paper ref: Article 3, Section 2 & Section 6 - Free Datasets and APIs.
 """
 
-import logging
+from app.core.logging import get_logger
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ThreatIntelFeeds:

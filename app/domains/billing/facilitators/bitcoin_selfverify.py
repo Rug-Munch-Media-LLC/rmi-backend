@@ -21,7 +21,7 @@ Tokens: BTC
 Settlement: Self-verified (1 confirmation minimum)
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -36,7 +36,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.bitcoin_selfverify")
+logger = get_logger("facilitator.bitcoin_selfverify")
 
 # Mempool.space API (free, no key needed)
 MEMPOOL_API = "https://mempool.space/api"

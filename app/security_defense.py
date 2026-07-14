@@ -26,7 +26,7 @@ Date: 2026-05-31
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import secrets
 import time
@@ -35,7 +35,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, ClassVar
 
-logger = logging.getLogger("rmi_security_defense")
+logger = get_logger("rmi_security_defense")
 
 
 # ── Enums ─────────────────────────────────────────────────────

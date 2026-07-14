@@ -7,13 +7,13 @@ Redis caching, FastAPI endpoints, usage tracking, retry logic.
 import contextlib
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 import urllib.request
 from datetime import UTC, datetime
 
-logger = logging.getLogger("rmi.ai_v3")
+logger = get_logger("rmi.ai_v3")
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", "")
 OLLAMA_URL = "https://ollama.com/v1/chat/completions"
 MODEL = "deepseek-v4-flash"

@@ -9,12 +9,12 @@ persona classifications.
 Premium feature: "Smart Money Accumulator", "Meme Dumper", "Exit LP", etc.
 """
 
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-logger = logging.getLogger("wallet.behavior")
+logger = get_logger("wallet.behavior")
 
 # ──────────────────────────────────────────────────────────────
 # Persona Definitions

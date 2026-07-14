@@ -15,7 +15,7 @@ Date: 2026-05-20
 import asyncio
 import contextlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
@@ -24,7 +24,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-logger = logging.getLogger("x402_dashboard")
+logger = get_logger("x402_dashboard")
 
 router = APIRouter(prefix="/api/v1/x402", tags=["x402 Analytics Dashboard"])
 

@@ -9,13 +9,13 @@ cross-encoder relevance with original vector similarity.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import time
 from typing import Optional
 
 from sentence_transformers import CrossEncoder
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants

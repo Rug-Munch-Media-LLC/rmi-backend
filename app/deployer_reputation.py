@@ -18,12 +18,12 @@ Signals analyzed:
 Returns a 0-100 risk score with human-readable explanation.
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Risk signal weights ──────────────────────────────────────────
 SIGNALS = {

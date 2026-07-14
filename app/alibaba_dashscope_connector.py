@@ -3,12 +3,12 @@ Alibaba Cloud DashScope Connector - Qwen Models for Content Generation.
 Supports: qwen-max, qwen-plus, qwen-turbo, qwen-coder, qwen-vl-max
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Alibaba DashScope Config ─────────────────────────────────
 

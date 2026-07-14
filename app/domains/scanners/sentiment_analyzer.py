@@ -11,7 +11,7 @@ No Twitter/Telegram API keys required - uses public DexScreener and
 Birdeye endpoints for social/sentiment data.
 """
 
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from collections import Counter, defaultdict
@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-logger = logging.getLogger("sentiment_analyzer")
+logger = get_logger("sentiment_analyzer")
 
 # ---------------------------------------------------------------------------
 # Keyword dictionaries

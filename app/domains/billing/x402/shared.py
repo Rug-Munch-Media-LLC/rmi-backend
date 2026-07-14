@@ -26,14 +26,14 @@ that future audit-tracked fix (issue: fix(f821)) has a clear home.
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 import os
 from typing import Any, ClassVar
 
 import aiohttp
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger("x402_tools")
+logger = get_logger("x402_tools")
 
 # Caching shield - all data calls route through cache → rate limit → provider chain
 from app.caching_shield.service_mcp import get_service_mcp

@@ -12,12 +12,12 @@ Architecture:
 from __future__ import annotations
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 @dataclass

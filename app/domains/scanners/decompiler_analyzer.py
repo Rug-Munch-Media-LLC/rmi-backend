@@ -17,7 +17,7 @@ For Solana:
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import shutil
@@ -31,7 +31,7 @@ from app.chain_client import ChainClient
 from app.chain_registry import CHAINS, is_evm, is_solana
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
-logger = logging.getLogger("decompiler_analyzer")
+logger = get_logger("decompiler_analyzer")
 
 # ── Paths ────────────────────────────────────────────────────────────
 

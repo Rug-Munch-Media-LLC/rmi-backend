@@ -7,13 +7,13 @@ Auto-reconnects, caches through DataBus, triggers premium scanner.
 WS Key: from ARKHAM_WS_KEY env var (set in /etc/secrets or docker env)
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import datetime
 
 import httpx
 
-logger = logging.getLogger("arkham_ws")
+logger = get_logger("arkham_ws")
 
 ARKHAM_WS_URL = "wss://api.arkhamintelligence.com/ws"
 

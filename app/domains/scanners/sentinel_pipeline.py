@@ -29,7 +29,7 @@ Modules:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 from typing import Any
@@ -76,7 +76,7 @@ try:
 except ImportError:
     _WALLET_MEMORY_AVAILABLE = False
 
-logger = logging.getLogger("sentinel_pipeline")
+logger = get_logger("sentinel_pipeline")
 
 
 # ─── Configuration dataclass ─────────────────────────────────────────────

@@ -17,12 +17,12 @@ Input: list of mention dicts
   [{timestamp: str|int|float, platform: str, text: str}, ...]
 """
 
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 
-logger = logging.getLogger("social_velocity")
+logger = get_logger("social_velocity")
 
 
 def _parse_timestamp(ts) -> float:

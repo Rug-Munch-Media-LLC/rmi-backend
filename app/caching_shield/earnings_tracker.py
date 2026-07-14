@@ -9,13 +9,13 @@ Payment wallets:
   Solana:  From gateway config (solana worker)
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("earnings")
+logger = get_logger("earnings")
 
 # Payment wallets we track
 PAYMENT_WALLETS = {

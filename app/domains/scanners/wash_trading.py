@@ -17,7 +17,7 @@ Data sources (direct API calls - no self.api_base):
               Etherscan-family (tokentx endpoint)
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -27,7 +27,7 @@ import httpx
 
 from app.chain_registry import is_solana
 
-logger = logging.getLogger("wash_trading")
+logger = get_logger("wash_trading")
 
 try:
     import networkx as nx
