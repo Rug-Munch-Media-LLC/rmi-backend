@@ -460,7 +460,7 @@ class NewsService:
         text_lower = text.lower()
 
         # Cache lookup
-        cache_key = hashlib.md5(text_lower[:200].encode()).hexdigest()
+        cache_key = hashlib.sha256(text_lower[:200].encode()).hexdigest()
         if cache_key in self._sentiment_cache:
             return self._sentiment_cache[cache_key]
 
@@ -576,7 +576,7 @@ class NewsService:
                 else:
                     published = datetime.now(UTC).isoformat()
 
-                content_hash = hashlib.md5(f"rss:{title}:{link}".encode()).hexdigest()
+                content_hash = hashlib.sha256(f"rss:{title}:{link}".encode()).hexdigest()
                 if content_hash in self.seen_hashes:
                     continue
                 self.seen_hashes.add(content_hash)
@@ -647,7 +647,7 @@ class NewsService:
                 if score < 5:  # Lower threshold for broader coverage
                     continue
 
-                content_hash = hashlib.md5(f"reddit:{title}:{permalink}".encode()).hexdigest()
+                content_hash = hashlib.sha256(f"reddit:{title}:{permalink}".encode()).hexdigest()
                 if content_hash in self.seen_hashes:
                     continue
                 self.seen_hashes.add(content_hash)
@@ -705,7 +705,7 @@ class NewsService:
                 url = item.get("url", "")
                 desc = item.get("description", "") or title
                 pub_str = item.get("updated_at", item.get("created_at", ""))
-                content_hash = hashlib.md5(f"cg:{title}:{url}".encode()).hexdigest()
+                content_hash = hashlib.sha256(f"cg:{title}:{url}".encode()).hexdigest()
                 if content_hash in self.seen_hashes:
                     continue
                 self.seen_hashes.add(content_hash)
@@ -754,7 +754,7 @@ class NewsService:
                 source = item.get("source", {})
                 source_title = source.get("title", "CryptoPanic") if isinstance(source, dict) else "CryptoPanic"
                 pub_str = item.get("published_at", item.get("created_at", ""))
-                content_hash = hashlib.md5(f"cp:{title}:{url}".encode()).hexdigest()
+                content_hash = hashlib.sha256(f"cp:{title}:{url}".encode()).hexdigest()
                 if content_hash in self.seen_hashes:
                     continue
                 self.seen_hashes.add(content_hash)
@@ -813,7 +813,7 @@ class NewsService:
                     flags.append("MINTABLE")
 
                 flag_str = ", ".join(flags) if flags else "clean"
-                content_hash = hashlib.md5(f"scanner:{address}:{chain}".encode()).hexdigest()
+                content_hash = hashlib.sha256(f"scanner:{address}:{chain}".encode()).hexdigest()
                 if content_hash in self.seen_hashes:
                     continue
                 self.seen_hashes.add(content_hash)
@@ -857,7 +857,7 @@ class NewsService:
             for r in results[:5]:
                 title = r.get("title", r.get("content", ""))[:120]
                 content = r.get("content", r.get("description", ""))[:300]
-                content_hash = hashlib.md5(f"alert:{title}".encode()).hexdigest()
+                content_hash = hashlib.sha256(f"alert:{title}".encode()).hexdigest()
                 if content_hash in self.seen_hashes:
                     continue
                 self.seen_hashes.add(content_hash)

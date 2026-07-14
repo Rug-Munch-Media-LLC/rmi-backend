@@ -641,7 +641,7 @@ class EmbeddingDispatcher:
 
         vecs = []
         for t in texts:
-            h = hashlib.sha256(t.encode()).digest() + hashlib.md5(t.encode()).digest()
+            h = hashlib.sha256(t.encode()).digest() + hashlib.sha256(("v2:" + t).encode()).digest()
             v = [(int.from_bytes(h[i : i + 4], "big") / 2**32) * 2 - 1 for i in range(0, min(len(h), 1536), 4)]
             while len(v) < 384:
                 v.append(0.0)

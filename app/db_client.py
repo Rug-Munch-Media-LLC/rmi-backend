@@ -142,7 +142,9 @@ def _async_retry(max_retries: int = 3, delay: float = 0.5, backoff: float = 2.0)
                     last_exc = exc
                     if attempt >= max_retries:
                         raise
-                    logger.warning(f"[DB] Retry {attempt + 1}/{max_retries} for {func.__name__}: {exc}")
+                    logger.warning(
+                        f"[DB] Retry {attempt + 1}/{max_retries} for {func.__name__}: {exc}"
+                    )
                     await asyncio.sleep(wait)
                     wait *= backoff
             raise last_exc
@@ -243,8 +245,16 @@ class SupabaseClient:
     def __init__(self, url: str | None = None, key: str | None = None):
         self.url = url or os.getenv("SUPABASE_URL", "")
         # Fall back through env var variants
+        # SERVICE KEY: Required for full CRUD access to all Supabase tables.
+        # Falls back to SUPABASE_KEY then SUPABASE_ANON_KEY for backward compat.
+        from app.core.secrets import get_secret_or_none
+
         self.key = (
-            key or os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_ANON_KEY", "")
+            key
+            or get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+            or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
+            or os.getenv("SUPABASE_KEY")
+            or os.getenv("SUPABASE_ANON_KEY", "")
         )
         self._client: Any | None = None
 
@@ -305,7 +315,9 @@ class SupabaseClient:
         try:
             await self.execute_sql(ENSURE_TABLES_SQL)
         except Exception as exc:
-            logger.warning(f"[DB] ensure_tables failed (tables may already exist or RPC missing): {exc}")
+            logger.warning(
+                f"[DB] ensure_tables failed (tables may already exist or RPC missing): {exc}"
+            )
 
 
 # ═══════════════════════════════════════════════════════════
@@ -345,7 +357,12 @@ class UserRepository(_BaseRepo):
 
     @_async_retry(max_retries=3)
     async def get_by_wallet(self, wallet_address: str) -> dict[str, Any] | None:
-        result = self.db.table(self.TABLE).select("*").eq("wallet_address", wallet_address.lower()).execute()
+        result = (
+            self.db.table(self.TABLE)
+            .select("*")
+            .eq("wallet_address", wallet_address.lower())
+            .execute()
+        )
         return result.data[0] if result.data else None
 
     @_async_retry(max_retries=3)

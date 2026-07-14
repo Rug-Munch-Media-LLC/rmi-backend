@@ -14,6 +14,8 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from app.core.secrets import get_secret_or_none
+
 logger = logging.getLogger(__name__)
 
 import contextlib  # noqa: E402
@@ -44,9 +46,20 @@ router = APIRouter(prefix="/api/v1/bulletin")
 
 
 def _sb():
-    """Return (url, headers) for direct Supabase REST API."""
-    key = os.environ["SUPABASE_SERVICE_KEY"]
-    url = os.environ["SUPABASE_URL"]
+    """Return (url, headers) for direct Supabase REST API.
+
+    Uses service_role key for full CRUD access to profiles, bulletin_posts,
+    bot_registrations, and moderation tables. Required for:
+    - Bot registration and fee management
+    - Moderation actions (remove, lock, ban)
+    - Reading all posts and profiles
+    """
+    key = (
+        get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+        or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
+        or ""
+    )
+    url = os.environ.get("SUPABASE_URL", "")
     return url, {
         "apikey": key,
         "Authorization": f"Bearer {key}",
@@ -157,7 +170,9 @@ async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public
         raise HTTPException(status_code=500, detail="Failed to create post")
     if post.is_bot and result.get("id"):
         with contextlib.suppress(Exception):
-            _sb_patch("bulletin_posts", {"is_bot": True, "bot_id": post.bot_id}, {"id": result["id"]})
+            _sb_patch(
+                "bulletin_posts", {"is_bot": True, "bot_id": post.bot_id}, {"id": result["id"]}
+            )
     return result
 
 
@@ -174,7 +189,9 @@ class CommentIn(BaseModel):
 
 
 @router.post("/posts/{post_id}/comments")
-async def create_comment(post_id: int, comment: CommentIn, user: dict = Depends(_require_public_profile)):
+async def create_comment(
+    post_id: int, comment: CommentIn, user: dict = Depends(_require_public_profile)
+):
     """Create a comment on a bulletin post. Requires public profile."""
     # Store comment in Supabase or Redis (using simple dict for now if not in supabase_service)
     # For now, we'll just return success and let the frontend handle local state,
@@ -212,7 +229,9 @@ async def create_comment(post_id: int, comment: CommentIn, user: dict = Depends(
 async def get_comments(post_id: int):
     """Get comments for a bulletin post."""
     try:
-        comments = _sb_get("bulletin_comments", {"post_id": f"eq.{post_id}", "order": "created_at.asc"})
+        comments = _sb_get(
+            "bulletin_comments", {"post_id": f"eq.{post_id}", "order": "created_at.asc"}
+        )
         return {"comments": comments}
     except Exception:
         return {"comments": []}
@@ -325,7 +344,9 @@ async def bot_fee_status(bot_id: str):
 
 
 @router.post("/bots/{bot_id}/pay-fee")
-async def pay_bot_fee(bot_id: str, amount: float, tx_hash: str | None = None, currency: str = "usdc"):
+async def pay_bot_fee(
+    bot_id: str, amount: float, tx_hash: str | None = None, currency: str = "usdc"
+):
     """Record a bot fee payment."""
     try:
         _sb_post(
@@ -358,13 +379,20 @@ async def pay_bot_fee(bot_id: str, amount: float, tx_hash: str | None = None, cu
 @router.post("/bots/{bot_id}/post")
 async def bot_create_post(bot_id: str, post: BulletinPostIn):
     """Bot creates a post - must be registered and fee-paid."""
-    reg = _sb_get("bot_registrations", {"bot_user_id": f"eq.{bot_id}", "status": "eq.active", "limit": "1"})
+    reg = _sb_get(
+        "bot_registrations", {"bot_user_id": f"eq.{bot_id}", "status": "eq.active", "limit": "1"}
+    )
     if not reg:
         raise HTTPException(status_code=403, detail="Bot not registered or fee not paid")
 
     registration = reg[0]
-    if registration.get("allowed_categories") and post.category not in registration["allowed_categories"]:
-        raise HTTPException(status_code=403, detail=f"Bot not allowed to post in category: {post.category}")
+    if (
+        registration.get("allowed_categories")
+        and post.category not in registration["allowed_categories"]
+    ):
+        raise HTTPException(
+            status_code=403, detail=f"Bot not allowed to post in category: {post.category}"
+        )
 
     post.is_bot = True
     post.bot_id = bot_id
@@ -455,7 +483,9 @@ async def moderate(moderation: ModerationActionIn):
     if moderation.target_type == "post":
         match = {"id": moderation.target_id}
         if moderation.action == "remove":
-            _sb_patch("bulletin_posts", {"removed": True, "removed_reason": moderation.reason}, match)
+            _sb_patch(
+                "bulletin_posts", {"removed": True, "removed_reason": moderation.reason}, match
+            )
         elif moderation.action == "restore":
             _sb_patch("bulletin_posts", {"removed": False, "removed_reason": None}, match)
         elif moderation.action == "pin":
@@ -469,7 +499,9 @@ async def moderate(moderation: ModerationActionIn):
 
     elif moderation.target_type == "bot":
         if moderation.action == "ban_user":
-            _sb_patch("bot_registrations", {"status": "banned"}, {"bot_user_id": moderation.target_id})
+            _sb_patch(
+                "bot_registrations", {"status": "banned"}, {"bot_user_id": moderation.target_id}
+            )
 
     return {
         "status": "ok",

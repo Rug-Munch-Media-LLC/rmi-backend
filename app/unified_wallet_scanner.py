@@ -24,6 +24,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from app.core.internal_key import INTERNAL_API_KEY
@@ -34,6 +35,14 @@ BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
 OLLAMA_URL = "https://ollama.com/v1/chat/completions"
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
 MODEL = "deepseek-v4-flash"
+
+
+def _validate_https_url(url: str) -> str:
+    """Ensure URL uses HTTPS scheme to prevent SSRF via user-influenced URLs."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("https",):
+        raise ValueError(f"Only HTTPS URLs allowed, got: {parsed.scheme}://")
+    return url
 
 
 @dataclass
@@ -190,8 +199,11 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     async def _rag_enrich(self, r):
         try:
+            rag_url = _validate_https_url(
+                f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5"
+            )
             req = Request(
-                f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5",
+                rag_url,
                 headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             resp = urlopen(req, timeout=8)
@@ -339,11 +351,11 @@ class UnifiedWalletScanner:
                     "messages": [
                         {
                             "role": "system",
-                            "content": "Based on wallet risk profile, predict 7-day risk trajectory. One sentence: INCREASING/STABLE/DECREASING risk, plus brief reason. Under 100 chars.",  # noqa: E501
+                            "content": "Based on wallet risk profile, predict 7-day risk trajectory. One sentence: INCREASING/STABLE/DECREASING risk, plus brief reason. Under 100 chars.",
                         },
                         {
                             "role": "user",
-                            "content": f"Risk:{r.risk_score} Flags:{','.join(r.risk_flags[:5])} ScamTokens:{r.scam_tokens_held} Persona:{r.persona}",  # noqa: E501
+                            "content": f"Risk:{r.risk_score} Flags:{','.join(r.risk_flags[:5])} ScamTokens:{r.scam_tokens_held} Persona:{r.persona}",
                         },
                     ],
                     "max_tokens": 60,

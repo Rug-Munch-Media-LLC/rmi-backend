@@ -1047,7 +1047,7 @@ def _extract_token_symbols(text: str) -> list[str]:
 def _cache_hash(*args) -> str:
     """Create a short hash for cache keys."""
     raw = "|".join(str(a) for a in args)
-    return hashlib.md5(raw.encode()).hexdigest()[:12]
+    return hashlib.sha256(raw.encode()).hexdigest()[:12]
 
 
 def _market_to_dict(m: PredictionMarket) -> dict:

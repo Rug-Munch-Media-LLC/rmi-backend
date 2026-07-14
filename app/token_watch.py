@@ -362,7 +362,7 @@ class TokenWatchService:
 
         if triggered:
             alert = WatchAlert(
-                alert_id=f"alert_{hashlib.md5(f'{watch.watch_id}:{now}'.encode()).hexdigest()[:10]}",
+                alert_id=f"alert_{hashlib.sha256(f'{watch.watch_id}:{now}'.encode()).hexdigest()[:10]}",
                 watch_id=watch.watch_id,
                 token_address=watch.token_address,
                 chain=watch.chain,

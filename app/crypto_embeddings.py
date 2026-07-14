@@ -366,7 +366,7 @@ def extract_wallet_features(wallet_data: dict) -> np.ndarray:
     # ── Entity cluster hash (dims 30-39) ──
     cluster = str(wallet_data.get("cluster_id", ""))
     if cluster:
-        ch = hashlib.md5(cluster.encode()).digest()
+        ch = hashlib.sha256(cluster.encode()).digest()
         for i in range(10):
             vec[30 + i] = ch[i] / 255.0
 
@@ -764,7 +764,7 @@ class CryptoEmbedder:
         vec = np.zeros(dims, dtype=np.float32)
         words = re.findall(r"\w+", text.lower())
         for word in words:
-            h = int(hashlib.md5(word.encode()).hexdigest(), 16)
+            h = int(hashlib.sha256(word.encode()).hexdigest(), 16)
             for i in range(min(8, dims)):
                 vec[(h + i) % dims] += 0.01
         norm = np.linalg.norm(vec)

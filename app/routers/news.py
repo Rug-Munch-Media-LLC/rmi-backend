@@ -90,7 +90,7 @@ _COMMENTS: dict[str, list[dict]] = {}
 
 
 def _make_comment_id(article_id: str, content: str) -> str:
-    h = hashlib.md5(f"{article_id}:{content}:{datetime.now(UTC).isoformat()}".encode()).hexdigest()
+    h = hashlib.sha256(f"{article_id}:{content}:{datetime.now(UTC).isoformat()}".encode()).hexdigest()
     return f"comment-{h[:12]}"
 
 
@@ -348,7 +348,7 @@ async def get_comments(article_id: str):
 async def post_scanner_alert(token_name: str, chain: str, risk_score: float, address: str, flags: str = ""):
     """Internal endpoint for cron jobs to inject scanner findings into news feed."""
     global _NEWS_CACHE
-    content_hash = hashlib.md5(f"internal:{address}:{chain}".encode()).hexdigest()
+    content_hash = hashlib.sha256(f"internal:{address}:{chain}".encode()).hexdigest()
     article = {
         "id": f"rmi-{content_hash[:12]}",
         "title": f"RMI Scanner: {token_name} ({chain.upper()}) - Risk {risk_score}/100",

@@ -338,7 +338,9 @@ class EVMDeployer(ChainDeployer):
         logger.info(f"Deployed {params.symbol} on {self.chain} at {contract_address}")
         return deployment
 
-    async def _deploy_via_factory(self, factory_address: str, params: DeployParams) -> TokenDeployment:
+    async def _deploy_via_factory(
+        self, factory_address: str, params: DeployParams
+    ) -> TokenDeployment:
         """Deploy via factory contract for gas efficiency."""
         # Factory ABI (minimal)
         factory_abi = [
@@ -757,7 +759,9 @@ class SolanaDeployer(ChainDeployer):
                 mint=mint.pubkey(),
                 decimals=params.decimals,
                 mint_authority=self.keypair.pubkey(),
-                freeze_authority=Pubkey.from_string(params.freeze_authority) if params.freeze_authority else None,
+                freeze_authority=Pubkey.from_string(params.freeze_authority)
+                if params.freeze_authority
+                else None,
                 program_id=TOKEN_PROGRAM_ID,
             )
             tx.add(init_mint_ix)
@@ -1091,7 +1095,9 @@ class TronDeployer(ChainDeployer):
                 pausable=params.pausable,
                 max_supply=params.max_supply,
                 metadata_uri=params.metadata_uri,
-                extra={"note": "TRON deployment requires manual contract compilation and deployment"},
+                extra={
+                    "note": "TRON deployment requires manual contract compilation and deployment"
+                },
             )
 
             return deployment
@@ -1141,7 +1147,9 @@ class TronDeployer(ChainDeployer):
             "symbol": contract.functions.symbol().call(),
             "decimals": contract.functions.decimals().call(),
             "total_supply": str(contract.functions.totalSupply().call()),
-            "owner": contract.functions.owner().call() if hasattr(contract.functions, "owner") else None,
+            "owner": contract.functions.owner().call()
+            if hasattr(contract.functions, "owner")
+            else None,
         }
 
     async def get_balance(self, contract_address: str, wallet_address: str) -> str:
@@ -1205,7 +1213,7 @@ class TokenDeployerFactory:
     Reads private keys and RPC URLs from environment variables.
     """
 
-    CHAIN_CONFIG: ClassVar[dict] ={
+    CHAIN_CONFIG: ClassVar[dict] = {
         "ethereum": {
             "deployer_class": EVMDeployer,
             "rpc_env": "ETH_RPC_URL",
@@ -1244,15 +1252,21 @@ class TokenDeployerFactory:
         chain = chain.lower()
         config = cls.CHAIN_CONFIG.get(chain)
         if not config:
-            raise ValueError(f"Unsupported chain: {chain}. Supported: {list(cls.CHAIN_CONFIG.keys())}")
+            raise ValueError(
+                f"Unsupported chain: {chain}. Supported: {list(cls.CHAIN_CONFIG.keys())}"
+            )
 
         rpc_url = os.getenv(config["rpc_env"], config["default_rpc"])
         private_key = os.getenv(config["key_env"], "")
 
         if not private_key:
-            raise ValueError(f"No deployer key configured for {chain}. Set {config['key_env']} in .env")
+            raise ValueError(
+                f"No deployer key configured for {chain}. Set {config['key_env']} in .env"
+            )
 
-        return config["deployer_class"](chain if config["deployer_class"] == EVMDeployer else "", private_key, rpc_url)
+        return config["deployer_class"](
+            chain if config["deployer_class"] == EVMDeployer else "", private_key, rpc_url
+        )
 
     @classmethod
     def list_supported_chains(cls) -> list[dict[str, str]]:
@@ -1303,7 +1317,7 @@ class DeploymentStorage:
             from supabase import create_client
 
             supabase_url = os.getenv("SUPABASE_URL")
-            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
             if supabase_url and supabase_key:
                 self.supabase = create_client(supabase_url, supabase_key)
         except Exception as e:
@@ -1321,7 +1335,9 @@ class DeploymentStorage:
             try:
                 await self.redis.set(key, json.dumps(data))
                 await self.redis.sadd("token_deployments:all", deployment.deployment_id)
-                await self.redis.sadd(f"token_deployments:chain:{deployment.chain}", deployment.deployment_id)
+                await self.redis.sadd(
+                    f"token_deployments:chain:{deployment.chain}", deployment.deployment_id
+                )
                 success = True
             except Exception as e:
                 logger.error(f"Redis save failed: {e}")
@@ -1352,7 +1368,10 @@ class DeploymentStorage:
         if self.supabase:
             try:
                 result = (
-                    self.supabase.table("token_deployments").select("*").eq("deployment_id", deployment_id).execute()
+                    self.supabase.table("token_deployments")
+                    .select("*")
+                    .eq("deployment_id", deployment_id)
+                    .execute()
                 )
                 if result.data:
                     return TokenDeployment(**result.data[0])
@@ -1392,7 +1411,9 @@ class DeploymentStorage:
 
         return deployments
 
-    async def update_status(self, deployment_id: str, status: str, extra: dict | None = None) -> bool:
+    async def update_status(
+        self, deployment_id: str, status: str, extra: dict | None = None
+    ) -> bool:
         """Update deployment status."""
         dep = await self.get(deployment_id)
         if not dep:

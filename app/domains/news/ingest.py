@@ -44,7 +44,7 @@ DEFAULT_FEEDS: list[dict[str, str]] = [
 
 def _stable_id(source: str, url: str) -> str:
     """Stable news_id from source + URL."""
-    h = hashlib.md5(f"{source}:{url}".encode()).hexdigest()[:24]
+    h = hashlib.sha256(f"{source}:{url}".encode()).hexdigest()[:24]
     return f"{source}:{h}"
 
 

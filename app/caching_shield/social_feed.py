@@ -195,7 +195,7 @@ async def get_twitter_feed(limit: int = 30) -> dict:
                         if title and "RT @" not in title:
                             tweets.append(
                                 {
-                                    "id": hashlib.md5(link.encode()).hexdigest()[:12],
+                                    "id": hashlib.sha256(link.encode()).hexdigest()[:12],
                                     "text": title.replace(f"{account['name']}: ", ""),
                                     "author": account["name"],
                                     "handle": account["handle"],

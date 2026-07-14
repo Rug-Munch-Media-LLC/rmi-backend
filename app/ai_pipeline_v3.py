@@ -67,7 +67,7 @@ def usage_stats() -> dict:
 
 # ── Retry with Exponential Backoff ──
 def _call_ollama(system: str, prompt: str, max_tokens: int = 250, temp: float = 0.3, cache_ttl: int = 300) -> str:
-    cache_key = hashlib.md5(f"{system[:60]}|{prompt[:120]}".encode()).hexdigest()
+    cache_key = hashlib.sha256(f"{system[:60]}|{prompt[:120]}".encode()).hexdigest()
     cached = _cache_get(cache_key)
     if cached:
         val = cached.decode() if isinstance(cached, bytes) else cached

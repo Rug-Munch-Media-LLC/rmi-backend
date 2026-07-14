@@ -241,12 +241,12 @@ class AuditLogger:
             from supabase import create_client
 
             supabase_url = os.getenv("SUPABASE_URL")
-            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
             if supabase_url and supabase_key:
                 client = create_client(supabase_url, supabase_key)
                 client.table("audit_logs").insert(entry.to_dict()).execute()
         except Exception as e:
-            logger.error(f"Supabase audit log failed: {e}")
+            logger.warning(f"Supabase audit log failed: {e}")
 
         return True
 
@@ -535,7 +535,9 @@ class SessionManager:
             "ip_address": ip_address,
             "user_agent": user_agent,
             "created_at": datetime.utcnow().isoformat(),
-            "expires_at": (datetime.utcnow() + timedelta(hours=SessionManager.SESSION_TIMEOUT_HOURS)).isoformat(),
+            "expires_at": (
+                datetime.utcnow() + timedelta(hours=SessionManager.SESSION_TIMEOUT_HOURS)
+            ).isoformat(),
             "last_active": datetime.utcnow().isoformat(),
             "is_active": True,
         }
@@ -552,7 +554,9 @@ class SessionManager:
 
             # Store session
             key = f"admin_session:{session_id}"
-            await r.setex(key, SessionManager.SESSION_TIMEOUT_HOURS * 3600, json.dumps(session_data))
+            await r.setex(
+                key, SessionManager.SESSION_TIMEOUT_HOURS * 3600, json.dumps(session_data)
+            )
 
             # Add to admin's session list
             await r.sadd(f"admin_sessions:{admin_id}", session_id)
@@ -774,7 +778,7 @@ class AdminUserStore:
                 from supabase import create_client
 
                 supabase_url = os.getenv("SUPABASE_URL")
-                supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+                supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
                 if supabase_url and supabase_key:
                     client = create_client(supabase_url, supabase_key)
                     client.table("admin_users").upsert(admin).execute()
@@ -847,7 +851,9 @@ class AdminUserStore:
         await AdminUserStore.save_admin(admin)
 
         # Remove password hash from returned dict
-        safe_admin = {k: v for k, v in admin.items() if k != "password_hash" and k != "two_factor_secret"}
+        safe_admin = {
+            k: v for k, v in admin.items() if k != "password_hash" and k != "two_factor_secret"
+        }
         return safe_admin
 
     @staticmethod
@@ -871,7 +877,9 @@ class AdminUserStore:
         await AdminUserStore.save_admin(admin)
 
         # Remove sensitive data
-        safe_admin = {k: v for k, v in admin.items() if k != "password_hash" and k != "two_factor_secret"}
+        safe_admin = {
+            k: v for k, v in admin.items() if k != "password_hash" and k != "two_factor_secret"
+        }
         return safe_admin
 
 
@@ -966,7 +974,9 @@ class SystemHealthMonitor:
                 "version": info.get("redis_version", "unknown"),
                 "used_memory_mb": round(info.get("used_memory", 0) / (1024**2), 2),
                 "connected_clients": info.get("connected_clients", 0),
-                "total_keys": info.get("db0", {}).get("keys", 0) if isinstance(info.get("db0"), dict) else 0,
+                "total_keys": info.get("db0", {}).get("keys", 0)
+                if isinstance(info.get("db0"), dict)
+                else 0,
             }
         except Exception as e:
             return {"status": "error", "error": str(e)}
@@ -1049,7 +1059,9 @@ async def require_admin(
         "admin_write" if required_permission.endswith(".write") else "default",
     )
     if not rate_check["allowed"]:
-        raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Reset at {rate_check['reset_at']}")
+        raise HTTPException(
+            status_code=429, detail=f"Rate limit exceeded. Reset at {rate_check['reset_at']}"
+        )
 
     # Log access
     await AuditLogger.log(

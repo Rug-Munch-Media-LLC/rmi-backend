@@ -7,6 +7,7 @@ This module owns every middleware registration. Adding a new middleware:
   1. Add a `try_register(app, "name")` block below
   2. Each block is isolated - one failure doesn't break the rest
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,6 +28,7 @@ def _try_register_cors(app) -> None:
     """T19 - CORS hardening with strict allowlist."""
     try:
         from fastapi.middleware.cors import CORSMiddleware
+
         ALLOWED_ORIGINS = [
             "https://rugmunch.io",
             "https://www.rugmunch.io",
@@ -65,10 +67,14 @@ def _try_register_security_headers(app) -> None:
                     "max-age=31536000; includeSubDomains; preload"
                 )
                 response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-                response.headers["Permissions-Policy"] = (
-                    "geolocation=(), microphone=(), camera=()"
-                )
-                if request.url.path not in ["/docs", "/redoc", "/openapi.json"]:
+                response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+                # CSP applies to all paths including API docs
+                if request.url.path in ["/docs", "/redoc", "/openapi.json"]:
+                    response.headers["Content-Security-Policy"] = (
+                        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+                        "style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+                    )
+                else:
                     response.headers["Content-Security-Policy"] = "default-src 'self'"
                 return response
 
@@ -82,6 +88,7 @@ def _try_register_prometheus(app) -> None:
     """Prometheus metrics middleware. Records every request."""
     try:
         from app.core.metrics import PrometheusMiddleware
+
         app.add_middleware(PrometheusMiddleware)
         log.info("middleware_registered name=prometheus")
     except Exception as exc:
@@ -92,6 +99,7 @@ def _try_register_cost_tracking(app) -> None:
     """M7 - per-tenant/per-route cost tracking."""
     try:
         from app.middleware.cost_tracking import CostBuffer, CostTrackingMiddleware
+
         app.add_middleware(CostTrackingMiddleware, buffer=CostBuffer())
         log.info("middleware_registered name=cost_tracking")
     except Exception as exc:
@@ -102,6 +110,7 @@ def _try_register_tracing(app) -> None:
     """Request-id + timing middleware (always on)."""
     try:
         from app.core.tracing import setup_tracing
+
         setup_tracing(app)
         log.info("middleware_registered name=tracing")
     except Exception as exc:

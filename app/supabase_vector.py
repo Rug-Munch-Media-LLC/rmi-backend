@@ -22,6 +22,8 @@ from typing import Any
 import httpx
 from dotenv import load_dotenv
 
+from app.core.secrets import get_secret_or_none
+
 # Load env vars at module level so keys are available before any class instantiation
 load_dotenv("/app/.env", override=True)
 
@@ -34,8 +36,17 @@ def _get_url():
 
 
 def _get_headers():
-    """Build headers dynamically to pick up env changes without module reload."""
-    key = os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    """Build headers dynamically to pick up env changes without module reload.
+
+    SERVICE KEY REQUIRED: This module performs CRUD operations on the rag_vectors
+    table and executes RPC functions (search_embeddings, exec_sql) that require
+    service_role privileges. The anon key would be blocked by RLS policies.
+    """
+    key = (
+        get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+        or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
+        or ""
+    )
     return {
         "apikey": key,
         "Authorization": f"Bearer {key}",
@@ -55,7 +66,9 @@ EMBEDDING_DIM = int(os.environ.get("RAG_EMBEDDING_DIM", "0"))  # 0 = auto-detect
 # This MUST match the vector(N) in the CREATE TABLE and search_embeddings RPC.
 # Migration scripts use 640, .env sets RAG_EMBEDDING_DIM=640.
 # Defaults to EMBEDDING_DIM if set, otherwise 640.
-TABLE_DIM = int(os.environ.get("RAG_TABLE_DIM", str(max(EMBEDDING_DIM, 1)))) if EMBEDDING_DIM > 0 else 640
+TABLE_DIM = (
+    int(os.environ.get("RAG_TABLE_DIM", str(max(EMBEDDING_DIM, 1)))) if EMBEDDING_DIM > 0 else 640
+)
 
 
 def pad_vector(vec: list, target_dim: int) -> list:
@@ -237,7 +250,9 @@ class SupabaseVectorStore:
                 url = f"{_get_url()}/rest/v1/rag_vectors"
                 params = {"on_conflict": "id"}
                 async with httpx.AsyncClient(timeout=10) as client:
-                    resp = await client.post(url, json=test_row, params=params, headers=_get_headers())
+                    resp = await client.post(
+                        url, json=test_row, params=params, headers=_get_headers()
+                    )
                     if resp.status_code in (200, 201):
                         self._table_ready = True
                         logger.info("pgvector: rag_vectors table ready")
@@ -378,7 +393,9 @@ class SupabaseVectorStore:
                     if not dv:
                         continue
                     compare_len = min(q_len, len(dv))
-                    sim = embedder.cosine_similarity(query_embedding[:compare_len], dv[:compare_len])
+                    sim = embedder.cosine_similarity(
+                        query_embedding[:compare_len], dv[:compare_len]
+                    )
                     if sim >= min_similarity:
                         scored.append(
                             {
@@ -671,7 +688,9 @@ class SupabaseVectorStore:
             if collection:
                 safe_collection = collection.replace("'", "''")
                 where = f"WHERE collection = '{safe_collection}'"
-            sql = f"SELECT DISTINCT {safe_column} FROM {VECTOR_TABLE} {where} ORDER BY {safe_column}"
+            sql = (
+                f"SELECT DISTINCT {safe_column} FROM {VECTOR_TABLE} {where} ORDER BY {safe_column}"
+            )
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return [r[safe_column] for r in (rows or [])]
         except Exception:

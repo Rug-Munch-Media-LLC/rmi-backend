@@ -12,10 +12,16 @@ from datetime import UTC, datetime
 import redis.asyncio as aioredis
 import websockets
 
+from app.core.secrets import get_secret_or_none
+
 logger = logging.getLogger("supabase.realtime")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or ""
+SUPABASE_KEY = (
+    get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+    or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
+    or ""
+)
 
 TABLE_CHANNELS = {
     "security_alerts": "rmi:ws:alerts",
@@ -83,7 +89,9 @@ class SupabaseRealtimeBridge:
                             "payload": {
                                 "config": {
                                     "broadcast": {"self": True},
-                                    "postgres_changes": [{"event": "*", "schema": "public", "table": table}],
+                                    "postgres_changes": [
+                                        {"event": "*", "schema": "public", "table": table}
+                                    ],
                                 }
                             },
                             "ref": f"join_{table}",
@@ -101,7 +109,9 @@ class SupabaseRealtimeBridge:
                             continue
 
             except Exception as e:
-                logger.warning("Realtime WS disconnected: %s - reconnecting in %ds", e, self._reconnect_delay)
+                logger.warning(
+                    "Realtime WS disconnected: %s - reconnecting in %ds", e, self._reconnect_delay
+                )
                 await asyncio.sleep(self._reconnect_delay)
                 self._reconnect_delay = min(self._reconnect_delay * 2, 60)
 
