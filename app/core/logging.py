@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from typing import cast
 
 import structlog
 
@@ -37,4 +38,4 @@ def setup_logging(level: str = "INFO") -> None:
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Get a structlog logger for a module."""
-    return structlog.get_logger(name)
+    return cast(structlog.stdlib.BoundLogger, structlog.get_logger(name))

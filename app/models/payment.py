@@ -6,6 +6,8 @@ from sqlalchemy import JSON, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from typing import Any
+
 from app.models import Base
 from app.models.base import TimestampMixin
 
@@ -25,7 +27,7 @@ class Payment(Base, TimestampMixin):
         nullable=True,
         index=True,
     )
-    amount_paid: Mapped[dict | None] = mapped_column(
+    amount_paid: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
         nullable=True,
         default=None,
