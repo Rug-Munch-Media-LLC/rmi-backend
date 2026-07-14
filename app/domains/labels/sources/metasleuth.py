@@ -9,9 +9,12 @@ entity categories EXCHANGE + OTC DESK).
 
 Limit: 10 calls/day per API key on the free tier. So we cache aggressively.
 """
+
 from __future__ import annotations
 
 import asyncio
+from typing import Any
+
 from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
@@ -59,7 +62,9 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
 
             result = subprocess.run(
                 ["gopass", "show", "-o", "rmi/infra/metasleuth_labels_api_key"],
-                capture_output=True, text=True, timeout=2,
+                capture_output=True,
+                text=True,
+                timeout=2,
             )
             if result.returncode == 0 and result.stdout.strip():
                 api_key = result.stdout.strip()
@@ -75,7 +80,7 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
         log.debug("metasleuth_unsupported_chain chain=%s", chain)
         return []
 
-    def _call_api() -> dict:
+    def _call_api() -> dict[str, Any]:
         """Sync HTTP call (run in thread)."""
         try:
             r = httpx.post(
@@ -104,18 +109,20 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
     labels: list[Label] = []
     main_entity = data.get("main_entity")
     if main_entity:
-        labels.append(Label(
-            address=address.lower(),
-            chain=chain,
-            label_type="entity",
-            label_value=main_entity,
-            source=LabelSource.METASLEUTH,
-            confidence=0.95,
-            verified_at=datetime.now(UTC),
-            entity=main_entity,
-            entity_category=_first_category(data),
-            attributes=_extract_attributes(data),
-        ))
+        labels.append(
+            Label(
+                address=address.lower(),
+                chain=chain,
+                label_type="entity",
+                label_value=main_entity,
+                source=LabelSource.METASLEUTH,
+                confidence=0.95,
+                verified_at=datetime.now(UTC),
+                entity=main_entity,
+                entity_category=_first_category(data),
+                attributes=_extract_attributes(data),
+            )
+        )
 
     # Also emit labels for each category
     categories = data.get("main_entity_info", {}).get("categories", [])
@@ -126,23 +133,25 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
             continue
         cat_name = cat.get("name")
         if cat_name and cat_name != main_entity:
-            labels.append(Label(
-                address=address.lower(),
-                chain=chain,
-                label_type="category",
-                label_value=cat_name,
-                source=LabelSource.METASLEUTH,
-                confidence=0.9,
-                verified_at=datetime.now(UTC),
-                entity=main_entity,
-                entity_category=cat_name,
-                attributes={"code": cat.get("code")},
-            ))
+            labels.append(
+                Label(
+                    address=address.lower(),
+                    chain=chain,
+                    label_type="category",
+                    label_value=cat_name,
+                    source=LabelSource.METASLEUTH,
+                    confidence=0.9,
+                    verified_at=datetime.now(UTC),
+                    entity=main_entity,
+                    entity_category=cat_name,
+                    attributes={"code": cat.get("code")},
+                )
+            )
 
     return labels
 
 
-def _first_category(data: dict) -> str | None:
+def _first_category(data: dict[str, Any]) -> str | None:
     """Extract first category name from MetaSleuth response."""
     cats = data.get("main_entity_info", {}).get("categories", [])
     if cats and isinstance(cats[0], dict):
@@ -150,7 +159,7 @@ def _first_category(data: dict) -> str | None:
     return None
 
 
-def _extract_attributes(data: dict) -> dict:
+def _extract_attributes(data: dict[str, Any]) -> dict[str, Any]:
     """Extract attributes from MetaSleuth response."""
     attrs = data.get("main_entity_info", {}).get("attributes", [])
     out = {}

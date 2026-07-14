@@ -65,10 +65,10 @@ class DuckDBAnalytics:
         """
         import duckdb  # imported lazily so import cost only on first use
 
-        config = {}
-        if threads:
+        config: dict[str, str | bool | int | float] = {}
+        if threads is not None:
             config["threads"] = threads
-        if memory_limit:
+        if memory_limit is not None:
             config["memory_limit"] = memory_limit
 
         if persist_path:
@@ -156,13 +156,19 @@ class DuckDBAnalytics:
         self._attach_postgres(pg_url)
         return self.query(sql)
 
-    def query_parquet(self, parquet_path: str, sql: str | None = None) -> list[dict[str, Any]]:
+    def query_parquet(
+        self,
+        parquet_path: str,
+        sql: str | None = None,
+        params: list[Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """Query a Parquet file directly (no ingestion needed).
 
         Args:
             parquet_path: Path or glob to Parquet file(s).
             sql: SQL query. If None, returns SELECT * FROM read_parquet(path).
                  The path is bound to a 'parquet' table for the query.
+            params: Optional query parameters (passed to self.query).
 
         Examples:
             db.query_parquet('s3://bucket/export.parquet')
@@ -178,7 +184,7 @@ class DuckDBAnalytics:
         else:
             # Inject the parquet binding as a CTE the user can reference
             sql = f"WITH parquet AS ({bind_sql}) {sql}"
-        return self.query(sql)
+        return self.query(sql, params=params)
 
     def register_dataframe(self, name: str, df: Any) -> None:
         """Register a pandas/polars DataFrame as a queryable table.
@@ -260,7 +266,9 @@ class DuckDBAnalytics:
     def __enter__(self) -> DuckDBAnalytics:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> None:
         self.close()
 
 

@@ -73,7 +73,7 @@ class VerificationResult:
     confirmations: int | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "verified": self.verified,
             "reason": self.reason,
@@ -104,7 +104,7 @@ class SettlementResult:
     reason: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "settled": self.settled,
             "settlement_id": self.settlement_id,
@@ -237,7 +237,7 @@ class Facilitator(ABC):
             return False
         return not (chain_key and chain_key.lower() not in [c.lower() for c in ns.chains])
 
-    def _format_error(self, reason: str, **extra) -> VerificationResult:
+    def _format_error(self, reason: str, **extra: Any) -> VerificationResult:
         """Shortcut for failed verification results."""
         return VerificationResult(
             verified=False,
@@ -257,7 +257,7 @@ class Facilitator(ABC):
         settlement_id: str | None = None,
         block_number: int | None = None,
         confirmations: int | None = None,
-        **extra,
+        **extra: Any,
     ) -> VerificationResult:
         """Shortcut for successful verification results."""
         return VerificationResult(
@@ -292,7 +292,7 @@ class FacilitatorRegistry:
         result = await facilitators[0].verify(payload, requirements)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._facilitators: dict[str, Facilitator] = {}
         self._by_chain: dict[str, list[str]] = {}  # chain_key → [facilitator_names]
 
@@ -346,7 +346,9 @@ class FacilitatorRegistry:
         return {
             "total_facilitators": len(all_f),
             "hosted": sum(1 for f in all_f if f.facilitator_type == FacilitatorType.HOSTED),
-            "self_hosted": sum(1 for f in all_f if f.facilitator_type == FacilitatorType.SELF_HOSTED),
+            "self_hosted": sum(
+                1 for f in all_f if f.facilitator_type == FacilitatorType.SELF_HOSTED
+            ),
             "fee_free": sum(1 for f in all_f if f.is_fee_free),
             "chains_covered": list(self._by_chain.keys()),
             "chain_coverage": self.chain_coverage,

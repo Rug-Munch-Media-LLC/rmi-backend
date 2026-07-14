@@ -175,7 +175,9 @@ class EIP7702Facilitator(Facilitator):
             receipt = await self._get_receipt(rpc_url, tx_hash)
 
             if not receipt or isinstance(receipt, str):
-                return self._format_error(f"EIP-7702: TX {tx_hash[:16]}... not found on {chain_key}")
+                return self._format_error(
+                    f"EIP-7702: TX {tx_hash[:16]}... not found on {chain_key}"
+                )
 
             # Check transaction success
             status = receipt.get("status", "0x0")
@@ -183,9 +185,13 @@ class EIP7702Facilitator(Facilitator):
                 return self._format_error(f"EIP-7702: TX {tx_hash[:16]}... failed (status=0)")
 
             if is_native:
-                return self._verify_native(receipt, tx_hash, chain_key, amount_atoms, expected_token)
+                return self._verify_native(
+                    receipt, tx_hash, chain_key, amount_atoms, expected_token
+                )
             else:
-                return self._verify_erc20(receipt, tx_hash, chain_key, token_address, amount_atoms, expected_token)
+                return self._verify_erc20(
+                    receipt, tx_hash, chain_key, token_address, amount_atoms, expected_token
+                )
 
         except TimeoutError:
             return self._format_error(f"EIP-7702: RPC timeout for {chain_key}")
@@ -195,7 +201,7 @@ class EIP7702Facilitator(Facilitator):
             logger.exception(f"EIP-7702 verify error: {e}")
             return self._format_error(f"EIP-7702: {e}")
 
-    async def _get_receipt(self, rpc_url: str, tx_hash: str) -> dict | None:
+    async def _get_receipt(self, rpc_url: str, tx_hash: str) -> dict[str, Any] | None:
         """Get transaction receipt via JSON-RPC."""
         timeout = aiohttp.ClientTimeout(total=self._config.facilitator_verify_timeout)
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -206,12 +212,13 @@ class EIP7702Facilitator(Facilitator):
                 "params": [tx_hash],
             }
             async with session.post(rpc_url, json=body) as resp:
-                data = await resp.json()
-                return data.get("result")
+                data: dict[str, Any] = await resp.json()
+                result: dict[str, Any] | None = data.get("result")
+                return result
 
     def _verify_native(
         self,
-        receipt: dict,
+        receipt: dict[str, Any],
         tx_hash: str,
         chain_key: str,
         amount_atoms: str | None,
@@ -226,7 +233,9 @@ class EIP7702Facilitator(Facilitator):
         expected_to = self._config.evm_pay_to.lower()
 
         if to_addr != expected_to:
-            return self._format_error(f"EIP-7702: Native transfer to {to_addr[:10]}..., expected {expected_to[:10]}...")
+            return self._format_error(
+                f"EIP-7702: Native transfer to {to_addr[:10]}..., expected {expected_to[:10]}..."
+            )
 
         return self._format_success(
             tx_hash=tx_hash,
@@ -240,7 +249,7 @@ class EIP7702Facilitator(Facilitator):
 
     def _verify_erc20(
         self,
-        receipt: dict,
+        receipt: dict[str, Any],
         tx_hash: str,
         chain_key: str,
         token_address: str,
@@ -287,7 +296,9 @@ class EIP7702Facilitator(Facilitator):
                 )
                 # Continue checking other logs - maybe multiple transfers
 
-            block_number = int(receipt.get("blockNumber", "0x0"), 16) if receipt.get("blockNumber") else None
+            block_number = (
+                int(receipt.get("blockNumber", "0x0"), 16) if receipt.get("blockNumber") else None
+            )
 
             return self._format_success(
                 tx_hash=tx_hash,
@@ -299,7 +310,9 @@ class EIP7702Facilitator(Facilitator):
                 confirmations=1,
             )
 
-        return self._format_error(f"EIP-7702: No ERC-20 Transfer to {expected_to[:10]}... found in {tx_hash[:16]}...")
+        return self._format_error(
+            f"EIP-7702: No ERC-20 Transfer to {expected_to[:10]}... found in {tx_hash[:16]}..."
+        )
 
     # ── Health ─────────────────────────────────────────────────
 
@@ -308,10 +321,13 @@ class EIP7702Facilitator(Facilitator):
         for _chain_key, rpc_url in list(self._rpc_urls.items())[:3]:
             try:
                 timeout = aiohttp.ClientTimeout(total=5)
-                async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                    rpc_url,
-                    json={"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []},
-                ) as resp:
+                async with (
+                    aiohttp.ClientSession(timeout=timeout) as session,
+                    session.post(
+                        rpc_url,
+                        json={"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []},
+                    ) as resp,
+                ):
                     if resp.status == 200:
                         return True
             except Exception:

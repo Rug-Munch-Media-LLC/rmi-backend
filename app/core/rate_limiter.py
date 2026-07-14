@@ -10,6 +10,7 @@ import hmac
 import os
 import time
 from enum import StrEnum
+from typing import Any
 
 from fastapi import APIRouter, Header
 from pydantic import BaseModel
@@ -33,7 +34,11 @@ def _get_daily_salt() -> bytes:
     addresses, API keys) cannot be reversed from the stored hash.
     """
     date_str = time.strftime("%Y-%m-%d")
-    secret = RATE_LIMIT_SALT_SECRET.encode() if RATE_LIMIT_SALT_SECRET else b"dev-only-rmi-salt-replace-in-prod"
+    secret = (
+        RATE_LIMIT_SALT_SECRET.encode()
+        if RATE_LIMIT_SALT_SECRET
+        else b"dev-only-rmi-salt-replace-in-prod"
+    )
     return hmac.new(secret, date_str.encode(), hashlib.sha256).digest()
 
 
@@ -54,7 +59,7 @@ class Tier(StrEnum):
 
 
 # Realistic limits for our infrastructure
-TIER_LIMITS = {
+TIER_LIMITS: dict[Tier, dict[str, Any]] = {
     Tier.FREE: {
         "requests_per_day": 100,
         "requests_per_minute": 10,
@@ -104,7 +109,7 @@ PAYMENT_OPTIONS = {
 }
 
 # In-memory user store (Redis in prod)
-_users: dict[str, dict] = {}
+_users: dict[str, dict[str, Any]] = {}
 
 
 class UpgradeRequest(BaseModel):
@@ -114,7 +119,7 @@ class UpgradeRequest(BaseModel):
     chain: str = "solana"
 
 
-def _get_redis() -> bool:
+def _get_redis() -> Any:
     import redis
 
     return redis.from_url(REDIS_URL, decode_responses=True)
@@ -170,7 +175,7 @@ def check_rate_limit(user_id: str, endpoint: str) -> bool:
 
 
 @router.get("/tiers")
-async def get_tiers() -> dict:
+async def get_tiers() -> dict[str, Any]:
     """Get all pricing tiers and features."""
     return {
         "tiers": {
@@ -187,7 +192,7 @@ async def get_tiers() -> dict:
 
 
 @router.get("/my-tier")
-async def my_tier(x_api_key: str = Header(None)) -> dict:
+async def my_tier(x_api_key: str = Header(None)) -> dict[str, Any]:
     """Get current user's tier and usage."""
     user_id = x_api_key or "anonymous"
     tier = get_user_tier(user_id)
@@ -218,7 +223,7 @@ async def my_tier(x_api_key: str = Header(None)) -> dict:
 
 
 @router.post("/upgrade")
-async def upgrade_tier(req: UpgradeRequest) -> dict:
+async def upgrade_tier(req: UpgradeRequest) -> dict[str, Any]:
     """Upgrade user tier. Verify payment via tx signature or x402."""
     if req.tier == Tier.FREE:
         _users[req.user_id] = {"tier": "free"}

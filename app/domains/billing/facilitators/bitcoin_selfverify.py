@@ -163,7 +163,9 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
                         confirmations=1 if confirmed else 0,
                     )
 
-            return self._format_error(f"Bitcoin: No output to {self._btc_pay_to[:16]}... in {tx_hash[:16]}...")
+            return self._format_error(
+                f"Bitcoin: No output to {self._btc_pay_to[:16]}... in {tx_hash[:16]}..."
+            )
 
         except TimeoutError:
             return self._format_error("Bitcoin: Mempool.space API timeout")
@@ -184,7 +186,9 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
             url = f"{BLOCKSTREAM_API}/tx/{tx_hash}"
             async with session.get(url) as resp:
                 if resp.status != 200:
-                    return self._format_error(f"Bitcoin: TX {tx_hash[:16]}... not found on fallback")
+                    return self._format_error(
+                        f"Bitcoin: TX {tx_hash[:16]}... not found on fallback"
+                    )
                 tx_data = await resp.json()
 
         vout = tx_data.get("vout", [])
@@ -213,14 +217,15 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
 
         return self._format_error(f"Bitcoin: No output to our wallet in {tx_hash[:16]}...")
 
-    async def _get_transaction(self, tx_hash: str) -> dict | None:
+    async def _get_transaction(self, tx_hash: str) -> dict[str, Any] | None:
         """Get transaction data from Mempool.space."""
         timeout = aiohttp.ClientTimeout(total=self._config.facilitator_verify_timeout)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             url = f"{self._api_base}/tx/{tx_hash}"
             async with session.get(url) as resp:
                 if resp.status == 200:
-                    return await resp.json()
+                    data: dict[str, Any] = await resp.json()
+                    return data
                 return None
 
     # ── Health ─────────────────────────────────────────────────

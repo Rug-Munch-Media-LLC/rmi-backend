@@ -11,6 +11,7 @@ highest-confidence version and tagging all contributing sources.
 Caching: Redis-backed cache with 1h TTL keyed by (address, chain).
 On cache hit, skip source queries entirely.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -85,20 +86,19 @@ class FederatedLabelAPI:
                 return cached
 
         # Query all sources in parallel
-        tasks = [
-            self._query_source_safe(source, address, chain)
-            for source in self._sources
-        ]
+        tasks = [self._query_source_safe(source, address, chain) for source in self._sources]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Collect labels + track which sources worked
         all_labels: list[Label] = []
         sources_queried: list[str] = []
         for source, result in zip(self._sources, results, strict=False):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 log.warning(
                     "federated_source_fail source=%s err=%s: %s",
-                    source.value, type(result).__name__, result,
+                    source.value,
+                    type(result).__name__,
+                    result,
                 )
                 continue
             if result:
@@ -172,12 +172,16 @@ class FederatedLabelAPI:
                     timeout=self._per_source_timeout,
                 )
             except TimeoutError:
-                log.warning("federated_source_timeout source=%s address=%s", source.value, address[:10])
+                log.warning(
+                    "federated_source_timeout source=%s address=%s", source.value, address[:10]
+                )
                 return []
             except Exception as e:
                 log.warning(
                     "federated_source_error source=%s err=%s: %s",
-                    source.value, type(e).__name__, e,
+                    source.value,
+                    type(e).__name__,
+                    e,
                 )
                 return []
 
@@ -190,40 +194,50 @@ class FederatedLabelAPI:
         """Dispatch to the correct source adapter. Each adapter handles its own logic."""
         if source == LabelSource.ETH_LABELS_DB:
             from app.domains.labels.sources.eth_labels_db import query_eth_labels_db
+
             return await query_eth_labels_db(address, chain)
         if source == LabelSource.ETHERSCAN_CSV:
             from app.domains.labels.sources.etherscan_csv import query_etherscan_csv
+
             return await query_etherscan_csv(address, chain)
         if source == LabelSource.ETHEREUM_LABELS_CSV:
             from app.domains.labels.sources.ethereum_labels_csv import query_ethereum_labels_csv
+
             return await query_ethereum_labels_csv(address, chain)
         if source == LabelSource.SOLANA_LABELS_CSV:
             from app.domains.labels.sources.solana_labels_csv import query_solana_labels_csv
+
             return await query_solana_labels_csv(address, chain)
         if source == LabelSource.CLICKHOUSE:
             from app.domains.labels.sources.clickhouse_labels import query_clickhouse_labels
+
             return await query_clickhouse_labels(address, chain)
         if source == LabelSource.METASLEUTH:
             from app.domains.labels.sources.metasleuth import query_metasleuth
+
             return await query_metasleuth(address, chain)
         if source == LabelSource.OPEN_LABELS:
             from app.domains.labels.sources.open_labels import query_open_labels
+
             return await query_open_labels(address, chain)
         if source == LabelSource.CHAINBASE:
             from app.domains.labels.sources.chainbase import query_chainbase
+
             return await query_chainbase(address, chain)
         if source == LabelSource.INTERNAL:
             from app.domains.labels.sources.internal_labels import query_internal
+
             return await query_internal(address, chain)
         if source == LabelSource.MBAL:
             from app.domains.labels.sources.mbal import query_mbal
+
             return await query_mbal(address, chain)
         log.warning("federated_source_unknown source=%s", source.value)
         return []
 
     def _dedupe(self, labels: list[Label]) -> list[Label]:
         """Merge labels with same dedup_key into one (keeping highest confidence)."""
-        by_key: dict[tuple, Label] = {}
+        by_key: dict[tuple[str, str, str, str], Label] = {}
         for label in labels:
             key = Label.dedupe_key(label.address, label.chain, label.label_type, label.label_value)
             if key not in by_key:
@@ -240,6 +254,8 @@ class FederatedLabelAPI:
             from app.core.redis import get_redis
 
             r = get_redis()
+            if r is None:
+                return None
             key = self._cache_key(address, chain)
             raw = r.get(key)
             if not raw:
@@ -252,7 +268,9 @@ class FederatedLabelAPI:
                     chain=line["chain"],
                     label_type=line["label_type"],
                     label_value=line["label_value"],
-                    source=LabelSource(line["source"]) if line["source"] in [s.value for s in LabelSource] else LabelSource.INTERNAL,
+                    source=LabelSource(line["source"])
+                    if line["source"] in [s.value for s in LabelSource]
+                    else LabelSource.INTERNAL,
                     confidence=line["confidence"],
                     verified_at=line["verified_at"],
                     attributes=line.get("attributes", {}),
@@ -273,6 +291,8 @@ class FederatedLabelAPI:
             from app.core.redis import get_redis
 
             r = get_redis()
+            if r is None:
+                return
             key = self._cache_key(address, chain)
             data = [line.to_dict() for line in labels]
             r.setex(key, self._cache_ttl, _json.dumps(data))
@@ -282,6 +302,7 @@ class FederatedLabelAPI:
     def _cache_key(self, address: str, chain: str) -> str:
         """Redis key for cached labels. Includes a hash of the address (privacy)."""
         from app.core.rate_limiter import _hash_identifier
+
         return f"labels:{chain}:{_hash_identifier(address.lower())}"
 
 

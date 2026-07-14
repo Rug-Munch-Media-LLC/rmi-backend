@@ -151,11 +151,15 @@ class TronSelfVerifyFacilitator(Facilitator):
             async with session.get(url) as resp:
                 if resp.status != 200:
                     # Try Method 2: wallet/gettransactioninfobyid
-                    return await self._verify_trc20_via_wallet(tx_hash, amount_atoms, expected_token)
+                    return await self._verify_trc20_via_wallet(
+                        tx_hash, amount_atoms, expected_token
+                    )
                 data = await resp.json()
                 events = data.get("data", [])
                 if not events:
-                    return await self._verify_trc20_via_wallet(tx_hash, amount_atoms, expected_token)
+                    return await self._verify_trc20_via_wallet(
+                        tx_hash, amount_atoms, expected_token
+                    )
 
             for event in events:
                 # Check if this is a Transfer event to our wallet
@@ -267,10 +271,12 @@ class TronSelfVerifyFacilitator(Facilitator):
 
             return None  # Not a TRC20 transfer
 
-    async def _verify_native_trx(self, tx_hash: str, amount_atoms: str | None) -> VerificationResult:
+    async def _verify_native_trx(
+        self, tx_hash: str, amount_atoms: str | None
+    ) -> VerificationResult:
         """Verify a native TRX transfer via TronGrid."""
         timeout = aiohttp.ClientTimeout(total=self._config.facilitator_verify_timeout)
-        async with aiohttp.ClientTimeout(total=timeout), aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             url = f"{self._api_base}/wallet/gettransactioninfobyid"
             async with session.post(url, json={"value": tx_hash}) as resp:
                 if resp.status != 200:
