@@ -22,7 +22,9 @@ from app.domains.scanner.modules import (  # noqa: E402
 )
 
 
-async def _rag_scam_check(token_address: str, chain: str, deployer: str | None = None) -> dict[str, Any] | None:
+async def _rag_scam_check(
+    token_address: str, chain: str, deployer: str | None = None
+) -> dict[str, Any] | None:
     """Check RAG for scam indicators."""
     logger.info("rag_scam_check", token=token_address, chain=chain, deployer=deployer)
     return {"check": "rag", "result": "pending"}
@@ -46,13 +48,15 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
     return {"check": "verified", "result": "pending"}
 
 
-async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_address: str = "") -> dict[str, Any] | None:
+async def _check_liquidity_lock_multi(
+    token_address: str, chain: str, pair_address: str = ""
+) -> dict[str, Any] | None:
     """Check liquidity lock status."""
     logger.info("check_liquidity", token=token_address, chain=chain)
     return {"check": "liquidity", "result": "pending"}
 
 
-def _get_top_symbols() -> set:
+def _get_top_symbols() -> set[str]:
     """Get top 1000 symbols from Dune/Coingecko."""
     return {"ETH", "USDT", "USDC", "BTC", "SOL"}
 
@@ -63,7 +67,7 @@ def _levenshtein_distance(s1: str, s2: str) -> int:
         return _levenshtein_distance(s2, s1)
     if len(s2) == 0:
         return len(s1)
-    prev_row = range(len(s2) + 1)
+    prev_row: list[int] = list(range(len(s2) + 1))
     for i, c1 in enumerate(s1):
         curr_row = [i + 1]
         for j, c2 in enumerate(s2):
@@ -96,7 +100,9 @@ async def _check_volume_anomaly(
     return {"check": "volume", "result": "pending"}
 
 
-async def _get_price_consensus(token_address: str, chain: str, market_price: float = 0) -> dict[str, Any] | None:
+async def _get_price_consensus(
+    token_address: str, chain: str, market_price: float = 0
+) -> dict[str, Any] | None:
     """Get price consensus across multiple sources."""
     logger.info("price_consensus", token=token_address, chain=chain)
     return {"check": "price", "result": "pending"}
@@ -114,7 +120,7 @@ async def _verify_mint_consensus(token_address: str, chain: str) -> dict[str, An
     return {"check": "mint", "result": "pending"}
 
 
-async def _ingest_scan_to_rag(scan_result) -> None:
+async def _ingest_scan_to_rag(scan_result: Any) -> None:
     """Ingest scan result to RAG for future searches."""
     logger.info("ingest_to_rag", token=scan_result.token_address)
 
@@ -155,7 +161,9 @@ async def _check_chainaware(token_address: str, chain: str) -> dict[str, Any] | 
     return {"check": "chainaware", "result": "pending"}
 
 
-async def _check_blowfish(token_address: str, chain: str, user_address: str = "") -> dict[str, Any] | None:
+async def _check_blowfish(
+    token_address: str, chain: str, user_address: str = ""
+) -> dict[str, Any] | None:
     """Check Blowfish AI for token."""
     logger.info("blowfish_check", token=token_address, chain=chain, user=user_address)
     return {"check": "blowfish", "result": "pending"}
@@ -246,7 +254,7 @@ async def scan_token(
     result = ScanResult(token_address=token_address, chain=chain)
 
     # Run modules in parallel
-    async def run_module(name, func, *args, **kwargs):
+    async def run_module(name: str, func: Any, *args: Any, **kwargs: Any) -> Any:
         try:
             r = await func(*args, **kwargs)
             result.modules_run.append({"module": name, "status": "success", "result": r})

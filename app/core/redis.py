@@ -1,8 +1,9 @@
 """Redis singleton - single source of truth for Redis connections."""
 
-from app.core.logging import get_logger
 import os
 from typing import TYPE_CHECKING
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -15,12 +16,12 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
-_redis_client: "redis.Redis | aioredis.Redis | None" = None
+_redis_client: "redis.Redis | aioredis.Redis | None" = None  # type: ignore[type-arg]
 _sync_pool: "redis.ConnectionPool | None" = None
 _async_pool: "aioredis.ConnectionPool | None" = None
 
 
-def get_redis() -> "redis.Redis | None":
+def get_redis() -> "redis.Redis | None":  # type: ignore[type-arg]
     """Get Redis client with connection pooling. Single source of truth."""
     global _redis_client, _sync_pool
     import redis
@@ -47,7 +48,7 @@ def get_redis() -> "redis.Redis | None":
         return None
 
 
-def get_redis_async() -> "aioredis.Redis | None":
+def get_redis_async() -> "aioredis.Redis | None":  # type: ignore[type-arg]
     """Get async Redis client for async operations."""
     global _redis_client, _async_pool
     import redis.asyncio as aioredis
@@ -73,7 +74,7 @@ def get_redis_async() -> "aioredis.Redis | None":
         return None
 
 
-def close_redis():
+def close_redis() -> None:
     """Close Redis connection pool."""
     global _sync_pool, _async_pool
     if _sync_pool:
@@ -85,7 +86,8 @@ def close_redis():
         _sync_pool = None
     if _async_pool:
         try:
-            _async_pool.disconnect()
+            # This is a sync call on an async pool - disconnect is not a coroutine
+            _async_pool.disconnect()  # type: ignore[unused-coroutine]
             logger.info("Async Redis connection pool closed")
         except Exception as e:
             logger.error(f"Async Redis pool close failed: {e}")

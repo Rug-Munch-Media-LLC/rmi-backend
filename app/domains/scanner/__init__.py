@@ -15,6 +15,7 @@ Architecture:
   - app/token_scanner.py             Backward compatibility shim
 """
 
-from app.domains.scanner.service import ScanResult, quick_scan_text, scan_token
+from app.domains.scanner.models import ScanResult
+from app.domains.scanner.service import quick_scan_text, scan_token
 
 __all__ = ["ScanResult", "quick_scan_text", "scan_token"]

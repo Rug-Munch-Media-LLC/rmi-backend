@@ -25,7 +25,9 @@ async def _check_trm_sanctions(address: str) -> dict[str, Any] | None:
     return {"check": "trm", "result": "pending"}
 
 
-async def _check_scorechain_sanctions(address: str, chain: str = "ethereum") -> dict[str, Any] | None:
+async def _check_scorechain_sanctions(
+    address: str, chain: str = "ethereum"
+) -> dict[str, Any] | None:
     """Check address on Scorechain sanctions list."""
     logger.info("check_scorechain", address=address[:10], chain=chain)
     return {"check": "scorechain", "result": "pending"}
@@ -55,7 +57,9 @@ async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, An
     return {"check": "coingecko", "result": "pending"}
 
 
-async def _check_1inch_swap(token_address: str, chain: str, amount_usd: float = 100.0) -> dict[str, Any] | None:
+async def _check_1inch_swap(
+    token_address: str, chain: str, amount_usd: float = 100.0
+) -> dict[str, Any] | None:
     """Check 1inch swap for token."""
     logger.info("check_1inch", token=token_address, chain=chain, amount_usd=amount_usd)
     return {"check": "1inch", "result": "pending"}
@@ -73,7 +77,9 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
     return {"check": "deployer", "result": "pending"}
 
 
-async def _rag_scam_check(token_address: str, chain: str, deployer: str | None = None) -> dict[str, Any] | None:
+async def _rag_scam_check(
+    token_address: str, chain: str, deployer: str | None = None
+) -> dict[str, Any] | None:
     """Check RAG for scam indicators."""
     logger.info("rag_scam_check", token=token_address, chain=chain, deployer=deployer)
     return {"check": "rag", "result": "pending"}
@@ -97,7 +103,9 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
     return {"check": "verified", "result": "pending"}
 
 
-async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_address: str = "") -> dict[str, Any] | None:
+async def _check_liquidity_lock_multi(
+    token_address: str, chain: str, pair_address: str = ""
+) -> dict[str, Any] | None:
     """Check liquidity lock status."""
     logger.info("check_liquidity", token=token_address, chain=chain)
     return {"check": "liquidity", "result": "pending"}
@@ -121,7 +129,9 @@ async def _check_volume_anomaly(
     return {"check": "volume", "result": "pending"}
 
 
-async def _get_price_consensus(token_address: str, chain: str, market_price: float = 0) -> dict[str, Any] | None:
+async def _get_price_consensus(
+    token_address: str, chain: str, market_price: float = 0
+) -> dict[str, Any] | None:
     """Get price consensus across multiple sources."""
     logger.info("price_consensus", token=token_address, chain=chain)
     return {"check": "price", "result": "pending"}
@@ -139,7 +149,7 @@ async def _verify_mint_consensus(token_address: str, chain: str) -> dict[str, An
     return {"check": "mint", "result": "pending"}
 
 
-async def _ingest_scan_to_rag(scan_result) -> None:
+async def _ingest_scan_to_rag(scan_result: Any) -> None:
     """Ingest scan result to RAG for future searches."""
     logger.info("ingest_to_rag", token=scan_result.token_address)
 
@@ -180,7 +190,9 @@ async def _check_chainaware(token_address: str, chain: str) -> dict[str, Any] | 
     return {"check": "chainaware", "result": "pending"}
 
 
-async def _check_blowfish(token_address: str, chain: str, user_address: str = "") -> dict[str, Any] | None:
+async def _check_blowfish(
+    token_address: str, chain: str, user_address: str = ""
+) -> dict[str, Any] | None:
     """Check Blowfish AI for token."""
     logger.info("blowfish_check", token=token_address, chain=chain, user=user_address)
     return {"check": "blowfish", "result": "pending"}

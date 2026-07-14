@@ -5,7 +5,6 @@ Auth Router - Complete authentication system (email, wallet, OAuth, Telegram)
 import base64
 import io
 import json
-from app.core.logging import get_logger
 import os
 import re
 import secrets
@@ -18,6 +17,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 
 from app.config import settings as _settings
+from app.core.logging import get_logger
 from app.core.redis import get_redis
 
 logger = get_logger(__name__)
@@ -164,7 +164,8 @@ def _get_user_by_email(email: str) -> dict[str, Any] | None:
     if not user_id:
         return None
     if isinstance(user_id, bytes):
-        user_id = user_id.decode("utf-8")
+        uid: str = user_id.decode("utf-8")
+        return _get_user(uid)
     return _get_user(user_id)
 
 
@@ -334,7 +335,7 @@ class TwoFAStatusResponse(BaseModel):
 
 # ── Email Auth ──
 @router.post("/register", response_model=WalletAuthResponse)
-def register_email(req: EmailRegisterRequest):
+def register_email(req: EmailRegisterRequest) -> dict[str, Any]:
     """Register a new user with email/password."""
     if not _is_valid_email(req.email):
         raise HTTPException(status_code=400, detail="Invalid email format")
@@ -350,7 +351,7 @@ def register_email(req: EmailRegisterRequest):
     user_id = _derive_user_id(req.email)
     hashed = hash_password(req.password)
 
-    user = {
+    user: dict[str, Any] = {
         "id": user_id,
         "email": req.email,
         "display_name": req.display_name,
@@ -369,6 +370,8 @@ def register_email(req: EmailRegisterRequest):
 
     # Save user + email index
     r = get_redis()
+    if r is None:
+        raise HTTPException(status_code=503, detail="Redis unavailable")
     r.hset("rmi:users", user_id, json.dumps(user))
     r.hset("rmi:users:email", req.email.lower(), user_id)
 
@@ -391,7 +394,7 @@ def register_email(req: EmailRegisterRequest):
 
 
 @router.post("/login", response_model=WalletAuthResponse)
-def login_email(req: EmailLoginRequest):
+def login_email(req: EmailLoginRequest) -> dict[str, Any]:
     """Login with email/password. If 2FA enabled, returns partial token requiring /2fa/login."""
     user = _get_user_by_email(req.email)
     if not user or not user.get("password_hash"):
@@ -468,7 +471,7 @@ def login_email(req: EmailLoginRequest):
 
 # ── Wallet Auth ──
 @router.post("/wallet/nonce", response_model=NonceResponse)
-async def wallet_nonce(req: WalletNonceRequest):
+async def wallet_nonce(req: WalletNonceRequest) -> dict[str, Any]:
     """Get a nonce for wallet signature."""
     nonce = generate_nonce()
     timestamp = datetime.utcnow().isoformat()
@@ -481,7 +484,7 @@ async def wallet_nonce(req: WalletNonceRequest):
 
 
 @router.post("/wallet/verify", response_model=WalletAuthResponse)
-async def wallet_verify(req: WalletVerifyRequest):
+async def wallet_verify(req: WalletVerifyRequest) -> dict[str, Any]:
     """Verify wallet signature and create session."""
     from app.domains.auth.wallet import get_or_create_wallet_user, verify_wallet_signature
 
@@ -508,7 +511,7 @@ async def wallet_verify(req: WalletVerifyRequest):
 
 # ── User Profile ──
 @router.get("/user/me", response_model=UserResponse)
-async def user_profile_me(request: Request):  # noqa: F811 — name kept short, not a redefinition
+async def user_profile_me(request: Request) -> dict[str, Any]:
     """Get current authenticated user profile."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -540,7 +543,7 @@ async def user_profile_me(request: Request):  # noqa: F811 — name kept short, 
 
 # ── Google OAuth ──
 @router.get("/google/url", response_model=GoogleAuthResponse)
-async def google_auth_url():
+async def google_auth_url() -> dict[str, Any]:
     """Get Google OAuth URL."""
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     redirect_uri = os.getenv(
@@ -568,7 +571,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://rugmunch.io")
 
 
 @router.get("/google/callback")
-async def google_callback(request: Request):
+async def google_callback(request: Request) -> Any:
     """Handle Google OAuth redirect - exchanges code, creates user, redirects to frontend with token."""
     from fastapi.responses import RedirectResponse
 
@@ -636,6 +639,8 @@ async def google_callback(request: Request):
                 "scans_used": 0,
             }
             r = get_redis()
+            if r is None:
+                raise HTTPException(status_code=503, detail="Redis unavailable")
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
@@ -648,7 +653,7 @@ async def google_callback(request: Request):
 
 
 @router.post("/google/callback", response_model=WalletAuthResponse)
-async def google_callback_post(request: Request):
+async def google_callback_post(request: Request) -> dict[str, Any]:
     """Legacy POST endpoint for manual code exchange."""
     body = await request.json()
     code = body.get("code")
@@ -711,6 +716,8 @@ async def google_callback_post(request: Request):
                 "scans_used": 0,
             }
             r = get_redis()
+            if r is None:
+                raise HTTPException(status_code=503, detail="Redis unavailable")
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
@@ -736,7 +743,7 @@ async def google_callback_post(request: Request):
 
 # ── Telegram Auth ──
 @router.post("/telegram", response_model=WalletAuthResponse)
-async def telegram_auth(req: TelegramAuthRequest):
+async def telegram_auth(req: TelegramAuthRequest) -> dict[str, Any]:
     """Authenticate via Telegram Web App data."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not bot_token:
@@ -792,6 +799,8 @@ async def telegram_auth(req: TelegramAuthRequest):
             "scans_used": 0,
         }
         r = get_redis()
+        if r is None:
+            raise HTTPException(status_code=503, detail="Redis unavailable")
         r.hset("rmi:users", telegram_user_id, json.dumps(user))
         r.hset("rmi:users:telegram", str(req.id), telegram_user_id)
 
@@ -817,7 +826,7 @@ async def telegram_auth(req: TelegramAuthRequest):
 
 # ── GitHub OAuth ──
 @router.get("/github/url", response_model=GoogleAuthResponse)
-async def github_auth_url():
+async def github_auth_url() -> dict[str, Any]:
     """Get GitHub OAuth URL."""
     client_id = os.getenv("GITHUB_CLIENT_ID")
     redirect_uri = os.getenv(
@@ -839,7 +848,7 @@ async def github_auth_url():
 
 
 @router.get("/github/callback")
-async def github_callback(request: Request):
+async def github_callback(request: Request) -> Any:
     """Handle GitHub OAuth redirect - exchanges code, creates user, redirects to frontend with token."""
     from fastapi.responses import RedirectResponse
 
@@ -927,6 +936,8 @@ async def github_callback(request: Request):
                 "scans_used": 0,
             }
             r = get_redis()
+            if r is None:
+                raise HTTPException(status_code=503, detail="Redis unavailable")
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
@@ -938,7 +949,7 @@ async def github_callback(request: Request):
 
 # ── X/Twitter OAuth ──
 @router.get("/x/url", response_model=GoogleAuthResponse)
-async def x_auth_url():
+async def x_auth_url() -> dict[str, Any]:
     """Get X/Twitter OAuth URL."""
     client_id = os.getenv("X_CLIENT_ID")
     redirect_uri = os.getenv("X_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/x/callback")
@@ -959,7 +970,7 @@ async def x_auth_url():
 
 
 @router.get("/x/callback")
-async def x_callback(request: Request):
+async def x_callback(request: Request) -> Any:
     """Handle X/Twitter OAuth redirect - exchanges code, creates user, redirects to frontend with token."""
     from fastapi.responses import RedirectResponse
 
@@ -1030,6 +1041,8 @@ async def x_callback(request: Request):
                 "scans_used": 0,
             }
             r = get_redis()
+            if r is None:
+                raise HTTPException(status_code=503, detail="Redis unavailable")
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
@@ -1060,14 +1073,14 @@ async def require_auth(request: Request) -> dict[str, Any]:
     user = await get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
-    return user  # type: ignore[no-any-return]
+    return user
 
 
 # ── 2FA / TOTP Endpoints ──
 
 
 @router.post("/2fa/setup")
-async def twofa_setup(request: Request):
+async def twofa_setup(request: Request) -> dict[str, Any]:
     """Begin 2FA setup - generate secret + QR code. Returns plaintext secret + backup codes (shown once)."""
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")
@@ -1089,6 +1102,8 @@ async def twofa_setup(request: Request):
 
     # Store pending secret (not enabled until verified)
     r = get_redis()
+    if r is None:
+        raise HTTPException(status_code=503, detail="Redis unavailable")
     pending = {
         "secret": secret,
         "backup_codes": [_hash_backup_code(c) for c in backup_codes],
@@ -1105,7 +1120,7 @@ async def twofa_setup(request: Request):
 
 
 @router.post("/2fa/enable")
-async def twofa_enable(req: TwoFAEnableRequest, request: Request):
+async def twofa_enable(req: TwoFAEnableRequest, request: Request) -> dict[str, Any]:
     """Enable 2FA - verify the first TOTP code, then persist."""
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")
@@ -1115,6 +1130,8 @@ async def twofa_enable(req: TwoFAEnableRequest, request: Request):
         raise HTTPException(status_code=401, detail="Authentication required")
 
     r = get_redis()
+    if r is None:
+        raise HTTPException(status_code=503, detail="Redis unavailable")
     pending_raw = r.get(f"rmi:2fa_pending:{user['id']}")
     if not pending_raw:
         raise HTTPException(status_code=400, detail="No pending 2FA setup. Call /2fa/setup first.")
@@ -1146,7 +1163,7 @@ async def twofa_enable(req: TwoFAEnableRequest, request: Request):
 
 
 @router.post("/2fa/disable")
-async def twofa_disable(request: Request):
+async def twofa_disable(request: Request) -> dict[str, Any]:
     """Disable 2FA - requires current password for security."""
     user = await get_current_user(request)
     if not user:
@@ -1172,7 +1189,7 @@ async def twofa_disable(request: Request):
 
 
 @router.get("/2fa/status", response_model=TwoFAStatusResponse)
-async def twofa_status(request: Request):
+async def twofa_status(request: Request) -> dict[str, Any]:
     """Check 2FA status for current user."""
     user = await get_current_user(request)
     if not user:
@@ -1190,7 +1207,7 @@ async def twofa_status(request: Request):
 # ── Privacy Enforcement Dependency ──
 
 
-async def require_public_profile(request: Request):
+async def require_public_profile(request: Request) -> dict[str, Any]:
     """
     Dependency to ensure the user has a public profile.
     Required for actions that interact with the community (posting, commenting).
@@ -1212,7 +1229,7 @@ async def require_public_profile(request: Request):
 
 
 @router.post("/2fa/verify")
-async def twofa_verify(req: TwoFAVerifyRequest, request: Request):
+async def twofa_verify(req: TwoFAVerifyRequest, request: Request) -> dict[str, Any]:
     """Verify a TOTP code (for re-auth during sensitive operations)."""
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")
@@ -1235,7 +1252,7 @@ async def twofa_verify(req: TwoFAVerifyRequest, request: Request):
 
 
 @router.post("/2fa/login")
-async def twofa_login(req: TwoFALoginRequest):
+async def twofa_login(req: TwoFALoginRequest) -> dict[str, Any]:
     """Login with email + password + 2FA code. Returns full JWT on success."""
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")

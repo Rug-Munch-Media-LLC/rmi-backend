@@ -46,14 +46,17 @@ async def _solana_get_mint_info(token_address: str) -> dict[str, Any]:
     return result
 
 
-async def _dexscreener_lookup(token_address: str, chain: str, client: httpx.AsyncClient) -> list | None:
+async def _dexscreener_lookup(
+    token_address: str, chain: str, client: httpx.AsyncClient
+) -> list[Any] | None:
     """Look up token on DexScreener."""
     try:
         url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
         resp = await client.get(url, timeout=10.0)
         if resp.status_code == 200:
             data = resp.json()
-            return data.get("pairs")
+            pairs = data.get("pairs")
+            return pairs if isinstance(pairs, list) else None
     except Exception as e:
         logger.warning("dexscreener_lookup_failed", token=token_address, chain=chain, error=str(e))
     return None
@@ -61,7 +64,7 @@ async def _dexscreener_lookup(token_address: str, chain: str, client: httpx.Asyn
 
 async def fetch_market_data(token_address: str, chain: str) -> dict[str, Any]:
     """Fetch market data from DexScreener and Solana RPC."""
-    result = {"chain": chain, "token_address": token_address}
+    result: dict[str, Any] = {"chain": chain, "token_address": token_address}
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         pairs = await _dexscreener_lookup(token_address, chain, client)
