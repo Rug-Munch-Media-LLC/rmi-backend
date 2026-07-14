@@ -10,6 +10,8 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 router = APIRouter(prefix="/api/v1/mev-sniper", tags=["mev-sniper"])
 
 DEXSCREENER = "https://api.dexscreener.com/latest/dex/search"
@@ -93,7 +95,7 @@ async def get_snipe_signals(
                 resp = await client.post(
                     f"{BACKEND}/api/v1/token/scan",
                     json={"token_address": addr, "chain": chain},
-                    headers={"X-RMI-Key": "rmi-internal-2026"},
+                    headers={"X-RMI-Key": INTERNAL_API_KEY},
                 )
                 if resp.status_code == 200:
                     data = resp.json()

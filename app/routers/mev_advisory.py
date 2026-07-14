@@ -5,18 +5,23 @@ import os
 import httpx
 from fastapi import APIRouter, Query
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 router = APIRouter(prefix="/api/v1/mev-advisory", tags=["mev-advisory"])
 
 BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
-RMI_KEY = os.getenv("RMI_INTERNAL_KEY", "rmi-internal-2026")
+RMI_KEY = INTERNAL_API_KEY
 
 
 @router.get("/check/{address}")
 async def check_mev_risk(address: str, chain: str = Query("ethereum")):
-    """Check MEV risk before trading a token. Returns sandwich attack risk and protection recommendation."""
+    """Check MEV risk before trading a token. Returns sandwich attack risk and protection recommendation."""  # noqa: E501
     async with httpx.AsyncClient(timeout=15) as c:
         # Use existing MEV sandwich detector
-        r = await c.get(f"{BACKEND}/api/v1/databus/premium/mev/{address}?chain={chain}", headers={"X-RMI-Key": RMI_KEY})
+        r = await c.get(
+            f"{BACKEND}/api/v1/databus/premium/mev/{address}?chain={chain}",
+            headers={"X-RMI-Key": RMI_KEY},
+        )
 
         mev_data = {}
         if r.status_code == 200:
@@ -27,11 +32,13 @@ async def check_mev_risk(address: str, chain: str = Query("ethereum")):
 
         if sandwich_count > 10:
             risk = "CRITICAL"
-            recommendation = "This pool has heavy MEV activity. Use Flashbots Protect or MEV Blocker for this trade."
+            recommendation = "This pool has heavy MEV activity. Use Flashbots Protect or MEV Blocker for this trade."  # noqa: E501
             emoji = "🔴"
         elif sandwich_count > 3:
             risk = "HIGH"
-            recommendation = "Moderate sandwich risk detected. Consider MEV protection or lower slippage."
+            recommendation = (
+                "Moderate sandwich risk detected. Consider MEV protection or lower slippage."
+            )
             emoji = "🟡"
         elif sandwich_count > 0:
             risk = "LOW"
@@ -57,7 +64,9 @@ async def check_mev_risk(address: str, chain: str = Query("ethereum")):
 
 
 @router.get("/safe-swap")
-async def safe_swap_params(address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)):
+async def safe_swap_params(
+    address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)
+):
     """Get optimal swap parameters to avoid MEV."""
     risk = await check_mev_risk(address, chain)
 

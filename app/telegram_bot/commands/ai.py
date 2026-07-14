@@ -19,6 +19,8 @@ import re
 from datetime import UTC, datetime
 from urllib.request import Request, urlopen
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 logger = logging.getLogger("rmi.agent")
 
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
@@ -40,12 +42,12 @@ INJECTION_PATTERNS = [
     r"prompt\s*injection",
 ]
 PRIVATE_KEY_RX = re.compile(
-    r"(0x[a-fA-F0-9]{64}|[1-9A-HJ-NP-Za-km-z]{44,88}|sk-[a-zA-Z0-9]{32,}|-----BEGIN.*PRIVATE KEY-----)"
+    r"(0x[a-fA-F0-9]{64}|[1-9A-HJ-NP-Za-km-z]{44,88}|sk-[a-zA-Z0-9]{32,}|-----BEGIN.*PRIVATE KEY-----)"  # noqa: E501
 )
 
 # ── DataBus Chains available to the bot ──
 AGENT_CHAINS = {
-    "token_price": "Real-time price from CoinGecko/DexScreener consensus",
+    "token_price": "Real-time price from multi-source consensus",
     "token_security": "42 security checks via GoPlus API",
     "trending": "Trending tokens across all chains",
     "token_launches": "New token launches with age risk",
@@ -63,7 +65,10 @@ def _databus_fetch(data_type: str, **params) -> dict | None:
         req = Request(
             f"{BACKEND_URL}/api/v1/databus/fetch",
             data=payload,
-            headers={"Content-Type": "application/json", "X-RMI-Key": "rmi-internal-2026"},
+            headers={
+                "Content-Type": "application/json",
+                "X-RMI-Key": INTERNAL_API_KEY,
+            },
         )
         resp = urlopen(req, timeout=8)
         return json.loads(resp.read())
@@ -77,7 +82,7 @@ def _rag_search(query: str, limit: int = 3) -> str:
     try:
         req = Request(
             f"{BACKEND_URL}/api/v1/rag/search?q={query}&limit={limit}",
-            headers={"X-RMI-Key": "rmi-internal-2026"},
+            headers={"X-RMI-Key": INTERNAL_API_KEY},
         )
         resp = urlopen(req, timeout=5)
         data = json.loads(resp.read())
@@ -118,7 +123,9 @@ async def cmd_ai(update, ctx):
     text = " ".join(ctx.args) if ctx.args else ""
 
     if not text:
-        chains_list = "\n".join(f"<code>{k}</code> - {v}" for k, v in list(AGENT_CHAINS.items())[:6])
+        chains_list = "\n".join(
+            f"<code>{k}</code> - {v}" for k, v in list(AGENT_CHAINS.items())[:6]
+        )
         await msg.reply_text(
             f"<b>🧠 RMI Crypto AI</b>\n\n"
             f"Ask anything. I query DataBus for real-time data:\n\n{chains_list}\n\n"
@@ -186,4 +193,6 @@ async def cmd_ai(update, ctx):
         await msg.reply_text(reply, parse_mode="HTML", disable_web_page_preview=True)
     except Exception as e:
         logger.error(f"AI failed: {e}")
-        await msg.reply_text("❌ AI temporarily unavailable. Try /security, /trending, or /news.", parse_mode="HTML")
+        await msg.reply_text(
+            "❌ AI temporarily unavailable. Try /security, /trending, or /news.", parse_mode="HTML"
+        )

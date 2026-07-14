@@ -9,6 +9,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 router = APIRouter(prefix="/api/v1/token-cv", tags=["token-cv"])
 
 BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
@@ -62,7 +64,7 @@ async def get_token_cv(chain: str, address: str):
             resp = await client.post(
                 f"{BACKEND}/api/v1/token/scan",
                 json={"token_address": address, "chain": chain},
-                headers={"X-RMI-Key": "rmi-internal-2026"},
+                headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             if resp.status_code != 200:
                 raise HTTPException(502, "Scanner unavailable")
@@ -126,7 +128,7 @@ async def compare_tokens(
                 resp = await client.post(
                     f"{BACKEND}/api/v1/token/scan",
                     json={"token_address": addr, "chain": chain},
-                    headers={"X-RMI-Key": "rmi-internal-2026"},
+                    headers={"X-RMI-Key": INTERNAL_API_KEY},
                 )
                 if resp.status_code == 200:
                     return resp.json()

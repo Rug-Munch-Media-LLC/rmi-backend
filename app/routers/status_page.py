@@ -122,7 +122,9 @@ def check_clickhouse() -> dict[str, Any]:
     try:
         ch_host = os.getenv("CH_HOST", "langfuse-clickhouse-1")
         ch_user = os.getenv("CH_USER", "clickhouse")
-        ch_password = os.getenv("CH_PASSWORD", "change-me-in-env")
+        ch_password = os.getenv("CH_PASSWORD")
+        if not ch_password:
+            raise RuntimeError("CH_PASSWORD environment variable is required")
 
         client = clickhouse_connect.get_client(
             host=ch_host,

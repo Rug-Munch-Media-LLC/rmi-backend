@@ -10,6 +10,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 router = APIRouter(prefix="/api/v1/death-clock", tags=["death-clock"])
 
 BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
@@ -102,7 +104,7 @@ async def predict_death_clock(
             resp = await client.post(
                 f"{BACKEND}/api/v1/token/scan",
                 json={"token_address": address, "chain": chain},
-                headers={"X-RMI-Key": "rmi-internal-2026"},
+                headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -142,6 +144,8 @@ def _build_explanation(days: float, factors: dict[str, float]) -> str:
     parts = []
     for name, contrib in top:
         direction = "extends" if contrib < 0 else "shortens"
-        parts.append(f"{name} ({'+' if contrib > 0 else ''}{contrib:.1f} log-days) {direction} lifespan")
+        parts.append(
+            f"{name} ({'+' if contrib > 0 else ''}{contrib:.1f} log-days) {direction} lifespan"
+        )
     level = _risk_level(days)
     return f"Predicted {days:.1f} days ({level} risk). Key factors: {'; '.join(parts)}."

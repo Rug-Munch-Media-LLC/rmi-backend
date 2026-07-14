@@ -8,6 +8,8 @@ import json
 import logging
 from urllib.request import Request, urlopen
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 logger = logging.getLogger("rmi.trending")
 
 BACKEND_URL = "http://rmi-backend:8000"
@@ -20,14 +22,19 @@ async def cmd_trending(update, ctx):
         req = Request(
             f"{BACKEND_URL}/api/v1/databus/fetch",
             data=json.dumps({"data_type": "trending", "limit": 10}).encode(),
-            headers={"Content-Type": "application/json", "X-RMI-Key": "rmi-internal-2026"},
+            headers={
+                "Content-Type": "application/json",
+                "X-RMI-Key": INTERNAL_API_KEY,
+            },
         )
         resp = urlopen(req, timeout=10)
         data = json.loads(resp.read())
         tokens = data.get("data", data.get("tokens", []))[:10]
 
         if not tokens:
-            await update.message.reply_text("📈 No trending data available right now.", parse_mode="HTML")
+            await update.message.reply_text(
+                "📈 No trending data available right now.", parse_mode="HTML"
+            )
             return
 
         lines = ["<b>📈 Trending Tokens</b>\n"]
@@ -56,14 +63,19 @@ async def cmd_launches(update, ctx):
         req = Request(
             f"{BACKEND_URL}/api/v1/databus/fetch",
             data=json.dumps({"data_type": "token_launches", "limit": 10}).encode(),
-            headers={"Content-Type": "application/json", "X-RMI-Key": "rmi-internal-2026"},
+            headers={
+                "Content-Type": "application/json",
+                "X-RMI-Key": INTERNAL_API_KEY,
+            },
         )
         resp = urlopen(req, timeout=10)
         data = json.loads(resp.read())
         tokens = data.get("data", data.get("tokens", []))[:10]
 
         if not tokens:
-            await update.message.reply_text("🚀 No new launches detected recently.", parse_mode="HTML")
+            await update.message.reply_text(
+                "🚀 No new launches detected recently.", parse_mode="HTML"
+            )
             return
 
         lines = ["<b>🚀 New Token Launches</b>\n"]

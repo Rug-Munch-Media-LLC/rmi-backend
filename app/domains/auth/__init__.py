@@ -95,7 +95,9 @@ def _verify_backup_code(code: str, hashed: str) -> bool:
 
 
 # ── Config ──
-JWT_SECRET = os.getenv("JWT_SECRET", "rmi-jwt-secret-change-me")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET environment variable is required")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
 
@@ -159,7 +161,9 @@ def _is_valid_email(email: str) -> bool:
     return re.match(pattern, email) is not None
 
 
-def _create_jwt(user_id: str, email: str, tier: str = "FREE", role: str = "USER", wallet: str | None = None) -> str:
+def _create_jwt(
+    user_id: str, email: str, tier: str = "FREE", role: str = "USER", wallet: str | None = None
+) -> str:
     now = datetime.utcnow()
     payload = {
         "sub": user_id,
@@ -498,7 +502,9 @@ async def get_current_user(request: Request):
 async def google_auth_url():
     """Get Google OAuth URL."""
     client_id = os.getenv("GOOGLE_CLIENT_ID")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/google/callback")
+    redirect_uri = os.getenv(
+        "GOOGLE_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/google/callback"
+    )
 
     if not client_id:
         return {"url": "/auth/callback?error=google_not_configured"}
@@ -538,7 +544,9 @@ async def google_callback(request: Request):
 
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/google/callback")
+    redirect_uri = os.getenv(
+        "GOOGLE_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/google/callback"
+    )
 
     if not client_id or not client_secret:
         return RedirectResponse(f"{FRONTEND_URL}/auth/callback?error=not_configured")
@@ -590,7 +598,9 @@ async def google_callback(request: Request):
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
-        jwt_token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"))
+        jwt_token = _create_jwt(
+            user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
+        )
 
         # Redirect to frontend with token
         return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={jwt_token}&provider=google")
@@ -609,7 +619,9 @@ async def google_callback_post(request: Request):
 
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/google/callback")
+    redirect_uri = os.getenv(
+        "GOOGLE_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/google/callback"
+    )
 
     if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
@@ -661,7 +673,9 @@ async def google_callback_post(request: Request):
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
-        jwt_token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"))
+        jwt_token = _create_jwt(
+            user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
+        )
 
         return {
             "access_token": jwt_token,
@@ -714,7 +728,11 @@ async def telegram_auth(req: TelegramAuthRequest):
     user = _get_user(telegram_user_id)
 
     if not user:
-        display_name = f"{req.first_name or ''} {req.last_name or ''}".strip() or req.username or f"User{req.id}"
+        display_name = (
+            f"{req.first_name or ''} {req.last_name or ''}".strip()
+            or req.username
+            or f"User{req.id}"
+        )
         email = f"{req.id}@telegram.rmi"
 
         user = {
@@ -736,7 +754,9 @@ async def telegram_auth(req: TelegramAuthRequest):
         r.hset("rmi:users", telegram_user_id, json.dumps(user))
         r.hset("rmi:users:telegram", str(req.id), telegram_user_id)
 
-    jwt_token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"))
+    jwt_token = _create_jwt(
+        user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
+    )
 
     return {
         "access_token": jwt_token,
@@ -759,7 +779,9 @@ async def telegram_auth(req: TelegramAuthRequest):
 async def github_auth_url():
     """Get GitHub OAuth URL."""
     client_id = os.getenv("GITHUB_CLIENT_ID")
-    redirect_uri = os.getenv("GITHUB_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/github/callback")
+    redirect_uri = os.getenv(
+        "GITHUB_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/github/callback"
+    )
 
     if not client_id:
         return {"url": "/auth/callback?error=github_not_configured"}
@@ -793,7 +815,9 @@ async def github_callback(request: Request):
 
     client_id = os.getenv("GITHUB_CLIENT_ID")
     client_secret = os.getenv("GITHUB_CLIENT_SECRET")
-    redirect_uri = os.getenv("GITHUB_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/github/callback")
+    redirect_uri = os.getenv(
+        "GITHUB_REDIRECT_URI", "https://rugmunch.io/api/v1/auth/github/callback"
+    )
 
     if not client_id or not client_secret:
         return RedirectResponse(f"{FRONTEND_URL}/auth/callback?error=not_configured")
@@ -836,7 +860,11 @@ async def github_callback(request: Request):
             if resp.status_code == 200:
                 emails = resp.json()
                 primary = next((e for e in emails if e.get("primary")), None)
-                email = primary.get("email") if primary else (emails[0].get("email") if emails else None)
+                email = (
+                    primary.get("email")
+                    if primary
+                    else (emails[0].get("email") if emails else None)
+                )
 
         if not email:
             email = f"{github_user.get('login', 'github_user')}@github.rmi"
@@ -861,7 +889,9 @@ async def github_callback(request: Request):
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
-        jwt_token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"))
+        jwt_token = _create_jwt(
+            user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
+        )
         return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={jwt_token}&provider=github")
 
 
@@ -962,7 +992,9 @@ async def x_callback(request: Request):
             r.hset("rmi:users", user_id, json.dumps(user))
             r.hset("rmi:users:email", email.lower(), user_id)
 
-        jwt_token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"))
+        jwt_token = _create_jwt(
+            user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
+        )
         return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={jwt_token}&provider=x")
 
 
@@ -1005,7 +1037,9 @@ async def twofa_setup(request: Request):
 
     # Check if already enabled
     if user.get("totp_secret"):
-        raise HTTPException(status_code=400, detail="2FA already enabled. Disable first to reconfigure.")
+        raise HTTPException(
+            status_code=400, detail="2FA already enabled. Disable first to reconfigure."
+        )
 
     secret = _generate_totp_secret()
     uri = _get_totp_uri(secret, user["email"])
@@ -1049,7 +1083,9 @@ async def twofa_enable(req: TwoFAEnableRequest, request: Request):
 
     # Verify the code
     if not _verify_totp(secret, req.code):
-        raise HTTPException(status_code=400, detail="Invalid TOTP code. Check your authenticator app time sync.")
+        raise HTTPException(
+            status_code=400, detail="Invalid TOTP code. Check your authenticator app time sync."
+        )
 
     # Enable 2FA on user record
     user["totp_secret"] = secret
@@ -1172,7 +1208,9 @@ async def twofa_login(req: TwoFALoginRequest):
 
     # Check if 2FA is enabled
     if not user.get("totp_enabled") or not user.get("totp_secret"):
-        raise HTTPException(status_code=400, detail="2FA not enabled for this account. Use /login instead.")
+        raise HTTPException(
+            status_code=400, detail="2FA not enabled for this account. Use /login instead."
+        )
 
     code = req.code.strip().replace("-", "")
 

@@ -9,6 +9,8 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 router = APIRouter(prefix="/api/v1/rug-recovery", tags=["rug-recovery"])
 
 BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
@@ -34,7 +36,8 @@ async def _trace_outbound_txs(address: str, chain: str, max_hops: int = 3) -> li
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
-                f"{DATABUS}/{chain}/transactions/{address}", params={"direction": "out", "limit": 50}
+                f"{DATABUS}/{chain}/transactions/{address}",
+                params={"direction": "out", "limit": 50},
             )
             if resp.status_code == 200:
                 data = resp.json().get("data", {})
@@ -52,7 +55,18 @@ async def _check_cex_deposit(address: str, chain: str) -> dict | None:
             if resp.status_code == 200:
                 for label in resp.json().get("labels", []):
                     lbl = (label.get("label", "") or "").lower()
-                    if any(w in lbl for w in ["exchange", "cex", "binance", "coinbase", "kraken", "okx", "bybit"]):
+                    if any(
+                        w in lbl
+                        for w in [
+                            "exchange",
+                            "cex",
+                            "binance",
+                            "coinbase",
+                            "kraken",
+                            "okx",
+                            "bybit",
+                        ]
+                    ):
                         return {"address": address, "cex": label.get("label"), "chain": chain}
     except Exception:
         pass
@@ -75,7 +89,9 @@ async def _check_mixer(address: str, chain: str) -> dict | None:
 
 
 @router.get("/trace/{token_address}")
-async def trace_rug(token_address: str, chain: str = Query("ethereum"), max_hops: int = Query(3, le=5)):
+async def trace_rug(
+    token_address: str, chain: str = Query("ethereum"), max_hops: int = Query(3, le=5)
+):
     """Trace stolen funds from a rugged token."""
     # Step 1: Get deployer from SENTINEL
     deployer = ""
@@ -85,7 +101,7 @@ async def trace_rug(token_address: str, chain: str = Query("ethereum"), max_hops
             resp = await client.post(
                 f"{BACKEND}/api/v1/token/scan",
                 json={"token_address": token_address, "chain": chain},
-                headers={"X-RMI-Key": "rmi-internal-2026"},
+                headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             if resp.status_code == 200:
                 scan = resp.json()
@@ -95,7 +111,11 @@ async def trace_rug(token_address: str, chain: str = Query("ethereum"), max_hops
         pass
 
     if not deployer:
-        return {"error": "Could not identify deployer", "token_address": token_address, "chain": chain}
+        return {
+            "error": "Could not identify deployer",
+            "token_address": token_address,
+            "chain": chain,
+        }
 
     # Step 2: Trace outbound txs from deployer
     direct_txs = await _trace_outbound_txs(deployer, chain)
@@ -150,7 +170,7 @@ async def trace_rug(token_address: str, chain: str = Query("ethereum"), max_hops
         "recovery_possible": recovery_possible,
         "trace_graph": {"nodes": nodes, "edges": edges},
         "recommendation": (
-            "Funds traced to known CEX addresses. Contact exchange with tx hashes and police report."
+            "Funds traced to known CEX addresses. Contact exchange with tx hashes and police report."  # noqa: E501
             if recovery_possible
             else "No CEX deposits detected yet. Monitor deployer wallet for future CEX transfers."
         ),

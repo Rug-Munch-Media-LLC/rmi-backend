@@ -28,7 +28,9 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin-extensions"])
 # ── Auth helper ──
 async def _verify_admin(request: Request):
     """Verify admin access with API key."""
-    admin_key = os.getenv("ADMIN_API_KEY", "dev-key-change-me")
+    admin_key = os.getenv("ADMIN_API_KEY")
+    if not admin_key:
+        raise RuntimeError("ADMIN_API_KEY environment variable is required")
     key = request.headers.get("X-Admin-Key", "")
     if key != admin_key:
         raise HTTPException(status_code=401, detail="Invalid admin key")
@@ -81,7 +83,9 @@ async def telegram_stats(request: Request, _=Depends(_verify_admin)):
 
 
 @router.get("/telegram/users")
-async def telegram_users(request: Request, _=Depends(_verify_admin), limit: int = Query(50, le=200)):
+async def telegram_users(
+    request: Request, _=Depends(_verify_admin), limit: int = Query(50, le=200)
+):
     """Get Telegram bot users."""
     users_file = "/tmp/telegram_users.json"
     users = []
@@ -101,7 +105,9 @@ async def telegram_users(request: Request, _=Depends(_verify_admin), limit: int 
 
 
 @router.get("/telegram/messages")
-async def telegram_messages(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)):
+async def telegram_messages(
+    request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)
+):
     """Get recent Telegram messages."""
     messages_file = "/tmp/telegram_messages.json"
     messages = []
@@ -149,7 +155,9 @@ class TelegramBroadcastRequest(BaseModel):
 
 
 @router.post("/telegram/broadcast")
-async def telegram_broadcast(request: Request, req: TelegramBroadcastRequest, _=Depends(_verify_admin)):
+async def telegram_broadcast(
+    request: Request, req: TelegramBroadcastRequest, _=Depends(_verify_admin)
+):
     """Broadcast a message to all Telegram bot users."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not bot_token:
@@ -163,7 +171,9 @@ async def telegram_broadcast(request: Request, req: TelegramBroadcastRequest, _=
             with open(users_file) as f:
                 data = json.load(f)
                 chat_ids = [
-                    u.get("chat_id") or u.get("id") for u in data.get("users", []) if u.get("chat_id") or u.get("id")
+                    u.get("chat_id") or u.get("id")
+                    for u in data.get("users", [])
+                    if u.get("chat_id") or u.get("id")
                 ]
         except Exception:
             pass
@@ -273,7 +283,9 @@ async def ghost_tags(request: Request, _=Depends(_verify_admin)):
                             "id": t["id"],
                             "name": t["name"],
                             "slug": t.get("slug", ""),
-                            "post_count": t.get("count", {}).get("posts", 0) if isinstance(t.get("count"), dict) else 0,
+                            "post_count": t.get("count", {}).get("posts", 0)
+                            if isinstance(t.get("count"), dict)
+                            else 0,
                         }
                     )
                 return {"tags": tags, "total": len(tags)}
@@ -459,7 +471,9 @@ async def cron_logs(request: Request, _=Depends(_verify_admin), limit: int = Que
                 for line in lines:
                     line = line.strip()
                     if line:
-                        logs.append({"timestamp": line[:19] if len(line) > 19 else "", "message": line})
+                        logs.append(
+                            {"timestamp": line[:19] if len(line) > 19 else "", "message": line}
+                        )
         except Exception:
             pass
 
@@ -491,8 +505,13 @@ async def cron_resume(request: Request, job_id: str, _=Depends(_verify_admin)):
 
 def _get_brightdata_proxy():
     """Return Bright Data residential proxy config for Dify access."""
+    proxy_url = os.getenv("BRIGHTDATA_PROXY_URL")
+    if not proxy_url:
+        raise RuntimeError(
+            "BRIGHTDATA_PROXY_URL environment variable is required. See gopass: rmi/brightdata/proxy_url"
+        )
     return {
-        "proxy": "http://brd-customer-hl_c51d0c6f-zone-residential_proxy1-country-us:lig96713z47s@brd.superproxy.io:33335",
+        "proxy": proxy_url,
         "proxy_auth": None,  # auth is embedded in the URL
     }
 
@@ -501,9 +520,11 @@ def _brightdata_client(timeout: int = 30):
     """Create an httpx client routed through Bright Data residential proxy."""
     import httpx
 
-    proxy_url = (
-        "http://brd-customer-hl_c51d0c6f-zone-residential_proxy1-country-us:lig96713z47s@brd.superproxy.io:33335"
-    )
+    proxy_url = os.getenv("BRIGHTDATA_PROXY_URL")
+    if not proxy_url:
+        raise RuntimeError(
+            "BRIGHTDATA_PROXY_URL environment variable is required. See gopass: rmi/brightdata/proxy_url"
+        )
     return httpx.AsyncClient(
         timeout=timeout,
         proxy=proxy_url,
@@ -618,7 +639,9 @@ async def dify_apps(request: Request, _=Depends(_verify_admin), use_proxy: bool 
 
         client = _brightdata_client(timeout=10) if use_proxy else httpx.AsyncClient(timeout=10)
         async with client as c:
-            resp = await c.get(f"{dify_url}/v1/apps", headers={"Authorization": f"Bearer {dify_key}"})
+            resp = await c.get(
+                f"{dify_url}/v1/apps", headers={"Authorization": f"Bearer {dify_key}"}
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 return {
@@ -634,7 +657,9 @@ async def dify_apps(request: Request, _=Depends(_verify_admin), use_proxy: bool 
 
 
 @router.get("/dify/conversations/{conversation_id}/messages")
-async def dify_messages(request: Request, conversation_id: str, _=Depends(_verify_admin), use_proxy: bool = False):
+async def dify_messages(
+    request: Request, conversation_id: str, _=Depends(_verify_admin), use_proxy: bool = False
+):
     """Get messages for a Dify conversation. Auto-fallback to Bright Data proxy."""
     dify_url = os.getenv("DIFY_API_URL", "http://127.0.0.1:8899")
     dify_key = os.getenv("DIFY_APP_KEY", "")
@@ -729,7 +754,9 @@ async def admin_processes(request: Request, _=Depends(_verify_admin)):
     """Get running processes."""
     processes = []
     try:
-        for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info", "num_threads", "status"]):
+        for proc in psutil.process_iter(
+            ["pid", "name", "cpu_percent", "memory_info", "num_threads", "status"]
+        ):
             try:
                 info = proc.info
                 mem_mb = info.get("memory_info", type("", (), {"rss": 0})())
@@ -738,7 +765,9 @@ async def admin_processes(request: Request, _=Depends(_verify_admin)):
                         "pid": info["pid"],
                         "name": info["name"],
                         "cpu_percent": info.get("cpu_percent", 0),
-                        "memory_mb": round(mem_mb.rss / (1024 * 1024), 2) if hasattr(mem_mb, "rss") else 0,
+                        "memory_mb": round(mem_mb.rss / (1024 * 1024), 2)
+                        if hasattr(mem_mb, "rss")
+                        else 0,
                         "threads": info.get("num_threads", 0),
                         "status": info.get("status", "unknown"),
                     }

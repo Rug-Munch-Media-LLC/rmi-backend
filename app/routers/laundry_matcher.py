@@ -8,6 +8,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 router = APIRouter(prefix="/api/v1/laundry-matcher", tags=["laundry-matcher"])
 
 BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
@@ -61,7 +63,7 @@ async def find_matches(
             resp = await client.post(
                 f"{BACKEND}/api/v1/token/scan",
                 json={"token_address": address, "chain": chain},
-                headers={"X-RMI-Key": "rmi-internal-2026"},
+                headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             if resp.status_code != 200:
                 raise HTTPException(502, "Scanner unavailable")
@@ -129,7 +131,7 @@ async def scan_and_match(address: str, chain: str = Query("solana")):
         scan_task = client.post(
             f"{BACKEND}/api/v1/token/scan",
             json={"token_address": address, "chain": chain},
-            headers={"X-RMI-Key": "rmi-internal-2026"},
+            headers={"X-RMI-Key": INTERNAL_API_KEY},
         )
 
         # Also kick off match search
@@ -148,7 +150,14 @@ async def scan_and_match(address: str, chain: str = Query("solana")):
         sim = _name_similarity(ref_name, base.get("name", "") or base.get("symbol", ""))
         if sim > 0.5:
             matches.append(
-                {"address": p.get("pairAddress", ""), "symbol": base.get("symbol", "?"), "similarity": round(sim, 3)}
+                {
+                    "address": p.get("pairAddress", ""),
+                    "symbol": base.get("symbol", "?"),
+                    "similarity": round(sim, 3),
+                }
             )
 
-    return {"scan": scan, "copycat_matches": sorted(matches, key=lambda m: m["similarity"], reverse=True)[:10]}
+    return {
+        "scan": scan,
+        "copycat_matches": sorted(matches, key=lambda m: m["similarity"], reverse=True)[:10],
+    }

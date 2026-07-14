@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from urllib.request import Request, urlopen
 
+from app.core.internal_key import INTERNAL_API_KEY
+
 logger = logging.getLogger(__name__)
 
 BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
@@ -90,7 +92,9 @@ class UnifiedWalletScanner:
     ) -> WalletScanResult:
         start = time.monotonic()
         params = {"address": address, "chain": chain}
-        r = WalletScanResult(address=address, chain=chain, scanned_at=datetime.now(UTC).isoformat(), tier=tier)
+        r = WalletScanResult(
+            address=address, chain=chain, scanned_at=datetime.now(UTC).isoformat(), tier=tier
+        )
 
         try:
             # Phase 1: Core DataBus fetches
@@ -146,7 +150,9 @@ class UnifiedWalletScanner:
 
         async def _one(c):
             try:
-                return c, await asyncio.wait_for(databus.fetch(c, admin_key=admin_key, **params), timeout)
+                return c, await asyncio.wait_for(
+                    databus.fetch(c, admin_key=admin_key, **params), timeout
+                )
             except Exception:
                 return c, None
 
@@ -186,7 +192,7 @@ class UnifiedWalletScanner:
         try:
             req = Request(
                 f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5",
-                headers={"X-RMI-Key": "rmi-internal-2026"},
+                headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             resp = urlopen(req, timeout=8)
             data = json.loads(resp.read())
@@ -242,7 +248,9 @@ class UnifiedWalletScanner:
         scam_value = 0.0
         for token in r.holdings:
             risk = token.get("risk_score", token.get("safety_score", 50))
-            if isinstance(risk, (int, float)) and (risk > 70 if "risk_score" in token else risk < 30):
+            if isinstance(risk, (int, float)) and (
+                risk > 70 if "risk_score" in token else risk < 30
+            ):
                 scam_count += 1
                 scam_value += float(token.get("value_usd", 0) or 0)
         r.scam_tokens_held = scam_count
@@ -295,7 +303,9 @@ class UnifiedWalletScanner:
                 to_addr = tx.get("to", tx.get("target", ""))
                 if to_addr:
                     nodes.append({"id": to_addr, "type": "counterparty"})
-                    edges.append({"from": r.address, "to": to_addr, "value": tx.get("value_usd", 0)})
+                    edges.append(
+                        {"from": r.address, "to": to_addr, "value": tx.get("value_usd", 0)}
+                    )
             r.flow_data = {"nodes": nodes[:10], "edges": edges[:15]}
             r.modules_run.append("flow_visualization")
 
@@ -329,11 +339,11 @@ class UnifiedWalletScanner:
                     "messages": [
                         {
                             "role": "system",
-                            "content": "Based on wallet risk profile, predict 7-day risk trajectory. One sentence: INCREASING/STABLE/DECREASING risk, plus brief reason. Under 100 chars.",
+                            "content": "Based on wallet risk profile, predict 7-day risk trajectory. One sentence: INCREASING/STABLE/DECREASING risk, plus brief reason. Under 100 chars.",  # noqa: E501
                         },
                         {
                             "role": "user",
-                            "content": f"Risk:{r.risk_score} Flags:{','.join(r.risk_flags[:5])} ScamTokens:{r.scam_tokens_held} Persona:{r.persona}",
+                            "content": f"Risk:{r.risk_score} Flags:{','.join(r.risk_flags[:5])} ScamTokens:{r.scam_tokens_held} Persona:{r.persona}",  # noqa: E501
                         },
                     ],
                     "max_tokens": 60,

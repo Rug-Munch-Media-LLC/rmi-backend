@@ -31,6 +31,10 @@ COPY . .
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD curl -f http://localhost:8000/live || exit 1
 
+# Security: run as non-root user
+RUN groupadd -r rmi && useradd -r -g rmi -s /bin/false rmi && chown -R rmi:rmi /app
+USER rmi
+
 EXPOSE 8000
 
 # Use Tini as PID 1 to properly reap zombie processes and forward signals
