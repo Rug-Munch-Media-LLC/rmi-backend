@@ -105,19 +105,21 @@ async def _check_postgres() -> dict[str, Any]:
 
 async def _check_neo4j() -> dict[str, Any]:
     try:
-        from app.core.neo4j_connection import _driver
+        try:
+            from app.core.neo4j_connection import _driver
+        except ImportError:
+            from neo4j import GraphDatabase
+            uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+            user = os.getenv("NEO4J_USER", "neo4j")
+            password = os.getenv("NEO4J_PASSWORD", "")
+            _driver = GraphDatabase.driver(uri, auth=(user, password)) if password else None
 
         if _driver is None:
-            return {"healthy": False, "error": "Neo4j driver not initialized"}
-        async with _driver.session() as session:
-            result = await asyncio.wait_for(session.run("RETURN 1"), timeout=3.0)
-            val = await result.single()
-            node_count_result = await session.run("MATCH (n) RETURN count(n)")
-            node_count = await node_count_result.single()
-        return {
-            "healthy": val[0] == 1,
-            "details": {"node_count": node_count["count(n)"] if node_count else 0},
-        }
+            return {"healthy": False, "error": "Neo4j not configured (no NEO4J_PASSWORD set)"}
+        with _driver.session() as session:
+            result = session.run("RETURN 1")
+            val = result.single()
+        return {"healthy": val[0] == 1}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
 
@@ -126,12 +128,11 @@ async def _check_qdrant() -> dict[str, Any]:
     try:
         import httpx
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(f"{QDRANT_URL.rstrip(chr(47))}/collections")
+            resp = await client.get(f"{QDRANT_URL.rstrip(chr(47))}/")
             data = resp.json()
-            collections = data.get("result", {}).get("collections", [])
         return {
             "healthy": resp.status_code == 200,
-            "details": {"collection_count": len(collections)},
+            "details": {"version": data.get("version", "unknown")},
         }
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
@@ -163,7 +164,7 @@ async def _check_clickhouse() -> dict[str, Any]:
 async def _check_minio() -> dict[str, Any]:
     try:
         client = await _get_http_client()
-        resp = await client.get("http://rmi-minio:9000/minio/health/live")
+        resp = await client.get(f"{MINIO_URL.rstrip(chr(47))}/minio/health/live")
         return {"healthy": resp.status_code == 200, "details": {"status_code": resp.status_code}}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}

@@ -11,6 +11,41 @@ manual-test suite owns. Run them directly with python3, not pytest:
 To temporarily include them in a pytest run (e.g. for migration):
 
     pytest tests/ --collect-ignore-glob='"'"'!tests/manual/*'"'"'
+
+Registers Hypothesis profiles:
+  - `ci`:       derandomized, 200 examples, 5s deadline — for CI pipelines.
+  - `dev`:      50 examples, no deadline, tolerant health checks — for local dev.
+  - `ci-quick`: derandomized, 50 examples, 2s deadline — fast CI smoke tests.
 """
 
 collect_ignore_glob = ["manual/*"]
+
+# ── Hypothesis profiles ───────────────────────────────────────────────
+from hypothesis import settings, HealthCheck
+
+settings.register_profile(
+    "ci",
+    max_examples=200,
+    derandomize=True,
+    deadline=5000,
+    suppress_health_check=[],
+    report_multiple_bugs=False,
+)
+
+settings.register_profile(
+    "dev",
+    max_examples=50,
+    derandomize=False,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.filter_too_much],
+    report_multiple_bugs=True,
+)
+
+settings.register_profile(
+    "ci-quick",
+    max_examples=50,
+    derandomize=True,
+    deadline=2000,
+    suppress_health_check=[],
+    report_multiple_bugs=False,
+)

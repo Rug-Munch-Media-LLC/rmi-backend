@@ -152,7 +152,11 @@ addopts = [
 markers = [
     "slow: marks tests as slow (deselect with -m 'not slow')",
     "integration: marks tests that need docker/compose",
+    "property: marks property-based tests using Hypothesis",
 ]
+
+# Hypothesis profiles are registered in conftest.py via hypothesis.settings.register_profile().
+# See conftest.py or tests/conftest.py for `ci` and `dev` profile definitions.
 
 # ── Custom size cap (not in pyproject.toml by default) ────────────────
 # Enforced via .pre-commit-config.yaml custom check.
