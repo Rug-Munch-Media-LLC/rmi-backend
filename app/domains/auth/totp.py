@@ -7,7 +7,8 @@ Public API:
 - _generate_qr_base64, _generate_backup_codes, _hash_backup_code, _verify_backup_code
 - TOTP_ISSUER, PYOTP_AVAILABLE
 """
-from app.auth import (  # noqa: F401
+
+from app.domains.auth import (  # noqa: F401
     PYOTP_AVAILABLE,
     TOTP_DIGITS,
     TOTP_INTERVAL,

@@ -17,27 +17,30 @@ from app.circuit_breaker import check_circuit, record_failure, record_success
 class TestCheckCircuit:
     """Tests for check_circuit - determines if circuit is open/closed."""
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_returns_false_when_redis_unavailable(self, mock_get_redis):
+    async def test_returns_false_when_redis_unavailable(self, mock_get_redis):
         """When Redis is down, circuit should fail open (return False = allow call)."""
         mock_get_redis.side_effect = Exception("Redis down")
-        result = check_circuit("test_service")
+        result = await check_circuit("test_service")
         assert result is False
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_returns_false_when_closed(self, mock_get_redis):
+    async def test_returns_false_when_closed(self, mock_get_redis):
         """CLOSED state means the circuit is OK - return False (don't block)."""
         mock_redis = MagicMock()
         mock_redis.get.return_value = "CLOSED"
         mock_get_redis.return_value = mock_redis
 
-        result = check_circuit("healthy_service")
+        result = await check_circuit("healthy_service")
 
         assert result is False
         mock_redis.get.assert_any_call("circuit:healthy_service:state")
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_returns_true_when_open(self, mock_get_redis):
+    async def test_returns_true_when_open(self, mock_get_redis):
         """OPEN state means the circuit is tripped - return True (block call)."""
         mock_redis = MagicMock()
         mock_redis.get.side_effect = lambda k: {
@@ -46,12 +49,13 @@ class TestCheckCircuit:
         }.get(k)
         mock_get_redis.return_value = mock_redis
 
-        result = check_circuit("open_service")
+        result = await check_circuit("open_service")
 
         assert result is True
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_transitions_to_half_open_after_cooldown(self, mock_get_redis):
+    async def test_transitions_to_half_open_after_cooldown(self, mock_get_redis):
         """After 60s cooldown, OPEN should transition to HALF_OPEN."""
         mock_redis = MagicMock()
         far_past = time.time() - 120  # 120s ago - past the 60s cooldown
@@ -61,20 +65,21 @@ class TestCheckCircuit:
         }.get(k)
         mock_get_redis.return_value = mock_redis
 
-        result = check_circuit("cooldown_service")
+        result = await check_circuit("cooldown_service")
 
         # Should be False (allow through) and set HALF_OPEN
         assert result is False
         mock_redis.set.assert_called_with("circuit:cooldown_service:state", "HALF_OPEN")
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_handles_half_open_state(self, mock_get_redis):
+    async def test_handles_half_open_state(self, mock_get_redis):
         """HALF_OPEN state should return False (allow a probe call)."""
         mock_redis = MagicMock()
         mock_redis.get.return_value = "HALF_OPEN"
         mock_get_redis.return_value = mock_redis
 
-        result = check_circuit("probing_service")
+        result = await check_circuit("probing_service")
 
         assert result is False
 
@@ -82,19 +87,21 @@ class TestCheckCircuit:
 class TestRecordFailure:
     """Tests for record_failure - tracks failures and trips circuit."""
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_increments_failure_count(self, mock_get_redis):
+    async def test_increments_failure_count(self, mock_get_redis):
         """record_failure should increment the failure counter."""
         mock_redis = MagicMock()
         mock_redis.incr.return_value = 1
         mock_get_redis.return_value = mock_redis
 
-        record_failure("test_service")
+        await record_failure("test_service")
 
         mock_redis.incr.assert_called_with("circuit:test_service:failures")
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_trips_circuit_at_5_failures(self, mock_get_redis):
+    async def test_trips_circuit_at_5_failures(self, mock_get_redis):
         """After 5 failures, the circuit should be set to OPEN."""
         mock_redis = MagicMock()
         mock_redis.incr.return_value = 5
@@ -102,30 +109,32 @@ class TestRecordFailure:
 
         with patch("app.circuit_breaker.time") as mock_time:
             mock_time.time.return_value = 12345.0
-            record_failure("trippy_service")
+            await record_failure("trippy_service")
 
         mock_redis.set.assert_any_call("circuit:trippy_service:state", "OPEN")
         mock_redis.set.assert_any_call("circuit:trippy_service:opened_at", "12345.0")
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_does_not_trip_before_5_failures(self, mock_get_redis):
+    async def test_does_not_trip_before_5_failures(self, mock_get_redis):
         """With <5 failures, the circuit should remain CLOSED."""
         mock_redis = MagicMock()
         mock_redis.incr.return_value = 3
         mock_get_redis.return_value = mock_redis
 
-        record_failure("stable_service")
+        await record_failure("stable_service")
 
         # Should NOT set state to OPEN
         calls = [c for c in mock_redis.set.call_args_list if c[0][0].endswith(":state")]
         assert len(calls) == 0
 
+    @pytest.mark.asyncio
     @patch("app.circuit_breaker._get_redis")
-    def test_handles_redis_error_gracefully(self, mock_get_redis):
+    async def test_handles_redis_error_gracefully(self, mock_get_redis):
         """Should not raise when Redis is unavailable."""
         mock_get_redis.side_effect = Exception("Redis down")
         # Should not raise
-        record_failure("down_service")
+        await record_failure("down_service")
 
 
 class TestRecordSuccess:

@@ -8,7 +8,8 @@ Public API:
 - x_auth_url, x_callback
 - telegram_auth
 """
-from app.auth import (  # noqa: F401
+
+from app.domains.auth import (  # noqa: F401
     github_auth_url,
     github_callback,
     google_auth_url,

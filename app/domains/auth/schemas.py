@@ -9,7 +9,8 @@ Public API:
 - TelegramAuthRequest, TwoFAEnableRequest, TwoFALoginRequest,
   TwoFASetupResponse, TwoFAStatusResponse, TwoFAVerifyRequest
 """
-from app.auth import (  # noqa: F401
+
+from app.domains.auth import (  # noqa: F401
     EmailLoginRequest,
     EmailRegisterRequest,
     GoogleAuthResponse,

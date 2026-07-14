@@ -44,7 +44,7 @@ def _generate_totp_secret() -> str:
     """Generate a new base32 TOTP secret."""
     if not PYOTP_AVAILABLE:
         raise RuntimeError("pyotp not installed")
-    return pyotp.random_base32()
+    return pyotp.random_base32()  # type: ignore[no-any-return]
 
 
 def _build_totp(secret: str) -> Any:
@@ -57,13 +57,13 @@ def _verify_totp(secret: str, code: str) -> bool:
     if not PYOTP_AVAILABLE or not secret or not code:
         return False
     totp = _build_totp(secret)
-    return totp.verify(code, valid_window=TOTP_WINDOW)
+    return totp.verify(code, valid_window=TOTP_WINDOW)  # type: ignore[no-any-return]
 
 
 def _get_totp_uri(secret: str, email: str) -> str:
     """Get otpauth:// URI for QR code generation."""
     totp = _build_totp(secret)
-    return totp.provisioning_uri(name=email, issuer_name=TOTP_ISSUER)
+    return totp.provisioning_uri(name=email, issuer_name=TOTP_ISSUER)  # type: ignore[no-any-return]
 
 
 def _generate_qr_base64(uri: str) -> str:
@@ -74,7 +74,7 @@ def _generate_qr_base64(uri: str) -> str:
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
-def _generate_backup_codes(count: int = 8) -> list:
+def _generate_backup_codes(count: int = 8) -> list[str]:
     """Generate single-use backup codes."""
     codes = []
     for _ in range(count):
@@ -150,7 +150,7 @@ def _get_user(user_id: str) -> dict[str, Any] | None:
     if not raw:
         return None
     try:
-        return json.loads(raw)
+        return json.loads(raw)  # type: ignore[no-any-return]
     except (json.JSONDecodeError, TypeError):
         return None
 
@@ -286,7 +286,7 @@ class UserResponse(BaseModel):
     created_at: str
     xp: int = 0
     level: int = 1
-    badges: list = []
+    badges: list[str] = []
 
 
 class GoogleAuthResponse(BaseModel):
@@ -308,7 +308,7 @@ class TwoFASetupResponse(BaseModel):
     secret: str
     qr_code: str  # base64 data URI
     uri: str  # otpauth:// URI
-    backup_codes: list  # plaintext - shown once
+    backup_codes: list[str]  # plaintext - shown once
 
 
 class TwoFAEnableRequest(BaseModel):
@@ -483,7 +483,7 @@ async def wallet_nonce(req: WalletNonceRequest):
 @router.post("/wallet/verify", response_model=WalletAuthResponse)
 async def wallet_verify(req: WalletVerifyRequest):
     """Verify wallet signature and create session."""
-    from app.auth_wallet import get_or_create_wallet_user, verify_wallet_signature
+    from app.domains.auth.wallet import get_or_create_wallet_user, verify_wallet_signature
 
     if not verify_wallet_signature(req.message, req.signature, req.address):
         raise HTTPException(status_code=401, detail="Invalid signature")
@@ -508,7 +508,7 @@ async def wallet_verify(req: WalletVerifyRequest):
 
 # ── User Profile ──
 @router.get("/user/me", response_model=UserResponse)
-async def get_current_user(request: Request):
+async def user_profile_me(request: Request):  # noqa: F811 — name kept short, not a redefinition
     """Get current authenticated user profile."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -1040,7 +1040,7 @@ async def x_callback(request: Request):
 
 
 # ── FastAPI Dependency Functions (for @router/@app endpoints) ──
-async def get_current_user(request: Request) -> dict[str, Any] | None:  # noqa: F811
+async def get_current_user(request: Request) -> dict[str, Any] | None:
     """Verify JWT from Authorization header (wallet or email)."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -1060,7 +1060,7 @@ async def require_auth(request: Request) -> dict[str, Any]:
     user = await get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
-    return user
+    return user  # type: ignore[no-any-return]
 
 
 # ── 2FA / TOTP Endpoints ──

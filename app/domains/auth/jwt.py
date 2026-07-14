@@ -7,7 +7,8 @@ Public API:
 - _create_jwt, _verify_jwt
 - generate_nonce
 """
-from app.auth import (  # noqa: F401
+
+from app.domains.auth import (  # noqa: F401
     JWT_ALGORITHM,
     JWT_EXPIRY_DAYS,
     JWT_SECRET,
