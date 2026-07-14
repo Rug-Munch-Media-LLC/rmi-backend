@@ -14,10 +14,10 @@ Two massive free datasets for AML detection and address labeling.
 """
 
 import csv
-import logging
+from app.core.logging import get_logger
 import os
 
-logger = logging.getLogger("databus.dataset_providers")
+logger = get_logger("databus.dataset_providers")
 
 # ═══════════════════════════════════════════════════════════════
 # 1. REAL-CATS - Criminal + Benign Address Dataset

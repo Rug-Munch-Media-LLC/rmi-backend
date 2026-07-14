@@ -18,13 +18,13 @@ Endpoint: POST /api/v1/x402-tools/governance_attack
 """
 
 import contextlib
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
 
-logger = logging.getLogger("governance_attack_detector")
+logger = get_logger("governance_attack_detector")
 
 # ── Risk thresholds ──────────────────────────────────────────────
 TOP_HOLDER_CRITICAL_PCT = 50.0

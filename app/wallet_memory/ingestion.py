@@ -20,7 +20,7 @@ Rate limiting:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
@@ -31,7 +31,7 @@ import httpx
 from app.chain_registry import is_evm, is_solana
 from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 
-logger = logging.getLogger("wallet_memory.ingestion")
+logger = get_logger("wallet_memory.ingestion")
 
 
 # ── Simple token-bucket rate limiter ────────────────────────────────

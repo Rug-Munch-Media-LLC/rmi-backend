@@ -22,13 +22,13 @@ Usage:
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 
 import httpx
 
-logger = logging.getLogger("helius_das")
+logger = get_logger("helius_das")
 
 DAS_BASE = "https://mainnet.helius-rpc.com"
 

@@ -15,7 +15,7 @@ GET  /api/v1/databus/vault/reload   - Reload keys from vault (admin)
 GET  /api/v1/databus/fetch/{type}   - GET convenience for simple queries
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -26,7 +26,7 @@ from app.databus.social import (
     X_FREE_MONTHLY_READ_LIMIT,
 )
 
-logger = logging.getLogger("databus.router")
+logger = get_logger("databus.router")
 
 router = APIRouter(prefix="/api/v1/databus", tags=["databus"])
 

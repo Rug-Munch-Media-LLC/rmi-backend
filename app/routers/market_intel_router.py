@@ -5,7 +5,7 @@ All endpoints have in-memory caching and graceful fallbacks.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime, timedelta
@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from fastapi import APIRouter, Query, Request
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/market", tags=["market-intel"])
 
 # ── API Keys from env ──────────────────────────────────────

@@ -12,7 +12,7 @@ Combines all label sources into a unified response with risk assessment.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -22,7 +22,7 @@ import httpx
 from app.chain_registry import CHAINS, is_evm
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
-logger = logging.getLogger("address_labeler")
+logger = get_logger("address_labeler")
 
 # ── RolodETH cache (avoid re-fetching on every call) ──────────────────
 

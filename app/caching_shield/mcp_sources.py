@@ -16,12 +16,12 @@ Usage:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import time
 
 import httpx
 
-logger = logging.getLogger("mcp_sources")
+logger = get_logger("mcp_sources")
 
 # Smithery MCP endpoints (HTTP transport)
 BOAR_URL = "https://server.smithery.ai/@boar-network/blockchain-advanced/mcp"

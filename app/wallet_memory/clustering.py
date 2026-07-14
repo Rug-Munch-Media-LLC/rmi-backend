@@ -15,11 +15,11 @@ Heuristics (confidence 0-1):
 Union-Find for O(alpha(n)) merges. Results persisted to storage.py.  # noqa: RUF002
 """
 
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from datetime import datetime
 
-logger = logging.getLogger("wallet_memory.clustering")
+logger = get_logger("wallet_memory.clustering")
 
 
 # ── Union-Find (Disjoint Set) ────────────────────────────────────────

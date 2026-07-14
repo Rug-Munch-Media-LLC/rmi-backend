@@ -1,11 +1,11 @@
 """x402 tool manager - loads and exposes tool bundles across free/trial/premium tiers."""
 
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass
 
 from .x402_bundles import X402Bundle
 
-logger = logging.getLogger("x402_tool_manager")
+logger = get_logger("x402_tool_manager")
 
 
 @dataclass

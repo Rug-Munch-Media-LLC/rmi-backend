@@ -21,7 +21,7 @@ Endpoint: POST /api/v1/x402-tools/token_supply_analyze
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
@@ -30,7 +30,7 @@ from enum import Enum
 from typing import Any, cast
 from urllib.parse import urlparse
 
-logger = logging.getLogger("token_supply_analyzer")
+logger = get_logger("token_supply_analyzer")
 
 # ── Free API sources ─────────────────────────────────────────────
 DEXSCREENER_TOKENS = "https://api.dexscreener.com/latest/dex/tokens/{token_addr}"

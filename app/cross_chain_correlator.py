@@ -9,12 +9,12 @@ Links wallets across Solana/Ethereum/BSC/Base using:
 Paper ref: Section 5.3 - Cross-Chain Fragmentation
 """
 
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

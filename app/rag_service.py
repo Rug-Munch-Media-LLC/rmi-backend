@@ -15,7 +15,7 @@ Collections: wallet_profiles, token_analysis, scam_patterns,
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 from datetime import UTC, datetime
@@ -30,7 +30,7 @@ from app.crypto_embeddings import (
     get_embedder,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

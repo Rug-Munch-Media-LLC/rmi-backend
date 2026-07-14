@@ -14,7 +14,7 @@ Cache: Redis-backed SWR with 15-min hot, 1-hour warm, 24-hour cold
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import time
 from datetime import UTC, datetime
 
@@ -22,7 +22,7 @@ import httpx
 
 from app.databus.cache import CacheLayer
 
-logger = logging.getLogger("databus.social")
+logger = get_logger("databus.social")
 
 # ── X/Twitter API Free Tier Limits ─────────────────────────────────
 # Free tier: 1,500 tweets/month POST, 10k reads/month

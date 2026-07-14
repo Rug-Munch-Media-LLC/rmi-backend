@@ -13,14 +13,14 @@ Wires ALL free data sources into DataBus:
 Every endpoint accessible via DataBus. Every response enriched.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("news_provider")
+logger = get_logger("news_provider")
 
 # ── Free API endpoints (no keys needed) ────────────────────────────
 

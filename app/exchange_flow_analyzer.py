@@ -10,7 +10,7 @@ Tracks:
 - Risk scoring based on pool participation
 """
 
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -21,10 +21,10 @@ try:
     WEB3_AVAILABLE = True
 except ImportError:
     WEB3_AVAILABLE = False
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
     logger.warning("web3.py not available, using stub mode")
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ─── LIQUIDITY POOL CONFIGURATIONS ────────────────────────────────

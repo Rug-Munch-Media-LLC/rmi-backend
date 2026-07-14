@@ -17,7 +17,7 @@ No new dependencies. No ML training. Pure immediate value.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 import httpx
 import redis
 
-logger = logging.getLogger("rugcharts_intel")
+logger = get_logger("rugcharts_intel")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

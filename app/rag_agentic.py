@@ -28,7 +28,7 @@ What elevates RAG from "search tool" to "intelligence analyst":
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 from collections.abc import AsyncGenerator
@@ -37,7 +37,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # AI Router config
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")

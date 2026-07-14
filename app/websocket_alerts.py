@@ -11,14 +11,14 @@ Provides real-time notification via WebSocket for:
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ─── REAL-TIME ALERT TYPES ──────────────────────────────────────────────

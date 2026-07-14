@@ -6,12 +6,12 @@ Uses solana-py (the "solana" python package) for reliable Solana interactions.
 This package provides a high-level synchronous API.
 """
 
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 try:
     from solana.rpc.api import Client, Pubkey, Signature, Transaction  # noqa: F401

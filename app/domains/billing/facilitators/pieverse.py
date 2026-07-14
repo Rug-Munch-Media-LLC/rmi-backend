@@ -7,7 +7,7 @@ BNB Chain x402 facilitator with instant settlement.
 Supports USDC and USDT on BSC mainnet.
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -22,7 +22,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.pieverse")
+logger = get_logger("facilitator.pieverse")
 
 
 class PieverseFacilitator(Facilitator):

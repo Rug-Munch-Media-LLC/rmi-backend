@@ -23,13 +23,13 @@ Usage:
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 
 import redis.asyncio as aioredis
 
-logger = logging.getLogger("ws_broadcaster")
+logger = get_logger("ws_broadcaster")
 
 # Default Redis pub/sub channels
 CHANNEL_SCANS = "rmi:ws:scans"

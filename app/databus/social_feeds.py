@@ -5,12 +5,13 @@ RMI Mega News v2 - Add Reddit + Twitter/Nitter RSS feeds
 import hashlib
 import json
 import logging
+from app.core.logging import get_logger
 import time
 from xml.etree import ElementTree as ET
 
 import httpx
 
-logger = logging.getLogger("rmi.news.social")
+logger = get_logger("rmi.news.social")
 
 # Reddit crypto subreddits (free RSS, no auth)
 REDDIT_FEEDS = [

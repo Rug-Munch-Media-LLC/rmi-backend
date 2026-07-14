@@ -22,7 +22,7 @@ Chains supported (expandable via RPC config):
 Tokens supported: USDC, USDT, DAI, WBTC, WETH, native coins (ETH, POL, AVAX, etc.)
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -37,7 +37,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.eip7702")
+logger = get_logger("facilitator.eip7702")
 
 # ERC-20 Transfer event signature
 TRANSFER_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"

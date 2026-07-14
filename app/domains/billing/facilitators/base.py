@@ -17,13 +17,13 @@ Supporting types:
 
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-logger = logging.getLogger("facilitator_base")
+logger = get_logger("facilitator_base")
 
 
 class FacilitatorType(Enum):

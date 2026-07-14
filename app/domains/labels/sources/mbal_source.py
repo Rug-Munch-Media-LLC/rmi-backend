@@ -10,14 +10,14 @@ Rate Limits: Free tier - 100 queries/day, Pro - 1000/day, Enterprise - Unlimited
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from datetime import datetime
 
 import httpx
 
 from app.domains.labels.models import Label, LabelSource
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MBALService:

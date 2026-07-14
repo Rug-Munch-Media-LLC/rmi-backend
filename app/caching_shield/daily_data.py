@@ -5,13 +5,13 @@ Pulls from ALL our data sources to create comprehensive daily analysis.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("market_data")
+logger = get_logger("market_data")
 
 
 async def get_price_action() -> dict:

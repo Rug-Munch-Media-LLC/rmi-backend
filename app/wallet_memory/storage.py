@@ -11,13 +11,13 @@ If both are down, returns empty results with a warning.
 
 import contextlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 
-logger = logging.getLogger("wallet_memory.storage")
+logger = get_logger("wallet_memory.storage")
 
 # ── ClickHouse connection (lazy, optional) ──────────────────────────
 

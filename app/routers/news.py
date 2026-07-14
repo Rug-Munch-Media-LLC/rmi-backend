@@ -15,7 +15,7 @@ Endpoints:
 
 import asyncio
 import hashlib
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from app.auth import require_public_profile
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/news", tags=["news"])
 

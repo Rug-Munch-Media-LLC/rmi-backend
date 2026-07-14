@@ -13,7 +13,7 @@ Features:
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("market_rundown")
+logger = get_logger("market_rundown")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # NEWS AGGREGATION

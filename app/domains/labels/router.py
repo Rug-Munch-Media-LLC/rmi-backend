@@ -14,14 +14,14 @@ Returns:
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from app.domains.labels import get_federated_api
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 router = APIRouter(prefix="/labels", tags=["labels"])
 

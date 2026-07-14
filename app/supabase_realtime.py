@@ -5,7 +5,7 @@ Uses proper WebSocket protocol via 'websockets' library (httpx doesn't support W
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
@@ -14,7 +14,7 @@ import websockets
 
 from app.core.secrets import get_secret_or_none
 
-logger = logging.getLogger("supabase.realtime")
+logger = get_logger("supabase.realtime")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = (

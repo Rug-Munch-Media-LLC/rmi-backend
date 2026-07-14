@@ -5,10 +5,10 @@ Designed to attract agents to spend via x402 micropayments.
 Each package solves a specific agent need with compelling value.
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 
-logger = logging.getLogger("agent_tools")
+logger = get_logger("agent_tools")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # AGENT BUNDLES - Discounted tool packages for common agent workflows

@@ -19,13 +19,13 @@ Tier: Premium ($0.15)
 Endpoint: POST /api/v1/x402-tools/social_engineering
 """
 
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from datetime import UTC, datetime
 from typing import Any
 
-logger = logging.getLogger("social_engineering_detector")
+logger = get_logger("social_engineering_detector")
 
 # ── Free API sources ─────────────────────────────────────────────
 TWITTER_API = "https://api.twitter.com/2"

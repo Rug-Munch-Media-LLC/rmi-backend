@@ -9,7 +9,7 @@ Uses direct API calls: DexScreener (trades/pairs), Birdeye (trades),
 Solscan/Etherscan (account history), Helius (parsed transactions).
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -20,7 +20,7 @@ from app.chain_client import ChainClient
 from app.chain_registry import is_evm, is_solana
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
-logger = logging.getLogger("flash_loan_detector")
+logger = get_logger("flash_loan_detector")
 
 
 # ── Dataclasses ──────────────────────────────────────────────────────

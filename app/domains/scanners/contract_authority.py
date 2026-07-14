@@ -21,7 +21,7 @@ Data sources:
   EVM:    Etherscan-family APIs → contract bytecode, storage slots, ABI
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from enum import Enum
@@ -31,7 +31,7 @@ import httpx
 from app.chain_client import ChainClient
 from app.chain_registry import is_solana
 
-logger = logging.getLogger("contract_authority")
+logger = get_logger("contract_authority")
 
 # ── API Keys ────────────────────────────────────────────────
 

@@ -10,13 +10,17 @@ Real-time on-chain intelligence from Nansen:
 Auth: API key passed as ?api_key=KEY query parameter.
 """
 
-import logging
 import os
 from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+# TODO: migrate to async httpx.AsyncClient — this class uses sync httpx.get()
+# but may be called from async contexts. See async-http-patterns skill for pattern.
+
 
 # ─── NANSEN API CONFIGURATION ─────────────────────────────────────
 
@@ -93,7 +97,7 @@ class NansenClient:
             )
             response.raise_for_status()
             return response.json()
-        except requests.RequestException as e:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        except httpx.HTTPError as e:
             logger.error("Nansen API error (%s): %s", path, e)
             return None
 

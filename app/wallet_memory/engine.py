@@ -14,7 +14,7 @@ Primary API:
   flag_deployer(address, chain, reason) - the data flywheel from scans
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 from typing import Any
 
@@ -27,7 +27,7 @@ from .labels import get_label_service
 from .risk_scoring import RiskScorer
 from .storage import WalletStorage, get_storage
 
-logger = logging.getLogger("wallet_memory.engine")
+logger = get_logger("wallet_memory.engine")
 
 
 class WalletMemoryEngine:

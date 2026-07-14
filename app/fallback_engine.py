@@ -24,12 +24,12 @@ Date: 2026-05-03
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from html.parser import HTMLParser
 
-logger = logging.getLogger("fallback_engine")
+logger = get_logger("fallback_engine")
 
 
 # ── Cache Layer ───────────────────────────────────────────────

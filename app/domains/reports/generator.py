@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import logging
+from app.core.logging import get_logger
 import time
 from typing import Any
 from uuid import uuid4
@@ -34,7 +34,7 @@ from app.catalog.models import (
 )
 from app.domains.reports.citation_validator import validate_section
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 # ── Section prompts (v4.0 §T29) ─────────────────────────────────────

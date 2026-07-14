@@ -7,7 +7,7 @@ Deferred settlement - payments batched and settled later.
 Used as a fallback when Coinbase CDP and PayAI are both unavailable.
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -22,7 +22,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.cloudflare_x402")
+logger = get_logger("facilitator.cloudflare_x402")
 
 
 class CloudflareX402Facilitator(Facilitator):

@@ -12,7 +12,7 @@ Uses direct API calls: DexScreener (pool data), Etherscan (contract reads),
 Birdeye (price data), Chainlink feed registry.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -23,7 +23,7 @@ from app.chain_client import ChainClient
 from app.chain_registry import is_evm, is_solana
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
-logger = logging.getLogger("oracle_manipulation")
+logger = get_logger("oracle_manipulation")
 
 
 # ── Constants ───────────────────────────────────────────────────────

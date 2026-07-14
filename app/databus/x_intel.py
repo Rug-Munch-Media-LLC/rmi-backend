@@ -9,7 +9,7 @@ Algorithm: engagement-weighted, diversity-scored, entity-resolved.
 
 import html
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import subprocess
@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("x_intel")
+logger = get_logger("x_intel")
 
 # ── TOP CT ACCOUNTS - Curated, diverse, high-signal ────────────────
 

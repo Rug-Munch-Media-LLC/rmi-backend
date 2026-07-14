@@ -24,14 +24,14 @@ Architecture:
 
 import asyncio
 import hashlib
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 from typing import Any
 
 import feedparser
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ══════════════════════════════════════════════════════════════════════
 # SOURCE CONNECTORS

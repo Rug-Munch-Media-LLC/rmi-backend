@@ -4,9 +4,9 @@ BscScan/PolygonScan free tier: balance, transactions, token transfers.
 Rate limited to 1 req/5 sec per IP. No API key required for basic use.
 """
 
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger("databus.evm_extra")
+logger = get_logger("databus.evm_extra")
 
 
 async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) -> dict | None:

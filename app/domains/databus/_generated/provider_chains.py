@@ -6,7 +6,7 @@ Source: app/databus/provider_chains.py (legacy shim).
 """
 
 
-import logging
+from app.core.logging import get_logger
 
 from app.databus.provider_core import (
     Provider,
@@ -65,7 +65,7 @@ from app.databus.provider_implementations import (
 )
 from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
 
-logger = logging.getLogger("databus.providers.chains")
+logger = get_logger("databus.providers.chains")
 def build_provider_chains() -> dict[str, ProviderChain]:
     """Build all fallback chains for every data type."""
     chains = {}

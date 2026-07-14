@@ -26,7 +26,7 @@ Date: 2026-06-05
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime, timedelta
@@ -38,7 +38,7 @@ from pydantic import BaseModel
 
 from app.core.redis import get_redis
 
-logger = logging.getLogger("status_page")
+logger = get_logger("status_page")
 
 router = APIRouter(prefix="/api/v1/status", tags=["status-page"])
 

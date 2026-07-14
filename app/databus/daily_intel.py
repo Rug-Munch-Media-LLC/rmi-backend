@@ -15,7 +15,7 @@ Free models used (zero cost):
   Writing:  google/gemma-4-26b-a4b-it:free (262K ctx, excellent prose)
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import subprocess
@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("daily_intel")
+logger = get_logger("daily_intel")
 
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"

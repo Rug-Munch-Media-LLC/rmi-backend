@@ -15,14 +15,14 @@ Max: 10 000 entries, LRU eviction via Redis volatile-lru policy.
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from typing import Any, Optional
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

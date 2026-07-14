@@ -17,7 +17,7 @@ Depends on: redis (>=5.0) for L2; falls back gracefully if not installed.
 
 import asyncio
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import time
@@ -26,7 +26,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Smart TTLs per Data Type ───────────────────────────────────────────────
 

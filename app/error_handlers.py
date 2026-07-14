@@ -6,7 +6,7 @@ handler is isolated - one failure doesn't break the others.
 
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 
 from fastapi import (  # noqa: TC002 - runtime use (matches app/core/errors.py + pre-existing project-wide pattern)
     FastAPI,
@@ -22,7 +22,7 @@ from app.core.errors import (
     ValidationError,
 )
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def register_error_handlers(app: FastAPI) -> None:

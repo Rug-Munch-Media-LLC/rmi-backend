@@ -7,13 +7,13 @@ Uses MiniMax ($20/mo flat) + Ollama Cloud.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import urllib.request
 from collections import Counter
 from datetime import UTC, datetime
 
-logger = logging.getLogger("rmi.news_v3")
+logger = get_logger("rmi.news_v3")
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
 OLLAMA_URL = "https://ollama.com/v1/chat/completions"
 

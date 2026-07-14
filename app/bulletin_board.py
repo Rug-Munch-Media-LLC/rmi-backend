@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import html
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import time
@@ -38,7 +38,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, ClassVar
 
-logger = logging.getLogger("rmi_bulletin_board")
+logger = get_logger("rmi_bulletin_board")
 
 
 # ── Enums ─────────────────────────────────────────────────────

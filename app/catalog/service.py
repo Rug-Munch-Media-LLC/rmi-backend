@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from typing import Any
@@ -38,7 +38,7 @@ from app.catalog.models import (
 from app.rag.engine import ingest_document as rag_ingest_document
 from app.rag.engine import three_pillar_search as rag_three_pillar_search
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 # ── Connection config (from env, with sensible defaults to netcup IPs) ──

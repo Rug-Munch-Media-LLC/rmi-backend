@@ -8,7 +8,7 @@ Sub-3-second confirmation for micropayments.
 Express middleware compatible.
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -23,7 +23,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.merx_tron")
+logger = get_logger("facilitator.merx_tron")
 
 
 class MerxTronFacilitator(Facilitator):

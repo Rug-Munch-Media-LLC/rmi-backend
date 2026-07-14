@@ -12,7 +12,7 @@ Features:
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections import Counter, defaultdict
@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("social_intel")
+logger = get_logger("social_intel")
 
 GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 

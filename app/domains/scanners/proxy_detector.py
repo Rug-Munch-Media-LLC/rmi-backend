@@ -14,7 +14,7 @@ Helius (Solana program info), DexScreener.
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -25,7 +25,7 @@ from app.chain_client import ChainClient
 from app.chain_registry import is_evm, is_solana
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
-logger = logging.getLogger("proxy_detector")
+logger = get_logger("proxy_detector")
 
 
 # ── Constants ───────────────────────────────────────────────────────

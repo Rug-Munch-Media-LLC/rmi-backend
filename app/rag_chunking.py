@@ -21,10 +21,10 @@ Standards (2026 consensus):
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import re
 
-logger = logging.getLogger("rag.chunking")
+logger = get_logger("rag.chunking")
 
 # ── Strategy presets per content type ──
 STRATEGY_PRESETS = {

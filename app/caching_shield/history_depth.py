@@ -19,11 +19,11 @@ Cache integration:
   - Pagination queries: TTL 180s
 """
 
-import logging
+from app.core.logging import get_logger
 import time
 from collections import OrderedDict
 
-logger = logging.getLogger("history_depth")
+logger = get_logger("history_depth")
 
 # Default query depth for fast surface-level scans
 DEFAULT_DEPTH = 20

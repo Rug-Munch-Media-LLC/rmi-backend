@@ -17,7 +17,7 @@ Uses direct API calls: Helius (transaction/signature data),
 DexScreener (pairs/trades), Solscan (account transfers, transaction detail).
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -28,7 +28,7 @@ from app.chain_client import ChainClient
 from app.chain_registry import is_solana
 from app.free_solscan_client import FreeSolscanClient
 
-logger = logging.getLogger("bundle_detector")
+logger = get_logger("bundle_detector")
 
 
 @dataclass

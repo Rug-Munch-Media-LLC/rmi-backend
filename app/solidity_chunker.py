@@ -13,11 +13,11 @@ Uses solc (Solidity compiler) already installed in the Docker container.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import re
 import subprocess
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── AST node types that represent logical boundaries ────────────
 CONTRACT_TYPES = {"ContractDefinition"}

@@ -13,14 +13,14 @@ Architecture:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "community_badges.db")
 

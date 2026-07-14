@@ -11,13 +11,13 @@ Fixes false positives, enriches all responses, populates empty providers.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import redis
 
-logger = logging.getLogger("data_quality")
+logger = get_logger("data_quality")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

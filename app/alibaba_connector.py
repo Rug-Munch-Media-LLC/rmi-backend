@@ -3,12 +3,12 @@ Alibaba Cloud Connector - Tongyi Wanxiang AI for Image Generation.
 Generate professional graphics for cards, scorecards, marketing assets.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Alibaba Cloud Config ─────────────────────────────────────
 

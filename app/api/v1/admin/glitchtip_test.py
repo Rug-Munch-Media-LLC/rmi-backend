@@ -14,12 +14,12 @@ Used for:
 """
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/_test", tags=["test"])
 

@@ -14,12 +14,12 @@ API Documentation:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Pyth Hermes API endpoint
 PYTH_HERMES_BASE_URL = "https://hermes.pyth.network"

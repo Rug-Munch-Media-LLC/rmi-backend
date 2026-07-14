@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import secrets
 import time
@@ -45,7 +45,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 
-logger = logging.getLogger("rmi_admin_backend")
+logger = get_logger("rmi_admin_backend")
 
 
 # ── Role Definitions ──────────────────────────────────────────

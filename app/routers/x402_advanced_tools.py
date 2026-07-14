@@ -12,7 +12,7 @@ Layer 6: Narrative engine - what's the market saying RIGHT NOW
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import datetime
@@ -22,7 +22,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger("x402.advanced")
+logger = get_logger("x402.advanced")
 
 router = APIRouter()
 

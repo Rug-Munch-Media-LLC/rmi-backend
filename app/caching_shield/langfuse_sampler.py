@@ -13,11 +13,11 @@ Free tier: 50,000 observations/month
 Our target: 30,000/month (60% headroom)
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import random
 
-logger = logging.getLogger("langfuse_sampler")
+logger = get_logger("langfuse_sampler")
 
 SAMPLING_RATE = float(os.getenv("LANGFUSE_SAMPLING_RATE", "0.20"))  # 20% normal
 ERROR_RATE = 1.0  # 100% of errors

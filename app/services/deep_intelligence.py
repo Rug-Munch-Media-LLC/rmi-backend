@@ -12,14 +12,14 @@ Post-Purchase Monitor, Cross-Chain Identity Resolution, Social-Onchain Correlati
 Uses real on-chain data from GMGN, Birdeye, Helius, Etherscan, and our DB.
 """
 
-import logging  # noqa: E402
+from app.core.logging import get_logger  # noqa: E402
 import os  # noqa: E402
 from datetime import UTC, datetime  # noqa: E402
 from typing import Any  # noqa: E402
 
 import httpx  # noqa: E402
 
-logger = logging.getLogger("deep_intel")
+logger = get_logger("deep_intel")
 
 # ── Configuration ──────────────────────────────────────────────────────────
 

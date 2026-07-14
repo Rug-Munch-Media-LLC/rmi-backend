@@ -9,7 +9,7 @@ Your webhook (7263c8c2-63d0-49b3-9d4e-860b26c5d874) is preserved and
 receives all events for this contract.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,7 +17,7 @@ from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger("syndicate-tracker")
+logger = get_logger("syndicate-tracker")
 
 API_KEY = os.getenv("HELIUS_API_KEY", "").strip()
 RPC_URL = f"https://mainnet.helius-rpc.com/?api-key={API_KEY}"

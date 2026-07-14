@@ -4,10 +4,10 @@ Exposes investigation data: wallets, entities, financials, evidence, risk assess
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 CRM_PATH = "/app/data/SOSANA-CRM-2024.json"
 

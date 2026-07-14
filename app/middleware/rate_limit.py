@@ -10,12 +10,12 @@ Supports:
 - Automatic key expiration
 """
 
-import logging
+from app.core.logging import get_logger
 
 import redis
 from fastapi import Request
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ─── RATE LIMIT CONFIGURATION ────────────────────────────────────

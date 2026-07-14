@@ -1,10 +1,10 @@
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Query
 
-logger = logging.getLogger('news_feed')
+logger = get_logger('news_feed')
 router = APIRouter(prefix='/api/v1/internal', tags=['internal'])
 _posted: set[str] = set()
 

@@ -23,7 +23,7 @@ Date: 2026-05-23
 import base64
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import secrets
 import time
@@ -32,7 +32,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-logger = logging.getLogger("wallet_factory")
+logger = get_logger("wallet_factory")
 
 # ── Crypto imports ─────────────────────────────────────────────
 try:

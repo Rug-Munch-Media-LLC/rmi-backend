@@ -20,7 +20,7 @@ Data Sources (all free):
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from collections import defaultdict
@@ -30,7 +30,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────
 

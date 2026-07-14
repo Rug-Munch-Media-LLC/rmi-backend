@@ -18,7 +18,7 @@ Data sources (direct API calls - no self.api_base):
   Moralis: Cross-chain wallet token history
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -28,7 +28,7 @@ import httpx
 
 from app.chain_registry import CHAINS
 
-logger = logging.getLogger("dev_reputation")
+logger = get_logger("dev_reputation")
 
 # ── API Keys ────────────────────────────────────────────────
 

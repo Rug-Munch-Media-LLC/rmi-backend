@@ -19,11 +19,11 @@ Usage in any MCP client:
 from __future__ import annotations
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from typing import Any
 
-logger = logging.getLogger("x402.mcp")
+logger = get_logger("x402.mcp")
 
 TOOLS = [
     {

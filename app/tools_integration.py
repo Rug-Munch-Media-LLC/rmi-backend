@@ -4,14 +4,15 @@ Tools wired: Ollama, Foundry, Slither, ccxt, web3, blogwatcher, LiteLLM, Vault.
 """
 
 import json
-import logging
 import os
 import subprocess
 from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # ═══════════════════════════════════════════════════════════
 # OLLAMA - Local LLM (port 11434, 2 models)
@@ -336,23 +337,25 @@ def litellm_status() -> dict:
 VAULT_ADDR = os.getenv("VAULT_ADDR", "http://172.17.0.1:8200")
 
 
-def vault_get_secret(path: str) -> dict | None:
+async def vault_get_secret(path: str) -> dict | None:
     """Retrieve a secret from HashiCorp Vault."""
     try:
-        r = httpx.get(f"{VAULT_ADDR}/v1/{path}", headers={"X-Vault-Token": "root"}, timeout=5)
-        if r.status_code == 200:
-            return r.json().get("data", {}).get("data", {})
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{VAULT_ADDR}/v1/{path}", headers={"X-Vault-Token": "root"})
+            if r.status_code == 200:
+                return r.json().get("data", {}).get("data", {})
     except Exception:
         pass
     return None
 
 
-def vault_list_secrets(path: str = "secret") -> list[str]:
+async def vault_list_secrets(path: str = "secret") -> list[str]:
     """List secrets in Vault."""
     try:
-        r = httpx.get(f"{VAULT_ADDR}/v1/{path}?list=true", headers={"X-Vault-Token": "root"}, timeout=5)
-        if r.status_code == 200:
-            return r.json().get("data", {}).get("keys", [])
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{VAULT_ADDR}/v1/{path}?list=true", headers={"X-Vault-Token": "root"})
+            if r.status_code == 200:
+                return r.json().get("data", {}).get("keys", [])
     except Exception:
         pass
     return []
@@ -377,7 +380,7 @@ async def tools_health() -> dict:
         "web3": {"available": True},
         "blogwatcher": {"installed": os.path.exists(BLOGWATCHER_PATH), "path": BLOGWATCHER_PATH},
         "litellm": litellm_status(),
-        "vault": {"available": bool(vault_list_secrets()), "url": VAULT_ADDR},
+        "vault": {"available": bool(await vault_list_secrets()), "url": VAULT_ADDR},
         "file_upload": {
             "running": True,  # port 8001
             "url": "http://localhost:8001",

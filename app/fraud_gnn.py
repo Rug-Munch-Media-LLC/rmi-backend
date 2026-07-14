@@ -6,14 +6,14 @@ Fallback: Random Forest 96% accuracy from MUDzain ethereum-fraud-detection.
 Paper ref: Article 3, Section 7 - Open-Source ML Models and GNN Frameworks
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import pickle
 from pathlib import Path
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Model Cache Locations ─────────────────────────────────
 

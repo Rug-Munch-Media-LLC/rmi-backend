@@ -32,6 +32,7 @@ Data Sources (all free):
 import asyncio
 import json
 import logging
+from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
@@ -43,7 +44,7 @@ import httpx
 
 __all__ = ["RiskLevel", "RugPullAnalysis", "SignalResult", "analyze", "predict_rug_pull"]
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────
 

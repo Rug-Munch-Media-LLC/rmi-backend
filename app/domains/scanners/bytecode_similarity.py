@@ -18,7 +18,7 @@ Database:  scam_bytecode_db.json  (auto-created, maintained in this directory)
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 from dataclasses import dataclass, field
@@ -28,7 +28,7 @@ import httpx
 
 from app.chain_registry import is_solana
 
-logger = logging.getLogger("bytecode_similarity")
+logger = get_logger("bytecode_similarity")
 
 # ── Constants ──────────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ Proves CRM ↔ SOSANA ↔ PBTC ↔ SHIFT AI connections.
 import asyncio
 import contextlib
 import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -24,7 +25,7 @@ with contextlib.suppress(ImportError):
     from .wallet_database import get_wallet_database
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("CrossTokenTracker")
+logger = get_logger("CrossTokenTracker")
 
 # === PROJECT TOKEN ADDRESSES ===
 PROJECT_TOKENS = {

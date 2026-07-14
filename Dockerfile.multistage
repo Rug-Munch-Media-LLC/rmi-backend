@@ -1,0 +1,73 @@
+# =============================================================================
+# Dockerfile.multistage — Optimized multi-stage build for rmi-backend
+# Target: ≤800MB (from 2.98GB)
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: builder — install all Python packages with build deps
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+COPY requirements.txt .
+
+RUN grep -vE '^flask|^flask-cors|^chromadb' requirements.txt > requirements-prod.txt && \
+    pip install --no-cache-dir --prefix=/install -r requirements-prod.txt
+
+RUN pip install --no-cache-dir --prefix=/install slither-analyzer
+
+# Prune torch — remove test data, C++ headers, and test binaries (unused at runtime)
+RUN rm -rf /install/lib/python3.12/site-packages/torch/test \
+           /install/lib/python3.12/site-packages/torch/include \
+           /install/lib/python3.12/site-packages/torch/bin
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime — minimal Python image
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+COPY --from=builder /install /usr/local
+
+RUN curl -sL https://github.com/ethereum/solidity/releases/download/v0.8.26/solc-static-linux -o /usr/local/bin/solc && \
+    chmod +x /usr/local/bin/solc
+
+RUN curl -sL https://github.com/foundry-rs/foundry/releases/download/v1.7.1/foundry_v1.7.1_linux_amd64.tar.gz | tar xz -C /usr/local/bin/ cast && \
+    chmod +x /usr/local/bin/cast
+
+RUN curl -sL https://github.com/krallin/tini/releases/download/v0.19.0/tini -o /tini && \
+    chmod +x /tini
+
+RUN groupadd -r rmi && useradd -r -g rmi -d /app -s /sbin/nologin rmi
+
+WORKDIR /app
+COPY --chown=rmi:rmi . .
+
+USER rmi
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8000/live || exit 1
+
+EXPOSE 8000
+
+ENTRYPOINT ["/tini", "--"]
+CMD ["python", "-u", "main.py"]

@@ -10,12 +10,12 @@ Three tiers:
 Never exposes API keys in responses. Never leaks internal data to public users.
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 
 from fastapi import Request
 
-logger = logging.getLogger("databus.security")
+logger = get_logger("databus.security")
 
 # Data type → minimum access level
 ACCESS_LEVELS = {

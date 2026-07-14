@@ -21,10 +21,10 @@ Citations add credibility:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-logger = logging.getLogger("rag_citations")
+logger = get_logger("rag_citations")
 
 
 # ── Citation relevance map: scanner topic → RAG collections to query ──

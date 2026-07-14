@@ -12,14 +12,14 @@ Uses Redis for fast-access cache and optional PostgreSQL for long-term storage.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 from datetime import datetime
 from typing import Any
 
 import redis
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ─── PERSISTENT MODELS ────────────────────────────────────────────────

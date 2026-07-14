@@ -23,7 +23,7 @@ A Smithii-bundled token has detectable on-chain fingerprints
 regardless of the scammer's chosen exit strategy.
 """
 
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -31,7 +31,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger("tool-fingerprinter")
+logger = get_logger("tool-fingerprinter")
 
 # ══════════════════════════════════════════════════════════════════════
 # KNOWN TOOL FINGERPRINTS - from reverse-engineered scammer infrastructure

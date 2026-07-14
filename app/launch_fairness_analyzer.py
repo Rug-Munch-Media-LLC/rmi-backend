@@ -25,14 +25,14 @@ Endpoint: POST /api/v1/x402-tools/launch_fairness
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-logger = logging.getLogger("launch_fairness_analyzer")
+logger = get_logger("launch_fairness_analyzer")
 
 # ── Address validation ──────────────────────────────────────────
 EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")

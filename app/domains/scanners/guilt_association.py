@@ -17,7 +17,7 @@ Uses:
 
 import asyncio
 import contextlib
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -26,7 +26,7 @@ import httpx
 
 from app.chain_registry import get_explorer_api_config, is_evm, is_solana
 
-logger = logging.getLogger("guilt_association")
+logger = get_logger("guilt_association")
 
 
 # ─── Known Mixer / Fixed-Float / Laundering Addresses ────────────────

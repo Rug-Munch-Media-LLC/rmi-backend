@@ -9,11 +9,11 @@ Tier: Premium ($0.10)
 Endpoint: POST /api/v1/x402-tools/whale_accumulation
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import datetime
 from typing import Any
 
-logger = logging.getLogger("whale_accumulation")
+logger = get_logger("whale_accumulation")
 
 # ── Free API sources for accumulation signals ─────────────────────
 

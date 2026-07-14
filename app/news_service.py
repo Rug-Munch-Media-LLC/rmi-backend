@@ -23,7 +23,7 @@ Tiers:
 
 import asyncio
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 import random
 from datetime import UTC, datetime, timedelta
@@ -32,7 +32,7 @@ from typing import Any
 import feedparser
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ─── PROXY ROTATION ───────────────────────────────────────────────
 PROXY_LIST = [

@@ -13,10 +13,10 @@ Provider chain:
 
 import base64
 import contextlib
-import logging
+from app.core.logging import get_logger
 import os
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Key resolution ────────────────────────────────────────────────
 # DeepSeek key may be stored as base64 (Hermes tooling redacts plain keys)

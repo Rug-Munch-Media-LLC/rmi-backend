@@ -7,10 +7,10 @@ Sources:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 WALLET_DB_PATH = "/app/data/wallet_database.json"
 CRM_SOSANA_PATH = "/app/data/SOSANA-CRM-2024.json"

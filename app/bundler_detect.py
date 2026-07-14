@@ -21,7 +21,7 @@ Price   : 80000 atoms
 Endpoint: POST /api/v1/x402-tools/bundler_detect
 """
 
-import logging
+from app.core.logging import get_logger
 import math
 import os
 import re
@@ -32,7 +32,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────
 

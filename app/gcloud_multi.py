@@ -21,7 +21,7 @@ Usage:
 
 import glob
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
@@ -30,7 +30,7 @@ import httpx
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 
-logger = logging.getLogger("gcloud.multi")
+logger = get_logger("gcloud.multi")
 
 ACCOUNTS_DIR = "/root/.secrets/google"
 os.makedirs(ACCOUNTS_DIR, exist_ok=True)

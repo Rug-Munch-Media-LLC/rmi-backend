@@ -10,7 +10,7 @@ Core features:
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from datetime import datetime
 from typing import Any
@@ -18,7 +18,7 @@ from typing import Any
 from app.evm_connector import EVMClient
 from app.solana_connector import SolanaClient
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ─── CLUSTERING ALGORITHMS ──────────────────────────────────────────────

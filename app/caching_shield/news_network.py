@@ -9,7 +9,7 @@ Sources: 25+ trusted crypto news outlets, newsletters, blogs, and mirrors.
 
 import asyncio
 import hashlib
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 import feedparser
 import httpx
 
-logger = logging.getLogger("news_network")
+logger = get_logger("news_network")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 25+ NEWS SOURCES - Mainstream, independent, newsletters, blogs

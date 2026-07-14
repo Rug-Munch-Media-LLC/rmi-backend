@@ -5,12 +5,12 @@ Fetch trending tokens across chains from the RMI backend.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 from urllib.request import Request, urlopen
 
 from app.core.internal_key import INTERNAL_API_KEY
 
-logger = logging.getLogger("rmi.trending")
+logger = get_logger("rmi.trending")
 
 BACKEND_URL = "http://rmi-backend:8000"
 

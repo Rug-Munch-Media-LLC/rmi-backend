@@ -8,12 +8,12 @@ Fast changes = higher risk than static bad metrics.
 Premium feature: Catches rugs mid-flight, not just at launch.
 """
 
-import logging
+from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from typing import Any
 
-logger = logging.getLogger("sentinel.velocity")
+logger = get_logger("sentinel.velocity")
 
 # In-memory time-series cache (backed by Redis in production)
 # { "chain:address": [(timestamp, {metrics}), ...] }

@@ -17,10 +17,10 @@ Backend implementations: app/catalog/* + app/domain/reports/generator.py
 
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Tool catalog - inputSchema follows JSON Schema 2020-12
 TOOL_CATALOG: list[dict[str, Any]] = [

@@ -18,7 +18,7 @@ Sources:
 import contextlib
 import csv
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
@@ -26,7 +26,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger("wallet_memory.label_importer")
+logger = get_logger("wallet_memory.label_importer")
 
 # ── Paths ──────────────────────────────────────────────────────────────
 

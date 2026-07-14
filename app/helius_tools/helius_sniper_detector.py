@@ -12,7 +12,7 @@ Key metrics:
 - Jito bundle detection
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from collections import defaultdict
 from dataclasses import dataclass
@@ -21,7 +21,7 @@ from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger("sniper-detector")
+logger = get_logger("sniper-detector")
 
 API_KEY = os.getenv("HELIUS_API_KEY", "").strip()
 RPC_URL = f"https://mainnet.helius-rpc.com/?api-key={API_KEY}"

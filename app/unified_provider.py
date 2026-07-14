@@ -4,10 +4,10 @@ Priority: Helius → Birdeye → Solscan → GMGN → DexScreener → QuickNode 
 Rate-limited to ~5 req/sec total. Heavy caching. Never blocks on a single API.
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Singleton ──────────────────────────────────────────────
 

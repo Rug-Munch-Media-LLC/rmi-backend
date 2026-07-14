@@ -9,14 +9,14 @@ Load balancing: round-robin with 429 fallback to next key
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass
 
 import httpx
 
-logger = logging.getLogger("solana_tracker")
+logger = get_logger("solana_tracker")
 
 # Key configs
 KEY_CONFIGS = [

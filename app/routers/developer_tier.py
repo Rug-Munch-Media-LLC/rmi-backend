@@ -16,7 +16,7 @@ Date: 2026-06-05
 
 import email
 import json
-import logging
+from app.core.logging import get_logger
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from app.databus_gateway import generate_api_key
 from app.routers.dev_portal import create_api_key
 
-logger = logging.getLogger("developer_tier")
+logger = get_logger("developer_tier")
 
 router = APIRouter(prefix="/api/v1/developer", tags=["developer-tier"])
 

@@ -29,6 +29,10 @@ from typing import Any
 import httpx
 import websockets
 
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 # Redis
 try:
     import redis.asyncio as redis_async
@@ -335,7 +339,9 @@ class AlertEngine:
             )
         return None
 
-    def _rule_scammer_interaction(self, tx: WalletTx, history: list[WalletTx]) -> WalletAlert | None:
+    def _rule_scammer_interaction(
+        self, tx: WalletTx, history: list[WalletTx]
+    ) -> WalletAlert | None:
         # Heuristic only; real check queries Redis blocklist asynchronously in caller
         # Here we flag any contract interaction with unknown/unverified contract
         if tx.is_contract_interaction and not tx.dex_swap:
@@ -604,7 +610,7 @@ class WalletMonitor:
 
     async def _listen_evm(self) -> None:
         if not self.ws_url:
-            print(f"[WalletMonitor] No WS URL for {self.chain}")
+            logger.warning("evm_no_ws_url chain=%s", self.chain)
             return
 
         while self.running:
@@ -644,14 +650,16 @@ class WalletMonitor:
                             continue
 
             except Exception as e:
-                print(f"[WalletMonitor] WS error ({self.chain}): {e}, reconnecting...")
+                logger.warning("evm_ws_error chain=%s error=%s reconnecting=True", self.chain, e)
                 await asyncio.sleep(5)
 
     def _parse_evm_tx(self, raw: dict) -> WalletTx:
         to_addr = raw.get("to") or ""
         data = raw.get("input", "")
         is_contract_creation = to_addr == "" or to_addr is None
-        is_approval = is_contract_creation is False and len(data) >= 10 and data[2:10].lower() == "095ea7b3"
+        is_approval = (
+            is_contract_creation is False and len(data) >= 10 and data[2:10].lower() == "095ea7b3"
+        )
         dex_swap = None
         to_lower = (to_addr or "").lower()
         for name, addr in DEX_ROUTERS.items():
@@ -693,7 +701,7 @@ class WalletMonitor:
 
     async def _listen_solana(self) -> None:
         if not self.ws_url:
-            print("[WalletMonitor] No WS URL for solana")
+            logger.warning("solana_no_ws_url")
             return
 
         while self.running:
@@ -733,7 +741,7 @@ class WalletMonitor:
                             continue
 
             except Exception as e:
-                print(f"[WalletMonitor] Solana WS error: {e}, reconnecting...")
+                logger.warning("solana_ws_error error=%s reconnecting=True", e)
                 await asyncio.sleep(5)
 
     async def _fetch_solana_latest_tx(self, account: str) -> WalletTx | None:
@@ -936,7 +944,7 @@ class WalletMonitor:
     async def start(self) -> None:
         self.running = True
         await self._refresh_watchlist()
-        print(f"[WalletMonitor] Starting {self.chain} monitor...")
+        logger.info("starting_monitor chain=%s", self.chain)
 
         # Launch watchlist refresher
         _ = asyncio.create_task(self._watchlist_refresh_loop())
@@ -995,7 +1003,9 @@ class WalletMonitorManager:
         if self._webhooks:
             await AlertChannel.dispatch_webhooks(alert, self._webhooks)
 
-    async def add_watch(self, wallet: str, chain: str = "ethereum", tags: list[str] | None = None) -> dict:
+    async def add_watch(
+        self, wallet: str, chain: str = "ethereum", tags: list[str] | None = None
+    ) -> dict:
         ok = await WatchlistManager.add(wallet, chain, tags)
         # Refresh local cache if monitor already running
         mon = self.monitors.get(chain)

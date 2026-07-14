@@ -14,14 +14,14 @@ Tax pattern detection:
   - Variable tax over time/volume → time-based honeypot
 """
 
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field
 
 import httpx
 
 from app.chain_registry import is_solana
 
-logger = logging.getLogger("honeypot_detector")
+logger = get_logger("honeypot_detector")
 
 JUPITER_QUOTE_URL = "https://quote-api.jup.app/v6/quote"
 DEXSCREENER_URL = "https://api.dexscreener.com"

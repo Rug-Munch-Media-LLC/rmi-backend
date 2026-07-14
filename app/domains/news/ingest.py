@@ -30,7 +30,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Default feeds (per v4.0 §T28)
 DEFAULT_FEEDS: list[dict[str, str]] = [

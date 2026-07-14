@@ -7,7 +7,7 @@ doesn't enforce caps yet.
 from __future__ import annotations
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from typing import Any
@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class CostBuffer:

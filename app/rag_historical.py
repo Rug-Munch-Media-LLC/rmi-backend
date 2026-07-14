@@ -18,14 +18,14 @@ Runs: weekly (Sunday 2am) for historical sources.
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("rag.historical")
+logger = get_logger("rag.historical")
 
 # ── Config ──
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")

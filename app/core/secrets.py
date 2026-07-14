@@ -11,11 +11,11 @@ Usage:
     key = get_secret("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import subprocess
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _from_gopass(path: str) -> str | None:

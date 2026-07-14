@@ -1,0 +1,5 @@
+# OpenTelemetry — tracing & observability (add to requirements.txt on next rebuild)
+opentelemetry-api>=1.30.0
+opentelemetry-sdk>=1.30.0
+opentelemetry-exporter-otlp-proto-grpc>=1.30.0
+opentelemetry-instrumentation-fastapi>=0.51b0

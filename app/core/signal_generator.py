@@ -135,7 +135,7 @@ async def main():
 
     for s in signals[:20]:
         logger.info(
-            f"  {s['signal']} {s['token']} ({s['chain']}) score={s['safety_score']} liq=${s['liquidity_usd']:,.0f}"  # noqa: E501
+            f"  {s['signal']} {s['token']} ({s['chain']}) score={s['safety_score']} liq=${s['liquidity_usd']:,.0f}"
         )
     logger.info(f"Generated {len(signals)} signals across {len(CHAINS)} chains")
     return signals

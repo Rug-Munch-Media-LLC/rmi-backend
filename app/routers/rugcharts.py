@@ -6,14 +6,14 @@ and comprehensive token intelligence for the RugCharts page.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 
 import httpx
 import redis
 from fastapi import APIRouter, Query
 
-logger = logging.getLogger("rugcharts_router")
+logger = get_logger("rugcharts_router")
 
 router = APIRouter(prefix="/api/v1/rugcharts", tags=["rugcharts"])
 

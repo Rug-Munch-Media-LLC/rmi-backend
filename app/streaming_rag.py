@@ -16,13 +16,13 @@ Architecture:
 import asyncio
 import contextlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── In-memory watch registry ─────────────────────────────────────
 # In production, this would use Redis for persistence across restarts

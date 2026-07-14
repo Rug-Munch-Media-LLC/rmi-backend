@@ -12,14 +12,14 @@ Chains: solana, ethereum, base, bsc, arbitrum, polygon, avalanche,
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ─── CHAIN CONFIG ─────────────────────────────────────────────────
 

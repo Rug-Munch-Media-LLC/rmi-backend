@@ -4,10 +4,10 @@ All free/public APIs, no API keys required.
 Uses Warpcast v2 API (free, no auth needed for public data).
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Warpcast public API v2 (free, no key)
 WARPCAST_API = "https://api.warpcast.com/v2"

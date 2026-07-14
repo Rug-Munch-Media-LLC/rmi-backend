@@ -17,7 +17,7 @@ Uses:
   - Known CEX hot wallet registry from chain_registry
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -31,7 +31,7 @@ from app.chain_registry import (
 )
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
-logger = logging.getLogger("gas_trace")
+logger = get_logger("gas_trace")
 
 
 # ── Etherscan Network Config (mirrors dev_reputation pattern) ─────────────

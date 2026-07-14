@@ -1,12 +1,12 @@
 """Mistral AI provider for DataBus - Free tier: 1B tokens/month, 1 req/sec.
 Credit-conserving: uses Small 4 for bulk, Medium 3.5 only when needed."""
 
-import logging
+from app.core.logging import get_logger
 import os
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 MISTRAL_KEY = os.getenv("MISTRAL_API_KEY", "")
 MISTRAL_BASE = "https://api.mistral.ai/v1"

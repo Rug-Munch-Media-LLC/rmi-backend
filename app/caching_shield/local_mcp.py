@@ -18,12 +18,12 @@ Usage:
 import asyncio
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import subprocess
 import time
 from pathlib import Path
 
-logger = logging.getLogger("local_mcp")
+logger = get_logger("local_mcp")
 
 MCP_HOME = Path("/root/.hermes/mcp-servers")
 

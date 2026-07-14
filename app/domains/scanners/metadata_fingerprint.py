@@ -18,7 +18,7 @@ Scoring:
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -27,7 +27,7 @@ from typing import ClassVar
 
 import httpx
 
-logger = logging.getLogger("metadata_fingerprint")
+logger = get_logger("metadata_fingerprint")
 
 
 # ---------------------------------------------------------------------------

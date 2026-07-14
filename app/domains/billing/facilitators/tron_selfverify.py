@@ -19,7 +19,7 @@ Tokens: USDT (TRC20), USDC (TRC20), USDD (TRC20)
 Settlement: Self-verified (instant)
 """
 
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
@@ -34,7 +34,7 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
-logger = logging.getLogger("facilitator.tron_selfverify")
+logger = get_logger("facilitator.tron_selfverify")
 
 # TRC20 token contracts on TRON mainnet
 TRC20_TOKENS = {

@@ -1,12 +1,12 @@
 """Cerebras provider - GPT-OSS-120B, fastest inference on Earth (9ms).
 Free tier: 14,400 req/day, 1M tokens/day."""
 
-import logging
+from app.core.logging import get_logger
 import os
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 CEREBRAS_KEY = os.getenv("CEREBRAS_API_KEY", "")
 BASE = "https://api.cerebras.ai/v1"
 

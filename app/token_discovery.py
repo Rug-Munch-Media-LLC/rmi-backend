@@ -6,12 +6,12 @@ Multi-chain real-time token discovery. Add this route to main.py:
     app.include_router(discover_endpoint)
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 MONITORED_CHAINS = {
     "solana": "solana",

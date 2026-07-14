@@ -12,11 +12,11 @@ Produces structured community reports that answer:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 from collections import defaultdict
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def detect_communities(

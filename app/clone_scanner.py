@@ -32,7 +32,7 @@ Usage:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 import re
 import time
@@ -43,7 +43,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Patterns ──────────────────────────────────────────────────────
 EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")

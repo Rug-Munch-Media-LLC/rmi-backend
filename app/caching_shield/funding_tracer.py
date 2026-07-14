@@ -22,11 +22,11 @@ Usage:
     # Returns: {source_address, source_type, confidence, hops, ...}
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("funding_tracer")
+logger = get_logger("funding_tracer")
 
 # Chain config
 CHAIN_NAMES = {

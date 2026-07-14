@@ -23,7 +23,7 @@ This is the "people actually want to know" layer.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -32,7 +32,7 @@ from app.prediction_market_service import (
     get_prediction_market_service,
 )
 
-logger = logging.getLogger("prediction_market_intel")
+logger = get_logger("prediction_market_intel")
 
 
 @dataclass

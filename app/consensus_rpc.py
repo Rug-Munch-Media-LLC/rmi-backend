@@ -14,7 +14,7 @@ Depends on: httpx (async HTTP), HELIUS_API_KEY env var.
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
@@ -22,7 +22,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Chain → RPC URL Mapping ────────────────────────────────────────────────
 

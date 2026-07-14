@@ -3,13 +3,13 @@ Intelligence Router - Market, Premium, and Security Intelligence.
 Receives data from n8n workflows, provides query endpoints for users.
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/intelligence", tags=["intelligence"])
 

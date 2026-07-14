@@ -15,14 +15,14 @@ Auth: Session cookie from owner login. Cookie refreshed on 401.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 GHOST_API = "https://blog.rugmunch.io"
 GHOST_CONTENT_KEY = os.getenv("GHOST_CONTENT_API_KEY", "")

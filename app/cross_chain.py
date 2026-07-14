@@ -15,13 +15,13 @@ Input: Address on any chain
 Output: Linked addresses on other chains with confidence + evidence
 """
 
-import logging
+from app.core.logging import get_logger
 import re
 from typing import Any
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Chain normalization ──────────────────────────────────────────
 CHAIN_ALIASES = {

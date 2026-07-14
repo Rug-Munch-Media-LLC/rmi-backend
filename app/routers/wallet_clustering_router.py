@@ -3,14 +3,14 @@ Wallet Clustering API Router - Cluster detection, funding paths, risk analysis.
 Connects to /api/v1/wallet-clusters/*
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/wallet-clusters", tags=["wallet-clustering"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ClusterRequest(BaseModel):

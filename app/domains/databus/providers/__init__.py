@@ -25,7 +25,7 @@ DEDUP RULES:
 
 import asyncio
 import datetime
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections.abc import Callable
@@ -35,7 +35,7 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger("databus.providers")
+logger = get_logger("databus.providers")
 
 # Import SPL metadata decoder
 from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider  # noqa: E402

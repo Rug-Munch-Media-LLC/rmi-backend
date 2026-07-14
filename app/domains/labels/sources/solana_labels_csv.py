@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 from app.domains.labels.models import Label, LabelSource
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 CSV_PATH = "/home/dev/rmi/backend/data/wallet-labels-clean/wallet_labels_solana.csv"
 

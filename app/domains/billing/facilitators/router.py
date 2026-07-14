@@ -16,7 +16,7 @@ Usage:
     result = await router.verify(payload, chain="base", token="USDC")
 """
 
-import logging
+from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from typing import Any
@@ -29,7 +29,7 @@ from app.domains.billing.facilitators.base import (
     get_registry,
 )
 
-logger = logging.getLogger("facilitator_router")
+logger = get_logger("facilitator_router")
 
 
 class FacilitatorRouter:

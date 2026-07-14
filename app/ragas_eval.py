@@ -11,7 +11,7 @@ Metrics:
   - hit_rate (% queries with at least one relevant hit)
 """
 
-import logging
+from app.core.logging import get_logger
 import math
 import re
 import time
@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ======================================================================

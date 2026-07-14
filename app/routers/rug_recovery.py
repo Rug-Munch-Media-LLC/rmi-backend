@@ -170,7 +170,7 @@ async def trace_rug(
         "recovery_possible": recovery_possible,
         "trace_graph": {"nodes": nodes, "edges": edges},
         "recommendation": (
-            "Funds traced to known CEX addresses. Contact exchange with tx hashes and police report."  # noqa: E501
+            "Funds traced to known CEX addresses. Contact exchange with tx hashes and police report."
             if recovery_possible
             else "No CEX deposits detected yet. Monitor deployer wallet for future CEX transfers."
         ),

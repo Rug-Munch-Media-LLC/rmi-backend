@@ -29,14 +29,14 @@ Quality Standards:
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
 
 import httpx
 
-logger = logging.getLogger("model_registry")
+logger = get_logger("model_registry")
 
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 GROQ_KEY = os.getenv("GROQ_API_KEY", "")

@@ -6,12 +6,13 @@ Every major news organization's crypto coverage. The biggest on the internet.
 import hashlib
 import json
 import logging
+from app.core.logging import get_logger
 import time
 from xml.etree import ElementTree as ET
 
 import httpx
 
-logger = logging.getLogger("rmi.global")
+logger = get_logger("rmi.global")
 
 # ═══════════════════════════════════════════════════════
 # GOOGLE NEWS - Crypto section (free RSS)

@@ -22,14 +22,14 @@ Tier: Premium ($0.10)
 Endpoint: POST /api/v1/x402-tools/dex_pool_manipulation
 """
 
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-logger = logging.getLogger("dex_pool_manipulation_analyzer")
+logger = get_logger("dex_pool_manipulation_analyzer")
 
 # ── Constants ──────────────────────────────────────────────────
 EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")

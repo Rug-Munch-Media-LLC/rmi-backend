@@ -11,7 +11,7 @@ Exposes:
   • Token metadata (name, symbol, decimals)
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import datetime
 from typing import Any
 
@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from app.entity_clustering import EntityClusteringEngine
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ─── KNOWN ENTITIES DATABASE ──────────────────────────────────────────────

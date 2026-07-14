@@ -9,13 +9,13 @@ Processes Helius, Moralis, and custom webhook events with:
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Alert Severity Levels ───────────────────────────────────
 

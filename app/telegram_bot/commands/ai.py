@@ -13,7 +13,7 @@ Single source of truth: DataBus (cache, dedup, credit-aware, fallback chains)
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 from datetime import UTC, datetime
@@ -21,7 +21,7 @@ from urllib.request import Request, urlopen
 
 from app.core.internal_key import INTERNAL_API_KEY
 
-logger = logging.getLogger("rmi.agent")
+logger = get_logger("rmi.agent")
 
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_URL = "https://api.deepseek.com/v1/chat/completions"
@@ -42,7 +42,7 @@ INJECTION_PATTERNS = [
     r"prompt\s*injection",
 ]
 PRIVATE_KEY_RX = re.compile(
-    r"(0x[a-fA-F0-9]{64}|[1-9A-HJ-NP-Za-km-z]{44,88}|sk-[a-zA-Z0-9]{32,}|-----BEGIN.*PRIVATE KEY-----)"  # noqa: E501
+    r"(0x[a-fA-F0-9]{64}|[1-9A-HJ-NP-Za-km-z]{44,88}|sk-[a-zA-Z0-9]{32,}|-----BEGIN.*PRIVATE KEY-----)"
 )
 
 # ── DataBus Chains available to the bot ──

@@ -12,12 +12,12 @@ Redis keys:
   token_id format: "{chain}:{token_address}"
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-logger = logging.getLogger("liquidity_watchdog")
+logger = get_logger("liquidity_watchdog")
 
 # Redis key namespace
 REDIS_NS = "rmi:liquidity"

@@ -2,13 +2,13 @@
 Expanded to include 200+ tools across 40+ services
 """
 
-import logging
+from app.core.logging import get_logger
 import os
 import re
 
 from fastapi import APIRouter
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Provider name sanitization map
 _PROVIDER_MAP = {

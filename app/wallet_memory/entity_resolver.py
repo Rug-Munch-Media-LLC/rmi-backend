@@ -11,12 +11,12 @@ Produces entity_id (deterministic hash) for each resolved entity group.
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 from typing import Any
 
 from .storage import WalletStorage, get_storage
 
-logger = logging.getLogger("wallet_memory.entity_resolver")
+logger = get_logger("wallet_memory.entity_resolver")
 
 
 class EntityResolver:

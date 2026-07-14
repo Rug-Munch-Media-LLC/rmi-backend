@@ -19,7 +19,7 @@ Endpoint: POST /api/v1/x402-tools/cross_chain_trace
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
@@ -27,7 +27,7 @@ from enum import Enum
 from typing import Any
 from urllib.parse import urlparse
 
-logger = logging.getLogger("cross_chain_trace")
+logger = get_logger("cross_chain_trace")
 
 # ── Address validation patterns ────────────────────────────────────
 EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")

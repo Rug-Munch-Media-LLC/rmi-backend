@@ -22,7 +22,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections import OrderedDict, defaultdict
@@ -33,7 +33,7 @@ from dotenv import load_dotenv
 
 load_dotenv("/app/.env", override=True)
 
-logger = logging.getLogger("databus.cache")
+logger = get_logger("databus.cache")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))

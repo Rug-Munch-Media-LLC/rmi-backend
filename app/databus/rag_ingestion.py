@@ -10,11 +10,11 @@ Redis-backed with permanence to R2.
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
-logger = logging.getLogger("rag_ingestion")
+logger = get_logger("rag_ingestion")
 
 
 async def nightly_rag_index(**kw) -> dict:

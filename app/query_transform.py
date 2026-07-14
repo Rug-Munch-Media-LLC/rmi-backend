@@ -13,14 +13,14 @@ All strategies have LLM-backed and rule-based fallback paths.
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import re
 from dataclasses import dataclass, field
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # -- Redis config (same as rag_service) --
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")

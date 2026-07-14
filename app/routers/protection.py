@@ -6,7 +6,7 @@ Provides safety checking for URLs, wallets, and tokens.
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
@@ -19,7 +19,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-logger = logging.getLogger("protection")
+logger = get_logger("protection")
 
 
 # ── Rate Limiter ─────────────────────────────────────────────────────────────

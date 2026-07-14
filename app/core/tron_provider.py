@@ -1,10 +1,10 @@
 """Tron blockchain provider - free TronGrid API, no key needed."""
 
-import logging
+from app.core.logging import get_logger
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 TRONGRID = "https://api.trongrid.io"
 
 

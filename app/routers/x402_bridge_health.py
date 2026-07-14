@@ -16,7 +16,7 @@ ROUTER: /api/v1/x402-tools/bridge_health
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
@@ -25,7 +25,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-logger = logging.getLogger("x402_bridge_health")
+logger = get_logger("x402_bridge_health")
 
 router = APIRouter(prefix="/api/v1/x402-tools", tags=["x402-bridge-health"])
 

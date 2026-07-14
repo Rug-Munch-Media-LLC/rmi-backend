@@ -19,7 +19,7 @@ All powered by DataBus + Ollama Cloud + RAG.
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
@@ -29,7 +29,7 @@ from urllib.request import Request, urlopen
 
 from app.core.internal_key import INTERNAL_API_KEY
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
 OLLAMA_URL = "https://ollama.com/v1/chat/completions"

@@ -13,7 +13,7 @@ Endpoints:
 from __future__ import annotations
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 
@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-logger = logging.getLogger("stripe")
+logger = get_logger("stripe")
 
 # Stripe keys from environment
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")

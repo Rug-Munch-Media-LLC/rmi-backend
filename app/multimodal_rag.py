@@ -15,11 +15,11 @@ Designed to work with existing RAG pipeline: images → descriptions → embed �
 """
 
 import hashlib
-import logging
+from app.core.logging import get_logger
 import os
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Perceptual Hashing ───────────────────────────────────────────
 

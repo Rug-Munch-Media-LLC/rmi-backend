@@ -19,7 +19,7 @@ Endpoint: POST /api/v1/x402-tools/deployer_history
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
@@ -27,7 +27,7 @@ from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote, urlparse
 
-logger = logging.getLogger("deployer_history")
+logger = get_logger("deployer_history")
 
 # ── Free API sources ─────────────────────────────────────────────
 DEXSCREENER_SEARCH = "https://api.dexscreener.com/latest/dex/search?q={}"

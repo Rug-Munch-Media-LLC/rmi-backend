@@ -11,12 +11,12 @@ Includes:
 - Custom validators
 """
 
-import logging
+from app.core.logging import get_logger
 import re
 
 from pydantic import BaseModel, Field, validator
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ─── COMMON VALIDATION CONSTANTS ─────────────────────────────────

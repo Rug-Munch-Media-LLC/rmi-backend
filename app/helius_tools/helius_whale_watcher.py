@@ -12,7 +12,7 @@ Features:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 from collections import deque
 from collections.abc import Callable
@@ -22,7 +22,7 @@ from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger("whale-watcher")
+logger = get_logger("whale-watcher")
 
 API_KEY = os.getenv("HELIUS_API_KEY", "").strip()
 RPC_URL = f"https://mainnet.helius-rpc.com/?api-key={API_KEY}"

@@ -13,10 +13,10 @@ doesn't break the others.
 from __future__ import annotations
 
 import importlib
-import logging
+from app.core.logging import get_logger
 from typing import Any, Final
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 # Canonical router list (single source of truth)

@@ -5,13 +5,13 @@ Langfuse primary, Redis metrics fallback when Langfuse unavailable.
 """
 
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 
-logger = logging.getLogger("rag.observability")
+logger = get_logger("rag.observability")
 
 LANGFUSE_AVAILABLE = False
 try:

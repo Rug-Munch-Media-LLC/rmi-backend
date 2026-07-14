@@ -14,7 +14,7 @@ Author: RMI Development
 Date: 2026-06-05
 """
 
-import logging
+from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.redis import get_redis
 
-logger = logging.getLogger("facilitator_health")
+logger = get_logger("facilitator_health")
 
 router = APIRouter(prefix="/api/v1/x402/facilitator-health", tags=["facilitator-health"])
 

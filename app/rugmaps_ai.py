@@ -5,11 +5,11 @@ Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
 
 import hashlib
 import json
-import logging
+from app.core.logging import get_logger
 import os
 import time
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # LLM config - DeepSeek Flash for fast, cheap analysis
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")

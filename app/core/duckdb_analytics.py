@@ -33,13 +33,13 @@ with zero setup.
 
 from __future__ import annotations
 
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class DuckDBAnalytics:
@@ -231,7 +231,7 @@ class DuckDBAnalytics:
     def list_tables(self) -> list[str]:
         """List all registered tables."""
         rows = self.query(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main' ORDER BY table_name"  # noqa: E501
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main' ORDER BY table_name"
         )
         return [r["table_name"] for r in rows]
 

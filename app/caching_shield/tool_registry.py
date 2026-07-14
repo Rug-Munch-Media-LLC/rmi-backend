@@ -13,10 +13,10 @@ Sources:
 Gets called by x402_catalog.py for accurate tool counts.
 """
 
-import logging
+from app.core.logging import get_logger
 from pathlib import Path
 
-logger = logging.getLogger("tool_registry")
+logger = get_logger("tool_registry")
 
 
 def count_all_tools() -> dict:

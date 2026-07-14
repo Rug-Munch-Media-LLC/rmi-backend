@@ -12,7 +12,7 @@ Limit: 10 calls/day per API key on the free tier. So we cache aggressively.
 from __future__ import annotations
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
@@ -20,7 +20,7 @@ import httpx
 
 from app.domains.labels.models import Label, LabelSource
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 METASLEUTH_BASE = "https://aml.blocksec.com/address-label/api/v3"
 # Free tier: 10 calls/day per key on risk-level, similar on labels

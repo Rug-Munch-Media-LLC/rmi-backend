@@ -16,13 +16,13 @@ Date: 2026-06-02
 
 import asyncio
 import json
-import logging
+from app.core.logging import get_logger
 import time
 from collections import defaultdict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-logger = logging.getLogger("databus.ws_stream")
+logger = get_logger("databus.ws_stream")
 
 router = APIRouter(tags=["databus-websocket"])
 

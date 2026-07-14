@@ -28,12 +28,12 @@ Providers managed:
 """
 
 import asyncio
-import logging
+from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("api_registry")
+logger = get_logger("api_registry")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PROVIDER DEFINITIONS

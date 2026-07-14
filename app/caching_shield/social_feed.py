@@ -8,13 +8,13 @@ Reddit top posts from r/CryptoCurrency, r/ethfinance, r/solana.
 
 import asyncio
 import hashlib
-import logging
+from app.core.logging import get_logger
 import time
 from datetime import UTC, datetime
 
 import httpx
 
-logger = logging.getLogger("social_feed")
+logger = get_logger("social_feed")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TOP 50 CRYPTO X ACCOUNTS - by influence/relevance
