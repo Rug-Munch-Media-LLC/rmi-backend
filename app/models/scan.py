@@ -7,6 +7,8 @@ from sqlalchemy import JSON, DateTime, Index, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from typing import Any
+
 from app.models import Base
 from app.models.base import TimestampMixin
 
@@ -30,22 +32,22 @@ class ScanResult(Base, TimestampMixin):
     safety_score: Mapped[int] = mapped_column(Integer, default=50, nullable=False)
     risk_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     risk_level: Mapped[str] = mapped_column(String(16), default="low", nullable=False)
-    risk_flags: Mapped[list] = mapped_column(
+    risk_flags: Mapped[list[str]] = mapped_column(
         JSON,
         nullable=False,
         default=list,
     )
-    warnings: Mapped[list] = mapped_column(
+    warnings: Mapped[list[str]] = mapped_column(
         JSON,
         nullable=False,
         default=list,
     )
-    modules_run: Mapped[list] = mapped_column(
+    modules_run: Mapped[list[str]] = mapped_column(
         JSON,
         nullable=False,
         default=list,
     )
-    extra: Mapped[dict | None] = mapped_column(
+    extra: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
         nullable=True,
         default=None,

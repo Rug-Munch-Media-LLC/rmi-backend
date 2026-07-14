@@ -7,6 +7,8 @@ from sqlalchemy import JSON, DateTime, Float, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from typing import Any
+
 from app.models import Base
 from app.models.base import TimestampMixin
 
@@ -31,7 +33,7 @@ class Label(Base, TimestampMixin):
     confidence: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
     entity: Mapped[str | None] = mapped_column(String(256), nullable=True)
     entity_category: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    attributes: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+    attributes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, default=None)
     verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

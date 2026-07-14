@@ -6,6 +6,8 @@ from sqlalchemy import JSON, Boolean, Float, Index, Integer, String, UniqueConst
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from typing import Any
+
 from app.models import Base
 from app.models.base import TimestampMixin
 
@@ -37,7 +39,7 @@ class Token(Base, TimestampMixin):
     verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     risk_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     risk_level: Mapped[str] = mapped_column(String(16), default="low", nullable=False)
-    extra: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+    extra: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, default=None)
 
     __table_args__ = (
         UniqueConstraint("chain", "address", name="uq_token_chain_address"),

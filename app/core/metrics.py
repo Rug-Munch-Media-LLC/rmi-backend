@@ -7,9 +7,12 @@ Per RMIV5 v4.0 §T32. Exposes:
 
 The factory expects `router` attribute (mounted at app root).
 """
+
 from __future__ import annotations
 
 import time
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import APIRouter, Response
 from prometheus_client import REGISTRY, Counter, Gauge, Histogram, generate_latest
@@ -66,19 +69,24 @@ class PrometheusMiddleware:
     in lifespan/middleware_setup).
     """
 
-    def __init__(self, app) -> None:
+    def __init__(self, app: Any) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(
+        self,
+        scope: dict[str, Any],
+        receive: Callable[[], Awaitable[dict[str, Any]]],
+        send: Callable[[dict[str, Any]], Awaitable[None]],
+    ) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
         ACTIVE_REQUESTS.inc()
         start = time.perf_counter()
-        status_holder = {"code": 500}
+        status_holder: dict[str, int] = {"code": 500}
 
-        async def wrapped_send(message):
+        async def wrapped_send(message: dict[str, Any]) -> None:
             if message["type"] == "http.response.start":
                 status_holder["code"] = message["status"]
             await send(message)
@@ -94,9 +102,7 @@ class PrometheusMiddleware:
             REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=status).inc()
             REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(elapsed)
             if status_holder["code"] >= 400:
-                ERROR_COUNT.labels(
-                    method=method, endpoint=endpoint, error_type=status
-                ).inc()
+                ERROR_COUNT.labels(method=method, endpoint=endpoint, error_type=status).inc()
 
 
 # ── Router (factory expects this attribute) ─────────────────────────
