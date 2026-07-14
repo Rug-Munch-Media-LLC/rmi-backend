@@ -1,10 +1,10 @@
-"""M3 RAG Chunking - recursive text chunking with MD5 dedup.
+"""M3 RAG Chunking - recursive text chunking with SHA-256 dedup.
 
 Why chunking matters:
 - Embedding models have context limits (bge-m3 = 8192 tokens, but we
   chunk to 512 for granularity and to keep individual FAISS hits useful)
 - Smaller chunks = better retrieval precision (less noise per result)
-- Dedup via content MD5 prevents the same fact being ingested N times
+- Dedup via content SHA-256 prevents the same fact being ingested N times
 
 Strategy (per 2026 RAG standards):
 - Recursive character split, paragraph → sentence → word boundaries
@@ -12,6 +12,7 @@ Strategy (per 2026 RAG standards):
 - Quality score: (length / max_chunk) x (1 - special_char_ratio)  # noqa: RUF002
 - Skip chunks < min_chars (likely noise)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -32,6 +33,7 @@ def _get_redis():
     global _redis
     if _redis is None:
         from app.core.redis import get_redis
+
         _redis = get_redis()
     return _redis
 
@@ -47,9 +49,9 @@ class Chunk:
 
 
 def content_hash(text: str) -> str:
-    """Stable MD5 of normalized text. Used for dedup."""
+    """Stable SHA-256 of normalized text. Used for dedup."""
     norm = re.sub(r"\s+", " ", text.strip().lower())
-    return hashlib.md5(norm.encode("utf-8", errors="ignore")).hexdigest()
+    return hashlib.sha256(norm.encode("utf-8", errors="ignore")).hexdigest()
 
 
 def chunk_text(

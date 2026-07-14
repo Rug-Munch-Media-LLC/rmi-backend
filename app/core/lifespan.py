@@ -7,6 +7,7 @@ import httpx
 from fastapi import FastAPI
 
 from app.core.logging import get_logger
+from app.core.secrets import get_secret_or_none
 
 logger = get_logger(__name__)
 
@@ -71,7 +72,11 @@ async def _verify_indexes(app: FastAPI) -> None:
     """Verify and create database indexes on startup."""
     try:
         supabase_url = os.getenv("SUPABASE_URL", "")
-        supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "") or os.getenv("SUPABASE_KEY", "")
+        supabase_key = (
+            get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+            or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
+            or os.getenv("SUPABASE_KEY", "")
+        )
         if not supabase_url or not supabase_key:
             return
 

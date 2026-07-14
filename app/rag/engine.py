@@ -11,9 +11,10 @@ Three-Pillar Search (per 2026 RAG standards):
 
 Ingest:
   - Chunk → embed → store in ANN index + Redis doc store
-  - MD5 dedup per collection
+  - SHA-256 dedup per collection
   - Per-chunk doc_id = "{collection}:{hash}:{idx}"
 """
+
 from __future__ import annotations
 
 import logging
@@ -65,7 +66,12 @@ async def three_pillar_search(
     took_ms = int((time.monotonic() - start) * 1000)
     log.info(
         "rag_search_done collection=%s ann=%d kw=%d fused=%d took_ms=%d backend=%s",
-        collection, len(ann_hits), len(keyword_hits), len(fused), took_ms, current_backend(),
+        collection,
+        len(ann_hits),
+        len(keyword_hits),
+        len(fused),
+        took_ms,
+        current_backend(),
     )
     return [
         {
@@ -78,9 +84,7 @@ async def three_pillar_search(
     ]
 
 
-async def _keyword_search(
-    query: str, collection: str, limit: int
-) -> list[Hit]:
+async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
     """BM25-lite keyword search. Simple TF scoring on stored text.
 
     Returns Hits with score in [0, 1] (normalized). We don't pretend this
@@ -101,6 +105,7 @@ async def _keyword_search(
         return []
 
     import json
+
     terms = [t.lower() for t in query.split() if len(t) > 2]
     if not terms:
         return []
@@ -149,9 +154,7 @@ def _matches_filters(hit: Hit, filters: dict[str, Any]) -> bool:
     return all(hit.metadata.get(k) == v for k, v in filters.items())
 
 
-def _reciprocal_rank_fusion(
-    pillar_hits: list[list[Hit]], top_k: int, k: int = _RRF_K
-) -> list[Hit]:
+def _reciprocal_rank_fusion(pillar_hits: list[list[Hit]], top_k: int, k: int = _RRF_K) -> list[Hit]:
     """Reciprocal Rank Fusion across multiple ranked lists.
 
     RRF score(d) = sum( 1 / (k + rank_i(d)) ) for each pillar that contains d.
@@ -201,12 +204,16 @@ async def ingest_document(
 
     metadata = metadata or {}
     idx = get_index(collection)
-    chunks = chunk_text(content) if chunk else [
-        # Single-chunk path: still dedup
-        __import__("app.rag.chunking", fromlist=["Chunk"]).Chunk(
-            text=content, content_hash=content_hash(content), index=0, quality=1.0
-        )
-    ]
+    chunks = (
+        chunk_text(content)
+        if chunk
+        else [
+            # Single-chunk path: still dedup
+            __import__("app.rag.chunking", fromlist=["Chunk"]).Chunk(
+                text=content, content_hash=content_hash(content), index=0, quality=1.0
+            )
+        ]
+    )
 
     # Dedup
     new_chunks = [c for c in chunks if not is_duplicate(c.content_hash, collection)]
@@ -288,7 +295,7 @@ async def bulk_ingest(
         try:
             r = await ingest_document(
                 collection=collection,
-                doc_id=it.get("doc_id") or it.get("id", f"bulk:{int(time.time()*1000)}"),
+                doc_id=it.get("doc_id") or it.get("id", f"bulk:{int(time.time() * 1000)}"),
                 content=it.get("content") or it.get("text", ""),
                 metadata=it.get("metadata") or {},
             )

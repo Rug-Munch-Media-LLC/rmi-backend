@@ -390,7 +390,7 @@ def generate_card(card_type: str, data: dict) -> dict:
         )
 
         # Generate unique filename
-        data_hash = hashlib.md5(str(sorted(data.items())).encode()).hexdigest()[:12]
+        data_hash = hashlib.sha256(str(sorted(data.items())).encode()).hexdigest()[:12]
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         filename = f"{card_type}_{timestamp}_{data_hash}.png"
         output_path = os.path.join(GENERATED_DIR, filename)

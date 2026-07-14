@@ -290,7 +290,7 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
                 if r.status_code == 200:
                     feed = feedparser.parse(r.text)
                     for entry in feed.entries[:max_per_source]:
-                        aid = hashlib.md5((entry.link or entry.title).encode()).hexdigest()[:12]
+                        aid = hashlib.sha256((entry.link or entry.title).encode()).hexdigest()[:12]
                         if aid in _db:
                             continue
 
@@ -449,7 +449,7 @@ def add_comment(article_id: str, user: str, text: str) -> dict:
     if not a:
         return {"error": "Not found"}
     comment = {
-        "id": hashlib.md5(f"{article_id}{time.time()}".encode()).hexdigest()[:8],
+        "id": hashlib.sha256(f"{article_id}{time.time()}".encode()).hexdigest()[:8],
         "user": user[:50],
         "text": text[:500],
         "timestamp": datetime.now(UTC).isoformat(),

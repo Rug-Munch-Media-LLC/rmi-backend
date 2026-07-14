@@ -2,6 +2,13 @@
 """
 RMI Supabase Service - Unified backend layer for all Supabase tables.
 Replaces scattered REST calls with a clean, typed service interface.
+
+SERVICE KEY USAGE: Uses SUPABASE_SERVICE_KEY (service_role) for all operations.
+This is INTENTIONAL — the backend requires full CRUD access to all tables
+bypassing Row Level Security (RLS). The anon key would not suffice because:
+  - Tables like wallet_intel, x402_payments, entity_clusters are backend-only
+  - Operations like upsert, delete, and bulk inserts require service_role
+  - Direct SQL execution (exec_sql RPC) is restricted to service_role
 """
 
 import os
@@ -9,6 +16,8 @@ from datetime import UTC, datetime
 
 import httpx
 from dotenv import load_dotenv
+
+from app.core.secrets import get_secret_or_none
 
 # Ensure .env is loaded before reading env vars - override stale Docker env
 load_dotenv("/app/.env", override=True)
@@ -19,7 +28,26 @@ def _get_url() -> str:
 
 
 def _get_key() -> str:
-    return os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or ""
+    """Get Supabase service key — required for full backend CRUD access.
+
+    Service role key provides unrestricted database access (bypasses RLS).
+    Required because:
+    - Backend performs admin operations (upserts, deletes, bulk inserts)
+    - Executes raw SQL via RPC for index creation and migrations
+    - Reads sensitive tables (wallet_intel, x402_payments)
+
+    Falls back from SUPABASE_SERVICE_KEY to SUPABASE_SERVICE_ROLE_KEY
+    for backward compatibility.
+    """
+    # Try SUPABASE_SERVICE_KEY first (primary), with gopass path
+    key = get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+    if key:
+        return key
+    # Fall back to SUPABASE_SERVICE_ROLE_KEY (legacy naming)
+    key = get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
+    if key:
+        return key
+    return ""
 
 
 def _get_headers() -> dict:
@@ -233,7 +261,9 @@ async def upsert_wallet(address: str, chain: str, **fields) -> dict:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_wallet_intel(address: str | None = None, chain: str | None = None, limit: int = 100) -> list:
+async def get_wallet_intel(
+    address: str | None = None, chain: str | None = None, limit: int = 100
+) -> list:
     url = _url("wallet_intel")
     query_parts = ["select=*", f"limit={limit}"]
     if address:
@@ -260,7 +290,9 @@ async def get_wallet_connections(address: str) -> list:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_syndicate_wallets(status: str | None = None, chain: str | None = None, limit: int = 200) -> list:
+async def get_syndicate_wallets(
+    status: str | None = None, chain: str | None = None, limit: int = 200
+) -> list:
     url = _url("syndicate_wallets")
     query_parts = ["select=*", f"limit={limit}"]
     if status:
@@ -319,7 +351,9 @@ async def remove_from_watchlist(user_id: str, address: str, chain: str = "ethere
 # ═════════════════════════════════════════════════════════
 
 
-async def get_tokens(chain: str | None = None, limit: int = 50, order_by: str = "volume_24h.desc") -> list:
+async def get_tokens(
+    chain: str | None = None, limit: int = 50, order_by: str = "volume_24h.desc"
+) -> list:
     params = {}
     if chain:
         params["chain"] = chain
@@ -351,7 +385,9 @@ async def upsert_token(address: str, chain: str, **fields) -> dict:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_bulletin_posts(category: str | None = None, sort: str = "created_at.desc", limit: int = 20) -> list:
+async def get_bulletin_posts(
+    category: str | None = None, sort: str = "created_at.desc", limit: int = 20
+) -> list:
     params = {}
     if category and category != "all":
         params["category"] = category
@@ -645,7 +681,9 @@ async def get_x402_earnings_summary() -> dict:
     Aggregates total by chain, tool, and day using Supabase data.
     """
     try:
-        rows = await _get("x402_payments", select="tool,amount_atoms,chain,created_at,status", limit=5000)
+        rows = await _get(
+            "x402_payments", select="tool,amount_atoms,chain,created_at,status", limit=5000
+        )
         total_atoms = 0
         by_chain = {}
         by_tool = {}

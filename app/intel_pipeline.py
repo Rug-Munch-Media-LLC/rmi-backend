@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 import httpx
 from dotenv import load_dotenv
 
+from app.core.secrets import get_secret_or_none
+
 load_dotenv("/app/.env", override=True)
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,12 @@ def _get_url():
 
 
 def _get_key():
-    return os.getenv("SUPABASE_SERVICE_KEY", "")
+    """Get Supabase service key for full CRUD access to intel tables."""
+    return (
+        get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+        or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
+        or ""
+    )
 
 
 def _get_headers():
@@ -114,7 +121,9 @@ async def classify_scam_risk(text: str) -> dict:
 
     return {
         "model": "local_pattern_match",
-        "labels": {k: round(v, 3) for k, v in sorted(scores.items(), key=lambda x: x[1], reverse=True)},
+        "labels": {
+            k: round(v, 3) for k, v in sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        },
         "top_label": top,
         "confidence": round(top_score, 3),
         "is_scam": is_scam,
@@ -261,7 +270,9 @@ async def sync_to_supabase(collection: str, document: dict) -> dict:
     if not _get_url() or not _get_key():
         return {"status": "skipped", "reason": "No Supabase config"}
 
-    doc_id = hashlib.sha256(f"{collection}:{document.get('content', '')[:100]}".encode()).hexdigest()[:16]
+    doc_id = hashlib.sha256(
+        f"{collection}:{document.get('content', '')[:100]}".encode()
+    ).hexdigest()[:16]
 
     payload = {
         "document_id": doc_id,

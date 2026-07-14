@@ -226,7 +226,7 @@ async def fetch_all_news() -> list[NewsArticle]:
                 if r.status_code == 200:
                     feed = feedparser.parse(r.text)
                     for entry in feed.entries[:5]:  # Top 5 per source
-                        article_id = hashlib.md5(entry.link.encode()).hexdigest()[:12]
+                        article_id = hashlib.sha256(entry.link.encode()).hexdigest()[:12]
                         summary = entry.get("summary", entry.get("description", ""))[:300]
                         title = entry.title
 
@@ -327,7 +327,7 @@ async def comment(article_id: str, user: str, text: str) -> dict:
         return {"error": "Article not found"}
 
     comment = {
-        "id": hashlib.md5(f"{article_id}{time.time()}".encode()).hexdigest()[:8],
+        "id": hashlib.sha256(f"{article_id}{time.time()}".encode()).hexdigest()[:8],
         "user": user[:50],
         "text": text[:500],
         "timestamp": datetime.now(UTC).isoformat(),

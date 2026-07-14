@@ -99,7 +99,7 @@ def embed_bundle_profile(bundle: dict[str, Any]) -> list[float]:
     key_addrs = str(bundle.get("common_funder_address", ""))
     key_addrs += str(bundle.get("token_address", ""))
     key_addrs += ",".join(sorted(bundle.get("bundle_wallets", [])[:10]))
-    addr_hash = hashlib.md5(key_addrs.encode()).digest()
+    addr_hash = hashlib.sha256(key_addrs.encode()).digest()
     for i in range(16):
         vec[32 + i] = addr_hash[i] / 255.0
 
@@ -289,7 +289,7 @@ def embed_cluster_profile(cluster: dict[str, Any]) -> list[float]:
     # ── Entity fingerprint (dims 60-79) ──
     entity_id = str(cluster.get("entity_id", ""))
     if entity_id:
-        eh = hashlib.md5(entity_id.encode()).digest()
+        eh = hashlib.sha256(entity_id.encode()).digest()
         for i in range(16):
             vec[60 + i] = eh[i] / 255.0
 

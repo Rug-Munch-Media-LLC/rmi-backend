@@ -182,7 +182,7 @@ class Comment:
 class ContentSanitizer:
     """Sanitize user-generated content to prevent XSS."""
 
-    ALLOWED_TAGS: ClassVar[dict] ={
+    ALLOWED_TAGS: ClassVar[dict] = {
         "p",
         "br",
         "strong",
@@ -219,7 +219,7 @@ class ContentSanitizer:
         "ins",
     }
 
-    ALLOWED_ATTRS: ClassVar[dict] ={
+    ALLOWED_ATTRS: ClassVar[dict] = {
         "a": ["href", "title", "target"],
         "img": ["src", "alt", "title", "width", "height"],
         "div": ["class"],
@@ -376,12 +376,12 @@ class BulletinBoardManager:
             from supabase import create_client
 
             supabase_url = os.getenv("SUPABASE_URL")
-            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
             if supabase_url and supabase_key:
                 client = create_client(supabase_url, supabase_key)
                 client.table("bulletin_posts").insert(post.to_dict()).execute()
         except Exception as e:
-            logger.error(f"Supabase bulletin post save failed: {e}")
+            logger.warning(f"Supabase bulletin post save failed: {e}")
 
         return post
 
@@ -484,12 +484,12 @@ class BulletinBoardManager:
             from supabase import create_client
 
             supabase_url = os.getenv("SUPABASE_URL")
-            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
             if supabase_url and supabase_key:
                 client = create_client(supabase_url, supabase_key)
                 client.table("bulletin_posts").upsert(post_dict).execute()
         except Exception as e:
-            logger.error(f"Supabase bulletin post update failed: {e}")
+            logger.warning(f"Supabase bulletin post update failed: {e}")
 
         return Post(**post_dict)
 

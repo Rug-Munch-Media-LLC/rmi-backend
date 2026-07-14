@@ -35,7 +35,7 @@ class KeyAffinitySelector:
                     if k.key_id == assigned and k.is_available():
                         return k
             # New assignment via consistent hash
-            h = int(hashlib.md5(affinity_key.encode()).hexdigest(), 16)
+            h = int(hashlib.sha256(affinity_key.encode()).hexdigest(), 16)
             idx = h % len(available_keys)
             selected = available_keys[idx]
             if selected.is_available():

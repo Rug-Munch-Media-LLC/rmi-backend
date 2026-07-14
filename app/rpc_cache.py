@@ -133,7 +133,7 @@ def build_key(data_type: str, chain: str, address: str) -> str:
 
     if len(address) > 80:
         # Hash long addresses (e.g., complex contract addresses)
-        short = hashlib.md5(address.encode()).hexdigest()[:16]
+        short = hashlib.sha256(address.encode()).hexdigest()[:16]
         address = f"{address[:40]}..{short}"
 
     return f"{data_type}:{chain}:{address}"

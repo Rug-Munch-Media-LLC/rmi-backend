@@ -75,7 +75,7 @@ class FallbackCache:
     def make_key(self, tool: str, **params) -> str:
         """Create a cache key from tool name and parameters."""
         param_str = json.dumps(params, sort_keys=True)
-        return hashlib.md5(f"{tool}:{param_str}".encode()).hexdigest()[:16]
+        return hashlib.sha256(f"{tool}:{param_str}".encode()).hexdigest()[:16]
 
 
 # ── Web Scraping ──────────────────────────────────────────────

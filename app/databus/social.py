@@ -354,7 +354,7 @@ class SocialDataAggregator:
         Search for brand mentions - VERY expensive on free tier.
         Heavily cached (24h). Only use for critical queries.
         """
-        cache_key = f"social:x:search:{hashlib.md5(query.encode()).hexdigest()}"
+        cache_key = f"social:x:search:{hashlib.sha256(query.encode()).hexdigest()}"
         cached = await self.cache.get(cache_key)
         if cached:
             return cached

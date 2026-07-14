@@ -158,7 +158,11 @@ def sentence_chunk(
         overlap_chars = int(chunk_size * overlap)
         overlapped = [chunks[0]]
         for i in range(1, len(chunks)):
-            prev_tail = chunks[i - 1][-overlap_chars:] if len(chunks[i - 1]) > overlap_chars else chunks[i - 1]
+            prev_tail = (
+                chunks[i - 1][-overlap_chars:]
+                if len(chunks[i - 1]) > overlap_chars
+                else chunks[i - 1]
+            )
             overlapped.append(prev_tail + " " + chunks[i])
         return overlapped
 
@@ -223,11 +227,11 @@ def chunk_document(
 
 
 def content_hash(text: str) -> str:
-    """MD5 hash of normalized text for dedup."""
+    """SHA-256 hash of normalized text for dedup."""
     # Normalize: lowercase, strip extra whitespace, remove punctuation noise
     normalized = re.sub(r"\s+", " ", text.lower().strip())
     normalized = re.sub(r"[^\w\s]", "", normalized)
-    return hashlib.md5(normalized.encode()).hexdigest()
+    return hashlib.sha256(normalized.encode()).hexdigest()
 
 
 async def is_duplicate(collection: str, text: str, redis_client=None) -> bool:
@@ -297,7 +301,9 @@ def quality_score(text: str, content_type: str = "default") -> int:
     entities += len(re.findall(r"0x[a-fA-F0-9]{40}", text))  # ETH addresses
     entities += len(re.findall(r"[1-9A-HJ-NP-Za-km-z]{32,44}", text))  # Solana addresses
     entities += len(re.findall(r"\b[A-Z]{2,5}\b", text))  # Token symbols
-    entities += len(re.findall(r"(?i)(ethereum|solana|bitcoin|polygon|arbitrum|bsc|avalanche|tron)", text))
+    entities += len(
+        re.findall(r"(?i)(ethereum|solana|bitcoin|polygon|arbitrum|bsc|avalanche|tron)", text)
+    )
     score += min(entities * 2, 20)  # Cap at +20
 
     # Noise penalty
