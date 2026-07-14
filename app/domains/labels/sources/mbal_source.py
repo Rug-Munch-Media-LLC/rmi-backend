@@ -38,11 +38,11 @@ class MBALService:
         )
 
         # Cache for rate limiting
-        self.last_request_time = 0
-        self.request_count = 0
-        self.reset_time = 0  # Unix timestamp when quota resets
+        self.last_request_time: float = 0.0
+        self.request_count: int = 0
+        self.reset_time: float = 0.0  # Unix timestamp when quota resets
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP client."""
         await self.client.aclose()
 
@@ -76,9 +76,7 @@ class MBALService:
 
             # Query MBAL's address endpoint
             response = await self.client.get(
-                f"{self.base_url}/address",
-                params=params,
-                headers=headers
+                f"{self.base_url}/address", params=params, headers=headers
             )
             response.raise_for_status()
 
@@ -94,21 +92,23 @@ class MBALService:
                     # Map MBAL categories to our standardized label types
                     label_type = self._map_category_to_type(label_value)
 
-                    labels.append(Label(
-                        address=address,
-                        chain=chain,
-                        label_type=label_type,
-                        label_value=label_value,
-                        source=LabelSource.MBAL,  # MBAL source
-                        verified_at=datetime.now(),
-                        confidence=confidence,
-                        attributes={
-                            "mbal_entity_id": entity.get("entityId"),
-                            "mbal_tags": entity.get("tags", []),
-                            "mbal_risk_score": entity.get("riskScore", 0),
-                            "mbal_cluster_id": entity.get("clusterId"),
-                        }
-                    ))
+                    labels.append(
+                        Label(
+                            address=address,
+                            chain=chain,
+                            label_type=label_type,
+                            label_value=label_value,
+                            source=LabelSource.MBAL,  # MBAL source
+                            verified_at=datetime.now(),
+                            confidence=confidence,
+                            attributes={
+                                "mbal_entity_id": entity.get("entityId"),
+                                "mbal_tags": entity.get("tags", []),
+                                "mbal_risk_score": entity.get("riskScore", 0),
+                                "mbal_cluster_id": entity.get("clusterId"),
+                            },
+                        )
+                    )
 
             if "behaviors" in data and len(labels) == 0:
                 # If no main entities, fall back to behavioral labels
@@ -117,19 +117,21 @@ class MBALService:
                     label_type = self._map_behavior_to_type(label_value)
                     confidence = behavior.get("confidence", 0.7)
 
-                    labels.append(Label(
-                        address=address,
-                        chain=chain,
-                        label_type=label_type,
-                        label_value=label_value,
-                        source=LabelSource.MBAL,  # MBAL API source
-                        verified_at=datetime.now(),
-                        confidence=confidence,
-                        attributes={
-                            "behavior_description": behavior.get("description"),
-                            "behavior_risk_level": behavior.get("riskLevel", "medium"),
-                        }
-                    ))
+                    labels.append(
+                        Label(
+                            address=address,
+                            chain=chain,
+                            label_type=label_type,
+                            label_value=label_value,
+                            source=LabelSource.MBAL,  # MBAL API source
+                            verified_at=datetime.now(),
+                            confidence=confidence,
+                            attributes={
+                                "behavior_description": behavior.get("description"),
+                                "behavior_risk_level": behavior.get("riskLevel", "medium"),
+                            },
+                        )
+                    )
 
             return labels
 
@@ -148,18 +150,53 @@ class MBALService:
         category_lower = category.lower()
 
         # Exchange mappings
-        if any(exchange in category_lower for exchange in ["binance", "coinbase", "kraken", "kucoin",
-                                                         "huobi", "gate.io", "okx", "bybit", "gemini"]):
+        if any(
+            exchange in category_lower
+            for exchange in [
+                "binance",
+                "coinbase",
+                "kraken",
+                "kucoin",
+                "huobi",
+                "gate.io",
+                "okx",
+                "bybit",
+                "gemini",
+            ]
+        ):
             return "exchange"
 
         # Service mappings
-        if any(service in category_lower for service in ["miner", "validator", "staking", "liquidity",
-                                                       "amm", "dex", "bridge", "cex", "dexe"]):
+        if any(
+            service in category_lower
+            for service in [
+                "miner",
+                "validator",
+                "staking",
+                "liquidity",
+                "amm",
+                "dex",
+                "bridge",
+                "cex",
+                "dexe",
+            ]
+        ):
             return "service"
 
         # Actor mappings
-        if any(actor in category_lower for actor in ["blacklist", "scammer", "hacker", "tornado",
-                                                   "mixer", "launderer", "crime", "malicious"]):
+        if any(
+            actor in category_lower
+            for actor in [
+                "blacklist",
+                "scammer",
+                "hacker",
+                "tornado",
+                "mixer",
+                "launderer",
+                "crime",
+                "malicious",
+            ]
+        ):
             return "actor"
 
         # Default to entity for unknown but potentially identifiable categories
@@ -169,16 +206,21 @@ class MBALService:
         """Map MBAL behaviors to our standard label type strings."""
         behavior_lower = behavior.lower()
 
-        if any(risky in behavior_lower for risky in ["malware", "ransom", "exploit", "theft",
-                                                   "scam", "hacking", "malicious"]):
+        if any(
+            risky in behavior_lower
+            for risky in ["malware", "ransom", "exploit", "theft", "scam", "hacking", "malicious"]
+        ):
             return "actor"
 
-        if any(behavior in behavior_lower for behavior in ["mining", "block generation", "transaction fee", "gas"]):
+        if any(
+            behavior in behavior_lower
+            for behavior in ["mining", "block generation", "transaction fee", "gas"]
+        ):
             return "service"
 
         return "entity"  # Default
 
-    async def _rate_limit(self):
+    async def _rate_limit(self) -> None:
         """Implement simple rate limiting based on MBAL tier."""
         now = asyncio.get_event_loop().time()
 
@@ -227,6 +269,7 @@ def get_mbalsy_service() -> MBALService:
     global _mbalsy_instance
     if _mbalsy_instance is None:
         import os
+
         api_key = os.getenv("MBAL_API_KEY", None)
         _mbalsy_instance = MBALService(api_key=api_key)
     return _mbalsy_instance

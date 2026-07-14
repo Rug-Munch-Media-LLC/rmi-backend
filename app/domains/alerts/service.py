@@ -4,9 +4,11 @@ This is the only thing the api/ layer should call. It composes
 the repository (storage) and the broadcaster (WebSocket push).
 No FastAPI. No HTTP. Pure Python.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.alerts.broadcaster import AlertBroadcaster
@@ -87,7 +89,7 @@ class AlertService:
         self,
         token_address: str,
         event_type: AlertType,
-        payload: dict | None = None,
+        payload: dict[str, Any] | None = None,
     ) -> list[AlertEvent]:
         """Fire an event for a token. Returns the events that were broadcast.
 
@@ -96,8 +98,7 @@ class AlertService:
         """
         subs = await self._repo.list_by_token(token_address)
         matching = [
-            s for s in subs
-            if s.active and (event_type.value in [t.value for t in s.alert_types])
+            s for s in subs if s.active and (event_type.value in [t.value for t in s.alert_types])
         ]
         if not matching:
             return []

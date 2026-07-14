@@ -7,6 +7,7 @@ Storage layout (matches legacy for cutover):
 
 This is a thin async wrapper. No business logic. Pure data access.
 """
+
 from __future__ import annotations
 
 from app.core.logging import get_logger
@@ -26,6 +27,9 @@ class AlertRepository:
 
     async def list_all(self) -> list[AlertSubscription]:
         r = get_redis_async()
+        if r is None:
+            log.warning("alert_repo_redis_unavailable")
+            return []
         raw: dict[str, str] = await r.hgetall(self._key) or {}
         out: list[AlertSubscription] = []
         for value in raw.values():
@@ -37,6 +41,9 @@ class AlertRepository:
 
     async def get(self, alert_id: str) -> AlertSubscription | None:
         r = get_redis_async()
+        if r is None:
+            log.warning("alert_repo_redis_unavailable")
+            return None
         raw: str | None = await r.hget(self._key, alert_id)
         if raw is None:
             return None
@@ -48,10 +55,16 @@ class AlertRepository:
 
     async def create(self, sub: AlertSubscription) -> None:
         r = get_redis_async()
+        if r is None:
+            log.warning("alert_repo_redis_unavailable")
+            return
         await r.hset(self._key, sub.id, sub.model_dump_json())
 
     async def delete(self, alert_id: str) -> bool:
         r = get_redis_async()
+        if r is None:
+            log.warning("alert_repo_redis_unavailable")
+            return False
         removed: int = await r.hdel(self._key, alert_id)
         return removed > 0
 

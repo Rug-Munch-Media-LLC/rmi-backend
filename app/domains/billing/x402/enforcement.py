@@ -43,6 +43,7 @@ logger = get_logger("x402_enforcement")
 EVM_PAY_TO: str | None = None
 SOL_PAY_TO: str | None = None
 
+
 # ── Idempotency helper ──
 def check_idempotency(key: str, ttl: int = 86400) -> bool:
     """Atomic SET NX check. Returns True if this is the first call with this key.
@@ -57,7 +58,7 @@ def check_idempotency(key: str, ttl: int = 86400) -> bool:
 
 
 # ── Discovery endpoint cache ──
-_discovery_cache: dict | None = None
+_discovery_cache: dict[str, Any] | None = None
 _discovery_cache_time: float = 0
 DISCOVERY_CACHE_TTL = 300  # 5 minutes
 
@@ -76,7 +77,7 @@ _TOKEN_METADATA = None
 _verifier_loaded = False
 
 
-def _ensure_verifier():
+def _ensure_verifier() -> None:
     global VERIFIER, _FACILITATOR_CONFIGS, _TOKEN_METADATA, _verifier_loaded
     if _verifier_loaded:
         return
@@ -84,7 +85,7 @@ def _ensure_verifier():
     try:
         from app.routers.x402_middleware import FACILITATOR_CONFIGS, TOKEN_METADATA, PaymentVerifier
 
-        VERIFIER = PaymentVerifier()
+        VERIFIER = PaymentVerifier()  # type: ignore[no-untyped-call]
         _FACILITATOR_CONFIGS = FACILITATOR_CONFIGS
         _TOKEN_METADATA = TOKEN_METADATA
         logger.info("x402 enforcement: using existing PaymentVerifier")
@@ -93,10 +94,11 @@ def _ensure_verifier():
         logger.warning(f"x402 enforcement: PaymentVerifier not available: {e}")
 
 
-def get_redis_async() -> aioredis.Redis | None:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+def get_redis_async() -> Any:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     """Get async Redis client. Use in async middleware paths."""
     try:
         from app.core.redis import get_redis_async as _get_async
+
         return _get_async()
     except Exception:
         return None
@@ -107,7 +109,7 @@ def get_redis_async() -> aioredis.Redis | None:  # noqa: F821  -- pre-existing b
 # All other EVM chains use self-verification via Etherscan/Alchemy on-chain checks.
 # Same EVM wallet works across all chains - user pays on whichever has USDC.
 # This is a competitive advantage: most x402 gateways only take Base.
-CHAIN_USDC = {
+CHAIN_USDC: dict[str, dict[str, Any]] = {
     # ── Facilitator-verified chains (instant/direct) ──
     "base": {
         "network": "eip155:8453",
@@ -280,7 +282,7 @@ def _get_pay_to_address(chain: str) -> str:
 TOOL_PRICES: dict[str, dict[str, Any]] = {}
 
 
-def _load_tool_prices():
+def _load_tool_prices() -> None:
     """Load tool prices from canonical dict (single source of truth).
 
     1. Load from CANONICAL_TOOL_PRICES (127 tools, always present)
@@ -586,7 +588,7 @@ except Exception as e:
 _tool_prices_extras_loaded = False
 
 
-def _ensure_tool_prices():
+def _ensure_tool_prices() -> None:
     """Load expanded tools, bundles, and DataBus pricing on first use."""
     global _tool_prices_extras_loaded
     if _tool_prices_extras_loaded:
@@ -658,7 +660,7 @@ CHAIN_NAMES = {
 import base64 as _base64  # noqa: E402
 
 
-def _ensure_pay_addresses():
+def _ensure_pay_addresses() -> None:
     """Ensure EVM_PAY_TO and SOL_PAY_TO are populated from env vars."""
     global EVM_PAY_TO, SOL_PAY_TO
     if not EVM_PAY_TO:
@@ -667,7 +669,7 @@ def _ensure_pay_addresses():
         SOL_PAY_TO = os.getenv("X402_PAYMENT_ADDRESS_SOL", os.getenv("X402_PAYMENT_ADDRESS", ""))
 
 
-def _build_accepts_list(tool_id: str, pricing: dict) -> list:
+def _build_accepts_list(tool_id: str, pricing: dict[str, Any]) -> list[dict[str, Any]]:
     """Build x402 v2 spec 'accepts' array from TOOL_PRICES and CHAIN_USDC.
 
     This produces the canonical PaymentRequirements format that official
@@ -741,7 +743,9 @@ def _build_accepts_list(tool_id: str, pricing: dict) -> list:
     return accepts
 
 
-def _build_bazaar_extension(tool_id: str, pricing: dict, accepts: list) -> dict:
+def _build_bazaar_extension(
+    tool_id: str, pricing: dict[str, Any], accepts: list[dict[str, Any]]
+) -> dict[str, Any]:
     """Build x402 v2 bazaar extension for facilitator discovery indexing.
 
     Per x402 v2 bazaar extension spec, the extension follows the standard v2
@@ -866,7 +870,7 @@ def _build_bazaar_extension(tool_id: str, pricing: dict, accepts: list) -> dict:
     }
 
 
-def _build_resource_info(tool_id: str, pricing: dict) -> dict:
+def _build_resource_info(tool_id: str, pricing: dict[str, Any]) -> dict[str, Any]:
     """Build x402 v2 ResourceInfo object for PaymentRequired response.
 
     Per x402 v2 spec section 5.1.2, ResourceInfo has only three fields:
@@ -1036,7 +1040,7 @@ def build_402_response(tool_id: str, client_id: str = "") -> JSONResponse:
 
 
 # ── Payment header parser (supports v1 x-pay and v2 PAYMENT-SIGNATURE) ──
-def parse_x_pay_header(header_value: str) -> dict | None:
+def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
     """Parse payment payload from x-pay / PAYMENT-SIGNATURE header.
 
     Supports three formats:
@@ -1061,8 +1065,8 @@ def parse_x_pay_header(header_value: str) -> dict | None:
                 if "x402Version" in payload:
                     # v2 PaymentPayload - our verifier already handles this format
                     # It extracts network from payload.accepted and routes to facilitator
-                    return payload
-                return payload
+                    return payload  # type: ignore[no-any-return]
+                return payload  # type: ignore[no-any-return]
         except (MemoryError, KeyboardInterrupt, SystemExit):
             raise  # Never catch these
         except Exception:
@@ -1077,7 +1081,7 @@ def parse_x_pay_header(header_value: str) -> dict | None:
             payload_str = stripped
 
         if payload_str.startswith("{"):
-            return json.loads(payload_str)
+            return json.loads(payload_str)  # type: ignore[no-any-return]
 
         return None
     except Exception as e:
@@ -1086,7 +1090,7 @@ def parse_x_pay_header(header_value: str) -> dict | None:
 
 
 # ── Verification via Facilitator Router ──
-async def verify_payment_via_router(payload: dict) -> dict:
+async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
     """Verify x402 payment payload through the multi-facilitator smart router.
 
     Flow:
@@ -1116,6 +1120,7 @@ async def verify_payment_via_router(payload: dict) -> dict:
         # Unknown network - fall back to old verifier
         try:
             from app.routers.x402_middleware import PaymentVerifier
+
             verifier = PaymentVerifier()
             return await verifier.verify_payment(
                 json.dumps(payload),
@@ -1191,7 +1196,7 @@ async def verify_payment_via_router(payload: dict) -> dict:
     return await verify_payment(payload)
 
 
-def _detect_token_from_asset(asset_address: str, chain_cfg: dict) -> str:
+def _detect_token_from_asset(asset_address: str, chain_cfg: dict[str, Any]) -> str:
     """Detect token symbol from asset address using chain config."""
     asset_lower = asset_address.lower()
 
@@ -1219,7 +1224,7 @@ def _detect_token_from_asset(asset_address: str, chain_cfg: dict) -> str:
 
 
 # ── Original verification logic (fallback) ──
-async def verify_payment(payload: dict) -> dict:
+async def verify_payment(payload: dict[str, Any]) -> dict[str, Any]:
     """Verify x402 payment payload against all supported chains"""
     if not VERIFIER:
         return {"verified": False, "reason": "PaymentVerifier not initialized"}
@@ -1255,7 +1260,9 @@ async def verify_payment(payload: dict) -> dict:
     return {"verified": False, "reason": f"Unknown verify method: {verify_method}"}
 
 
-async def self_verify_evm_usdc(payload: dict, chain_key: str, chain_cfg: dict) -> dict:
+async def self_verify_evm_usdc(
+    payload: dict[str, Any], chain_key: str, chain_cfg: dict[str, Any]
+) -> dict[str, Any]:
     """Self-verify a USDC transfer on EVM chains without a facilitator.
     _ensure_pay_addresses()
 
@@ -1477,7 +1484,7 @@ async def self_verify_evm_usdc(payload: dict, chain_key: str, chain_cfg: dict) -
 
 def _record_refundable_payment(
     tx_hash: str, chain: str, payer: str, amount: str, tool: str, reason: str
-):
+) -> None:
     """Record a refundable payment in Redis when a tool returns empty data.
 
     Stores in Redis key 'x402:refund:{tx_hash}' with 7-day TTL.
@@ -1509,10 +1516,10 @@ def _record_refundable_payment(
 
 
 # ── Trial tracking (Redis-based) ──
-_redis_client: _redis_types.Redis | None | bool = None  # bool = unavailable sentinel
+_redis_client: _redis_types.Redis | None | bool = None  # type: ignore[type-arg]  # bool = unavailable sentinel
 
 
-async def x402_enforcement_middleware(request: Request, call_next) -> Response:
+async def x402_enforcement_middleware(request: Request, call_next: Any) -> Response:
     """
     [DEPRECATED] Use domain/x402/middleware.py instead.
     x402 payment enforcement with free trial support.
@@ -2096,7 +2103,7 @@ router = APIRouter(prefix="/api/v1/x402", tags=["x402 Enforcement"])
 # so .well-known/x402 resolves at /.well-known/x402 (x402 spec requirement)
 
 
-def _build_discovery_response():
+def _build_discovery_response() -> dict[str, Any]:
     """Build the full discovery response with all 13 chains and active facilitators."""
     tools = {}
     for tool_id, pricing in TOOL_PRICES.items():
@@ -2250,25 +2257,27 @@ def _build_discovery_response():
 def _resolve_pay_to(method: str) -> str:
     _ensure_pay_addresses()
     if method == "payai":
-        return SOL_PAY_TO or ""  # type: ignore[return-value]
+        return SOL_PAY_TO or ""
     elif method == "bitcoin_selfverify":
         return os.getenv("X402_BTC_PAY_TO", "")
     elif method == "tron_selfverify":
         return os.getenv("X402_TRON_PAY_TO", "")
     elif method == "asterpay":
         return os.getenv("ASTERPAY_SEPA_IBAN", "")
-    return EVM_PAY_TO or ""  # type: ignore[return-value]
+    return EVM_PAY_TO or ""
 
 
-def _resolve_asset(cfg: dict) -> str:
-    asset = cfg.get("usdc", "")
+def _resolve_asset(cfg: dict[str, Any]) -> str:
+    asset: str = cfg.get("usdc", "") or ""
     if not asset and "tokens" in cfg:
-        first = next(iter(cfg["tokens"].values()), "")
+        first: str = next(iter(cfg["tokens"].values()), "") or ""
         return first if first != "native" else "BTC"
     return asset
 
 
-def _build_extra(cfg: dict, tool_id: str, chain_key: str, pay_to: str, method: str) -> dict:
+def _build_extra(
+    cfg: dict[str, Any], tool_id: str, chain_key: str, pay_to: str, method: str
+) -> dict[str, Any]:
     extra = {
         "name": cfg["name"],
         "version": cfg["version"],
@@ -2297,7 +2306,7 @@ def _build_extra(cfg: dict, tool_id: str, chain_key: str, pay_to: str, method: s
 
 
 @discovery_router.get("/.well-known/x402")
-async def x402_discovery():
+async def x402_discovery() -> dict[str, Any]:
     """x402 discovery endpoint - lists all tools, chains, payment requirements, and trial info.
     Response is cached for DISCOVERY_CACHE_TTL seconds to avoid rebuilding 7-chain requirements per request.
     """
@@ -2314,7 +2323,7 @@ async def x402_discovery():
 
 # ── Trial Status Endpoint ──
 @discovery_router.get("/api/v1/x402/trial-status")
-async def get_trial_status(request: Request):
+async def get_trial_status(request: Request) -> dict[str, Any]:
     """Check remaining free trials for the current client"""
     client_id = get_client_id(request)
     trials = {}
@@ -2344,7 +2353,7 @@ async def get_trial_status(request: Request):
 
 # ── Revenue Read Endpoint ──
 @discovery_router.get("/api/v1/x402/revenue")
-async def get_revenue(request: Request = None):
+async def get_revenue(request: Request | None = None) -> JSONResponse:
     """Read cumulative x402 revenue stats from Redis counters.
 
     AUTH: Requires X-API-Key matching ADMIN_API_KEY.
@@ -2356,7 +2365,9 @@ async def get_revenue(request: Request = None):
     if request:
         admin_key = os.getenv("ADMIN_API_KEY", "")
         if admin_key:
-            auth = request.headers.get("X-API-Key", "") or request.headers.get("Authorization", "").replace("Bearer ", "")
+            auth = request.headers.get("X-API-Key", "") or request.headers.get(
+                "Authorization", ""
+            ).replace("Bearer ", "")
             if auth != admin_key:
                 return JSONResponse(status_code=403, content={"error": "Admin API key required"})
     r = get_redis()
@@ -2388,31 +2399,32 @@ async def get_revenue(request: Request = None):
         daily = {}
         from datetime import datetime, timedelta
 
-
         for i in range(30):
             day = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
             val = float(r.get(f"x402:revenue:daily:{day}") or 0)
             if val > 0:
                 daily[day] = val
 
-        return {
-            "total_revenue_usd": round(total_revenue, 2),
-            "total_tool_calls": total_calls,
-            "by_tool": {
-                tid: {
-                    "revenue_usd": round(tool_revenue.get(tid, 0), 2),
-                    "calls": tool_calls.get(tid, 0),
-                }
-                for tid in set(list(tool_revenue.keys()) + list(tool_calls.keys()))
-            },
-            "daily": daily,
-            "payment_wallets": {
-                "evm": EVM_PAY_TO,
-                "solana": SOL_PAY_TO,
-                "tron": os.getenv("X402_TRON_PAY_TO", ""),
-                "bitcoin": os.getenv("X402_BTC_PAY_TO", ""),
-            },
-        }
+        return JSONResponse(
+            content={
+                "total_revenue_usd": round(total_revenue, 2),
+                "total_tool_calls": total_calls,
+                "by_tool": {
+                    tid: {
+                        "revenue_usd": round(tool_revenue.get(tid, 0), 2),
+                        "calls": tool_calls.get(tid, 0),
+                    }
+                    for tid in set(list(tool_revenue.keys()) + list(tool_calls.keys()))
+                },
+                "daily": daily,
+                "payment_wallets": {
+                    "evm": EVM_PAY_TO,
+                    "solana": SOL_PAY_TO,
+                    "tron": os.getenv("X402_TRON_PAY_TO", ""),
+                    "bitcoin": os.getenv("X402_BTC_PAY_TO", ""),
+                },
+            }
+        )
     except Exception as e:
         logger.error(f"Revenue read error: {e}")
         return JSONResponse(
@@ -2426,7 +2438,7 @@ async def get_revenue(request: Request = None):
 
 
 @discovery_router.get("/api/v1/x402/analytics/pricing-suggestions")
-async def get_pricing_suggestions():
+async def get_pricing_suggestions() -> JSONResponse:
     """Auto-pricing suggestions based on conversion rates and usage data.
 
     Algorithm:
@@ -2500,13 +2512,17 @@ async def get_pricing_suggestions():
             key=lambda s: 0 if s["suggestion"] and s["suggestion"] != "insufficient_data" else 1
         )
 
-        return {
-            "suggestions": suggestions,
-            "total_tools": len(suggestions),
-            "actionable": sum(
-                1 for s in suggestions if s["suggestion"] and s["suggestion"] != "insufficient_data"
-            ),
-        }
+        return JSONResponse(
+            content={
+                "suggestions": suggestions,
+                "total_tools": len(suggestions),
+                "actionable": sum(
+                    1
+                    for s in suggestions
+                    if s["suggestion"] and s["suggestion"] != "insufficient_data"
+                ),
+            }
+        )
     except Exception as e:
         logger.error(f"Pricing suggestions error: {e}")
         return JSONResponse(
@@ -2547,7 +2563,7 @@ def _verify_refund_ownership(refund_payer: str, tx_hash: str) -> bool:
 
 
 @router.post("/refund")
-async def request_refund(request: Request):
+async def request_refund(request: Request) -> JSONResponse:
     """Request a refund for a paid tool that returned no data.
 
     Validates:
@@ -2748,20 +2764,20 @@ class X402Enforcer:
         self.security_headers = SECURITY_HEADERS
         self._verifier_loaded = False
 
-    async def enforce(self, request: Request, call_next):
+    async def enforce(self, request: Request, call_next: Any) -> Response:
         """Run the x402 payment enforcement middleware."""
         return await x402_enforcement_middleware(request, call_next)
 
-    def check_trial(self, tool_id: str, client_id: str, max_trials: int = 3):
+    def check_trial(self, tool_id: str, client_id: str, max_trials: int = 3) -> tuple[bool, int]:
         return check_trial(tool_id, client_id, max_trials)
 
-    def consume_trial(self, tool_id: str, client_id: str, max_trials: int = 3):
+    def consume_trial(self, tool_id: str, client_id: str, max_trials: int = 3) -> bool:
         return consume_trial(tool_id, client_id, max_trials)
 
-    async def verify_payment(self, payload: dict) -> dict:
+    async def verify_payment(self, payload: dict[str, Any]) -> dict[str, Any]:
         return await verify_payment(payload)
 
-    def build_402_response(self, tool_id: str, client_id: str = ""):
+    def build_402_response(self, tool_id: str, client_id: str = "") -> JSONResponse:
         return build_402_response(tool_id, client_id)
 
     def ensure_tool_prices(self) -> None:

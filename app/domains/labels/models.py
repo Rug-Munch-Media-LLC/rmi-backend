@@ -4,6 +4,7 @@ A Label represents one piece of information about an address from one
 source. Multiple labels from different sources for the same address
 get merged into a unified view.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,16 +16,16 @@ from typing import Any
 class LabelSource(StrEnum):
     """Which source a label came from. Used for provenance + dedup."""
 
-    ETH_LABELS_DB = "eth-labels-db"           # local SQLite, 115K EVM labels
-    ETHERSCAN_CSV = "etherscan-combined"      # local CSV, 51K EVM labels
-    ETHEREUM_LABELS_CSV = "ethereum-labels"   # local CSV, 51K EVM labels
-    SOLANA_LABELS_CSV = "solana-labels"       # local CSV, 103K SOL labels
-    CLICKHOUSE = "clickhouse-wallet-memory"    # live CH wallet_labels table
-    METASLEUTH = "metasleuth"                  # BlockSec AML API
-    OPEN_LABELS = "open-labels-initiative"     # OLI REST API (TBD)
-    CHAINBASE = "chainbase"                    # Chainbase API (TBD, needs key)
-    INTERNAL = "internal"                      # our own growing set
-    MBAL = "mbal"                             # Multi-blockchain Anti-Laundering source
+    ETH_LABELS_DB = "eth-labels-db"  # local SQLite, 115K EVM labels
+    ETHERSCAN_CSV = "etherscan-combined"  # local CSV, 51K EVM labels
+    ETHEREUM_LABELS_CSV = "ethereum-labels"  # local CSV, 51K EVM labels
+    SOLANA_LABELS_CSV = "solana-labels"  # local CSV, 103K SOL labels
+    CLICKHOUSE = "clickhouse-wallet-memory"  # live CH wallet_labels table
+    METASLEUTH = "metasleuth"  # BlockSec AML API
+    OPEN_LABELS = "open-labels-initiative"  # OLI REST API (TBD)
+    CHAINBASE = "chainbase"  # Chainbase API (TBD, needs key)
+    INTERNAL = "internal"  # our own growing set
+    MBAL = "mbal"  # Multi-blockchain Anti-Laundering source
 
 
 @dataclass
@@ -63,7 +64,9 @@ class Label:
         }
 
     @classmethod
-    def dedupe_key(cls, address: str, chain: str, label_type: str, label_value: str) -> tuple:
+    def dedupe_key(
+        cls, address: str, chain: str, label_type: str, label_value: str
+    ) -> tuple[str, str, str, str]:
         """Generate dedup key. Same key = same label from different sources."""
         return (address.lower(), chain.lower(), label_type.lower(), label_value.lower())
 
@@ -92,7 +95,11 @@ class Label:
             source=base.source,  # keep highest-confidence source as primary
             confidence=base.confidence,
             verified_at=verified_at,
-            attributes={**merged_attrs, "sources_count": len(sources), "all_sources": [s.value for s in sources]},
+            attributes={
+                **merged_attrs,
+                "sources_count": len(sources),
+                "all_sources": [s.value for s in sources],
+            },
             entity=base.entity,
             entity_category=base.entity_category,
         )

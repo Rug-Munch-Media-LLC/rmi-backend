@@ -12,7 +12,10 @@ Returns:
     "total": N,
   }
 """
+
 from __future__ import annotations
+
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -31,7 +34,7 @@ class LabelsResponse(BaseModel):
 
     address: str
     chain: str
-    labels: list[dict]
+    labels: list[dict[str, Any]]
     sources_queried: list[str]
     total: int
 

@@ -24,6 +24,7 @@ module referenced it via `# noqa: F821` at every call-site but never
 defined it; any payment record call was a silent no-op. Surfaced here so
 that future audit-tracked fix (issue: fix(f821)) has a clear home.
 """
+
 from __future__ import annotations
 
 from app.core.logging import get_logger
@@ -81,8 +82,12 @@ FREE_APIS: dict[str, str] = {
 
 
 async def fetch_with_fallback(
-    urls: list[str], method: str = "GET", json_data: dict | None = None, timeout: int = 10
-) -> tuple:
+    urls: list[str],
+    method: str = "GET",
+    json_data: dict[str, Any] | None = None,
+    timeout: int = 10,
+    headers: dict[str, str] | None = None,
+) -> tuple[dict[str, Any] | None, str | None]:
     """
     Try multiple URLs in sequence. Returns (data, source_url) on first success.
     Falls back from primary to secondary to tertiary sources.
@@ -92,17 +97,22 @@ async def fetch_with_fallback(
             try:
                 if method == "GET":
                     async with session.get(
-                        url, timeout=aiohttp.ClientTimeout(total=timeout)
+                        url,
+                        timeout=aiohttp.ClientTimeout(total=timeout),
+                        headers=headers,
                     ) as resp:
                         if resp.status == 200:
-                            data = await resp.json()
+                            data: dict[str, Any] = await resp.json()
                             return data, url
                 elif method == "POST" and json_data:
                     async with session.post(
-                        url, json=json_data, timeout=aiohttp.ClientTimeout(total=timeout)
+                        url,
+                        json=json_data,
+                        timeout=aiohttp.ClientTimeout(total=timeout),
+                        headers=headers,
                     ) as resp:
                         if resp.status == 200:
-                            data = await resp.json()
+                            data: dict[str, Any] = await resp.json()
                             return data, url
             except Exception as e:
                 logger.debug(f"URL failed: {url} - {e}")
@@ -110,7 +120,7 @@ async def fetch_with_fallback(
     return None, None
 
 
-async def rpc_call(chain: str, method: str, params: list) -> Any:
+async def rpc_call(chain: str, method: str, params: list[Any]) -> Any:
     """Make JSON-RPC call to blockchain with fallback RPCs."""
     rpcs = FREE_RPCS.get(chain, FREE_RPCS.get("solana"))
     urls = [f"{rpc}" for rpc in rpcs]
@@ -206,7 +216,7 @@ class GenericRequest(BaseModel):
 # ── Helpers ─────────────────────────────────────────────────────
 
 
-async def _audit_solana(address: str) -> dict:
+async def _audit_solana(address: str) -> dict[str, Any]:
     """Full audit for Solana tokens with 5-layer fallback."""
     result = {"chain": "solana", "address": address, "sources_used": []}
 
@@ -335,7 +345,7 @@ async def _audit_solana(address: str) -> dict:
     return result
 
 
-async def _audit_evm(address: str, chain: str) -> dict:
+async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
     """Full audit for EVM tokens (Base, ETH, BSC)."""
     result = {"chain": chain, "address": address, "sources_used": []}
 
