@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Request
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 
+from app.config import settings as _settings
 from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
@@ -94,12 +95,36 @@ def _verify_backup_code(code: str, hashed: str) -> bool:
     return verify_password(code, hashed)
 
 
-# ── Config ──
-JWT_SECRET = os.getenv("JWT_SECRET")
-if not JWT_SECRET:
-    raise RuntimeError("JWT_SECRET environment variable is required")
-JWT_ALGORITHM = "HS256"
+# ── Config (via app.config settings) ──
+JWT_SECRET = _settings.jwt_secret
+JWT_ALGORITHM = _settings.jwt_algorithm
 JWT_EXPIRY_DAYS = 7
+
+
+def _load_key(key_or_path: str) -> str:
+    """Load a PEM key from a file path, or return the PEM string directly."""
+    if os.path.exists(key_or_path) and os.path.isfile(key_or_path):
+        with open(key_or_path) as _f:
+            return _f.read()
+    return key_or_path
+
+
+# RS256 key loading — only used when algorithm is RS256
+_JWT_PRIVATE_KEY: str | None = None
+_JWT_PUBLIC_KEY: str | None = None
+
+if JWT_ALGORITHM == "RS256":
+    _raw_private = _settings.jwt_private_key
+    _raw_public = _settings.jwt_public_key
+    if _raw_private and _raw_public:
+        _JWT_PRIVATE_KEY = _load_key(_raw_private)
+        _JWT_PUBLIC_KEY = _load_key(_raw_public)
+    else:
+        logger.warning(
+            "JWT_ALGORITHM=RS256 configured but JWT_PRIVATE_KEY or JWT_PUBLIC_KEY not set. "
+            "Falling back to HS256 (symmetric). Set both RSA key env vars to enable RS256."
+        )
+        JWT_ALGORITHM = "HS256"
 
 
 def hash_password(password: str) -> str:
@@ -175,12 +200,21 @@ def _create_jwt(
     }
     if wallet:
         payload["wallet"] = wallet
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    if JWT_ALGORITHM == "RS256" and _JWT_PRIVATE_KEY:
+        return jwt.encode(payload, _JWT_PRIVATE_KEY, algorithm="RS256")
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
 def _verify_jwt(token: str) -> dict[str, Any] | None:
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if JWT_ALGORITHM == "RS256" and _JWT_PUBLIC_KEY:
+            try:
+                payload = jwt.decode(token, _JWT_PUBLIC_KEY, algorithms=["RS256"])
+            except JWTError:
+                # Fallback: token may have been signed with HS256 before the RS256 migration
+                payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        else:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         return {
             "id": payload["sub"],
             "email": payload["email"],
@@ -379,11 +413,18 @@ def login_email(req: EmailLoginRequest):
         # Override expiry to 5 minutes
         import jose.jwt as jose_jwt
 
-        payload = jose_jwt.decode(pre_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        # Decode with the correct key (RS256 public key, or HS256 secret fallback)
+        _decode_key = (
+            _JWT_PUBLIC_KEY if (JWT_ALGORITHM == "RS256" and _JWT_PUBLIC_KEY) else JWT_SECRET
+        )
+        _encode_key = (
+            _JWT_PRIVATE_KEY if (JWT_ALGORITHM == "RS256" and _JWT_PRIVATE_KEY) else JWT_SECRET
+        )
+        payload = jose_jwt.decode(pre_token, _decode_key, algorithms=[JWT_ALGORITHM])
         payload["exp"] = datetime.utcnow() + timedelta(minutes=5)
         payload["2fa_required"] = True
         payload["pre_auth"] = True
-        pre_token = jose_jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        pre_token = jose_jwt.encode(payload, _encode_key, algorithm=JWT_ALGORITHM)
 
         return {
             "access_token": pre_token,

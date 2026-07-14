@@ -528,7 +528,10 @@ def _brightdata_client(timeout: int = 30):
     return httpx.AsyncClient(
         timeout=timeout,
         proxy=proxy_url,
-        verify=False,  # Bright Data handles TLS termination
+        verify=True,
+        # SECURITY: verify=True re-enables TLS certificate validation.
+        # The previous verify=False was a workaround for expired/resolving
+        # Bright Data proxy certs. TLS termination is now verified properly.
     )
 
 
