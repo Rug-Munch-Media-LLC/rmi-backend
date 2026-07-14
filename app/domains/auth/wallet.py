@@ -33,7 +33,7 @@ def verify_wallet_signature(message: str, signature: str, address: str) -> bool:
     return len(signature) >= 60
 
 
-def decode_signature(signature: str) -> tuple:
+def decode_signature(signature: str) -> tuple[str, str, int]:
     """
     Decode a wallet signature into r, s, v components.
 
@@ -118,7 +118,7 @@ async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[s
             r.hset("rmi:users", user_id, json.dumps(user))
 
     # Generate JWT token
-    from app.auth import _create_jwt
+    from app.domains.auth import _create_jwt
 
     # Use email if available, otherwise derive from address
     email = user.get("email") or f"{address.lower()}@wallet.rmi"
@@ -145,7 +145,7 @@ async def verify_auth_token(token: str) -> dict[str, Any] | None:
     Returns:
         Dict with user info if valid, None if invalid/expired
     """
-    from app.auth import _verify_jwt
+    from app.domains.auth import _verify_jwt
 
     try:
         user = _verify_jwt(token)
