@@ -6,11 +6,11 @@ via mev-commit preconfirmations.
 ERC-8004 registered (Agent #23175).
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,
@@ -108,7 +108,9 @@ class PrimevFacilitator(Facilitator):
                     data = await resp.json()
 
                     if resp.status != 200:
-                        return self._format_error(f"Primev: {data.get('error', f'HTTP {resp.status}')}")
+                        return self._format_error(
+                            f"Primev: {data.get('error', f'HTTP {resp.status}')}"
+                        )
 
                     if data.get("isValid") or data.get("verified") or data.get("preconfirmed"):
                         return self._format_success(

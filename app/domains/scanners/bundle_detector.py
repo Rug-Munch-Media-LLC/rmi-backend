@@ -17,7 +17,6 @@ Uses direct API calls: Helius (transaction/signature data),
 DexScreener (pairs/trades), Solscan (account transfers, transaction detail).
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -26,6 +25,7 @@ import httpx
 
 from app.chain_client import ChainClient
 from app.chain_registry import is_solana
+from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient
 
 logger = get_logger("bundle_detector")
@@ -94,14 +94,14 @@ class BundleDetector:
     """
 
     # Known Jito tip program IDs
-    JITO_PROGRAMS: ClassVar[dict] ={
+    JITO_PROGRAMS: ClassVar[dict] = {
         "Jito4APyf6rDt1pD1jH3nD3is4v7TwzFNWjjMP7B2RK",
         "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5",
         "ADuCadRmgjMe6UzXVxR1Kn9CS2CXAf8bjiKkC4xFcegX",
     }
 
     # Known bundler program IDs (Smithii, Printr, etc.)
-    BUNDLER_PROGRAMS: ClassVar[dict] ={
+    BUNDLER_PROGRAMS: ClassVar[dict] = {
         "Smithii": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
         "PumpFun": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
         "LaunchLab": "LaunchLabzbP1j4R7KzEFmYSF3EXGnZ6tY7AZ8eg3P2qJ",
@@ -121,7 +121,9 @@ class BundleDetector:
     async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
-            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            resp = await self._http.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
@@ -155,7 +157,9 @@ class BundleDetector:
             return result["result"]
         return None
 
-    async def _fetch_solscan_transactions(self, address: str, page: int = 1, page_size: int = 40) -> list[dict]:
+    async def _fetch_solscan_transactions(
+        self, address: str, page: int = 1, page_size: int = 40
+    ) -> list[dict]:
         """Fetch transaction history from Solscan."""
         try:
             return self._solscan.account_transactions(address, page=page, page_size=page_size) or []
@@ -173,7 +177,9 @@ class BundleDetector:
 
     # ── Deployment info ────────────────────────────────────────────────
 
-    async def _get_deployment_info(self, token: str, chain: str, deploy_tx: str | None) -> tuple[str, int, int]:
+    async def _get_deployment_info(
+        self, token: str, chain: str, deploy_tx: str | None
+    ) -> tuple[str, int, int]:
         """Fetch deployment transaction info using direct APIs.
 
         Strategy:
@@ -182,23 +188,24 @@ class BundleDetector:
         3. Fallback: use Solscan token data for creation info
         """
         # If explicit deploy_tx provided, fetch it
-        if deploy_tx:
-            if is_solana(chain):
-                tx_data = await self._fetch_helius_transaction(deploy_tx)
-                if tx_data:
-                    # Extract deployer from the transaction
-                    msg = tx_data.get("transaction", {}).get("message", {})
-                    account_keys = msg.get("accountKeys", [])
-                    signers = [a for a in account_keys if a.get("signer", a.get("writable", False))]
-                    deployer = ""
-                    if signers:
-                        deployer = signers[0].get("pubkey", signers[0] if isinstance(signers[0], str) else "")
-                    elif account_keys:
-                        first = account_keys[0]
-                        deployer = first.get("pubkey", first) if isinstance(first, dict) else first
-                    block_time = tx_data.get("blockTime", 0) or 0
-                    slot = tx_data.get("slot", 0) or 0
-                    return (deployer, slot, block_time * 1000 if block_time else 0)
+        if deploy_tx and is_solana(chain):
+            tx_data = await self._fetch_helius_transaction(deploy_tx)
+            if tx_data:
+                # Extract deployer from the transaction
+                msg = tx_data.get("transaction", {}).get("message", {})
+                account_keys = msg.get("accountKeys", [])
+                signers = [a for a in account_keys if a.get("signer", a.get("writable", False))]
+                deployer = ""
+                if signers:
+                    deployer = signers[0].get(
+                        "pubkey", signers[0] if isinstance(signers[0], str) else ""
+                    )
+                elif account_keys:
+                    first = account_keys[0]
+                    deployer = first.get("pubkey", first) if isinstance(first, dict) else first
+                block_time = tx_data.get("blockTime", 0) or 0
+                slot = tx_data.get("slot", 0) or 0
+                return (deployer, slot, block_time * 1000 if block_time else 0)
 
         # Try DexScreener for pair creation info
         dex_pair = await self._fetch_dexscreener_token(token)
@@ -345,7 +352,9 @@ class BundleDetector:
         # Behavior clusters
         if behavior_clusters:
             score += min(15, len(behavior_clusters) * 5)
-            warnings.append(f"BEHAVIOR_CLUSTER: {len(behavior_clusters)} coordinated wallet groups detected")
+            warnings.append(
+                f"BEHAVIOR_CLUSTER: {len(behavior_clusters)} coordinated wallet groups detected"
+            )
 
         # Bundled percentage
         if bundled_pct > 20:
@@ -369,7 +378,9 @@ class BundleDetector:
 
     # ── Main analysis entry point ─────────────────────────────────────
 
-    async def detect_bundles(self, token_address: str, chain: str, deploy_tx: str | None = None) -> BundleReport:
+    async def detect_bundles(
+        self, token_address: str, chain: str, deploy_tx: str | None = None
+    ) -> BundleReport:
         """Full bundle detection for a token launch.
 
         Steps:
@@ -383,7 +394,9 @@ class BundleDetector:
         8. Calculate risk score
         """
         # Fetch deployment info via direct APIs
-        deployer, deploy_block, deploy_ts = await self._get_deployment_info(token_address, chain, deploy_tx)
+        deployer, deploy_block, deploy_ts = await self._get_deployment_info(
+            token_address, chain, deploy_tx
+        )
 
         if not deployer or deployer == "unknown":
             return BundleReport(
@@ -405,7 +418,9 @@ class BundleDetector:
         # Trace funding chains
         deployer_funded = []
         for buyer in early_buyers:
-            chain_trace = await self._trace_funding_chain(buyer.address, chain, max_depth=5, before_time=deploy_ts)
+            chain_trace = await self._trace_funding_chain(
+                buyer.address, chain, max_depth=5, before_time=deploy_ts
+            )
             chain_addrs = [step.address for step in chain_trace]
             if deployer in chain_addrs:
                 deployer_funded.append(

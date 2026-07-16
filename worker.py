@@ -74,10 +74,14 @@ async def process_scan_job(r, job_data):
         # Fetch token data from DexScreener
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                response = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+                response = await client.get(
+                    f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+                )
                 if response.status_code == 200:
                     token_data = response.json()
-                    logger.info(f"Token data fetched: {token_data.get('baseToken', {}).get('name', 'Unknown')}")
+                    logger.info(
+                        f"Token data fetched: {token_data.get('baseToken', {}).get('name', 'Unknown')}"
+                    )
                 else:
                     logger.warning(f"DexScreener returned {response.status_code}")
                     token_data = {}
@@ -96,7 +100,9 @@ async def process_scan_job(r, job_data):
             "flags": [],  # TODO: Implement flag detection
         }
 
-        await r.set(f"scan_result:{token_address}", json.dumps(scan_result), ex=3600)  # Cache for 1 hour
+        await r.set(
+            f"scan_result:{token_address}", json.dumps(scan_result), ex=3600
+        )  # Cache for 1 hour
         await r.lpush("scan_results", json.dumps(scan_result))  # Add to results list
         await r.ltrim("scan_results", 0, 99)  # Keep only last 100 results
 

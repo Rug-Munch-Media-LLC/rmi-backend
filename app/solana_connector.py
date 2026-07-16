@@ -6,10 +6,11 @@ Uses solana-py (the "solana" python package) for reliable Solana interactions.
 This package provides a high-level synchronous API.
 """
 
-from app.core.logging import get_logger
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -143,7 +144,7 @@ class SolanaClient:
             Transaction signature (base58)
         """
         if not SOLANA_AVAILABLE:
-            return "stub_sig_" + datetime.utcnow().isoformat()
+            return "stub_sig_" + datetime.now(UTC).isoformat()
 
         try:
             response = self.client.send_transaction(transaction, payer)

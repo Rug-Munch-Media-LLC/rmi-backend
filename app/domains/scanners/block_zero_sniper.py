@@ -20,7 +20,6 @@ Data sources (direct API calls - no circular imports):
   Fallback:   Consensus RPC for earliest block estimation
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -28,6 +27,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import is_evm, is_solana
+from app.core.logging import get_logger
 
 logger = get_logger("block_zero_sniper")
 
@@ -147,7 +147,9 @@ class BlockZeroSniperAnalyzer:
 
         # Gracefully handle missing transaction data
         if earliest_transactions is None:
-            earliest_transactions = await self._fetch_earliest_transactions(token_address, chain_lower)
+            earliest_transactions = await self._fetch_earliest_transactions(
+                token_address, chain_lower
+            )
 
         # If still no data after fetch attempt, return unknown
         if not earliest_transactions:

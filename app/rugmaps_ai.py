@@ -5,14 +5,19 @@ Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 # LLM config - DeepSeek Flash for fast, cheap analysis
-DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")
+DEEPSEEK_KEY = (
+    os.getenv("DEEPSEEK_API_KEY", "")
+    or os.getenv("LLM_API_KEY", "")
+    or os.getenv("OPENROUTER_API_KEY", "")
+)
 DEEPSEEK_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
 AI_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")  # Flash by default
 
@@ -170,7 +175,9 @@ async def generate_ai_analysis(
         pct = h.get("supply_pct", h.get("pct", "?"))
         label = labels.get(h.get("address", ""), {}).get("entity", {}).get("name", "")
         risk = labels.get(h.get("address", ""), {}).get("risk_score", "?")
-        holder_summary.append(f"  {addr}... - {pct}% supply - label: {label or 'unknown'} - risk: {risk}/100")
+        holder_summary.append(
+            f"  {addr}... - {pct}% supply - label: {label or 'unknown'} - risk: {risk}/100"
+        )
 
     similar_summary = (
         "\n".join(
@@ -271,7 +278,9 @@ Return ONLY valid JSON, no markdown, no code blocks."""
         logger.error(f"AI analysis failed: {e}")
 
     # Fallback analysis from our own data (no AI needed)
-    return generate_fallback_analysis(risk_score, holders, labels, similar_scams, node_count, link_count)
+    return generate_fallback_analysis(
+        risk_score, holders, labels, similar_scams, node_count, link_count
+    )
 
 
 def generate_fallback_analysis(
@@ -292,7 +301,9 @@ def generate_fallback_analysis(
     # Check for high concentration
     top_holder_pct = sum(h.get("supply_pct", h.get("pct", 0)) for h in holders[:3])
     if top_holder_pct > 50:
-        red_flags.append(f"Top 3 holders control {top_holder_pct:.0f}% of supply - extreme concentration risk")
+        red_flags.append(
+            f"Top 3 holders control {top_holder_pct:.0f}% of supply - extreme concentration risk"
+        )
     elif top_holder_pct < 20:
         green_flags.append(f"Well distributed: top 3 holders only control {top_holder_pct:.0f}%")
 
@@ -307,7 +318,9 @@ def generate_fallback_analysis(
             high_risk_count += 1
 
         if risk >= 70:
-            red_flags.append(f"High risk wallet ({risk}/100): {addr[:12]}... {entity.get('name', '')}")
+            red_flags.append(
+                f"High risk wallet ({risk}/100): {addr[:12]}... {entity.get('name', '')}"
+            )
             high_risk_count += 1
             dev_wallets.append(addr)
 

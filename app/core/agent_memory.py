@@ -77,7 +77,9 @@ async def get_conversation(user_id: str, agent_id: str, limit: int = 20) -> dict
     return {
         "user_id": user_id,
         "agent_id": agent_id,
-        "messages": [{"role": r[0], "content": r[1], "timestamp": r[2]} for r in reversed(rows)] if rows else [],
+        "messages": [{"role": r[0], "content": r[1], "timestamp": r[2]} for r in reversed(rows)]
+        if rows
+        else [],
         "count": len(rows) if rows else 0,
     }
 

@@ -25,7 +25,6 @@ Architecture:
 import hashlib
 import html
 import json
-from app.core.logging import get_logger
 import os
 import re
 from dataclasses import dataclass, field
@@ -34,6 +33,8 @@ from typing import Any
 
 import feedparser
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -253,7 +254,9 @@ class RSSProcessor:
                 # Extract entities
                 entities = RSSProcessor._extract_entities(content)
 
-                item_id = hashlib.sha256(f"{feed_config['name']}:{entry.get('link', title)}".encode()).hexdigest()[:16]
+                item_id = hashlib.sha256(
+                    f"{feed_config['name']}:{entry.get('link', title)}".encode()
+                ).hexdigest()[:16]
 
                 items.append(
                     IntelItem(
@@ -374,7 +377,9 @@ class OnChainScanner:
     async def check_token_security(address: str, chain: str = "solana") -> dict[str, Any]:
         """Check a token via GoPlus security API (free, no key needed)."""
         try:
-            chain_id = {"solana": "solana", "ethereum": "1", "bsc": "56", "base": "8453"}.get(chain, chain)
+            chain_id = {"solana": "solana", "ethereum": "1", "bsc": "56", "base": "8453"}.get(
+                chain, chain
+            )
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(
                     f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}",
@@ -576,7 +581,9 @@ class IntelPipeline:
                         results.append(
                             {
                                 "id": doc["id"],
-                                "title": doc.get("metadata", {}).get("name", doc.get("content", "")[:100]),
+                                "title": doc.get("metadata", {}).get(
+                                    "name", doc.get("content", "")[:100]
+                                ),
                                 "content": doc.get("content", "")[:500],
                                 "source": doc.get("source", coll),
                                 "severity": doc.get("severity", "medium"),

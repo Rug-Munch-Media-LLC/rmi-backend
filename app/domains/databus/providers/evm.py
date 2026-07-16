@@ -12,6 +12,7 @@ Providers:
 - _moralis_wallet_net_worth
 - _etherscan_tx_trace
 """
+
 from app.databus.providers import (  # noqa: F401
     _alchemy_token_balances,
     _alchemy_token_metadata,

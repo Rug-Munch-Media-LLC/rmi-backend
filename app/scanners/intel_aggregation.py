@@ -21,12 +21,13 @@ Sources aggregated:
   EXTERNAL:     GMGN patterns, Pump.fun, Birdeye, Jupiter
 """
 
-from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -420,13 +421,6 @@ class IntelligenceAggregationLayer:
         We emulate these patterns without their API.
         """
         # Pattern-based detection (powered by chain-indexer data)
-        patterns = {
-            "pump_trader": self._detect_pump_trader,
-            "smart_money": self._detect_smart_money,
-            "sniper": self._detect_sniper,
-            "bundler": self._detect_bundler,
-            "copy_trader": self._detect_copy_trader,
-        }
         return None
 
     def _check_birdeye(self, address: str, chain: str) -> str | None:

@@ -6,14 +6,14 @@ Includes bot registration, fee tracking, and bot-specific endpoints.
 Uses direct Supabase REST API via httpx (no supabase-py dependency issues).
 """
 
-from app.core.logging import get_logger
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from app.core.logging import get_logger
 from app.core.secrets import get_secret_or_none
 
 logger = get_logger(__name__)
@@ -205,7 +205,7 @@ async def create_comment(
                 "post_id": post_id,
                 "user_id": user["id"],
                 "content": comment.content,
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             },
         )
         if not result:
@@ -220,7 +220,7 @@ async def create_comment(
                 "id": "temp",
                 "content": comment.content,
                 "user_id": user["id"],
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             },
         }
 

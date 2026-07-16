@@ -5,12 +5,14 @@ will wire up to user-configured alert rules and notification channels
 (email, Telegram, webhook). For now, returns 501 Not Implemented
 for actual alert operations, with version metadata.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic.config import ConfigDict
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -18,18 +20,22 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 class AlertRule(BaseModel):
     """Schema for an alert rule (creation/edit)."""
 
-    name: str
-    subject_type: str  # "token" | "wallet" | "deployer"
-    subject_id: str
-    trigger: str  # "risk_score_above" | "deployer_rug" | "news_mention"
-    threshold: float | None = None
-    channels: list[str] = []  # ["email", "telegram", "webhook"]
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(..., min_length=1, max_length=100)
+    subject_type: str = Field(..., min_length=1, max_length=20, pattern=r'^(token|wallet|deployer)$')
+    subject_id: str = Field(..., min_length=1, max_length=100)
+    trigger: str = Field(..., min_length=1, max_length=30, pattern=r'^(risk_score_above|deployer_rug|news_mention)$')
+    threshold: float | None = Field(None, ge=0)
+    channels: list[str] = []
 
 
 class AlertList(BaseModel):
     """Response for GET /api/v1/alerts."""
 
-    count: int
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    count: int = Field(..., ge=0)
     items: list[dict[str, Any]] = []
 
 

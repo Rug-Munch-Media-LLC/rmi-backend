@@ -23,13 +23,13 @@ Usage:
 from __future__ import annotations
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
+from app.core.logging import get_logger
 from app.token_deployer import TokenDeployerFactory, TokenDeployment, get_storage
 
 logger = get_logger("darkroom_airdrop")
@@ -58,7 +58,7 @@ class AirdropSnapshot:
     source_token: str
     source_chain: str
     block_number: int | None = None
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     holders: list[AirdropRecipient] = field(default_factory=list)
     total_holders: int = 0
     total_supply_snapshotted: str = "0"
@@ -89,7 +89,7 @@ class AirdropCampaign:
     max_wallet_percent: float = 0.0
     max_tx_percent: float = 0.0
     blacklist_preloaded: list[str] = field(default_factory=list)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     started_at: str | None = None
     completed_at: str | None = None
     tx_hashes: list[str] = field(default_factory=list)
@@ -176,7 +176,9 @@ class AntiSniperProtection:
             tx = await deployer.set_trading_enabled(contract_address, False)
             results["tx_hashes"].append(tx)
             results["trading_delayed"] = True
-            logger.info(f"Anti-sniper: trading disabled, will enable after {trading_delay_blocks} blocks")
+            logger.info(
+                f"Anti-sniper: trading disabled, will enable after {trading_delay_blocks} blocks"
+            )
         except Exception as e:
             logger.warning(f"Trading disable not supported or failed: {e}")
 
@@ -306,7 +308,9 @@ class SnapshotEngine:
             min_holdings=min_holdings,
         )
 
-        logger.info(f"Snapshot created: {snapshot.snapshot_id} - {len(holders)} holders, {total_supply} total")
+        logger.info(
+            f"Snapshot created: {snapshot.snapshot_id} - {len(holders)} holders, {total_supply} total"
+        )
         return snapshot
 
     @staticmethod
@@ -401,7 +405,7 @@ class AirdropDistributor:
                     )
                     recipient.claimed = True
                     recipient.claim_tx = tx
-                    recipient.claimed_at = datetime.utcnow().isoformat()
+                    recipient.claimed_at = datetime.now(UTC).isoformat()
                     results["successful"] += 1
                     results["tx_hashes"].append(tx)
                     logger.info(f"Airdropped {recipient.amount} to {recipient.address}")
@@ -420,7 +424,7 @@ class AirdropDistributor:
                     for r in batch:
                         r.claimed = True
                         r.claim_tx = tx
-                        r.claimed_at = datetime.utcnow().isoformat()
+                        r.claimed_at = datetime.now(UTC).isoformat()
                     results["successful"] += len(batch)
                     results["tx_hashes"].append(tx)
                 except Exception as e:
@@ -536,10 +540,12 @@ class TeamAllocation:
                         deployment_id=deployment.deployment_id,
                         beneficiary=alloc["address"],
                         total_amount=str(vested_amount),
-                        start_date=datetime.utcnow().isoformat(),
+                        start_date=datetime.now(UTC).isoformat(),
                         cliff_months=alloc.get("cliff_months", 0),
                         vesting_months=alloc.get("vesting_months", 0),
-                        monthly_release=str(vested_amount // max(alloc.get("vesting_months", 1), 1)),
+                        monthly_release=str(
+                            vested_amount // max(alloc.get("vesting_months", 1), 1)
+                        ),
                     )
                     # Store vesting schedule
                     await AirdropStorage.save_vesting(vesting)
@@ -727,7 +733,9 @@ async def create_full_token_with_protection(
 
         # 3. Team allocation
         if team_allocations:
-            team_result = await TeamAllocation.allocate_team_tokens(deployer, deployment, team_allocations)
+            team_result = await TeamAllocation.allocate_team_tokens(
+                deployer, deployment, team_allocations
+            )
             results["team_allocation"] = team_result
 
         # 4. Airdrop from snapshot

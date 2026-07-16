@@ -9,11 +9,13 @@ authorization headers, X-API-Key, passwords, tokens, etc.
 Per v3 unfuck rule #7: SDK init must be at module level, not in lifespan.
 But the SDK itself uses lazy init - setup_sentry() is called once at startup.
 """
+
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import os
 from typing import Any
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -24,10 +26,22 @@ DEFAULT_SAMPLE_RATE = 0.1  # 10% of transactions traced
 
 # Sensitive field names that must never be sent to error tracking
 SENSITIVE_KEYS = {
-    "authorization", "x-api-key", "x-payment", "x-agent-id",
-    "password", "secret", "token", "cookie", "set-cookie",
-    "api_key", "apikey", "access_token", "refresh_token",
-    "private_key", "credit_card", "ssn",
+    "authorization",
+    "x-api-key",
+    "x-payment",
+    "x-agent-id",
+    "password",
+    "secret",
+    "token",
+    "cookie",
+    "set-cookie",
+    "api_key",
+    "apikey",
+    "access_token",
+    "refresh_token",
+    "private_key",
+    "credit_card",
+    "ssn",
 }
 
 
@@ -122,6 +136,7 @@ def capture_exception(error: BaseException, **extra: Any) -> None:
     we want to log to Sentry but continue execution."""
     try:
         import sentry_sdk
+
         with sentry_sdk.push_scope() as scope:
             for k, v in extra.items():
                 scope.set_extra(k, v)
@@ -134,6 +149,7 @@ def capture_message(message: str, level: str = "info", **extra: Any) -> None:
     """Manually capture a message. For non-exception events."""
     try:
         import sentry_sdk
+
         with sentry_sdk.push_scope() as scope:
             for k, v in extra.items():
                 scope.set_extra(k, v)
@@ -146,6 +162,7 @@ def flush_sentry(timeout: float = 2.0) -> None:
     """Flush pending events. Call before shutdown."""
     try:
         import sentry_sdk
+
         sentry_sdk.flush(timeout=timeout)
     except Exception:
         pass

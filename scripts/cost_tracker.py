@@ -19,10 +19,10 @@ import httpx
 CLICKHOUSE_HOST = os.getenv("CH_HOST", "rmi-clickhouse")
 CLICKHOUSE_PORT = int(os.getenv("CH_PORT", "9000"))
 CLICKHOUSE_USER = os.getenv("CH_USER", "rmi")
-CLICKHOUSE_PASSWORD = os.getenv("CH_PASSWORD", "RMI_PROD_CLICKHOUSE_2026")
+CLICKHOUSE_PASSWORD = os.environ["CH_PASSWORD"]
 
 LITELLM_URL = os.getenv("LITELLM_URL", "http://127.0.0.1:4000")
-LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "sk-litellm-master-key-prod-2026")
+LITELLM_API_KEY = os.environ["LITELLM_API_KEY"]
 
 
 def _ch_client():

@@ -41,7 +41,6 @@ Date: 2026-06-02
 import base64
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import secrets
 import time
@@ -49,6 +48,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("wallet_manager_v2")
 
@@ -834,7 +835,9 @@ class ShamirSecretSharing:
             for j, (xj, _) in enumerate(shares):
                 if i != j:
                     numerator = ShamirSecretSharing._gf_mul(numerator, xj)
-                    denominator = ShamirSecretSharing._gf_mul(denominator, ShamirSecretSharing._gf_sub(xj, xi))
+                    denominator = ShamirSecretSharing._gf_mul(
+                        denominator, ShamirSecretSharing._gf_sub(xj, xi)
+                    )
 
             lagrange_coeff = ShamirSecretSharing._gf_div(numerator, denominator)
 
@@ -1098,14 +1101,19 @@ class WalletManagerV2:
 
         chain_meta = CHAIN_REGISTRY.get(chain)
         if not chain_meta:
-            raise ValueError(f"Unsupported chain: {chain}. Supported: {sorted(CHAIN_REGISTRY.keys())}")
+            raise ValueError(
+                f"Unsupported chain: {chain}. Supported: {sorted(CHAIN_REGISTRY.keys())}"
+            )
 
         wallet_id = f"wal_{chain}_{int(time.time())}_{secrets.token_hex(4)}"
 
         # Generate keys using chain-appropriate method
         if chain_meta.derivation in ("bip44", "bip49", "bip84") and chain_meta.curve == "secp256k1":
             address, public_key, mnemonic = self._generate_bip_wallet(chain_meta)
-        elif chain_meta.derivation == "bip44_ed25519" or chain_meta.derivation == "bip44_ed25519_slip":
+        elif (
+            chain_meta.derivation == "bip44_ed25519"
+            or chain_meta.derivation == "bip44_ed25519_slip"
+        ):
             address, public_key, mnemonic = self._generate_ed25519_wallet(chain_meta)
         elif chain_meta.derivation == "bip44_cosmos":
             address, public_key, mnemonic = self._generate_cosmos_wallet(chain_meta)
@@ -1208,7 +1216,9 @@ class WalletManagerV2:
         if _HAS_BIP_UTILS:
             try:
                 # Monero uses 25-word mnemonics
-                mnemonic = Bip39MnemonicGenerator().FromWordsNumber(Bip39WordsNum.WORDS_NUM_24).ToStr()
+                mnemonic = (
+                    Bip39MnemonicGenerator().FromWordsNumber(Bip39WordsNum.WORDS_NUM_24).ToStr()
+                )
                 seed = Bip39SeedGenerator(mnemonic).Generate()
 
                 # Use bip_utils Monero support
@@ -1229,7 +1239,11 @@ class WalletManagerV2:
             h = hashlib.sha3_256()
             h.update(bytes.fromhex(pub_key))
             raw_addr = h.digest()
-            address = "4" + base58.b58encode(raw_addr[:64]).decode()[:94] if _HAS_BASE58 else "4" + raw_addr.hex()[:94]
+            address = (
+                "4" + base58.b58encode(raw_addr[:64]).decode()[:94]
+                if _HAS_BASE58
+                else "4" + raw_addr.hex()[:94]
+            )
 
             return address, pub_key, mnemonic
 
@@ -1315,7 +1329,9 @@ class WalletManagerV2:
             try:
                 wallet = self.generate_wallet(
                     chain=chain,
-                    name=f"{name_prefix} {chain.upper()}".strip() if name_prefix else f"{chain.upper()} Payment",
+                    name=f"{name_prefix} {chain.upper()}".strip()
+                    if name_prefix
+                    else f"{chain.upper()} Payment",
                     purpose=purpose,
                     tier=tier,
                     group=group,
@@ -1527,7 +1543,9 @@ class WalletManagerV2:
         logger.info(f"Wallet rotated: {wallet_id} -> {new_wallet.wallet_id}")
         return new_wallet
 
-    def schedule_rotation(self, wallet_id: str, days: int, auto: bool = False) -> WalletRotationSchedule | None:
+    def schedule_rotation(
+        self, wallet_id: str, days: int, auto: bool = False
+    ) -> WalletRotationSchedule | None:
         """Schedule automatic rotation."""
         wallet = self._wallets.get(wallet_id)
         if not wallet:
@@ -1784,8 +1802,12 @@ class WalletManagerV2:
             "total_payments": total_payments,
             "total_revenue_usd": round(total_revenue, 2),
             "x402_wallets": sum(1 for w in self._wallets.values() if w.x402_enabled),
-            "subscription_wallets": sum(1 for w in self._wallets.values() if w.subscription_enabled),
-            "rotated_wallets": sum(1 for w in self._wallets.values() if w.status == WalletStatus.ROTATED.value),
+            "subscription_wallets": sum(
+                1 for w in self._wallets.values() if w.subscription_enabled
+            ),
+            "rotated_wallets": sum(
+                1 for w in self._wallets.values() if w.status == WalletStatus.ROTATED.value
+            ),
             "last_updated": datetime.now(UTC).isoformat(),
         }
 
@@ -1797,7 +1819,9 @@ class WalletManagerV2:
             "version": "3.0",
             "exported_at": datetime.now(UTC).isoformat(),
             "wallets": [w.to_safe_dict() for w in self._wallets.values()],
-            "chain_registry": {k: {"name": v.name, "symbol": v.native_symbol} for k, v in CHAIN_REGISTRY.items()},
+            "chain_registry": {
+                k: {"name": v.name, "symbol": v.native_symbol} for k, v in CHAIN_REGISTRY.items()
+            },
         }
 
     def export_for_chain(self, chain: str) -> list[dict]:
@@ -1946,7 +1970,9 @@ class WalletManagerV2:
 
                     acct = Account.from_mnemonic(mnemonic)
                     if acct.address.lower() != wallet.address.lower():
-                        raise RuntimeError(f"Derived address {acct.address} does not match wallet {wallet.address}")
+                        raise RuntimeError(
+                            f"Derived address {acct.address} does not match wallet {wallet.address}"
+                        )
 
                     # 3. Connect to Web3
                     from web3 import Web3
@@ -1983,12 +2009,16 @@ class WalletManagerV2:
                     # 6. Broadcast to network
                     tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
                     tx_hash_hex = tx_hash.hex()
-                    logger.info(f"SUCCESS: Broadcasted native sweep tx {tx_hash_hex} for {wallet.wallet_id}")
+                    logger.info(
+                        f"SUCCESS: Broadcasted native sweep tx {tx_hash_hex} for {wallet.wallet_id}"
+                    )
 
                     # 7. Update local ledger ONLY AFTER SUCCESSFUL BROADCAST
                     wallet.balance_raw = str(gas_reserve_wei)
                     wallet.balance_decimal = float(w3.from_wei(gas_reserve_wei, "ether"))
-                    wallet.balance_usd = float(w3.from_wei(gas_reserve_wei, "ether")) * 2500.0  # Approx ETH price
+                    wallet.balance_usd = (
+                        float(w3.from_wei(gas_reserve_wei, "ether")) * 2500.0
+                    )  # Approx ETH price
                     wallet.total_sent += float(w3.from_wei(sweep_amount_wei, "ether"))
 
                     result["swept"].append(
@@ -2002,7 +2032,9 @@ class WalletManagerV2:
                             "status": "broadcasted",
                         }
                     )
-                    result["total_swept_usd"] += float(w3.from_wei(sweep_amount_wei, "ether")) * 2500.0
+                    result["total_swept_usd"] += (
+                        float(w3.from_wei(sweep_amount_wei, "ether")) * 2500.0
+                    )
 
                 elif wallet.chain == "sol":
                     owner = owner_map["sol"]
@@ -2011,14 +2043,18 @@ class WalletManagerV2:
                     # 1. Retrieve mnemonic
                     mnemonic = self.get_mnemonic(wallet.wallet_id)
                     if not mnemonic:
-                        raise RuntimeError(f"CRITICAL: Cannot sweep {wallet.wallet_id}. Mnemonic is missing.")
+                        raise RuntimeError(
+                            f"CRITICAL: Cannot sweep {wallet.wallet_id}. Mnemonic is missing."
+                        )
 
                     # 2. Derive private key using bip_utils
                     from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins
 
                     seed_bytes = Bip39SeedGenerator(mnemonic).Generate()
                     bip44_mst_ctx = Bip44.FromSeed(seed_bytes, Bip44Coins.SOLANA)
-                    bip44_def_ctx = bip44_mst_ctx.Purpose().Coin().Account(0).Change(0).AddressIndex(0)
+                    bip44_def_ctx = (
+                        bip44_mst_ctx.Purpose().Coin().Account(0).Change(0).AddressIndex(0)
+                    )
                     private_key_bytes = bip44_def_ctx.PrivateKey().Raw().ToBytes()
 
                     # 3. Create Solana Keypair
@@ -2027,7 +2063,9 @@ class WalletManagerV2:
 
                     keypair = SoldersKeypair.from_bytes(private_key_bytes)
                     if str(keypair.pubkey()) != wallet.address:
-                        raise RuntimeError(f"Derived address {keypair.pubkey()} does not match wallet {wallet.address}")
+                        raise RuntimeError(
+                            f"Derived address {keypair.pubkey()} does not match wallet {wallet.address}"
+                        )
 
                     # 4. Connect to Solana RPC
                     from solana.rpc.async_api import AsyncClient
@@ -2043,7 +2081,9 @@ class WalletManagerV2:
                         on_chain_balance_lamports = resp.value
 
                         if on_chain_balance_lamports == 0:
-                            raise RuntimeError("On-chain balance is 0. Local ledger is out of sync.")
+                            raise RuntimeError(
+                                "On-chain balance is 0. Local ledger is out of sync."
+                            )
 
                         # Leave a small amount for rent/gas (e.g., 0.001 SOL = 1,000,000 lamports)
                         gas_reserve_lamports = 1_000_000
@@ -2066,7 +2106,9 @@ class WalletManagerV2:
                         # 7. Broadcast to network
                         result_tx = await client.send_transaction(tx, keypair)
                         tx_sig = str(result_tx.value)
-                        logger.info(f"SUCCESS: Broadcasted Solana sweep tx {tx_sig} for {wallet.wallet_id}")
+                        logger.info(
+                            f"SUCCESS: Broadcasted Solana sweep tx {tx_sig} for {wallet.wallet_id}"
+                        )
 
                         # 8. Update local ledger ONLY AFTER SUCCESSFUL BROADCAST
                         wallet.balance_raw = str(gas_reserve_lamports)
@@ -2159,7 +2201,9 @@ class WalletManagerV2:
             else:
                 alert["type"] = "ok"
                 alert["severity"] = "info"
-                alert["message"] = f"Wallet {w.wallet_id} ({w.chain}) balance ${w.balance_usd:.2f} OK"
+                alert["message"] = (
+                    f"Wallet {w.wallet_id} ({w.chain}) balance ${w.balance_usd:.2f} OK"
+                )
                 alerts.append(alert)
 
         summary = {
@@ -2170,7 +2214,9 @@ class WalletManagerV2:
             "checked_at": datetime.now(UTC).isoformat(),
         }
 
-        logger.info(f"check_all_balances: checked {checked} x402 wallets, {below_threshold} below threshold")
+        logger.info(
+            f"check_all_balances: checked {checked} x402 wallets, {below_threshold} below threshold"
+        )
         return summary
 
     async def get_revenue_wallet_status(self) -> dict:
@@ -2227,7 +2273,9 @@ class WalletManagerV2:
 
         need_sweep_count = sum(1 for w in wallets if w["needs_sweep"])
         below_threshold_count = sum(
-            1 for w in wallets if w["low_balance_threshold"] > 0 and w["balance_usd"] < w["low_balance_threshold"]
+            1
+            for w in wallets
+            if w["low_balance_threshold"] > 0 and w["balance_usd"] < w["low_balance_threshold"]
         )
 
         return {
@@ -2359,20 +2407,20 @@ class WalletManagerFacade:
 
 
 __all__ = [
+    "ChainMeta",
+    "PaymentRecord",
+    "PaymentType",
+    "ShamirSecretSharing",
+    "WalletEncryption",
     "WalletManagerFacade",
     "WalletManagerV2",
+    "WalletPurpose",
+    "WalletRecord",
+    "WalletRotationSchedule",
     "WalletStatus",
     "WalletTier",
-    "WalletPurpose",
-    "PaymentType",
-    "ChainMeta",
-    "WalletRecord",
-    "PaymentRecord",
-    "WalletRotationSchedule",
-    "WalletEncryption",
-    "ShamirSecretSharing",
     "ZKAddressVerifier",
+    "_build_registry",
     "get_wallet_manager_v2",
     "import_legacy_wallets",
-    "_build_registry",
 ]

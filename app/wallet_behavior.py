@@ -9,10 +9,11 @@ persona classifications.
 Premium feature: "Smart Money Accumulator", "Meme Dumper", "Exit LP", etc.
 """
 
-from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("wallet.behavior")
 
@@ -129,7 +130,9 @@ class WalletFingerprint:
     trades_by_hour: dict[int, int] = field(default_factory=dict)
 
     # Token preferences
-    token_types: dict[str, int] = field(default_factory=dict)  # "meme"/"defi"/"stable"/"wrapped" → count
+    token_types: dict[str, int] = field(
+        default_factory=dict
+    )  # "meme"/"defi"/"stable"/"wrapped" → count
     preferred_chains: list[str] = field(default_factory=list)
     avg_token_age_at_entry_hours: float = 0.0  # How new are tokens when this wallet buys?
 
@@ -202,7 +205,13 @@ def compute_fingerprint(wallet_data: dict[str, Any]) -> WalletFingerprint:
 
         # Trade frequency
         if txs and len(txs) >= 2:
-            timestamps = sorted([tx.get("timestamp", 0) for tx in txs if isinstance(tx, dict) and tx.get("timestamp")])
+            timestamps = sorted(
+                [
+                    tx.get("timestamp", 0)
+                    for tx in txs
+                    if isinstance(tx, dict) and tx.get("timestamp")
+                ]
+            )
             if len(timestamps) >= 2:
                 time_span_days = (max(timestamps) - min(timestamps)) / 86400
                 if time_span_days > 0:
@@ -389,9 +398,12 @@ def classify_persona(fp: WalletFingerprint):
     fp.persona_confidence = min(best[1] / 8, 1.0)  # Normalize
 
     # Secondary personas
-    secondary = sorted([(k, v) for k, v in scores.items() if k != best[0] and v >= 2], key=lambda x: -x[1])[:2]
+    secondary = sorted(
+        [(k, v) for k, v in scores.items() if k != best[0] and v >= 2], key=lambda x: -x[1]
+    )[:2]
     fp.secondary_personas = [
-        {"persona": k, "score": v, "name": PERSONAS[k]["name"], "icon": PERSONAS[k]["icon"]} for k, v in secondary
+        {"persona": k, "score": v, "name": PERSONAS[k]["name"], "icon": PERSONAS[k]["icon"]}
+        for k, v in secondary
     ]
 
     return fp

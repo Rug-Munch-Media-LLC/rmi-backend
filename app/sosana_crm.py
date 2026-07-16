@@ -4,8 +4,9 @@ Exposes investigation data: wallets, entities, financials, evidence, risk assess
 """
 
 import json
-from app.core.logging import get_logger
 import os
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -86,7 +87,10 @@ class SOSANACRM:
     def evidence_summary(self) -> dict:
         """Evidence overview with counts."""
         evidence = self.data.get("evidence", {})
-        return {tier: len(items) if isinstance(items, list) else items for tier, items in evidence.items()}
+        return {
+            tier: len(items) if isinstance(items, list) else items
+            for tier, items in evidence.items()
+        }
 
     def persons(self) -> list[dict]:
         """Persons of interest."""

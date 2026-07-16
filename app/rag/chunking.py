@@ -16,9 +16,10 @@ Strategy (per 2026 RAG standards):
 from __future__ import annotations
 
 import hashlib
-from app.core.logging import get_logger
 import re
 from dataclasses import dataclass
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 

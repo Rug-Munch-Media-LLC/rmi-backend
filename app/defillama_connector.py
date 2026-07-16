@@ -21,7 +21,6 @@ logger = get_logger(__name__)
 # but may be called from async contexts. See async-http-patterns skill for pattern.
 
 
-
 # ─── DEFI LLAMA API ENDPOINTS ─────────────────────────────────────
 
 DEFI_LLAMA_BASE = "https://api.llama.fi"
@@ -93,7 +92,9 @@ class DeFiLlamaClient:
     def get_chain_data(self, chain: str) -> dict[str, Any] | None:
         """Get chain-specific data."""
         try:
-            response = httpx.get(f"{self.base}{ENDPOINTS['chain'].format(chain=chain)}", timeout=self.timeout)
+            response = httpx.get(
+                f"{self.base}{ENDPOINTS['chain'].format(chain=chain)}", timeout=self.timeout
+            )
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -103,7 +104,9 @@ class DeFiLlamaClient:
     def get_pool_data(self, chain: str) -> list[dict[str, Any]]:
         """Get pool data for a chain."""
         try:
-            response = httpx.get(f"{self.base}{ENDPOINTS['pools'].format(chain=chain)}", timeout=self.timeout)
+            response = httpx.get(
+                f"{self.base}{ENDPOINTS['pools'].format(chain=chain)}", timeout=self.timeout
+            )
             response.raise_for_status()
             return response.json()
         except Exception as e:

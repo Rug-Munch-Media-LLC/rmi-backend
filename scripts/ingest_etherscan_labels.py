@@ -211,7 +211,9 @@ async def ingest_combined_labels_csv(limit: int = 0) -> dict[str, int]:
             }
         else:
             collection = "wallet_profiles"
-            content = f"Etherscan labeled address: {address} ({name}) on {chain}. Category: {label}."
+            content = (
+                f"Etherscan labeled address: {address} ({name}) on {chain}. Category: {label}."
+            )
             metadata = {
                 "address": address.lower(),
                 "label": label,
@@ -249,7 +251,9 @@ async def ingest_combined_labels_csv(limit: int = 0) -> dict[str, int]:
 async def main():
     parser = argparse.ArgumentParser(description="Ingest Etherscan labels into RAG")
     parser.add_argument("--phish-only", action="store_true", help="Only ingest phish-hack CSV")
-    parser.add_argument("--combined-only", action="store_true", help="Only ingest combined labels CSV")
+    parser.add_argument(
+        "--combined-only", action="store_true", help="Only ingest combined labels CSV"
+    )
     parser.add_argument("--limit", type=int, default=0, help="Max rows per CSV (0=all)")
     args = parser.parse_args()
 

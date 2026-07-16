@@ -8,11 +8,11 @@ First European-focused x402 infrastructure - allows users to
 pay in EUR or crypto and receive EUR via SEPA.
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,
@@ -95,15 +95,20 @@ class AsterPayFacilitator(Facilitator):
 
         try:
             timeout = aiohttp.ClientTimeout(total=self._config.facilitator_verify_timeout)
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                self._config.asterpay_verify_url,
-                json=body,
-                headers=headers,
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.post(
+                    self._config.asterpay_verify_url,
+                    json=body,
+                    headers=headers,
+                ) as resp,
+            ):
                 data = await resp.json()
 
                 if resp.status != 200:
-                    return self._format_error(f"AsterPay: {data.get('error', f'HTTP {resp.status}')}")
+                    return self._format_error(
+                        f"AsterPay: {data.get('error', f'HTTP {resp.status}')}"
+                    )
 
                 if data.get("isValid") or data.get("verified"):
                     return self._format_success(
@@ -111,7 +116,9 @@ class AsterPayFacilitator(Facilitator):
                         payer=data.get("payer"),
                         amount=accepted.get("amount"),
                         amount_usd=data.get("eurValue"),
-                        chain="sepa" if data.get("isEur") else accepted.get("network", "").split(":")[-1],
+                        chain="sepa"
+                        if data.get("isEur")
+                        else accepted.get("network", "").split(":")[-1],
                         token=data.get("currency", "USDC"),
                         settlement_id=data.get("settlementId"),
                     )
@@ -152,14 +159,17 @@ class AsterPayFacilitator(Facilitator):
                 }
 
             timeout = aiohttp.ClientTimeout(total=30)
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                self._config.asterpay_settle_url,
-                json=body,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self._config.asterpay_api_key}",
-                },
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.post(
+                    self._config.asterpay_settle_url,
+                    json=body,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {self._config.asterpay_api_key}",
+                    },
+                ) as resp,
+            ):
                 data = await resp.json()
                 if resp.status == 200:
                     return SettlementResult(
@@ -177,4 +187,6 @@ class AsterPayFacilitator(Facilitator):
                     facilitator=self.name,
                 )
         except Exception as e:
-            return SettlementResult(settled=False, reason=f"AsterPay settlement error: {e}", facilitator=self.name)
+            return SettlementResult(
+                settled=False, reason=f"AsterPay settlement error: {e}", facilitator=self.name
+            )

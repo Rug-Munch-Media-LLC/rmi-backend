@@ -26,7 +26,7 @@ class TestStringHelpers(unittest.TestCase):
     """Core string similarity utilities."""
 
     def test_identical_strings(self):
-        self.assertEqual(string_similarity("Pepe", "Pepe"), 1.0)
+        assert string_similarity("Pepe", "Pepe") == 1.0
 
     def test_case_insensitive(self):
         self.assertAlmostEqual(string_similarity("Pepe", "pepe"), 1.0)
@@ -36,38 +36,38 @@ class TestStringHelpers(unittest.TestCase):
 
     def test_partial_match(self):
         sim = string_similarity("Pepe", "Pepe 2.0")
-        self.assertGreater(sim, 0.3)
-        self.assertLess(sim, 1.0)
+        assert sim > 0.3
+        assert sim < 1.0
 
     def test_empty_strings(self):
-        self.assertEqual(string_similarity("", "Pepe"), 0.0)
-        self.assertEqual(string_similarity("Pepe", ""), 0.0)
-        self.assertEqual(string_similarity("", ""), 0.0)
+        assert string_similarity("", "Pepe") == 0.0
+        assert string_similarity("Pepe", "") == 0.0
+        assert string_similarity("", "") == 0.0
 
 
 class TestNameSimilarity(unittest.TestCase):
     """Name similarity scoring with clone patterns."""
 
     def test_identical_names(self):
-        self.assertEqual(name_similarity_score("Pepe", "Pepe"), 1.0)
+        assert name_similarity_score("Pepe", "Pepe") == 1.0
 
     def test_prefix_clone(self):
         """'Baby Pepe' should score high vs 'Pepe'."""
         score = name_similarity_score("Baby Pepe", "Pepe")
-        self.assertGreaterEqual(score, 0.65)
+        assert score >= 0.65
 
     def test_suffix_clone(self):
         """'Pepe v2' should score very high vs 'Pepe'."""
         score = name_similarity_score("Pepe v2", "Pepe")
-        self.assertGreaterEqual(score, 0.85)
+        assert score >= 0.85
 
     def test_known_v2_pattern(self):
         score = name_similarity_score("SafeMoon", "SafeMoon 2.0")
-        self.assertGreaterEqual(score, 0.85)
+        assert score >= 0.85
 
     def test_different_tokens(self):
         score = name_similarity_score("Bitcoin", "Pepe")
-        self.assertLess(score, 0.3)
+        assert score < 0.3
 
 
 class TestCloneReport(unittest.TestCase):
@@ -96,19 +96,19 @@ class TestCloneReport(unittest.TestCase):
             same_deployer_other_tokens=12,
         )
         d = report.to_dict()
-        self.assertEqual(d["token_address"], "0xabc123")
-        self.assertEqual(d["clone_score"], 45.5)
-        self.assertEqual(d["risk_label"], "medium")
-        self.assertEqual(len(d["similar_tokens"]), 1)
-        self.assertEqual(d["matched_keywords"], ["pepe"])
-        self.assertTrue(d["unverified_contract"])
-        self.assertEqual(d["same_deployer_other_tokens"], 12)
+        assert d["token_address"] == "0xabc123"
+        assert d["clone_score"] == 45.5
+        assert d["risk_label"] == "medium"
+        assert len(d["similar_tokens"]) == 1
+        assert d["matched_keywords"] == ["pepe"]
+        assert d["unverified_contract"]
+        assert d["same_deployer_other_tokens"] == 12
 
         # Check signals sub-dict
-        self.assertIn("bytecode_similarity", d["signals"])
-        self.assertIn("name_similarity", d["signals"])
-        self.assertIn("deployer_risk", d["signals"])
-        self.assertIn("metadata_risk", d["signals"])
+        assert "bytecode_similarity" in d["signals"]
+        assert "name_similarity" in d["signals"]
+        assert "deployer_risk" in d["signals"]
+        assert "metadata_risk" in d["signals"]
 
     def test_summary_format(self):
         report = CloneReport(
@@ -131,28 +131,28 @@ class TestCloneReport(unittest.TestCase):
             unverified_contract=True,
         )
         summary = report.summary()
-        self.assertIn("HIGH", summary)
-        self.assertIn("72", summary)
-        self.assertIn("ShadyToken", summary)
-        self.assertIn("1 similar tokens", summary)
+        assert "HIGH" in summary
+        assert "72" in summary
+        assert "ShadyToken" in summary
+        assert "1 similar tokens" in summary
 
     def test_risk_label_none(self):
         report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=0.0)
         scanner = CloneScanner()
         report.risk_label = scanner._label_risk(0.0)
-        self.assertEqual(report.risk_label, "none")
+        assert report.risk_label == "none"
 
     def test_risk_label_critical(self):
         report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=85.0)
         scanner = CloneScanner()
         report.risk_label = scanner._label_risk(85.0)
-        self.assertEqual(report.risk_label, "critical")
+        assert report.risk_label == "critical"
 
     def test_risk_label_brackets(self):
         report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=25.0)
         scanner = CloneScanner()
         report.risk_label = scanner._label_risk(25.0)
-        self.assertEqual(report.risk_label, "medium")
+        assert report.risk_label == "medium"
 
 
 class TestSimilarToken(unittest.TestCase):
@@ -167,7 +167,7 @@ class TestSimilarToken(unittest.TestCase):
             name_similarity=0.9,
             symbol_similarity=0.5,
         )
-        self.assertEqual(t.overall_similarity, 0.9)
+        assert t.overall_similarity == 0.9
 
     def test_overall_uses_symbol_when_higher(self):
         t = SimilarToken(
@@ -178,7 +178,7 @@ class TestSimilarToken(unittest.TestCase):
             name_similarity=0.4,
             symbol_similarity=0.95,
         )
-        self.assertEqual(t.overall_similarity, 0.95)
+        assert t.overall_similarity == 0.95
 
 
 class TestScannerScoring(unittest.TestCase):
@@ -189,60 +189,64 @@ class TestScannerScoring(unittest.TestCase):
 
     def test_score_bytecode_unverified(self):
         score = self.scanner._score_bytecode_risk(True, {})
-        self.assertEqual(score, 40)  # 40 for unverified
+        assert score == 40  # 40 for unverified
 
     def test_score_bytecode_verified(self):
         score = self.scanner._score_bytecode_risk(False, {"other_unverified": 0})
-        self.assertEqual(score, 0.0)
+        assert score == 0.0
 
     def test_score_bytecode_mass_deployer(self):
-        score = self.scanner._score_bytecode_risk(True, {"other_unverified": 10, "other_tokens": 30})
+        score = self.scanner._score_bytecode_risk(
+            True, {"other_unverified": 10, "other_tokens": 30}
+        )
         # 40 (unverified) + 20 (many unverified) + 15 (mass deployer) = 75
-        self.assertEqual(score, 75)
+        assert score == 75
 
     def test_score_name_no_keywords(self):
         score = self.scanner._score_name_similarity([], [])
-        self.assertEqual(score, 0.0)
+        assert score == 0.0
 
     def test_score_name_with_keywords(self):
         score = self.scanner._score_name_similarity([], ["pepe", "moon"])
-        self.assertEqual(score, 25)
+        assert score == 25
 
     def test_score_name_with_high_similarity(self):
         t = SimilarToken("0x1", "eth", "Clone", "CLO", name_similarity=0.95)
         score = self.scanner._score_name_similarity([t], [])
         # 1 high-sim match = 20
-        self.assertEqual(score, 20)
+        assert score == 20
 
     def test_score_deployer_low(self):
         score = self.scanner._score_deployer_risk({"other_tokens": 2})
-        self.assertEqual(score, 0.0)
+        assert score == 0.0
 
     def test_score_deployer_medium(self):
         score = self.scanner._score_deployer_risk({"other_tokens": 10})
-        self.assertEqual(score, 15)
+        assert score == 15
 
     def test_score_deployer_high(self):
         score = self.scanner._score_deployer_risk({"other_tokens": 30})
-        self.assertEqual(score, 30)
+        assert score == 30
 
     def test_score_deployer_critical(self):
         score = self.scanner._score_deployer_risk({"other_tokens": 100})
-        self.assertEqual(score, 40)
+        assert score == 40
 
     def test_score_deployer_clone_flag(self):
         score = self.scanner._score_deployer_risk({"other_tokens": 5, "clone_deployer": True})
         # 5 other tokens = no bonus (needs >20), +30 clone flag = 30
-        self.assertEqual(score, 30)
+        assert score == 30
 
     def test_score_metadata_missing(self):
         score = self.scanner._score_metadata_risk({}, [], [])
         # Empty dict = no name or symbol = 20+20 = 40
-        self.assertEqual(score, 40)
+        assert score == 40
 
     def test_score_metadata_with_social(self):
-        score = self.scanner._score_metadata_risk({"name": "T", "symbol": "S", "social": {"twitter": "@x"}}, [], [])
-        self.assertEqual(score, 10)  # missing website
+        score = self.scanner._score_metadata_risk(
+            {"name": "T", "symbol": "S", "social": {"twitter": "@x"}}, [], []
+        )
+        assert score == 10  # missing website
 
     def test_score_metadata_full(self):
         score = self.scanner._score_metadata_risk(
@@ -255,7 +259,7 @@ class TestScannerScoring(unittest.TestCase):
             [],
             [],
         )
-        self.assertEqual(score, 0.0)
+        assert score == 0.0
 
     def test_compute_composite_score(self):
         report = CloneReport(
@@ -267,26 +271,26 @@ class TestScannerScoring(unittest.TestCase):
             metadata_risk_score=0,
         )
         # 0.25*100 + 0.35*50 + 0.25*0 + 0.15*0 = 25 + 17.5 = 42.5
-        self.assertEqual(self.scanner._compute_clone_score(report), 42.5)
+        assert self.scanner._compute_clone_score(report) == 42.5
 
     def test_well_known_by_name(self):
-        self.assertTrue(self.scanner._is_well_known("Bitcoin", "BTC"))
-        self.assertTrue(self.scanner._is_well_known("Ethereum", "ETH"))
+        assert self.scanner._is_well_known("Bitcoin", "BTC")
+        assert self.scanner._is_well_known("Ethereum", "ETH")
 
     def test_well_known_by_symbol(self):
-        self.assertTrue(self.scanner._is_well_known("Random", "ETH"))
+        assert self.scanner._is_well_known("Random", "ETH")
 
     def test_not_well_known(self):
-        self.assertFalse(self.scanner._is_well_known("ShadyCoin", "SHADY"))
+        assert not self.scanner._is_well_known("ShadyCoin", "SHADY")
 
     def test_valid_evm_address(self):
-        self.assertTrue(self.scanner._validate_address("0x1234567890abcdef1234567890abcdef12345678", "ethereum"))
+        assert self.scanner._validate_address("0x1234567890abcdef1234567890abcdef12345678", "ethereum")
 
     def test_valid_solana_address(self):
-        self.assertTrue(self.scanner._validate_address("So11111111111111111111111111111111111111112", "solana"))
+        assert self.scanner._validate_address("So11111111111111111111111111111111111111112", "solana")
 
     def test_invalid_address(self):
-        self.assertFalse(self.scanner._validate_address("not-an-address", "ethereum"))
+        assert not self.scanner._validate_address("not-an-address", "ethereum")
 
 
 if __name__ == "__main__":

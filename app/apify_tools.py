@@ -3,9 +3,10 @@ RMI Apify Integration -- Free/cheap external actors as MCP tools.
 Actors: Arkham wallet intelligence, web scraping, Twitter data.
 """
 
-from app.core.logging import get_logger
 import os
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi_apify")
 

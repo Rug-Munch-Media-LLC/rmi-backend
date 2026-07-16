@@ -23,10 +23,10 @@ This is the "people actually want to know" layer.
 """
 
 import asyncio
-from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from app.core.logging import get_logger
 from app.prediction_market_service import (
     PredictionMarket,
     get_prediction_market_service,
@@ -159,7 +159,9 @@ class PredictionMarketIntel:
         if not crypto_markets:
             crypto_markets = unique  # Fallback if no crypto markets found
 
-        exploit_markets = self._filter_category(crypto_markets, ["hack", "exploit", "vulnerability", "drain", "breach"])
+        exploit_markets = self._filter_category(
+            crypto_markets, ["hack", "exploit", "vulnerability", "drain", "breach"]
+        )
         regulatory_markets = self._filter_category(
             crypto_markets, ["sec", "cftc", "regulation", "ban", "sanction", "doj"]
         )
@@ -175,7 +177,12 @@ class PredictionMarketIntel:
         stablecoin_risk = self._aggregate_risk(stablecoin_markets)
         exchange_risk = self._aggregate_risk(exchange_markets)
 
-        overall = exploit_risk * 0.35 + regulatory_risk * 0.25 + stablecoin_risk * 0.20 + exchange_risk * 0.20
+        overall = (
+            exploit_risk * 0.35
+            + regulatory_risk * 0.25
+            + stablecoin_risk * 0.20
+            + exchange_risk * 0.20
+        )
 
         result = CryptoFearIndex(
             overall_risk=round(overall, 1),
@@ -274,7 +281,9 @@ class PredictionMarketIntel:
 
         for m in unique[:10]:
             if m.is_security_relevant and m.probability_yes >= 0.30:
-                tokens_str = ", ".join(m.tokens_mentioned[:3]) if m.tokens_mentioned else "crypto ecosystem"
+                tokens_str = (
+                    ", ".join(m.tokens_mentioned[:3]) if m.tokens_mentioned else "crypto ecosystem"
+                )
                 if tokens_str == "crypto ecosystem" and m.volume_usd < 5000:
                     continue  # Skip vague low-volume markets
 
@@ -351,7 +360,9 @@ class PredictionMarketIntel:
 
     # ── Helpers ─────────────────────────────────────────────
 
-    def _filter_category(self, markets: list[PredictionMarket], keywords: list[str]) -> list[PredictionMarket]:
+    def _filter_category(
+        self, markets: list[PredictionMarket], keywords: list[str]
+    ) -> list[PredictionMarket]:
         """Filter markets by keyword match in question text."""
         results = []
         for m in markets:

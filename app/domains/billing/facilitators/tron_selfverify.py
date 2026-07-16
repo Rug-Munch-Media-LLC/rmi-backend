@@ -19,11 +19,11 @@ Tokens: USDT (TRC20), USDC (TRC20), USDD (TRC20)
 Settlement: Self-verified (instant)
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,

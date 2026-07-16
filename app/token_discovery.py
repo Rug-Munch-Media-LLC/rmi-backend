@@ -6,10 +6,11 @@ Multi-chain real-time token discovery. Add this route to main.py:
     app.include_router(discover_endpoint)
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -37,7 +38,9 @@ async def fetch_dexscreener_new_pairs(chain: str, limit: int = 20) -> list[dict]
             for pair in pairs:
                 created = pair.get("pairCreatedAt")
                 if created:
-                    age = (now - datetime.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600
+                    age = (
+                        now - datetime.fromtimestamp(created / 1000, tz=UTC)
+                    ).total_seconds() / 3600
                     if age <= 24:
                         recent.append(pair)
             logger.info(f"DexScreener: {len(recent)} recent pairs on {chain}")
@@ -133,7 +136,9 @@ async def discover_tokens(chains: list[str] | None = None) -> dict:
                         "liquidity_usd": float(pair.get("liquidity", {}).get("usd", 0)),
                         "volume_24h": float(pair.get("volume", {}).get("h24", 0)),
                         "price_usd": float(pair.get("priceUsd", 0)),
-                        "created_at": datetime.fromtimestamp(pair.get("pairCreatedAt", 0) / 1000, tz=UTC).isoformat()
+                        "created_at": datetime.fromtimestamp(
+                            pair.get("pairCreatedAt", 0) / 1000, tz=UTC
+                        ).isoformat()
                         if pair.get("pairCreatedAt")
                         else None,
                         "source": "dexscreener",

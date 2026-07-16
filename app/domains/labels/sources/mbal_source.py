@@ -10,11 +10,11 @@ Rate Limits: Free tier - 100 queries/day, Pro - 1000/day, Enterprise - Unlimited
 """
 
 import asyncio
-from app.core.logging import get_logger
 from datetime import datetime
 
 import httpx
 
+from app.core.logging import get_logger
 from app.domains.labels.models import Label, LabelSource
 
 logger = get_logger(__name__)

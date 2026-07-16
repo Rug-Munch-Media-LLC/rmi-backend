@@ -18,7 +18,6 @@ Scoring:
 """
 
 import hashlib
-from app.core.logging import get_logger
 import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -26,6 +25,8 @@ from html.parser import HTMLParser
 from typing import ClassVar
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("metadata_fingerprint")
 
@@ -126,7 +127,7 @@ class MetadataFingerprinter:
     """
 
     # Known social domains for normalisation
-    _SOCIAL_DOMAINS: ClassVar[dict] ={
+    _SOCIAL_DOMAINS: ClassVar[dict] = {
         "twitter.com",
         "x.com",
         "t.me",
@@ -146,7 +147,9 @@ class MetadataFingerprinter:
     DEXSCREENER_BASE = "https://api.dexscreener.com"
     BIRDEYE_BASE = "https://public-api.birdeye.so"
 
-    def __init__(self, dexscreener_client: httpx.AsyncClient | None = None, birdeye_api_key: str = ""):
+    def __init__(
+        self, dexscreener_client: httpx.AsyncClient | None = None, birdeye_api_key: str = ""
+    ):
         self.dexscreener_client = dexscreener_client or httpx.AsyncClient(timeout=15.0)
         self.birdeye_key = birdeye_api_key
         self.birdeye_client = httpx.AsyncClient(timeout=15.0)
@@ -214,7 +217,9 @@ class MetadataFingerprinter:
             confidence=confidence,
         )
 
-    async def compare_tokens(self, addr1: str, addr2: str, chain: str = "solana") -> dict[str, object]:
+    async def compare_tokens(
+        self, addr1: str, addr2: str, chain: str = "solana"
+    ) -> dict[str, object]:
         """Compare metadata of two tokens and return a detailed similarity report."""
         meta1 = await self._fetch_metadata(addr1, chain)
         meta2 = await self._fetch_metadata(addr2, chain)
@@ -295,7 +300,13 @@ class MetadataFingerprinter:
         #   HTML structure is the strongest copycat signal
         #   Description similarity catches template-scam reruns
         #   Social overlap reveals shared infrastructure
-        overall = html_match * 0.30 + desc_similarity * 0.35 + social_ratio * 0.20 + name_sim * 0.10 + symbol_sim * 0.05
+        overall = (
+            html_match * 0.30
+            + desc_similarity * 0.35
+            + social_ratio * 0.20
+            + name_sim * 0.10
+            + symbol_sim * 0.05
+        )
 
         return {
             "token_1": meta1.address,
@@ -325,7 +336,9 @@ class MetadataFingerprinter:
         overlap_ratio = len(overlapping) / total_unique if total_unique else 0.0
 
         # Identify shared domains (e.g. both link to same Twitter account)
-        shared_domains = list({self._domain_from_url(url) for url in overlapping if self._domain_from_url(url)})
+        shared_domains = list(
+            {self._domain_from_url(url) for url in overlapping if self._domain_from_url(url)}
+        )
 
         return SocialOverlapResult(
             overlapping_links=sorted(overlapping),
@@ -340,7 +353,7 @@ class MetadataFingerprinter:
     # ------------------------------------------------------------------
 
     # Known stablecoin / wrapped token symbols - these legitimately have no description
-    STABLECOIN_SYMBOLS: ClassVar[dict] ={
+    STABLECOIN_SYMBOLS: ClassVar[dict] = {
         "USDC",
         "USDT",
         "DAI",
@@ -384,20 +397,28 @@ class MetadataFingerprinter:
         if not symbol:
             return False
         sym = symbol.upper().strip()
-        return sym in self.STABLECOIN_SYMBOLS or sym.startswith("W") or sym.startswith("ST")
+        return sym in self.STABLECOIN_SYMBOLS or sym.startswith(("W", "ST"))
 
-    def _generate_warnings(self, meta: TokenMetadata, similar: list[dict[str, object]]) -> list[str]:
+    def _generate_warnings(
+        self, meta: TokenMetadata, similar: list[dict[str, object]]
+    ) -> list[str]:
         warnings: list[str] = []
 
         for entry in similar:
             overall = float(entry.get("overall_similarity", 0))
             addr = str(entry.get("token_2", "unknown"))
             if overall >= 0.9:
-                warnings.append(f"CLONE: near-identical metadata to {addr[:12]}... (similarity {(overall):.0%})")
+                warnings.append(
+                    f"CLONE: near-identical metadata to {addr[:12]}... (similarity {(overall):.0%})"
+                )
             elif overall >= 0.7:
-                warnings.append(f"COPYCAT: similar metadata to {addr[:12]}... (similarity {(overall):.0%})")
+                warnings.append(
+                    f"COPYCAT: similar metadata to {addr[:12]}... (similarity {(overall):.0%})"
+                )
             elif overall >= 0.5:
-                warnings.append(f"LINKED: partial metadata overlap with {addr[:12]}... (similarity {(overall):.0%})")
+                warnings.append(
+                    f"LINKED: partial metadata overlap with {addr[:12]}... (similarity {(overall):.0%})"
+                )
 
         # Skip NO_DESCRIPTION for stablecoins/wrapped tokens - they don't need marketing copy
         if not meta.description and not self._is_stablecoin_or_wrapped(meta.symbol):
@@ -415,7 +436,9 @@ class MetadataFingerprinter:
                     continue
                 cached_hash = hash_html_structure(cached.website_html)
                 if cached_hash == html_hash:
-                    warnings.append(f"HTML_STRUCTURE_MATCH: identical site structure as {addr[:12]}...")
+                    warnings.append(
+                        f"HTML_STRUCTURE_MATCH: identical site structure as {addr[:12]}..."
+                    )
                     break  # one match is enough
 
         return warnings

@@ -9,7 +9,6 @@ Algorithm: engagement-weighted, diversity-scored, entity-resolved.
 
 import html
 import json
-from app.core.logging import get_logger
 import os
 import re
 import subprocess
@@ -18,6 +17,8 @@ from collections import Counter
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("x_intel")
 
@@ -398,7 +399,12 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
                     if match:
                         try:
                             data = json.loads(match.group(1))
-                            timeline = data.get("props", {}).get("pageProps", {}).get("timeline", {}).get("entries", [])
+                            timeline = (
+                                data.get("props", {})
+                                .get("pageProps", {})
+                                .get("timeline", {})
+                                .get("entries", [])
+                            )
                             for entry in timeline[:10]:
                                 tweet = entry.get("content", {}).get("tweet", {})
                                 if tweet:
@@ -429,7 +435,9 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
         for handle in handles[:10]:
             try:
                 search_q = f"site:x.com {handle}"
-                r = await client.get(f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_q)}")
+                r = await client.get(
+                    f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_q)}"
+                )
                 if r.status_code != 200:
                     continue
 
@@ -447,10 +455,14 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
                     try:
                         r2 = await client.get(url)
                         if r2.status_code == 200:
-                            desc_match = re.search(r'<meta property="og:description" content="(.*?)"', r2.text)
+                            desc_match = re.search(
+                                r'<meta property="og:description" content="(.*?)"', r2.text
+                            )
                             if desc_match:
                                 text = html.unescape(desc_match.group(1))
-                                text = re.sub(rf"^{handle}:\s*", "", text, flags=re.IGNORECASE).strip()
+                                text = re.sub(
+                                    rf"^{handle}:\s*", "", text, flags=re.IGNORECASE
+                                ).strip()
 
                                 posts.append(
                                     {
@@ -478,7 +490,9 @@ async def _grok_summarize(posts: list[dict]) -> str:
         return ""
 
     try:
-        post_texts = "\n---\n".join(f"@{p.get('author', '?')}: {p.get('text', '')[:200]}" for p in posts[:20])
+        post_texts = "\n---\n".join(
+            f"@{p.get('author', '?')}: {p.get('text', '')[:200]}" for p in posts[:20]
+        )
 
         async with httpx.AsyncClient(timeout=30) as c:
             r = await c.post(
@@ -518,7 +532,11 @@ def _simple_rundown(posts: list[dict]) -> str:
             if len(word) > 4 and word not in ("https", "that", "this", "with", "from", "have"):
                 words[word] += 1
 
-    top_words = [w for w, _ in words.most_common(20) if w not in ("about", "would", "could", "their", "there")]
+    top_words = [
+        w
+        for w, _ in words.most_common(20)
+        if w not in ("about", "would", "could", "their", "there")
+    ]
 
     return "Top themes: " + ", ".join(top_words[:8])
 
@@ -655,7 +673,9 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
     scored = []
     for post in all_posts:
         author = (post.get("author", "") or "").lower().lstrip("@")
-        account = account_map.get(author, {"handle": author, "name": author, "category": "unknown", "weight": 0.5})
+        account = account_map.get(
+            author, {"handle": author, "name": author, "category": "unknown", "weight": 0.5}
+        )
         post["account"] = account
         post["ct_score"] = score_ct_post(post, account)
         scored.append(post)
@@ -669,7 +689,9 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
         cat = post["account"].get("category", "unknown")
         # Allow max 3 from same category, max 5 total from same handle
         same_cat = sum(1 for s in selected if s["account"].get("category") == cat)
-        same_handle = sum(1 for s in selected if s["account"].get("handle") == post["account"].get("handle"))
+        same_handle = sum(
+            1 for s in selected if s["account"].get("handle") == post["account"].get("handle")
+        )
 
         if same_cat < 3 and same_handle < 3:
             selected.append(post)

@@ -19,11 +19,12 @@ Architecture:
 """
 
 import asyncio
-from app.core.logging import get_logger
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, ClassVar
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -93,14 +94,14 @@ class UnifiedTokenScanner:
     """
 
     # Phase 1: Core identity - always run, needed for scoring
-    CORE_CHAINS: ClassVar[list] =[
+    CORE_CHAINS: ClassVar[list] = [
         "token_price",
         "token_metadata",
         "token_security",
     ]
 
     # Phase 2: Deep analysis - parallel, all free
-    DEEP_CHAINS: ClassVar[list] =[
+    DEEP_CHAINS: ClassVar[list] = [
         "holder_data",
         "holder_health",
         "liquidity_risk",
@@ -110,7 +111,7 @@ class UnifiedTokenScanner:
     ]
 
     # Phase 3: Premium - requires pro/elite tier
-    PREMIUM_CHAINS: ClassVar[list] =[
+    PREMIUM_CHAINS: ClassVar[list] = [
         "bundle_detect",
         "cluster_map",
         "dev_finder",
@@ -124,7 +125,7 @@ class UnifiedTokenScanner:
     ]
 
     # Phase 4: Intelligence - always free, enrich the report
-    INTEL_CHAINS: ClassVar[list] =[
+    INTEL_CHAINS: ClassVar[list] = [
         "smart_money",
         "whale_alerts",
         "token_launches",
@@ -168,11 +169,15 @@ class UnifiedTokenScanner:
 
             # ── Phase 3: Premium (tier-gated) ──
             if tier in ("pro", "elite", "admin"):
-                premium_results = await self._fetch_batch(self.PREMIUM_CHAINS, params, admin_key, timeout=30)
+                premium_results = await self._fetch_batch(
+                    self.PREMIUM_CHAINS, params, admin_key, timeout=30
+                )
                 self._merge_premium(result, premium_results)
 
             # ── Phase 4: Intel (free enrichment) ──
-            intel_results = await self._fetch_batch(self.INTEL_CHAINS, params, admin_key, timeout=20)
+            intel_results = await self._fetch_batch(
+                self.INTEL_CHAINS, params, admin_key, timeout=20
+            )
             self._merge_intel(result, intel_results)
 
             # ── Score ──

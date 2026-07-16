@@ -19,12 +19,13 @@ Every call: cache check → rate limiter → try primary → on fail try next �
 No single provider outage blocks any feature.
 """
 
-from app.core.logging import get_logger
 import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+
+from app.core.logging import get_logger
 
 logger = get_logger("data_fallback")
 
@@ -122,7 +123,9 @@ class UnifiedDataEngine:
         # SOLANA FUNDING: Helius → Tracker → public RPC → labels
         self._chains[DataQueryType.SOLANA_FUNDING] = [
             DataSource("helius_sol_funding", "helius", self._helius_sol_funding, 50, 0, 1.0),
-            DataSource("tracker_sol_funding", "solana_tracker", self._tracker_sol_funding, 3, 2500, 0.8),
+            DataSource(
+                "tracker_sol_funding", "solana_tracker", self._tracker_sol_funding, 3, 2500, 0.8
+            ),
             DataSource("public_rpc_sol", "public_rpc", self._public_rpc_sol_funding, 15, 0, 0.6),
             DataSource(
                 "local_wallet_labels",
@@ -353,7 +356,9 @@ class UnifiedDataEngine:
         result = await rpc.get_balance(address)
         if result and result.value:
             return {
-                "balance_lamports": result.value.get("value", 0) if isinstance(result.value, dict) else result.value,
+                "balance_lamports": result.value.get("value", 0)
+                if isinstance(result.value, dict)
+                else result.value,
                 "source": "helius",
             }
         return None
@@ -365,7 +370,9 @@ class UnifiedDataEngine:
         result = await rpc.get_balance(address)
         if result and result.value:
             return {
-                "balance_lamports": result.value.get("value", 0) if isinstance(result.value, dict) else result.value,
+                "balance_lamports": result.value.get("value", 0)
+                if isinstance(result.value, dict)
+                else result.value,
                 "source": "quicknode",
             }
         return None
@@ -377,7 +384,9 @@ class UnifiedDataEngine:
         result = await rpc.get_balance(address)
         if result and result.value:
             return {
-                "balance_lamports": result.value.get("value", 0) if isinstance(result.value, dict) else result.value,
+                "balance_lamports": result.value.get("value", 0)
+                if isinstance(result.value, dict)
+                else result.value,
                 "source": "alchemy",
             }
         return None
@@ -427,7 +436,9 @@ class UnifiedDataEngine:
                 r = await c.get(f"https://api.rugcheck.xyz/v1/tokens/{address}/report")
                 if r.status_code == 200:
                     data = r.json()
-                    risks = [r.get("name", "") for r in data.get("risks", []) if r.get("score", 0) > 1000]
+                    risks = [
+                        r.get("name", "") for r in data.get("risks", []) if r.get("score", 0) > 1000
+                    ]
                     return {"risks": risks, "score": data.get("score", 0), "source": "rugcheck"}
         except Exception:
             pass
@@ -438,7 +449,9 @@ class UnifiedDataEngine:
 
         try:
             async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(f"https://api.honeypot.is/v2/IsHoneypot?address={address}&chainID=1")
+                r = await c.get(
+                    f"https://api.honeypot.is/v2/IsHoneypot?address={address}&chainID=1"
+                )
                 if r.status_code == 200:
                     data = r.json()
                     return {

@@ -3,11 +3,12 @@ Lightweight Redis-backed Circuit Breaker for external API calls.
 Prevents cascading failures when external services (Helius, OpenRouter, etc.) go down.
 """
 
-from app.core.logging import get_logger
 import os
 import time
 
 import redis
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

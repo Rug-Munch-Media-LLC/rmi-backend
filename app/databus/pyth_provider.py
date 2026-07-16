@@ -14,10 +14,11 @@ API Documentation:
 """
 
 import asyncio
-from app.core.logging import get_logger
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

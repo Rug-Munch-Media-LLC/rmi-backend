@@ -10,11 +10,16 @@ This module owns every middleware registration. Adding a new middleware:
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import FastAPI
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
+    from starlette.requests import Request
+    from starlette.responses import Response
 
 log = get_logger(__name__)
 
@@ -33,19 +38,18 @@ def _try_register_cors(app: FastAPI) -> None:
     try:
         from fastapi.middleware.cors import CORSMiddleware
 
-        ALLOWED_ORIGINS = [
-            "https://rugmunch.io",
-            "https://www.rugmunch.io",
-            "https://mcp.rugmunch.io",
-            "https://x402.rugmunch.io",
-            "https://rugcharts.io",
-            "https://rugmaps.io",
-            "http://localhost:5173",
-            "http://localhost:3000",
-        ]
+        from app.config import settings
+
+        # Validate CORS origins in production
+        if settings.environment == "prod" and settings.cors_origins == ["*"]:
+            raise RuntimeError(
+                "CORS_ORIGINS cannot be ['*'] in production. "
+                "Set CORS_ORIGINS to a specific list of allowed origins."
+            )
+
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=ALLOWED_ORIGINS,
+            allow_origins=settings.cors_origins,
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Payment"],
@@ -59,12 +63,10 @@ def _try_register_security_headers(app: FastAPI) -> None:
     """T20 - Security headers on every response."""
     try:
         from starlette.middleware.base import BaseHTTPMiddleware
-        from starlette.requests import Request
-        from starlette.responses import Response
 
         class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             async def dispatch(self, request: Request, call_next: Any) -> Response:
-                response = cast(Response, await call_next(request))
+                response = cast("Response", await call_next(request))
                 response.headers["X-Content-Type-Options"] = "nosniff"
                 response.headers["X-Frame-Options"] = "DENY"
                 response.headers["X-XSS-Protection"] = "1; mode=block"

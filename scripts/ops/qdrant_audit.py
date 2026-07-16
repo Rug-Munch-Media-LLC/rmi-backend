@@ -39,18 +39,14 @@ def fetch_collections(base_url: str) -> list[dict]:
 
 def fetch_collection_info(base_url: str, name: str) -> dict:
     try:
-        with urllib.request.urlopen(
-            f"{base_url}/collections/{name}", timeout=5
-        ) as r:
+        with urllib.request.urlopen(f"{base_url}/collections/{name}", timeout=5) as r:
             return json.loads(r.read()).get("result", {})
     except Exception as e:
         return {"error": str(e)}
 
 
 def delete_collection(base_url: str, name: str) -> bool:
-    req = urllib.request.Request(
-        f"{base_url}/collections/{name}", method="DELETE"
-    )
+    req = urllib.request.Request(f"{base_url}/collections/{name}", method="DELETE")
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             return json.loads(r.read()).get("status") == "ok"
@@ -89,8 +85,7 @@ def main() -> int:
     if args.check:
         if test_like:
             print(
-                f"FAIL: {len(test_like)} test_col_* collection(s) found: "
-                f"{test_like}",
+                f"FAIL: {len(test_like)} test_col_* collection(s) found: {test_like}",
                 file=sys.stderr,
             )
             return 1
@@ -109,9 +104,7 @@ def main() -> int:
     for name in test_like:
         info = fetch_collection_info(args.url, name)
         points = info.get("points_count", "?")
-        vectors_size = (
-            info.get("config", {}).get("params", {}).get("vectors", {}).get("size", "?")
-        )
+        vectors_size = info.get("config", {}).get("params", {}).get("vectors", {}).get("size", "?")
         print(f"  {name}: {points} points, {vectors_size}-dim vectors")
 
     if args.audit_only:

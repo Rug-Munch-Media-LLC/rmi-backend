@@ -27,13 +27,14 @@ import base64
 import hashlib
 import hmac
 import json
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 

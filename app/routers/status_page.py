@@ -26,7 +26,6 @@ Date: 2026-06-05
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime, timedelta
@@ -36,6 +35,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.core.logging import get_logger
 from app.core.redis import get_redis
 
 logger = get_logger("status_page")

@@ -16,7 +16,6 @@ Date: 2026-06-05
 
 import email
 import json
-from app.core.logging import get_logger
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -25,6 +24,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.core.logging import get_logger
 from app.databus_gateway import generate_api_key
 from app.routers.dev_portal import create_api_key
 
@@ -230,7 +230,10 @@ async def register_developer(req: RegisterRequest):
             status_code=400,
             content={
                 "error": f"Invalid tier. Available: {', '.join(TIERS.keys())}",
-                "tiers": {k: {"daily_limit": v["daily_limit"], "price": v["price_usd"]} for k, v in TIERS.items()},
+                "tiers": {
+                    k: {"daily_limit": v["daily_limit"], "price": v["price_usd"]}
+                    for k, v in TIERS.items()
+                },
             },
         )
 
@@ -388,7 +391,9 @@ async def verify_wallet_identity(req: WalletVerifyRequest):
         return JSONResponse(status_code=400, content={"error": "chain must be 'evm' or 'solana'"})
 
     if not valid:
-        return JSONResponse(status_code=401, content={"error": "Invalid signature - wallet ownership not proven"})
+        return JSONResponse(
+            status_code=401, content={"error": "Invalid signature - wallet ownership not proven"}
+        )
 
     # Store wallet identity in Redis
     r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue

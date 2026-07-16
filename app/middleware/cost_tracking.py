@@ -4,16 +4,20 @@ Per RMIV5 v4.0 §T31. Tracks per-request cost in USD and enforces
 budget caps per tenant. Stub implementation: records costs but
 doesn't enforce caps yet.
 """
+
 from __future__ import annotations
 
 import asyncio
-from app.core.logging import get_logger
 import time
 from collections import defaultdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from fastapi import Request, Response
 
 log = get_logger(__name__)
 
@@ -25,7 +29,9 @@ class CostBuffer:
     """
 
     def __init__(self, max_size: int = 10_000) -> None:
-        self._buffer: asyncio.Queue[tuple[str, float, float, float]] = asyncio.Queue(maxsize=max_size)
+        self._buffer: asyncio.Queue[tuple[str, float, float, float]] = asyncio.Queue(
+            maxsize=max_size
+        )
         self._totals: dict[str, float] = defaultdict(float)
 
     def record(self, tenant_id: str, route: str, cost_usd: float, latency_s: float) -> None:

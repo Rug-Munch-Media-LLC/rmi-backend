@@ -209,7 +209,9 @@ def send_alert(results: list):
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
-            logger.info(f"Alert sent to webhook: HTTP {resp.status} - {len(alertable)} services down")
+            logger.info(
+                f"Alert sent to webhook: HTTP {resp.status} - {len(alertable)} services down"
+            )
     except Exception as e:
         logger.error(f"Failed to send alert to webhook: {e}")
 
@@ -313,7 +315,9 @@ def main():
     REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
-    BASE_WORKER_URL = os.getenv("BASE_WORKER_URL", "http://localhost:8000/api/v1/x402/fallback/status")
+    BASE_WORKER_URL = os.getenv(
+        "BASE_WORKER_URL", "http://localhost:8000/api/v1/x402/fallback/status"
+    )
     SOLANA_WORKER_URL = os.getenv("SOLANA_WORKER_URL", "")
 
     logger.info("Running health checks...")

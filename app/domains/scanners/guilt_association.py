@@ -17,7 +17,6 @@ Uses:
 
 import asyncio
 import contextlib
-from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -25,6 +24,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import get_explorer_api_config, is_evm, is_solana
+from app.core.logging import get_logger
 
 logger = get_logger("guilt_association")
 
@@ -174,13 +174,27 @@ def _classify_interaction(service_label: str, is_incoming: bool) -> str:
     """Derive a semantic interaction type from the mixer label and flow direction."""
     label_lower = service_label.lower()
     if "fixedfloat" in label_lower:
-        return INTERACTION_TYPE_RECEIVED_FROM_FIXEDFLOAT if is_incoming else INTERACTION_TYPE_SENT_TO_FIXEDFLOAT
+        return (
+            INTERACTION_TYPE_RECEIVED_FROM_FIXEDFLOAT
+            if is_incoming
+            else INTERACTION_TYPE_SENT_TO_FIXEDFLOAT
+        )
     if "changenow" in label_lower:
-        return INTERACTION_TYPE_RECEIVED_FROM_CHANGENOW if is_incoming else INTERACTION_TYPE_SENT_TO_CHANGENOW
+        return (
+            INTERACTION_TYPE_RECEIVED_FROM_CHANGENOW
+            if is_incoming
+            else INTERACTION_TYPE_SENT_TO_CHANGENOW
+        )
     if "sideshift" in label_lower:
-        return INTERACTION_TYPE_RECEIVED_FROM_SIDESHIFT if is_incoming else INTERACTION_TYPE_SENT_TO_SIDESHIFT
+        return (
+            INTERACTION_TYPE_RECEIVED_FROM_SIDESHIFT
+            if is_incoming
+            else INTERACTION_TYPE_SENT_TO_SIDESHIFT
+        )
     if "tornado" in label_lower or "mixer" in label_lower or "sinbad" in label_lower:
-        return INTERACTION_TYPE_RECEIVED_FROM_MIXER if is_incoming else INTERACTION_TYPE_SENT_TO_MIXER
+        return (
+            INTERACTION_TYPE_RECEIVED_FROM_MIXER if is_incoming else INTERACTION_TYPE_SENT_TO_MIXER
+        )
     return INTERACTION_TYPE_OTHER_MIXER_CONTACT
 
 
@@ -366,7 +380,9 @@ class GuiltAssociationAnalyzer:
                 if tx_ts >= thirty_days_ago:
                     report.recent_mixer_funding = True
 
-    async def _fetch_etherscan_txs(self, address: str, api_url: str, api_key: str, action: str) -> list[dict]:
+    async def _fetch_etherscan_txs(
+        self, address: str, api_url: str, api_key: str, action: str
+    ) -> list[dict]:
         """Fetch transaction list from an Etherscan-compatible block explorer API."""
         params = {
             "module": "account",

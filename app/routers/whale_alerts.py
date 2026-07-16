@@ -73,13 +73,20 @@ async def list_subscriptions(user_id: str):
 
 
 @router.get("/check/{address}")
-async def check_transfer(address: str, chain: str = Query("ethereum"), min_usd: float = Query(50000)):
+async def check_transfer(
+    address: str, chain: str = Query("ethereum"), min_usd: float = Query(50000)
+):
     """Check recent large transfers for an address (on-demand scan)."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"{BACKEND}/api/v1/databus/{chain}/transactions/{address}")
             if resp.status_code != 200:
-                return {"address": address, "chain": chain, "transfers": [], "error": "chain unavailable"}
+                return {
+                    "address": address,
+                    "chain": chain,
+                    "transfers": [],
+                    "error": "chain unavailable",
+                }
             txs = resp.json().get("data", {}).get("transactions", [])
             large = [t for t in txs if float(t.get("value_usd", 0) or 0) > min_usd]
             return {"address": address, "chain": chain, "transfers": large, "count": len(large)}
@@ -111,7 +118,9 @@ async def scan_whale_activity(background_tasks: BackgroundTasks):
                 continue
             try:
                 async with httpx.AsyncClient(timeout=10) as client:
-                    resp = await client.get(f"{BACKEND}/api/v1/databus/{sub['chain']}/transactions/{sub['address']}")
+                    resp = await client.get(
+                        f"{BACKEND}/api/v1/databus/{sub['chain']}/transactions/{sub['address']}"
+                    )
                     if resp.status_code != 200:
                         continue
                     txs = resp.json().get("data", {}).get("transactions", [])
@@ -130,4 +139,7 @@ async def scan_whale_activity(background_tasks: BackgroundTasks):
                             background_tasks.add_task(_send_telegram_alert, uid, text)
             except Exception:
                 continue
-    return {"alerts_fired": alerts_fired, "subscriptions_checked": sum(len(s) for s in _subscriptions.values())}
+    return {
+        "alerts_fired": alerts_fired,
+        "subscriptions_checked": sum(len(s) for s in _subscriptions.values()),
+    }

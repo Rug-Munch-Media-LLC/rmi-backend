@@ -15,10 +15,11 @@ Logic:
 Pure computation module - no external API calls needed.
 """
 
-from app.core.logging import get_logger
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger("sleep_cycle_scanner")
 
@@ -81,7 +82,7 @@ class SleepCycleAnalyzer:
 
     # UTC hours considered "abnormal" - midnight to 5am
     # These are sleep hours for Western timezones but productive hours in Asia
-    ABNORMAL_HOURS = list(range(0, 6))  # 12am-5am UTC  # noqa: RUF012
+    ABNORMAL_HOURS = list(range(6))  # 12am-5am UTC  # noqa: RUF012
 
     def __init__(self):
         pass
@@ -97,7 +98,11 @@ class SleepCycleAnalyzer:
         """
         try:
             # Normalise 'Z' suffix to +00:00 which fromisoformat handles
-            ts = timestamp_str.replace("Z", "+00:00") if timestamp_str.endswith("Z") else timestamp_str
+            ts = (
+                timestamp_str.replace("Z", "+00:00")
+                if timestamp_str.endswith("Z")
+                else timestamp_str
+            )
             dt = datetime.fromisoformat(ts)
             dt_utc = dt.astimezone(UTC)
             return dt_utc.hour

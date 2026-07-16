@@ -32,7 +32,6 @@ Usage:
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import re
 import time
@@ -42,6 +41,8 @@ from enum import Enum
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -280,7 +281,18 @@ def name_similarity_score(name: str, target_name: str) -> float:
         if n_lower in t_lower or t_lower in n_lower:
             base = max(base, 0.65)
         # Check prefix/suffix patterns common in clones
-        for prefix in ["baby ", "mini ", "super ", "mega ", "ultra ", "real ", "new ", "true ", "safe ", "moon "]:
+        for prefix in [
+            "baby ",
+            "mini ",
+            "super ",
+            "mega ",
+            "ultra ",
+            "real ",
+            "new ",
+            "true ",
+            "safe ",
+            "moon ",
+        ]:
             if (n_lower.startswith(prefix) and n_lower[len(prefix) :] == t_lower) or (
                 t_lower.startswith(prefix) and t_lower[len(prefix) :] == n_lower
             ):
@@ -361,10 +373,14 @@ class CloneScanner:
             report.matched_keywords = keywords
 
             # 5. Compute scores
-            report.bytecode_similarity_score = self._score_bytecode_risk(report.unverified_contract, deployer_info)
+            report.bytecode_similarity_score = self._score_bytecode_risk(
+                report.unverified_contract, deployer_info
+            )
             report.name_similarity_score = self._score_name_similarity(similar_tokens, keywords)
             report.deployer_risk_score = self._score_deployer_risk(deployer_info)
-            report.metadata_risk_score = self._score_metadata_risk(metadata, keywords, similar_tokens)
+            report.metadata_risk_score = self._score_metadata_risk(
+                metadata, keywords, similar_tokens
+            )
 
             # 6. Composite clone score
             report.clone_score = self._compute_clone_score(report)
@@ -464,7 +480,9 @@ class CloneScanner:
             score += 15  # Mass deployer pattern
         return min(score, 100)
 
-    def _score_name_similarity(self, similar_tokens: list[SimilarToken], keywords: list[str]) -> float:
+    def _score_name_similarity(
+        self, similar_tokens: list[SimilarToken], keywords: list[str]
+    ) -> float:
         score = 0.0
         if keywords:
             score += 25
@@ -662,7 +680,9 @@ class CloneScanner:
 
         return result
 
-    async def _search_similar_names(self, name: str, symbol: str, address: str, chain: str) -> list[SimilarToken]:
+    async def _search_similar_names(
+        self, name: str, symbol: str, address: str, chain: str
+    ) -> list[SimilarToken]:
         """Search DexScreener for tokens with similar names."""
         if not name and not symbol:
             return []

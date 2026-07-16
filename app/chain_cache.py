@@ -5,10 +5,11 @@ Includes startup warming for hot wallets.
 """
 
 import asyncio
-from app.core.logging import get_logger
 import time
 from collections import OrderedDict
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -96,7 +97,9 @@ class ChainCache:
         if self._warmed:
             return
 
-        logger.info(f"Warming cache with {len(HOT_WALLETS)} wallets and {len(HOT_TOKENS)} tokens...")
+        logger.info(
+            f"Warming cache with {len(HOT_WALLETS)} wallets and {len(HOT_TOKENS)} tokens..."
+        )
 
         # Mark entity registry entries as known infrastructure (avoids repeated lookups)
         try:

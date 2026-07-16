@@ -5,11 +5,12 @@ Langfuse primary, Redis metrics fallback when Langfuse unavailable.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
+
+from app.core.logging import get_logger
 
 logger = get_logger("rag.observability")
 
@@ -21,7 +22,9 @@ try:
     LANGFUSE_SECRET = os.getenv("LANGFUSE_SECRET_KEY", "")
     LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "http://langfuse-langfuse-web-1:3000")
     if LANGFUSE_KEY and LANGFUSE_SECRET:
-        _langfuse = Langfuse(public_key=LANGFUSE_KEY, secret_key=LANGFUSE_SECRET, host=LANGFUSE_HOST)
+        _langfuse = Langfuse(
+            public_key=LANGFUSE_KEY, secret_key=LANGFUSE_SECRET, host=LANGFUSE_HOST
+        )
         LANGFUSE_AVAILABLE = True
         logger.info("Langfuse observability enabled")
     else:
@@ -60,12 +63,18 @@ async def _save_local_metrics():
         )
         data = {
             "embedding_calls": _metrics.embedding_calls,
-            "embedding_avg_ms": round(_metrics.embedding_total_ms / max(_metrics.embedding_calls, 1), 1),
+            "embedding_avg_ms": round(
+                _metrics.embedding_total_ms / max(_metrics.embedding_calls, 1), 1
+            ),
             "retrieval_calls": _metrics.retrieval_calls,
-            "retrieval_avg_ms": round(_metrics.retrieval_total_ms / max(_metrics.retrieval_calls, 1), 1),
+            "retrieval_avg_ms": round(
+                _metrics.retrieval_total_ms / max(_metrics.retrieval_calls, 1), 1
+            ),
             "cache_hits": _metrics.cache_hits,
             "cache_misses": _metrics.cache_misses,
-            "cache_hit_rate": round(_metrics.cache_hits / max(_metrics.cache_hits + _metrics.cache_misses, 1), 3),
+            "cache_hit_rate": round(
+                _metrics.cache_hits / max(_metrics.cache_hits + _metrics.cache_misses, 1), 3
+            ),
             "ingest_docs": _metrics.ingest_docs,
             "errors": _metrics.errors,
         }
@@ -160,7 +169,9 @@ def get_metrics() -> dict:
         "cache": {
             "hits": _metrics.cache_hits,
             "misses": _metrics.cache_misses,
-            "hit_rate": round(_metrics.cache_hits / max(_metrics.cache_hits + _metrics.cache_misses, 1), 3),
+            "hit_rate": round(
+                _metrics.cache_hits / max(_metrics.cache_hits + _metrics.cache_misses, 1), 3
+            ),
         },
         "ingestion": {"total_docs": _metrics.ingest_docs},
         "errors": _metrics.errors,

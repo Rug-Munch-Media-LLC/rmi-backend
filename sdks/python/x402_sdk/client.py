@@ -101,7 +101,10 @@ class x402:
             params["category"] = category
         r = self._http.post(
             f"{self.base_url}/mcp/x402",
-            json={"method": "tools/call", "params": {"name": "x402_list_tools", "arguments": params}},
+            json={
+                "method": "tools/call",
+                "params": {"name": "x402_list_tools", "arguments": params},
+            },
         )
         data = r.json().get("result", {})
         text = json.loads(data.get("content", [{}])[0].get("text", "{}"))

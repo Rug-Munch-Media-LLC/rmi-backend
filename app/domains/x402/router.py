@@ -6,15 +6,16 @@ Per v4.0 §T34. Endpoints:
   GET  /api/v1/x402/receipts/{tx_hash}  - payment receipt
   POST /api/v1/x402/verify     - verify a payment header
 """
+
 from __future__ import annotations
 
-from app.core.logging import get_logger
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.catalog.service import get_catalog
+from app.core.logging import get_logger
 from app.domains.x402.middleware import (
     PRICING,
     get_tool_metadata,
@@ -71,6 +72,7 @@ async def usage(request: Request) -> UsageResponse:
     if catalog._health.redis:
         try:
             from datetime import UTC, datetime
+
             day = datetime.now(UTC).strftime("%Y%m%d")
             key = f"x402:rl:{agent_id}:{day}"
             daily_calls = int(await catalog._redis.get(key) or 0)
@@ -87,17 +89,22 @@ async def usage(request: Request) -> UsageResponse:
             for r in rows:
                 paid_calls += 1
                 total_usd += float(r["amount_usd"] or 0)
-                recent.append({
-                    "tx_hash": r["tx_hash"],
-                    "tool": r["tool"],
-                    "amount_usd": float(r["amount_usd"] or 0),
-                    "paid_at": r["paid_at"].isoformat() if r["paid_at"] else None,
-                })
+                recent.append(
+                    {
+                        "tx_hash": r["tx_hash"],
+                        "tool": r["tool"],
+                        "amount_usd": float(r["amount_usd"] or 0),
+                        "paid_at": r["paid_at"].isoformat() if r["paid_at"] else None,
+                    }
+                )
         except Exception as e:
             get_logger(__name__).warning(f"usage_query_fail: {e}")
     return UsageResponse(
-        agent_id=agent_id, daily_calls=daily_calls, free_limit=5,
-        paid_calls=paid_calls, total_usd=round(total_usd, 4),
+        agent_id=agent_id,
+        daily_calls=daily_calls,
+        free_limit=5,
+        paid_calls=paid_calls,
+        total_usd=round(total_usd, 4),
         recent_receipts=recent,
     )
 
@@ -111,9 +118,7 @@ async def receipt(tx_hash: str) -> ReceiptResponse:
         raise HTTPException(503, "postgres unavailable")
     try:
         async with catalog._pg_pool.acquire() as conn:
-            r = await conn.fetchrow(
-                "SELECT * FROM x402_receipts WHERE tx_hash=$1", tx_hash
-            )
+            r = await conn.fetchrow("SELECT * FROM x402_receipts WHERE tx_hash=$1", tx_hash)
         if not r:
             raise HTTPException(404, "receipt not found")
         d = dict(r)

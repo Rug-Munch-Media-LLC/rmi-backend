@@ -3,6 +3,7 @@
 Stub endpoint for receiving alert webhooks from external sources
 (monitoring, observability platforms).
 """
+
 from __future__ import annotations
 
 from typing import Any

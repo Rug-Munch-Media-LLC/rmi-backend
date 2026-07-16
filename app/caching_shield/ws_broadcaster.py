@@ -23,11 +23,12 @@ Usage:
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 import time
 
 import redis.asyncio as aioredis
+
+from app.core.logging import get_logger
 
 logger = get_logger("ws_broadcaster")
 

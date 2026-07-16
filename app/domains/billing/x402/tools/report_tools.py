@@ -21,7 +21,7 @@ tools/evidence_tools.py.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -51,7 +51,7 @@ async def flash_loan_detect_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Flash Loan Detection",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -79,7 +79,7 @@ async def pump_dump_detect_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Pump-and-Dump Detection",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -107,7 +107,7 @@ async def oracle_manipulation_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Oracle Manipulation",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -138,7 +138,7 @@ async def governance_attack_endpoint(req: SentinelModuleRequest):
             "tool": "Governance Attack & Concentration Risk Detector",
             "version": "1.0",
             "pricing": "$0.08 per analysis, 1 free trial",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "token_address": req.address,
             "chain": req.chain,
             **result,
@@ -166,7 +166,7 @@ async def proxy_detect_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Proxy Detection",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -194,7 +194,7 @@ async def static_analysis_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Static Analysis",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -222,7 +222,7 @@ async def decompiler_analysis_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Decompiler Analysis",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -245,7 +245,7 @@ async def fund_flow_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Fund Flow",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -274,7 +274,7 @@ async def contract_diff_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Contract Diff",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,

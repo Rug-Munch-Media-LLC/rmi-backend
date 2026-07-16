@@ -5,11 +5,11 @@ RMI Mega News v2 - Add Reddit + Twitter/Nitter RSS feeds
 import hashlib
 import json
 import logging
-from app.core.logging import get_logger
 import time
-from xml.etree import ElementTree as ET
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.news.social")
 

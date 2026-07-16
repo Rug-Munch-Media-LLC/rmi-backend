@@ -150,7 +150,9 @@ async def mcp_trials(request: Request):
     """Check remaining free trials for the requesting agent."""
     fp = request.headers.get(
         "X-Agent-Fingerprint",
-        request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown"),
+        request.headers.get(
+            "X-Forwarded-For", request.client.host if request.client else "unknown"
+        ),
     )
 
     return {

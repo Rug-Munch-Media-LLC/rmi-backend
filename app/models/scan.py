@@ -2,12 +2,11 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, DateTime, Index, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
-
-from typing import Any
 
 from app.models import Base
 from app.models.base import TimestampMixin

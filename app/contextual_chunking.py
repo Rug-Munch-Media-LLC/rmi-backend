@@ -25,12 +25,13 @@ Supports:
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -304,7 +305,9 @@ async def contextualize_chunks(
                     ctx = actual_results[result_idx]
                     result_idx += 1
                     if isinstance(ctx, Exception) or not ctx:
-                        ctx = _generate_heuristic_context(doc_text, chunk.content, chunk.index, total)
+                        ctx = _generate_heuristic_context(
+                            doc_text, chunk.content, chunk.index, total
+                        )
                     chunk.context_text = ctx
                     chunk.contextualized = f"{ctx}\n\n{chunk.content}"
                 else:

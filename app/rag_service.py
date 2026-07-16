@@ -15,12 +15,12 @@ Collections: wallet_profiles, token_analysis, scam_patterns,
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import re
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.logging import get_logger
 from app.crypto_embeddings import (
     COLLECTIONS,
     KNOWN_SCAM_PATTERNS,
@@ -156,9 +156,9 @@ async def ingest_document(
     metadata = metadata or {}
 
     if not doc_id:
-        doc_id = hashlib.sha256(f"{collection}:{content[:100]}:{datetime.now(UTC).isoformat()}".encode()).hexdigest()[
-            :16
-        ]
+        doc_id = hashlib.sha256(
+            f"{collection}:{content[:100]}:{datetime.now(UTC).isoformat()}".encode()
+        ).hexdigest()[:16]
 
     # Choose embedding head based on collection
     result = await _embed_by_collection(embedder, collection, content, metadata)
@@ -366,7 +366,9 @@ async def search_similar(
             if ann_results:
                 # ANN search already hydrates content; skip re-enrichment for hits that have content
                 needs_enrich = [r for r in ann_results if "content" not in r]
-                enriched = await _enrich_ann_results(collection, needs_enrich) if needs_enrich else []
+                enriched = (
+                    await _enrich_ann_results(collection, needs_enrich) if needs_enrich else []
+                )
                 results = [r for r in ann_results if "content" in r] + enriched
         else:
             # FAISS not built - fall back to embedder brute-force search
@@ -461,7 +463,9 @@ async def search_multi_collection(
 
     async def _search_one(coll: str) -> list[dict[str, Any]]:
         try:
-            results = await search_similar(query, collection=coll, limit=limit, min_similarity=min_similarity)
+            results = await search_similar(
+                query, collection=coll, limit=limit, min_similarity=min_similarity
+            )
             for r in results:
                 if "collection" not in r:
                     r["collection"] = coll
@@ -552,7 +556,9 @@ async def three_pillar_search(
                     logger.debug(f"ANN search for {coll} failed: {e}")
                     # Fallback to embedder search for this collection
                     try:
-                        hits = await embedder.search(query, coll, limit=limit, min_similarity=min_similarity)
+                        hits = await embedder.search(
+                            query, coll, limit=limit, min_similarity=min_similarity
+                        )
                         for r in hits:
                             r["pillar"] = "dense"
                         pillar1_results.extend(hits)
@@ -624,7 +630,9 @@ async def three_pillar_search(
                     from app.knowledge_graph import get_knowledge_graph
 
                     kg = await get_knowledge_graph()
-                    kg_results = await kg.expand_query_entities(entity_extraction.all_entities(), max_depth=2)
+                    kg_results = await kg.expand_query_entities(
+                        entity_extraction.all_entities(), max_depth=2
+                    )
                     if kg_results:
                         for r in kg_results:
                             r["pillar"] = "entity+kg"
@@ -931,7 +939,9 @@ async def search_with_transform(
     all_result_lists = []
     for tq in transformed.transformed_queries:
         try:
-            results = await search_similar(tq, collection=collection, limit=limit, min_similarity=0.3)
+            results = await search_similar(
+                tq, collection=collection, limit=limit, min_similarity=0.3
+            )
             if results:
                 all_result_lists.append(results)
         except Exception as e:
@@ -1190,7 +1200,11 @@ async def detect_scam_patterns(
             if pattern.get("code_snippets")
             else [0.0] * 128
         )
-        code_sim = embedder.cosine_similarity(token_code, pat_code_features) if any(pat_code_features) else 0.0
+        code_sim = (
+            embedder.cosine_similarity(token_code, pat_code_features)
+            if any(pat_code_features)
+            else 0.0
+        )
 
         combined = 0.7 * sem_sim + 0.3 * code_sim
 

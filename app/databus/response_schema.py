@@ -1,7 +1,8 @@
 """DataBus Response Schema Validation"""
 
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("databus.response_schema")
 

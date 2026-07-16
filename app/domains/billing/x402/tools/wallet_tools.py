@@ -13,10 +13,11 @@ Endpoints mounted on sub_router:
 Deployer-side wallet tools (insider tracker, whale_accumulation) live in
 tools/deployer_tools.py to keep the boundary clean.
 """
+
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -138,7 +139,7 @@ async def wallet_profiler(req: WalletRequest):
         return {
             "tool": "Wallet Profiler",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -239,7 +240,7 @@ async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0,
         return {
             "tool": "Smart Money Tracker",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -331,7 +332,7 @@ async def cluster_detection(req: ClusterRequest):
         return {
             "tool": "Cluster Detection",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -443,7 +444,7 @@ async def whale_decoder(req: GenericRequest):
         return {
             "tool": "Whale Decoder",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -498,7 +499,7 @@ async def portfolio_tracker(req: WalletListRequest):
         return {
             "tool": "Portfolio Tracker",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -550,7 +551,7 @@ async def copy_trade_finder(req: GenericRequest):
         return {
             "tool": "Copy Trade Finder",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }

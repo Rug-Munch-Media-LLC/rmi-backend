@@ -17,7 +17,6 @@ Data sources (direct API calls - no self.api_base):
               Etherscan-family (tokentx endpoint)
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -26,6 +25,7 @@ from typing import ClassVar
 import httpx
 
 from app.chain_registry import is_solana
+from app.core.logging import get_logger
 
 logger = get_logger("wash_trading")
 
@@ -35,7 +35,9 @@ try:
     HAS_NETWORKX = True
 except ImportError:
     HAS_NETWORKX = False
-    logger.warning("networkx not installed - wash trading cycle detection disabled. pip install networkx")
+    logger.warning(
+        "networkx not installed - wash trading cycle detection disabled. pip install networkx"
+    )
 
 # ── API Keys ────────────────────────────────────────────────
 
@@ -124,7 +126,7 @@ class WashTradingDetector:
     """
 
     # Known DEX router addresses for cross-DEX detection
-    DEX_ROUTERS: ClassVar[dict] ={
+    DEX_ROUTERS: ClassVar[dict] = {
         "solana": {
             "JUP4Fb2cqiRUr6pNQqvZJQ2SjYqQsBfFidNFBFNB2eq": "Jupiter",
             "675kPX9MHTjS2zt1qfr1NYHuzeL7Gxq8RcE3E4A8N2W5": "Raydium AMM",
@@ -179,7 +181,9 @@ class WashTradingDetector:
 
         try:
             # First get signatures
-            sigs_result = await self._helius_rpc("getSignaturesForAddress", [address, {"limit": limit}])
+            sigs_result = await self._helius_rpc(
+                "getSignaturesForAddress", [address, {"limit": limit}]
+            )
             if not sigs_result or not isinstance(sigs_result, list):
                 return []
 
@@ -214,7 +218,9 @@ class WashTradingDetector:
             logger.warning("MORALIS_API_KEY not set")
             return None
         try:
-            resp = await self.client.get(url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"})
+            resp = await self.client.get(
+                url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"}
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
@@ -274,7 +280,9 @@ class WashTradingDetector:
         transfers = []
 
         # Get signatures for the token address
-        sigs_result = await self._helius_rpc("getSignaturesForAddress", [token_address, {"limit": 100}])
+        sigs_result = await self._helius_rpc(
+            "getSignaturesForAddress", [token_address, {"limit": 100}]
+        )
         if not sigs_result or not isinstance(sigs_result, list):
             return []
 
@@ -312,10 +320,14 @@ class WashTradingDetector:
                     for inst_group in inner:
                         for inst in inst_group.get("instructions", []):
                             parsed = inst.get("parsed", {})
-                            if parsed.get("type") == "transfer" or parsed.get("type") == "transferChecked":
+                            if (
+                                parsed.get("type") == "transfer"
+                                or parsed.get("type") == "transferChecked"
+                            ):
                                 info = parsed.get("info", {})
                                 token_amount = float(
-                                    info.get("tokenAmount", {}).get("uiAmount", 0) or info.get("amount", 0)
+                                    info.get("tokenAmount", {}).get("uiAmount", 0)
+                                    or info.get("amount", 0)
                                 )
                                 if token_amount <= 0:
                                     continue
@@ -381,9 +393,15 @@ class WashTradingDetector:
                     # Also check native SOL transfers for round-trip detection
                     for native_transfer in tx.get("nativeTransfers", []):
                         # Native transfers are SOL - include if they might be part of wash
-                        from_addr = native_transfer.get("fromUserAccount", native_transfer.get("from", ""))
-                        to_addr = native_transfer.get("toUserAccount", native_transfer.get("to", ""))
-                        amount = float(native_transfer.get("amount", 0) or 0) / 1e9  # lamports to SOL
+                        from_addr = native_transfer.get(
+                            "fromUserAccount", native_transfer.get("from", "")
+                        )
+                        to_addr = native_transfer.get(
+                            "toUserAccount", native_transfer.get("to", "")
+                        )
+                        amount = (
+                            float(native_transfer.get("amount", 0) or 0) / 1e9
+                        )  # lamports to SOL
                         if amount < 0.01:  # Skip dust
                             continue
 
@@ -433,7 +451,9 @@ class WashTradingDetector:
                             continue
 
                         # Determine DEX from to_address
-                        dex = self._identify_dex(to_addr, chain) or self._identify_dex(from_addr, chain)
+                        dex = self._identify_dex(to_addr, chain) or self._identify_dex(
+                            from_addr, chain
+                        )
 
                         # Parse timestamp
                         block_ts = tx.get("block_timestamp", "")
@@ -530,7 +550,9 @@ class WashTradingDetector:
 
         return G
 
-    def detect_cycles(self, transfers: list[TransferRecord], max_cycle_length: int = 6) -> list[WashCycle]:
+    def detect_cycles(
+        self, transfers: list[TransferRecord], max_cycle_length: int = 6
+    ) -> list[WashCycle]:
         """Detect circular trading patterns in transfer data.
 
         Uses DFS-based cycle detection on the transfer graph.
@@ -603,7 +625,9 @@ class WashTradingDetector:
             cycles.append(
                 WashCycle(
                     wallets=cycle,
-                    combined_volume=round(cycle_volume / 2, 4),  # Divide by 2 to avoid double counting
+                    combined_volume=round(
+                        cycle_volume / 2, 4
+                    ),  # Divide by 2 to avoid double counting
                     cycle_length=len(cycle),
                     time_span_hours=round(time_span_hours, 2),
                     confidence=round(confidence, 2),
@@ -661,9 +685,13 @@ class WashTradingDetector:
         # Calculate risk
         warnings = []
         if wash_score > 50:
-            warnings.append(f"CRITICAL: {wash_score:.0f}% wash trading detected - likely artificial volume")
+            warnings.append(
+                f"CRITICAL: {wash_score:.0f}% wash trading detected - likely artificial volume"
+            )
         elif wash_score > 25:
-            warnings.append(f"HIGH: {wash_score:.0f}% wash trading detected - significant volume inflation")
+            warnings.append(
+                f"HIGH: {wash_score:.0f}% wash trading detected - significant volume inflation"
+            )
         elif wash_score > 10:
             warnings.append(f"MODERATE: {wash_score:.0f}% wash trading detected")
 
@@ -671,7 +699,13 @@ class WashTradingDetector:
             warnings.append(f"CROSS-DEX: {cross_dex} cycles involving multiple DEXes")
 
         risk_level = (
-            "CRITICAL" if wash_score > 50 else "HIGH" if wash_score > 25 else "MEDIUM" if wash_score > 10 else "LOW"
+            "CRITICAL"
+            if wash_score > 50
+            else "HIGH"
+            if wash_score > 25
+            else "MEDIUM"
+            if wash_score > 10
+            else "LOW"
         )
 
         return WashTradingReport(

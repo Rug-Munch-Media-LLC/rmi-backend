@@ -14,8 +14,9 @@ Two massive free datasets for AML detection and address labeling.
 """
 
 import csv
-from app.core.logging import get_logger
 import os
+
+from app.core.logging import get_logger
 
 logger = get_logger("databus.dataset_providers")
 

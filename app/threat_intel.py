@@ -10,14 +10,15 @@ Threat intel aggregation with:
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -84,9 +85,11 @@ class BlocklistManager:
             # Load local blocklist
             self._load_local_list(LOCAL_BLOCKLIST_PATH)
 
-            self.last_updated = datetime.utcnow().isoformat()
+            self.last_updated = datetime.now(UTC).isoformat()
             self._loaded = True
-            logger.info(f"Blocklists loaded: OFAC={len(self.ofac_sdn)}, Local={len(self.local_blocklist)}")
+            logger.info(
+                f"Blocklists loaded: OFAC={len(self.ofac_sdn)}, Local={len(self.local_blocklist)}"
+            )
 
             return True
 
@@ -231,7 +234,7 @@ class ThreatAggregator:
             risk_level=risk_level,
             flags=flags,
             source=",".join(sources) if sources else "none",
-            last_updated=datetime.utcnow().isoformat(),
+            last_updated=datetime.now(UTC).isoformat(),
         )
 
     def batch_check(self, addresses: list[str], chain: str = "base") -> dict[str, ThreatEntity]:
@@ -290,7 +293,7 @@ def _save_local_list() -> bool:
     data = {
         "addresses": list(_local_blocklist.local_blocklist),
         "whitelist": list(_local_blocklist.local_whitelist),
-        "updated": datetime.utcnow().isoformat(),
+        "updated": datetime.now(UTC).isoformat(),
     }
 
     try:

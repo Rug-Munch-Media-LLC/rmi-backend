@@ -30,7 +30,6 @@ API usage:
 import asyncio
 import json
 import logging
-from app.core.logging import get_logger
 import re
 import sys
 from dataclasses import asdict, dataclass, field
@@ -38,13 +37,14 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+from app.core.logging import get_logger
+
 logger = get_logger(__name__)
 
 # ─── TRY IMPORTS (graceful fallback) ───────────────────────────────
 
 try:
-    from web3 import HTTPProvider
-    from web3 import Web3 as _Web3
+    from web3 import HTTPProvider, Web3 as _Web3
 
     WEB3_AVAILABLE = True
 except ImportError:

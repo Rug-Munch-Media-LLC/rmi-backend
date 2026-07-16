@@ -625,7 +625,9 @@ async def x402_bot_post(request: Request, data: dict):
         raise HTTPException(400, "Missing: bot_address, tx_hash, title, content")
 
     if not await verify_x402_bot(tx_hash, bot_addr):
-        raise HTTPException(402, "$1 to join - send USDC to x402 address, get tx_hash, post 30 days unlimited")
+        raise HTTPException(
+            402, "$1 to join - send USDC to x402 address, get tx_hash, post 30 days unlimited"
+        )
 
     post = await BulletinBoardManager.create_post(
         title=f"[BOT] {title}",

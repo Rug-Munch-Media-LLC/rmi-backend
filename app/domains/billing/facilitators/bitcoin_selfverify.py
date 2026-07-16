@@ -21,11 +21,11 @@ Tokens: BTC
 Settlement: Self-verified (1 confirmation minimum)
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,

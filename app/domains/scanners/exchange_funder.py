@@ -12,7 +12,6 @@ Uses direct API calls: Solscan (account transfers, funding sources),
 Helius (signatures, parsed transactions), Birdeye (token overview).
 """
 
-from app.core.logging import get_logger
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -21,6 +20,7 @@ import httpx
 
 from app.chain_client import ChainClient
 from app.chain_registry import get_cex_wallets, is_solana
+from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
 logger = get_logger("exchange_funder")
@@ -105,7 +105,9 @@ class ExchangeFunderDetector:
             logger.warning(f"Solscan funding sources failed for {wallet}: {e}")
             return []
 
-    async def _fetch_solscan_transfers(self, address: str, page: int = 1, page_size: int = 100) -> list[dict]:
+    async def _fetch_solscan_transfers(
+        self, address: str, page: int = 1, page_size: int = 100
+    ) -> list[dict]:
         """Fetch token transfers for an address from Solscan."""
         try:
             result = self._solscan.account_transfers(address, page=page, page_size=page_size)
@@ -132,7 +134,9 @@ class ExchangeFunderDetector:
     async def _fetch_dexscreener_boosts(self, token_address: str) -> dict | None:
         """Fetch DexScreener boosted token info (free, no key)."""
         try:
-            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            resp = await self._http.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
@@ -169,7 +173,9 @@ class ExchangeFunderDetector:
         cex_pct = report.cex_funded_percentage
         if cex_pct > 50:
             score += 40
-            warnings.append(f"CRITICAL: {cex_pct:.1f}% of buyers funded from CEX - likely coordinated snipers")
+            warnings.append(
+                f"CRITICAL: {cex_pct:.1f}% of buyers funded from CEX - likely coordinated snipers"
+            )
         elif cex_pct > 30:
             score += 25
             warnings.append(f"HIGH: {cex_pct:.1f}% CEX-funded buyers - possible sniper operation")
@@ -181,7 +187,9 @@ class ExchangeFunderDetector:
         fresh_pct = report.fresh_wallet_percentage
         if fresh_pct > 40:
             score += 30
-            warnings.append(f"CRITICAL: {fresh_pct:.1f}% of buyers are fresh wallets - classic sniper pattern")
+            warnings.append(
+                f"CRITICAL: {fresh_pct:.1f}% of buyers are fresh wallets - classic sniper pattern"
+            )
         elif fresh_pct > 20:
             score += 15
             warnings.append(f"MODERATE: {fresh_pct:.1f}% fresh wallets")
@@ -226,7 +234,9 @@ class ExchangeFunderDetector:
                     holders = self._solscan.get_holder_wallets(token_address, top_n=20)
                     if holders:
                         buyer_addresses = [
-                            h.get("address", h.get("owner", "")) for h in holders if h.get("address") or h.get("owner")
+                            h.get("address", h.get("owner", ""))
+                            for h in holders
+                            if h.get("address") or h.get("owner")
                         ]
                         # Filter out empty strings
                         buyer_addresses = [a for a in buyer_addresses if a]

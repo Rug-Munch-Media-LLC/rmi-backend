@@ -16,10 +16,12 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger("x402.framework")
 
@@ -94,12 +96,16 @@ class x402Adapter(ABC):
 
     def get_invoice(self, tool: str) -> dict:
         """Get a payment invoice for a tool. Returns invoice with amount and pay_to address."""
-        return self._mcp_call("x402_create_invoice", {"tool": tool, "agent_id": f"framework:{id(self)}"})
+        return self._mcp_call(
+            "x402_create_invoice", {"tool": tool, "agent_id": f"framework:{id(self)}"}
+        )
 
     def record_usage(self, tool: str, cost_usd: float):
         """Record tool usage for budget tracking."""
         self._spent_this_month += cost_usd
-        logger.info(f"x402: called {tool} - ${cost_usd:.4f} (monthly: ${self._spent_this_month:.2f})")
+        logger.info(
+            f"x402: called {tool} - ${cost_usd:.4f} (monthly: ${self._spent_this_month:.2f})"
+        )
 
     def list_tools(self, category: str = "") -> list[dict]:
         """List available tools with prices."""

@@ -8,9 +8,10 @@ Proves CRM ↔ SOSANA ↔ PBTC ↔ SHIFT AI connections.
 import asyncio
 import contextlib
 import logging
-from app.core.logging import get_logger
 from dataclasses import dataclass
 from datetime import datetime
+
+from app.core.logging import get_logger
 
 # Lazy imports - api_arsenal and wallet_database may not exist
 ForensicAPIArsenal = None
@@ -264,11 +265,15 @@ class CrossTokenAffiliationTracker:
             # Add project connections
             for project in wallet.cross_project_affiliations:
                 network["projects"].add(project)
-                network["edges"].append({"source": wallet.address, "target": project, "type": "affiliation"})
+                network["edges"].append(
+                    {"source": wallet.address, "target": project, "type": "affiliation"}
+                )
 
         network["projects"] = list(network["projects"])
 
-        logger.info(f"  ✓ Network mapped: {len(network['nodes'])} wallets, {len(network['projects'])} projects")
+        logger.info(
+            f"  ✓ Network mapped: {len(network['nodes'])} wallets, {len(network['projects'])} projects"
+        )
 
         return network
 
@@ -279,7 +284,9 @@ class CrossTokenAffiliationTracker:
             "summary": {
                 "total_wallets_analyzed": len(self.affiliations),
                 "cross_project_wallets": len(self.connections),
-                "projects_involved": list({proj for conn in self.connections for proj in conn.projects}),
+                "projects_involved": list(
+                    {proj for conn in self.connections for proj in conn.projects}
+                ),
             },
             "critical_connections": [],
             "evidence_by_tier": {
@@ -326,7 +333,9 @@ def track_wallet(wallet: str) -> list[TokenAffiliation]:
     return asyncio.run(tracker.track_wallet_affiliations(wallet))
 
 
-def find_cross_project_wallets(projects: list[str], min_projects: int = 2) -> list[CrossProjectConnection]:
+def find_cross_project_wallets(
+    projects: list[str], min_projects: int = 2
+) -> list[CrossProjectConnection]:
     """Synchronous wrapper for finding cross-project wallets."""
     tracker = CrossTokenAffiliationTracker()
     return asyncio.run(tracker.find_cross_project_wallets(projects, min_projects))
@@ -364,7 +373,9 @@ if __name__ == "__main__":
         print("CROSS-PROJECT WALLETS:")
         print("=" * 70)
 
-        connections = await tracker.find_cross_project_wallets(["CRM", "SOSANA", "PBTC", "SHIFT_AI"], min_projects=2)
+        connections = await tracker.find_cross_project_wallets(
+            ["CRM", "SOSANA", "PBTC", "SHIFT_AI"], min_projects=2
+        )
 
         for conn in connections[:10]:
             print(f"\n🔹 {conn.wallet}")

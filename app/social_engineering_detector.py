@@ -19,11 +19,12 @@ Tier: Premium ($0.15)
 Endpoint: POST /api/v1/x402-tools/social_engineering
 """
 
-from app.core.logging import get_logger
 import re
 import time
 from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("social_engineering_detector")
 
@@ -271,7 +272,9 @@ def analyze_social_presence(social_links: list[str] | None) -> dict:
     # Less than 2 platforms = suspicious
     if platform_count < 2:
         score += 25
-        flags.append(f"Insufficient platform diversity ({platform_count}/2 minimum for legitimate projects)")
+        flags.append(
+            f"Insufficient platform diversity ({platform_count}/2 minimum for legitimate projects)"
+        )
 
     # Twitter only + Discord = minimal legitimate presence
     if set(platforms_found.keys()).issubset({"twitter", "discord"}):
@@ -471,9 +474,13 @@ async def detect_social_engineering(
             member_result["photo_analysis_score"] = photo_result["risk_score"]
             team_results.append(member_result)
 
-        avg_team_score = sum(m["risk_score"] for m in team_results) / len(team_results) if team_results else 0
+        avg_team_score = (
+            sum(m["risk_score"] for m in team_results) / len(team_results) if team_results else 0
+        )
         avg_photo_score = (
-            sum(m.get("photo_analysis_score", 0) for m in team_results) / len(team_results) if team_results else 0
+            sum(m.get("photo_analysis_score", 0) for m in team_results) / len(team_results)
+            if team_results
+            else 0
         )
         team_combined = avg_team_score * 0.6 + avg_photo_score * 0.4
         results["team_analysis"] = {
@@ -508,7 +515,9 @@ async def detect_social_engineering(
 
             async with aiohttp.ClientSession() as session:
                 try:
-                    async with session.get(pump_url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    async with session.get(
+                        pump_url, timeout=aiohttp.ClientTimeout(total=8)
+                    ) as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             token_data = data if isinstance(data, dict) else {}
@@ -529,7 +538,13 @@ async def detect_social_engineering(
     # ── Final scoring ──
     final_score = min(100, round(total_score))
     risk_level = (
-        "CRITICAL" if final_score >= 75 else "HIGH" if final_score >= 55 else "MODERATE" if final_score >= 35 else "LOW"
+        "CRITICAL"
+        if final_score >= 75
+        else "HIGH"
+        if final_score >= 55
+        else "MODERATE"
+        if final_score >= 35
+        else "LOW"
     )
 
     # Deduplicate flags

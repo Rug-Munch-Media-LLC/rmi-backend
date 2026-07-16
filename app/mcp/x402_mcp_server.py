@@ -19,9 +19,10 @@ Usage in any MCP client:
 from __future__ import annotations
 
 import json
-from app.core.logging import get_logger
 import os
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402.mcp")
 
@@ -131,17 +132,22 @@ async def handle_mcp_call(tool_name: str, arguments: dict[str, Any]) -> dict:
         amount = arguments.get("amount_usd", 0)
         os.getenv("X402_PAYMENT_ADDRESS", "")
         return {
-            "content": [{
-                "type": "text",
-                "text": json.dumps({
-                    "verified": True,
-                    "tx_hash": tx_hash[:16] + "...",
-                    "tool": tool,
-                    "amount_usd": amount,
-                    "chain": "verified_on_chain",
-                    "note": "On-chain verification completed. Tool access granted.",
-                }, indent=2),
-            }]
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "verified": True,
+                            "tx_hash": tx_hash[:16] + "...",
+                            "tool": tool,
+                            "amount_usd": amount,
+                            "chain": "verified_on_chain",
+                            "note": "On-chain verification completed. Tool access granted.",
+                        },
+                        indent=2,
+                    ),
+                }
+            ]
         }
 
     if tool_name == "x402_list_tools":
@@ -151,26 +157,34 @@ async def handle_mcp_call(tool_name: str, arguments: dict[str, Any]) -> dict:
         for tid, tp in TOOL_PRICES.items():
             if category and tp.get("category", "") != category:
                 continue
-            tools.append({
-                "id": tid,
-                "price_usd": tp.get("price_usd", 0),
-                "category": tp.get("category", "general"),
-                "trials": tp.get("trial_free", 0),
-                "description": tp.get("description", ""),
-            })
+            tools.append(
+                {
+                    "id": tid,
+                    "price_usd": tp.get("price_usd", 0),
+                    "category": tp.get("category", "general"),
+                    "trials": tp.get("trial_free", 0),
+                    "description": tp.get("description", ""),
+                }
+            )
         return {
-            "content": [{
-                "type": "text",
-                "text": json.dumps({
-                    "total_tools": len(tools),
-                    "tools": tools[:50],  # MCP has message size limits
-                    "note": f"Showing 50 of {len(tools)} tools. Use category filter for more specific results.",
-                }, indent=2),
-            }]
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "total_tools": len(tools),
+                            "tools": tools[:50],  # MCP has message size limits
+                            "note": f"Showing 50 of {len(tools)} tools. Use category filter for more specific results.",
+                        },
+                        indent=2,
+                    ),
+                }
+            ]
         }
 
     if tool_name == "x402_check_balance":
         from app.routers.x402_enforcement import check_trial
+
         agent = arguments.get("agent_id", "mcp_agent")
         _ensure_tool_prices()
         trial_tools = {k: v for k, v in TOOL_PRICES.items() if v.get("trial_free", 0) > 0}
@@ -179,28 +193,38 @@ async def handle_mcp_call(tool_name: str, arguments: dict[str, Any]) -> dict:
             _can, rem = check_trial(tid, agent, tp.get("trial_free", 3))
             balances[tid] = {"remaining": rem, "total": tp.get("trial_free", 3)}
         return {
-            "content": [{
-                "type": "text",
-                "text": json.dumps({
-                    "agent_id": agent,
-                    "tools_with_trials": len(trial_tools),
-                    "balances": balances,
-                }, indent=2),
-            }]
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "agent_id": agent,
+                            "tools_with_trials": len(trial_tools),
+                            "balances": balances,
+                        },
+                        indent=2,
+                    ),
+                }
+            ]
         }
 
     if tool_name == "x402_get_usage":
         agent = arguments.get("agent_id", "mcp_agent")
         return {
-            "content": [{
-                "type": "text",
-                "text": json.dumps({
-                    "agent_id": agent,
-                    "total_calls": 0,
-                    "total_spend_usd": 0.0,
-                    "message": "Usage tracking requires Redis. Connect to rugmunch.io for full analytics.",
-                }, indent=2),
-            }]
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "agent_id": agent,
+                            "total_calls": 0,
+                            "total_spend_usd": 0.0,
+                            "message": "Usage tracking requires Redis. Connect to rugmunch.io for full analytics.",
+                        },
+                        indent=2,
+                    ),
+                }
+            ]
         }
 
     raise ValueError(f"Unknown tool: {tool_name}")

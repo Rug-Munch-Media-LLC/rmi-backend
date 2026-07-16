@@ -63,7 +63,9 @@ def _detect_suspicious(listings: list[dict]) -> list[dict]:
     if len(listings) < 2:
         return listings
 
-    avg_vol_liq = sum(line.get("volume_24h", 0) / max(line.get("liquidity_usd", 1), 1) for line in listings) / len(listings)
+    avg_vol_liq = sum(
+        line.get("volume_24h", 0) / max(line.get("liquidity_usd", 1), 1) for line in listings
+    ) / len(listings)
     avg_price = sum(line["price_usd"] for line in listings if line["price_usd"] > 0) / max(
         len([line for line in listings if line["price_usd"] > 0]), 1
     )

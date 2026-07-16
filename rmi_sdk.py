@@ -61,25 +61,17 @@ except ImportError:
 class RMIError(Exception):
     """Base RMI SDK error."""
 
-    pass
-
 
 class RMIConnectionError(RMIError):
     """Failed to connect to RMI API."""
-
-    pass
 
 
 class RMITimeoutError(RMIError):
     """Request timed out."""
 
-    pass
-
 
 class RMIAuthenticationError(RMIError):
     """Invalid or missing API key."""
-
-    pass
 
 
 class RMIRateLimitError(RMIError):
@@ -112,8 +104,6 @@ class RMIToolError(RMIError):
 
 class RMIDataError(RMIError):
     """No data returned for the query."""
-
-    pass
 
 
 # ── Data Classes ──────────────────────────────────────────────────
@@ -271,7 +261,9 @@ class RMI:
 
         self.api_key = api_key or os.environ.get("RMI_API_KEY")
         self.base = (base_url or os.environ.get("RMI_API_BASE") or self.DEFAULT_BASE).rstrip("/")
-        self.dev_base = (dev_base_url or os.environ.get("RMI_DEV_BASE") or self.DEFAULT_DEV_BASE).rstrip("/")
+        self.dev_base = (
+            dev_base_url or os.environ.get("RMI_DEV_BASE") or self.DEFAULT_DEV_BASE
+        ).rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -281,9 +273,9 @@ class RMI:
         if fingerprint:
             self._fingerprint = fingerprint
         else:
-            self._fingerprint = hashlib.sha256(f"rmi-sdk-v2-{os.uname().nodename}-{time.time()}".encode()).hexdigest()[
-                :32
-            ]
+            self._fingerprint = hashlib.sha256(
+                f"rmi-sdk-v2-{os.uname().nodename}-{time.time()}".encode()
+            ).hexdigest()[:32]
 
         # Create client
         headers = {
@@ -483,7 +475,9 @@ class RMI:
                     )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
-            futures = {executor.submit(_execute, tool, params): (tool, params) for tool, params in calls}
+            futures = {
+                executor.submit(_execute, tool, params): (tool, params) for tool, params in calls
+            }
             for future in concurrent.futures.as_completed(futures):
                 result = future.result()
                 results.append(result)
@@ -708,7 +702,9 @@ class AsyncRMI:
 
         self.api_key = api_key or os.environ.get("RMI_API_KEY")
         self.base = (base_url or os.environ.get("RMI_API_BASE") or RMI.DEFAULT_BASE).rstrip("/")
-        self.dev_base = (dev_base_url or os.environ.get("RMI_DEV_BASE") or RMI.DEFAULT_DEV_BASE).rstrip("/")
+        self.dev_base = (
+            dev_base_url or os.environ.get("RMI_DEV_BASE") or RMI.DEFAULT_DEV_BASE
+        ).rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay

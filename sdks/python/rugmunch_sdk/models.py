@@ -1,4 +1,5 @@
 """RMI SDK - Response models (ergonomic, not raw API shapes)."""
+
 from __future__ import annotations
 
 from typing import Any

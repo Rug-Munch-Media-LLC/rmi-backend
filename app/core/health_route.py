@@ -13,13 +13,15 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.core.metrics import HEALTH_CHECK_DURATION, HEALTH_CHECK_STATUS
-import httpx
+
+if TYPE_CHECKING:
+    import httpx
 
 router = APIRouter(tags=["health"])
 
@@ -109,6 +111,7 @@ async def _check_neo4j() -> dict[str, Any]:
             from app.core.neo4j_connection import _driver
         except ImportError:
             from neo4j import GraphDatabase
+
             uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
             user = os.getenv("NEO4J_USER", "neo4j")
             password = os.getenv("NEO4J_PASSWORD", "")
@@ -127,6 +130,7 @@ async def _check_neo4j() -> dict[str, Any]:
 async def _check_qdrant() -> dict[str, Any]:
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(f"{QDRANT_URL.rstrip(chr(47))}/")
             data = resp.json()

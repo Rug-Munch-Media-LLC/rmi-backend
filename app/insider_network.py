@@ -20,7 +20,6 @@ Data Sources (all free):
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import re
 import time
 from collections import defaultdict
@@ -29,6 +28,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -258,7 +259,9 @@ async def _fetch_etherscan_holders(
     return []
 
 
-async def _fetch_solscan_holders(client: httpx.AsyncClient, token_address: str, limit: int = 100) -> list[dict]:
+async def _fetch_solscan_holders(
+    client: httpx.AsyncClient, token_address: str, limit: int = 100
+) -> list[dict]:
     """Fetch top token holders from Solscan (free public API)."""
     params = {
         "tokenAddress": token_address,
@@ -275,7 +278,9 @@ async def _fetch_solscan_holders(client: httpx.AsyncClient, token_address: str, 
     return []
 
 
-async def _fetch_birdeye_holders(client: httpx.AsyncClient, token_address: str, chain: str = "solana") -> list[dict]:
+async def _fetch_birdeye_holders(
+    client: httpx.AsyncClient, token_address: str, chain: str = "solana"
+) -> list[dict]:
     """Fetch holder data from Birdeye public API."""
     chain_map: dict[str, str] = {
         "solana": "solana",
@@ -409,7 +414,8 @@ def _detect_co_trading(
                     existing = [
                         lnk
                         for lnk in links
-                        if lnk.source_wallet == link.source_wallet and lnk.target_wallet == link.target_wallet
+                        if lnk.source_wallet == link.source_wallet
+                        and lnk.target_wallet == link.target_wallet
                     ]
                     if existing:
                         existing[0].strength = min(1.0, existing[0].strength + 0.1)
@@ -701,7 +707,9 @@ async def analyze_insider_network(
             for i, cluster_set in enumerate(clusters_raw):
                 cluster_wallets = list(cluster_set)
                 cluster_links = [
-                    lnk for lnk in links if lnk.source_wallet in cluster_set or lnk.target_wallet in cluster_set
+                    lnk
+                    for lnk in links
+                    if lnk.source_wallet in cluster_set or lnk.target_wallet in cluster_set
                 ]
 
                 projects: set[str] = set()
@@ -801,7 +809,9 @@ def format_insider_network_report(report: InsiderNetworkReport) -> str:
         if cluster.top_relationships:
             lines.append("  Top Relationships :")
             for rel in cluster.top_relationships[:3]:
-                lines.append(f"    {rel['from']} \u2194 {rel['to']}  [{rel['type']}, strength={rel['strength']:.1f}]")
+                lines.append(
+                    f"    {rel['from']} \u2194 {rel['to']}  [{rel['type']}, strength={rel['strength']:.1f}]"
+                )
 
         lines.append("")
 

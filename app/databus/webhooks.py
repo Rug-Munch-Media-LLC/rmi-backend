@@ -12,12 +12,13 @@ Architecture:
 import hashlib
 import hmac
 import json
-from app.core.logging import get_logger
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 import redis
+
+from app.core.logging import get_logger
 
 logger = get_logger("webhooks")
 
@@ -113,8 +114,12 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
                     "service": service,
                     "event_type": event_type,
                     "payload": payload,
-                    "received_at": datetime.utcnow().isoformat(),
-                    "headers": {k: v for k, v in headers.items() if k.lower() not in ("authorization", "x-api-key")},
+                    "received_at": datetime.now(UTC).isoformat(),
+                    "headers": {
+                        k: v
+                        for k, v in headers.items()
+                        if k.lower() not in ("authorization", "x-api-key")
+                    },
                 }
             ),
         )
@@ -136,7 +141,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
                             "metadata": {
                                 "service": service,
                                 "event_type": event_type,
-                                "received_at": datetime.utcnow().isoformat(),
+                                "received_at": datetime.now(UTC).isoformat(),
                             },
                         }
                     ],
@@ -251,7 +256,9 @@ def _assess_webhook_risk(service: str, event_type: str, payload: dict) -> dict:
     return {"level": "LOW", "title": "Routine event", "description": f"{service} {event_type}"}
 
 
-async def setup_webhook(service: str, webhook_url: str, events: list[str] | None = None, **kw) -> dict:
+async def setup_webhook(
+    service: str, webhook_url: str, events: list[str] | None = None, **kw
+) -> dict:
     """Programmatically set up a webhook subscription with a service.
 
     For services that support API-based webhook registration (Helius, Moralis),

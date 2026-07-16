@@ -190,7 +190,9 @@ def main():
     print("\n[DRY RUN] To fine-tune, run:")
     print(f"  ollama create {OUTPUT_MODEL} -f {modelfile_path}")
     print("\nThen test with:")
-    print(f"  ollama run {OUTPUT_MODEL} 'Is token 0xabc with mint authority enabled and 0% LP locked a scam?'")
+    print(
+        f"  ollama run {OUTPUT_MODEL} 'Is token 0xabc with mint authority enabled and 0% LP locked a scam?'"
+    )
 
     # Actual fine-tuning (commented for safety - uncomment to run overnight)
     try:

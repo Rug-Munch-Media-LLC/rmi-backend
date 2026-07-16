@@ -51,12 +51,16 @@ async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ether
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
-                f"{BACKEND}/api/v1/eth-labels/search", params={"address": deployer_address, "type": "deployer"}
+                f"{BACKEND}/api/v1/eth-labels/search",
+                params={"address": deployer_address, "type": "deployer"},
             )
             if resp.status_code == 200:
                 data = resp.json()
                 for entry in data.get("labels", []):
-                    is_honeypot = any(w in (entry.get("label", "") or "").lower() for w in ["honeypot", "scam", "rug"])
+                    is_honeypot = any(
+                        w in (entry.get("label", "") or "").lower()
+                        for w in ["honeypot", "scam", "rug"]
+                    )
                     contract_id = entry.get("contract_address", "")[:16]
                     if contract_id:
                         nodes.append(
@@ -78,7 +82,11 @@ async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ether
     except Exception:
         pass
 
-    return {"nodes": nodes, "edges": edges, "total_contracts": len([n for n in nodes if n["type"] != "deployer"])}
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "total_contracts": len([n for n in nodes if n["type"] != "deployer"]),
+    }
 
 
 @router.get("/network")
@@ -95,7 +103,8 @@ async def get_honeypot_network(
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
-                f"{BACKEND}/api/v1/eth-labels/search", params={"q": "honeypot", "type": "deployer", "limit": limit}
+                f"{BACKEND}/api/v1/eth-labels/search",
+                params={"q": "honeypot", "type": "deployer", "limit": limit},
             )
             if resp.status_code == 200:
                 entries = resp.json().get("labels", [])
@@ -151,6 +160,18 @@ async def get_honeypot_stats():
     """Global honeypot statistics."""
     return {
         "description": "Honeypot contract network intelligence from eth-labels + SENTINEL + Real-CATS",
-        "data_sources": ["eth-labels (115K addresses)", "Real-CATS (153K tokens)", "SENTINEL scanner"],
-        "chains_supported": ["ethereum", "bsc", "polygon", "arbitrum", "base", "avalanche", "optimism"],
+        "data_sources": [
+            "eth-labels (115K addresses)",
+            "Real-CATS (153K tokens)",
+            "SENTINEL scanner",
+        ],
+        "chains_supported": [
+            "ethereum",
+            "bsc",
+            "polygon",
+            "arbitrum",
+            "base",
+            "avalanche",
+            "optimism",
+        ],
     }

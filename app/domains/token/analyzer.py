@@ -1,4 +1,5 @@
 """Pure-Python token risk analysis. No I/O."""
+
 from __future__ import annotations
 
 from app.domains.token.models import (
@@ -31,62 +32,90 @@ class TokenAnalyzer:
         # Honeypot = critical
         if honeypot or not can_sell:
             score += 100
-            flags.append({"code": "honeypot", "severity": "critical", "message": "Cannot sell - likely honeypot."})
+            flags.append(
+                {
+                    "code": "honeypot",
+                    "severity": "critical",
+                    "message": "Cannot sell - likely honeypot.",
+                }
+            )
 
         # Owner can change balance = rug pull risk
         if owner_change_balance:
             score += 50
-            flags.append({"code": "owner_change_balance", "severity": "critical", "message": "Owner can modify balances."})
+            flags.append(
+                {
+                    "code": "owner_change_balance",
+                    "severity": "critical",
+                    "message": "Owner can modify balances.",
+                }
+            )
 
         # Transfer pausable = rug risk
         if transfer_pausable:
             score += 30
-            flags.append({"code": "transfer_pausable", "severity": "high", "message": "Transfers can be paused."})
+            flags.append(
+                {
+                    "code": "transfer_pausable",
+                    "severity": "high",
+                    "message": "Transfers can be paused.",
+                }
+            )
 
         # Holder concentration
         if holders:
             top_holder_pct = max((h.percentage for h in holders), default=0)
             if top_holder_pct > 50:
                 score += 30
-                flags.append({
-                    "code": "concentrated_holders",
-                    "severity": "high",
-                    "message": f"Top holder owns {top_holder_pct:.1f}% of supply.",
-                })
+                flags.append(
+                    {
+                        "code": "concentrated_holders",
+                        "severity": "high",
+                        "message": f"Top holder owns {top_holder_pct:.1f}% of supply.",
+                    }
+                )
             elif top_holder_pct > 25:
                 score += 15
-                flags.append({
-                    "code": "moderate_concentration",
-                    "severity": "medium",
-                    "message": f"Top holder owns {top_holder_pct:.1f}% of supply.",
-                })
+                flags.append(
+                    {
+                        "code": "moderate_concentration",
+                        "severity": "medium",
+                        "message": f"Top holder owns {top_holder_pct:.1f}% of supply.",
+                    }
+                )
 
             # Locked holders reduce risk
             locked_pct = sum(h.percentage for h in holders if h.is_locked)
             if locked_pct < 20 and len(holders) < 100:
                 score += 5
-                flags.append({
-                    "code": "few_holders",
-                    "severity": "low",
-                    "message": f"Only {len(holders)} holders, {locked_pct:.1f}% locked.",
-                })
+                flags.append(
+                    {
+                        "code": "few_holders",
+                        "severity": "low",
+                        "message": f"Only {len(holders)} holders, {locked_pct:.1f}% locked.",
+                    }
+                )
 
         # Liquidity lock
         if liquidity:
             if liquidity.total_liquidity_usd < 1000:
                 score += 20
-                flags.append({
-                    "code": "low_liquidity",
-                    "severity": "high",
-                    "message": f"Total liquidity only ${liquidity.total_liquidity_usd:.0f}.",
-                })
+                flags.append(
+                    {
+                        "code": "low_liquidity",
+                        "severity": "high",
+                        "message": f"Total liquidity only ${liquidity.total_liquidity_usd:.0f}.",
+                    }
+                )
             elif liquidity.locked_percentage < 50:
                 score += 15
-                flags.append({
-                    "code": "liquidity_unlocked",
-                    "severity": "medium",
-                    "message": f"Only {liquidity.locked_percentage:.1f}% of liquidity locked.",
-                })
+                flags.append(
+                    {
+                        "code": "liquidity_unlocked",
+                        "severity": "medium",
+                        "message": f"Only {liquidity.locked_percentage:.1f}% of liquidity locked.",
+                    }
+                )
 
         score = max(0, min(100, score))
         return TokenRisk(

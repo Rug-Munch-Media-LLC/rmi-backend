@@ -13,9 +13,10 @@ Uses solc (Solidity compiler) already installed in the Docker container.
 """
 
 import json
-from app.core.logging import get_logger
 import re
 import subprocess
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -248,7 +249,7 @@ def _chunk_solidity_regex(
     body_start = 0
     for i, line in enumerate(lines):
         stripped = line.strip()
-        if stripped.startswith("pragma ") or stripped.startswith("import "):
+        if stripped.startswith(("pragma ", "import ")):
             preamble.append(line)
             body_start = i + 1
         elif stripped and not stripped.startswith("//") and not stripped.startswith("/*"):

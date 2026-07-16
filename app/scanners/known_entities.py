@@ -269,7 +269,7 @@ def _init():
             }
 
     # Market makers
-    for mm_id, mm in KNOWN_MARKET_MAKERS.items():
+    for _mm_id, mm in KNOWN_MARKET_MAKERS.items():
         for chain, addrs in mm.items():
             if chain == "name":
                 continue

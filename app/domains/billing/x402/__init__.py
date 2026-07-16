@@ -6,6 +6,7 @@ Re-exports the canonical public API of the x402 payment enforcement
 middleware. Implementation lives in app.billing.x402.enforcement
 (moved verbatim from app.routers.x402_enforcement on 2026-07-07).
 """
+
 from app.domains.billing.x402.enforcement import (  # noqa: F401
     CHAIN_USDC,
     EVM_PAY_TO,

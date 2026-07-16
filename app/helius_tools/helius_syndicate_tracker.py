@@ -9,13 +9,14 @@ Your webhook (7263c8c2-63d0-49b3-9d4e-860b26c5d874) is preserved and
 receives all events for this contract.
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
+
+from app.core.logging import get_logger
 
 logger = get_logger("syndicate-tracker")
 
@@ -139,7 +140,9 @@ class SyndicateTracker:
         # Get supply
         supply_result = await self._rpc_call("getTokenSupply", [CRM_V1_CONTRACT])
         supply_info = supply_result.get("value", {}) if isinstance(supply_result, dict) else {}
-        total_supply = float(supply_info.get("amount", 1)) / (10 ** supply_info.get("decimals", 0)) or 1
+        total_supply = (
+            float(supply_info.get("amount", 1)) / (10 ** supply_info.get("decimals", 0)) or 1
+        )
 
         # Analyze holders
         holder_analysis = []
@@ -170,7 +173,8 @@ class SyndicateTracker:
         syndicate_activity = [
             tx
             for tx in recent_txs
-            if tx.get("from_wallet") in SYNDICATE_WALLETS or tx.get("to_wallet") in SYNDICATE_WALLETS
+            if tx.get("from_wallet") in SYNDICATE_WALLETS
+            or tx.get("to_wallet") in SYNDICATE_WALLETS
         ]
 
         return {
@@ -189,7 +193,7 @@ class SyndicateTracker:
             "syndicate_activity_24h": len(syndicate_activity),
             "syndicate_is_active": len(syndicate_activity) > 0,
             "alerts": self._generate_alerts(holder_analysis, syndicate_activity),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def track_wallet(self, wallet_address: str) -> dict[str, Any]:
@@ -221,7 +225,9 @@ class SyndicateTracker:
                 crm_balance = float(parsed.get("tokenAmount", {}).get("uiAmount", 0))
 
         # Recent transactions
-        sigs_result = await self._rpc_call("getSignaturesForAddress", [wallet_address, {"limit": 50}])
+        sigs_result = await self._rpc_call(
+            "getSignaturesForAddress", [wallet_address, {"limit": 50}]
+        )
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
         # Check for new counterparties (wallets not in our known list)
@@ -236,7 +242,11 @@ class SyndicateTracker:
                         if transfer.get("fromUserAccount") == wallet_address
                         else transfer.get("fromUserAccount")
                     )
-                    if counterparty and counterparty not in SYNDICATE_WALLETS and counterparty not in new_connections:
+                    if (
+                        counterparty
+                        and counterparty not in SYNDICATE_WALLETS
+                        and counterparty not in new_connections
+                    ):
                         new_connections.append(counterparty)
 
         return {
@@ -255,7 +265,7 @@ class SyndicateTracker:
             "last_activity": datetime.fromtimestamp(signatures[0].get("blockTime", 0)).isoformat()
             if signatures
             else None,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def build_wallet_graph(self) -> dict[str, Any]:
@@ -312,14 +322,14 @@ class SyndicateTracker:
             "density": len(edges) / (len(SYNDICATE_WALLETS) * (len(SYNDICATE_WALLETS) - 1))
             if len(SYNDICATE_WALLETS) > 1
             else 0,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def handle_webhook_event(self, event_data: dict[str, Any]) -> list[SyndicateEvent]:
         """Process a webhook event from Helius for CRM V1 activity."""
         events = []
         signature = event_data.get("signature", "")
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
 
         for transfer in event_data.get("tokenTransfers", []):
             if transfer.get("mint") == CRM_V1_CONTRACT:

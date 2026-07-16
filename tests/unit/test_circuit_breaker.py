@@ -141,21 +141,23 @@ class TestRecordSuccess:
     """Tests for record_success - resets circuit state."""
 
     @patch("app.circuit_breaker._get_redis")
-    def test_closes_circuit_on_success(self, mock_get_redis):
+    @pytest.mark.asyncio
+    async def test_closes_circuit_on_success(self, mock_get_redis):
         """record_success should set state back to CLOSED and clear failures."""
         mock_redis = MagicMock()
         mock_get_redis.return_value = mock_redis
 
-        record_success("recovered_service")
+        await record_success("recovered_service")
 
         mock_redis.set.assert_called_with("circuit:recovered_service:state", "CLOSED")
         mock_redis.delete.assert_called_with("circuit:recovered_service:failures")
 
     @patch("app.circuit_breaker._get_redis")
-    def test_handles_redis_error_on_success(self, mock_get_redis):
+    @pytest.mark.asyncio
+    async def test_handles_redis_error_on_success(self, mock_get_redis):
         """Should not raise when Redis is unavailable during success recording."""
         mock_get_redis.side_effect = Exception("Redis down")
-        record_success("down_service")
+        await record_success("down_service")
 
 
 class TestGetRedis:

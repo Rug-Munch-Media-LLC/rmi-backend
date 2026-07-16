@@ -6,8 +6,6 @@ detect token symbols mimicking well-known tokens.
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestGetTopSymbols:
     """Tests for _get_top_symbols."""

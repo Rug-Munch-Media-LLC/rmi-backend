@@ -10,13 +10,13 @@ Known MEV bot databases:
   EVM: Flashbots builder labels, bloXroute, Eden, BuildAI
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 
 import httpx
 
 from app.chain_registry import is_solana
+from app.core.logging import get_logger
 
 logger = get_logger("mev_detector")
 
@@ -101,7 +101,9 @@ class MEVBotActivity:
     total_profit_usd: float = 0.0
     first_seen_block: int = 0
     last_seen_block: int = 0
-    attack_types: list[str] = field(default_factory=list)  # "sandwich", "front_run", "back_run", "just_in_time"
+    attack_types: list[str] = field(
+        default_factory=list
+    )  # "sandwich", "front_run", "back_run", "just_in_time"
 
 
 @dataclass
@@ -126,7 +128,9 @@ class MEVReport:
 class MEVDetector:
     """Detects MEV/sandwich attacks on token trades."""
 
-    def __init__(self, helius_api_key: str = "", chain_client=None, http_client: httpx.AsyncClient = None):
+    def __init__(
+        self, helius_api_key: str = "", chain_client=None, http_client: httpx.AsyncClient = None
+    ):
         self.helius_key = helius_api_key or os.getenv("HELIUS_API_KEY", "")
         self.chain = chain_client
         self._http = http_client or httpx.AsyncClient(timeout=20.0)
@@ -195,7 +199,9 @@ class MEVDetector:
                 report.back_run_count += 1
             report.total_mev_profit_usd += s.profit_usd
 
-    async def _analyze_evm(self, token_address: str, chain_id: str, report: MEVReport, tx_count: int) -> None:
+    async def _analyze_evm(
+        self, token_address: str, chain_id: str, report: MEVReport, tx_count: int
+    ) -> None:
         """Analyze EVM transactions for MEV patterns."""
         # Fetch recent internal transactions from Etherscan
         internal_txs = await self._fetch_evm_internal_txs(token_address, chain_id, tx_count)
@@ -265,7 +271,9 @@ class MEVDetector:
                     return []
         # Use ChainClient if available
         try:
-            result = await self.chain.rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
+            result = await self.chain.rpc_call(
+                "getSignaturesForAddress", [address, {"limit": limit}]
+            )
             return result if isinstance(result, list) else []
         except Exception:
             return []
@@ -279,7 +287,9 @@ class MEVDetector:
                 bundles.append(sig)
         return bundles
 
-    async def _detect_sol_sandwiches(self, token: str, signatures: list[dict]) -> list[SandwichAttack]:
+    async def _detect_sol_sandwiches(
+        self, token: str, signatures: list[dict]
+    ) -> list[SandwichAttack]:
         """Detect sandwich patterns in Solana transactions using parsed TX data."""
         sandwiches = []
         # Group by block (solana slots)
@@ -496,8 +506,14 @@ class MEVDetector:
 
         # Generate warnings
         if report.sandwich_attacks:
-            report.warnings.append(f"HIGH: {len(report.sandwich_attacks)} sandwich attacks detected")
+            report.warnings.append(
+                f"HIGH: {len(report.sandwich_attacks)} sandwich attacks detected"
+            )
         if report.jito_bundle_count > 0:
-            report.warnings.append(f"MEDIUM: {report.jito_bundle_count} Jito bundles found - MEV activity present")
+            report.warnings.append(
+                f"MEDIUM: {report.jito_bundle_count} Jito bundles found - MEV activity present"
+            )
         if report.top_mev_bots:
-            report.warnings.append(f"MEDIUM: {len(report.top_mev_bots)} known MEV bots active in this token")
+            report.warnings.append(
+                f"MEDIUM: {len(report.top_mev_bots)} known MEV bots active in this token"
+            )

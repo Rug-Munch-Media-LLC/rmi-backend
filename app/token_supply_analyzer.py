@@ -21,7 +21,6 @@ Endpoint: POST /api/v1/x402-tools/token_supply_analyze
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
@@ -29,6 +28,8 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, cast
 from urllib.parse import urlparse
+
+from app.core.logging import get_logger
 
 logger = get_logger("token_supply_analyzer")
 

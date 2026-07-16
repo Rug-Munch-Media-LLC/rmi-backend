@@ -9,11 +9,12 @@ Payment wallets:
   Solana:  From gateway config (solana worker)
 """
 
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("earnings")
 
@@ -81,7 +82,9 @@ async def _fetch_evm_balance(address: str, chain_id: int) -> dict:
             )
             if r.status_code == 200:
                 data = r.json()
-                coin_balance = float(data.get("coin_balance", 0)) / 1e18 if data.get("coin_balance") else 0
+                coin_balance = (
+                    float(data.get("coin_balance", 0)) / 1e18 if data.get("coin_balance") else 0
+                )
 
                 # Get recent transactions count
                 r2 = await c.get(

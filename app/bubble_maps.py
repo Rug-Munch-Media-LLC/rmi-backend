@@ -166,7 +166,7 @@ class BubbleMapsPro:
     """
 
     # Node type colors
-    TYPE_COLORS: ClassVar[dict] ={
+    TYPE_COLORS: ClassVar[dict] = {
         "center": "#ff6b6b",
         "scammer": "#ff0000",
         "suspected_scammer": "#ff6b6b",
@@ -179,7 +179,7 @@ class BubbleMapsPro:
     }
 
     # Risk colors (gradient)
-    RISK_COLORS: ClassVar[dict] ={
+    RISK_COLORS: ClassVar[dict] = {
         "safe": "#00ff00",
         "low": "#90ee90",
         "medium": "#ffd700",
@@ -229,7 +229,9 @@ class BubbleMapsPro:
 
             for wallet in current_layer:
                 # Get transactions for this wallet
-                transactions = await self._get_transactions(wallet, time_range=time_range, filters=filters)
+                transactions = await self._get_transactions(
+                    wallet, time_range=time_range, filters=filters
+                )
 
                 # Process transactions
                 for tx in transactions:
@@ -239,7 +241,9 @@ class BubbleMapsPro:
                         continue
 
                     # Check if meets strength threshold
-                    strength = self._calculate_connection_strength(wallet, counterparty, transactions)
+                    strength = self._calculate_connection_strength(
+                        wallet, counterparty, transactions
+                    )
 
                     if strength < min_strength:
                         continue
@@ -310,7 +314,9 @@ class BubbleMapsPro:
         self.transaction_cache[cache_key] = transactions
         return transactions
 
-    def _calculate_connection_strength(self, wallet_a: str, wallet_b: str, transactions: list[dict]) -> float:
+    def _calculate_connection_strength(
+        self, wallet_a: str, wallet_b: str, transactions: list[dict]
+    ) -> float:
         """
         Calculate connection strength between two wallets.
         Multi-factor scoring for accuracy.
@@ -336,7 +342,10 @@ class BubbleMapsPro:
         # Factor 3: Time consistency (regular intervals = higher score)
         if len(relevant_txs) >= 3:
             timestamps = sorted([tx.get("timestamp") for tx in relevant_txs if tx.get("timestamp")])
-            intervals = [(timestamps[i + 1] - timestamps[i]).total_seconds() / 3600 for i in range(len(timestamps) - 1)]
+            intervals = [
+                (timestamps[i + 1] - timestamps[i]).total_seconds() / 3600
+                for i in range(len(timestamps) - 1)
+            ]
             if intervals:
                 avg_interval = sum(intervals) / len(intervals)
                 variance = sum((i - avg_interval) ** 2 for i in intervals) / len(intervals)
@@ -406,14 +415,17 @@ class BubbleMapsPro:
 
         bubble_map.nodes.insert(0, node)
 
-    def _add_or_update_link(self, bubble_map: BubbleMap, source: str, target: str, transaction: dict, strength: float):
+    def _add_or_update_link(
+        self, bubble_map: BubbleMap, source: str, target: str, transaction: dict, strength: float
+    ):
         """Add or update a link."""
         # Check if link exists
         existing = next(
             (
                 line_list
                 for line_list in bubble_map.links
-                if (line_list.source == source and line_list.target == target) or (line_list.source == target and line_list.target == source)
+                if (line_list.source == source and line_list.target == target)
+                or (line_list.source == target and line_list.target == source)
             ),
             None,
         )
@@ -429,7 +441,9 @@ class BubbleMapsPro:
                     "signature": transaction.get("signature"),
                     "amount": transaction.get("amount"),
                     "token": transaction.get("token"),
-                    "timestamp": transaction.get("timestamp").isoformat() if transaction.get("timestamp") else None,
+                    "timestamp": transaction.get("timestamp").isoformat()
+                    if transaction.get("timestamp")
+                    else None,
                 }
             )
         else:
@@ -448,7 +462,9 @@ class BubbleMapsPro:
                         "signature": transaction.get("signature"),
                         "amount": transaction.get("amount"),
                         "token": transaction.get("token"),
-                        "timestamp": transaction.get("timestamp").isoformat() if transaction.get("timestamp") else None,
+                        "timestamp": transaction.get("timestamp").isoformat()
+                        if transaction.get("timestamp")
+                        else None,
                     }
                 ],
             )
@@ -567,7 +583,9 @@ class BubbleMapsPro:
     def _calculate_stats(self, bubble_map: BubbleMap):
         """Calculate map statistics."""
         bubble_map.total_volume = sum(line_list.total_volume for line_list in bubble_map.links)
-        bubble_map.total_transactions = sum(line_list.transaction_count for line_list in bubble_map.links)
+        bubble_map.total_transactions = sum(
+            line_list.transaction_count for line_list in bubble_map.links
+        )
         bubble_map.unique_wallets = len(bubble_map.nodes)
 
     def export_html(self, bubble_map: BubbleMap, output_path: str):

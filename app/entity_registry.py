@@ -7,9 +7,10 @@ Paper ref: Article 3, Section 2 - Free Datasets and Labelled-Address Repositorie
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -194,7 +195,10 @@ class EntityRegistry:
                                         source="local_labels",
                                     )
                                 for label in labels:
-                                    if "scam" in str(label).lower() or "phish" in str(label).lower():
+                                    if (
+                                        "scam" in str(label).lower()
+                                        or "phish" in str(label).lower()
+                                    ):
                                         key = str(addr).lower()
                                         self._scam_addrs.add(key)
                                         self._all_known[key] = EntityMatch(

@@ -60,7 +60,6 @@ Smart Ingestion:
 import asyncio
 import contextlib
 import hashlib
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
@@ -68,6 +67,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("rag.firehose")
 
@@ -301,7 +302,9 @@ class IngestionPipeline:
 
         return entities
 
-    async def ingest(self, collection: str, content: str, metadata: dict, doc_id: str | None = None) -> dict[str, Any]:
+    async def ingest(
+        self, collection: str, content: str, metadata: dict, doc_id: str | None = None
+    ) -> dict[str, Any]:
         """Run the full pipeline: dedup → quality → extract → classify → store."""
 
         # 1. Hash and dedup
@@ -483,7 +486,9 @@ class FeedSources:
         docs = []
         try:
             # Scam monitor
-            resp = await self.client.get("http://localhost:8000/api/v1/databus/fetch/scam_monitor", timeout=20)
+            resp = await self.client.get(
+                "http://localhost:8000/api/v1/databus/fetch/scam_monitor", timeout=20
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 alerts = data.get("alerts", data.get("data", []))
@@ -502,7 +507,9 @@ class FeedSources:
                     )
 
             # Social metrics
-            resp2 = await self.client.get("http://localhost:8000/api/v1/databus/fetch/social_metrics", timeout=20)
+            resp2 = await self.client.get(
+                "http://localhost:8000/api/v1/databus/fetch/social_metrics", timeout=20
+            )
             if resp2.status_code == 200:
                 data2 = resp2.json()
                 metrics = data2.get("metrics", data2.get("data", {}))
@@ -552,7 +559,9 @@ class FeedSources:
                             "chain": (row.get("chain", "Ethereum") or "Ethereum").lower(),
                             "label_type": row.get("label_type", "scam"),
                             "source": "etherscan",
-                            "severity": "critical" if "phish" in row.get("label_type", "").lower() else "high",
+                            "severity": "critical"
+                            if "phish" in row.get("label_type", "").lower()
+                            else "high",
                         },
                     }
                 )
@@ -599,7 +608,9 @@ class FeedSources:
         """Pull Polymarket prediction data for market intel."""
         docs = []
         try:
-            resp = await self.client.get("http://localhost:8000/api/v1/databus/fetch/prediction_markets", timeout=20)
+            resp = await self.client.get(
+                "http://localhost:8000/api/v1/databus/fetch/prediction_markets", timeout=20
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 markets = data.get("markets", data.get("data", []))

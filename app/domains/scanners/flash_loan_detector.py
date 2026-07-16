@@ -9,7 +9,6 @@ Uses direct API calls: DexScreener (trades/pairs), Birdeye (trades),
 Solscan/Etherscan (account history), Helius (parsed transactions).
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -18,6 +17,7 @@ import httpx
 
 from app.chain_client import ChainClient
 from app.chain_registry import is_evm, is_solana
+from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("flash_loan_detector")
@@ -85,7 +85,9 @@ class FlashLoanDetector:
     async def _fetch_dexscreener_trades(self, token_address: str) -> list[dict]:
         """Fetch recent trades from DexScreener for a token."""
         try:
-            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            resp = await self._http.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
@@ -175,10 +177,16 @@ class FlashLoanDetector:
         that look like flash-loan attacks."""
         flags = []
         # Sort by block number / timestamp
-        sorted_trades = sorted(wallet_trades, key=lambda t: int(t.get("block", t.get("slot", t.get("blockTime", 0)))))
+        sorted_trades = sorted(
+            wallet_trades, key=lambda t: int(t.get("block", t.get("slot", t.get("blockTime", 0))))
+        )
 
-        buys = [t for t in sorted_trades if t.get("side", t.get("type", "")).lower() in ("buy", "0")]
-        sells = [t for t in sorted_trades if t.get("side", t.get("type", "")).lower() in ("sell", "1")]
+        buys = [
+            t for t in sorted_trades if t.get("side", t.get("type", "")).lower() in ("buy", "0")
+        ]
+        sells = [
+            t for t in sorted_trades if t.get("side", t.get("type", "")).lower() in ("sell", "1")
+        ]
 
         for buy in buys:
             buy_block = int(buy.get("block", buy.get("slot", buy.get("blockTime", 0))))
@@ -207,7 +215,9 @@ class FlashLoanDetector:
 
                 flags.append(
                     FlashLoanFlag(
-                        attacker_address=buy.get("wallet", buy.get("address", buy.get("maker", ""))),
+                        attacker_address=buy.get(
+                            "wallet", buy.get("address", buy.get("maker", ""))
+                        ),
                         buy_block=buy_block,
                         sell_block=sell_block,
                         buy_amount_usd=buy_usd,
@@ -257,13 +267,17 @@ class FlashLoanDetector:
         same_block_attacks = [f for f in report.flash_loan_flags if f.same_block]
         if same_block_attacks:
             score += 20
-            warnings.append(f"HIGH: {len(same_block_attacks)} same-block buy+sell (classic flash loan)")
+            warnings.append(
+                f"HIGH: {len(same_block_attacks)} same-block buy+sell (classic flash loan)"
+            )
 
         # Wallets with no prior balance (strongest signal)
         no_balance_attacks = [f for f in report.flash_loan_flags if f.wallet_had_no_prior_balance]
         if no_balance_attacks:
             score += 15
-            warnings.append(f"HIGH: {len(no_balance_attacks)} attacker wallets had near-zero balance pre-trade")
+            warnings.append(
+                f"HIGH: {len(no_balance_attacks)} attacker wallets had near-zero balance pre-trade"
+            )
 
         score = min(100, score)
 
@@ -298,7 +312,9 @@ class FlashLoanDetector:
         if pairs:
             primary = pairs[0]
             liq = primary.get("liquidity", {})
-            pool_liquidity_usd = float(liq.get("usd", 0)) if isinstance(liq, dict) else float(liq or 0)
+            pool_liquidity_usd = (
+                float(liq.get("usd", 0)) if isinstance(liq, dict) else float(liq or 0)
+            )
 
         # 2. Fetch trades
         trades: list[dict] = []
@@ -328,7 +344,9 @@ class FlashLoanDetector:
         # 4. For each suspect, check pre-trade balance
         for flag in all_flags:
             if is_solana(chain):
-                balance = await self._fetch_solana_account_balance_before(flag.attacker_address, flag.buy_block)
+                balance = await self._fetch_solana_account_balance_before(
+                    flag.attacker_address, flag.buy_block
+                )
                 if balance is not None and balance < 0.01:
                     flag.wallet_had_no_prior_balance = True
 

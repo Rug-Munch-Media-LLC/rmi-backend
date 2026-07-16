@@ -9,14 +9,14 @@ All data stored in Redis + Supabase backup.
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from app.core.logging import get_logger
 from app.core.redis import get_redis
 
 logger = get_logger("scam_school")
@@ -1135,7 +1135,7 @@ def _get_progress(user_id: str) -> UserProgress:
     if data:
         d = json.loads(data)
         return UserProgress(**d)
-    return UserProgress(user_id=user_id, started_at=datetime.utcnow().isoformat())
+    return UserProgress(user_id=user_id, started_at=datetime.now(UTC).isoformat())
 
 
 def _save_progress(progress: UserProgress):
@@ -1156,7 +1156,9 @@ def _calculate_level(xp: int) -> dict:
     if next_level:
         range_size = next_level["xp_required"] - current_level["xp_required"]
         progress_in_range = xp - current_level["xp_required"]
-        progress_pct = min(100, int((progress_in_range / range_size) * 100)) if range_size > 0 else 100
+        progress_pct = (
+            min(100, int((progress_in_range / range_size) * 100)) if range_size > 0 else 100
+        )
     return {
         "level": current_level["level"],
         "title": current_level["title"],
@@ -1248,7 +1250,7 @@ def _check_achievements(progress: UserProgress) -> list[dict]:
 
 def _update_streak(progress: UserProgress):
     """Update learning streak."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     if progress.last_activity:
         last = datetime.fromisoformat(progress.last_activity)
         days_diff = (now - last).days
@@ -1274,7 +1276,7 @@ def _generate_certificate(user_id: str, course_id: str, score: int) -> dict:
         "course_title": course["title"] if course else "Unknown Course",
         "user_id": user_id,
         "score": score,
-        "issued_at": datetime.utcnow().isoformat(),
+        "issued_at": datetime.now(UTC).isoformat(),
         "verify_url": f"{API_BASE}/verify-cert/{cert_id}",
         "hash": hashlib.sha256(f"{cert_id}:{user_id}:{course_id}".encode()).hexdigest()[:16],
     }
@@ -1406,7 +1408,7 @@ async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, r
         score=score,
         xp_earned=xp_earned,
         time_spent_seconds=req.time_spent_seconds,
-        completed_at=datetime.utcnow().isoformat(),
+        completed_at=datetime.now(UTC).isoformat(),
         attempts=1,
     )
 
@@ -1415,7 +1417,7 @@ async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, r
         progress.courses_progress[course_id] = CourseProgress(
             course_id=course_id,
             total_lessons=len(course["modules"]),
-            started_at=datetime.utcnow().isoformat(),
+            started_at=datetime.now(UTC).isoformat(),
         )
 
     course_prog = progress.courses_progress[course_id]
@@ -1424,7 +1426,7 @@ async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, r
 
     # Check if course complete
     if len(course_prog.completed_lessons) >= course_prog.total_lessons:
-        course_prog.completed_at = datetime.utcnow().isoformat()
+        course_prog.completed_at = datetime.now(UTC).isoformat()
         # Award course badge
         badge = _award_badge(progress, course.get("badge_reward", ""))
         # Award course XP bonus
@@ -1507,7 +1509,7 @@ async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Re
         score=score,
         xp_earned=0,
         time_spent_seconds=req.time_spent_seconds,
-        completed_at=datetime.utcnow().isoformat() if passed else None,
+        completed_at=datetime.now(UTC).isoformat() if passed else None,
         attempts=1,
     )
 
@@ -1515,7 +1517,7 @@ async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Re
         progress.courses_progress[course_id] = CourseProgress(
             course_id=course_id,
             total_lessons=len(course["modules"]),
-            started_at=datetime.utcnow().isoformat(),
+            started_at=datetime.now(UTC).isoformat(),
         )
 
     course_prog = progress.courses_progress[course_id]
@@ -1540,7 +1542,7 @@ async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Re
 
         # Award course badge on exam pass
         if not course_prog.completed_at:
-            course_prog.completed_at = datetime.utcnow().isoformat()
+            course_prog.completed_at = datetime.now(UTC).isoformat()
             badge_course = _award_badge(progress, course.get("badge_reward", ""))
             if badge_course:
                 badge = badge_course
@@ -1642,7 +1644,7 @@ async def verify_certificate(cert_id: str):
                         "valid": True,
                         "certificate": cert,
                         "user_id": user_id,
-                        "verified_at": datetime.utcnow().isoformat(),
+                        "verified_at": datetime.now(UTC).isoformat(),
                     }
         except Exception:
             continue

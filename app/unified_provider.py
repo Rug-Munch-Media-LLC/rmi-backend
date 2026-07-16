@@ -4,8 +4,9 @@ Priority: Helius → Birdeye → Solscan → GMGN → DexScreener → QuickNode 
 Rate-limited to ~5 req/sec total. Heavy caching. Never blocks on a single API.
 """
 
-from app.core.logging import get_logger
 from typing import Optional
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -139,9 +140,14 @@ class UnifiedProvider:
         try:
             if not self.birdeye:
                 return []
-            data = await self.birdeye._call("/defi/token_holders", {"address": mint, "offset": 0, "limit": limit})
+            data = await self.birdeye._call(
+                "/defi/token_holders", {"address": mint, "offset": 0, "limit": limit}
+            )
             items = data.get("data", {}).get("items", [])
-            return [{"address": i.get("owner", ""), "amount": i.get("uiAmount", 0), "source": "birdeye"} for i in items]
+            return [
+                {"address": i.get("owner", ""), "amount": i.get("uiAmount", 0), "source": "birdeye"}
+                for i in items
+            ]
         except Exception as e:
             logger.debug(f"Birdeye holders failed: {e}")
             return []
@@ -151,7 +157,9 @@ class UnifiedProvider:
             if not self.solscan:
                 return []
             holders = (
-                self.solscan.get_token_holders(mint, limit=limit) if hasattr(self.solscan, "get_token_holders") else []
+                self.solscan.get_token_holders(mint, limit=limit)
+                if hasattr(self.solscan, "get_token_holders")
+                else []
             )
             if isinstance(holders, list):
                 return [
@@ -245,7 +253,8 @@ class UnifiedProvider:
             )
             if isinstance(txs, list):
                 return [
-                    {"signature": t.get("txHash", t.get("signature", "")), "source": "solscan"} for t in txs[:limit]
+                    {"signature": t.get("txHash", t.get("signature", "")), "source": "solscan"}
+                    for t in txs[:limit]
                 ]
             return []
         except Exception as e:

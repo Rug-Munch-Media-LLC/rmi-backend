@@ -15,11 +15,11 @@ GET  /api/v1/databus/vault/reload   - Reload keys from vault (admin)
 GET  /api/v1/databus/fetch/{type}   - GET convenience for simple queries
 """
 
-from app.core.logging import get_logger
 import os
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from app.core.logging import get_logger
 from app.databus.core import databus
 from app.databus.social import (
     X_DAILY_READ_BUDGET,
@@ -101,7 +101,9 @@ async def databus_fetch_get(
         if key not in ("admin_key", "force_fresh"):
             kwargs[key] = value
 
-    result = await databus.fetch(data_type=data_type, admin_key=admin_key, force_fresh=force_fresh, **kwargs)
+    result = await databus.fetch(
+        data_type=data_type, admin_key=admin_key, force_fresh=force_fresh, **kwargs
+    )
     if result is None:
         raise HTTPException(502, f"No data available for {data_type}")
     return result
@@ -136,7 +138,9 @@ async def databus_access_matrix(request: Request):
         from app.databus.access_control import access_controller
 
         # Non-admin sees a limited view - only their tier's access
-        return {"note": "Full matrix requires admin key. Your access depends on your consumer type."}
+        return {
+            "note": "Full matrix requires admin key. Your access depends on your consumer type."
+        }
     from app.databus.access_control import access_controller
 
     return access_controller.list_access_matrix()
@@ -450,7 +454,9 @@ async def databus_cache_stats(request: Request):
     return {
         "per_type": databus.cache.type_stats(),
         "tuning_alerts": [
-            {"data_type": dt, **stats} for dt, stats in databus.cache.type_stats().items() if stats.get("suggestion")
+            {"data_type": dt, **stats}
+            for dt, stats in databus.cache.type_stats().items()
+            if stats.get("suggestion")
         ],
     }
 
@@ -527,14 +533,18 @@ async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-sep
 
 
 @router.get("/social/x/search")
-async def social_x_search(q: str = Query(..., description="Search query"), count: int = Query(10, ge=1, le=100)):
+async def social_x_search(
+    q: str = Query(..., description="Search query"), count: int = Query(10, ge=1, le=100)
+):
     """Search X/Twitter - VERY expensive, cached 24h. Use sparingly."""
     from app.databus.social import SocialDataAggregator
 
     agg = SocialDataAggregator(databus.cache)
     result = await agg.search_mentions(q, count=count)
     if not result:
-        raise HTTPException(404, "Search results not available (API budget exhausted or no results)")
+        raise HTTPException(
+            404, "Search results not available (API budget exhausted or no results)"
+        )
     return {"source": "x_twitter", "query": q, "count": len(result), "data": result}
 
 
@@ -595,7 +605,9 @@ async def social_x_engagement_report(handle: str = Query(X_HANDLE)):
 
 
 @router.get("/social/x/mentions-discover")
-async def social_x_mentions_discover(handle: str = Query(X_HANDLE), limit: int = Query(20, ge=1, le=50)):
+async def social_x_mentions_discover(
+    handle: str = Query(X_HANDLE), limit: int = Query(20, ge=1, le=50)
+):
     """Find tweets mentioning a handle - via web search."""
     from app.databus.social_scraper import XWebScraper
 
@@ -805,7 +817,9 @@ async def premium_bundle_detect(address: str, chain: str = "solana", request: Re
 
 
 @router.get("/premium/clusters/{address}")
-async def premium_cluster_map(address: str, chain: str = "solana", depth: int = 3, request: Request = None):
+async def premium_cluster_map(
+    address: str, chain: str = "solana", depth: int = 3, request: Request = None
+):
     """Full wallet cluster mapping with graph-ready nodes/edges. Premium tier."""
     return await databus.fetch("cluster_map", address=address, chain=chain, depth=depth)
 
@@ -888,7 +902,9 @@ async def ohlcv_candles(
     request: Request = None,
 ):
     """OHLCV candlestick data with authenticity scoring baked in."""
-    return await databus.fetch("ohlcv", token=address, chain=chain, timeframe=timeframe, limit=limit)
+    return await databus.fetch(
+        "ohlcv", token=address, chain=chain, timeframe=timeframe, limit=limit
+    )
 
 
 @router.get("/premium/security-scan/{address}")
@@ -917,7 +933,9 @@ async def smart_money_endpoint(chain: str = "solana", limit: int = 20):
 @router.get("/premium/whale-alerts/{address}")
 async def whale_alerts_endpoint(address: str, chain: str = "solana", min_value: float = 100000):
     """Real-time large transaction detection for a token or wallet."""
-    return await databus.fetch("whale_alerts", address=address, chain=chain, min_value_usd=min_value)
+    return await databus.fetch(
+        "whale_alerts", address=address, chain=chain, min_value_usd=min_value
+    )
 
 
 @router.get("/premium/token-launches")
@@ -1079,7 +1097,9 @@ async def comment_article(content_hash: str, request: Request):
 async def create_bb_from_article(content_hash: str, request: Request):
     """Turn article into Bulletin Board post."""
     body = await request.json() if request.headers.get("content-type") == "application/json" else {}
-    return await databus.fetch("bb_post", content_hash=content_hash, user=body.get("user", "system"))
+    return await databus.fetch(
+        "bb_post", content_hash=content_hash, user=body.get("user", "system")
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

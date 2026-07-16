@@ -22,14 +22,17 @@ import asyncio
 import contextlib
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from collections import OrderedDict, defaultdict
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
+
+from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 load_dotenv("/app/.env", override=True)
 
@@ -221,7 +224,9 @@ class CacheLayer:
         # SWR: caller sets this to a coroutine factory for background refresh
         self.stale_refresh_callback: Callable | None = None
         # Per-type hit/miss tracking for TTL tuning
-        self._type_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"hits": 0, "stale_hits": 0, "misses": 0})
+        self._type_stats: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"hits": 0, "stale_hits": 0, "misses": 0}
+        )
         # Data type TTLs - optimized for FREE tier usage to avoid rate limits
         # and maximize our 1-month Arkham trial + Alchemy free quota.
         self.ttl_config = {
@@ -361,7 +366,9 @@ class CacheLayer:
         result = {}
         for dtype, counts in self._type_stats.items():
             total = counts["hits"] + counts["stale_hits"] + counts["misses"]
-            hit_rate = round((counts["hits"] + counts["stale_hits"]) / total * 100, 1) if total > 0 else 0
+            hit_rate = (
+                round((counts["hits"] + counts["stale_hits"]) / total * 100, 1) if total > 0 else 0
+            )
             entry = {
                 "hits": counts["hits"],
                 "stale_hits": counts["stale_hits"],

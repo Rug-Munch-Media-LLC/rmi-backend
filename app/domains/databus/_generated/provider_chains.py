@@ -5,9 +5,7 @@ Phase 3B of AUDIT-2026-Q3.md.
 Source: app/databus/provider_chains.py (legacy shim).
 """
 
-
 from app.core.logging import get_logger
-
 from app.databus.provider_core import (
     Provider,
     ProviderChain,
@@ -66,6 +64,8 @@ from app.databus.provider_implementations import (
 from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
 
 logger = get_logger("databus.providers.chains")
+
+
 def build_provider_chains() -> dict[str, ProviderChain]:
     """Build all fallback chains for every data type."""
     chains = {}
@@ -111,7 +111,9 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         data_type="market_overview",
         description="Global market cap, BTC/ETH/SOL prices, fear & greed",
         providers=[
-            Provider("rmi_market_overview", ProviderTier.LOCAL, _passthrough_market_overview, weight=10.0),
+            Provider(
+                "rmi_market_overview", ProviderTier.LOCAL, _passthrough_market_overview, weight=10.0
+            ),
             Provider(
                 "coingecko_global",
                 ProviderTier.FREEMIUM,
@@ -279,16 +281,22 @@ def build_provider_chains() -> dict[str, ProviderChain]:
             return await _bq.get_token_price(kw.get("network", "ethereum"), kw.get("token", ""))
 
         async def _bq_holder_data(**kw):
-            return await _bq.get_holder_distribution(kw.get("network", "ethereum"), kw.get("token", ""))
+            return await _bq.get_holder_distribution(
+                kw.get("network", "ethereum"), kw.get("token", "")
+            )
 
         async def _bq_tx_trace(**kw):
-            return await _bq.get_transaction_trace(kw.get("network", "ethereum"), kw.get("tx_hash", ""))
+            return await _bq.get_transaction_trace(
+                kw.get("network", "ethereum"), kw.get("tx_hash", "")
+            )
 
         async def _bq_dex_volume(**kw):
             return await _bq.get_dex_volume(kw.get("network", "ethereum"))
 
         async def _bq_address_balance(**kw):
-            return await _bq.get_address_balance(kw.get("network", "ethereum"), kw.get("address", ""))
+            return await _bq.get_address_balance(
+                kw.get("network", "ethereum"), kw.get("address", "")
+            )
 
         async def _bq_cross_chain(**kw):
             return await _bq.get_cross_chain_transfers(kw.get("address", ""))
@@ -411,7 +419,9 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         data_type="rag_search",
         description="Semantic search across 17K+ scam documents and patterns",
         providers=[
-            Provider("local_rag", ProviderTier.LOCAL, _passthrough_rag, weight=10.0, rate_limit_rps=5.0),
+            Provider(
+                "local_rag", ProviderTier.LOCAL, _passthrough_rag, weight=10.0, rate_limit_rps=5.0
+            ),
         ],
     )
 
@@ -1640,7 +1650,9 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         try:
             limit = kwargs.get("limit", 5)
             async with httpx.AsyncClient(timeout=10) as c:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-                r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid-action?limit={limit}")
+                r = await c.get(
+                    f"http://localhost:8000/api/v1/market/hyperliquid-action?limit={limit}"
+                )
                 if r.status_code == 200:
                     return r.json()
         except Exception:
@@ -1666,7 +1678,9 @@ def build_provider_chains() -> dict[str, ProviderChain]:
             limit = kwargs.get("limit", 10)
             tier = kwargs.get("tier", "free")
             async with httpx.AsyncClient(timeout=10) as c:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-                r = await c.get(f"http://localhost:8000/api/v1/market/insider-wallets?limit={limit}&tier={tier}")
+                r = await c.get(
+                    f"http://localhost:8000/api/v1/market/insider-wallets?limit={limit}&tier={tier}"
+                )
                 if r.status_code == 200:
                     return r.json()
         except Exception:
@@ -1677,7 +1691,9 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         data_type="insider_wallets",
         description="Likely insider trader wallets to watch (Premium)",
         providers=[
-            Provider("rmi_insider_wallets", ProviderTier.LOCAL, _passthrough_insider_wallets, weight=10.0),
+            Provider(
+                "rmi_insider_wallets", ProviderTier.LOCAL, _passthrough_insider_wallets, weight=10.0
+            ),
         ],
     )
 
@@ -1687,7 +1703,9 @@ def build_provider_chains() -> dict[str, ProviderChain]:
             limit = kwargs.get("limit", 5)
             tier = kwargs.get("tier", "free")
             async with httpx.AsyncClient(timeout=15) as c:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-                r = await c.get(f"http://localhost:8000/api/v1/market/prediction-signals?limit={limit}&tier={tier}")
+                r = await c.get(
+                    f"http://localhost:8000/api/v1/market/prediction-signals?limit={limit}&tier={tier}"
+                )
                 if r.status_code == 200:
                     return r.json()
         except Exception:

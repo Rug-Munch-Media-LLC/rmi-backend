@@ -9,6 +9,8 @@ parsing - all without requiring network calls.
 import unittest
 from datetime import UTC, datetime
 
+import pytest
+
 from app.flash_loan_attack_detector import (
     AAVE_V2_FLASHLOAN_SIG,
     BALANCER_FLASHLOAN_SIG,
@@ -35,11 +37,11 @@ class TestEnumsAndConstants(unittest.TestCase):
 
     def test_severity_ordering(self):
         """Severity levels have correct values."""
-        self.assertEqual(AttackSeverity.CRITICAL.value, "critical")
-        self.assertEqual(AttackSeverity.HIGH.value, "high")
-        self.assertEqual(AttackSeverity.MEDIUM.value, "medium")
-        self.assertEqual(AttackSeverity.LOW.value, "low")
-        self.assertEqual(AttackSeverity.INFO.value, "info")
+        assert AttackSeverity.CRITICAL.value == "critical"
+        assert AttackSeverity.HIGH.value == "high"
+        assert AttackSeverity.MEDIUM.value == "medium"
+        assert AttackSeverity.LOW.value == "low"
+        assert AttackSeverity.INFO.value == "info"
 
     def test_attack_types(self):
         """All expected attack types are present."""
@@ -58,7 +60,7 @@ class TestEnumsAndConstants(unittest.TestCase):
             "unknown",
         }
         for e in expected:
-            self.assertIn(e, types, f"Missing attack type: {e}")
+            assert e in types, f"Missing attack type: {e}"
 
     def test_flashloan_protocols(self):
         """All expected flash loan protocols are present."""
@@ -78,24 +80,24 @@ class TestEnumsAndConstants(unittest.TestCase):
             "unknown",
         }
         for e in expected:
-            self.assertIn(e, protocols, f"Missing protocol: {e}")
+            assert e in protocols, f"Missing protocol: {e}"
 
     def test_flashloan_signatures(self):
         """All major flash loan signatures are defined."""
-        self.assertIn("0xab9c4b5d", FLASHLOAN_SIGNATURES)
-        self.assertIn("0x42b0b77c", FLASHLOAN_SIGNATURES)
-        self.assertIn("0x490e6c32", FLASHLOAN_SIGNATURES)
-        self.assertIn("0x52b0f4c1", FLASHLOAN_SIGNATURES)
+        assert "0xab9c4b5d" in FLASHLOAN_SIGNATURES
+        assert "0x42b0b77c" in FLASHLOAN_SIGNATURES
+        assert "0x490e6c32" in FLASHLOAN_SIGNATURES
+        assert "0x52b0f4c1" in FLASHLOAN_SIGNATURES
 
     def test_ethereum_providers_defined(self):
         """Ethereum has flash loan providers configured."""
-        self.assertIn("ethereum", FLASHLOAN_PROVIDERS)
-        self.assertGreater(len(FLASHLOAN_PROVIDERS["ethereum"]), 5)
+        assert "ethereum" in FLASHLOAN_PROVIDERS
+        assert len(FLASHLOAN_PROVIDERS["ethereum"]) > 5
 
     def test_detection_methods(self):
         """All detection methods have correct values."""
-        self.assertEqual(DetectionMethod.DIRECT_CALL.value, "direct_call")
-        self.assertEqual(DetectionMethod.LIFECYCLE_PATTERN.value, "lifecycle_pattern")
+        assert DetectionMethod.DIRECT_CALL.value == "direct_call"
+        assert DetectionMethod.LIFECYCLE_PATTERN.value == "lifecycle_pattern"
 
 
 class TestFlashLoanCall(unittest.TestCase):
@@ -112,13 +114,13 @@ class TestFlashLoanCall(unittest.TestCase):
             amount_borrowed_usd=1_000_000.0,
             amount_repaid_usd=1_001_000.0,
         )
-        self.assertEqual(call.protocol, FlashLoanProtocol.AAVE_V3)
-        self.assertEqual(call.amount_borrowed_usd, 1_000_000.0)
+        assert call.protocol == FlashLoanProtocol.AAVE_V3
+        assert call.amount_borrowed_usd == 1000000.0
         self.assertAlmostEqual(call.profit_usd(), -1000.0)  # repaid more than borrowed
 
     def test_negative_amount_raises(self):
         """Negative borrow amount should raise ValueError."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             FlashLoanCall(
                 protocol=FlashLoanProtocol.UNISWAP_V3,
                 provider_address="0xdead",
@@ -140,9 +142,9 @@ class TestFlashLoanCall(unittest.TestCase):
             token_symbol="USDC",
         )
         summary = call.summary()
-        self.assertIn("AAVE_V3", summary)
-        self.assertIn("500,000", summary)
-        self.assertIn("USDC", summary)
+        assert "AAVE_V3" in summary
+        assert "500,000" in summary
+        assert "USDC" in summary
 
 
 class TestTransactionTrace(unittest.TestCase):
@@ -164,7 +166,7 @@ class TestTransactionTrace(unittest.TestCase):
 
     def test_flashloan_sig_detection(self):
         """Trace with flash loan signature detected correctly."""
-        self.assertTrue(self.valid_trace.has_flashloan_sig())
+        assert self.valid_trace.has_flashloan_sig()
 
     def test_no_flashloan_sig(self):
         """Trace without flash loan signature."""
@@ -177,7 +179,7 @@ class TestTransactionTrace(unittest.TestCase):
             to_address="0xnormalcontract0000000000000000000000001",
             input_data="0xa9059cbb" + "0" * 100,  # ERC20 transfer
         )
-        self.assertFalse(trace.has_flashloan_sig())
+        assert not trace.has_flashloan_sig()
 
     def test_flashloan_protocol_identification(self):
         """Correct protocol identified from signature."""
@@ -195,7 +197,7 @@ class TestTransactionTrace(unittest.TestCase):
             input_data=BALANCER_FLASHLOAN_SIG + "0" * 200,
         )
         protocol = trace.flashloan_protocol()
-        self.assertEqual(protocol, FlashLoanProtocol.BALANCER)
+        assert protocol == FlashLoanProtocol.BALANCER
 
     def test_unknown_sig_returns_none(self):
         """Unknown signature returns None."""
@@ -208,7 +210,7 @@ class TestTransactionTrace(unittest.TestCase):
             to_address="0x01",
             input_data="0xdeadbeef" + "0" * 100,
         )
-        self.assertIsNone(trace.flashloan_protocol())
+        assert trace.flashloan_protocol() is None
 
     def test_short_input_data(self):
         """Short input data doesn't crash."""
@@ -221,8 +223,8 @@ class TestTransactionTrace(unittest.TestCase):
             to_address="0x01",
             input_data="0x1234",
         )
-        self.assertFalse(trace.has_flashloan_sig())
-        self.assertIsNone(trace.flashloan_protocol())
+        assert not trace.has_flashloan_sig()
+        assert trace.flashloan_protocol() is None
 
 
 class TestDetectionHeuristics(unittest.TestCase):
@@ -250,8 +252,8 @@ class TestDetectionHeuristics(unittest.TestCase):
             input_data="0x1234" + "oracle" * 10 + "price" * 10 + "twap" * 5,
         )
         attack_type, confidence = _detect_attack_type(flash_loans, trace)
-        self.assertEqual(attack_type, AttackType.PRICE_ORACLE_MANIPULATION)
-        self.assertGreater(confidence, 0.5)
+        assert attack_type == AttackType.PRICE_ORACLE_MANIPULATION
+        assert confidence > 0.5
 
     def test_arbitrage_is_default(self):
         """Normal flash loan without suspicious patterns defaults to arbitrage."""
@@ -275,7 +277,7 @@ class TestDetectionHeuristics(unittest.TestCase):
             input_data="0x1234" + "normal" * 5,
         )
         attack_type, confidence = _detect_attack_type(flash_loans, trace)
-        self.assertEqual(attack_type, AttackType.ARBITRAGE)
+        assert attack_type == AttackType.ARBITRAGE
         self.assertAlmostEqual(confidence, 0.5)
 
     def test_governance_attack_detection(self):
@@ -300,8 +302,8 @@ class TestDetectionHeuristics(unittest.TestCase):
             input_data="0x1234" + "propose" * 5 + "vote" * 3 + "execute" * 2,
         )
         attack_type, confidence = _detect_attack_type(flash_loans, trace)
-        self.assertEqual(attack_type, AttackType.GOVERNANCE_ATTACK)
-        self.assertGreater(confidence, 0.5)
+        assert attack_type == AttackType.GOVERNANCE_ATTACK
+        assert confidence > 0.5
 
     def test_lp_drain_detection(self):
         """Multiple flash loans with LP interaction triggers LP drain."""
@@ -333,8 +335,8 @@ class TestDetectionHeuristics(unittest.TestCase):
             input_data="0x1234" + "removeLiquidity" * 3 + "withdraw" * 2 + "burn" * 2,
         )
         attack_type, confidence = _detect_attack_type(flash_loans, trace)
-        self.assertEqual(attack_type, AttackType.LP_DRAIN)
-        self.assertGreater(confidence, 0.5)
+        assert attack_type == AttackType.LP_DRAIN
+        assert confidence > 0.5
 
     def test_cross_protocol_chain_detection(self):
         """Three or more flash loans trigger cross-protocol classification."""
@@ -378,8 +380,8 @@ class TestDetectionHeuristics(unittest.TestCase):
             input_data="0x1234",
         )
         attack_type, confidence = _detect_attack_type(flash_loans, trace)
-        self.assertEqual(attack_type, AttackType.CROSS_PROTOCOL_CHAIN)
-        self.assertGreater(confidence, 0.5)
+        assert attack_type == AttackType.CROSS_PROTOCOL_CHAIN
+        assert confidence > 0.5
 
 
 class TestSeverityScoring(unittest.TestCase):
@@ -392,7 +394,7 @@ class TestSeverityScoring(unittest.TestCase):
             victim_loss=500_000,
             sophistication=5.0,
         )
-        self.assertEqual(severity, AttackSeverity.CRITICAL)
+        assert severity == AttackSeverity.CRITICAL
 
     def test_critical_high_sophistication(self):
         """High sophistication alone can trigger critical."""
@@ -401,7 +403,7 @@ class TestSeverityScoring(unittest.TestCase):
             victim_loss=50_000,
             sophistication=9.0,
         )
-        self.assertEqual(severity, AttackSeverity.CRITICAL)
+        assert severity == AttackSeverity.CRITICAL
 
     def test_high_between_100k_and_1m(self):
         """Losses between $100K and $1M are high."""
@@ -410,7 +412,7 @@ class TestSeverityScoring(unittest.TestCase):
             victim_loss=0,
             sophistication=4.0,
         )
-        self.assertEqual(severity, AttackSeverity.HIGH)
+        assert severity == AttackSeverity.HIGH
 
     def test_medium_between_10k_and_100k(self):
         """Losses between $10K and $100K are medium."""
@@ -419,7 +421,7 @@ class TestSeverityScoring(unittest.TestCase):
             victim_loss=0,
             sophistication=3.0,
         )
-        self.assertEqual(severity, AttackSeverity.MEDIUM)
+        assert severity == AttackSeverity.MEDIUM
 
     def test_low_under_10k(self):
         """Losses under $10K are low."""
@@ -428,7 +430,7 @@ class TestSeverityScoring(unittest.TestCase):
             victim_loss=0,
             sophistication=2.0,
         )
-        self.assertEqual(severity, AttackSeverity.LOW)
+        assert severity == AttackSeverity.LOW
 
     def test_info_no_loss(self):
         """No profit/loss gives info severity."""
@@ -437,7 +439,7 @@ class TestSeverityScoring(unittest.TestCase):
             victim_loss=0,
             sophistication=0.0,
         )
-        self.assertEqual(severity, AttackSeverity.INFO)
+        assert severity == AttackSeverity.INFO
 
 
 class TestSophisticationScoring(unittest.TestCase):
@@ -459,7 +461,7 @@ class TestSophisticationScoring(unittest.TestCase):
             [],
             AttackType.ARBITRAGE,
         )
-        self.assertLessEqual(score, 3.0)
+        assert score <= 3.0
 
     def test_multiple_flashloans_higher_sophistication(self):
         """Multiple flash loans increase sophistication."""
@@ -491,7 +493,7 @@ class TestSophisticationScoring(unittest.TestCase):
             [DetectionMethod.LIFECYCLE_PATTERN, DetectionMethod.ORACLE_DEVIATION],
             AttackType.CROSS_PROTOCOL_CHAIN,
         )
-        self.assertGreater(score, 4.0)
+        assert score > 4.0
 
     def test_max_sophistication_capped(self):
         """Sophistication score is capped at 10.0."""
@@ -514,7 +516,7 @@ class TestSophisticationScoring(unittest.TestCase):
             ],
             AttackType.GOVERNANCE_ATTACK,
         )
-        self.assertLessEqual(score, 10.0)
+        assert score <= 10.0
 
 
 class TestFlashLoanAttackModel(unittest.TestCase):
@@ -538,13 +540,13 @@ class TestFlashLoanAttackModel(unittest.TestCase):
             tags=["price_oracle_manipulation", "flash_loan_used"],
             detected_at=now,
         )
-        self.assertEqual(attack.chain, "ethereum")
-        self.assertEqual(attack.severity, AttackSeverity.CRITICAL)
+        assert attack.chain == "ethereum"
+        assert attack.severity == AttackSeverity.CRITICAL
         self.assertAlmostEqual(attack.total_borrowed_usd, 5_000_000.0)
 
     def test_negative_profit_raises(self):
         """Negative profit should raise ValueError."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             FlashLoanAttack(
                 chain="ethereum",
                 block_number=1,
@@ -567,10 +569,10 @@ class TestFlashLoanAttackModel(unittest.TestCase):
             severity=AttackSeverity.CRITICAL,
         )
         summary = attack.summary()
-        self.assertIn("CRITICAL", summary)
-        self.assertIn("FLASH LOAN ATTACK", summary)
-        self.assertIn("1,200,000", summary)
-        self.assertIn("4,000,000", summary)
+        assert "CRITICAL" in summary
+        assert "FLASH LOAN ATTACK" in summary
+        assert "1,200,000" in summary
+        assert "4,000,000" in summary
 
     def test_to_dict_serialization(self):
         """to_dict produces JSON-serializable output."""
@@ -586,11 +588,11 @@ class TestFlashLoanAttackModel(unittest.TestCase):
             severity=AttackSeverity.HIGH,
         )
         d = attack.to_dict()
-        self.assertEqual(d["type"], "flash_loan_attack")
-        self.assertEqual(d["chain"], "ethereum")
-        self.assertEqual(d["attack_type"], "lp_drain")
-        self.assertEqual(d["protocol"], "balancer")
-        self.assertEqual(d["severity"], "high")
+        assert d["type"] == "flash_loan_attack"
+        assert d["chain"] == "ethereum"
+        assert d["attack_type"] == "lp_drain"
+        assert d["protocol"] == "balancer"
+        assert d["severity"] == "high"
         self.assertAlmostEqual(d["attacker_profit_usd"], 500_000.0)
 
 
@@ -603,7 +605,7 @@ class TestProviderIdentification(unittest.TestCase):
             "0x7d2768De32b0b80b7a3454c06BdAc94A69DDc7A9",
             "ethereum",
         )
-        self.assertTrue(result)
+        assert result
 
     def test_unknown_provider_returns_false(self):
         """Unknown address returns False."""
@@ -611,7 +613,7 @@ class TestProviderIdentification(unittest.TestCase):
             "0x0000000000000000000000000000000000000001",
             "ethereum",
         )
-        self.assertFalse(result)
+        assert not result
 
     def test_case_insensitive(self):
         """Address matching is case-insensitive."""
@@ -619,12 +621,12 @@ class TestProviderIdentification(unittest.TestCase):
             "0x7D2768DE32B0B80B7A3454C06BDAC94A69DDC7A9",  # uppercase
             "ethereum",
         )
-        self.assertTrue(result)
+        assert result
 
     def test_chain_specific_providers(self):
         """Chain specific providers (e.g., Base) are resolved correctly."""
-        self.assertIn("base", FLASHLOAN_PROVIDERS)
-        self.assertGreater(len(FLASHLOAN_PROVIDERS["base"]), 0)
+        assert "base" in FLASHLOAN_PROVIDERS
+        assert len(FLASHLOAN_PROVIDERS["base"]) > 0
 
 
 class TestSharedSigResolution(unittest.TestCase):
@@ -636,7 +638,7 @@ class TestSharedSigResolution(unittest.TestCase):
             "0x7d2768De32b0b80b7a3454c06BdAc94A69DDc7A9",
             "ethereum",
         )
-        self.assertEqual(result, FlashLoanProtocol.AAVE_V2)
+        assert result == FlashLoanProtocol.AAVE_V2
 
     def test_aave_v3_by_address(self):
         """Known Aave V3 address resolves to AAVE_V3."""
@@ -644,7 +646,7 @@ class TestSharedSigResolution(unittest.TestCase):
             "0x87870Bca3F3fD6335C3F4cE8392D69350B4fA4E2",
             "ethereum",
         )
-        self.assertEqual(result, FlashLoanProtocol.AAVE_V3)
+        assert result == FlashLoanProtocol.AAVE_V3
 
     def test_unknown_address_returns_unknown(self):
         """Unrecognized provider address returns UNKNOWN."""
@@ -652,7 +654,7 @@ class TestSharedSigResolution(unittest.TestCase):
             "0x0000000000000000000000000000000000000000",
             "ethereum",
         )
-        self.assertEqual(result, FlashLoanProtocol.UNKNOWN)
+        assert result == FlashLoanProtocol.UNKNOWN
 
     def test_case_insensitive_resolution(self):
         """Address matching is case-insensitive."""
@@ -660,7 +662,7 @@ class TestSharedSigResolution(unittest.TestCase):
             "0x7D2768DE32B0B80B7A3454C06BDAC94A69DDC7A9",
             "ethereum",
         )
-        self.assertEqual(result, FlashLoanProtocol.AAVE_V2)
+        assert result == FlashLoanProtocol.AAVE_V2
 
 
 class TestDetectorInitialization(unittest.TestCase):
@@ -669,27 +671,27 @@ class TestDetectorInitialization(unittest.TestCase):
     def test_default_chains(self):
         """Default initialization covers all supported chains."""
         detector = FlashLoanAttackDetector()
-        self.assertGreater(len(detector.chains), 5)
-        self.assertIn("ethereum", detector.chains)
-        self.assertIn("bsc", detector.chains)
+        assert len(detector.chains) > 5
+        assert "ethereum" in detector.chains
+        assert "bsc" in detector.chains
 
     def test_custom_chains(self):
         """Custom chain list is used."""
         detector = FlashLoanAttackDetector(chains=["ethereum", "base"])
-        self.assertEqual(detector.chains, ["ethereum", "base"])
+        assert detector.chains == ["ethereum", "base"]
 
     def test_cache_starts_empty(self):
         """Cache is empty on initialization."""
         detector = FlashLoanAttackDetector()
-        self.assertEqual(len(detector._cache), 0)
+        assert len(detector._cache) == 0
 
     def test_clear_cache(self):
         """Clearing cache works correctly."""
         detector = FlashLoanAttackDetector()
         detector._cache["test"] = []
         count = detector.clear_cache()
-        self.assertEqual(count, 1)
-        self.assertEqual(len(detector._cache), 0)
+        assert count == 1
+        assert len(detector._cache) == 0
 
 
 class TestInternalMethods(unittest.TestCase):
@@ -703,12 +705,12 @@ class TestInternalMethods(unittest.TestCase):
         # Aave flashLoan sig + 32 bytes amount
         input_data = AAVE_V2_FLASHLOAN_SIG + "00" * 32 + "ff" * 32
         amount = self.detector._extract_amount_from_input(input_data)
-        self.assertEqual(amount, "0x" + "00" * 32)
+        assert amount == "0x" + "00" * 32
 
     def test_extract_amount_short_input(self):
         """Short input returns '0'."""
         amount = self.detector._extract_amount_from_input("0x1234")
-        self.assertEqual(amount, "0")
+        assert amount == "0"
 
     def test_identify_known_provider(self):
         """Known provider address is identified."""
@@ -716,7 +718,7 @@ class TestInternalMethods(unittest.TestCase):
             "0x7d2768De32b0b80b7a3454c06BdAc94A69DDc7A9",
             "ethereum",
         )
-        self.assertEqual(protocol, FlashLoanProtocol.AAVE_V2)
+        assert protocol == FlashLoanProtocol.AAVE_V2
 
     def test_identify_unknown_provider(self):
         """Unknown address returns None."""
@@ -724,7 +726,7 @@ class TestInternalMethods(unittest.TestCase):
             "0x0000000000000000000000000000000000000001",
             "ethereum",
         )
-        self.assertIsNone(protocol)
+        assert protocol is None
 
     def test_generate_tags(self):
         """Tags generation includes all expected tags."""
@@ -748,10 +750,10 @@ class TestInternalMethods(unittest.TestCase):
             ],
             [DetectionMethod.DIRECT_CALL, DetectionMethod.ORACLE_DEVIATION],
         )
-        self.assertIn("price_oracle_manipulation", tags)
-        self.assertIn("flash_loan_used", tags)
-        self.assertIn("cross_protocol", tags)
-        self.assertIn("oracle_attack", tags)
+        assert "price_oracle_manipulation" in tags
+        assert "flash_loan_used" in tags
+        assert "cross_protocol" in tags
+        assert "oracle_attack" in tags
 
     def test_generate_timeline(self):
         """Timeline generation includes relevant events."""
@@ -775,9 +777,9 @@ class TestInternalMethods(unittest.TestCase):
             internal_calls=[{"to": "0xswap"}],
         )
         timeline = self.detector._generate_timeline(flash_loans, trace)
-        self.assertGreater(len(timeline), 2)
-        self.assertTrue(any("Step 1" in t for t in timeline))
-        self.assertTrue(any("Internal calls" in t for t in timeline))
+        assert len(timeline) > 2
+        assert any("Step 1" in t for t in timeline)
+        assert any("Internal calls" in t for t in timeline)
 
 
 class TestHighValueAttackScenarios(unittest.TestCase):
@@ -805,7 +807,7 @@ class TestHighValueAttackScenarios(unittest.TestCase):
         attack_type, _confidence = _detect_attack_type(flash_loans, trace)
 
         # Without oracle/LP patterns, should default to arbitrage
-        self.assertEqual(attack_type, AttackType.ARBITRAGE)
+        assert attack_type == AttackType.ARBITRAGE
 
     def test_sophisticated_oracle_attack_scenario(self):
         """Sophisticated multi-step oracle manipulation should score high."""
@@ -839,8 +841,8 @@ class TestHighValueAttackScenarios(unittest.TestCase):
         )
 
         attack_type, confidence = _detect_attack_type(flash_loans, trace)
-        self.assertEqual(attack_type, AttackType.PRICE_ORACLE_MANIPULATION)
-        self.assertGreater(confidence, 0.7)
+        assert attack_type == AttackType.PRICE_ORACLE_MANIPULATION
+        assert confidence > 0.7
 
         # Profit > $1M should be critical
         severity = _calculate_severity(
@@ -848,7 +850,7 @@ class TestHighValueAttackScenarios(unittest.TestCase):
             victim_loss=8_000_000,
             sophistication=8.5,
         )
-        self.assertEqual(severity, AttackSeverity.CRITICAL)
+        assert severity == AttackSeverity.CRITICAL
 
 
 if __name__ == "__main__":

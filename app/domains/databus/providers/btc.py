@@ -8,6 +8,7 @@ Re-exports the Bitcoin-scoped provider functions from
 Providers:
 - _blockchair_address, _blockchair_stats
 """
+
 from app.databus.providers import (  # noqa: F401
     _blockchair_address,
     _blockchair_stats,

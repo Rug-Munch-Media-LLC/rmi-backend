@@ -32,7 +32,6 @@ Data Sources (all free):
 import asyncio
 import json
 import logging
-from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
@@ -41,6 +40,8 @@ from enum import Enum
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 __all__ = ["RiskLevel", "RugPullAnalysis", "SignalResult", "analyze", "predict_rug_pull"]
 
@@ -183,7 +184,9 @@ def _level_from_score(score: float) -> RiskLevel:
 # ── Signal Analyzers ────────────────────────────────────────────
 
 
-async def _analyze_liquidity(client: httpx.AsyncClient, token_address: str, chain: str) -> SignalResult:
+async def _analyze_liquidity(
+    client: httpx.AsyncClient, token_address: str, chain: str
+) -> SignalResult:
     """Analyze liquidity risk: depth, lock status, sudden changes."""
     signal = SignalResult(
         signal="liquidity",
@@ -226,7 +229,9 @@ async def _analyze_liquidity(client: httpx.AsyncClient, token_address: str, chai
                     liq_ratio = liquidity_usd / fdv
                     if liq_ratio < 0.01:
                         signal.score += 20
-                        signal.findings.append("Critical: Liquidity-to-FDV ratio <1% - easy to dump")
+                        signal.findings.append(
+                            "Critical: Liquidity-to-FDV ratio <1% - easy to dump"
+                        )
                     elif liq_ratio < 0.05:
                         signal.score += 10
                         signal.findings.append("Low liquidity-to-FDV ratio")
@@ -243,7 +248,9 @@ async def _analyze_liquidity(client: httpx.AsyncClient, token_address: str, chai
     return signal
 
 
-async def _analyze_holder_concentration(client: httpx.AsyncClient, token_address: str, chain: str) -> SignalResult:
+async def _analyze_holder_concentration(
+    client: httpx.AsyncClient, token_address: str, chain: str
+) -> SignalResult:
     """Analyze token holder distribution for concentration risk."""
     signal = SignalResult(
         signal="holder_concentration",
@@ -262,10 +269,16 @@ async def _analyze_holder_concentration(client: httpx.AsyncClient, token_address
             )
             if resp.status_code == 200:
                 data = resp.json()
-                holders = data.get("data", {}).get("tokenOwner", []) or data.get("data", {}).get("list", []) or []
+                holders = (
+                    data.get("data", {}).get("tokenOwner", [])
+                    or data.get("data", {}).get("list", [])
+                    or []
+                )
                 if holders:
                     total_supply_analyzed = sum(float(h.get("uiAmount", 0) or 0) for h in holders)
-                    top10 = sorted(holders, key=lambda h: float(h.get("uiAmount", 0) or 0), reverse=True)[:10]
+                    top10 = sorted(
+                        holders, key=lambda h: float(h.get("uiAmount", 0) or 0), reverse=True
+                    )[:10]
                     top10_pct = (
                         sum(float(h.get("uiAmount", 0) or 0) for h in top10) / total_supply_analyzed
                         if total_supply_analyzed > 0
@@ -281,7 +294,9 @@ async def _analyze_holder_concentration(client: httpx.AsyncClient, token_address
                         )
                     elif top10_pct > 0.5:
                         signal.score += 30
-                        signal.findings.append(f"Top 10 holders control {top10_pct * 100:.0f}% - high concentration")
+                        signal.findings.append(
+                            f"Top 10 holders control {top10_pct * 100:.0f}% - high concentration"
+                        )
                     elif top10_pct > 0.3:
                         signal.score += 15
                     else:
@@ -299,7 +314,9 @@ async def _analyze_holder_concentration(client: httpx.AsyncClient, token_address
     return signal
 
 
-async def _analyze_deployer(client: httpx.AsyncClient, deployer: str | None, chain: str) -> SignalResult:
+async def _analyze_deployer(
+    client: httpx.AsyncClient, deployer: str | None, chain: str
+) -> SignalResult:
     """Analyze deployer risk based on available data."""
     signal = SignalResult(
         signal="deployer",
@@ -331,7 +348,9 @@ async def _analyze_deployer(client: httpx.AsyncClient, deployer: str | None, cha
 
                 if token_count > 20:
                     signal.score += 40
-                    signal.findings.append(f"Serial deployer: {token_count} tokens created - potential rug factory")
+                    signal.findings.append(
+                        f"Serial deployer: {token_count} tokens created - potential rug factory"
+                    )
                 elif token_count > 10:
                     signal.score += 25
                     signal.findings.append(f"Active deployer: {token_count} tokens created")
@@ -351,7 +370,9 @@ async def _analyze_deployer(client: httpx.AsyncClient, deployer: str | None, cha
     return signal
 
 
-async def _analyze_launch_pattern(client: httpx.AsyncClient, token_address: str, chain: str) -> SignalResult:
+async def _analyze_launch_pattern(
+    client: httpx.AsyncClient, token_address: str, chain: str
+) -> SignalResult:
     """Analyze launch pattern for manipulation signs."""
     signal = SignalResult(
         signal="launch_pattern",
@@ -386,7 +407,9 @@ async def _analyze_launch_pattern(client: httpx.AsyncClient, token_address: str,
                 if pair_age_hours is not None:
                     if pair_age_hours < 1:
                         signal.score += 25
-                        signal.findings.append(f"Pair is {pair_age_hours:.1f}h old - extremely young, high risk")
+                        signal.findings.append(
+                            f"Pair is {pair_age_hours:.1f}h old - extremely young, high risk"
+                        )
                     elif pair_age_hours < 24:
                         signal.score += 15
                         signal.findings.append(f"Pair is {pair_age_hours:.1f}h old - recent launch")
@@ -397,12 +420,16 @@ async def _analyze_launch_pattern(client: httpx.AsyncClient, token_address: str,
                     sell_ratio = sells_h24 / total_txns
                     if sell_ratio > 0.8:
                         signal.score += 20
-                        signal.findings.append(f"Sell ratio {sell_ratio * 100:.0f}% - heavy selling pressure")
+                        signal.findings.append(
+                            f"Sell ratio {sell_ratio * 100:.0f}% - heavy selling pressure"
+                        )
                     elif sell_ratio > 0.6:
                         signal.score += 10
                     elif sell_ratio < 0.1 and buys_h24 > 50:
                         signal.score += 15
-                        signal.findings.append("Abnormally low sell ratio - possible bot wash trading")
+                        signal.findings.append(
+                            "Abnormally low sell ratio - possible bot wash trading"
+                        )
     except Exception as e:
         logger.warning("Launch pattern analysis failed: %s", e)
         signal.findings.append("Launch data partially available")
@@ -411,7 +438,9 @@ async def _analyze_launch_pattern(client: httpx.AsyncClient, token_address: str,
     return signal
 
 
-async def _analyze_trading_behavior(client: httpx.AsyncClient, token_address: str, chain: str) -> SignalResult:
+async def _analyze_trading_behavior(
+    client: httpx.AsyncClient, token_address: str, chain: str
+) -> SignalResult:
     """Analyze trading behavior for manipulation signs."""
     signal = SignalResult(
         signal="trading_behavior",
@@ -453,7 +482,9 @@ async def _analyze_trading_behavior(client: httpx.AsyncClient, token_address: st
                         signal.findings.append(f"Price dropped {abs(price_change_h24):.0f}% in 24h")
                     elif price_change_h24 > 500:
                         signal.score += 10
-                        signal.findings.append(f"Price surged {price_change_h24:.0f}% in 24h - potential pump")
+                        signal.findings.append(
+                            f"Price surged {price_change_h24:.0f}% in 24h - potential pump"
+                        )
     except Exception as e:
         logger.warning("Trading behavior analysis failed: %s", e)
 
@@ -513,7 +544,9 @@ async def predict_rug_pull(
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Quick metadata fetch for display
         try:
-            search_resp = await client.get(f"{FREE_APIS['dexscreener']}/search?q={token_address}", timeout=10)
+            search_resp = await client.get(
+                f"{FREE_APIS['dexscreener']}/search?q={token_address}", timeout=10
+            )
             if search_resp.status_code == 200:
                 pairs = search_resp.json().get("pairs", [])
                 if pairs:
@@ -548,7 +581,9 @@ async def predict_rug_pull(
 
     # Calculate weighted overall score using ternary
     total_weight = sum(s.weight for s in signals)
-    overall_score = sum(s.score * s.weight for s in signals) / total_weight if total_weight > 0 else 50.0
+    overall_score = (
+        sum(s.score * s.weight for s in signals) / total_weight if total_weight > 0 else 50.0
+    )
 
     overall_score = min(max(overall_score, 0), 100)
     overall_level = _level_from_score(overall_score)

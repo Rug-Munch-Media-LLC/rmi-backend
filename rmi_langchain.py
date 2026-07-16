@@ -47,13 +47,13 @@ class RMIToolInput(BaseModel):
     """Base input schema for RMI tools."""
 
     address: str = Field(description="Wallet or token address to analyze")
-    chain: str = Field(default="solana", description="Blockchain: solana, base, ethereum, bsc, etc.")
+    chain: str = Field(
+        default="solana", description="Blockchain: solana, base, ethereum, bsc, etc."
+    )
 
 
 class ScanInput(RMIToolInput):
     """Input for wallet scan."""
-
-    pass
 
 
 class AuditInput(RMIToolInput):
@@ -65,8 +65,6 @@ class AuditInput(RMIToolInput):
 class WhaleInput(RMIToolInput):
     """Input for whale analysis."""
 
-    pass
-
 
 class ReputationInput(BaseModel):
     """Input for reputation score."""
@@ -76,8 +74,6 @@ class ReputationInput(BaseModel):
 
 class HoneypotInput(RMIToolInput):
     """Input for honeypot check."""
-
-    pass
 
 
 class SentimentInput(BaseModel):
@@ -89,13 +85,9 @@ class SentimentInput(BaseModel):
 class RugProbabilityInput(RMIToolInput):
     """Input for rug probability."""
 
-    pass
-
 
 class CompositeScoreInput(RMIToolInput):
     """Input for composite score."""
-
-    pass
 
 
 class SmartMoneyInput(BaseModel):
@@ -107,19 +99,13 @@ class SmartMoneyInput(BaseModel):
 class MarketOverviewInput(BaseModel):
     """Input for market overview."""
 
-    pass
-
 
 class NarrativeInput(BaseModel):
     """Input for market narrative."""
 
-    pass
-
 
 class ForensicsInput(RMIToolInput):
     """Input for wallet forensics."""
-
-    pass
 
 
 if LANGCHAIN_AVAILABLE and SDK_AVAILABLE:
@@ -180,9 +166,7 @@ if LANGCHAIN_AVAILABLE and SDK_AVAILABLE:
 
     class RMIRugProbabilityTool(RMITool):
         name: str = "rmi_rug_probability"
-        description: str = (
-            "Get rug pull probability score (0-100) for a token. Predicts likelihood of rug pull in next 24 hours."
-        )
+        description: str = "Get rug pull probability score (0-100) for a token. Predicts likelihood of rug pull in next 24 hours."
         args_schema: type[BaseModel] = RugProbabilityInput
 
     class RMICompositeScoreTool(RMITool):
@@ -197,7 +181,9 @@ if LANGCHAIN_AVAILABLE and SDK_AVAILABLE:
 
     class RMIMarketOverviewTool(RMITool):
         name: str = "rmi_market_overview"
-        description: str = "Get current market overview - prices, volumes, trends across major chains and tokens."
+        description: str = (
+            "Get current market overview - prices, volumes, trends across major chains and tokens."
+        )
         args_schema: type[BaseModel] = MarketOverviewInput
 
     class RMINarrativeTool(RMITool):
@@ -207,9 +193,7 @@ if LANGCHAIN_AVAILABLE and SDK_AVAILABLE:
 
     class RMIForensicsTool(RMITool):
         name: str = "rmi_forensics"
-        description: str = (
-            "Run deep wallet forensics - transaction history, fund flows, connected addresses, and risk analysis."
-        )
+        description: str = "Run deep wallet forensics - transaction history, fund flows, connected addresses, and risk analysis."
         args_schema: type[BaseModel] = ForensicsInput
 
     # ── Toolkit ────────────────────────────────────────────────────

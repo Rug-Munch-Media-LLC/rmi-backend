@@ -14,7 +14,6 @@ Helius (Solana program info), DexScreener.
 """
 
 import hashlib
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -23,6 +22,7 @@ import httpx
 
 from app.chain_client import ChainClient
 from app.chain_registry import is_evm, is_solana
+from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("proxy_detector")
@@ -215,7 +215,9 @@ class ProxyDetector:
                 logger.warning(f"Helius program data failed for {program_id}: {e}")
 
         # Fallback: try DAS API or getProgramAccounts
-        result = await self._chain.rpc_call("getProgramAccounts", [program_id, {"encoding": "jsonParsed"}])
+        result = await self._chain.rpc_call(
+            "getProgramAccounts", [program_id, {"encoding": "jsonParsed"}]
+        )
         if result and "result" in result:
             accounts = result["result"]
             for acc in accounts:
@@ -247,7 +249,9 @@ class ProxyDetector:
             beacon_addr = "0x" + beacon[-40:]
             if int(beacon_addr, 16) != 0:
                 # Read implementation from beacon contract
-                beacon_impl = await self._eth_call(beacon_addr, "0x5c60da1b", chain)  # implementation()
+                beacon_impl = await self._eth_call(
+                    beacon_addr, "0x5c60da1b", chain
+                )  # implementation()
                 if beacon_impl and len(beacon_impl) > 2:
                     impl_addr = "0x" + beacon_impl[-40:]
                     return True, "beacon", impl_addr, beacon_addr
@@ -270,7 +274,9 @@ class ProxyDetector:
 
         return False, "", "", ""
 
-    async def _check_can_upgrade(self, address: str, admin_addr: str, chain: str) -> tuple[bool, str, int]:
+    async def _check_can_upgrade(
+        self, address: str, admin_addr: str, chain: str
+    ) -> tuple[bool, str, int]:
         """Check if the proxy admin can upgrade implementation.
 
         Returns: (can_upgrade, owner_address, timelock_seconds)
@@ -304,7 +310,9 @@ class ProxyDetector:
 
         return can_upgrade, owner_addr, timelock_seconds
 
-    def _check_impl_for_rug_patterns(self, impl_address: str, bytecode: str) -> tuple[bool, list[str], str]:
+    def _check_impl_for_rug_patterns(
+        self, impl_address: str, bytecode: str
+    ) -> tuple[bool, list[str], str]:
         """Check implementation bytecode for known rug contract patterns.
 
         Returns: (is_known_rug, risk_patterns, bytecode_hash)
@@ -363,7 +371,9 @@ class ProxyDetector:
             count = len(report.impl_risk_patterns)
             if count >= 3:
                 score += 25
-                warnings.append(f"HIGH: {count} suspicious functions in implementation (drain/withdraw/setOwner)")
+                warnings.append(
+                    f"HIGH: {count} suspicious functions in implementation (drain/withdraw/setOwner)"
+                )
             elif count >= 1:
                 score += 10
                 warnings.append(f"MEDIUM: {count} suspicious function(s) in implementation")
@@ -412,7 +422,9 @@ class ProxyDetector:
 
         if is_evm(chain):
             # 1. Check proxy status
-            is_proxy, proxy_type, impl_addr, admin_addr = await self._check_evm_proxy(token_address, chain)
+            is_proxy, proxy_type, impl_addr, admin_addr = await self._check_evm_proxy(
+                token_address, chain
+            )
             report.is_proxy = is_proxy
             report.proxy_type = proxy_type
             report.implementation_address = impl_addr
@@ -431,7 +443,9 @@ class ProxyDetector:
                 # 3. Check implementation bytecode for rug patterns
                 bytecode = await self._eth_getCode(impl_addr, chain)
                 if bytecode:
-                    is_rug, patterns, code_hash = self._check_impl_for_rug_patterns(impl_addr, bytecode)
+                    is_rug, patterns, code_hash = self._check_impl_for_rug_patterns(
+                        impl_addr, bytecode
+                    )
                     report.is_known_rug_impl = is_rug
                     report.impl_risk_patterns = patterns
                     report.impl_bytecode_hash = code_hash

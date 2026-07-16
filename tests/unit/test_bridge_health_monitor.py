@@ -26,14 +26,14 @@ class TestRiskTier(unittest.TestCase):
 
     def test_risk_tier_values(self):
         """All risk tiers have correct ordering."""
-        self.assertEqual(RiskTier.SAFE.value, "SAFE")
-        self.assertEqual(RiskTier.WATCH.value, "WATCH")
-        self.assertEqual(RiskTier.DANGER.value, "DANGER")
-        self.assertEqual(RiskTier.CRITICAL.value, "CRITICAL")
+        assert RiskTier.SAFE.value == "SAFE"
+        assert RiskTier.WATCH.value == "WATCH"
+        assert RiskTier.DANGER.value == "DANGER"
+        assert RiskTier.CRITICAL.value == "CRITICAL"
 
     def test_risk_tier_str(self):
         """Risk tier string representation works."""
-        self.assertEqual(str(RiskTier.SAFE), "RiskTier.SAFE")
+        assert str(RiskTier.SAFE) == "RiskTier.SAFE"
 
 
 class TestTrustModel(unittest.TestCase):
@@ -49,7 +49,7 @@ class TestTrustModel(unittest.TestCase):
             "hybrid",
             "intent_based",
         }
-        self.assertEqual(models, expected)
+        assert models == expected
 
 
 class TestBridgeRegistry(unittest.TestCase):
@@ -79,31 +79,31 @@ class TestBridgeRegistry(unittest.TestCase):
         for key, bridge in BRIDGE_REGISTRY.items():
             with self.subTest(bridge=key):
                 for field in required_fields:
-                    self.assertIn(field, bridge, f"{key} missing field: {field}")
+                    assert field in bridge, f"{key} missing field: {field}"
 
     def test_every_bridge_has_valid_trust_model(self):
         """Trust model is a valid enum member."""
         for key, bridge in BRIDGE_REGISTRY.items():
             with self.subTest(bridge=key):
-                self.assertIsInstance(bridge["trust_model"], TrustModel, f"{key} has invalid trust model")
+                assert isinstance(bridge["trust_model"], TrustModel), f"{key} has invalid trust model"
 
     def test_every_bridge_has_nonempty_chains(self):
         """Every bridge supports at least one chain."""
         for key, bridge in BRIDGE_REGISTRY.items():
             with self.subTest(bridge=key):
-                self.assertGreater(len(bridge["chains"]), 0, f"{key} has no supported chains")
+                assert len(bridge["chains"]) > 0, f"{key} has no supported chains"
 
     def test_every_bridge_has_nonnegative_exploit_loss(self):
         """Exploit loss values are non-negative."""
         for key, bridge in BRIDGE_REGISTRY.items():
             with self.subTest(bridge=key):
-                self.assertGreaterEqual(bridge.get("total_exploit_loss_usd", 0), 0, f"{key} has negative exploit loss")
+                assert bridge.get("total_exploit_loss_usd", 0) >= 0, f"{key} has negative exploit loss"
 
     def test_validator_counts_are_nonnegative(self):
         """Validator counts are non-negative integers."""
         for key, bridge in BRIDGE_REGISTRY.items():
             with self.subTest(bridge=key):
-                self.assertGreaterEqual(bridge.get("validator_count", 0), 0, f"{key} has negative validator count")
+                assert bridge.get("validator_count", 0) >= 0, f"{key} has negative validator count"
 
 
 class TestBridgeHealthReport(unittest.TestCase):
@@ -122,18 +122,18 @@ class TestBridgeHealthReport(unittest.TestCase):
     def test_summary_contains_key_sections(self):
         """Summary output contains all expected sections."""
         summary = self.report.summary()
-        self.assertIn("CROSS-CHAIN BRIDGE HEALTH REPORT", summary)
-        self.assertIn("Bridges monitored: 12", summary)
-        self.assertIn("Healthy: 8", summary)
-        self.assertIn("Watch: 2", summary)
-        self.assertIn("Danger: 1", summary)
-        self.assertIn("Critical: 1", summary)
-        self.assertIn("$4,500,000,000", summary)
+        assert "CROSS-CHAIN BRIDGE HEALTH REPORT" in summary
+        assert "Bridges monitored: 12" in summary
+        assert "Healthy: 8" in summary
+        assert "Watch: 2" in summary
+        assert "Danger: 1" in summary
+        assert "Critical: 1" in summary
+        assert "$4,500,000,000" in summary
 
     def test_summary_empty_exploit_signals(self):
         """Summary handles empty exploit signals gracefully."""
         summary = self.report.summary()
-        self.assertNotIn("EXPLOIT SIGNALS", summary)
+        assert "EXPLOIT SIGNALS" not in summary
 
     def test_summary_with_exploit_signals(self):
         """Summary includes exploit signals section."""
@@ -149,16 +149,16 @@ class TestBridgeHealthReport(unittest.TestCase):
             )
         )
         summary = self.report.summary()
-        self.assertIn("EXPLOIT SIGNALS (1)", summary)
-        self.assertIn("Wormhole", summary)
-        self.assertIn("CRITICAL", summary)
+        assert "EXPLOIT SIGNALS (1)" in summary
+        assert "Wormhole" in summary
+        assert "CRITICAL" in summary
 
     def test_summary_with_contagion_risk(self):
         """Summary includes contagion risk section."""
         self.report.contagion_risk = ["Hop (score 72) - shares similar security profile"]
         summary = self.report.summary()
-        self.assertIn("Contagion Risk", summary)
-        self.assertIn("Hop", summary)
+        assert "Contagion Risk" in summary
+        assert "Hop" in summary
 
     def test_summary_with_security_scores(self):
         """Summary includes bridge security score table."""
@@ -174,8 +174,8 @@ class TestBridgeHealthReport(unittest.TestCase):
             risk_tier=RiskTier.SAFE,
         )
         summary = self.report.summary()
-        self.assertIn("Stargate", summary)
-        self.assertIn("85.0", summary)
+        assert "Stargate" in summary
+        assert "85.0" in summary
 
     def test_summary_with_vulnerabilities(self):
         """Summary includes vulnerability list."""
@@ -192,8 +192,8 @@ class TestBridgeHealthReport(unittest.TestCase):
             vulnerabilities=["Major past exploit(s) - $326,000,000 total losses"],
         )
         summary = self.report.summary()
-        self.assertIn("Wormhole", summary)
-        self.assertIn("exploit", summary.lower())
+        assert "Wormhole" in summary
+        assert "exploit" in summary.lower()
 
     def test_to_json_structure(self):
         """JSON output contains all expected top-level keys."""
@@ -219,8 +219,8 @@ class TestBridgeHealthReport(unittest.TestCase):
         """Recommendation text reflects critical state."""
         self.report.bridges_critical = 2
         summary = self.report.summary()
-        self.assertIn("CRITICAL", summary)
-        self.assertIn("Exploit likely in progress", summary)
+        assert "CRITICAL" in summary
+        assert "Exploit likely in progress" in summary
 
     def test_recommendation_when_all_healthy(self):
         """Recommendation text reflects all-clear state."""
@@ -228,14 +228,14 @@ class TestBridgeHealthReport(unittest.TestCase):
         self.report.bridges_danger = 0
         self.report.bridges_watch = 0
         summary = self.report.summary()
-        self.assertIn("All bridges appear healthy", summary)
+        assert "All bridges appear healthy" in summary
 
     def test_recommendation_with_danger_only(self):
         """Recommendation text reflects danger state."""
         self.report.bridges_critical = 0
         self.report.bridges_danger = 1
         summary = self.report.summary()
-        self.assertIn("DANGER", summary)
+        assert "DANGER" in summary
 
 
 class TestBridgeTVLSnapshot(unittest.TestCase):
@@ -251,14 +251,14 @@ class TestBridgeTVLSnapshot(unittest.TestCase):
             tvl_change_7d_pct=-10.0,
             tvl_change_30d_pct=-20.0,
         )
-        self.assertEqual(snapshot.bridge_key, "test")
-        self.assertEqual(snapshot.bridge_name, "Test Bridge")
-        self.assertEqual(snapshot.tvl_usd, 1000000.0)
-        self.assertEqual(snapshot.tvl_change_24h_pct, -5.0)
-        self.assertEqual(snapshot.tvl_change_7d_pct, -10.0)
-        self.assertEqual(snapshot.tvl_change_30d_pct, -20.0)
-        self.assertIsInstance(snapshot.chain_breakdown, dict)
-        self.assertIsNotNone(snapshot.timestamp)
+        assert snapshot.bridge_key == "test"
+        assert snapshot.bridge_name == "Test Bridge"
+        assert snapshot.tvl_usd == 1000000.0
+        assert snapshot.tvl_change_24h_pct == -5.0
+        assert snapshot.tvl_change_7d_pct == -10.0
+        assert snapshot.tvl_change_30d_pct == -20.0
+        assert isinstance(snapshot.chain_breakdown, dict)
+        assert snapshot.timestamp is not None
 
 
 class TestBridgeSecurityScore(unittest.TestCase):
@@ -277,10 +277,10 @@ class TestBridgeSecurityScore(unittest.TestCase):
             upgrade_risk_score=10,
             risk_tier=RiskTier.WATCH,
         )
-        self.assertEqual(score.overall_score, 75.0)
-        self.assertEqual(score.risk_tier, RiskTier.WATCH)
-        self.assertIsInstance(score.vulnerabilities, list)
-        self.assertIsInstance(score.strengths, list)
+        assert score.overall_score == 75.0
+        assert score.risk_tier == RiskTier.WATCH
+        assert isinstance(score.vulnerabilities, list)
+        assert isinstance(score.strengths, list)
 
 
 class TestExploitSignal(unittest.TestCase):
@@ -297,9 +297,9 @@ class TestExploitSignal(unittest.TestCase):
             detected_value=-45.0,
             threshold_value=-40.0,
         )
-        self.assertEqual(signal.bridge_key, "wormhole")
-        self.assertEqual(signal.severity, "high")
-        self.assertIsNotNone(signal.timestamp)
+        assert signal.bridge_key == "wormhole"
+        assert signal.severity == "high"
+        assert signal.timestamp is not None
 
 
 class TestSecurityScoreComputation(unittest.TestCase):
@@ -313,38 +313,38 @@ class TestSecurityScoreComputation(unittest.TestCase):
         """LayerZero should get a good score (battle-tested, many validators)."""
         bridge = BRIDGE_REGISTRY["layerzero"]
         score = await self.monitor._compute_security_score("layerzero", bridge)
-        self.assertGreaterEqual(score.overall_score, 75)
-        self.assertIn(score.risk_tier, (RiskTier.SAFE, RiskTier.WATCH))
+        assert score.overall_score >= 75
+        assert score.risk_tier in (RiskTier.SAFE, RiskTier.WATCH)
 
     @patch.object(BridgeHealthMonitor, "_fetch_current_tvl", return_value=500_000_000)
     async def test_wormhole_score_exploit_penalty(self):
         """Wormhole should be penalized for its $326M exploit history."""
         bridge = BRIDGE_REGISTRY["wormhole"]
         score = await self.monitor._compute_security_score("wormhole", bridge)
-        self.assertEqual(score.exploit_history_score, 0)
-        self.assertIn("$326,000,000", str(score.vulnerabilities))
+        assert score.exploit_history_score == 0
+        assert "$326,000,000" in str(score.vulnerabilities)
 
     @patch.object(BridgeHealthMonitor, "_fetch_current_tvl", return_value=50_000_000)
     async def test_small_bridge_deducted_for_tvl(self):
         """Smaller bridges get lower TVL depth scores."""
         bridge = BRIDGE_REGISTRY["celer"]
         score = await self.monitor._compute_security_score("celer", bridge)
-        self.assertLessEqual(score.tvl_depth_score, 10)
+        assert score.tvl_depth_score <= 10
 
     @patch.object(BridgeHealthMonitor, "_fetch_current_tvl", return_value=1_500_000_000)
     async def test_chainlink_ccip_no_upgrade(self):
         """Chainlink CCIP gets bonus for non-upgradeable contracts."""
         bridge = BRIDGE_REGISTRY["chainlink_ccip"]
         score = await self.monitor._compute_security_score("chainlink_ccip", bridge)
-        self.assertEqual(score.upgrade_risk_score, 15)
-        self.assertIn("Non-upgradeable", str(score.strengths))
+        assert score.upgrade_risk_score == 15
+        assert "Non-upgradeable" in str(score.strengths)
 
     async def test_no_data_score(self):
         """Bridge with no TVL data gets 0 for TVL score but still gets scored."""
         bad_bridge = dict(BRIDGE_REGISTRY["stargate"])
         score = await self.monitor._compute_security_score("unknown", bad_bridge)
-        self.assertGreaterEqual(score.overall_score, 20)  # Non-TVL components
-        self.assertLess(score.overall_score, 100)
+        assert score.overall_score >= 20  # Non-TVL components
+        assert score.overall_score < 100
 
 
 class TestExploitSignalDetection(unittest.TestCase):
@@ -363,8 +363,10 @@ class TestExploitSignalDetection(unittest.TestCase):
             tvl_change_7d_pct=5.0,
             tvl_change_30d_pct=10.0,
         )
-        signals = await self.monitor._detect_exploit_signals("stargate", BRIDGE_REGISTRY["stargate"], snapshot)
-        self.assertEqual(len(signals), 0)
+        signals = await self.monitor._detect_exploit_signals(
+            "stargate", BRIDGE_REGISTRY["stargate"], snapshot
+        )
+        assert len(signals) == 0
 
     async def test_critical_tvl_drop(self):
         """40%+ drop in 24h triggers critical signal."""
@@ -376,10 +378,12 @@ class TestExploitSignalDetection(unittest.TestCase):
             tvl_change_7d_pct=-50.0,
             tvl_change_30d_pct=-60.0,
         )
-        signals = await self.monitor._detect_exploit_signals("wormhole", BRIDGE_REGISTRY["wormhole"], snapshot)
-        self.assertGreaterEqual(len(signals), 1)
+        signals = await self.monitor._detect_exploit_signals(
+            "wormhole", BRIDGE_REGISTRY["wormhole"], snapshot
+        )
+        assert len(signals) >= 1
         criticals = [s for s in signals if s.severity == "critical"]
-        self.assertGreaterEqual(len(criticals), 1)
+        assert len(criticals) >= 1
 
     async def test_warning_tvl_drop(self):
         """15% drop in 24h triggers high signal."""
@@ -391,10 +395,12 @@ class TestExploitSignalDetection(unittest.TestCase):
             tvl_change_7d_pct=-30.0,
             tvl_change_30d_pct=-40.0,
         )
-        signals = await self.monitor._detect_exploit_signals("hop", BRIDGE_REGISTRY["hop"], snapshot)
-        self.assertGreaterEqual(len(signals), 1)
+        signals = await self.monitor._detect_exploit_signals(
+            "hop", BRIDGE_REGISTRY["hop"], snapshot
+        )
+        assert len(signals) >= 1
         highs = [s for s in signals if s.severity == "high"]
-        self.assertGreaterEqual(len(highs), 1)
+        assert len(highs) >= 1
 
     async def test_7d_sustained_decline(self):
         """50%+ decline over 7 days triggers high signal."""
@@ -406,13 +412,17 @@ class TestExploitSignalDetection(unittest.TestCase):
             tvl_change_7d_pct=-55.0,
             tvl_change_30d_pct=-60.0,
         )
-        signals = await self.monitor._detect_exploit_signals("synapse", BRIDGE_REGISTRY["synapse"], snapshot)
-        self.assertGreaterEqual(len(signals), 1)
+        signals = await self.monitor._detect_exploit_signals(
+            "synapse", BRIDGE_REGISTRY["synapse"], snapshot
+        )
+        assert len(signals) >= 1
 
     async def test_no_snapshot_no_signals(self):
         """No signals when no TVL snapshot is provided."""
-        signals = await self.monitor._detect_exploit_signals("stargate", BRIDGE_REGISTRY["stargate"], None)
-        self.assertEqual(len(signals), 0)
+        signals = await self.monitor._detect_exploit_signals(
+            "stargate", BRIDGE_REGISTRY["stargate"], None
+        )
+        assert len(signals) == 0
 
 
 class TestContagionRisk(unittest.TestCase):
@@ -426,7 +436,7 @@ class TestContagionRisk(unittest.TestCase):
         scores = {}
         signals = []
         result = await self.monitor._compute_contagion_risk(scores, signals)
-        self.assertEqual(len(result), 0)
+        assert len(result) == 0
 
     async def test_contagion_detected(self):
         """Bridges with similar scores to triggered bridge are flagged."""
@@ -475,9 +485,9 @@ class TestContagionRisk(unittest.TestCase):
             )
         ]
         result = await self.monitor._compute_contagion_risk(scores, signals)
-        self.assertGreaterEqual(len(result), 1)
-        self.assertTrue(any("Bridge B" in r for r in result))
-        self.assertFalse(any("Bridge C" in r for r in result))
+        assert len(result) >= 1
+        assert any("Bridge B" in r for r in result)
+        assert not any("Bridge C" in r for r in result)
 
     async def test_no_contagion_if_only_alert(self):
         """No self-contagion for the triggered bridge."""
@@ -504,7 +514,7 @@ class TestContagionRisk(unittest.TestCase):
             )
         ]
         result = await self.monitor._compute_contagion_risk(scores, signals)
-        self.assertEqual(len(result), 0)
+        assert len(result) == 0
 
 
 class TestAlertIfExploit(unittest.TestCase):
@@ -529,7 +539,7 @@ class TestAlertIfExploit(unittest.TestCase):
         mock_scan.return_value = report
 
         result = await self.monitor.alert_if_exploit()
-        self.assertIsNotNone(result)
+        assert result is not None
 
     @patch.object(BridgeHealthMonitor, "scan")
     async def test_alert_returns_none_when_healthy(self, mock_scan):
@@ -538,7 +548,7 @@ class TestAlertIfExploit(unittest.TestCase):
         mock_scan.return_value = report
 
         result = await self.monitor.alert_if_exploit()
-        self.assertIsNone(result)
+        assert result is None
 
 
 class TestCLIOutput(unittest.TestCase):
@@ -547,7 +557,7 @@ class TestCLIOutput(unittest.TestCase):
     def test_silent_when_no_alert(self):
         """__main__ entry point can produce [SILENT] output."""
         # We just test the string format since CLI runs asyncio
-        self.assertEqual("[SILENT]", "[SILENT]")
+        assert "[SILENT]" == "[SILENT]"
 
 
 if __name__ == "__main__":

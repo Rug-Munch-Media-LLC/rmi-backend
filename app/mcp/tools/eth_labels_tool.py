@@ -7,8 +7,9 @@ with proper safety measures.
 """
 
 import asyncio
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -32,20 +33,31 @@ def _safe_select_query(sql: str) -> bool:
     sql_upper = sql.strip().upper()
 
     # Must start with SELECT
-    if not sql_upper.lstrip().startswith('SELECT'):
+    if not sql_upper.lstrip().startswith("SELECT"):
         return False
 
     # Check for dangerous terms
     dangerous_keywords = [
-        'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER',
-        'TRUNCATE', 'REPLACE', 'MERGE', 'WITH.*RECURSIVE',
-        'INTO', 'OUTFILE', 'DUMPFILE', 'LOAD_DATA'
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "DROP",
+        "CREATE",
+        "ALTER",
+        "TRUNCATE",
+        "REPLACE",
+        "MERGE",
+        "WITH.*RECURSIVE",
+        "INTO",
+        "OUTFILE",
+        "DUMPFILE",
+        "LOAD_DATA",
     ]
 
     for keyword in dangerous_keywords:
         # Handle keywords like 'WITH RECURSIVE' differently
-        if keyword == 'WITH.*RECURSIVE':
-            if 'WITH' in sql_upper and 'RECURSIVE' in sql_upper:
+        if keyword == "WITH.*RECURSIVE":
+            if "WITH" in sql_upper and "RECURSIVE" in sql_upper:
                 return False
         elif keyword in sql_upper:
             return False
@@ -105,7 +117,7 @@ async def query_eth_labels_db_mcp(sql: str, limit: int = 1000) -> dict[str, Any]
                 "rows": result_rows,
                 "count": len(result_rows),
                 "truncated": len(rows) > limit,
-                "sql_executed": sql  # For debugging/tracing
+                "sql_executed": sql,  # For debugging/tracing
             }
 
         except sqlite3.Error as e:
@@ -129,6 +141,7 @@ async def get_eth_labels_stats_mcp() -> dict[str, Any]:
     Returns:
         Database statistics including table counts and sample data.
     """
+
     def _get_stats() -> dict[str, Any]:
         import sqlite3
         from pathlib import Path
@@ -167,8 +180,7 @@ async def get_eth_labels_stats_mcp() -> dict[str, Any]:
                     LIMIT 10;
                 """)
                 stats["accounts_by_chain"] = [
-                    {"chain_id": row[0], "count": row[1]}
-                    for row in cursor.fetchall()
+                    {"chain_id": row[0], "count": row[1]} for row in cursor.fetchall()
                 ]
 
             conn.close()

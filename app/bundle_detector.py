@@ -9,9 +9,10 @@ References:
 - HNUT: 78% early activity was bundled transactions
 """
 
-from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -61,7 +62,9 @@ class BundleDetector:
         transactions: list[dict] | None = None,
     ) -> BundleDetection:
         """Run all bundle detection signals and return combined result."""
-        result = BundleDetection(token_address=token_address, chain=chain, is_bundled=False, confidence=0.0)
+        result = BundleDetection(
+            token_address=token_address, chain=chain, is_bundled=False, confidence=0.0
+        )
 
         if not holders or len(holders) < self.min_holders_for_analysis:
             result.risk_label = "unknown"
@@ -192,7 +195,9 @@ class BundleDetector:
         result.identical_amount_count = identical
 
         # Round number amounts (multiples of 100, 1000, 10000)
-        round_count = sum(1 for a in amounts if a >= 100 and (a % 100 == 0 or a % 1000 == 0 or a % 10000 == 0))
+        round_count = sum(
+            1 for a in amounts if a >= 100 and (a % 100 == 0 or a % 1000 == 0 or a % 10000 == 0)
+        )
         result.round_amount_count = round_count
 
         identical_pct = identical / len(amounts) if amounts else 0

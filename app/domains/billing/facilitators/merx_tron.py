@@ -8,11 +8,11 @@ Sub-3-second confirmation for micropayments.
 Express middleware compatible.
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,
@@ -110,15 +110,20 @@ class MerxTronFacilitator(Facilitator):
 
         try:
             timeout = aiohttp.ClientTimeout(total=self._config.facilitator_verify_timeout)
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                self._config.merx_tron_verify_url,
-                json=body,
-                headers=headers,
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.post(
+                    self._config.merx_tron_verify_url,
+                    json=body,
+                    headers=headers,
+                ) as resp,
+            ):
                 data = await resp.json()
 
                 if resp.status != 200:
-                    return self._format_error(f"MERX TRON: {data.get('error', f'HTTP {resp.status}')}")
+                    return self._format_error(
+                        f"MERX TRON: {data.get('error', f'HTTP {resp.status}')}"
+                    )
 
                 if data.get("isValid") or data.get("verified"):
                     token = data.get("token") or data.get("asset")
@@ -172,14 +177,17 @@ class MerxTronFacilitator(Facilitator):
     async def _settle_live(self, payment_data: dict[str, Any]) -> SettlementResult:
         try:
             timeout = aiohttp.ClientTimeout(total=30)
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                self._config.merx_tron_settle_url,
-                json={"paymentData": payment_data},
-                headers={
-                    "Content-Type": "application/json",
-                    "X-MERX-API-Key": self._config.merx_tron_api_key,
-                },
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.post(
+                    self._config.merx_tron_settle_url,
+                    json={"paymentData": payment_data},
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-MERX-API-Key": self._config.merx_tron_api_key,
+                    },
+                ) as resp,
+            ):
                 data = await resp.json()
                 if resp.status == 200:
                     return SettlementResult(
@@ -197,4 +205,6 @@ class MerxTronFacilitator(Facilitator):
                     facilitator=self.name,
                 )
         except Exception as e:
-            return SettlementResult(settled=False, reason=f"MERX TRON settlement error: {e}", facilitator=self.name)
+            return SettlementResult(
+                settled=False, reason=f"MERX TRON settlement error: {e}", facilitator=self.name
+            )

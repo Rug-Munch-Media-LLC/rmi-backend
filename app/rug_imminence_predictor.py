@@ -32,7 +32,6 @@ Usage:
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import re
 import time
@@ -40,6 +39,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

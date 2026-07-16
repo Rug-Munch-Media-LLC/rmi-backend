@@ -11,13 +11,14 @@ Metrics:
   - hit_rate (% queries with at least one relevant hit)
 """
 
-from app.core.logging import get_logger
 import math
 import re
 import time
 from dataclasses import dataclass, field
 
 import numpy as np
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -370,7 +371,9 @@ GOLDEN_TEST_SET = [
 # ======================================================================
 
 
-def context_precision(retrieved_ids: list[str], relevant_ids: list[str], k: int | None = None) -> float:
+def context_precision(
+    retrieved_ids: list[str], relevant_ids: list[str], k: int | None = None
+) -> float:
     """
     Compute nDCG@k (Normalized Discounted Cumulative Gain).
     Measures ranking quality of retrieved documents.
@@ -564,7 +567,9 @@ def _keyword_faithfulness(answer: str, context_chunks: list[str]) -> float:
         "very",
     }
 
-    answer_words = {w.lower() for w in re.findall(r"\b\w{3,}\b", answer) if w.lower() not in stop_words}
+    answer_words = {
+        w.lower() for w in re.findall(r"\b\w{3,}\b", answer) if w.lower() not in stop_words
+    }
 
     if not answer_words:
         return 0.5  # can't determine

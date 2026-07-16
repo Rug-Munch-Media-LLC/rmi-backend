@@ -21,7 +21,6 @@ Usage:
 
 import glob
 import json
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
@@ -29,6 +28,8 @@ from dataclasses import dataclass, field
 import httpx
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
+
+from app.core.logging import get_logger
 
 logger = get_logger("gcloud.multi")
 
@@ -165,7 +166,9 @@ class MultiCloudManager:
             )
         return result
 
-    async def best_embed(self, texts: list, preferred_project: str | None = None) -> tuple[list | None, str]:
+    async def best_embed(
+        self, texts: list, preferred_project: str | None = None
+    ) -> tuple[list | None, str]:
         """Try to embed using the best available account."""
         ordered = self.accounts
         if preferred_project:

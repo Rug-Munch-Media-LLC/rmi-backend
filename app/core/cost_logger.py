@@ -11,7 +11,7 @@ import os
 CLICKHOUSE_HOST = os.getenv("CH_HOST", "rmi-clickhouse")
 CLICKHOUSE_PORT = int(os.getenv("CH_PORT", "9000"))
 CLICKHOUSE_USER = os.getenv("CH_USER", "rmi")
-CLICKHOUSE_PASSWORD = os.getenv("CH_PASSWORD", "RMI_PROD_CLICKHOUSE_2026")
+CLICKHOUSE_PASSWORD = os.environ["CH_PASSWORD"]
 CLICKHOUSE_DB = "rmi"
 
 MODEL_COSTS = {

@@ -18,10 +18,7 @@ class TestDomainHealth:
     def test_domain_health_creation(self):
         """Test creating a DomainHealth instance."""
         health = DomainHealth(
-            name="test_domain",
-            healthy=True,
-            details={"key": "value"},
-            latency_ms=50
+            name="test_domain", healthy=True, details={"key": "value"}, latency_ms=50
         )
         assert health.name == "test_domain"
         assert health.healthy is True
@@ -31,11 +28,7 @@ class TestDomainHealth:
 
     def test_domain_health_with_error(self):
         """Test DomainHealth with error message."""
-        health = DomainHealth(
-            name="test_domain",
-            healthy=False,
-            error="Connection failed"
-        )
+        health = DomainHealth(name="test_domain", healthy=False, error="Connection failed")
         assert health.healthy is False
         assert health.error == "Connection failed"
 
@@ -50,14 +43,16 @@ class TestHealthRegistry:
 
     def test_register_health_check(self):
         """Test registering a health check function."""
+
         def mock_health_check():
             return DomainHealth(name="mock", healthy=True)
 
         register_health_check("mock", mock_health_check)
-        assert "mock" in register_health_check.__globals__.get('_health_checks', {})
+        assert "mock" in register_health_check.__globals__.get("_health_checks", {})
 
     def test_register_duplicate_health_check(self):
         """Test that duplicate registration is logged but allowed."""
+
         def mock_health_check1():
             return DomainHealth(name="dup", healthy=True)
 
@@ -77,6 +72,7 @@ class TestRunHealthChecks:
         """Test run_health_checks with no registered checks."""
         # Clear registry first
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         results = await run_health_checks()
@@ -86,6 +82,7 @@ class TestRunHealthChecks:
     async def test_run_health_checks_sync(self):
         """Test run_health_checks with synchronous check."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def sync_health_check():
@@ -102,6 +99,7 @@ class TestRunHealthChecks:
     async def test_run_health_checks_async(self):
         """Test run_health_checks with async check."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         async def async_health_check():
@@ -119,6 +117,7 @@ class TestRunHealthChecks:
     async def test_run_health_checks_failure(self):
         """Test run_health_checks handles exceptions."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def failing_health_check():
@@ -138,6 +137,7 @@ class TestGetHealthStatus:
     def test_get_health_status_healthy(self):
         """Test get_health_status when all checks pass."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def healthy_check():
@@ -152,6 +152,7 @@ class TestGetHealthStatus:
     def test_get_health_status_degraded(self):
         """Test get_health_status when some checks fail."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def healthy_check():
@@ -169,6 +170,7 @@ class TestGetHealthStatus:
     def test_get_health_status_unhealthy(self):
         """Test get_health_status when all checks fail."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def failing_check1():

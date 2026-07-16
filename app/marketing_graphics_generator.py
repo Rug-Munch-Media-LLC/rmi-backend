@@ -14,11 +14,12 @@ Graphics Types:
 """
 
 import hashlib
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 from PIL import Image, ImageDraw, ImageFont
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -404,7 +405,9 @@ def create_placeholder_marketing_template(template_name: str, config: dict) -> I
 
     bbox = draw.textbbox((0, 0), title, font=font)
     title_width = bbox[2] - bbox[0]
-    draw.text(((config["size"][0] - title_width) / 2, 50), title, fill=BRAND_COLORS["primary"], font=font)
+    draw.text(
+        ((config["size"][0] - title_width) / 2, 50), title, fill=BRAND_COLORS["primary"], font=font
+    )
 
     # Add watermark
     try:

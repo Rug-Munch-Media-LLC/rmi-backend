@@ -9,6 +9,7 @@ logged success in their expected window. Reports failures to:
 
 Run as a cron itself: */5 * * * * /root/scripts/cron_health_check.py
 """
+
 from __future__ import annotations
 
 import json
@@ -29,20 +30,20 @@ CRONTAB_FILE = "/tmp/cron-inventory.txt"
 # expected_window = how often it should fire (e.g. */15 → 15 min window)
 CRONS = [
     # (name, schedule, window_min, log_file)
-    ("security-state",    "* * * * *",   5,   "/var/log/security-state.log"),
-    ("vault-sync",        "*/30 * * * *", 35, "/root/.hermes/logs/vault-sync.log"),
-    ("cache-warmer",      "*/4 * * * *",  8,   "/tmp/cache-warmer.log"),
-    ("ingest-runner",     "*/15 * * * *", 20, "/var/log/ingest_cron.log"),
-    ("wallet-ingest",     "*/30 * * * *", 35, "/var/log/wallet_ingest.log"),
-    ("master-ingest",     "0 * * * *",    65,  "/var/log/master_ingest.log"),
-    ("neo4j-sync",        "0 */6 * * *",  370, "/var/log/neo4j_sync.log"),
-    ("reembed-rag",       "0 3 * * *",    1500, "/var/log/reembed_cron.log"),
-    ("rag-rss",           "*/15 * * * *", 20, "/var/log/rag_ingest_rss.log"),
-    ("rag-market",        "0 * * * *",    65,  "/var/log/rag_ingest_market.log"),
-    ("rag-threat",        "0 */6 * * *",  370, "/var/log/rag_ingest_threat.log"),
-    ("rag-clickhouse",    "*/30 * * * *", 35, "/var/log/rag_ingest_ch.log"),
-    ("mbal-labels",       "0 2 * * *",    1500, "/var/log/rag_mbal.log"),
-    ("daily-brief",       "30 6 * * *",   1500, "/var/log/daily_brief.log"),
+    ("security-state", "* * * * *", 5, "/var/log/security-state.log"),
+    ("vault-sync", "*/30 * * * *", 35, "/root/.hermes/logs/vault-sync.log"),
+    ("cache-warmer", "*/4 * * * *", 8, "/tmp/cache-warmer.log"),
+    ("ingest-runner", "*/15 * * * *", 20, "/var/log/ingest_cron.log"),
+    ("wallet-ingest", "*/30 * * * *", 35, "/var/log/wallet_ingest.log"),
+    ("master-ingest", "0 * * * *", 65, "/var/log/master_ingest.log"),
+    ("neo4j-sync", "0 */6 * * *", 370, "/var/log/neo4j_sync.log"),
+    ("reembed-rag", "0 3 * * *", 1500, "/var/log/reembed_cron.log"),
+    ("rag-rss", "*/15 * * * *", 20, "/var/log/rag_ingest_rss.log"),
+    ("rag-market", "0 * * * *", 65, "/var/log/rag_ingest_market.log"),
+    ("rag-threat", "0 */6 * * *", 370, "/var/log/rag_ingest_threat.log"),
+    ("rag-clickhouse", "*/30 * * * *", 35, "/var/log/rag_ingest_ch.log"),
+    ("mbal-labels", "0 2 * * *", 1500, "/var/log/rag_mbal.log"),
+    ("daily-brief", "30 6 * * *", 1500, "/var/log/daily_brief.log"),
 ]
 
 
@@ -66,7 +67,9 @@ def check_log_for_errors(log_file: str) -> tuple[bool, str]:
     try:
         result = subprocess.run(
             ["tail", "-n", "100", log_file],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
     except Exception as e:
         return False, f"log read fail: {e}"
@@ -77,10 +80,15 @@ def check_log_for_errors(log_file: str) -> tuple[bool, str]:
 
     # Look for known error patterns
     error_patterns = [
-        r"file not found", r"No such file", r"command not found",
-        r"ImportError", r"ModuleNotFoundError",
-        r"connection refused", r"Connection refused",
-        r"Permission denied", r"No module named",
+        r"file not found",
+        r"No such file",
+        r"command not found",
+        r"ImportError",
+        r"ModuleNotFoundError",
+        r"connection refused",
+        r"Connection refused",
+        r"Permission denied",
+        r"No module named",
     ]
     last_error = ""
     for line in lines[-20:]:  # check last 20 lines
@@ -101,15 +109,17 @@ def check_all_crons() -> list[dict]:
     results = []
     for name, sched, window, log_file in CRONS:
         healthy, error = check_log_for_errors(log_file)
-        results.append({
-            "name": name,
-            "schedule": sched,
-            "window_min": window,
-            "log_file": log_file,
-            "healthy": healthy,
-            "error": error,
-            "checked_at": datetime.now(UTC).isoformat(),
-        })
+        results.append(
+            {
+                "name": name,
+                "schedule": sched,
+                "window_min": window,
+                "log_file": log_file,
+                "healthy": healthy,
+                "error": error,
+                "checked_at": datetime.now(UTC).isoformat(),
+            }
+        )
     return results
 
 
@@ -119,6 +129,7 @@ def report_to_backend(stale: list[dict]) -> bool:
         return True
     try:
         import httpx
+
         url = urljoin(BACKEND_URL, "/api/v1/admin/alerts/critical")
         payload = {
             "title": f"{len(stale)} cron failures",

@@ -7,11 +7,12 @@ Auto-reconnects, caches through DataBus, triggers premium scanner.
 WS Key: from ARKHAM_WS_KEY env var (set in /etc/secrets or docker env)
 """
 
-from app.core.logging import get_logger
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("arkham_ws")
 
@@ -48,7 +49,7 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
     if action == "subscribe" and address:
         # Store subscription intent (actual WS connection is managed separately)
         _subscriptions[address] = {
-            "subscribed_at": datetime.utcnow().isoformat(),
+            "subscribed_at": datetime.now(UTC).isoformat(),
             "last_update": None,
         }
 
@@ -63,9 +64,13 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
                     )
                     if r.status_code == 200:
                         data = r.json()
-                        _subscriptions[address]["entity"] = data.get("arkhamEntity", {}).get("name", "")
-                        _subscriptions[address]["label"] = data.get("arkhamLabel", {}).get("name", "")
-                        _subscriptions[address]["last_update"] = datetime.utcnow().isoformat()
+                        _subscriptions[address]["entity"] = data.get("arkhamEntity", {}).get(
+                            "name", ""
+                        )
+                        _subscriptions[address]["label"] = data.get("arkhamLabel", {}).get(
+                            "name", ""
+                        )
+                        _subscriptions[address]["last_update"] = datetime.now(UTC).isoformat()
 
                         return {
                             "status": "subscribed",
@@ -92,7 +97,7 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
 async def broadcast_ws_update(address: str, update: dict):
     """Called when Arkham WS pushes an update - route through DataBus."""
     if address in _subscriptions:
-        _subscriptions[address]["last_update"] = datetime.utcnow().isoformat()
+        _subscriptions[address]["last_update"] = datetime.now(UTC).isoformat()
         _subscriptions[address]["latest_data"] = update
 
     # Push to DataBus WebSocket for frontend subscribers
@@ -104,7 +109,7 @@ async def broadcast_ws_update(address: str, update: dict):
             {
                 "address": address,
                 "update": update,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
     except Exception:

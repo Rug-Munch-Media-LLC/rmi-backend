@@ -43,9 +43,9 @@ class TestPriceSnapshot(unittest.TestCase):
             source="Uniswap V3",
             chain="ethereum",
         )
-        self.assertEqual(snap.price, 3200.50)
-        self.assertEqual(snap.block_number, 20000000)
-        self.assertEqual(snap.chain, "ethereum")
+        assert snap.price == 3200.5
+        assert snap.block_number == 20000000
+        assert snap.chain == "ethereum"
 
     def test_to_dict(self):
         snap = PriceSnapshot(
@@ -54,9 +54,9 @@ class TestPriceSnapshot(unittest.TestCase):
             price=3200.50,
         )
         d = snap.to_dict()
-        self.assertEqual(d["price"], 3200.50)
-        self.assertEqual(d["block_number"], 20000000)
-        self.assertEqual(d["chain"], "ethereum")  # default
+        assert d["price"] == 3200.5
+        assert d["block_number"] == 20000000
+        assert d["chain"] == "ethereum"  # default
 
 
 class TestOracleRead(unittest.TestCase):
@@ -73,7 +73,7 @@ class TestOracleRead(unittest.TestCase):
             expected_price=3200.0,
             price_age_seconds=300,  # 5 min - fresh
         )
-        self.assertFalse(read.is_stale())
+        assert not read.is_stale()
 
     def test_stale_feed(self):
         read = OracleRead(
@@ -86,7 +86,7 @@ class TestOracleRead(unittest.TestCase):
             expected_price=3200.0,
             price_age_seconds=86400,  # 24 hours - very stale
         )
-        self.assertTrue(read.is_stale())
+        assert read.is_stale()
 
     def test_deviation_calculation(self):
         read = OracleRead(
@@ -99,7 +99,7 @@ class TestOracleRead(unittest.TestCase):
             expected_price=3200.0,
         )
         deviation = read.deviation_from_expected()
-        self.assertIsNotNone(deviation)
+        assert deviation is not None
         self.assertAlmostEqual(deviation, 0.09375, places=5)  # 9.375%
 
     def test_deviation_none_when_no_expected(self):
@@ -111,7 +111,7 @@ class TestOracleRead(unittest.TestCase):
             oracle_type=OracleType.CHAINLINK,
             reported_price=3200.0,
         )
-        self.assertIsNone(read.deviation_from_expected())
+        assert read.deviation_from_expected() is None
 
     def test_to_dict(self):
         read = OracleRead(
@@ -127,9 +127,9 @@ class TestOracleRead(unittest.TestCase):
             protocol="Chainlink",
         )
         d = read.to_dict()
-        self.assertEqual(d["oracle_type"], "chainlink")
-        self.assertFalse(d["is_stale"])
-        self.assertEqual(d["deviation_pct"], 0.0)
+        assert d["oracle_type"] == "chainlink"
+        assert not d["is_stale"]
+        assert d["deviation_pct"] == 0.0
 
     def test_to_dict_no_expected(self):
         read = OracleRead(
@@ -141,35 +141,35 @@ class TestOracleRead(unittest.TestCase):
             reported_price=3200.0,
         )
         d = read.to_dict()
-        self.assertIsNone(d["expected_price"])
-        self.assertIsNone(d["deviation_pct"])
+        assert d["expected_price"] is None
+        assert d["deviation_pct"] is None
 
 
 class TestOracleType(unittest.TestCase):
     """OracleType enum tests."""
 
     def test_from_string(self):
-        self.assertEqual(OracleType.from_string("chainlink"), OracleType.CHAINLINK)
-        self.assertEqual(OracleType.from_string("uniswap_v3_twap"), OracleType.UNISWAP_V3_TWAP)
-        self.assertEqual(OracleType.from_string("uniswap_v2_twap"), OracleType.UNISWAP_V2_TWAP)
-        self.assertEqual(OracleType.from_string("curve_ema"), OracleType.CURVE_EMA)
-        self.assertEqual(OracleType.from_string("unknown_foo"), OracleType.CUSTOM)
-        self.assertEqual(OracleType.from_string(""), OracleType.CUSTOM)
+        assert OracleType.from_string("chainlink") == OracleType.CHAINLINK
+        assert OracleType.from_string("uniswap_v3_twap") == OracleType.UNISWAP_V3_TWAP
+        assert OracleType.from_string("uniswap_v2_twap") == OracleType.UNISWAP_V2_TWAP
+        assert OracleType.from_string("curve_ema") == OracleType.CURVE_EMA
+        assert OracleType.from_string("unknown_foo") == OracleType.CUSTOM
+        assert OracleType.from_string("") == OracleType.CUSTOM
 
 
 class TestSeverity(unittest.TestCase):
     """Severity enum ordering and score tests."""
 
     def test_severity_ordering(self):
-        self.assertLess(Severity.INFO, Severity.LOW)
-        self.assertLess(Severity.LOW, Severity.MEDIUM)
-        self.assertLess(Severity.MEDIUM, Severity.HIGH)
-        self.assertLess(Severity.HIGH, Severity.CRITICAL)
+        assert Severity.INFO < Severity.LOW
+        assert Severity.LOW < Severity.MEDIUM
+        assert Severity.MEDIUM < Severity.HIGH
+        assert Severity.HIGH < Severity.CRITICAL
 
     def test_severity_scores(self):
-        self.assertEqual(Severity.CRITICAL.score, 1.0)
-        self.assertEqual(Severity.INFO.score, 0.0)
-        self.assertGreater(Severity.HIGH.score, Severity.MEDIUM.score)
+        assert Severity.CRITICAL.score == 1.0
+        assert Severity.INFO.score == 0.0
+        assert Severity.HIGH.score > Severity.MEDIUM.score
 
 
 class TestManipulationType(unittest.TestCase):
@@ -177,7 +177,7 @@ class TestManipulationType(unittest.TestCase):
 
     def test_label_format(self):
         mt = ManipulationType.TWAP_POISONING
-        self.assertEqual(mt.value, "twap_poisoning")
+        assert mt.value == "twap_poisoning"
 
 
 class TestPriceManipulation(unittest.TestCase):
@@ -203,20 +203,20 @@ class TestPriceManipulation(unittest.TestCase):
 
     def test_summary_contains_info(self):
         s = self.incident.summary()
-        self.assertIn("HIGH", s)
-        self.assertIn("TWAP", s)
-        self.assertIn("WETH/USDC", s)
-        self.assertIn("6.25", s)
+        assert "HIGH" in s
+        assert "TWAP" in s
+        assert "WETH/USDC" in s
+        assert "6.25" in s
 
     def test_label(self):
-        self.assertEqual(self.incident.label, "Twap Poisoning")
+        assert self.incident.label == "Twap Poisoning"
 
     def test_to_dict(self):
         d = self.incident.to_dict()
-        self.assertEqual(d["type"], "twap_poisoning")
-        self.assertEqual(d["severity"], "high")
-        self.assertEqual(d["deviation_pct"], 6.25)
-        self.assertFalse(d["external_fatigue"])
+        assert d["type"] == "twap_poisoning"
+        assert d["severity"] == "high"
+        assert d["deviation_pct"] == 6.25
+        assert not d["external_fatigue"]
 
 
 class TestTWAPWindow(unittest.TestCase):
@@ -252,43 +252,43 @@ class TestTWAPWindow(unittest.TestCase):
 
     def test_stable_twap(self):
         window = _calculate_twap_from_samples(self.stable_samples)
-        self.assertIsNotNone(window)
-        self.assertEqual(window.average_price, 3200.0)
-        self.assertEqual(window.min_price, 3200.0)
-        self.assertEqual(window.max_price, 3200.0)
-        self.assertEqual(window.std_dev_pct, 0.0)
+        assert window is not None
+        assert window.average_price == 3200.0
+        assert window.min_price == 3200.0
+        assert window.max_price == 3200.0
+        assert window.std_dev_pct == 0.0
         # 0 std dev + 10 samples = 0 manipulation risk
-        self.assertEqual(window.manipulation_risk(), 0.0)
+        assert window.manipulation_risk() == 0.0
 
     def test_volatile_twap(self):
         window = _calculate_twap_from_samples(self.volatile_samples)
-        self.assertIsNotNone(window)
-        self.assertGreater(window.average_price, 3200.0)
-        self.assertGreater(window.std_dev_pct, 0.01)
-        self.assertGreater(window.manipulation_risk(), 0.2)
+        assert window is not None
+        assert window.average_price > 3200.0
+        assert window.std_dev_pct > 0.01
+        assert window.manipulation_risk() > 0.2
 
     def test_twap_manipulation_detection(self):
         # Compute TWAP from volatile samples
         window = _calculate_twap_from_samples(self.volatile_samples)
-        self.assertIsNotNone(window)
+        assert window is not None
 
         incident = _detect_twap_manipulation(window)
         # High volatility should trigger detection
-        self.assertIsNotNone(incident)
-        self.assertEqual(incident.manipulation_type, ManipulationType.TWAP_POISONING)
-        self.assertIn(incident.severity, [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW])
+        assert incident is not None
+        assert incident.manipulation_type == ManipulationType.TWAP_POISONING
+        assert incident.severity in [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW]
 
     def test_insufficient_samples(self):
         samples = [PriceSnapshot(timestamp=1.0, block_number=1, price=100.0)]
-        self.assertIsNone(_calculate_twap_from_samples(samples))
+        assert _calculate_twap_from_samples(samples) is None
 
     def test_twap_to_dict(self):
         window = _calculate_twap_from_samples(self.stable_samples)
         d = window.to_dict()
-        self.assertIn("average_price", d)
-        self.assertIn("manipulation_risk", d)
-        self.assertIn("samples", d)
-        self.assertEqual(d["samples"], 10)
+        assert "average_price" in d
+        assert "manipulation_risk" in d
+        assert "samples" in d
+        assert d["samples"] == 10
 
 
 class TestHeuristicHelpers(unittest.TestCase):
@@ -300,21 +300,21 @@ class TestHeuristicHelpers(unittest.TestCase):
         self.assertAlmostEqual(_compute_deviation_pct(3000.0, 3200.0), 0.0625, places=4)
 
     def test_compute_deviation_zero(self):
-        self.assertEqual(_compute_deviation_pct(100.0, 0.0), 0.0)
+        assert _compute_deviation_pct(100.0, 0.0) == 0.0
 
     def test_classify_severity_normal(self):
-        self.assertEqual(_classify_severity(0.01), Severity.INFO)
-        self.assertEqual(_classify_severity(0.04), Severity.LOW)
-        self.assertEqual(_classify_severity(0.09), Severity.MEDIUM)
-        self.assertEqual(_classify_severity(0.20), Severity.HIGH)
-        self.assertEqual(_classify_severity(0.50), Severity.CRITICAL)
+        assert _classify_severity(0.01) == Severity.INFO
+        assert _classify_severity(0.04) == Severity.LOW
+        assert _classify_severity(0.09) == Severity.MEDIUM
+        assert _classify_severity(0.2) == Severity.HIGH
+        assert _classify_severity(0.5) == Severity.CRITICAL
 
     def test_classify_severity_flash_loan(self):
         # Flash loan thresholds are tighter
-        self.assertEqual(_classify_severity(0.04, is_flash_loan=True), Severity.INFO)
-        self.assertEqual(_classify_severity(0.06, is_flash_loan=True), Severity.MEDIUM)
-        self.assertEqual(_classify_severity(0.12, is_flash_loan=True), Severity.HIGH)
-        self.assertEqual(_classify_severity(0.25, is_flash_loan=True), Severity.CRITICAL)
+        assert _classify_severity(0.04, is_flash_loan=True) == Severity.INFO
+        assert _classify_severity(0.06, is_flash_loan=True) == Severity.MEDIUM
+        assert _classify_severity(0.12, is_flash_loan=True) == Severity.HIGH
+        assert _classify_severity(0.25, is_flash_loan=True) == Severity.CRITICAL
 
     def test_sandwich_pattern_detection(self):
         # Classic sandwich: low → high → low
@@ -332,15 +332,15 @@ class TestHeuristicHelpers(unittest.TestCase):
             100.0,
             100.0,
         ]
-        self.assertTrue(_is_sandwich_pattern(prices, window=3))
+        assert _is_sandwich_pattern(prices, window=3)
 
     def test_no_sandwich_pattern(self):
         # Flat prices
         prices = [100.0] * 15
-        self.assertFalse(_is_sandwich_pattern(prices))
+        assert not _is_sandwich_pattern(prices)
 
     def test_sandwich_too_few_samples(self):
-        self.assertFalse(_is_sandwich_pattern([100.0, 100.0], window=5))
+        assert not _is_sandwich_pattern([100.0, 100.0], window=5)
 
 
 class TestOracleManipulationDetector(unittest.TestCase):
@@ -354,17 +354,17 @@ class TestOracleManipulationDetector(unittest.TestCase):
         import asyncio
 
         report = asyncio.run(self.detector.scan(blocks_back=30))
-        self.assertIsNotNone(report)
-        self.assertGreater(report.blocks_scanned, 0)
-        self.assertGreater(len(report.scan_id), 0)
+        assert report is not None
+        assert report.blocks_scanned > 0
+        assert len(report.scan_id) > 0
 
     def test_scan_checks_pools(self):
         """Scan should check some LP pools."""
         import asyncio
 
         report = asyncio.run(self.detector.scan(blocks_back=30))
-        self.assertGreater(len(report.twap_windows), 0)
-        self.assertEqual(len(report.incidents) + len(report.errors), report.total_incidents + len(report.errors))
+        assert len(report.twap_windows) > 0
+        assert len(report.incidents) + len(report.errors) == report.total_incidents + len(report.errors)
 
     def test_pool_analysis(self):
         """Pool analysis should produce a TWAP window."""
@@ -376,21 +376,21 @@ class TestOracleManipulationDetector(unittest.TestCase):
                 "WETH/USDC",
             )
         )
-        self.assertIsNotNone(report)
-        self.assertEqual(report.pools_checked, 1)
+        assert report is not None
+        assert report.pools_checked == 1
         if report.twap_windows:
             twap = report.twap_windows[0]
-            self.assertGreater(twap.average_price, 0)
+            assert twap.average_price > 0
 
     def test_chainlink_feed_check(self):
         """Chainlink feed check should return feeds."""
         import asyncio
 
         reads = asyncio.run(self.detector.check_chainlink_feeds(["ETH/USD", "BTC/USD"]))
-        self.assertGreater(len(reads), 0)
+        assert len(reads) > 0
         for read in reads:
-            self.assertEqual(read.oracle_type, OracleType.CHAINLINK)
-            self.assertGreater(read.reported_price, 0)
+            assert read.oracle_type == OracleType.CHAINLINK
+            assert read.reported_price > 0
 
     def test_multichain_scan(self):
         """Multi-chain scan should work."""
@@ -402,9 +402,9 @@ class TestOracleManipulationDetector(unittest.TestCase):
                 chains=["ethereum", "base"],
             )
         )
-        self.assertIsNotNone(report)
-        self.assertIn("ethereum", report.chain)
-        self.assertIn("base", report.chain)
+        assert report is not None
+        assert "ethereum" in report.chain
+        assert "base" in report.chain
 
     def test_report_json_serialization(self):
         """Report should serialize to valid JSON."""
@@ -413,9 +413,9 @@ class TestOracleManipulationDetector(unittest.TestCase):
         report = asyncio.run(self.detector.scan(blocks_back=10))
         json_str = report.json()
         data = json.loads(json_str)
-        self.assertIn("scan_id", data)
-        self.assertIn("incidents", data)
-        self.assertIn("twap_windows", data)
+        assert "scan_id" in data
+        assert "incidents" in data
+        assert "twap_windows" in data
 
 
 class TestPriceManipulationReport(unittest.TestCase):
@@ -431,7 +431,7 @@ class TestPriceManipulationReport(unittest.TestCase):
             start_time=0.0,
             end_time=1.0,
         )
-        self.assertEqual(report.risk_score, 0.0)
+        assert report.risk_score == 0.0
 
         report.incidents.append(
             PriceManipulation(
@@ -441,7 +441,7 @@ class TestPriceManipulationReport(unittest.TestCase):
                 block_number=1,
             )
         )
-        self.assertEqual(report.risk_score, 1.0)
+        assert report.risk_score == 1.0
 
     def test_incident_counts(self):
         from app.oracle_manipulation_detector import ManipulationReport
@@ -478,9 +478,9 @@ class TestPriceManipulationReport(unittest.TestCase):
             )
         )
 
-        self.assertEqual(report.critical_count, 1)
-        self.assertEqual(report.high_count, 1)
-        self.assertEqual(report.total_incidents, 3)
+        assert report.critical_count == 1
+        assert report.high_count == 1
+        assert report.total_incidents == 3
 
     def test_duration(self):
         from app.oracle_manipulation_detector import ManipulationReport
@@ -492,7 +492,7 @@ class TestPriceManipulationReport(unittest.TestCase):
             start_time=100.0,
             end_time=150.0,
         )
-        self.assertEqual(report.duration_seconds, 50.0)
+        assert report.duration_seconds == 50.0
 
 
 class TestKnownConstants(unittest.TestCase):
@@ -501,67 +501,61 @@ class TestKnownConstants(unittest.TestCase):
     def test_known_lp_pools_have_expected_structure(self):
         for _pair, pools in KNOWN_LP_POOLS.items():
             for pool in pools:
-                self.assertIn("protocol", pool)
-                self.assertIn("address", pool)
-                self.assertIn(
-                    pool["protocol"],
-                    [
-                        "Uniswap V3",
-                        "Uniswap V2",
-                        "Curve",
-                        "Balancer",
-                    ],
-                )
+                assert "protocol" in pool
+                assert "address" in pool
+                assert pool["protocol"] in ["Uniswap V3", "Uniswap V2", "Curve", "Balancer"]
 
     def test_chainlink_feeds_have_required_fields(self):
         for _name, feed in CHAINLINK_FEEDS.items():
-            self.assertIn("address", feed)
-            self.assertIn("decimals", feed)
-            self.assertIn("heartbeat", feed)
-            self.assertGreater(feed["decimals"], 0)
+            assert "address" in feed
+            assert "decimals" in feed
+            assert "heartbeat" in feed
+            assert feed["decimals"] > 0
 
     def test_MIN_TWAP_SAMPLES_reasonable(self):
-        self.assertGreaterEqual(MIN_TWAP_SAMPLES, 2)
-        self.assertLessEqual(MIN_TWAP_SAMPLES, 10)
+        assert MIN_TWAP_SAMPLES >= 2
+        assert MIN_TWAP_SAMPLES <= 10
 
     def test_cross_pool_divergence_threshold_positive(self):
-        self.assertGreater(CROSS_POOL_DIVERGENCE_THRESHOLD, 0)
-        self.assertLess(CROSS_POOL_DIVERGENCE_THRESHOLD, 0.5)
+        assert CROSS_POOL_DIVERGENCE_THRESHOLD > 0
+        assert CROSS_POOL_DIVERGENCE_THRESHOLD < 0.5
 
     def test_twap_manipulation_threshold_positive(self):
-        self.assertGreater(TWAP_MANIPULATION_THRESHOLD_PCT, 0)
-        self.assertLess(TWAP_MANIPULATION_THRESHOLD_PCT, 0.5)
+        assert TWAP_MANIPULATION_THRESHOLD_PCT > 0
+        assert TWAP_MANIPULATION_THRESHOLD_PCT < 0.5
 
 
 class TestEdgeCases(unittest.TestCase):
     """Edge case and boundary tests."""
 
     def test_empty_twap_samples_returns_none(self):
-        self.assertIsNone(_calculate_twap_from_samples([]))
+        assert _calculate_twap_from_samples([]) is None
 
     def test_single_sample_returns_none(self):
         samples = [PriceSnapshot(timestamp=1.0, block_number=1, price=100.0)]
-        self.assertIsNone(_calculate_twap_from_samples(samples))
+        assert _calculate_twap_from_samples(samples) is None
 
     def test_two_samples_returns_none(self):
         samples = [
             PriceSnapshot(timestamp=1.0, block_number=1, price=100.0),
             PriceSnapshot(timestamp=2.0, block_number=2, price=101.0),
         ]
-        self.assertIsNone(_calculate_twap_from_samples(samples))
+        assert _calculate_twap_from_samples(samples) is None
 
     def test_all_samples_same_price(self):
-        samples = [PriceSnapshot(timestamp=float(i), block_number=i, price=100.0) for i in range(10)]
+        samples = [
+            PriceSnapshot(timestamp=float(i), block_number=i, price=100.0) for i in range(10)
+        ]
         window = _calculate_twap_from_samples(samples)
-        self.assertIsNotNone(window)
-        self.assertEqual(window.std_dev_pct, 0.0)
+        assert window is not None
+        assert window.std_dev_pct == 0.0
 
     def test_extreme_price_spike(self):
         samples = [PriceSnapshot(timestamp=float(i), block_number=i, price=100.0) for i in range(9)]
         samples.append(PriceSnapshot(timestamp=10.0, block_number=10, price=10000.0))  # 100x spike
         window = _calculate_twap_from_samples(samples)
-        self.assertIsNotNone(window)
-        self.assertGreater(window.manipulation_risk(), 0.5)
+        assert window is not None
+        assert window.manipulation_risk() > 0.5
 
     def test_price_near_zero(self):
         read = OracleRead(
@@ -574,20 +568,20 @@ class TestEdgeCases(unittest.TestCase):
             expected_price=0.001,
         )
         dev = read.deviation_from_expected()
-        self.assertIsNotNone(dev)
+        assert dev is not None
         self.assertAlmostEqual(dev, 0.0)
 
     def test_classify_severity_extreme(self):
-        self.assertEqual(_classify_severity(1.0), Severity.CRITICAL)
-        self.assertEqual(_classify_severity(0.5), Severity.CRITICAL)
+        assert _classify_severity(1.0) == Severity.CRITICAL
+        assert _classify_severity(0.5) == Severity.CRITICAL
 
     def test_sandwich_pattern_small_window(self):
         prices = [100.0, 200.0, 100.0]
-        self.assertTrue(_is_sandwich_pattern(prices, window=1))
+        assert _is_sandwich_pattern(prices, window=1)
 
     def test_no_sandwich_missing_recovery(self):
         prices = [100.0, 100.0, 100.0, 200.0, 200.0, 200.0]
-        self.assertFalse(_is_sandwich_pattern(prices, window=2))
+        assert not _is_sandwich_pattern(prices, window=2)
 
 
 if __name__ == "__main__":

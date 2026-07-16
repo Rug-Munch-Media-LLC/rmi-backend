@@ -1,4 +1,5 @@
 """Alerts domain - public API + health check registration."""
+
 from __future__ import annotations
 
 from app.core import health as health_mod

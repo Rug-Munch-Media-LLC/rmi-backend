@@ -14,7 +14,6 @@ Birdeye, Helius.
 """
 
 import contextlib
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -23,6 +22,7 @@ import httpx
 
 from app.chain_client import ChainClient
 from app.chain_registry import is_evm, is_solana
+from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("governance_attack")
@@ -102,7 +102,9 @@ class GovernanceAttackDetector:
     async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
-            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            resp = await self._http.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
@@ -233,7 +235,9 @@ class GovernanceAttackDetector:
             )
         return sorted(holders, key=lambda h: h.percentage, reverse=True)
 
-    async def _check_evm_governance(self, token_address: str, chain: str) -> GovernanceParams | None:
+    async def _check_evm_governance(
+        self, token_address: str, chain: str
+    ) -> GovernanceParams | None:
         """Try to read governance parameters from EVM governor contract.
 
         Checks for OpenZeppelin Governor patterns by reading common
@@ -249,7 +253,8 @@ class GovernanceAttackDetector:
 
         # Detect governance presence
         has_governor = any(
-            kw in source_lower for kw in ["governor", "governance", "igovernor", "governorcompatibilitybravo"]
+            kw in source_lower
+            for kw in ["governor", "governance", "igovernor", "governorcompatibilitybravo"]
         )
 
         if not has_governor:
@@ -263,7 +268,9 @@ class GovernanceAttackDetector:
             try:
                 quorum_raw = int(quorum_result, 16)
                 # OpenZeppelin stores quorum as numerator / 1000 (e.g. 4 = 0.4%)
-                params.quorum_threshold_pct = quorum_raw / 1000.0 if quorum_raw < 1000 else quorum_raw / 1e18 * 100
+                params.quorum_threshold_pct = (
+                    quorum_raw / 1000.0 if quorum_raw < 1000 else quorum_raw / 1e18 * 100
+                )
             except (ValueError, ZeroDivisionError):
                 pass
 
@@ -292,7 +299,9 @@ class GovernanceAttackDetector:
 
         return params
 
-    def _check_solana_governance(self, dex_data: dict | None, birdeye_data: dict | None) -> GovernanceParams:
+    def _check_solana_governance(
+        self, dex_data: dict | None, birdeye_data: dict | None
+    ) -> GovernanceParams:
         """Infer governance risk for Solana SPL tokens.
 
         Solana doesn't have governor contracts in the EVM sense.
@@ -334,7 +343,9 @@ class GovernanceAttackDetector:
         # Top 10 concentration
         if report.top_10_holder_pct >= self.TOP_10_CRITICAL_PCT:
             score += 20
-            warnings.append(f"HIGH: Top 10 holders control {report.top_10_holder_pct:.1f}% - cartel risk")
+            warnings.append(
+                f"HIGH: Top 10 holders control {report.top_10_holder_pct:.1f}% - cartel risk"
+            )
         elif report.top_10_holder_pct >= 60:
             score += 10
             warnings.append(f"MEDIUM: Top 10 holders control {report.top_10_holder_pct:.1f}%")
@@ -342,7 +353,9 @@ class GovernanceAttackDetector:
         # No timelock
         if report.is_governed and not report.has_timelock:
             score += 20
-            warnings.append("HIGH: Governance changes have no timelock - instant execution possible")
+            warnings.append(
+                "HIGH: Governance changes have no timelock - instant execution possible"
+            )
         elif not report.has_timelock:
             score += 10
             warnings.append("MEDIUM: No timelock detected on admin functions")
@@ -350,14 +363,18 @@ class GovernanceAttackDetector:
         # Low quorum
         if report.quorum_threshold > 0 and report.quorum_threshold < self.LOW_QUORUM_PCT:
             score += 15
-            warnings.append(f"HIGH: Governance quorum only {report.quorum_threshold:.2f}% - easily gamed")
+            warnings.append(
+                f"HIGH: Governance quorum only {report.quorum_threshold:.2f}% - easily gamed"
+            )
 
         # Timelock too short
         if report.has_timelock and report.timelock_delay_seconds > 0:
             timelock_hours = report.timelock_delay_seconds / 3600
             if timelock_hours < self.MIN_TIMELOCK_HOURS:
                 score += 10
-                warnings.append(f"MEDIUM: Timelock only {timelock_hours:.1f}h - insufficient for reaction")
+                warnings.append(
+                    f"MEDIUM: Timelock only {timelock_hours:.1f}h - insufficient for reaction"
+                )
 
         # Governance risk flags from analysis
         for flag in report.governance_risk_flags:

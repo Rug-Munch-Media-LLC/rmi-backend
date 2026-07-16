@@ -65,7 +65,9 @@ def validate_labels():
             "invalids": invalids,
             "unique": len(seen),
         }
-        print(f"  {fname}: {count:,} rows, {dupes} dupes, {invalids} invalid - {results[fname]['status']}")
+        print(
+            f"  {fname}: {count:,} rows, {dupes} dupes, {invalids} invalid - {results[fname]['status']}"
+        )
 
     # Validate manifest
     if os.path.exists(MANIFEST_PATH):

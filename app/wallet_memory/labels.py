@@ -21,13 +21,13 @@ Returns a unified label report with deduplication and confidence scoring.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from typing import Any
 
 import httpx
 
 from app.chain_registry import is_evm, is_solana
+from app.core.logging import get_logger
 
 logger = get_logger("wallet_memory.labels")
 

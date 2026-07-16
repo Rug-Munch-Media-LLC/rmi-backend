@@ -1,10 +1,11 @@
 """Solana wallet labels CSV source - 103K SOL labels via DuckDB."""
+
 from __future__ import annotations
 
 import asyncio
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
+from app.core.logging import get_logger
 from app.domains.labels.models import Label, LabelSource
 
 log = get_logger(__name__)
@@ -59,7 +60,8 @@ async def query_solana_labels_csv(address: str, chain: str = "solana") -> list[L
                             confidence=0.8,
                             verified_at=datetime.now(UTC),
                             attributes={
-                                k: v for k, v in row.items()
+                                k: v
+                                for k, v in row.items()
                                 if k not in ("address", "name", "label") and v
                             },
                         )

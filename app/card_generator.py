@@ -5,11 +5,12 @@ Fast, consistent, professional trading platform aesthetic.
 """
 
 import hashlib
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 from PIL import Image, ImageDraw, ImageFont
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -488,7 +489,9 @@ async def generate_kol_scorecard(
     return generate_card("kol_scorecard", data)
 
 
-async def generate_rug_call_card(token_symbol: str, amount_stolen: float, victims: int, rug_type: str) -> dict:
+async def generate_rug_call_card(
+    token_symbol: str, amount_stolen: float, victims: int, rug_type: str
+) -> dict:
     """Generate rugpull alert card."""
     data = {
         "token_symbol": token_symbol.upper(),
@@ -513,7 +516,9 @@ async def generate_whale_alert_card(
     return generate_card("whale_move", data)
 
 
-async def generate_smart_money_card(wallet_label: str, token_symbol: str, position_size: float, pnl: float) -> dict:
+async def generate_smart_money_card(
+    wallet_label: str, token_symbol: str, position_size: float, pnl: float
+) -> dict:
     """Generate smart money pick card."""
     data = {
         "wallet_label": wallet_label,

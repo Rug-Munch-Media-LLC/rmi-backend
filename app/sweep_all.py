@@ -177,7 +177,10 @@ for w in sweepable:
             )
             sweep_usd = float(w3.from_wei(sweep_wei, "ether")) * 2500
             results["total_usd"] += sweep_usd
-            print("  \033[32mOK\033[0m  %-6s %s -> %s ($%.2f)" % (w.chain, w.address[:12], owner[:12], sweep_usd))  # noqa: UP031
+            print(
+                "  \033[32mOK\033[0m  %-6s %s -> %s ($%.2f)"
+                % (w.chain, w.address[:12], owner[:12], sweep_usd)
+            )
 
         elif w.chain == "sol":
             # ── Solana sweep ──
@@ -238,7 +241,10 @@ for w in sweepable:
                 }
             )
             results["total_usd"] += sweep_sol * 75  # Approx SOL price
-            print("  \033[32mOK\033[0m  %-6s %s -> %s (%.4f SOL)" % (w.chain, w.address[:12], owner[:12], sweep_sol))  # noqa: UP031
+            print(
+                "  \033[32mOK\033[0m  %-6s %s -> %s (%.4f SOL)"
+                % (w.chain, w.address[:12], owner[:12], sweep_sol)
+            )
 
     except Exception as e:
         results["errors"].append({"chain": w.chain, "address": w.address, "error": str(e)})

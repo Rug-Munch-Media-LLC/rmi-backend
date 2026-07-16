@@ -1,11 +1,11 @@
 """Pydantic models for structured agent outputs using Instructor."""
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class RiskTier(str, Enum):
+class RiskTier(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"

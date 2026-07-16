@@ -7,11 +7,11 @@ BNB Chain x402 facilitator with instant settlement.
 Supports USDC and USDT on BSC mainnet.
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,
@@ -152,14 +152,17 @@ class PieverseFacilitator(Facilitator):
     async def _settle_live(self, payment_data: dict[str, Any]) -> SettlementResult:
         try:
             timeout = aiohttp.ClientTimeout(total=30)
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                self._config.pieverse_settle_url,
-                json={"paymentData": payment_data},
-                headers={
-                    "Content-Type": "application/json",
-                    "X-API-Key": self._config.pieverse_api_key,
-                },
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.post(
+                    self._config.pieverse_settle_url,
+                    json={"paymentData": payment_data},
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-API-Key": self._config.pieverse_api_key,
+                    },
+                ) as resp,
+            ):
                 data = await resp.json()
                 if resp.status == 200:
                     return SettlementResult(
@@ -176,4 +179,6 @@ class PieverseFacilitator(Facilitator):
                     facilitator=self.name,
                 )
         except Exception as e:
-            return SettlementResult(settled=False, reason=f"Pieverse settlement error: {e}", facilitator=self.name)
+            return SettlementResult(
+                settled=False, reason=f"Pieverse settlement error: {e}", facilitator=self.name
+            )

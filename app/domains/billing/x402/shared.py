@@ -27,12 +27,13 @@ that future audit-tracked fix (issue: fix(f821)) has a clear home.
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import os
 from typing import Any, ClassVar
 
 import aiohttp
 from pydantic import BaseModel, Field
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402_tools")
 
@@ -835,46 +836,46 @@ class SentinelModuleRequest(BaseModel):
 
 # Re-exported for tools that mirror legacy symbols
 __all__ = [
-    # logger
-    "logger",
-    # sources
-    "FREE_RPCS",
-    "FREE_APIS",
-    # helpers
-    "fetch_with_fallback",
-    "rpc_call",
-    "_audit_solana",
-    "_audit_evm",
     # pricing + aliases
     "BUNDLES",
-    "TOOL_ALIASES",
+    "FREE_APIS",
+    # sources
+    "FREE_RPCS",
     # payment routing
     "HUMAN_PAYMENT_TOKENS",
     "HUMAN_PAY_TO",
-    "_resolve_pay_to",
-    # payment stub (P3A surface)
-    "record_x402_payment",
+    "TOOL_ALIASES",
+    "AuditRequest",
+    "BundleRequest",
+    "ClassVar",
+    "ClusterRequest",
+    "GenericRequest",
+    "HumanPaymentMethodsResponse",
+    "HumanPaymentRequest",
+    "InsiderRequest",
+    "MCPProxyRequest",
+    "MemeVibeRequest",
+    "MultiTokenRequest",
+    "SentimentRequest",
+    "SentinelModuleRequest",
+    "SentinelScanRequest",
+    "SmartMoneyAlphaRequest",
+    "SmartMoneyRequest",
     # request models
     "TokenRequest",
-    "WalletRequest",
-    "SmartMoneyRequest",
     "URLRequest",
-    "SentimentRequest",
-    "ClusterRequest",
-    "InsiderRequest",
-    "MultiTokenRequest",
     "WalletListRequest",
-    "GenericRequest",
-    "BundleRequest",
-    "MCPProxyRequest",
-    "HumanPaymentRequest",
-    "HumanPaymentMethodsResponse",
-    "AuditRequest",
-    "SmartMoneyAlphaRequest",
-    "MemeVibeRequest",
-    "SentinelScanRequest",
-    "SentinelModuleRequest",
+    "WalletRequest",
+    "_audit_evm",
+    "_audit_solana",
+    "_resolve_pay_to",
+    # helpers
+    "fetch_with_fallback",
+    # logger
+    "logger",
+    # payment stub (P3A surface)
+    "record_x402_payment",
+    "rpc_call",
     # upstream aliases from other libs (used by _check_rate_limit etc.)
     "td",
-    "ClassVar",
 ]

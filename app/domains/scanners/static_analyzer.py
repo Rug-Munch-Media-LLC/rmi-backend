@@ -15,7 +15,6 @@ For Solana / non-Solidity: return gracefully with low-risk defaults.
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 import shutil
 import subprocess
@@ -26,6 +25,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import CHAINS, is_evm, is_solana
+from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("static_analyzer")

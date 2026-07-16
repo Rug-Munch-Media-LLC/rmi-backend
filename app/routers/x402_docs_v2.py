@@ -15,6 +15,7 @@ router = APIRouter(tags=["API-Docs"])
 
 SEO_KEYWORDS = "x402 protocol, crypto intelligence API, blockchain token scanner, rug pull detection, USDC payment gateway, crypto scam detection API, web3 security API, on-chain analysis API, token risk assessment, wallet forensics API, blockchain API pay-per-call, MCP crypto tools, DeFi security API, smart contract scam detector"
 
+
 def _page(title: str, body: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -73,7 +74,10 @@ a:hover{{text-decoration:underline}}
 @router.get("/docs/v2/landing")
 async def landing_page():
     """Landing page - the product is token intelligence, not x402."""
-    return HTMLResponse(content=_page("RugMunch Intelligence API", """
+    return HTMLResponse(
+        content=_page(
+            "RugMunch Intelligence API",
+            """
 <h2>Token Intelligence for Every Developer</h2>
 <p style="font-size:16px;margin-bottom:24px">
 Scan tokens for rug pulls. Analyze wallets for risk. Detect scams before they steal.
@@ -123,12 +127,17 @@ the open standard for pay-per-call blockchain API access with USDC settlement.
 The x402 protocol handles USDC settlement on Base, Solana, Ethereum, and Polygon.
 Your API key is all you need. We handle the blockchain.
 </div>
-"""))
+""",
+        )
+    )
 
 
 @router.get("/docs/v2/quickstart")
 async def quickstart():
-    return HTMLResponse(content=_page("Quickstart", """
+    return HTMLResponse(
+        content=_page(
+            "Quickstart",
+            """
 <h2>Quickstart - Try It in 30 Seconds</h2>
 <p>No crypto wallet needed. No USDC. Just a credit card or free API key.</p>
 
@@ -172,12 +181,17 @@ Advanced users can pay with USDC via the x402 protocol for on-chain settlement.
 Your API key tracks your balance across both payment methods. No wallet, no gas fees,
 no seed phrases to lose.
 </div>
-"""))
+""",
+        )
+    )
 
 
 @router.get("/docs/v2/api-reference")
 async def api_reference():
-    return HTMLResponse(content=_page("API Reference", """
+    return HTMLResponse(
+        content=_page(
+            "API Reference",
+            """
 <h2>API Reference</h2>
 <p>All endpoints accept JSON and return JSON. Authenticate with <code>X-API-Key</code> header.</p>
 
@@ -227,11 +241,14 @@ const resp = await fetch("https://api.rugmunch.io/v1/token/scan", {
 });
 const data = await resp.json();
 console.log(data);</pre>
-"""))
+""",
+        )
+    )
 
 
 @router.get("/old-docs")
 async def redirect_old_docs():
     """Redirect old x402 docs to the new developer-friendly docs."""
     from fastapi.responses import RedirectResponse
+
     return RedirectResponse(url="/docs")

@@ -1,10 +1,11 @@
 """Ethereum wallet labels CSV source - 51K EVM labels via DuckDB."""
+
 from __future__ import annotations
 
 import asyncio
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
+from app.core.logging import get_logger
 from app.domains.labels.models import Label, LabelSource
 
 log = get_logger(__name__)
@@ -18,6 +19,7 @@ async def query_ethereum_labels_csv(address: str, chain: str = "ethereum") -> li
     Schema:
       address,chain,source,name,entity_type,threat_group,risk_level,verified
     """
+
     def _query() -> list[Label]:
         from app.core.duckdb_analytics import DuckDBAnalytics
 

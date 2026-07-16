@@ -9,7 +9,6 @@ Read-through: Redis first, Supabase on miss.
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -17,6 +16,8 @@ from functools import wraps
 from typing import Any
 
 from dotenv import load_dotenv
+
+from app.core.logging import get_logger
 
 # Load .env with override to ensure JWT keys win over stale Docker env vars
 load_dotenv("/app/.env", override=True)

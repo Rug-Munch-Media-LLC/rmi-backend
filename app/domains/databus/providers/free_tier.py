@@ -15,7 +15,9 @@ Providers:
 - _passthrough_market_overview, _passthrough_trending, _passthrough_news,
   _passthrough_alerts, _passthrough_scanner, _passthrough_rag
 """
+
 from app.databus.providers import (  # noqa: F401
+    _coindesk_news,
     _coingecko_price,
     _defillama_chains,
     _defillama_tvl,
@@ -26,12 +28,11 @@ from app.databus.providers import (  # noqa: F401
     _dexscreener_trades,
     _local_token_price,
     _local_wallet_labels,
+    _messari_news,
     _passthrough_alerts,
     _passthrough_market_overview,
     _passthrough_news,
     _passthrough_rag,
     _passthrough_scanner,
     _passthrough_trending,
-    _coindesk_news,
-    _messari_news,
 )

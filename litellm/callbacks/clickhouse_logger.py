@@ -12,7 +12,7 @@ import os
 CLICKHOUSE_HOST = os.getenv("CH_HOST", "rmi-clickhouse")
 CLICKHOUSE_PORT = int(os.getenv("CH_PORT", "9000"))
 CLICKHOUSE_USER = os.getenv("CH_USER", "rmi")
-CLICKHOUSE_PASSWORD = os.getenv("CH_PASSWORD", "RMI_PROD_CLICKHOUSE_2026")
+CLICKHOUSE_PASSWORD = os.environ["CH_PASSWORD"]
 
 
 def log_success_event(
@@ -25,7 +25,7 @@ def log_success_event(
     try:
         model = kwargs.get("model", "unknown")
         agent = kwargs.get("metadata", {}).get("agent_name", "litellm-proxy")
-        completion_start = kwargs.get("completion_start_time", start_time)
+        kwargs.get("completion_start_time", start_time)
 
         usage = getattr(response_obj, "usage", None)
         if usage is None:

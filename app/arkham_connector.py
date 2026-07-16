@@ -6,12 +6,13 @@ Auth header: API-Key (from /root/.secrets/arkham_api_key or ARKHAM_API_KEY env v
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import time
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

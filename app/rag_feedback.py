@@ -22,8 +22,9 @@ the smarter the RAG gets.
 """
 
 import contextlib
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("rag.feedback")
 
@@ -66,7 +67,9 @@ async def record_scanner_result(
 
     try:
         is_scam = verdict in ("scam", "honeypot", "rug", "critical")
-        adjustment = SCAM_CONFIRMED_BOOST if is_scam else FALSE_POSITIVE_PENALTY if verdict == "safe" else 0
+        adjustment = (
+            SCAM_CONFIRMED_BOOST if is_scam else FALSE_POSITIVE_PENALTY if verdict == "safe" else 0
+        )
 
         if adjustment == 0:
             await r.aclose()

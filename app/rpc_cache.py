@@ -17,7 +17,6 @@ Depends on: redis (>=5.0) for L2; falls back gracefully if not installed.
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 import os
 import re
 import time
@@ -25,6 +24,8 @@ from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

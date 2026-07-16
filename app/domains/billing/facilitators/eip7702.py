@@ -22,11 +22,11 @@ Chains supported (expandable via RPC config):
 Tokens supported: USDC, USDT, DAI, WBTC, WETH, native coins (ETH, POL, AVAX, etc.)
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,

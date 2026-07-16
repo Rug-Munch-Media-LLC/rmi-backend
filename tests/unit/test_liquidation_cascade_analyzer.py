@@ -217,7 +217,9 @@ class TestProtocolPositionHealth:
         # HF = (100000 * 0.83) / 55000 = 1.51 (> 1.5 → WATCH)
         pos = self.make_position(debt_usd=55000.0)
         assert pos.health_factor is not None
-        assert pos.risk_tier == RiskTier.WATCH, f"Expected WATCH, got {pos.risk_tier} (HF={pos.health_factor})"
+        assert pos.risk_tier == RiskTier.WATCH, (
+            f"Expected WATCH, got {pos.risk_tier} (HF={pos.health_factor})"
+        )
         assert 1.5 <= pos.health_factor < 2.0
 
     def test_danger_high_debt(self):
@@ -225,7 +227,9 @@ class TestProtocolPositionHealth:
         # HF = (100000 * 0.83) / 70000 = 1.19 (> 1.1 → DANGER)
         pos = self.make_position(debt_usd=70000.0)
         assert pos.health_factor is not None
-        assert pos.risk_tier == RiskTier.DANGER, f"Expected DANGER, got {pos.risk_tier} (HF={pos.health_factor})"
+        assert pos.risk_tier == RiskTier.DANGER, (
+            f"Expected DANGER, got {pos.risk_tier} (HF={pos.health_factor})"
+        )
         assert 1.1 <= pos.health_factor < 1.5
 
     def test_critical_extreme_debt(self):
@@ -233,7 +237,9 @@ class TestProtocolPositionHealth:
         # HF = (100000 * 0.83) / 95000 = 0.87 (< 1.1 → CRITICAL)
         pos = self.make_position(debt_usd=95000.0)
         assert pos.health_factor is not None
-        assert pos.risk_tier == RiskTier.CRITICAL, f"Expected CRITICAL, got {pos.risk_tier} (HF={pos.health_factor})"
+        assert pos.risk_tier == RiskTier.CRITICAL, (
+            f"Expected CRITICAL, got {pos.risk_tier} (HF={pos.health_factor})"
+        )
         assert 0 < pos.health_factor < 1.1
 
     def test_liquidation_price_computed(self):
@@ -283,7 +289,9 @@ class TestProtocolPositionHealth:
         # Weighted threshold: (60000*0.79 + 40000*0.85) / 100000 = (47400+34000)/100000 = 0.814
         # HF = (100000 * 0.814) / 50000 = 1.628
         assert pos.health_factor is not None
-        assert pos.risk_tier == RiskTier.WATCH, f"Expected WATCH, got {pos.risk_tier} (HF={pos.health_factor})"
+        assert pos.risk_tier == RiskTier.WATCH, (
+            f"Expected WATCH, got {pos.risk_tier} (HF={pos.health_factor})"
+        )
         assert 1.5 < pos.health_factor < 1.8
 
 
@@ -701,7 +709,9 @@ class TestEdgeCases:
         assert "test error" in d["errors"]
 
     @staticmethod
-    def _make_sample_position(debt_usd=50000.0, coll_usd=100000.0, chain="ethereum", protocol="Aave V3"):
+    def _make_sample_position(
+        debt_usd=50000.0, coll_usd=100000.0, chain="ethereum", protocol="Aave V3"
+    ):
         coll = CollateralPosition(
             asset="WETH",
             asset_address="0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",

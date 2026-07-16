@@ -8,11 +8,11 @@ Supports BTC payment with settlement on Base, Base Sepolia,
 Solana Mainnet, and Solana Devnet.
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,
@@ -122,15 +122,20 @@ class SatoshiFacilitator(Facilitator):
 
         try:
             timeout = aiohttp.ClientTimeout(total=max(self._config.facilitator_verify_timeout, 30))
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                self._config.satoshi_verify_url,
-                json=body,
-                headers=headers,
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.post(
+                    self._config.satoshi_verify_url,
+                    json=body,
+                    headers=headers,
+                ) as resp,
+            ):
                 data = await resp.json()
 
                 if resp.status != 200:
-                    return self._format_error(f"Satoshi: {data.get('error', f'HTTP {resp.status}')}")
+                    return self._format_error(
+                        f"Satoshi: {data.get('error', f'HTTP {resp.status}')}"
+                    )
 
                 if data.get("isValid") or data.get("verified"):
                     settlement_chain = data.get("settlementChain", "base" if not is_btc else "base")  # noqa: RUF034
@@ -172,7 +177,9 @@ class SatoshiFacilitator(Facilitator):
         """Settle BTC payment on target chain (Base or Solana)."""
         try:
             is_btc = payment_data.get("token", "").upper() == "BTC"
-            settle_url = self._config.satoshi_btc_settle_url if is_btc else self._config.satoshi_settle_url
+            settle_url = (
+                self._config.satoshi_btc_settle_url if is_btc else self._config.satoshi_settle_url
+            )
 
             body = {
                 "paymentData": payment_data,
@@ -181,17 +188,22 @@ class SatoshiFacilitator(Facilitator):
                 body["settlementChain"] = payment_data.get("settlement_chain", "base")
 
             timeout = aiohttp.ClientTimeout(total=60)  # BTC cross-chain takes longer
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                settle_url,
-                json=body,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-Satoshi-API-Key": self._config.satoshi_api_key,
-                },
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.post(
+                    settle_url,
+                    json=body,
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Satoshi-API-Key": self._config.satoshi_api_key,
+                    },
+                ) as resp,
+            ):
                 data = await resp.json()
                 if resp.status == 200:
-                    target_chain = payment_data.get("settlement_chain", payment_data.get("chain", "base"))
+                    target_chain = payment_data.get(
+                        "settlement_chain", payment_data.get("chain", "base")
+                    )
                     return SettlementResult(
                         settled=True,
                         settlement_id=data.get("settlementId"),

@@ -18,7 +18,6 @@ Data sources (direct API calls - no self.api_base):
   Moralis: Cross-chain wallet token history
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -27,6 +26,7 @@ from enum import Enum
 import httpx
 
 from app.chain_registry import CHAINS
+from app.core.logging import get_logger
 
 logger = get_logger("dev_reputation")
 
@@ -140,7 +140,9 @@ class DevReputationEngine:
     async def _dexscreener_search(self, query: str) -> dict | None:
         """Search DexScreener for pairs matching a query (deployer address, etc.)."""
         try:
-            resp = await self.client.get(f"{DEXSCREENER_URL}/latest/dex/search", params={"q": query})
+            resp = await self.client.get(
+                f"{DEXSCREENER_URL}/latest/dex/search", params={"q": query}
+            )
             if resp.status_code == 200:
                 return resp.json()
         except Exception as e:
@@ -192,7 +194,9 @@ class DevReputationEngine:
             logger.warning("MORALIS_API_KEY not set")
             return None
         try:
-            resp = await self.client.get(url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"})
+            resp = await self.client.get(
+                url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"}
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
@@ -204,7 +208,9 @@ class DevReputationEngine:
 
     # ── Core logic ──────────────────────────────────────────
 
-    def calculate_reputation(self, launches: list[TokenLaunch], dev_wallet: str) -> DevReputationReport:
+    def calculate_reputation(
+        self, launches: list[TokenLaunch], dev_wallet: str
+    ) -> DevReputationReport:
         """Calculate reputation from known token launches."""
         if not launches:
             return DevReputationReport(
@@ -231,13 +237,17 @@ class DevReputationEngine:
 
         avg_lifespan = sum(line.lifespan_days for line in launches) / total if total else 0
         avg_mcap = sum(line.max_market_cap for line in launches) / total if total else 0
-        retention = sum(1 for line in launches if line.dev_holds_percentage > 0) / total if total else 0
+        retention = (
+            sum(1 for line in launches if line.dev_holds_percentage > 0) / total if total else 0
+        )
 
         # Detect serial patterns
         patterns = self._detect_serial_patterns(launches)
 
         # Calculate reputation score
-        score, level, confidence = self._calculate_score(total, rugged, rug_rate, avg_lifespan, retention, patterns)
+        score, level, confidence = self._calculate_score(
+            total, rugged, rug_rate, avg_lifespan, retention, patterns
+        )
 
         # Calculate Dev Threat Index: (Holdings% x Reputation) / LockDays
         avg_holdings = sum(line.dev_holds_percentage for line in launches) / total if total else 0
@@ -253,10 +263,14 @@ class DevReputationEngine:
         if rug_rate >= 0.8 and total >= 3:
             warnings.append(f"SERIAL RUGGER: {rugged}/{total} projects rugged")
         elif rug_rate >= 0.5:
-            warnings.append(f"HIGH RUG RATE: {rugged}/{total} projects rugged ({rug_rate * 100:.0f}%)")
+            warnings.append(
+                f"HIGH RUG RATE: {rugged}/{total} projects rugged ({rug_rate * 100:.0f}%)"
+            )
 
         if avg_lifespan < 7 and total >= 2:
-            warnings.append(f"SHORT-LIVED: Average lifespan {avg_lifespan:.1f} days - quick-exit pattern")
+            warnings.append(
+                f"SHORT-LIVED: Average lifespan {avg_lifespan:.1f} days - quick-exit pattern"
+            )
 
         if retention < 0.2 and total >= 2:
             warnings.append(f"DUMP & RUN: Dev holds 0% in {(1 - retention) * 100:.0f}% of projects")
@@ -306,7 +320,9 @@ class DevReputationEngine:
             patterns.append(f"Short-lived projects (avg {avg_lifespan:.1f} days)")
 
         # Pattern 3: Dev dumps entire allocation before rug
-        zero_hold = sum(1 for line in launches if line.outcome == "rugged" and line.dev_holds_percentage < 1)
+        zero_hold = sum(
+            1 for line in launches if line.outcome == "rugged" and line.dev_holds_percentage < 1
+        )
         if zero_hold >= 2:
             patterns.append(f"Dev dumps before rug ({zero_hold} times)")
 
@@ -324,7 +340,9 @@ class DevReputationEngine:
         if len(timestamps) >= 3:
             timestamps.sort()
             close_launches = sum(
-                1 for i in range(1, len(timestamps)) if (timestamps[i] - timestamps[i - 1]) < 7 * 86400000
+                1
+                for i in range(1, len(timestamps))
+                if (timestamps[i] - timestamps[i - 1]) < 7 * 86400000
             )
             if close_launches >= 2:
                 patterns.append(f"Rapid-fire launches ({close_launches + 1} in same week)")
@@ -381,7 +399,9 @@ class DevReputationEngine:
 
         return score, level, confidence
 
-    async def analyze(self, dev_wallet: str, chains: list[str] | None = None) -> DevReputationReport:
+    async def analyze(
+        self, dev_wallet: str, chains: list[str] | None = None
+    ) -> DevReputationReport:
         """Full dev reputation analysis.
 
         Steps:

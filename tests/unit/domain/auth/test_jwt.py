@@ -6,12 +6,10 @@ Mocks JWT_SECRET and uses datetime patching instead of freezegun.
 
 from __future__ import annotations
 
-import time as time_module
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import patch
 
 import jwt as pyjwt
-import pytest
 
 
 class TestCreateJWT:
@@ -72,7 +70,7 @@ class TestCreateJWT:
             patch("app.domains.auth.__init__.datetime") as mock_dt,
         ):
             fixed_now = datetime(2026, 7, 14, 12, 0, 0)
-            mock_dt.utcnow.return_value = fixed_now
+            mock_dt.now.return_value = fixed_now
             # We also need to mock timedelta
             token = _create_jwt(user_id="u1", email="u@example.com")
             payload = pyjwt.decode(token, secret, algorithms=["HS256"])

@@ -79,7 +79,9 @@ async def get_address_profile(address: str, chains: str = Query(None)):
     labels = await _fetch_eth_labels(address)
 
     # Compute profile
-    chains_active = [r for r in chain_results if r.get("balance_usd", 0) > 0 or r.get("tx_count", 0) > 0]
+    chains_active = [
+        r for r in chain_results if r.get("balance_usd", 0) > 0 or r.get("tx_count", 0) > 0
+    ]
     total_value = sum(r.get("balance_usd", 0) or 0 for r in chains_active)
 
     # Risk scoring (simple heuristic)

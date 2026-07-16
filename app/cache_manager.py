@@ -356,7 +356,9 @@ class RMICache:
                 self._mem_set(key, data, ttl)
                 # Track bytes saved
                 with contextlib.suppress(Exception):
-                    st["bytes_saved"] = st.get("bytes_saved", 0) + len(json.dumps(data, default=str))
+                    st["bytes_saved"] = st.get("bytes_saved", 0) + len(
+                        json.dumps(data, default=str)
+                    )
             return data
         except Exception:
             return None

@@ -3,6 +3,7 @@
 Creates the tables referenced by the v4.0 catalog models.
 Idempotent: safe to run multiple times.
 """
+
 from __future__ import annotations
 
 import asyncio

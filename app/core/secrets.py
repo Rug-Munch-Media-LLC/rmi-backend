@@ -11,9 +11,10 @@ Usage:
     key = get_secret("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
 """
 
-from app.core.logging import get_logger
 import os
 import subprocess
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

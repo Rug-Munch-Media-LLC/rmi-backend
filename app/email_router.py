@@ -4,12 +4,13 @@ Uses listmonk API for newsletters + transactional emails.
 SMTP relay: Gmail (cryptorugmuncher@gmail.com)
 """
 
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, HTTPException
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/email", tags=["email"])

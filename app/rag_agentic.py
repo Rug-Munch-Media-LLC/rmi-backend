@@ -28,7 +28,6 @@ What elevates RAG from "search tool" to "intelligence analyst":
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import re
 from collections.abc import AsyncGenerator
@@ -36,6 +35,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -154,7 +155,8 @@ Return a JSON list sorted by score descending. Only return the JSON, nothing els
                                     "llm_reasoning": item.get("reasoning", ""),
                                     "llm_flags": item.get("flags", ""),
                                     "confidence": round(
-                                        0.6 * item.get("score", 0) + 0.4 * doc_map[doc_id].get("similarity", 0),
+                                        0.6 * item.get("score", 0)
+                                        + 0.4 * doc_map[doc_id].get("similarity", 0),
                                         4,
                                     ),
                                 }
@@ -367,7 +369,9 @@ Return as JSON. Be precise and evidence-based."""
 
         try:
             if action == "scam_pattern":
-                results = await search_multi_collection(query, collections=["known_scams", "scam_patterns"], limit=10)
+                results = await search_multi_collection(
+                    query, collections=["known_scams", "scam_patterns"], limit=10
+                )
             elif action == "code_audit":
                 results = await search_similar(query, "contract_audits", limit=10)
             elif action == "deployer_check":
@@ -407,20 +411,28 @@ Return as JSON. Be precise and evidence-based."""
         """Synthesize final assessment from all findings."""
         if not self.api_key:
             # Heuristic synthesis without LLM
-            high_risk = sum(1 for r in reranked if r.get("severity", "").lower() in ("critical", "high"))
+            high_risk = sum(
+                1 for r in reranked if r.get("severity", "").lower() in ("critical", "high")
+            )
             total = len(reranked) or 1
             return {
                 "overall_risk": "HIGH" if high_risk / total > 0.3 else "MEDIUM",
                 "confidence": min(0.9, high_risk / max(1, total)),
                 "evidence_count": len(reranked),
-                "scam_patterns_found": [r.get("metadata", {}).get("name", "") for r in reranked[:5]],
-                "recommendation": "Avoid - high risk indicators detected" if high_risk > 0 else "Proceed with caution",
+                "scam_patterns_found": [
+                    r.get("metadata", {}).get("name", "") for r in reranked[:5]
+                ],
+                "recommendation": "Avoid - high risk indicators detected"
+                if high_risk > 0
+                else "Proceed with caution",
             }
 
         # Build findings summary
         finding_text = ""
         for f in findings:
-            finding_text += f"\nHop {f['hop']}: {f['action']} - {f['result'].get('count', 0)} results\n"
+            finding_text += (
+                f"\nHop {f['hop']}: {f['action']} - {f['result'].get('count', 0)} results\n"
+            )
             for doc in f.get("result", {}).get("documents", [])[:3]:
                 finding_text += f"  - {doc.get('content', '')[:200]}\n"
 

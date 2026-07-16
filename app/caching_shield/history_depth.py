@@ -19,9 +19,10 @@ Cache integration:
   - Pagination queries: TTL 180s
 """
 
-from app.core.logging import get_logger
 import time
 from collections import OrderedDict
+
+from app.core.logging import get_logger
 
 logger = get_logger("history_depth")
 

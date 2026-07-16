@@ -15,7 +15,6 @@ Date: 2026-05-20
 import asyncio
 import contextlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
@@ -23,6 +22,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402_dashboard")
 
@@ -131,7 +132,9 @@ async def _sync_spent_tx_to_supabase():
                             "payer": payer,
                             "tx_hash": tx_hash,
                             "status": "fulfilled",
-                            "created_at": datetime.fromtimestamp(data.get("timestamp", time.time()), tz=UTC).isoformat()
+                            "created_at": datetime.fromtimestamp(
+                                data.get("timestamp", time.time()), tz=UTC
+                            ).isoformat()
                             if data.get("timestamp")
                             else datetime.now(UTC).isoformat(),
                         },
@@ -279,7 +282,9 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
     today_earnings_usdc = today_earnings / 1e6
 
     earnings_by_chain_usdc = {k: v / 1e6 for k, v in earnings_by_chain.items()}
-    earnings_by_day_usdc = {k: v / 1e6 for k, v in sorted(earnings_by_day.items())[-30:]}  # Last 30 days
+    earnings_by_day_usdc = {
+        k: v / 1e6 for k, v in sorted(earnings_by_day.items())[-30:]
+    }  # Last 30 days
     tool_revenue_usdc = {k: v / 1e6 for k, v in tool_revenue.items()}
 
     # Top tools by revenue
@@ -293,7 +298,9 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
         "earnings_by_chain": earnings_by_chain_usdc,
         "earnings_by_day": earnings_by_day_usdc,
         "unique_payers": len(unique_payers),
-        "top_tools_by_revenue": [{"tool": t, "revenue_usdc": round(r, 6)} for t, r in top_tools_revenue],
+        "top_tools_by_revenue": [
+            {"tool": t, "revenue_usdc": round(r, 6)} for t, r in top_tools_revenue
+        ],
         "top_tools_by_usage": [{"tool": t, "calls": c} for t, c in top_tools_usage],
     }
 
@@ -322,7 +329,7 @@ def _aggregate_trial_stats(r) -> dict[str, Any]:
                 # Categorize identity
                 if client_id.startswith("w:"):
                     unique_wallets.add(client_id)
-                elif client_id.startswith("dev:") or client_id.startswith("ts:"):
+                elif client_id.startswith(("dev:", "ts:")):
                     unique_fingerprints.add(client_id)
                 else:
                     unique_fingerprints.add(client_id)
@@ -404,7 +411,9 @@ async def x402_dashboard():
         try:
             from app.services.supabase_service import _get, get_x402_earnings_summary
 
-            rows = await _get("x402_payments", select="id,amount_atoms,chain,tool,status", limit=5000)
+            rows = await _get(
+                "x402_payments", select="id,amount_atoms,chain,tool,status", limit=5000
+            )
             supabase_count = len(rows)
             for row in rows:
                 with contextlib.suppress(ValueError, TypeError):

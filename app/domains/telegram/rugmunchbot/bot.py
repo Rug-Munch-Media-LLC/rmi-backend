@@ -12,17 +12,13 @@ Run: cd /root/backend/app/telegram_bot && python3 bot.py
 
 import asyncio
 import logging
-from app.core.logging import get_logger
 import random
 import re
 import sys
 import time
-from datetime import UTC, datetime
-from datetime import time as dtime
-from pathlib import Path
-from urllib.parse import quote
-
+from datetime import UTC, datetime, time as dtime
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from telegram import (
@@ -44,6 +40,8 @@ from telegram.ext import (
     PreCheckoutQueryHandler,
     filters,
 )
+
+from app.core.logging import get_logger
 
 # ── Local imports ──
 sys.path.insert(0, "/srv/work/repos/rmi-backend/app/telegram_bot")
@@ -2271,61 +2269,61 @@ _HANDLER_REGISTRY = [
 
 __all__ = [
     "RugMunchBot",
-    "main",
-    "cmd_start",
-    "cmd_help",
-    "cmd_scan",
-    "cmd_wallet",
-    "cmd_ta",
-    "cmd_compare",
-    "cmd_quick",
-    "cmd_rugcheck",
-    "cmd_trending",
-    "cmd_news",
-    "cmd_account",
-    "cmd_pricing",
-    "cmd_topup",
-    "cmd_scamschool",
-    "cmd_refer",
-    "cmd_watchlist",
-    "cmd_watch",
-    "cmd_unwatch",
-    "cmd_alerts",
-    "cmd_admin_stats",
-    "cmd_admin_set_tier",
-    "cmd_admin_broadcast",
-    "cmd_admin_ban",
-    "handle_message",
-    "handle_inline",
-    "handle_callback",
-    "precheckout",
-    "successful_payment",
-    "error_handler",
-    "setup_bot_profile",
-    "daily_scam_tip",
-    "scan_token",
     "analyze_wallet",
+    "back_kb",
+    "check_spam",
+    "cmd_account",
+    "cmd_admin_ban",
+    "cmd_admin_broadcast",
+    "cmd_admin_set_tier",
+    "cmd_admin_stats",
+    "cmd_alerts",
+    "cmd_compare",
+    "cmd_help",
+    "cmd_news",
+    "cmd_pricing",
+    "cmd_quick",
+    "cmd_refer",
+    "cmd_rugcheck",
+    "cmd_scamschool",
+    "cmd_scan",
+    "cmd_start",
+    "cmd_ta",
+    "cmd_topup",
+    "cmd_trending",
+    "cmd_unwatch",
+    "cmd_wallet",
+    "cmd_watch",
+    "cmd_watchlist",
+    "daily_scam_tip",
+    "detect_chain",
+    "dex_buttons",
+    "error_handler",
+    "footer_links",
     "format_scan_report",
     "format_wallet_report",
-    "check_spam",
-    "is_owner",
+    "handle_callback",
+    "handle_inline",
+    "handle_message",
     "is_evm",
+    "is_owner",
     "is_sol",
-    "detect_chain",
-    "short_addr",
+    "main",
     "main_menu_kb",
-    "scan_result_kb",
-    "pricing_kb",
-    "topup_kb",
-    "scamschool_kb",
-    "back_kb",
-    "social_kb",
-    "paywall_text",
     "paywall_kb",
-    "social_proof_text",
-    "footer_links",
-    "web_scan_button",
-    "dex_buttons",
+    "paywall_text",
+    "precheckout",
+    "pricing_kb",
+    "scamschool_kb",
+    "scan_result_kb",
+    "scan_token",
     "sep",
+    "setup_bot_profile",
+    "short_addr",
+    "social_kb",
+    "social_proof_text",
+    "successful_payment",
     "thin_sep",
+    "topup_kb",
+    "web_scan_button",
 ]

@@ -4,8 +4,9 @@ All free/public APIs, no API keys required.
 Uses Warpcast v2 API (free, no auth needed for public data).
 """
 
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

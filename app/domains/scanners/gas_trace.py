@@ -17,7 +17,6 @@ Uses:
   - Known CEX hot wallet registry from chain_registry
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -29,6 +28,7 @@ from app.chain_registry import (
     is_evm,
     is_solana,
 )
+from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
 logger = get_logger("gas_trace")
@@ -82,7 +82,9 @@ class GasTraceReport:
     trace_complete: bool  # True if we resolved the chain fully
     hop_count: int  # Number of hops traced (0-3+)
     dead_end: bool  # True if chain dead-ends at a fresh/empty wallet
-    dead_end_reason: str  # Why it dead-ended ("fresh_wallet", "cex_hot_wallet", "no_funding_tx", "api_error")
+    dead_end_reason: (
+        str  # Why it dead-ended ("fresh_wallet", "cex_hot_wallet", "no_funding_tx", "api_error")
+    )
     risk_label: str  # "LOW", "MEDIUM", "HIGH", "CRITICAL"
     cex_funded: bool  # True if any hop touches a known CEX hot wallet
     cex_name: str = ""  # Name of the CEX identified (if applicable)
@@ -244,7 +246,9 @@ class GasTraceAnalyzer:
                 report.dead_end = True
                 report.dead_end_reason = dead_end_reason
                 report.trace_complete = True
-                logger.info(f"Gas trace terminated at hop {hop}: {dead_end_reason} ({source_address})")
+                logger.info(
+                    f"Gas trace terminated at hop {hop}: {dead_end_reason} ({source_address})"
+                )
                 break
 
             # Continue tracing
@@ -321,7 +325,9 @@ class GasTraceAnalyzer:
 
             data = resp.json()
             if data.get("status") != "1":
-                logger.debug(f"Etherscan API status not OK for {address}: {data.get('message', '')}")
+                logger.debug(
+                    f"Etherscan API status not OK for {address}: {data.get('message', '')}"
+                )
                 return None
 
             txs = data.get("result", [])
@@ -352,7 +358,9 @@ class GasTraceAnalyzer:
         """Find the earliest incoming funding transfer for a Solana address."""
         try:
             # Try account transfers first (incoming SOL/SPL)
-            transfers = FreeSolscanClient.account_transfers(address, page=1, page_size=50, flow="in")
+            transfers = FreeSolscanClient.account_transfers(
+                address, page=1, page_size=50, flow="in"
+            )
             if transfers and len(transfers) > 0:
                 # Sort by block_time ascending (oldest first)
                 sorted_tx = sorted(transfers, key=lambda x: x.get("block_time", 0))
@@ -552,7 +560,9 @@ class GasTraceAnalyzer:
                     result["first_seen_ts"] = int(created)
                     try:
                         dt = datetime.fromtimestamp(
-                            int(created) / 1000 if int(created) > 1_000_000_000_000 else int(created),
+                            int(created) / 1000
+                            if int(created) > 1_000_000_000_000
+                            else int(created),
                             tz=UTC,
                         )
                         result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")

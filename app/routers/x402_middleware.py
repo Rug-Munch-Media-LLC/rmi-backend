@@ -17,7 +17,6 @@ Date: 2026-05-03
 import contextlib
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
@@ -25,6 +24,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402_middleware")
 
@@ -156,7 +157,10 @@ class PaymentVerifier:
             # Build typed data for eth_account verification
             all_types = {**DOMAIN_TYPES, **types}
             typed_data = {
-                "types": {k: [{"name": f["name"], "type": f["type"]} for f in v] for k, v in all_types.items()},
+                "types": {
+                    k: [{"name": f["name"], "type": f["type"]} for f in v]
+                    for k, v in all_types.items()
+                },
                 "primaryType": primary_type,
                 "domain": {
                     "name": domain.name,
@@ -164,7 +168,10 @@ class PaymentVerifier:
                     "chainId": domain.chain_id,
                     "verifyingContract": domain.verifying_contract,
                 },
-                "message": {k: ("0x" + v.hex() if isinstance(v, bytes) else str(v)) for k, v in message.items()},
+                "message": {
+                    k: ("0x" + v.hex() if isinstance(v, bytes) else str(v))
+                    for k, v in message.items()
+                },
             }
 
             # Recover signer from signature
@@ -227,12 +234,15 @@ class PaymentVerifier:
         }
 
         try:
-            async with aiohttp.ClientSession() as session, session.post(
-                "https://facilitator.payai.network/verify",
-                json=body,
-                headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=15),
-            ) as resp:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    "https://facilitator.payai.network/verify",
+                    json=body,
+                    headers={"Content-Type": "application/json"},
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp,
+            ):
                 data = await resp.json()
                 if data.get("isValid"):
                     return {
@@ -369,7 +379,9 @@ async def verify_receipt_public(receipt_id: str):
             "asset": receipt.get("asset"),
             "network": receipt.get("network"),
             "tool": receipt.get("tool"),
-            "customer": receipt.get("customer_address", "")[:8] + "..." if receipt.get("customer_address") else None,
+            "customer": receipt.get("customer_address", "")[:8] + "..."
+            if receipt.get("customer_address")
+            else None,
             "timestamp": receipt.get("timestamp"),
             "payment_tx": receipt.get("payment_tx"),
             "delivery_status": receipt.get("delivery_status"),
@@ -377,7 +389,8 @@ async def verify_receipt_public(receipt_id: str):
             "chain_of_custody": {
                 "stored": receipt.get("updated_at") is not None,
                 "fulfilled": receipt.get("status") == "fulfilled",
-                "on_chain": receipt.get("payment_tx") is not None and receipt.get("payment_tx") != "",
+                "on_chain": receipt.get("payment_tx") is not None
+                and receipt.get("payment_tx") != "",
             },
         }
 
@@ -562,7 +575,12 @@ async def transparency_dashboard(hours: int = 24):
                 "ban_duration_hours": 24,
             },
             "trust_score": round(
-                (fulfillment_rate * 0.6 + (1 - refund_rate) * 0.3 + (1 - failed / max(1, total)) * 0.1) * 100,
+                (
+                    fulfillment_rate * 0.6
+                    + (1 - refund_rate) * 0.3
+                    + (1 - failed / max(1, total)) * 0.1
+                )
+                * 100,
                 1,
             ),
             "timestamp": datetime.now(UTC).isoformat(),
@@ -678,7 +696,9 @@ async def store_receipt(request: Request):
     # Auth: require admin API key
     admin_key = os.getenv("ADMIN_API_KEY", os.getenv("WP_ADMIN_KEY", ""))
     if admin_key:
-        auth = request.headers.get("X-API-Key", "") or request.headers.get("Authorization", "").replace("Bearer ", "")
+        auth = request.headers.get("X-API-Key", "") or request.headers.get(
+            "Authorization", ""
+        ).replace("Bearer ", "")
         if auth != admin_key:
             return JSONResponse(status_code=403, content={"error": "Admin API key required"})
 
@@ -765,7 +785,9 @@ async def store_receipt(request: Request):
             r.incrby(f"x402:tool_calls:{tool}", 1)
             r.incrbyfloat(f"x402:tool_revenue:{tool}", amount_float or 0)
 
-            logger.info(f"Receipt stored: {receipt_id} tx={payment_tx[:16]}... tool={tool} amount=${amount_float}")
+            logger.info(
+                f"Receipt stored: {receipt_id} tx={payment_tx[:16]}... tool={tool} amount=${amount_float}"
+            )
 
             return {
                 "ok": True,

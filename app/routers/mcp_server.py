@@ -20,12 +20,13 @@ Changes from v3.0:
 """
 
 import json
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp"])
@@ -482,7 +483,11 @@ def _build_tools_list():
         cat = pricing.get("category", "analysis")
         cats[cat] = cats.get(cat, 0) + 1
         real_tool = TOOL_ALIASES.get(tool_id, tool_id)
-        endpoint = f"/api/v1/x402-databus/{tool_id}" if tool_id in databus_ids else f"/api/v1/x402-tools/{real_tool}"
+        endpoint = (
+            f"/api/v1/x402-databus/{tool_id}"
+            if tool_id in databus_ids
+            else f"/api/v1/x402-tools/{real_tool}"
+        )
         tools[tool_id] = {
             "name": tool_id,  # MCP spec: name is the tool ID
             "description": _desc(tool_id, pricing),
@@ -492,7 +497,9 @@ def _build_tools_list():
             "trial_free": int(pricing.get("trial_free", 1)),
             "chains": sorted(chains_data.keys()),
             "endpoint": endpoint,
-            "method": pricing.get("method", "POST") if isinstance(pricing.get("method"), str) else "POST",
+            "method": pricing.get("method", "POST")
+            if isinstance(pricing.get("method"), str)
+            else "POST",
             "databus": tool_id in databus_ids,
         }
 
@@ -844,7 +851,9 @@ async def mcp_jsonrpc(request: Request):
                         }
                     )
                 result = (
-                    resp.json() if "application/json" in (resp.headers.get("content-type", "")) else {"data": resp.text}
+                    resp.json()
+                    if "application/json" in (resp.headers.get("content-type", ""))
+                    else {"data": resp.text}
                 )
                 return JSONResponse(
                     {
@@ -915,7 +924,11 @@ async def mcp_call_tool(tool_id: str, request: Request):
         )
 
     try:
-        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        body = (
+            await request.json()
+            if request.headers.get("content-type") == "application/json"
+            else {}
+        )
     except Exception:
         body = {}
 
@@ -952,7 +965,9 @@ async def mcp_call_tool(tool_id: str, request: Request):
         async with httpx.AsyncClient(timeout=45) as client:
             resp = await client.post(url, json=body, headers=headers)
             result = (
-                resp.json() if "application/json" in (resp.headers.get("content-type", "")) else {"data": resp.text}
+                resp.json()
+                if "application/json" in (resp.headers.get("content-type", ""))
+                else {"data": resp.text}
             )
             rh = {}
             for h in (

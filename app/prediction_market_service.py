@@ -39,12 +39,13 @@ Pitfalls:
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("prediction_market")
 
@@ -271,7 +272,9 @@ class PredictionMarketService:
         # Cache (5 min TTL)
         if redis:
             try:
-                await redis.setex(cache_key, 300, json.dumps([_market_to_dict(m) for m in all_markets[:50]]))
+                await redis.setex(
+                    cache_key, 300, json.dumps([_market_to_dict(m) for m in all_markets[:50]])
+                )
             except Exception as e:
                 logger.warning(f"Redis cache write failed: {e}")
 
@@ -336,12 +339,16 @@ class PredictionMarketService:
         top_threats.sort(key=lambda m: m.volume_usd, reverse=True)
 
         token_specific = [
-            m for m in unique_markets if m.is_crypto_relevant and m.is_security_relevant and len(m.tokens_mentioned) > 0
+            m
+            for m in unique_markets
+            if m.is_crypto_relevant and m.is_security_relevant and len(m.tokens_mentioned) > 0
         ]
         token_specific.sort(key=lambda m: m.volume_usd, reverse=True)
 
         ecosystem_risk = [
-            m for m in unique_markets if m.is_crypto_relevant and not m.is_security_relevant and m.volume_usd > 50000
+            m
+            for m in unique_markets
+            if m.is_crypto_relevant and not m.is_security_relevant and m.volume_usd > 50000
         ]
         ecosystem_risk.sort(key=lambda m: m.volume_usd, reverse=True)
 
@@ -349,7 +356,10 @@ class PredictionMarketService:
             m
             for m in unique_markets
             if m.is_security_relevant
-            and any(kw in m.question.lower() for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"])
+            and any(
+                kw in m.question.lower()
+                for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"]
+            )
         ]
         regulatory.sort(key=lambda m: m.volume_usd, reverse=True)
 
@@ -442,7 +452,9 @@ class PredictionMarketService:
             logger.warning(f"Polymarket search error: {e}")
             return []
 
-    def _parse_polymarket_market(self, m: dict, event: dict | None = None) -> PredictionMarket | None:
+    def _parse_polymarket_market(
+        self, m: dict, event: dict | None = None
+    ) -> PredictionMarket | None:
         """Parse a Polymarket market dict into unified PredictionMarket."""
         try:
             question = m.get("question", "")
@@ -772,8 +784,12 @@ class PredictionMarketService:
 
             # Prices: [YES%, NO%] - e.g., [42.8, 57.2]
             prices = m.get("prices", [50, 50])
-            prob_yes = float(prices[0]) / 100 if isinstance(prices, list) and len(prices) >= 1 else 0.5
-            prob_no = float(prices[1]) / 100 if isinstance(prices, list) and len(prices) >= 2 else 0.5
+            prob_yes = (
+                float(prices[0]) / 100 if isinstance(prices, list) and len(prices) >= 1 else 0.5
+            )
+            prob_no = (
+                float(prices[1]) / 100 if isinstance(prices, list) and len(prices) >= 2 else 0.5
+            )
 
             # Volume: use volumeFormatted if available, else volume
             vol_str = m.get("volumeFormatted", str(m.get("volume", 0)))
@@ -844,7 +860,9 @@ class PredictionMarketService:
                 return []
 
             data = resp.json()
-            contracts = data if isinstance(data, list) else data.get("contracts", data.get("markets", []))
+            contracts = (
+                data if isinstance(data, list) else data.get("contracts", data.get("markets", []))
+            )
 
             results = []
             for c in contracts[:10]:
@@ -880,7 +898,9 @@ class PredictionMarketService:
                 category="",
                 tags=tags,
                 tokens_mentioned=tokens_mentioned,
-                url=f"https://manifold.markets/{c.get('creatorUsername', '')}/{slug}" if slug else "",
+                url=f"https://manifold.markets/{c.get('creatorUsername', '')}/{slug}"
+                if slug
+                else "",
                 updated_at=datetime.now(UTC).isoformat(),
             )
         except Exception as e:

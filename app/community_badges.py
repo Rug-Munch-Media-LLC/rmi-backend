@@ -13,12 +13,13 @@ Architecture:
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -114,7 +115,9 @@ def cast_vote(token_address: str, chain: str, voter_id: str, vote: str) -> dict[
         )
 
         # Update badge stats
-        total = conn.execute("SELECT COUNT(*) FROM votes WHERE voter_id = ?", (voter_id,)).fetchone()[0]
+        total = conn.execute(
+            "SELECT COUNT(*) FROM votes WHERE voter_id = ?", (voter_id,)
+        ).fetchone()[0]
 
         # Recalculate correct votes using normalized outcome matching
         correct = conn.execute(
@@ -194,7 +197,9 @@ def resolve_token_outcome(token_address: str, chain: str, outcome: str) -> dict[
 
         for row in voters:
             vid = row[0]
-            total = conn.execute("SELECT COUNT(*) FROM votes WHERE voter_id = ?", (vid,)).fetchone()[0]
+            total = conn.execute(
+                "SELECT COUNT(*) FROM votes WHERE voter_id = ?", (vid,)
+            ).fetchone()[0]
             correct = conn.execute(
                 """SELECT COUNT(*) FROM votes WHERE voter_id = ?
                    AND outcome IS NOT NULL
@@ -243,7 +248,9 @@ def get_user_badge(user_id: str) -> UserBadge | None:
             return UserBadge(user_id=user_id)
 
         earned = json.loads(row["earned_tiers"]) if row["earned_tiers"] else []
-        accuracy = (row["correct_votes"] / row["total_votes"] * 100) if row["total_votes"] > 0 else 0.0
+        accuracy = (
+            (row["correct_votes"] / row["total_votes"] * 100) if row["total_votes"] > 0 else 0.0
+        )
 
         next_tier, needed = _next_tier(row["correct_votes"])
 
@@ -286,7 +293,9 @@ def get_token_votes(token_address: str, chain: str) -> dict[str, Any]:
             "clean_votes": clean,
             "malicious_votes": malicious,
             "community_consensus": round(consensus, 1),
-            "consensus_label": "clean" if consensus > 60 else ("malicious" if consensus < 40 else "divided"),
+            "consensus_label": "clean"
+            if consensus > 60
+            else ("malicious" if consensus < 40 else "divided"),
             "outcome": votes[0]["outcome"] if total > 0 else None,
             "votes": [dict(v) for v in votes],
         }
@@ -301,14 +310,18 @@ def get_leaderboard(limit: int = 20) -> list[dict[str, Any]]:
     """Get top sleuths by correct votes."""
     conn = _get_db()
     try:
-        rows = conn.execute("SELECT * FROM badges ORDER BY correct_votes DESC LIMIT ?", (limit,)).fetchall()
+        rows = conn.execute(
+            "SELECT * FROM badges ORDER BY correct_votes DESC LIMIT ?", (limit,)
+        ).fetchall()
         return [
             {
                 "user_id": r["user_id"],
                 "tier": r["current_tier"],
                 "correct": r["correct_votes"],
                 "total": r["total_votes"],
-                "accuracy": round(r["correct_votes"] / r["total_votes"] * 100, 1) if r["total_votes"] > 0 else 0,
+                "accuracy": round(r["correct_votes"] / r["total_votes"] * 100, 1)
+                if r["total_votes"] > 0
+                else 0,
                 "badges": json.loads(r["earned_tiers"]) if r["earned_tiers"] else [],
             }
             for r in rows

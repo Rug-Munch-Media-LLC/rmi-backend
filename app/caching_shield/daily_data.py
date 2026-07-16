@@ -5,11 +5,12 @@ Pulls from ALL our data sources to create comprehensive daily analysis.
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("market_data")
 
@@ -142,7 +143,9 @@ async def get_prediction_markets() -> dict:
     """Get Polymarket odds for crypto-related markets."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get("https://gamma-api.polymarket.com/events?tag=crypto&limit=5&active=true")
+            r = await c.get(
+                "https://gamma-api.polymarket.com/events?tag=crypto&limit=5&active=true"
+            )
             if r.status_code == 200:
                 events = r.json()
                 markets = []

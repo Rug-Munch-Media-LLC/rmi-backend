@@ -11,11 +11,12 @@ If both are down, returns empty results with a warning.
 
 import contextlib
 import json
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
+
+from app.core.logging import get_logger
 
 logger = get_logger("wallet_memory.storage")
 
@@ -75,7 +76,11 @@ async def _get_redis() -> aioredis.Redis | None:
             r_port = os.getenv("REDIS_PORT", "6379")
             r_db = os.getenv("REDIS_DB", "0")
             r_pass = os.getenv("REDIS_PASSWORD", "")
-            url = f"redis://:{r_pass}@{r_host}:{r_port}/{r_db}" if r_pass else f"redis://{r_host}:{r_port}/{r_db}"
+            url = (
+                f"redis://:{r_pass}@{r_host}:{r_port}/{r_db}"
+                if r_pass
+                else f"redis://{r_host}:{r_port}/{r_db}"
+            )
         _redis_client = aioredis.from_url(url, decode_responses=True)
         await _redis_client.ping()
         logger.info(f"Redis connected for wallet memory: {url.split('@')[-1]}")

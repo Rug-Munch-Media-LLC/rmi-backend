@@ -13,12 +13,13 @@ Wires ALL free data sources into DataBus:
 Every endpoint accessible via DataBus. Every response enriched.
 """
 
-from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("news_provider")
 
@@ -230,7 +231,9 @@ async def get_market_brief(**kw) -> dict | None:
         for coin, data in prices.get("prices", {}).items():
             change = data.get("usd_24h_change", 0) or 0
             emoji = "🔴" if change < -3 else "🟠" if change < 0 else "🟢"
-            brief_parts.append(f"{emoji} {coin.title()}: ${data.get('usd', 0):,.0f} ({change:+.1f}%)")
+            brief_parts.append(
+                f"{emoji} {coin.title()}: ${data.get('usd', 0):,.0f} ({change:+.1f}%)"
+            )
 
     return {
         "brief": " | ".join(brief_parts),
@@ -257,7 +260,9 @@ async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict
         if articles:
             if category:
                 articles = [
-                    a for a in articles if category.lower() in (a.get("category", "") + a.get("source", "")).lower()
+                    a
+                    for a in articles
+                    if category.lower() in (a.get("category", "") + a.get("source", "")).lower()
                 ]
             result = {
                 "articles": articles[:limit],

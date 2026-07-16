@@ -26,7 +26,6 @@ Date: 2026-05-31
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import secrets
 import time
@@ -34,6 +33,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, ClassVar
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi_security_defense")
 
@@ -174,7 +175,7 @@ class BotDetectionEngine:
     """
 
     # Known good bot patterns (allow these)
-    GOOD_BOTS: ClassVar[list] =[
+    GOOD_BOTS: ClassVar[list] = [
         "googlebot",
         "bingbot",
         "duckduckbot",
@@ -187,7 +188,7 @@ class BotDetectionEngine:
     ]
 
     # Known bad patterns (immediate block)
-    BAD_PATTERNS: ClassVar[list] =[
+    BAD_PATTERNS: ClassVar[list] = [
         "sqlmap",
         "nikto",
         "nmap",
@@ -484,7 +485,7 @@ class HoneypotSystem:
     Returns fake data and logs attacker behavior.
     """
 
-    HONEYPOT_ENDPOINTS: ClassVar[list] =[
+    HONEYPOT_ENDPOINTS: ClassVar[list] = [
         "/admin/config.php",
         "/api/v1/admin/backup",
         "/.env",

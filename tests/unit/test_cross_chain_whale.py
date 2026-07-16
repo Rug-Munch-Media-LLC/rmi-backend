@@ -65,7 +65,9 @@ def test_compute_concentration_empty():
 
 
 def test_compute_concentration_single():
-    positions = [WhalePosition(chain="solana", token_address="x", token_symbol="TEST", balance_usd=1000.0)]
+    positions = [
+        WhalePosition(chain="solana", token_address="x", token_symbol="TEST", balance_usd=1000.0)
+    ]
     result = _compute_concentration(positions)
     assert result == 100.0  # 100% concentrated
 

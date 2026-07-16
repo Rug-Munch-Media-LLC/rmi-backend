@@ -18,10 +18,11 @@ Alert flow:
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger("alert_pipeline")
 
@@ -135,7 +136,9 @@ async def get_recent_alerts(limit: int = 20, severity: str = "") -> list[dict]:
                     alert["description"] = " | ".join(desc_parts)
                 if "severity" not in alert:
                     score = alert.get("risk_score", 50)
-                    alert["severity"] = "critical" if score >= 85 else "high" if score >= 65 else "medium"
+                    alert["severity"] = (
+                        "critical" if score >= 85 else "high" if score >= 65 else "medium"
+                    )
                 if "chain" not in alert:
                     alert["chain"] = alert.get("chain", "unknown")
 
@@ -168,7 +171,9 @@ async def scan_solana_new_pairs(limit: int = 5) -> int:
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": "SOL USDC"})
+            resp = await client.get(
+                "https://api.dexscreener.com/latest/dex/search", params={"q": "SOL USDC"}
+            )
             if resp.status_code != 200:
                 return 0
 
@@ -244,7 +249,10 @@ async def scan_known_scams(limit: int = 3) -> int:
                     data = json.loads(doc)
                     added = data.get("metadata", {}).get("added_at", "")
                     if added:
-                        age_h = (time.time() - datetime.fromisoformat(added.replace("Z", "+00:00")).timestamp()) / 3600
+                        age_h = (
+                            time.time()
+                            - datetime.fromisoformat(added.replace("Z", "+00:00")).timestamp()
+                        ) / 3600
                         if age_h < 24:
                             recent_count += 1
                 except Exception:

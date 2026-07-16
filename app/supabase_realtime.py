@@ -5,13 +5,13 @@ Uses proper WebSocket protocol via 'websockets' library (httpx doesn't support W
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 import websockets
 
+from app.core.logging import get_logger
 from app.core.secrets import get_secret_or_none
 
 logger = get_logger("supabase.realtime")

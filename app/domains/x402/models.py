@@ -1,4 +1,5 @@
 """Pydantic v2 models for the x402 domain."""
+
 from __future__ import annotations
 
 from enum import StrEnum

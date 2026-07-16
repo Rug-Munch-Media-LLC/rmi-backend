@@ -7,15 +7,17 @@ This shim re-exports the canonical surface and aliases submodules so that
 MIGRATION: replace `from app.billing.x402 import ...` with
 `from app.domains.billing.x402 import ...`.
 """
+
 import sys as _sys
+
 from app.domains.billing import x402 as _x402
-from app.domains.billing.x402 import router as _router
 
 # Public re-exports
 from app.domains.billing.x402 import (  # noqa: F401
-    X402Enforcer,
-    TOOL_PRICES,
     CHAIN_USDC,
+    TOOL_PRICES,
+    X402Enforcer,
+    router as _router,
 )
 
 # Alias submodules so `from app.billing.x402.router import router` works

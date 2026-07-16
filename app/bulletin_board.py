@@ -29,14 +29,15 @@ from __future__ import annotations
 
 import html
 import json
-from app.core.logging import get_logger
 import os
 import re
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, ClassVar
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi_bulletin_board")
 
@@ -307,7 +308,7 @@ class BulletinBoardManager:
         post_id = f"post_{int(time.time())}_{os.urandom(4).hex()}"
         slug = ContentSanitizer.generate_slug(title)
         summary = ContentSanitizer.generate_summary(content)
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Sanitize content
         content = ContentSanitizer.sanitize(content)
@@ -431,7 +432,7 @@ class BulletinBoardManager:
 
         # Record edit history
         edit_entry = {
-            "edited_at": datetime.utcnow().isoformat(),
+            "edited_at": datetime.now(UTC).isoformat(),
             "edited_by": editor_id,
             "editor_email": editor_email,
             "changes": before_state,
@@ -442,7 +443,7 @@ class BulletinBoardManager:
         history.append(edit_entry)
         post_dict["edit_history"] = history
         post_dict["version"] = post_dict.get("version", 1) + 1
-        post_dict["updated_at"] = datetime.utcnow().isoformat()
+        post_dict["updated_at"] = datetime.now(UTC).isoformat()
 
         # Apply updates
         for key, value in updates.items():
@@ -463,9 +464,9 @@ class BulletinBoardManager:
             await r.sadd(f"bulletin:status:{new_status}", post_id)
 
             if new_status == "published":
-                post_dict["published_at"] = datetime.utcnow().isoformat()
+                post_dict["published_at"] = datetime.now(UTC).isoformat()
             elif new_status == "archived":
-                post_dict["archived_at"] = datetime.utcnow().isoformat()
+                post_dict["archived_at"] = datetime.now(UTC).isoformat()
 
         # Handle pinning changes
         if "pinned" in updates:
@@ -503,7 +504,7 @@ class BulletinBoardManager:
 
         post_dict = json.loads(data)
         post_dict["status"] = "archived"
-        post_dict["archived_at"] = datetime.utcnow().isoformat()
+        post_dict["archived_at"] = datetime.now(UTC).isoformat()
 
         await r.hset("rmi:bulletin_posts", post_id, json.dumps(post_dict))
         await r.srem("bulletin:status:published", post_id)
@@ -613,7 +614,7 @@ class BulletinBoardManager:
             if data:
                 post_dict = json.loads(data)
                 post_dict["status"] = "published"
-                post_dict["published_at"] = datetime.utcnow().isoformat()
+                post_dict["published_at"] = datetime.now(UTC).isoformat()
                 post_dict["scheduled_at"] = None
 
                 await r.hset("rmi:bulletin_posts", post_id, json.dumps(post_dict))
@@ -629,7 +630,7 @@ class BulletinBoardManager:
     async def archive_expired() -> list[str]:
         """Archive posts that have expired."""
         r = await BulletinBoardManager._get_redis()
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(UTC).isoformat()
 
         all_posts = await r.hgetall("rmi:bulletin_posts")
         archived = []
@@ -672,7 +673,7 @@ class BulletinBoardManager:
             return None
 
         comment_id = f"comment_{int(time.time())}_{os.urandom(4).hex()}"
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(UTC).isoformat()
 
         comment = Comment(
             comment_id=comment_id,

@@ -21,8 +21,9 @@ Standards (2026 consensus):
 """
 
 import hashlib
-from app.core.logging import get_logger
 import re
+
+from app.core.logging import get_logger
 
 logger = get_logger("rag.chunking")
 

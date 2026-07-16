@@ -7,11 +7,12 @@ Uses MiniMax ($20/mo flat) + Ollama Cloud.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import urllib.request
 from collections import Counter
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.news_v3")
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))

@@ -7,7 +7,7 @@ No FastAPI. No HTTP. Pure Python.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
@@ -47,7 +47,7 @@ class AlertService:
             AlertType.BLACKLIST,
         ]
         sub = AlertSubscription(
-            id=f"alert:{int(datetime.utcnow().timestamp())}",
+            id=f"alert:{int(datetime.now(UTC).timestamp())}",
             token_address=req.token_address,
             alert_types=types,
             webhook_url=req.webhook_url,

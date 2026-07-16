@@ -24,12 +24,13 @@ Architecture:
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 from typing import Any
 
 import feedparser
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -406,7 +407,9 @@ class ScamIngestionPipeline:
     async def _ingest_all_rss(self, embedder) -> list[dict]:
         """Ingest from all security RSS feeds in parallel."""
         all_docs = []
-        tasks = [RSSFeedConnector.fetch_feed(url, name, limit=15) for url, name in SECURITY_RSS_FEEDS]
+        tasks = [
+            RSSFeedConnector.fetch_feed(url, name, limit=15) for url, name in SECURITY_RSS_FEEDS
+        ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for i, articles in enumerate(results):
@@ -425,7 +428,9 @@ class ScamIngestionPipeline:
                         description=content,
                         severity="medium",
                     )
-                    doc_id = hashlib.sha256(f"rss:{source_name}:{article['name']}".encode()).hexdigest()[:16]
+                    doc_id = hashlib.sha256(
+                        f"rss:{source_name}:{article['name']}".encode()
+                    ).hexdigest()[:16]
                     all_docs.append(
                         {
                             "id": doc_id,

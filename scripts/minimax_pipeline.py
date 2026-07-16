@@ -19,20 +19,31 @@ if not KEY:
                 if line.startswith("MINIMAX_API_KEY="):
                     KEY = line.strip().split("=", 1)[1]
                     break
-    except: pass  # noqa: E701, E722
+    except:
+        pass
 URL = "https://api.minimax.io/v1/chat/completions"
 MODEL = "MiniMax-Text-01"
 BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
 
+
 def call_minimax(system: str, prompt: str, max_tokens: int = 500, temp: float = 0.7) -> str:
     try:
-        body = json.dumps({
-            "model": MODEL,
-            "messages": [{"role":"system","content":system},{"role":"user","content":prompt}],
-            "max_tokens": max_tokens, "temperature": temp
-        }).encode()
-        req = urllib.request.Request(URL, data=body, headers={
-            "Authorization": f"Bearer {KEY}", "Content-Type": "application/json"})
+        body = json.dumps(
+            {
+                "model": MODEL,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": max_tokens,
+                "temperature": temp,
+            }
+        ).encode()
+        req = urllib.request.Request(
+            URL,
+            data=body,
+            headers={"Authorization": f"Bearer {KEY}", "Content-Type": "application/json"},
+        )
         resp = urllib.request.urlopen(req, timeout=20)
         return json.loads(resp.read())["choices"][0]["message"]["content"].strip()
     except Exception as e:
@@ -53,6 +64,7 @@ Write an engaging crypto security thread. Format:
 
 Keep each tweet under 280 chars. Make it punchy and shareable."""
 
+
 def generate_social_thread(scam_data: str) -> str:
     return call_minimax(SOCIAL_SYSTEM, f"Recent scam data:\n{scam_data[:3000]}", 400)
 
@@ -65,8 +77,10 @@ Answer crypto security questions concisely. Be helpful, direct, accurate.
 Common topics: rug pulls, honeypots, token scanning, wallet safety, scam detection.
 Always mention our free scanner if relevant. Under 200 words."""
 
+
 def answer_question(question: str) -> str:
     return call_minimax(SUPPORT_SYSTEM, question, 250, 0.4)
+
 
 # Pre-warm cache with common questions
 COMMON_QUESTIONS = [
@@ -81,6 +95,7 @@ COMMON_QUESTIONS = [
     "Is my wallet safe?",
     "What are red flags in new tokens?",
 ]
+
 
 def warm_support_cache():
     """Pre-generate answers for common questions."""
@@ -104,6 +119,7 @@ Format:
 
 Keep it under 150 words. Use ✅⚠️🔴 emojis."""
 
+
 def health_narrative(metrics: dict) -> str:
     prompt = json.dumps(metrics)
     return call_minimax(HEALTH_SYSTEM, prompt, 250, 0.3)
@@ -114,6 +130,7 @@ def health_narrative(metrics: dict) -> str:
 # ═══════════════════════════════════════════
 if __name__ == "__main__":
     import sys
+
     cmd = sys.argv[1] if len(sys.argv) > 1 else "all"
 
     if cmd in ("social", "all"):
@@ -134,8 +151,12 @@ if __name__ == "__main__":
         print("\n=== HEALTH NARRATIVE ===")
         metrics = {
             "timestamp": datetime.now(UTC).isoformat(),
-            "backend": "alive", "disk_pct": 83, "load": "4.2",
-            "crons_ok": 35, "crons_total": 56, "rag_docs": 20985,
+            "backend": "alive",
+            "disk_pct": 83,
+            "load": "4.2",
+            "crons_ok": 35,
+            "crons_total": 56,
+            "rag_docs": 20985,
         }
         report = health_narrative(metrics)
         print(report[:400])

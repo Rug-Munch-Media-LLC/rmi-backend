@@ -19,7 +19,6 @@ Data Sources (all free):
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -27,6 +26,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

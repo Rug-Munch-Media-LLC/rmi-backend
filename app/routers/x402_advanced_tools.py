@@ -12,15 +12,16 @@ Layer 6: Narrative engine - what's the market saying RIGHT NOW
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 import aiohttp
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402.advanced")
 
@@ -81,7 +82,7 @@ def set_cached(tool: str, params: dict, result: dict, ttl: int = CACHE_TTL):
         r = _redis_conn()
         key = _cache_key(tool, params)
         result["_cached"] = True
-        result["_cached_at"] = datetime.utcnow().isoformat()
+        result["_cached_at"] = datetime.now(UTC).isoformat()
         r.setex(key, ttl, json.dumps(result))
     except Exception:
         pass
@@ -195,7 +196,9 @@ def compute_confidence(result: dict) -> dict:
 
 @router.get("/stream/alerts")
 async def sse_alert_stream(
-    events: str = Query(default="rug_pull,whale_move,price_crash", description="Comma-separated event types"),
+    events: str = Query(
+        default="rug_pull,whale_move,price_crash", description="Comma-separated event types"
+    ),
     chain: str = Query(default="all"),
 ):
     """Server-Sent Events stream for real-time security alerts.
@@ -221,7 +224,7 @@ async def sse_alert_stream(
         last_id = "0"
 
         # Send initial connection event
-        yield f"event: connected\ndata: {json.dumps({'status': 'connected', 'events': event_list, 'chain': chain_filter, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
+        yield f"event: connected\ndata: {json.dumps({'status': 'connected', 'events': event_list, 'chain': chain_filter, 'timestamp': datetime.now(UTC).isoformat()})}\n\n"
 
         while True:
             try:
@@ -328,11 +331,14 @@ async def rug_probability(req: AddressRequest):
 
         # ── Signal 1: Honeypot Check ──
         try:
-            async with aiohttp.ClientSession() as session, session.post(
-                "http://localhost:8000/api/v1/x402-tools/honeypot_check",
-                json={"address": addr, "chain": chain},
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    "http://localhost:8000/api/v1/x402-tools/honeypot_check",
+                    json={"address": addr, "chain": chain},
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp,
+            ):
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get("is_honeypot"):
@@ -549,7 +555,7 @@ async def rug_probability(req: AddressRequest):
         result = {
             "tool": "Rug Probability Score",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": addr,
             "chain": chain,
             "rug_probability": probability,
@@ -612,7 +618,11 @@ async def token_history(req: HistoryRequest):
         # Scanner stores data as x402:scan:{address}:{timestamp}
         for key in r.scan_iter(f"x402:scan:{addr}:*"):
             try:
-                ts = float(key.decode().split(":")[-1]) if isinstance(key, bytes) else float(key.split(":")[-1])
+                ts = (
+                    float(key.decode().split(":")[-1])
+                    if isinstance(key, bytes)
+                    else float(key.split(":")[-1])
+                )
                 if ts < cutoff:
                     continue
                 raw = r.get(key)
@@ -676,13 +686,17 @@ async def token_history(req: HistoryRequest):
                         "start": fv,
                         "end": lv,
                         "change_pct": round(change_pct, 1),
-                        "direction": "up" if change_pct > 0 else "down" if change_pct < 0 else "flat",
+                        "direction": "up"
+                        if change_pct > 0
+                        else "down"
+                        if change_pct < 0
+                        else "flat",
                     }
 
         result = {
             "tool": "Historical Scanner Data",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": addr,
             "chain": chain,
             "lookback_hours": hours,
@@ -781,7 +795,9 @@ async def narrative_engine(req: NarrativeRequest):
                                         "subreddit": d.get("subreddit", ""),
                                         "score": d.get("score", 0),
                                         "comments": d.get("num_comments", 0),
-                                        "created": datetime.utcfromtimestamp(d.get("created_utc", 0)).isoformat()
+                                        "created": datetime.utcfromtimestamp(
+                                            d.get("created_utc", 0)
+                                        ).isoformat()
                                         if d.get("created_utc")
                                         else "",
                                     }
@@ -838,13 +854,17 @@ async def narrative_engine(req: NarrativeRequest):
             f"{sentiment.replace('_', ' ').title()} on {token}. "
             f"{sentiment_pct}% positive across {total_posts} posts from {len(sources)} sources. "
             + (f"Active in r/{', r/'.join(subreddits[:3])}. " if subreddits else "")
-            + (f"Risk: {'; '.join(shill_signals)}" if shill_signals else "No shill signals detected.")
+            + (
+                f"Risk: {'; '.join(shill_signals)}"
+                if shill_signals
+                else "No shill signals detected."
+            )
         )
 
         result = {
             "tool": "Narrative Engine",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "token": token,
             "chain": chain,
             "narrative": narrative,
@@ -883,7 +903,7 @@ async def clear_cache(tool: str = Query(default=None)):
     return {
         "status": "cleared" if ok else "failed",
         "tool": tool or "all",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -896,7 +916,7 @@ async def cache_stats():
         return {
             "cached_entries": len(keys),
             "memory_estimate_bytes": sum(len(r.get(k) or "") for k in keys[:100]),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
     except Exception as e:
         return {"error": str(e), "cached_entries": 0}

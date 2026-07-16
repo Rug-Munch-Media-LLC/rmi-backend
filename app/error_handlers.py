@@ -6,8 +6,6 @@ handler is isolated - one failure doesn't break the others.
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
-
 from fastapi import (  # noqa: TC002 - runtime use (matches app/core/errors.py + pre-existing project-wide pattern)
     FastAPI,
     Request,
@@ -21,6 +19,7 @@ from app.core.errors import (
     UpstreamError,
     ValidationError,
 )
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 

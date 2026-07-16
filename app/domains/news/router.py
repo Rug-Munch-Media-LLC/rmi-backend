@@ -215,7 +215,7 @@ async def list_news(
             query += " ORDER BY ingested_at DESC LIMIT $%d OFFSET $%d" % (
                 len(params) + 1,
                 len(params) + 2,
-            )  # noqa: UP031
+            )
             params.extend([limit, offset])
             async with catalog._pg_pool.acquire() as conn:
                 rows = await conn.fetch(query, *params)

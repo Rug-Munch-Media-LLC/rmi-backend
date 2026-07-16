@@ -17,10 +17,10 @@ Ingest:
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import time
 from typing import Any
 
+from app.core.logging import get_logger
 from app.rag.ann_index import Hit, get_index
 from app.rag.chunking import chunk_text, content_hash, is_duplicate, mark_ingested
 from app.rag.embeddings import current_backend, get_embedding

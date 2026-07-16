@@ -5,9 +5,9 @@ Streams wallet labels, scan results, and embedding usage to BigQuery.
 All usage counts against free tier (1TB queries/month - we'll use <1%).
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
+from app.core.logging import get_logger
 from app.gcloud_manager import get_gcloud
 
 logger = get_logger("bigquery.pipeline")

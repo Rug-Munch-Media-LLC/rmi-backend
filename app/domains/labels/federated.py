@@ -15,9 +15,9 @@ On cache hit, skip source queries entirely.
 from __future__ import annotations
 
 import asyncio
-from app.core.logging import get_logger
 from typing import Any
 
+from app.core.logging import get_logger
 from app.domains.labels.models import Label, LabelSource
 
 log = get_logger(__name__)

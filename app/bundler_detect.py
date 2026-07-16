@@ -21,7 +21,6 @@ Price   : 80000 atoms
 Endpoint: POST /api/v1/x402-tools/bundler_detect
 """
 
-from app.core.logging import get_logger
 import math
 import os
 import re
@@ -31,6 +30,8 @@ from enum import Enum
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -361,13 +362,19 @@ class BundlerDetector:
             report.holder_clusters = clusters
 
             # 8. Estimate unique entities
-            report.estimated_unique_entities = self._estimate_entities(holders, clusters, len(bundled_buys))
+            report.estimated_unique_entities = self._estimate_entities(
+                holders, clusters, len(bundled_buys)
+            )
 
             # 9. Compute all scores
             report.supply_concentration_score = self._score_supply_concentration(holders, top10_pct)
             report.sniper_cluster_score = self._score_sniper_clusters(clusters, bundled_buys)
-            report.launch_timing_anomaly_score = self._score_launch_timing(timing_info, buys, holders)
-            report.fund_flow_risk_score = self._score_fund_flow(bundled_buys, buys_from_same_funding, clusters)
+            report.launch_timing_anomaly_score = self._score_launch_timing(
+                timing_info, buys, holders
+            )
+            report.fund_flow_risk_score = self._score_fund_flow(
+                bundled_buys, buys_from_same_funding, clusters
+            )
 
             # 10. Composite bundler score
             report.bundler_score = self._compute_bundler_score(report)
@@ -650,7 +657,9 @@ class BundlerDetector:
             if total > 0:
                 # What % of all buys happened in first 5 minutes?
                 first_5m_pct = m5_buys / total if total > 0 else 0
-                result["buy_concentration_ratio"] = max(result["buy_concentration_ratio"], first_5m_pct)
+                result["buy_concentration_ratio"] = max(
+                    result["buy_concentration_ratio"], first_5m_pct
+                )
                 result["total_buys_first_blocks"] += m5_buys
                 # Estimate unique from m5 vs h1 ratio
                 if h1_buys > 0 and m5_buys > 0:
@@ -661,7 +670,9 @@ class BundlerDetector:
 
         return result
 
-    def _cluster_wallets(self, buys: list[dict[str, Any]], holders: list[dict[str, Any]]) -> list[HolderCluster]:
+    def _cluster_wallets(
+        self, buys: list[dict[str, Any]], holders: list[dict[str, Any]]
+    ) -> list[HolderCluster]:
         """Cluster wallets by funding overlap and timing patterns."""
         clusters: list[HolderCluster] = []
 
@@ -765,7 +776,9 @@ class BundlerDetector:
 
         return min(score, 100)
 
-    def _score_sniper_clusters(self, clusters: list[HolderCluster], bundled_buys: list[BundledBuy]) -> float:
+    def _score_sniper_clusters(
+        self, clusters: list[HolderCluster], bundled_buys: list[BundledBuy]
+    ) -> float:
         """Score sniper cluster risk (0-100)."""
         score = 0.0
 

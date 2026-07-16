@@ -6,8 +6,9 @@ This module wraps security feature imports with graceful fallbacks to stubs
 if dependencies aren't available, preventing full router import failures.
 """
 
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

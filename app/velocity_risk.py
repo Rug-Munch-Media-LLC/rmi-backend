@@ -8,10 +8,11 @@ Fast changes = higher risk than static bad metrics.
 Premium feature: Catches rugs mid-flight, not just at launch.
 """
 
-from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("sentinel.velocity")
 
@@ -29,7 +30,9 @@ def record_snapshot(chain: str, address: str, metrics: dict[str, float]) -> None
         _series_cache[key] = _series_cache[key][-MAX_SERIES_LENGTH:]
 
 
-def analyze_velocity(chain: str, address: str, current: dict[str, float], window_seconds: int = 3600) -> dict[str, Any]:
+def analyze_velocity(
+    chain: str, address: str, current: dict[str, float], window_seconds: int = 3600
+) -> dict[str, Any]:
     """Analyze how fast metrics are changing. Returns velocity scores and flags.
 
     Metrics tracked:

@@ -14,9 +14,10 @@ Endpoints mounted on sub_router:
   POST /api/v1/x402-tools/token_deep_dive
   POST /api/v1/x402-tools/token_comparison
 """
+
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -65,7 +66,7 @@ async def deep_contract_audit(req: TokenRequest):
         return {
             "tool": "Deep Contract Audit",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -84,7 +85,7 @@ async def deep_contract_audit(req: TokenRequest):
                 return {
                     "tool": "Deep Contract Audit",
                     "version": "2.0",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     **fallback,
                     "recovered_from_error": str(e),
                     "guarantee": "Data delivered or auto-refund via x402 receipt",
@@ -181,7 +182,7 @@ async def rug_shield(req: TokenRequest):
         return {
             "tool": "Rug Shield",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -304,7 +305,7 @@ async def token_pulse(req: TokenRequest):
         return {
             "tool": "Token Pulse",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -413,7 +414,7 @@ async def token_forensics(req: GenericRequest):
         return {
             "tool": "Token Forensics",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -437,7 +438,7 @@ async def token_deep_dive(req: GenericRequest):
         return {
             "tool": "Token Deep Dive",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -515,7 +516,7 @@ async def honeypot_check(req: GenericRequest):
         return {
             "tool": "Honeypot Check",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -550,7 +551,7 @@ async def token_comparison(req: MultiTokenRequest):
         return {
             "tool": "Token Comparison",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "tokens": comparisons,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -630,7 +631,7 @@ async def risk_monitor(req: GenericRequest):
         return {
             "tool": "Risk Monitor",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -696,7 +697,7 @@ async def liquidity_flow(req: GenericRequest):
         return {
             "tool": "Liquidity Flow",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -813,7 +814,7 @@ async def rug_pull_predictor(req: GenericRequest):
         return {
             "tool": "Rug Pull Predictor",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }

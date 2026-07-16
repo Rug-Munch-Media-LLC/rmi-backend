@@ -9,9 +9,10 @@ Cost: ~100 tokens per explanation = ~$0.0007 on Ollama Cloud
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from urllib.request import Request, urlopen
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.risk_explainer")
 

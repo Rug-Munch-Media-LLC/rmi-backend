@@ -531,7 +531,9 @@ WEB3_RESEARCH_TOOLS = [
 # Master list - all expanded MCP tools
 # ════════════════════════════════════════════════════════════
 
-EXTERNAL_MCP_TOOLS = FEAR_GREED_TOOLS + CRYPTO_INDICATORS_TOOLS + CONTRACTS_WIZARD_TOOLS + WEB3_RESEARCH_TOOLS
+EXTERNAL_MCP_TOOLS = (
+    FEAR_GREED_TOOLS + CRYPTO_INDICATORS_TOOLS + CONTRACTS_WIZARD_TOOLS + WEB3_RESEARCH_TOOLS
+)
 
 
 # ════════════════════════════════════════════════════════════

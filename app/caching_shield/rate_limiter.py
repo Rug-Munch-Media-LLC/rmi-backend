@@ -18,12 +18,13 @@ Strategy:
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
 
 import redis.asyncio as aioredis
+
+from app.core.logging import get_logger
 
 logger = get_logger("rpc_rate_limiter")
 
@@ -110,7 +111,9 @@ class RpcRateLimiter:
                 port = int(os.getenv("REDIS_PORT", "6379"))
                 password = self._redis_password or os.getenv("REDIS_PASSWORD", "")
                 url = f"redis://:{password}@{host}:{port}" if password else f"redis://{host}:{port}"
-                self._redis = aioredis.from_url(url, socket_connect_timeout=2, decode_responses=False)
+                self._redis = aioredis.from_url(
+                    url, socket_connect_timeout=2, decode_responses=False
+                )
                 await self._redis.ping()
                 logger.info("RpcRateLimiter: Redis connected OK")
                 return self._redis

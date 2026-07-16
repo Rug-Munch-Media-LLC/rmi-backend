@@ -10,7 +10,6 @@ Used AFTER LLM generation to verify answers are grounded in retrieved context.
 from __future__ import annotations
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import re
 from dataclasses import dataclass, field
@@ -18,6 +17,8 @@ from enum import StrEnum
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -318,7 +319,9 @@ class HallucinationGuard:
                 data = resp.json()
 
             content = data["choices"][0]["message"]["content"].strip()
-            is_faithful = content.lower().startswith("faithful: yes") or ("faithful: yes" in content.lower()[:80])
+            is_faithful = content.lower().startswith("faithful: yes") or (
+                "faithful: yes" in content.lower()[:80]
+            )
 
             # Extract reasoning
             reasoning_parts = content.split("Reasoning:")
@@ -421,7 +424,9 @@ class HallucinationGuard:
 
             if contradiction > entailment and contradiction > neutral:
                 flagged_claims.append(claim)
-                contradiction_details.append(f"Contradiction (p={contradiction:.2f}): {claim[:120]}")
+                contradiction_details.append(
+                    f"Contradiction (p={contradiction:.2f}): {claim[:120]}"
+                )
 
         n = len(claims)
         avg_entailment = total_entailment / n
@@ -431,7 +436,11 @@ class HallucinationGuard:
         # contradiction > entailment AND contradiction > neutral (line 411).
         # High neutral scores just mean "not enough info to confirm" - not a hallucination.
         is_faithful = len(flagged_claims) == 0
-        confidence = (avg_entailment + (1.0 - avg_contradiction)) / 2.0 if is_faithful else 1.0 - avg_contradiction
+        confidence = (
+            (avg_entailment + (1.0 - avg_contradiction)) / 2.0
+            if is_faithful
+            else 1.0 - avg_contradiction
+        )
 
         return CheckResult(
             is_faithful=is_faithful,
@@ -445,7 +454,9 @@ class HallucinationGuard:
     # Public API - multi-source check
     # -----------------------------------------------------------------------
 
-    async def check_answer_with_sources(self, answer: str, sources: list[dict[str, Any]]) -> CheckResult:
+    async def check_answer_with_sources(
+        self, answer: str, sources: list[dict[str, Any]]
+    ) -> CheckResult:
         """
         Check an answer against each source individually and aggregate.
 
@@ -493,7 +504,9 @@ class HallucinationGuard:
             combined_context = "\n\n---\n\n".join(source_texts)
             return await self._llm_self_check(answer, combined_context)
 
-    async def _check_answer_with_sources_nli(self, claims: list[str], source_texts: list[str]) -> CheckResult:
+    async def _check_answer_with_sources_nli(
+        self, claims: list[str], source_texts: list[str]
+    ) -> CheckResult:
         """NLI-based multi-source check: a claim is supported if ANY source entails it."""
         flagged_claims: list[str] = []
         contradiction_details: list[str] = []
@@ -524,7 +537,9 @@ class HallucinationGuard:
 
             if best_contradiction > best_entailment and best_contradiction > 0.5:
                 flagged_claims.append(claim)
-                contradiction_details.append(f"Contradiction (best p={best_contradiction:.2f}): {claim[:120]}")
+                contradiction_details.append(
+                    f"Contradiction (best p={best_contradiction:.2f}): {claim[:120]}"
+                )
 
         n = len(claims)
         avg_entailment = sum(claim_verdicts) / n if n else 0.0
@@ -544,7 +559,9 @@ class HallucinationGuard:
     # Citation verification
     # -----------------------------------------------------------------------
 
-    async def verify_citations(self, answer: str, sources: list[dict[str, Any]]) -> CitationVerificationResult:
+    async def verify_citations(
+        self, answer: str, sources: list[dict[str, Any]]
+    ) -> CitationVerificationResult:
         """
         Parse inline citations [1], [2] from the answer and verify each cited
         source actually supports the claim it is attached to.
@@ -662,7 +679,9 @@ class HallucinationGuard:
     # Batch checking
     # -----------------------------------------------------------------------
 
-    async def check_multiple(self, answers_and_contexts: list[tuple[str, str]]) -> list[CheckResult]:
+    async def check_multiple(
+        self, answers_and_contexts: list[tuple[str, str]]
+    ) -> list[CheckResult]:
         """
         Check multiple (answer, context) pairs concurrently.
 

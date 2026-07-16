@@ -3,6 +3,7 @@
 Phase 1 stub — Phase 3 (AUDIT-2026-Q3) adds testcontainers fixtures for
 postgres, redis, qdrant.
 """
+
 import pytest
 
 

@@ -9,7 +9,7 @@ class AgentOrchestrator:
     def __init__(self):
         self.agents = {name: factory() for name, factory in AGENTS.items()}
 
-    async def run_pipeline(self, task: str, pipeline: list[str] = None):
+    async def run_pipeline(self, task: str, pipeline: list[str] | None = None):
         """Run a pipeline of agents on a task."""
         if pipeline is None:
             pipeline = ["analyst"]

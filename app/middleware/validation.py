@@ -11,10 +11,11 @@ Includes:
 - Custom validators
 """
 
-from app.core.logging import get_logger
 import re
 
 from pydantic import BaseModel, Field, validator
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -88,7 +89,9 @@ class WalletRequest(BaseModel):
 class BatchWalletRequest(BaseModel):
     """Request for batch wallet operations."""
 
-    addresses: list[str] = Field(..., min_length=1, max_length=50, description="List of wallet addresses")
+    addresses: list[str] = Field(
+        ..., min_length=1, max_length=50, description="List of wallet addresses"
+    )
     chain: str = Field(default="ethereum", description="Blockchain network")
 
     @validator("addresses", each_item=True)
@@ -135,7 +138,9 @@ class ThreatCheckRequest(WalletRequest):
 class MempoolMonitorRequest(WalletRequest):
     """Request for mempool monitoring."""
 
-    threshold_gas_gwei: float = Field(default=50.0, ge=1.0, le=1000.0, description="Gas price threshold in Gwei")
+    threshold_gas_gwei: float = Field(
+        default=50.0, ge=1.0, le=1000.0, description="Gas price threshold in Gwei"
+    )
     alert_on_bot: bool = Field(default=True, description="Alert on bot detection")
 
 

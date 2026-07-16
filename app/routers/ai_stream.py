@@ -22,9 +22,12 @@ async def _stream_ollama(prompt: str, model: str):
     """Stream from Ollama."""
     import httpx
 
-    async with httpx.AsyncClient(timeout=120) as c, c.stream(
-        "POST", "http://localhost:11434/api/generate", json={"model": model, "prompt": prompt}
-    ) as r:
+    async with (
+        httpx.AsyncClient(timeout=120) as c,
+        c.stream(
+            "POST", "http://localhost:11434/api/generate", json={"model": model, "prompt": prompt}
+        ) as r,
+    ):
         async for line in r.aiter_lines():
             if line:
                 try:
@@ -89,7 +92,13 @@ async def list_providers():
     return {
         "providers": {
             task.value: [
-                {"model": m[0], "provider": m[1], "latency_ms": m[2] * 1000, "cost_per_1M_input": m[3]} for m in models
+                {
+                    "model": m[0],
+                    "provider": m[1],
+                    "latency_ms": m[2] * 1000,
+                    "cost_per_1M_input": m[3],
+                }
+                for m in models
             ]
             for task, models in ROUTING_TABLE.items()
         }

@@ -28,12 +28,13 @@ Endpoints mounted on sub_router:
 
 Tool-specific endpoints live in the per-domain tools/* files.
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 import aiohttp
@@ -517,7 +518,7 @@ async def comprehensive_audit(req: AuditRequest):
             "tool": "Comprehensive Audit",
             "address": req.address,
             "chain": req.chain,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "summary": {
                 "risk_score": risk_score,
                 "recommendation": recommendation,
@@ -630,7 +631,7 @@ async def smart_money_alpha(req: SmartMoneyAlphaRequest):
             "tool": "Smart Money Alpha",
             "wallet": req.wallet,
             "chain": req.chain,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "summary": {
                 "alpha_score": alpha_score,
                 "verdict": verdict,
@@ -743,7 +744,7 @@ async def meme_vibe_score(req: MemeVibeRequest):
             "tool": "Meme Vibe Score",
             "token": req.token,
             "chain": req.chain,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "summary": {
                 "vibe_score": vibe_score,
                 "verdict": verdict,
@@ -838,7 +839,7 @@ async def bundle_security_pack(req: BundleRequest):
         "bundle": "security_pack",
         "target": target,
         "chain": req.chain,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "results": results,
         "summary": {
             "verdict": verdict,
@@ -883,7 +884,7 @@ async def bundle_intelligence_pack(req: BundleRequest):
         "bundle": "intelligence_pack",
         "wallet": wallet,
         "chain": req.chain,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "results": results,
         "price_usd": "0.25",
         "savings": "29% vs individual calls",
@@ -922,7 +923,7 @@ async def bundle_all_in_one(req: BundleRequest):
         "bundle": "all_in_one",
         "target": target,
         "chain": req.chain,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "results": results,
         "price_usd": "0.35",
         "savings": "30% vs individual calls",
@@ -961,7 +962,7 @@ async def bundle_forensic_pack(req: BundleRequest):
         "bundle": "forensic_pack",
         "target": target,
         "chain": req.chain,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "results": results,
         "price_usd": "0.40",
         "savings": "33% vs individual calls",
@@ -1299,7 +1300,9 @@ async def _verify_onchain_direct(
                     return False
                 # Check if any transfer goes to our wallet
                 meta = tx.get("meta", {})
-                return any(bal.get("owner") == expected_pay_to for bal in meta.get("postTokenBalances", []))
+                return any(
+                    bal.get("owner") == expected_pay_to for bal in meta.get("postTokenBalances", [])
+                )
 
         elif chain in ("tron", "bitcoin", "sepa"):
             # For these chains, assume verified if facilitator passed

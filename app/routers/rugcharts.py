@@ -6,12 +6,13 @@ and comprehensive token intelligence for the RugCharts page.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 
 import httpx
 import redis
 from fastapi import APIRouter, Query
+
+from app.core.logging import get_logger
 
 logger = get_logger("rugcharts_router")
 
@@ -142,7 +143,9 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
                 addresses = [t["address"] for t in tokens[:10]]
                 for addr in addresses:
                     try:
-                        r3 = await client.get(f"https://api.dexscreener.com/tokens/v1/{dex_chain}/{addr}")
+                        r3 = await client.get(
+                            f"https://api.dexscreener.com/tokens/v1/{dex_chain}/{addr}"
+                        )
                         if r3.status_code == 200:
                             pairs = r3.json()
                             if isinstance(pairs, list) and pairs:
@@ -150,15 +153,33 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
                                 for t in tokens:
                                     if t["address"] == addr:
                                         t["price_usd"] = float(pair.get("priceUsd", 0) or 0)
-                                        t["change_24h"] = float((pair.get("priceChange", {}) or {}).get("h24", 0) or 0)
-                                        t["volume_24h"] = float((pair.get("volume", {}) or {}).get("h24", 0) or 0)
-                                        t["liquidity_usd"] = float((pair.get("liquidity", {}) or {}).get("usd", 0) or 0)
+                                        t["change_24h"] = float(
+                                            (pair.get("priceChange", {}) or {}).get("h24", 0) or 0
+                                        )
+                                        t["volume_24h"] = float(
+                                            (pair.get("volume", {}) or {}).get("h24", 0) or 0
+                                        )
+                                        t["liquidity_usd"] = float(
+                                            (pair.get("liquidity", {}) or {}).get("usd", 0) or 0
+                                        )
                                         t["fdv"] = float(pair.get("fdv", 0) or 0)
                                         t["dex"] = pair.get("dexId", "")
                                         t["pair_address"] = pair.get("pairAddress", "")
-                                        t["buys_24h"] = (pair.get("txns", {}) or {}).get("h24", {}).get("buys", 0)
-                                        t["sells_24h"] = (pair.get("txns", {}) or {}).get("h24", {}).get("sells", 0)
-                                        t["makers"] = (pair.get("txns", {}) or {}).get("h24", {}).get("makers", 0)
+                                        t["buys_24h"] = (
+                                            (pair.get("txns", {}) or {})
+                                            .get("h24", {})
+                                            .get("buys", 0)
+                                        )
+                                        t["sells_24h"] = (
+                                            (pair.get("txns", {}) or {})
+                                            .get("h24", {})
+                                            .get("sells", 0)
+                                        )
+                                        t["makers"] = (
+                                            (pair.get("txns", {}) or {})
+                                            .get("h24", {})
+                                            .get("makers", 0)
+                                        )
                                         break
                     except Exception:
                         pass
@@ -180,7 +201,9 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
     return tokens
 
 
-async def _fetch_ohlcv_gecko(pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100) -> list[dict]:
+async def _fetch_ohlcv_gecko(
+    pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100
+) -> list[dict]:
     """Fetch OHLCV candles from GeckoTerminal."""
     network = GECKO_NETWORKS.get(chain, chain)
     tf_info = GECKO_TIMEFRAMES.get(timeframe, ("hour", 1))
@@ -256,7 +279,9 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
     info = {}
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pair_address}")
+            r = await client.get(
+                f"https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pair_address}"
+            )
             if r.status_code == 200:
                 data = r.json().get("data", {}).get("attributes", {})
                 info = {
@@ -264,19 +289,33 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
                     "address": data.get("address", ""),
                     "base_token_price_usd": float(data.get("base_token_price_usd", 0) or 0),
                     "quote_token_price_usd": float(data.get("quote_token_price_usd", 0) or 0),
-                    "price_change_24h": float(data.get("price_change_percentage", {}).get("h24", 0) or 0),
+                    "price_change_24h": float(
+                        data.get("price_change_percentage", {}).get("h24", 0) or 0
+                    ),
                     "volume_24h": float(data.get("volume_usd", {}).get("h24", 0) or 0),
                     "volume_6h": float(data.get("volume_usd", {}).get("h6", 0) or 0),
                     "volume_1h": float(data.get("volume_usd", {}).get("h1", 0) or 0),
                     "liquidity_usd": float(data.get("reserve_in_usd", 0) or 0),
                     "fdv": float(data.get("fdv", 0) or 0),
                     "market_cap": float(data.get("market_cap_usd", 0) or 0),
-                    "txns_24h_buys": int((data.get("transactions", {}) or {}).get("h24", {}).get("buys", 0) or 0),
-                    "txns_24h_sells": int((data.get("transactions", {}) or {}).get("h24", {}).get("sells", 0) or 0),
-                    "txns_6h_buys": int((data.get("transactions", {}) or {}).get("h6", {}).get("buys", 0) or 0),
-                    "txns_6h_sells": int((data.get("transactions", {}) or {}).get("h6", {}).get("sells", 0) or 0),
-                    "txns_1h_buys": int((data.get("transactions", {}) or {}).get("h1", {}).get("buys", 0) or 0),
-                    "txns_1h_sells": int((data.get("transactions", {}) or {}).get("h1", {}).get("sells", 0) or 0),
+                    "txns_24h_buys": int(
+                        (data.get("transactions", {}) or {}).get("h24", {}).get("buys", 0) or 0
+                    ),
+                    "txns_24h_sells": int(
+                        (data.get("transactions", {}) or {}).get("h24", {}).get("sells", 0) or 0
+                    ),
+                    "txns_6h_buys": int(
+                        (data.get("transactions", {}) or {}).get("h6", {}).get("buys", 0) or 0
+                    ),
+                    "txns_6h_sells": int(
+                        (data.get("transactions", {}) or {}).get("h6", {}).get("sells", 0) or 0
+                    ),
+                    "txns_1h_buys": int(
+                        (data.get("transactions", {}) or {}).get("h1", {}).get("buys", 0) or 0
+                    ),
+                    "txns_1h_sells": int(
+                        (data.get("transactions", {}) or {}).get("h1", {}).get("sells", 0) or 0
+                    ),
                     "dex": data.get("dex_id", ""),
                     "pool_created_at": data.get("pool_created_at", ""),
                 }
@@ -338,7 +377,9 @@ def _compute_volume_authenticity(pair_info: dict, candles: list[dict]) -> dict:
             risk_flags.append(f"Heavy sell dominance ({sells} sells vs {buys} buys)")
         elif buy_pct > 0.9:
             score -= 10
-            risk_flags.append(f"Suspiciously high buy ratio ({buy_pct * 100:.0f}%) - possible bot activity")
+            risk_flags.append(
+                f"Suspiciously high buy ratio ({buy_pct * 100:.0f}%) - possible bot activity"
+            )
 
     # 4. Candle analysis (if available)
     if len(candles) >= 3:
@@ -493,7 +534,9 @@ async def rugcharts_ohlcv(
         volumes = [c["volume"] for c in candles]
         summary = {
             "current_price": prices[-1],
-            "price_change_pct": round(((prices[-1] - prices[0]) / prices[0] * 100), 2) if prices[0] > 0 else 0,
+            "price_change_pct": round(((prices[-1] - prices[0]) / prices[0] * 100), 2)
+            if prices[0] > 0
+            else 0,
             "high": max(c["high"] for c in candles),
             "low": min(c["low"] for c in candles),
             "volume": sum(volumes),
@@ -587,7 +630,10 @@ async def rugcharts_intel(
                     "reason": "Oversold with authentic volume",
                 }
             )
-        if ta.get("trend") == "BEARISH" and pair_info.get("txns_24h_sells", 0) > pair_info.get("txns_24h_buys", 0) * 2:
+        if (
+            ta.get("trend") == "BEARISH"
+            and pair_info.get("txns_24h_sells", 0) > pair_info.get("txns_24h_buys", 0) * 2
+        ):
             predictions.append(
                 {
                     "signal": "DEATH_SPIRAL",

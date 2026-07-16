@@ -13,14 +13,13 @@ Limit: 10 calls/day per API key on the free tier. So we cache aggressively.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
-
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
+from app.core.logging import get_logger
 from app.domains.labels.models import Label, LabelSource
 
 log = get_logger(__name__)

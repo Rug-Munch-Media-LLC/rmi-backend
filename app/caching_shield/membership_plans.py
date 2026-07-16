@@ -5,8 +5,9 @@ Designed to attract agents to spend via x402 micropayments.
 Each package solves a specific agent need with compelling value.
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger("agent_tools")
 

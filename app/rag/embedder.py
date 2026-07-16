@@ -8,6 +8,7 @@ If eval harness reports <8% nDCG@10 improvement, defer the rest.
 
 See DESIGN.md §M3 for the full math and migration plan.
 """
+
 from __future__ import annotations
 
 from enum import Enum
@@ -65,7 +66,7 @@ class DualDimEmbedder:
             data = resp.json()
 
         # Ollama returns {"embedding": [[...], [...]]} for single, or {"embeddings": [[...]]}
-        if "embeddings" in data:  # noqa: SIM108
+        if "embeddings" in data:
             vectors = data["embeddings"]
         else:
             # Single-text fallback - Ollama returns {"embedding": [...]}
@@ -139,9 +140,7 @@ def _main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="RAG dual-dim embedder")
-    parser.add_argument(
-        "--list-backends", action="store_true", help="List available backends"
-    )
+    parser.add_argument("--list-backends", action="store_true", help="List available backends")
     args = parser.parse_args()
 
     if args.list_backends:

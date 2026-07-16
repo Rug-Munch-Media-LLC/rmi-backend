@@ -12,6 +12,7 @@ Quick start:
     >>> report = client.generate_report("token", "solana:DezXAZ...")
     >>> print(report.markdown[:500])
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -80,9 +81,7 @@ class RMI:
         return [McpTool(**t) for t in d.get("tools", [])]
 
     async def call_mcp_tool(self, name: str, arguments: dict | None = None) -> dict:
-        return await self._post(
-            f"/mcp/call/{name}", json={"arguments": arguments or {}}
-        )
+        return await self._post(f"/mcp/call/{name}", json={"arguments": arguments or {}})
 
     # ── Catalog (the v4.0 moat) ─────────────────────────────────
     async def get_token_risk(self, chain: str, address: str) -> TokenRisk:
@@ -117,12 +116,8 @@ class RMI:
         )
 
     # ── News (T28) ──────────────────────────────────────────────
-    async def get_news_trending(
-        self, window_hours: int = 24, limit: int = 20
-    ) -> list[NewsItem]:
-        d = await self._get(
-            "/api/v1/news/trending", window_hours=window_hours, limit=limit
-        )
+    async def get_news_trending(self, window_hours: int = 24, limit: int = 20) -> list[NewsItem]:
+        d = await self._get("/api/v1/news/trending", window_hours=window_hours, limit=limit)
         return [NewsItem(**i) for i in d.get("items", [])]
 
     async def list_news(self, since_hours: int = 24, limit: int = 20) -> list[NewsItem]:

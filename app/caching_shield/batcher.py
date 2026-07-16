@@ -18,10 +18,11 @@ when fetching data for multiple tokens/wallets simultaneously.
 """
 
 import asyncio
-from app.core.logging import get_logger
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("rpc_batcher")
 
@@ -109,7 +110,9 @@ class RpcBatcher:
             result = await asyncio.wait_for(future, timeout=5.0)
             return result
         except TimeoutError:
-            logger.warning(f"Batch request timed out for {provider}/{method}, falling back to direct")
+            logger.warning(
+                f"Batch request timed out for {provider}/{method}, falling back to direct"
+            )
             self.total_individual += 1
             return await self._query_fn(provider, method, params)
 
@@ -180,7 +183,9 @@ class RpcBatcher:
                     rid = item.get("id")
                     if rid is not None and rid in futures:
                         if "error" in item:
-                            futures[rid].set_exception(Exception(item["error"].get("message", "RPC error")))
+                            futures[rid].set_exception(
+                                Exception(item["error"].get("message", "RPC error"))
+                            )
                         else:
                             futures[rid].set_result(item.get("result"))
                     elif rid is not None:

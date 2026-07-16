@@ -13,7 +13,6 @@ Renders SVG inline (no external layout library) with top-to-bottom
 layout, color-coded roles, and edge thickness proportional to amount.
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass
 from typing import Any
@@ -21,6 +20,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import is_evm, is_solana
+from app.core.logging import get_logger
 
 logger = get_logger("fund_flow_visualizer")
 
@@ -153,7 +153,11 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
                         )
 
                     # Sellers = senders who transferred out early
-                    if from_addr and from_addr.lower() != token_address.lower() and from_addr not in seen:
+                    if (
+                        from_addr
+                        and from_addr.lower() != token_address.lower()
+                        and from_addr not in seen
+                    ):
                         seen.add(from_addr)
                         result["sellers"].append(
                             {
@@ -279,7 +283,9 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
 
         # 3) Get top holders from Solscan
         try:
-            url = f"https://api.solscan.io/v2/token/holders?address={token_address}&offset=0&size=10"
+            url = (
+                f"https://api.solscan.io/v2/token/holders?address={token_address}&offset=0&size=10"
+            )
             headers = {"User-Agent": "Mozilla/5.0"}
             resp = await client.get(url, headers=headers)
             data = resp.json()
@@ -529,7 +535,11 @@ def _generate_svg(
             if n_count == 1:
                 cx = x_start + x_span // 2
             else:
-                cx = x_start + int(i * x_span / (n_count - 1)) if n_count > 1 else x_start + x_span // 2
+                cx = (
+                    x_start + int(i * x_span / (n_count - 1))
+                    if n_count > 1
+                    else x_start + x_span // 2
+                )
             cy = y + node_height // 2
             node_positions[n.address.lower()] = (cx, cy)
 
@@ -590,13 +600,19 @@ def _generate_svg(
             continue
 
         # Determine edge thickness (1-5 px)
-        thickness = 1 + 4 * (e.amount_usd / max_amount) if max_amount > 0 and e.amount_usd > 0 else 2
+        thickness = (
+            1 + 4 * (e.amount_usd / max_amount) if max_amount > 0 and e.amount_usd > 0 else 2
+        )
         thickness = max(1, min(5, round(thickness)))
 
         # Determine color from source node role
         from_node = next((n for n in nodes if n.address.lower() == from_key), None)
         edge_color = ROLE_COLORS.get(from_node.role, "#7f8fa6") if from_node else "#7f8fa6"
-        arrow_marker = f"arrow-{from_node.role}" if from_node and from_node.role in ROLE_COLORS else "arrowhead"
+        arrow_marker = (
+            f"arrow-{from_node.role}"
+            if from_node and from_node.role in ROLE_COLORS
+            else "arrowhead"
+        )
 
         # Draw line from bottom of source to top of target
         x1, y1 = from_pos
@@ -675,7 +691,9 @@ def _generate_svg(
     )
     for i, (role, color) in enumerate(ROLE_COLORS.items()):
         ly = legend_y + 30 + i * 24
-        lines.append(f'<rect x="{legend_x + 10}" y="{ly}" width="14" height="14" rx="3" fill="{color}"/>')
+        lines.append(
+            f'<rect x="{legend_x + 10}" y="{ly}" width="14" height="14" rx="3" fill="{color}"/>'
+        )
         lines.append(
             f'<text x="{legend_x + 30}" y="{ly + 12}" fill="#e0e0e0" '
             f'font-family="monospace" font-size="10">{ROLE_LABELS[role]}</text>'
@@ -717,7 +735,9 @@ class FundFlowVisualizer:
             elif is_evm(chain):
                 wallets = await _fetch_evm_wallets(token_address, chain)
             else:
-                logger.warning(f"Unsupported chain '{chain}' for fund flow, attempting generic fetch")
+                logger.warning(
+                    f"Unsupported chain '{chain}' for fund flow, attempting generic fetch"
+                )
                 wallets = await _fetch_evm_wallets(token_address, chain)
         except Exception as e:
             logger.warning(f"Wallet data fetch failed: {e}")
@@ -766,8 +786,12 @@ class FundFlowVisualizer:
             svg_path = ""
 
         # ── Build report ───────────────────────────────────────
-        node_dicts = [{"address": n.address, "role": n.role, "amount_usd": n.amount_usd} for n in nodes]
-        edge_dicts = [{"from": e.from_addr, "to": e.to_addr, "amount_usd": e.amount_usd} for e in edges]
+        node_dicts = [
+            {"address": n.address, "role": n.role, "amount_usd": n.amount_usd} for n in nodes
+        ]
+        edge_dicts = [
+            {"from": e.from_addr, "to": e.to_addr, "amount_usd": e.amount_usd} for e in edges
+        ]
 
         return FundFlowReport(
             svg_content=svg_content,

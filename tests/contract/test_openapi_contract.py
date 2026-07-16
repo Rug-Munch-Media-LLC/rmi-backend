@@ -33,6 +33,7 @@ def api_state(schema):
 def test_openapi_schema_loads():
     """Verify the OpenAPI schema is valid and loadable."""
     import httpx
+
     resp = httpx.get(SCHEMA_URL)
     assert resp.status_code == 200, f"OpenAPI schema not available: {resp.status_code}"
     data = resp.json()
@@ -44,6 +45,7 @@ def test_openapi_schema_loads():
 def test_health_endpoint_contract():
     """Health endpoint must return 200 with correct schema."""
     import httpx
+
     resp = httpx.get("http://localhost:8000/health")
     assert resp.status_code == 200
     data = resp.json()
@@ -55,6 +57,7 @@ def test_health_endpoint_contract():
 def test_liveness_contract():
     """Liveness endpoint must return {status: 'alive'}."""
     import httpx
+
     resp = httpx.get("http://localhost:8000/live")
     assert resp.status_code == 200
     data = resp.json()
@@ -64,6 +67,7 @@ def test_liveness_contract():
 def test_readiness_contract():
     """Readiness endpoint must return {status: 'ready'|'not_ready', checks: {...}}."""
     import httpx
+
     resp = httpx.get("http://localhost:8000/ready")
     assert resp.status_code == 200
     data = resp.json()
@@ -75,6 +79,7 @@ def test_readiness_contract():
 def test_metrics_endpoint_serves_prometheus():
     """/metrics must return Prometheus exposition format."""
     import httpx
+
     resp = httpx.get("http://localhost:8000/metrics")
     assert resp.status_code == 200
     assert "HELP" in resp.text or "#" in resp.text, "Not Prometheus format"
@@ -83,6 +88,7 @@ def test_metrics_endpoint_serves_prometheus():
 def test_no_endpoint_returns_500_on_valid_input():
     """Valid requests to known endpoints should not return 500."""
     import httpx
+
     endpoints = [
         ("GET", "/health"),
         ("GET", "/live"),

@@ -14,11 +14,15 @@ Returns [] until labels are imported. The plan is to bulk-import
 the CSVs (etherscan_combined, ethereum labels, solana labels) via
 the warehouse_etl jobs. Until then, this adapter is a no-op.
 """
+
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
 
-from app.domains.labels.models import Label
+if TYPE_CHECKING:
+    from app.domains.labels.models import Label
 
 log = get_logger(__name__)
 

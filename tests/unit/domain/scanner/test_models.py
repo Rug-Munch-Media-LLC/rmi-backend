@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import pytest
-
 from app.domains.scanner.models import CHAIN_IDS, SOLANA_RPC_ENDPOINTS, ScanResult
 
 
@@ -114,4 +112,4 @@ class TestSolanaRPCEndpoints:
     def test_endpoints_are_urls(self):
         """All endpoints should be valid URLs."""
         for endpoint in SOLANA_RPC_ENDPOINTS:
-            assert endpoint.startswith("https://") or endpoint.startswith("http://")
+            assert endpoint.startswith(("https://", "http://"))

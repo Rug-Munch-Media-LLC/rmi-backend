@@ -65,7 +65,11 @@ async def cache_middleware(request: Request, call_next):
 
 async def emergency_lockdown_middleware(request: Request, call_next):
     """Check for emergency lockdown status. Block non-admin routes if active."""
-    if request.url.path in ["/health", "/api/v1/admin/emergency-lockdown", "/api/v1/admin/emergency-status"]:
+    if request.url.path in [
+        "/health",
+        "/api/v1/admin/emergency-lockdown",
+        "/api/v1/admin/emergency-status",
+    ]:
         return await call_next(request)
 
     try:
@@ -84,7 +88,10 @@ async def emergency_lockdown_middleware(request: Request, call_next):
             if not auth_header and not session_token:
                 return JSONResponse(
                     status_code=503,
-                    content={"error": "Service Unavailable", "detail": "System is in emergency lockdown."},
+                    content={
+                        "error": "Service Unavailable",
+                        "detail": "System is in emergency lockdown.",
+                    },
                 )
     except Exception:
         pass

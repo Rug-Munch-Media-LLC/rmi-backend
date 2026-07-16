@@ -9,12 +9,13 @@ Load balancing: round-robin with 429 fallback to next key
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("solana_tracker")
 
@@ -160,7 +161,9 @@ class SolanaTrackerClient:
                 return key
             return None
 
-    async def _call(self, path: str, params: dict | None = None, ttl: int = TTL_TOKEN) -> dict | None:
+    async def _call(
+        self, path: str, params: dict | None = None, ttl: int = TTL_TOKEN
+    ) -> dict | None:
         cache_key = self._cache_key(path, params or {})
         cached = await self._cache_get(cache_key)
         if cached is not None:
@@ -230,7 +233,9 @@ class SolanaTrackerClient:
     async def get_token_holders(self, mint: str, limit: int = 20) -> dict | None:
         return await self._call(f"/tokens/{mint}/holders", {"limit": min(limit, 50)}, TTL_HOLDERS)
 
-    async def get_token_trades(self, mint: str, limit: int = 20, cursor: str | None = None) -> dict | None:
+    async def get_token_trades(
+        self, mint: str, limit: int = 20, cursor: str | None = None
+    ) -> dict | None:
         params = {"limit": min(limit, 100)}
         if cursor:
             params["cursor"] = cursor
@@ -240,7 +245,9 @@ class SolanaTrackerClient:
     async def get_wallet(self, address: str) -> dict | None:
         return await self._call(f"/wallet/{address}", None, TTL_WALLET)
 
-    async def get_wallet_trades(self, address: str, limit: int = 20, cursor: str | None = None) -> dict | None:
+    async def get_wallet_trades(
+        self, address: str, limit: int = 20, cursor: str | None = None
+    ) -> dict | None:
         params = {"limit": min(limit, 100)}
         if cursor:
             params["cursor"] = cursor

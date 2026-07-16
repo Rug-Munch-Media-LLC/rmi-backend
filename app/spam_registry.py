@@ -7,10 +7,11 @@ All sources are free, MIT/GPL/CC licensed, production-grade.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -88,7 +89,9 @@ class SpamRegistry:
                             self._spam_nfts[chain_name] = nfts
                     elif isinstance(data, list):
                         self._spam_tokens[chain_name] = set(data)
-                    logger.info(f"GoldRush {chain_name}: {len(self._spam_tokens.get(chain_name, set()))} spam tokens")
+                    logger.info(
+                        f"GoldRush {chain_name}: {len(self._spam_tokens.get(chain_name, set()))} spam tokens"
+                    )
                 except Exception as e:
                     logger.debug(f"GoldRush {chain_name} cache read failed: {e}")
 
@@ -219,7 +222,9 @@ class SpamRegistry:
             ],
         }
 
-    def filter_spam_tokens(self, tokens: list[dict], chain: str = "solana") -> tuple[list[dict], list[dict]]:
+    def filter_spam_tokens(
+        self, tokens: list[dict], chain: str = "solana"
+    ) -> tuple[list[dict], list[dict]]:
         """Split token list into clean and spam.
         Returns: (clean_tokens, spam_tokens)"""
         self._ensure_loaded()
@@ -258,12 +263,16 @@ def seed_spam_data():
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # GoldRush API endpoint (free tier)
-                r = await client.get("https://api.goldrush.dev/spam/tokens?chain=ethereum&limit=1000")
+                r = await client.get(
+                    "https://api.goldrush.dev/spam/tokens?chain=ethereum&limit=1000"
+                )
                 if r.status_code == 200:
                     data = r.json()
                     with open(SPAM_DATA_DIR / "goldrush_spam_ethereum.json", "w") as f:
                         json.dump(data, f)
-                    logger.info(f"Seeded GoldRush ethereum: {len(data) if isinstance(data, list) else 'ok'}")
+                    logger.info(
+                        f"Seeded GoldRush ethereum: {len(data) if isinstance(data, list) else 'ok'}"
+                    )
         except Exception as e:
             logger.debug(f"GoldRush seed failed (expected on free tier): {e}")
 

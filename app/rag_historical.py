@@ -18,12 +18,13 @@ Runs: weekly (Sunday 2am) for historical sources.
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 import re
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("rag.historical")
 
@@ -272,7 +273,9 @@ async def ingest_trm_report() -> list[dict]:
     docs = []
     try:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            resp = await client.get("https://www.trmlabs.com/reports-and-whitepapers/2026-crypto-crime-report")
+            resp = await client.get(
+                "https://www.trmlabs.com/reports-and-whitepapers/2026-crypto-crime-report"
+            )
             if resp.status_code == 200:
                 # Extract key findings from the page
                 text = resp.text

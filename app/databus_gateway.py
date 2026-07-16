@@ -2,13 +2,14 @@
 """#10 - DataBus Public API Gateway. Free tier + x402 paid tier. 102 chains, 119 providers."""
 
 import hashlib
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -40,7 +41,9 @@ class DatabusQueryResult:
     latency_ms: float
 
 
-async def databus_get(chain: str, endpoint: str, params: dict | None = None, tier: str = "free") -> DatabusQueryResult:
+async def databus_get(
+    chain: str, endpoint: str, params: dict | None = None, tier: str = "free"
+) -> DatabusQueryResult:
     """Single-chain DataBus query with tier-appropriate caching."""
     t0 = time.monotonic()
     url = f"{DATABUS_BASE}/{chain}/{endpoint}"
@@ -50,7 +53,11 @@ async def databus_get(chain: str, endpoint: str, params: dict | None = None, tie
         data = resp.json()
     elapsed = (time.monotonic() - t0) * 1000
     return DatabusQueryResult(
-        chain=chain, data=data, source="databus", cached=data.get("cached", False), latency_ms=elapsed
+        chain=chain,
+        data=data,
+        source="databus",
+        cached=data.get("cached", False),
+        latency_ms=elapsed,
     )
 
 
@@ -76,7 +83,9 @@ async def databus_cross_chain(
 async def verify_x402_payment(signature: str, payload: str, chain: str = "solana") -> bool:
     """Verify x402 micropayment signature."""
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(X402_VERIFY_URL, json={"sig": signature, "payload": payload, "chain": chain})
+        resp = await client.post(
+            X402_VERIFY_URL, json={"sig": signature, "payload": payload, "chain": chain}
+        )
         return resp.status_code == 200 and resp.json().get("valid", False)
 
 

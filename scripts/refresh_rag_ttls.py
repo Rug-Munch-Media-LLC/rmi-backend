@@ -21,7 +21,9 @@ def redis_eval(lua_script, numkeys, *keys_and_args):
 
 
 # Get Redis password from container env
-env_out = subprocess.run(["docker", "exec", "rmi-backend", "env"], capture_output=True, text=True).stdout
+env_out = subprocess.run(
+    ["docker", "exec", "rmi-backend", "env"], capture_output=True, text=True
+).stdout
 REDIS_PASS = ""
 for line in env_out.splitlines():
     if line.startswith("REDIS_PASSWORD="):
@@ -108,8 +110,14 @@ for collection, desired_ttl in TTL_POLICY.items():
             errors += 1
             continue
 
-        action = f"TTL={0} (persistent)" if desired_ttl == 0 else f"TTL={desired_ttl}s ({desired_ttl // 86400}d)"
-        print(f"  {collection}: {scanned} keys scanned, {persisted} persisted, {refreshed} refreshed [{action}]")
+        action = (
+            f"TTL={0} (persistent)"
+            if desired_ttl == 0
+            else f"TTL={desired_ttl}s ({desired_ttl // 86400}d)"
+        )
+        print(
+            f"  {collection}: {scanned} keys scanned, {persisted} persisted, {refreshed} refreshed [{action}]"
+        )
         total_scanned += scanned
         total_persisted += persisted
         total_refreshed += refreshed

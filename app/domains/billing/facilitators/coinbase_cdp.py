@@ -12,11 +12,11 @@ Docs: https://docs.cdp.coinbase.com/x402/welcome
 npm:  @coinbase/x402
 """
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,
@@ -46,9 +46,12 @@ class CoinbaseCDPFacilitator(Facilitator):
         self._api_key_secret = config.coinbase_cdp_api_secret or _env("CDP_API_KEY_SECRET")
         self._network = config.coinbase_cdp_network or "base-mainnet"
         self._verify_url = (
-            config.coinbase_cdp_verify_url or "https://api.developer.coinbase.com/platform/v1/x402/verify"
+            config.coinbase_cdp_verify_url
+            or "https://api.developer.coinbase.com/platform/v1/x402/verify"
         )
-        self._settle_url = _env("COINBASE_CDP_SETTLE_URL") or self._verify_url.replace("/verify", "/settle")
+        self._settle_url = _env("COINBASE_CDP_SETTLE_URL") or self._verify_url.replace(
+            "/verify", "/settle"
+        )
 
         if not self._api_key_id:
             logger.warning(
@@ -158,11 +161,14 @@ class CoinbaseCDPFacilitator(Facilitator):
 
         try:
             timeout = aiohttp.ClientTimeout(total=_timeout())
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
-                self._verify_url,
-                json=body,
-                headers=self._headers,
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.post(
+                    self._verify_url,
+                    json=body,
+                    headers=self._headers,
+                ) as resp,
+            ):
                 data = await resp.json()
 
                 if resp.status == 200:
@@ -187,7 +193,9 @@ class CoinbaseCDPFacilitator(Facilitator):
                     return self._format_error(
                         f"CDP auth failed (HTTP {resp.status}). Verify CDP_API_KEY_ID/SECRET at portal.cdp.coinbase.com"
                     )
-                return self._format_error(f"CDP HTTP {resp.status}: {data.get('error', data.get('message', ''))}")
+                return self._format_error(
+                    f"CDP HTTP {resp.status}: {data.get('error', data.get('message', ''))}"
+                )
 
         except TimeoutError:
             return self._format_error("Coinbase CDP verification timed out")
@@ -201,7 +209,9 @@ class CoinbaseCDPFacilitator(Facilitator):
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
         if not self._api_key_id:
-            return SettlementResult(settled=False, reason="CDP not configured", facilitator=self.name)
+            return SettlementResult(
+                settled=False, reason="CDP not configured", facilitator=self.name
+            )
 
         try:
             timeout = aiohttp.ClientTimeout(total=30)
@@ -230,7 +240,9 @@ class CoinbaseCDPFacilitator(Facilitator):
                     facilitator=self.name,
                 )
         except Exception as e:
-            return SettlementResult(settled=False, reason=f"CDP settlement error: {e}", facilitator=self.name)
+            return SettlementResult(
+                settled=False, reason=f"CDP settlement error: {e}", facilitator=self.name
+            )
 
 
 # ── Helpers ─────────────────────────────────────────────────

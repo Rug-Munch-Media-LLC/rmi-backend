@@ -11,10 +11,11 @@ Premium feature: "4 tokens detected from same entity - coordinated rug campaign"
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("sentinel.campaign")
 
@@ -43,7 +44,9 @@ def record_scan(chain: str, address: str, metadata: dict[str, Any]):
     """Record a scan for campaign correlation."""
     key = f"{chain}:{address.lower()}"
     metadata["_recorded_at"] = (
-        asyncio.get_event_loop().time() if asyncio.get_event_loop().is_running() else __import__("time").time()
+        asyncio.get_event_loop().time()
+        if asyncio.get_event_loop().is_running()
+        else __import__("time").time()
     )
     _recent_scans[key] = metadata
 
@@ -103,7 +106,9 @@ def detect_campaigns(min_cluster_size: int = 3) -> list[CampaignCluster]:
                     existing_tokens.add(f"{t.get('chain', '')}:{t.get('address', '')}")
 
             new_tokens = [
-                s for s in group if f"{s.get('chain', '')}:{s.get('address', '')}".lower() not in existing_tokens
+                s
+                for s in group
+                if f"{s.get('chain', '')}:{s.get('address', '')}".lower() not in existing_tokens
             ]
             if len(new_tokens) >= min_cluster_size:
                 campaign = CampaignCluster(
@@ -130,9 +135,9 @@ def detect_campaigns(min_cluster_size: int = 3) -> list[CampaignCluster]:
         clusters = _cluster_similar(similar_pairs)
         for cluster_tokens in clusters:
             if len(cluster_tokens) >= min_cluster_size:
-                avg_sim = sum(p[2] for p in similar_pairs if p[0] in cluster_tokens and p[1] in cluster_tokens) / max(
-                    len(cluster_tokens), 1
-                )
+                avg_sim = sum(
+                    p[2] for p in similar_pairs if p[0] in cluster_tokens and p[1] in cluster_tokens
+                ) / max(len(cluster_tokens), 1)
                 campaign = CampaignCluster(
                     cluster_id=f"contract_{hashlib.sha256(str(sorted([t.get('address', '') for t in cluster_tokens])).encode()).hexdigest()[:12]}",
                     tokens=[_token_summary(s) for s in cluster_tokens],
@@ -225,7 +230,9 @@ def _token_summary(scan: dict) -> dict[str, Any]:
         "symbol": scan.get("symbol", ""),
         "name": scan.get("name", ""),
         "safety_score": scan.get("safety_score", 50),
-        "age_hours": scan.get("free", {}).get("age_hours", 0) if isinstance(scan.get("free"), dict) else 0,
+        "age_hours": scan.get("free", {}).get("age_hours", 0)
+        if isinstance(scan.get("free"), dict)
+        else 0,
         "holder_count": scan.get("free", {}).get("holders", {}).get("total", 0)
         if isinstance(scan.get("free", {}).get("holders"), dict)
         else 0,

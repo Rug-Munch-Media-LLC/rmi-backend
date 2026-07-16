@@ -14,12 +14,13 @@ Tables:
 """
 
 import contextlib
-from app.core.logging import get_logger
 import os
 import time
 from typing import Any
 
 import duckdb
+
+from app.core.logging import get_logger
 
 logger = get_logger("databus.duckdb_analytics")
 
@@ -109,24 +110,24 @@ def _load_real_cats(con, base_dir: str) -> dict:
             continue
         try:
             table = "criminal_addresses" if label_type == "criminal" else "benign_addresses"
-            con.execute(f"""
+            con.execute("""
                 INSERT INTO {table} (address, chain, label, source)
-                SELECT col1, '{chain}', '{label_type}', 'real-cats'
-                FROM read_csv_auto('{fpath}', delim='\\t', header=true, all_varchar=true,
+                SELECT col1, ?, ?, 'real-cats'
+                FROM read_csv_auto(?, delim='\\t', header=true, all_varchar=true,
                                     sample_size=50000)
                 WHERE col1 IS NOT NULL AND col1 != ''
-            """)
+            """.format(table=table), [chain, label_type, fpath])
             count = con.execute("SELECT changes()").fetchone()[0]
             stats[label_type] += count if count else 0
         except Exception:
             # Fallback: try with first column as address
             try:
-                con.execute(f"""
+                con.execute("""
                     INSERT INTO {table} (address, chain, label, source)
-                    SELECT column0, '{chain}', '{label_type}', 'real-cats'
-                    FROM read_csv_auto('{fpath}', delim='\\t', header=false, all_varchar=true)
+                    SELECT column0, ?, ?, 'real-cats'
+                    FROM read_csv_auto(?, delim='\\t', header=false, all_varchar=true)
                     WHERE column0 IS NOT NULL AND column0 != ''
-                """)
+                """.format(table=table), [chain, label_type, fpath])
                 stats[label_type] += 1
             except Exception as e2:
                 stats["errors"].append(f"{fname}: {e2}")
@@ -135,12 +136,12 @@ def _load_real_cats(con, base_dir: str) -> dict:
     id_path = os.path.join(base_dir, "Identifier.tsv")
     if os.path.isfile(id_path):
         with contextlib.suppress(Exception):
-            con.execute(f"""
+            con.execute("""
                 INSERT INTO criminal_addresses (address, chain, label, source)
-                SELECT col1, 'multi', 'criminal-identifier', 'real-cats-ids'
-                FROM read_csv_auto('{id_path}', delim='\\t', header=true, all_varchar=true)
+                SELECT col1, ?, ?, 'real-cats-ids'
+                FROM read_csv_auto(?, delim='\\t', header=true, all_varchar=true)
                 WHERE col1 IS NOT NULL AND col1 != ''
-            """)
+            """, ["multi", "criminal-identifier", id_path])
 
     return stats
 
@@ -155,7 +156,7 @@ def _load_mbal(con, base_dir: str) -> dict:
         try:
             start = time.time()
             # Columns: chain,address,categories,entity,source
-            con.execute(f"""
+            con.execute("""
                 INSERT INTO mbal_labels (address, chain, category, label, source)
                 SELECT
                     address,
@@ -163,12 +164,12 @@ def _load_mbal(con, base_dir: str) -> dict:
                     COALESCE(categories, ''),
                     COALESCE(entity, COALESCE(categories, '')),
                     'mbal-10m'
-                FROM read_csv_auto('{primary}',
+                FROM read_csv_auto(?,
                                     header=true,
                                     all_varchar=true,
                                     sample_size=50000)
                 WHERE address IS NOT NULL AND address != ''
-            """)
+            """, [primary])
             elapsed = time.time() - start
             count = con.execute(
                 "SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-10m'"
@@ -178,7 +179,7 @@ def _load_mbal(con, base_dir: str) -> dict:
         except Exception:
             # Try simpler approach - just grab first column as address
             try:
-                con.execute(f"""
+                con.execute("""
                     INSERT INTO mbal_labels (address, chain, category, label, source)
                     SELECT
                         column0,
@@ -186,13 +187,13 @@ def _load_mbal(con, base_dir: str) -> dict:
                         'unknown',
                         'unknown',
                         'mbal-10m'
-                    FROM read_csv_auto('{primary}',
+                    FROM read_csv_auto(?,
                                         header=false,
                                         all_varchar=true,
                                         sample_size=100000)
                     WHERE column0 IS NOT NULL AND column0 != ''
                     LIMIT 5000000
-                """)
+                """, [primary])
                 count = con.execute(
                     "SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-10m'"
                 ).fetchone()[0]
@@ -213,18 +214,18 @@ def _load_mbal(con, base_dir: str) -> dict:
             c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in tag
         ):
             continue
-        try:
-            con.execute(f"""
+try:
+            con.execute("""
                 INSERT INTO mbal_labels (address, chain, category, label, source)
                 SELECT
-                    column0, 'unknown', '{tag}', '{tag}', 'mbal-{tag}'
-                FROM read_csv_auto('{fpath}', header=true, all_varchar=true,
+                    column0, 'unknown', ?, ?, 'mbal-{tag}'
+                FROM read_csv_auto(?, header=true, all_varchar=true,
                                     sample_size=50000)
                 WHERE column0 IS NOT NULL AND column0 != ''
                 LIMIT 500000
-            """)
+            """.format(tag=tag), [tag, tag, fpath])
             c = con.execute(
-                f"SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-{tag}'"
+                "SELECT COUNT(*) FROM mbal_labels WHERE source=?"
             ).fetchone()[0]
             stats["loaded"] += c
         except Exception:

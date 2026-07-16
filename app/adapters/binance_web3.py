@@ -52,7 +52,9 @@ def get_wallet_holdings(address: str, chain_id: str) -> list:
         List of token dicts with: symbol, name, price, remainQty,
         percentChange24h, contractAddress, riskLevel
     """
-    url = f"{BASE_URL}/bapi/defi/v3/public/wallet-direct/buw/wallet/address/pnl/active-position-list"
+    url = (
+        f"{BASE_URL}/bapi/defi/v3/public/wallet-direct/buw/wallet/address/pnl/active-position-list"
+    )
     all_tokens = []
     offset = 0
 

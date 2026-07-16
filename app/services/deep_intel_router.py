@@ -16,10 +16,9 @@ Endpoints for:
 + Composite full report
 """
 
-from app.core.logging import get_logger
-
 from fastapi import APIRouter, HTTPException, Query
 
+from app.core.logging import get_logger
 from app.services.deep_intelligence import (
     cross_chain_identity,
     deployer_reputation,

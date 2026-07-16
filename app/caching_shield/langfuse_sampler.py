@@ -13,9 +13,10 @@ Free tier: 50,000 observations/month
 Our target: 30,000/month (60% headroom)
 """
 
-from app.core.logging import get_logger
 import os
 import random
+
+from app.core.logging import get_logger
 
 logger = get_logger("langfuse_sampler")
 

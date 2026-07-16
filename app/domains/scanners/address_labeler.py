@@ -12,7 +12,6 @@ Combines all label sources into a unified response with risk assessment.
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -20,6 +19,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import CHAINS, is_evm
+from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("address_labeler")
@@ -404,11 +404,20 @@ class AddressLabeler:
             )
         ):
             return "exchange"
-        if any(w in text_lower for w in ("mev", "sandwich", "flashbot", "jit", "front-run", "arbitrageur", "solver")):
+        if any(
+            w in text_lower
+            for w in ("mev", "sandwich", "flashbot", "jit", "front-run", "arbitrageur", "solver")
+        ):
             return "mev"
-        if any(w in text_lower for w in ("rug", "scam", "exploit", "hack", "phish", "drainer", "impersonator", "fake")):
+        if any(
+            w in text_lower
+            for w in ("rug", "scam", "exploit", "hack", "phish", "drainer", "impersonator", "fake")
+        ):
             return "scam"
-        if any(w in text_lower for w in ("bridge", "hop", "across", "synapse", "stargate", "wormhole", "portal")):
+        if any(
+            w in text_lower
+            for w in ("bridge", "hop", "across", "synapse", "stargate", "wormhole", "portal")
+        ):
             return "bridge"
         if any(
             w in text_lower

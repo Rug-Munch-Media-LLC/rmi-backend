@@ -16,11 +16,12 @@ Pump.fun bonding curve model:
   Graduation occurs at ~85 SOL raised (target moves, but signal is complete curve).
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("pumpfun_analyzer")
 
@@ -112,7 +113,9 @@ class PumpFunAnalyzer:
     Supports Solana only - Pump.fun does not operate on other chains.
     """
 
-    def __init__(self, helius_api_key: str | None = None, dexscreener_client: httpx.AsyncClient | None = None):
+    def __init__(
+        self, helius_api_key: str | None = None, dexscreener_client: httpx.AsyncClient | None = None
+    ):
         self.helius_api_key = helius_api_key or os.getenv("HELIUS_API_KEY", "")
         self.client = dexscreener_client or httpx.AsyncClient(timeout=20.0)
         if not self.helius_api_key:
@@ -538,7 +541,10 @@ class PumpFunAnalyzer:
             momentum_factor = 0.5  # Low momentum, may fizzle out
 
         probability = (
-            progress_factor * 0.40 + organic_factor * 0.25 + bot_penalty * 0.20 + (momentum_factor / 1.5) * 0.15
+            progress_factor * 0.40
+            + organic_factor * 0.25
+            + bot_penalty * 0.20
+            + (momentum_factor / 1.5) * 0.15
         )
 
         return min(1.0, max(0.0, probability))
@@ -560,9 +566,13 @@ class PumpFunAnalyzer:
 
         if curve.complete:
             if is_migrated:
-                warnings.append("GRADUATED: Token has graduated from Pump.fun and migrated to Raydium/DEX")
+                warnings.append(
+                    "GRADUATED: Token has graduated from Pump.fun and migrated to Raydium/DEX"
+                )
             else:
-                warnings.append("GRADUATED: Bonding curve complete but migration not confirmed on DexScreener")
+                warnings.append(
+                    "GRADUATED: Bonding curve complete but migration not confirmed on DexScreener"
+                )
         else:
             warnings.append(
                 f"CURVE_PROGRESS: Bonding curve at {curve.curve_progress:.1f}% "
@@ -570,7 +580,9 @@ class PumpFunAnalyzer:
             )
 
         if bot_ratio > 0.7:
-            warnings.append(f"HIGH_BOT_RATIO: {bot_ratio:.0%} of buyers are likely bots ({bot_count}/{len(buyers)})")
+            warnings.append(
+                f"HIGH_BOT_RATIO: {bot_ratio:.0%} of buyers are likely bots ({bot_count}/{len(buyers)})"
+            )
         elif bot_ratio > 0.4:
             warnings.append(f"MODERATE_BOT_RATIO: {bot_ratio:.0%} of buyers are likely bots")
 
@@ -584,7 +596,9 @@ class PumpFunAnalyzer:
             if total_sol > 0:
                 dominance = top_buyer.total_sol_spent / total_sol
                 if dominance > 0.3:
-                    warnings.append(f"WHALE_DOMINANCE: Top buyer holds {dominance:.0%} of total SOL invested")
+                    warnings.append(
+                        f"WHALE_DOMINANCE: Top buyer holds {dominance:.0%} of total SOL invested"
+                    )
 
         if curve.curve_progress < 10 and len(buyers) > 0:
             warnings.append("EARLY_STAGE: Token is in very early bonding curve stage - high risk")

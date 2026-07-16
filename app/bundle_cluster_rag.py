@@ -20,10 +20,11 @@ Flow:
 
 import hashlib
 import json
-from app.core.logging import get_logger
 from typing import Any
 
 import numpy as np
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -69,7 +70,9 @@ def embed_bundle_profile(bundle: dict[str, Any]) -> list[float]:
     # Temporal
     block_span = float(bundle.get("block_span", 1))
     vec[12] = min(1.0 / max(1.0, block_span), 1.0)  # narrower span = more bundled
-    vec[13] = 1.0 if bundle.get("earliest_block", 0) == bundle.get("launch_block", 0) else 0.0  # block-0 bundle
+    vec[13] = (
+        1.0 if bundle.get("earliest_block", 0) == bundle.get("launch_block", 0) else 0.0
+    )  # block-0 bundle
 
     # ── Behavior fingerprint (dims 16-31) ──
     behaviors = bundle.get("behaviors", [])
@@ -435,7 +438,9 @@ Common tokens: {", ".join(cluster.get("common_tokens", [])[:5])}."""
     matches = []
     for template in CLUSTER_LABEL_TEMPLATES:
         # Template description embedding
-        template_text = f"{template['label']}: {template['description']} Examples: {template['examples']}"
+        template_text = (
+            f"{template['label']}: {template['description']} Examples: {template['examples']}"
+        )
         try:
             template_semantic = await embedder._semantic_embed_one(template_text, "semantic")
         except Exception:
@@ -546,7 +551,9 @@ async def search_clusters_by_description(
     embedder = await get_embedder()
 
     # Embed the NL query
-    query_vec = await embedder._semantic_embed_one(f"Wallet cluster with behavior: {query}", "semantic")
+    query_vec = await embedder._semantic_embed_one(
+        f"Wallet cluster with behavior: {query}", "semantic"
+    )
 
     store = await get_vector_store()
 
@@ -629,7 +636,9 @@ async def index_cluster_detection(cluster: dict[str, Any]) -> dict[str, Any]:
 
     cluster_id = str(cluster.get("cluster_id", cluster.get("id", "")))
     if not cluster_id:
-        cluster_id = hashlib.sha256(json.dumps(cluster, sort_keys=True, default=str).encode()).hexdigest()[:16]
+        cluster_id = hashlib.sha256(
+            json.dumps(cluster, sort_keys=True, default=str).encode()
+        ).hexdigest()[:16]
 
     # Auto-label the cluster
     labels = await auto_label_cluster(cluster, vec)
@@ -656,13 +665,17 @@ All labels: {json.dumps(labels["all_labels"])}"""
             "all_labels": labels["all_labels"],
             "scam_probability": cluster.get("scam_probability", 0),
             "severity": labels["all_labels"][0]["severity"] if labels["all_labels"] else "medium",
-            "chain": cluster.get("active_chains", ["unknown"])[0] if cluster.get("active_chains") else "unknown",
+            "chain": cluster.get("active_chains", ["unknown"])[0]
+            if cluster.get("active_chains")
+            else "unknown",
         },
         source="cluster_detector",
         severity=labels["all_labels"][0]["severity"] if labels["all_labels"] else "medium",
     )
 
-    logger.info(f"Indexed cluster {cluster_id} as '{labels['top_label']}' ({labels['top_confidence']:.2f})")
+    logger.info(
+        f"Indexed cluster {cluster_id} as '{labels['top_label']}' ({labels['top_confidence']:.2f})"
+    )
 
     return {
         "cluster_id": cluster_id,

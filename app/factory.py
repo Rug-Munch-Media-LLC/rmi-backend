@@ -17,12 +17,14 @@ Per v4.0 §T01 + ADR-0001 (strangler fig), this factory:
   - Each mount is isolated (one failure does not break others)
   - Frozen file: no mass regex allowed; targeted edits only
 """
+
 from __future__ import annotations
 
-from app.core.logging import get_logger
 from typing import Final
 
 from fastapi import FastAPI
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -66,6 +68,7 @@ def create_app() -> FastAPI:
 
     log.info(
         "rmi_backend_ready mounted=%d total_routes=%d",
-        mounted, len(app.routes),
+        mounted,
+        len(app.routes),
     )
     return app

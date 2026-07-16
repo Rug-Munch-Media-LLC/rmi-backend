@@ -12,6 +12,7 @@ Legacy ``app/routers/x402_tools.py`` is preserved as a thin re-export
 shim that re-exports this router; downstream code keeps working
 unchanged.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter

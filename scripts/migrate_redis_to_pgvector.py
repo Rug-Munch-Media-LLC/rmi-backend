@@ -49,7 +49,9 @@ def _get_url():
 
 
 def _get_key():
-    return os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    return os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get(
+        "SUPABASE_SERVICE_ROLE_KEY", ""
+    )
 
 
 def _get_headers():
@@ -86,7 +88,9 @@ async def get_existing_ids(client: httpx.AsyncClient) -> set:
         try:
             resp = await client.get(url, params=params, headers=_get_headers(), timeout=30)
             if resp.status_code != 200:
-                logger.warning(f"Could not fetch existing IDs: {resp.status_code} {resp.text[:300]}")
+                logger.warning(
+                    f"Could not fetch existing IDs: {resp.status_code} {resp.text[:300]}"
+                )
                 break
             rows = resp.json() if resp.text else []
             if not rows:
@@ -117,14 +121,18 @@ async def insert_batch(client: httpx.AsyncClient, rows: list[dict]) -> int:
             success = 0
             for row in rows:
                 try:
-                    r2 = await client.post(url, json=[row], params=params, headers=_get_headers(), timeout=60)
+                    r2 = await client.post(
+                        url, json=[row], params=params, headers=_get_headers(), timeout=60
+                    )
                     if r2.status_code in (200, 201):
                         success += 1
                     else:
                         if r2.status_code == 400 and "embedding" in (r2.text or ""):
                             logger.warning(f"Skipping {row['id']} due to embedding error")
                         else:
-                            logger.warning(f"Single insert failed for {row['id']}: {r2.status_code} {r2.text[:200]}")
+                            logger.warning(
+                                f"Single insert failed for {row['id']}: {r2.status_code} {r2.text[:200]}"
+                            )
                 except Exception as e:
                     logger.warning(f"Single insert error for {row['id']}: {e}")
             return success
@@ -133,7 +141,9 @@ async def insert_batch(client: httpx.AsyncClient, rows: list[dict]) -> int:
         return 0
 
 
-async def migrate_collection(r: aioredis.Redis, client: httpx.AsyncClient, collection: str, existing_ids: set) -> int:
+async def migrate_collection(
+    r: aioredis.Redis, client: httpx.AsyncClient, collection: str, existing_ids: set
+) -> int:
     """Migrate all docs from one Redis collection to Supabase."""
     idx_key = f"rag:idx:{collection}"
     doc_ids = await r.smembers(idx_key)
@@ -215,7 +225,9 @@ async def migrate_collection(r: aioredis.Redis, client: httpx.AsyncClient, colle
 
         # Progress every 500 docs
         if (i + 1) % 500 == 0:
-            logger.info(f"  Progress: processed {i + 1}/{len(to_migrate)}, migrated {migrated}, errors {errors}")
+            logger.info(
+                f"  Progress: processed {i + 1}/{len(to_migrate)}, migrated {migrated}, errors {errors}"
+            )
 
     # Flush remaining batch
     if batch_rows:
@@ -233,7 +245,9 @@ async def migrate_collection(r: aioredis.Redis, client: httpx.AsyncClient, colle
 async def main():
     logger.info("Starting Redis -> Supabase rag_vectors migration")
     logger.info(f"Supabase URL: {_get_url()}")
-    logger.info(f"Redis: {os.environ.get('REDIS_HOST', 'rmi-redis')}:{os.environ.get('REDIS_PORT', '6379')}")
+    logger.info(
+        f"Redis: {os.environ.get('REDIS_HOST', 'rmi-redis')}:{os.environ.get('REDIS_PORT', '6379')}"
+    )
     logger.info(f"Target vector dimension: {TARGET_DIM}")
     logger.info(f"Collections: {COLLECTIONS}")
 

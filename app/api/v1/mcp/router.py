@@ -9,15 +9,16 @@ The server speaks the Model Context Protocol natively. Claude Desktop
 and Cursor connect via:
   {"mcpServers": {"rugmunch": {"url": "https://mcp.rugmunch.io/mcp", "transport": "sse"}}}
 """
+
 from __future__ import annotations
 
 import json
-from app.core.logging import get_logger
 from typing import Any
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from app.core.logging import get_logger
 from app.mcp.server import (
     MCP_PROTOCOL_VERSION,
     MCP_SERVER_VERSION,
@@ -58,7 +59,11 @@ async def jsonrpc_handler(req: JsonRpcRequest) -> dict:
       - prompts/list          → empty
     """
     if req.jsonrpc != "2.0":
-        return {"jsonrpc": "2.0", "error": {"code": -32600, "message": "invalid jsonrpc version"}, "id": req.id}
+        return {
+            "jsonrpc": "2.0",
+            "error": {"code": -32600, "message": "invalid jsonrpc version"},
+            "id": req.id,
+        }
 
     if req.method == "initialize":
         return {
@@ -86,7 +91,11 @@ async def jsonrpc_handler(req: JsonRpcRequest) -> dict:
         name = req.params.get("name", "")
         arguments = req.params.get("arguments", {})
         if not name:
-            return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "tool name required"}, "id": req.id}
+            return {
+                "jsonrpc": "2.0",
+                "error": {"code": -32602, "message": "tool name required"},
+                "id": req.id,
+            }
         result = await call_tool(name, arguments)
         return {
             "jsonrpc": "2.0",
@@ -158,7 +167,11 @@ async def server_info() -> dict:
 @router.post("/call/{tool_id}")
 async def direct_call(tool_id: str, request: Request) -> dict:
     """Direct tool execution (no JSON-RPC). For curl/scripts."""
-    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    body = (
+        await request.json()
+        if request.headers.get("content-type", "").startswith("application/json")
+        else {}
+    )
     arguments = body.get("arguments", body) if isinstance(body, dict) else {}
     result = await call_tool(tool_id, arguments)
     return result

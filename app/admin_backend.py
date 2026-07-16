@@ -34,16 +34,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import secrets
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
 from fastapi import HTTPException, Request
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi_admin_backend")
 
@@ -184,7 +185,7 @@ class AuditLogger:
         """Log an admin action."""
         entry = AuditLogEntry(
             entry_id=f"audit_{int(time.time() * 1000)}_{secrets.token_hex(4)}",
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             admin_id=admin_id,
             admin_email=admin_email,
             action=action,
@@ -212,7 +213,7 @@ class AuditLogger:
             )
 
             # Add to time-series list
-            key = f"audit_log:{datetime.utcnow().strftime('%Y-%m-%d')}"
+            key = f"audit_log:{datetime.now(UTC).strftime('%Y-%m-%d')}"
             await r.lpush(key, json.dumps(entry.to_dict()))
 
             # Keep only last 30 days in Redis
@@ -229,7 +230,7 @@ class AuditLogger:
 
         # Write to local file (append-only, immutable)
         try:
-            log_file = f"/var/log/rmi/audit_{datetime.utcnow().strftime('%Y-%m')}.jsonl"
+            log_file = f"/var/log/rmi/audit_{datetime.now(UTC).strftime('%Y-%m')}.jsonl"
             os.makedirs(os.path.dirname(log_file), exist_ok=True)
             with open(log_file, "a") as f:
                 f.write(json.dumps(entry.to_dict()) + "\n")
@@ -274,7 +275,7 @@ class AuditLogger:
             )
 
             # Get today's log
-            key = f"audit_log:{datetime.utcnow().strftime('%Y-%m-%d')}"
+            key = f"audit_log:{datetime.now(UTC).strftime('%Y-%m-%d')}"
             logs = await r.lrange(key, offset, offset + limit - 1)
 
             for log in logs:
@@ -392,8 +393,8 @@ class SecurityManager:
             data = {
                 "ip": ip,
                 "reason": reason,
-                "blocked_at": datetime.utcnow().isoformat(),
-                "expires_at": (datetime.utcnow() + timedelta(hours=duration_hours)).isoformat(),
+                "blocked_at": datetime.now(UTC).isoformat(),
+                "expires_at": (datetime.now(UTC) + timedelta(hours=duration_hours)).isoformat(),
                 "duration_hours": duration_hours,
             }
 
@@ -534,11 +535,11 @@ class SessionManager:
             "role": role.value if isinstance(role, AdminRole) else role,
             "ip_address": ip_address,
             "user_agent": user_agent,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "expires_at": (
-                datetime.utcnow() + timedelta(hours=SessionManager.SESSION_TIMEOUT_HOURS)
+                datetime.now(UTC) + timedelta(hours=SessionManager.SESSION_TIMEOUT_HOURS)
             ).isoformat(),
-            "last_active": datetime.utcnow().isoformat(),
+            "last_active": datetime.now(UTC).isoformat(),
             "is_active": True,
         }
 
@@ -596,12 +597,12 @@ class SessionManager:
 
             # Check expiry
             expires = datetime.fromisoformat(session["expires_at"])
-            if datetime.utcnow() > expires:
+            if datetime.now(UTC) > expires:
                 await SessionManager.destroy_session(session_id)
                 return None
 
             # Update last active
-            session["last_active"] = datetime.utcnow().isoformat()
+            session["last_active"] = datetime.now(UTC).isoformat()
             await r.setex(
                 f"admin_session:{session_id}",
                 SessionManager.SESSION_TIMEOUT_HOURS * 3600,
@@ -664,7 +665,7 @@ class SessionManager:
                     session = json.loads(data)
                     # Check if still valid
                     expires = datetime.fromisoformat(session["expires_at"])
-                    if datetime.utcnow() < expires:
+                    if datetime.now(UTC) < expires:
                         sessions.append(session)
                     else:
                         await r.srem(f"admin_sessions:{admin_id}", sid)
@@ -838,7 +839,7 @@ class AdminUserStore:
             "password_hash": hash_password(password),
             "role": role.value,
             "is_active": True,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "created_by": created_by,
             "last_login": None,
             "login_count": 0,
@@ -872,7 +873,7 @@ class AdminUserStore:
             return None
 
         # Update last login
-        admin["last_login"] = datetime.utcnow().isoformat()
+        admin["last_login"] = datetime.now(UTC).isoformat()
         admin["login_count"] = admin.get("login_count", 0) + 1
         await AdminUserStore.save_admin(admin)
 
@@ -921,7 +922,7 @@ class SystemHealthMonitor:
         }
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "cpu": {
                 "percent": cpu_percent,
                 "count": cpu_count,

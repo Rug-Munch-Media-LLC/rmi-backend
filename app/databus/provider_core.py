@@ -6,13 +6,14 @@ Circuit breakers, rate limiters, quota tracking, and core provider classes.
 This module contains NO external API implementations.
 """
 
-from app.core.logging import get_logger
 import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.core")
 
@@ -75,7 +76,9 @@ class ProviderChain:
 
         if credit_pressure:
             # Re-sort: push free/local providers above paid/freemium near quota
-            providers_sorted.sort(key=lambda p: (0 if p.tier.value in ("local", "free_api") else 1, -p.weight))
+            providers_sorted.sort(
+                key=lambda p: (0 if p.tier.value in ("local", "free_api") else 1, -p.weight)
+            )
 
         for provider in providers_sorted:
             # Check circuit breaker

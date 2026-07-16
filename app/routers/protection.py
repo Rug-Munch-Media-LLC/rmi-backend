@@ -6,7 +6,6 @@ Provides safety checking for URLs, wallets, and tokens.
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
@@ -18,6 +17,8 @@ from urllib.parse import urlparse
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+
+from app.core.logging import get_logger
 
 logger = get_logger("protection")
 
@@ -236,7 +237,9 @@ async def check_url(request: URLCheckRequest, http_request: Request):
         allowed, retry_after = rate_limiter.is_allowed(client_id, limit=60, window=60)
 
         if not allowed:
-            raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds.")
+            raise HTTPException(
+                status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds."
+            )
 
         url = request.url.strip()
         if not url:
@@ -266,7 +269,9 @@ async def check_url(request: URLCheckRequest, http_request: Request):
 
         # If we get here, no threats detected
         await feed_url_to_rag(url, is_safe=True)
-        return ProtectionResponse(safe=True, risk="low", reason="No threats detected", source="protection_suite")
+        return ProtectionResponse(
+            safe=True, risk="low", reason="No threats detected", source="protection_suite"
+        )
     except Exception as e:
         logger.warning(f"URL check failed for {request.url}: {e}")
         return ProtectionResponse(
@@ -289,7 +294,9 @@ async def check_wallet(request: WalletCheckRequest, http_request: Request):
         allowed, retry_after = rate_limiter.is_allowed(client_id, limit=30, window=60)
 
         if not allowed:
-            raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds.")
+            raise HTTPException(
+                status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds."
+            )
 
         address = request.address.strip()
         chain = request.chain.lower().strip()
@@ -376,7 +383,9 @@ async def check_token(request: TokenCheckRequest, http_request: Request):
         allowed, retry_after = rate_limiter.is_allowed(client_id, limit=30, window=60)
 
         if not allowed:
-            raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds.")
+            raise HTTPException(
+                status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds."
+            )
 
         address = request.address.strip()
         chain = request.chain.lower().strip()
@@ -457,7 +466,9 @@ async def get_domains():
         backend_blocklist_path = "/app/blocklist.json"
         domains_set: set[str] = set()
 
-        logger.info(f"Loading blocklist from {extension_blocklist_path} and {backend_blocklist_path}")
+        logger.info(
+            f"Loading blocklist from {extension_blocklist_path} and {backend_blocklist_path}"
+        )
 
         if os.path.exists(extension_blocklist_path):
             logger.info(f"Extension blocklist file exists: {extension_blocklist_path}")
@@ -562,7 +573,9 @@ async def protection_health():
         from app.rag_service import three_pillar_search
 
         # We'll do a quick query
-        await three_pillar_search(query="test", collections=["known_scams"], limit=1, min_similarity=0.5)
+        await three_pillar_search(
+            query="test", collections=["known_scams"], limit=1, min_similarity=0.5
+        )
         health_status["modules"]["rag"] = "ok"
     except Exception as e:
         health_status["modules"]["rag"] = f"error: {e}"

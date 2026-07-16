@@ -1,178 +1,42 @@
-name: RMI CI
+# CI/CD Pipeline for RMI Backend
+
+name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
-
-# T14 fix (RMI v5 §G09): every PR must build clean + emit a real OpenAPI
-# schema. Catches factory regressions BEFORE merge so SDKs and MCP
-# manifests never drift from the actual API surface.
-#
-# Phase 1 of AUDIT-2026-Q3.md item P1.6:
-# - CI was 6/8 decorative (|| true / continue-on-error: true on every job)
-# - Now: 2 GATING jobs (build + test) must pass for merge
-# - 6 INFORMATIONAL jobs (lint-info, typecheck-info, etc.) report but never gate
-# - Forgejo .forgejo/workflows/ci.yml remains the authoritative gate
+    branches: [ main ]
 
 jobs:
-
-  # ────────────────────────── GATING JOBS ──────────────────────────
-
-  build:
-    name: Build (gate)
+  ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install project editable
-        run: uv pip install --system -e ".[dev]"
-      - name: Verify app factory loads
-        run: python3 -c "from app.main import app; print('ok', app.title)"
-      - name: Verify OpenAPI exports
-        run: |
-          python3 scripts/export_openapi.py --check --min-paths 40 || \
-            echo "OPENAPI_EXPORT_SKIPPED (script may need runtime deps)"
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  test:
-    name: Test (gate)
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
-      - uses: actions/setup-python@v5
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - name: Install deps + pytest
-        run: uv pip install --system -r requirements.txt pytest pytest-asyncio
-      - name: Install project editable
-        run: uv pip install --system -e ".[dev]"
-      - name: Run tests (Phase 1.3 — pytest discovers via package metadata)
-        run: |
-          pytest tests/unit/ --tb=short -q \
-            --override-ini="python_files=*.py" \
-            --override-ini="python_functions=test_*" \
-            --override-ini="python_classes=Test*" \
-            2>&1 | tail -50
-        # NO || true — failure GATES merge
+          python-version: '3.12'
 
-  # ────────────────────────── INFORMATIONAL JOBS (fire-and-forget) ──────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-  lint-info:
-    name: Lint (info only)
-    if: always()
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install ruff
-        run: uv pip install --system ruff
-      - name: Run ruff lint (informational)
-        run: ruff check . --statistics --output-format=concise 2>&1 | tail -30 || true
+      - name: Lint with ruff
+        run: ruff check app/ tests/
 
-  typecheck-info:
-    name: Typecheck (info only)
-    if: always()
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install mypy
-        run: uv pip install --system mypy
-      - name: Run mypy typecheck (informational)
-        run: mypy app/ --config-file mypy.ini || true
+      - name: Typecheck with mypy
+        run: mypy app/
 
-  security-info:
-    name: Security (info only)
-    if: always()
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install security tools
-        run: uv pip install --system semgrep bandit pip-audit
-      - name: Run semgrep
-        run: semgrep --config auto app/ --config .semgrep/ || true
-      - name: Run bandit
-        run: bandit -r app/ -ll || true
-      - name: Run pip-audit
-        run: pip-audit || true
+      - name: Security scan with bandit
+        run: bandit -r app/ -ll
 
-  openapi-info:
-    name: OpenAPI (info only)
-    if: always()
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install project + export deps
-        run: uv pip install --system -r requirements.txt fastapi pydantic uvicorn httpx 2>&1 | tail -20
-      - name: Export openapi.json (informational)
-        run: python3 scripts/export_openapi.py || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: openapi-schema-info
-          path: openapi.json
-          retention-days: 30
-        if: always()
+      - name: Secret scan with gitleaks
+        run: gitleaks detect --source .
 
-  qdrant-cleanup-info:
-    name: Qdrant cleanup (info only)
-    if: always()
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install httpx for Qdrant audit
-        run: pip install httpx
-      - name: Audit Qdrant for test_col_* artifacts (skipped in CI, runs on netcup)
-        run: |
-          python3 scripts/ops/qdrant_audit.py --check || \
-            echo "SKIP: Qdrant not reachable from CI runner"
+      - name: Run unit tests
+        run: pytest tests/unit/ -x --tb=short --maxfail=5
 
-  heartbeat-info:
-    name: Heartbeat (info only)
-    if: always()
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify .gitmodules is consistent
-        run: |
-          if git config --file .gitmodules --get-regexp "^submodule\." >/dev/null 2>&1; then
-            echo "✓ .gitmodules exists"
-          else
-            echo "⚠ No .gitmodules (submodules may have been removed)"
-          fi
-      - name: Heartbeat summary
-        run: |
-          echo "=== RMI CI heartbeat ==="
-          echo "Branch: ${{ github.ref }}"
-          echo "SHA: ${{ github.sha }}"
-          echo "Run: ${{ github.run_id }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "Event: ${{ github.event_name }}"
+      - name: Run integration tests (allow failure)
+        run: pytest tests/integration/ -x --tb=short --maxfail=5 || true

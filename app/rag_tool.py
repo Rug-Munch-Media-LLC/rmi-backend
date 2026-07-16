@@ -116,7 +116,8 @@ class RagToolInterface:
         for hop in hops:
             hop_results = self.query(hop["query"])
             hop_result_list = [
-                {"text": r["text"], "source": r["source"], "hop": hop["purpose"]} for r in hop_results["results"]
+                {"text": r["text"], "source": r["source"], "hop": hop["purpose"]}
+                for r in hop_results["results"]
             ]
             all_results.extend(hop_result_list)
 

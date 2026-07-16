@@ -16,6 +16,7 @@ from app.mcp.server import call_tool
 async def test_eth_labels_query_tool_exists():
     """Test that eth_labels_query tool is registered in the server."""
     import app.mcp.server
+
     # Check if it's in the catalog
     tool_names = [tool["name"] for tool in app.mcp.server.TOOL_CATALOG]
     assert "eth_labels_query" in tool_names
@@ -26,6 +27,7 @@ async def test_eth_labels_query_tool_exists():
 async def test_eth_labels_stats_tool_exists():
     """Test that eth_labels_stats tool is registered in the server."""
     import app.mcp.server
+
     tool_names = [tool["name"] for tool in app.mcp.server.TOOL_CATALOG]
     assert "eth_labels_stats" in tool_names
     print("✓ eth_labels_stats found in tool catalog")
@@ -35,6 +37,7 @@ async def test_eth_labels_stats_tool_exists():
 async def test_eth_labels_query_version_tracked():
     """Test that eth_labels_query tool has version tracking."""
     from app.mcp.server import TOOL_VERSIONS
+
     assert "eth_labels_query" in TOOL_VERSIONS
     version = TOOL_VERSIONS["eth_labels_query"]
     assert version == "1.0.0"  # Version from Tier 2
@@ -45,6 +48,7 @@ async def test_eth_labels_query_version_tracked():
 async def test_eth_labels_stats_version_tracked():
     """Test that eth_labels_stats tool has version tracking."""
     from app.mcp.server import TOOL_VERSIONS
+
     assert "eth_labels_stats" in TOOL_VERSIONS
     version = TOOL_VERSIONS["eth_labels_stats"]
     assert version == "1.0.0"  # Version from Tier 2
@@ -52,16 +56,14 @@ async def test_eth_labels_stats_version_tracked():
 
 
 @pytest.mark.asyncio
-@patch('app.mcp.tools.eth_labels_tool.query_eth_labels_db_mcp')
+@patch("app.mcp.tools.eth_labels_tool.query_eth_labels_db_mcp")
 async def test_eth_labels_query_calls_underlying_function(mock_query):
     """Test that eth_labels_query tool calls our implementation."""
     # Mock the response
     mock_response = {"rows": [{"id": 1, "address": "0x123"}], "count": 1}
     mock_query.return_value = mock_response
 
-    result = await call_tool("eth_labels_query", {
-        "sql": "SELECT * FROM accounts LIMIT 10"
-    })
+    result = await call_tool("eth_labels_query", {"sql": "SELECT * FROM accounts LIMIT 10"})
 
     # Verify the tool processed the call
     mock_query.assert_called_once_with("SELECT * FROM accounts LIMIT 10", 1000)
@@ -71,7 +73,7 @@ async def test_eth_labels_query_calls_underlying_function(mock_query):
 
 
 @pytest.mark.asyncio
-@patch('app.mcp.tools.eth_labels_tool.get_eth_labels_stats_mcp')
+@patch("app.mcp.tools.eth_labels_tool.get_eth_labels_stats_mcp")
 async def test_eth_labels_stats_calls_underlying_function(mock_stats):
     """Test that eth_labels_stats calls our implementation."""
     mock_response = {"total_accounts": 106000, "tables": ["accounts"]}
@@ -98,9 +100,9 @@ async def test_eth_labels_query_requires_sql_parameter():
 @pytest.mark.asyncio
 async def test_eth_labels_query_blocks_non_select_statements():
     """Test that eth_labels_query rejects non-SELECT queries."""
-    result = await call_tool("eth_labels_query", {
-        "sql": "UPDATE accounts SET label='bad' WHERE id=1"
-    })
+    result = await call_tool(
+        "eth_labels_query", {"sql": "UPDATE accounts SET label='bad' WHERE id=1"}
+    )
 
     assert "error" in result
     assert "only SELECT queries allowed" in result["error"]

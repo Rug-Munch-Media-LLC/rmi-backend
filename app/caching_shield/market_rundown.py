@@ -13,13 +13,14 @@ Features:
 """
 
 import hashlib
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("market_rundown")
 
@@ -347,7 +348,11 @@ async def generate_market_summary(force: bool = False) -> dict:
     global _summary_cache
 
     now = time.time()
-    if not force and _summary_cache["text"] and (now - _summary_cache["generated"]) < _summary_cache["ttl"]:
+    if (
+        not force
+        and _summary_cache["text"]
+        and (now - _summary_cache["generated"]) < _summary_cache["ttl"]
+    ):
         return {
             "summary": _summary_cache["text"],
             "cached": True,
@@ -357,7 +362,8 @@ async def generate_market_summary(force: bool = False) -> dict:
     # Build context from recent articles
     articles = await get_articles(limit=100)
     context = "\n".join(
-        f"[{a['sentiment_label']}] {a['source']}: {a['title']}" for a in articles.get("articles", [])[:30]
+        f"[{a['sentiment_label']}] {a['source']}: {a['title']}"
+        for a in articles.get("articles", [])[:30]
     )
 
     sentiment_counts = {"bullish": 0, "bearish": 0, "neutral": 0}

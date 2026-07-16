@@ -3,9 +3,7 @@
 import os
 import time
 import uuid
-from typing import Any
-
-from typing import cast
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from starlette.responses import Response
@@ -23,7 +21,7 @@ def setup_tracing(app: FastAPI) -> None:
         request.state.request_id = request_id
         request.state.start_time = time.perf_counter()
 
-        response = cast(Response, await call_next(request))
+        response = cast("Response", await call_next(request))
 
         elapsed_ms = (time.perf_counter() - request.state.start_time) * 1000
         response.headers["X-Request-ID"] = request_id

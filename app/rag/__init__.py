@@ -7,6 +7,7 @@ Public API (per v3 unfuck guide §M3):
 - FeedbackRecord
 - EmbeddingProvider, COLLECTIONS
 """
+
 from __future__ import annotations
 
 from app.core import health as health_mod
@@ -17,6 +18,7 @@ async def _health_check() -> DomainHealth:
     """RAG health: v3 engine present + Redis reachable."""
     try:
         from app.rag.engine import get_stats
+
         stats = get_stats()
         return DomainHealth(
             name="rag",

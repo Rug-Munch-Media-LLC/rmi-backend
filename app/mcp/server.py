@@ -17,8 +17,9 @@ Backend implementations: app/catalog/* + app/domain/reports/generator.py
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -54,7 +55,12 @@ TOOL_CATALOG: list[dict[str, Any]] = [
         "outputSchema": {
             "type": "object",
             "properties": {
-                "score": {"type": "integer", "minimum": 0, "maximum": 100, "description": "Risk score 0-100"},
+                "score": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Risk score 0-100",
+                },
                 "tier": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
                 "risk_factors": {
                     "type": "array",
@@ -130,7 +136,10 @@ TOOL_CATALOG: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "subject_id": {"type": "string", "description": "chain:address, or 'all' for general news"},
+                "subject_id": {
+                    "type": "string",
+                    "description": "chain:address, or 'all' for general news",
+                },
                 "since_hours": {"type": "integer", "default": 24, "minimum": 1, "maximum": 720},
                 "limit": {"type": "integer", "default": 10, "minimum": 1, "maximum": 50},
             },
@@ -177,7 +186,10 @@ TOOL_CATALOG: list[dict[str, Any]] = [
                 "risk_score": {"type": "integer", "minimum": 0, "maximum": 100},
                 "risk_tier": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
                 "markdown": {"type": "string", "description": "Full report in Markdown"},
-                "paid_via_x402": {"type": ["string", "null"], "description": "x402 payment ref or null if free"},
+                "paid_via_x402": {
+                    "type": ["string", "null"],
+                    "description": "x402 payment ref or null if free",
+                },
             },
             "required": ["report_id", "risk_score", "risk_tier", "markdown"],
         },
@@ -245,7 +257,12 @@ TOOL_CATALOG: list[dict[str, Any]] = [
                         "properties": {
                             "edge_type": {
                                 "type": "string",
-                                "enum": ["SAME_AS", "FUNDED_BY_SAME", "CLONE_OF", "BEHAVIORAL_MATCH"],
+                                "enum": [
+                                    "SAME_AS",
+                                    "FUNDED_BY_SAME",
+                                    "CLONE_OF",
+                                    "BEHAVIORAL_MATCH",
+                                ],
                             },
                             "source": {"type": "string"},
                             "target": {"type": "string"},
@@ -285,7 +302,10 @@ TOOL_CATALOG: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "sql": {"type": "string", "description": "SELECT query against eth-labels.db (SELECT only, no writes)"},
+                "sql": {
+                    "type": "string",
+                    "description": "SELECT query against eth-labels.db (SELECT only, no writes)",
+                },
                 "limit": {"type": "integer", "default": 1000, "maximum": 10000},
             },
             "required": ["sql"],
@@ -323,7 +343,10 @@ TOOL_CATALOG: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "include_deprecated": {"type": "boolean", "default": False},
-                "category": {"type": "string", "description": "filter by category (free, pro, enterprise, moat)"},
+                "category": {
+                    "type": "string",
+                    "description": "filter by category (free, pro, enterprise, moat)",
+                },
             },
         },
         "outputSchema": {
@@ -550,7 +573,9 @@ async def call_tool(name: str, arguments: dict) -> dict:
         if not token or not token.rag_embedding_id:
             return {"error": "token not in catalog or no RAG embedding", "similar": []}
         # Use RAG to search for similar by querying with the token's content
-        rag_hits = await catalog.rag_search(query=token.symbol or "token", top_k=int(arguments.get("limit", 10)))
+        rag_hits = await catalog.rag_search(
+            query=token.symbol or "token", top_k=int(arguments.get("limit", 10))
+        )
         return {"result": {"subject": arguments["address"], "similar": rag_hits[:10]}}
 
     if name == "resolve_entity":
@@ -569,10 +594,7 @@ async def call_tool(name: str, arguments: dict) -> dict:
         # Safety: only allow SELECT / WITH statements, no writes
         sql_upper = sql.upper().lstrip()
         if not (
-            sql_upper.startswith("SELECT")
-            or sql_upper.startswith("WITH")
-            or sql_upper.startswith("SHOW")
-            or sql_upper.startswith("DESCRIBE")
+            sql_upper.startswith(("SELECT", "WITH", "SHOW", "DESCRIBE"))
         ):
             return {"error": "only SELECT/WITH/SHOW/DESCRIBE queries are allowed"}
         max_rows = min(int(arguments.get("max_rows", 1000)), 10000)

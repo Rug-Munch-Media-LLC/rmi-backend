@@ -9,7 +9,6 @@ Usage (called by federated.py):
 Pattern: async function that returns list[Label]
 """
 
-
 from app.domains.labels.models import Label
 from app.domains.labels.sources.mbal_source import get_mbalsy_service
 

@@ -18,7 +18,6 @@ Database:  scam_bytecode_db.json  (auto-created, maintained in this directory)
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import re
 from dataclasses import dataclass, field
@@ -27,6 +26,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import is_solana
+from app.core.logging import get_logger
 
 logger = get_logger("bytecode_similarity")
 
@@ -200,7 +200,9 @@ class BytecodeSimilarityAnalyzer:
                 "notes": metadata.get("notes", ""),
             }
             self._db[bytecode_hash] = entry
-            logger.info(f"Added new scam bytecode entry: {bytecode_hash[:12]}... → {entry['scam_type']}")
+            logger.info(
+                f"Added new scam bytecode entry: {bytecode_hash[:12]}... → {entry['scam_type']}"
+            )
 
         self._save_db()
 
@@ -238,7 +240,9 @@ class BytecodeSimilarityAnalyzer:
             )
             code_hex = result.value if result else None
             if code_hex and code_hex != "0x" and len(str(code_hex)) > 10:
-                logger.info(f"Fetched EVM bytecode for {address} on {chain_name} (confidence={result.confidence}%)")
+                logger.info(
+                    f"Fetched EVM bytecode for {address} on {chain_name} (confidence={result.confidence}%)"
+                )
                 return str(code_hex)
             logger.debug(f"eth_getCode returned empty for {address} on {chain_name}")
         except Exception as e:
@@ -419,7 +423,9 @@ class BytecodeSimilarityAnalyzer:
                 f"Exact bytecode hash match! Recycled {report.matched_scam_type} scam "
                 f"found at {', '.join(report.matched_addresses[:3])}"
             )
-            logger.warning(f"Exact scam match: hash {bytecode_hash[:12]}... type={report.matched_scam_type}")
+            logger.warning(
+                f"Exact scam match: hash {bytecode_hash[:12]}... type={report.matched_scam_type}"
+            )
             return report
 
         # Scan for partial matches via nibble similarity
@@ -471,4 +477,3 @@ class BytecodeSimilarityAnalyzer:
 
     async def close(self):
         """No-op for interface compatibility with other SENTINEL scanners."""
-        pass

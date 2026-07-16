@@ -12,13 +12,14 @@ Features:
 """
 
 import hashlib
-from app.core.logging import get_logger
 import os
 import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("social_intel")
 
@@ -438,7 +439,9 @@ async def get_social_metrics(**kw) -> dict:
         "kol_activity": {
             "tracked": len(KOL_DATABASE),
             "active_campaigns": len(DETECTED_CAMPAIGNS),
-            "high_risk_signals": sum(1 for c in DETECTED_CAMPAIGNS if c.get("severity") == "CRITICAL"),
+            "high_risk_signals": sum(
+                1 for c in DETECTED_CAMPAIGNS if c.get("severity") == "CRITICAL"
+            ),
         },
         "source_breakdown": news.get("stats", {}).get("sources", {}),
         "source": "social_metrics",

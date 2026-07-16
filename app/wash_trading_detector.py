@@ -9,9 +9,10 @@ Tier: Premium ($0.15)
 Endpoint: POST /api/v1/x402-tools/wash_trade_detect
 """
 
-from app.core.logging import get_logger
 import re
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("wash_trading_detector")
 
@@ -71,9 +72,10 @@ async def _post_json(url: str, payload: dict, timeout: int = 10) -> dict | None:
     import aiohttp
 
     try:
-        async with aiohttp.ClientSession() as session, session.post(
-            url, json=payload, timeout=aiohttp.ClientTimeout(total=timeout)
-        ) as resp:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=timeout)) as resp,
+        ):
             if resp.status == 200:
                 return await resp.json()
             logger.debug(f"POST non-200 from {url}: {resp.status}")

@@ -27,10 +27,11 @@ Token-2022 Extensions:
 
 import base64
 import hashlib
-from app.core.logging import get_logger
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("databus.spl_metadata")
 
@@ -151,7 +152,9 @@ def parse_spl_mint_data(raw_data: bytes) -> dict[str, Any]:
     return result
 
 
-def _parse_token_extensions(extension_data: bytes, base_result: dict[str, Any]) -> list[dict[str, Any]]:
+def _parse_token_extensions(
+    extension_data: bytes, base_result: dict[str, Any]
+) -> list[dict[str, Any]]:
     """
     Parse Token-2022 extension data.
     Extension layout: [extension_type (u16), length (u16), data (variable)]
@@ -257,7 +260,6 @@ async def fetch_metaplex_metadata(mint: str, rpc_url: str) -> dict[str, Any] | N
         # Check if it's off the ed25519 curve (valid PDA)
         # For simplicity, we'll just use the first one that doesn't have the high bit set
         # Actually, proper PDA derivation is complex. Let's use a known endpoint or skip if too complex.
-        pass
 
     # Simpler approach: use getProgramAccounts with filters
     payload = {

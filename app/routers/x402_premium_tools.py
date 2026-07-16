@@ -8,14 +8,15 @@ These are the standout tools that make the RMI MCP server worth paying for:
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 import aiohttp
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402.premium")
 
@@ -33,7 +34,9 @@ class AddressRequest(BaseModel):
 
 class WebhookRegisterRequest(BaseModel):
     url: str = Field(..., description="Webhook callback URL")
-    events: list[str] = Field(default=["rug_pull", "whale_move", "price_crash"], description="Events to monitor")
+    events: list[str] = Field(
+        default=["rug_pull", "whale_move", "price_crash"], description="Events to monitor"
+    )
     address: str | None = Field(default=None, description="Specific address to watch (optional)")
     chain: str = Field(default="all", description="Chain filter")
 
@@ -253,7 +256,7 @@ async def reputation_score(req: AddressRequest):
         return {
             "tool": "Reputation Score",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": addr,
             "chain": chain,
             "trust_score": score,
@@ -327,7 +330,7 @@ async def webhook_register(req: WebhookRegisterRequest):
             "events": events,
             "address": req.address,
             "chain": req.chain,
-            "created": datetime.utcnow().isoformat(),
+            "created": datetime.now(UTC).isoformat(),
             "active": True,
         }
         r.setex(f"x402:webhook:{webhook_id}", 30 * 86400, json.dumps(webhook_data))
@@ -336,7 +339,7 @@ async def webhook_register(req: WebhookRegisterRequest):
         return {
             "tool": "Webhook Register",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "webhook_id": webhook_id,
             "url": req.url,
             "events": events,
@@ -475,7 +478,9 @@ async def investigation_report(req: InvestigationRequest):
                     }
                     sources.extend(forensics.get("sources_used", []))
         except Exception:
-            sections["on_chain"] = {"error": "Forensics unavailable - continuing with other sources"}
+            sections["on_chain"] = {
+                "error": "Forensics unavailable - continuing with other sources"
+            }
 
         # ── Section 4: Market Context ──
         try:
@@ -524,18 +529,24 @@ async def investigation_report(req: InvestigationRequest):
             recommendation = "Low risk. Standard due diligence recommended."
         elif rep_score >= 60 and risk_score < 50:
             verdict = "CAUTION"
-            recommendation = "Moderate risk. Verify contract ownership and liquidity locks before interacting."
+            recommendation = (
+                "Moderate risk. Verify contract ownership and liquidity locks before interacting."
+            )
         elif rep_score >= 40 or risk_score < 70:
             verdict = "HIGH_RISK"
-            recommendation = "High risk. Multiple red flags detected. Exercise extreme caution or avoid."
+            recommendation = (
+                "High risk. Multiple red flags detected. Exercise extreme caution or avoid."
+            )
         else:
             verdict = "AVOID"
-            recommendation = "Critical risk. Confirmed scam indicators. Do not interact with this address."
+            recommendation = (
+                "Critical risk. Confirmed scam indicators. Do not interact with this address."
+            )
 
         return {
             "tool": "Investigation Report",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": addr,
             "chain": chain,
             "depth": depth,

@@ -31,7 +31,9 @@ class TestBridgeRegistry:
             "connext",
             "orbiter",
         }
-        assert set(BRIDGE_REGISTRY.keys()) == expected, f"Missing bridges: {expected - set(BRIDGE_REGISTRY.keys())}"
+        assert set(BRIDGE_REGISTRY.keys()) == expected, (
+            f"Missing bridges: {expected - set(BRIDGE_REGISTRY.keys())}"
+        )
         assert len(BRIDGE_REGISTRY) == 12, "Expected exactly 12 bridges"
 
     def test_each_bridge_has_required_fields(self):
@@ -84,7 +86,9 @@ class TestSecurityScore:
         score = await monitor._compute_security_score("wormhole", BRIDGE_REGISTRY["wormhole"])
 
         assert score.exploit_history_score == 0, "Wormhole should have 0 exploit score ($326M loss)"
-        assert any("exploit" in v.lower() for v in score.vulnerabilities), "Expected exploit mention in vulnerabilities"
+        assert any("exploit" in v.lower() for v in score.vulnerabilities), (
+            "Expected exploit mention in vulnerabilities"
+        )
 
     @pytest.mark.asyncio
     async def test_chainlink_ccip_immutability_bonus(self):
@@ -94,10 +98,14 @@ class TestSecurityScore:
         monitor = BridgeHealthMonitor()
         monitor._fetch_current_tvl = AsyncMock(return_value=800_000_000)
 
-        score = await monitor._compute_security_score("chainlink_ccip", BRIDGE_REGISTRY["chainlink_ccip"])
+        score = await monitor._compute_security_score(
+            "chainlink_ccip", BRIDGE_REGISTRY["chainlink_ccip"]
+        )
 
         assert score.upgrade_risk_score >= 15, "CCIP non-upgradeable should score high"
-        assert any("immutable" in s.lower() for s in score.strengths), "Expected immutability strength"
+        assert any("immutable" in s.lower() for s in score.strengths), (
+            "Expected immutability strength"
+        )
 
 
 class TestExploitDetection:
@@ -123,7 +131,9 @@ class TestExploitDetection:
             tvl_change_30d_pct=-60.0,
         )
 
-        signals = await monitor._detect_exploit_signals("stargate", BRIDGE_REGISTRY["stargate"], snapshot)
+        signals = await monitor._detect_exploit_signals(
+            "stargate", BRIDGE_REGISTRY["stargate"], snapshot
+        )
 
         assert len(signals) >= 1, "Expected exploit signal for critical TVL drop"
         assert any(s.severity == "critical" for s in signals), "Expected critical severity"
@@ -188,7 +198,9 @@ class TestBridgeHealthEndpoint:
         req = BridgeHealthRequest(bridge="stargate", wallet=None)
         assert req.bridge == "stargate"
 
-        req2 = BridgeHealthRequest(bridge="wormhole", wallet="0x1234567890abcdef1234567890abcdef12345678")
+        req2 = BridgeHealthRequest(
+            bridge="wormhole", wallet="0x1234567890abcdef1234567890abcdef12345678"
+        )
         assert req2.bridge == "wormhole"
 
     def test_invalid_bridge_rejected(self):

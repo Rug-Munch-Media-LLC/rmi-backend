@@ -10,14 +10,19 @@ All initializations are isolated - one failure does not break startup.
 Per v3 unfuck rule #7: add_middleware must be at module level, NOT
 in lifespan. So this file only does setup() calls and yield.
 """
+
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import os
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
-from fastapi import FastAPI
+from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from fastapi import FastAPI
 
 log = get_logger(__name__)
 
@@ -30,6 +35,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # 1. Structured logging
     try:
         from app.core.logging import setup_logging
+
         setup_logging(os.getenv("LOG_LEVEL", "INFO"))
         log.info("logging_initialized")
     except Exception as exc:
@@ -38,6 +44,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # 2. Typed error handlers
     try:
         from app.core.errors import register_error_handlers
+
         register_error_handlers(_app, debug=os.getenv("ENVIRONMENT") == "dev")
         log.info("error_handlers_initialized")
     except Exception as exc:
@@ -46,6 +53,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # 3. M1 - long-term memory (fact_store seed)
     try:
         from app.agents.fact_store import seed_facts
+
         seeded = await seed_facts()
         log.info("fact_store_seeded count=%d", seeded)
     except Exception as exc:
@@ -54,6 +62,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # 4. M4 - OpenTelemetry tracing
     try:
         from app.core.tracing import setup_otel
+
         otel_ok = setup_otel()
         log.info("otel_init ok=%s", otel_ok)
     except Exception as exc:
@@ -62,6 +71,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # 5. M4 - Langfuse (LLM tracing)
     try:
         from app.core.langfuse import init_langfuse
+
         lf_ok = init_langfuse()
         log.info("langfuse_init ok=%s", lf_ok)
     except Exception as exc:
@@ -70,6 +80,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # 6. T07 - GlitchTip error tracking
     try:
         from app.core.observability import setup_sentry
+
         sentry_ok = setup_sentry()
         log.info("sentry_init ok=%s", sentry_ok)
     except Exception as exc:
@@ -79,6 +90,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     certstream_task = None
     try:
         from app.domains.threat.certstream_listener import start_listener
+
         certstream_task = await start_listener()
         log.info("certstream_started has_task=%s", certstream_task is not None)
     except Exception as exc:
@@ -89,6 +101,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # Shutdown
     try:
         from app.domains.threat.certstream_listener import stop_listener
+
         await stop_listener(certstream_task)
     except Exception:
         pass
@@ -96,6 +109,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         from app.core.langfuse import flush_langfuse
         from app.core.observability import flush_sentry
         from app.core.tracing import shutdown_otel
+
         flush_sentry(timeout=2.0)
         flush_langfuse()
         shutdown_otel()

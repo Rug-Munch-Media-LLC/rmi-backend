@@ -23,7 +23,7 @@ labeling endpoint.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -58,7 +58,7 @@ async def sentinel_full_scan(req: SentinelScanRequest):
         return {
             "tool": "SENTINEL Full Deep Scan",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -81,7 +81,7 @@ async def holder_analysis_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Holder Analysis",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -106,7 +106,7 @@ async def bundle_detect_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Bundle Detection",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -131,7 +131,7 @@ async def exchange_fund_check_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Exchange Funder Check",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -156,7 +156,7 @@ async def liquidity_verify_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Liquidity Verification",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -183,7 +183,7 @@ async def dev_reputation_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Dev Reputation",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": dev_wallet,
             "chain": req.chain,
             **result,
@@ -208,7 +208,7 @@ async def wash_trading_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Wash Trading Detection",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -263,7 +263,7 @@ async def metadata_fingerprint_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Metadata Fingerprint",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -288,7 +288,7 @@ async def sentiment_check_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Sentiment Check",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,
@@ -321,7 +321,7 @@ async def pumpfun_analysis_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL PumpFun Analysis",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": "solana",
             **result,

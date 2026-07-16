@@ -5,8 +5,6 @@ Tests hash_password and verify_password functions that wrap bcrypt.
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestHashPassword:
     """Tests for hash_password function."""
@@ -32,7 +30,7 @@ class TestHashPassword:
         from app.domains.auth.passwords import hash_password
 
         hashed = hash_password("test_password")
-        assert hashed.startswith("$2") or hashed.startswith("$2b") or hashed.startswith("$2a")
+        assert hashed.startswith(("$2", "$2b", "$2a"))
 
     def test_hash_password_handles_empty_string(self):
         """Empty passwords should still hash successfully."""
