@@ -4,9 +4,9 @@ Provider Health Dashboard + Credit Burn Tracking
 Live status of all 10 embedding providers + enterprise credit burn rate.
 """
 
-from app.core.logging import get_logger
 import time
 
+from app.core.logging import get_logger
 from app.rate_limiter import get_dispatcher
 
 logger = get_logger("health.dashboard")

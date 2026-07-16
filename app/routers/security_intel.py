@@ -92,7 +92,9 @@ class WalletCheckRequest(BaseModel):
 
 class WalletAnalyzeRequest(BaseModel):
     address: str = Field(..., min_length=32, max_length=44)
-    transactions: list[dict[str, Any]] = Field(default_factory=list, description="Raw tx list for ML analysis")
+    transactions: list[dict[str, Any]] = Field(
+        default_factory=list, description="Raw tx list for ML analysis"
+    )
     chain: str = Field(default="auto")
 
 
@@ -593,7 +595,9 @@ async def flows_analyze(
 ):
     """Analyze fund flows for an entity."""
     _efa = _L("app.exchange_flow_analyzer")
-    return await _efa.analyze_entity_flows(entity_addresses, entity_name, entity_id, chain, transactions, hours)
+    return await _efa.analyze_entity_flows(
+        entity_addresses, entity_name, entity_id, chain, transactions, hours
+    )
 
 
 @router.post("/flows/reserves")

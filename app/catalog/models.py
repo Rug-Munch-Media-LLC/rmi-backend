@@ -19,6 +19,7 @@ Persistence (per v4.0 §T27 "Why each store exists"):
   MinIO:        news raw HTML, report markdown, RAG source docs
   Filesystem:   ingest tmp, log rotation (transient)
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -58,17 +59,62 @@ class Chain(StrEnum):
 # one-line edit.
 CHAIN_REGISTRY: dict[str, dict[str, str]] = {
     "solana": {"name": "Solana", "type": "svm", "native": "SOL", "explorer": "https://solscan.io"},
-    "ethereum": {"name": "Ethereum", "type": "evm", "native": "ETH", "explorer": "https://etherscan.io"},
+    "ethereum": {
+        "name": "Ethereum",
+        "type": "evm",
+        "native": "ETH",
+        "explorer": "https://etherscan.io",
+    },
     "base": {"name": "Base", "type": "evm", "native": "ETH", "explorer": "https://basescan.org"},
-    "arbitrum": {"name": "Arbitrum One", "type": "evm", "native": "ETH", "explorer": "https://arbiscan.io"},
-    "optimism": {"name": "Optimism", "type": "evm", "native": "ETH", "explorer": "https://optimistic.etherscan.io"},
-    "polygon": {"name": "Polygon", "type": "evm", "native": "MATIC", "explorer": "https://polygonscan.com"},
-    "bsc": {"name": "BNB Smart Chain", "type": "evm", "native": "BNB", "explorer": "https://bscscan.com"},
+    "arbitrum": {
+        "name": "Arbitrum One",
+        "type": "evm",
+        "native": "ETH",
+        "explorer": "https://arbiscan.io",
+    },
+    "optimism": {
+        "name": "Optimism",
+        "type": "evm",
+        "native": "ETH",
+        "explorer": "https://optimistic.etherscan.io",
+    },
+    "polygon": {
+        "name": "Polygon",
+        "type": "evm",
+        "native": "MATIC",
+        "explorer": "https://polygonscan.com",
+    },
+    "bsc": {
+        "name": "BNB Smart Chain",
+        "type": "evm",
+        "native": "BNB",
+        "explorer": "https://bscscan.com",
+    },
     "tron": {"name": "TRON", "type": "tvm", "native": "TRX", "explorer": "https://tronscan.org"},
-    "bitcoin": {"name": "Bitcoin", "type": "utxo", "native": "BTC", "explorer": "https://mempool.space"},
-    "avalanche": {"name": "Avalanche C-Chain", "type": "evm", "native": "AVAX", "explorer": "https://snowtrace.io"},
-    "fantom": {"name": "Fantom Opera", "type": "evm", "native": "FTM", "explorer": "https://ftmscan.com"},
-    "gnosis": {"name": "Gnosis Chain", "type": "evm", "native": "xDAI", "explorer": "https://gnosisscan.io"},
+    "bitcoin": {
+        "name": "Bitcoin",
+        "type": "utxo",
+        "native": "BTC",
+        "explorer": "https://mempool.space",
+    },
+    "avalanche": {
+        "name": "Avalanche C-Chain",
+        "type": "evm",
+        "native": "AVAX",
+        "explorer": "https://snowtrace.io",
+    },
+    "fantom": {
+        "name": "Fantom Opera",
+        "type": "evm",
+        "native": "FTM",
+        "explorer": "https://ftmscan.com",
+    },
+    "gnosis": {
+        "name": "Gnosis Chain",
+        "type": "evm",
+        "native": "xDAI",
+        "explorer": "https://gnosisscan.io",
+    },
 }
 
 
@@ -171,9 +217,7 @@ class Token(BaseModel):
     symbol: str
     name: str
     decimals: int
-    deployer_wallet_id: str | None = Field(
-        None, description="Cross-store ref to Wallet (Neo4j)"
-    )
+    deployer_wallet_id: str | None = Field(None, description="Cross-store ref to Wallet (Neo4j)")
     deployed_at: datetime
     initial_supply: int
     current_supply: int | None = None

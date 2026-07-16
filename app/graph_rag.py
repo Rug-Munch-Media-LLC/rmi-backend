@@ -12,9 +12,10 @@ Produces structured community reports that answer:
 """
 
 import json
-from app.core.logging import get_logger
 from collections import defaultdict
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -70,7 +71,9 @@ async def detect_communities(
                     edge = edge.decode()
                 parts = edge.split(":") if ":" in edge else [edge, ""]
                 target = parts[1] if len(parts) > 1 else parts[0]
-                if target in node_ids or target in {b.decode() if isinstance(b, bytes) else b for b in node_ids}:
+                if target in node_ids or target in {
+                    b.decode() if isinstance(b, bytes) else b for b in node_ids
+                }:
                     adjacency[nid].add(target)
         except Exception:
             pass
@@ -145,7 +148,9 @@ async def detect_communities(
                 "members": members[:20],  # Top 20 members
                 "node_types": dict(node_types),
                 "internal_edges": internal_edges // 2,  # Undirected
-                "density": round((internal_edges // 2) / max(len(members) * (len(members) - 1) / 2, 1), 4),
+                "density": round(
+                    (internal_edges // 2) / max(len(members) * (len(members) - 1) / 2, 1), 4
+                ),
                 "dominant_type": max(node_types, key=node_types.get) if node_types else "unknown",
             }
         )
@@ -235,5 +240,7 @@ async def graph_rag_search(
         "total_communities": len(communities),
         "communities": enriched,
         "total_nodes_in_communities": sum(c["size"] for c in communities),
-        "summary": (f"Detected {len(communities)} communities across {sum(c['size'] for c in communities)} addresses."),
+        "summary": (
+            f"Detected {len(communities)} communities across {sum(c['size'] for c in communities)} addresses."
+        ),
     }

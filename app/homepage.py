@@ -2,6 +2,7 @@
 
 Minimal landing endpoints for the backend. Returns deployment metadata.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter

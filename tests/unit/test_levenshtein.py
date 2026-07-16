@@ -6,8 +6,6 @@ for copycat token detection. These tests cover all edge cases.
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestLevenshteinDistance:
     """Tests for _levenshtein_distance function."""

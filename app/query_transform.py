@@ -13,12 +13,13 @@ All strategies have LLM-backed and rule-based fallback paths.
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import re
 from dataclasses import dataclass, field
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -477,7 +478,9 @@ def _auto_select_strategy(query: str) -> str:
     has_token_symbol = bool(_TOKEN_RE.search(q))
 
     # Check for question patterns
-    starts_with_question_word = q_lower.startswith(("what", "how", "why", "is", "are", "can", "does", "do"))
+    starts_with_question_word = q_lower.startswith(
+        ("what", "how", "why", "is", "are", "can", "does", "do")
+    )
     has_question_mark = "?" in q
 
     # Check for ambiguity
@@ -493,7 +496,9 @@ def _auto_select_strategy(query: str) -> str:
         "honest",
         "real",
     ]
-    is_ambiguous = any(w in q_lower for w in broad_indicators) and not has_address and not has_token_symbol
+    is_ambiguous = (
+        any(w in q_lower for w in broad_indicators) and not has_address and not has_token_symbol
+    )
 
     # Decision logic
     if has_address or has_token_symbol:

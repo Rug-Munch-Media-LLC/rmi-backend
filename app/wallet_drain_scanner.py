@@ -18,10 +18,11 @@ Tier: Premium ($0.05)
 Endpoint: POST /api/v1/x402-tools/wallet_drain
 """
 
-from app.core.logging import get_logger
 import re
 from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("wallet_drain_scanner")
 
@@ -298,11 +299,14 @@ class WalletDrainScanner:
         try:
             # Use Solscan API to get token accounts
             url = f"https://api.solscan.io/account/tokens?address={self.address}"
-            async with aiohttp.ClientSession() as session, session.get(
-                url,
-                headers={"Accept": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    url,
+                    headers={"Accept": "application/json"},
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp,
+            ):
                 if resp.status == 200:
                     data = await resp.json()
                     tokens = data.get("data", [])

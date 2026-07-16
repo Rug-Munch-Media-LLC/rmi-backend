@@ -23,13 +23,14 @@ A Smithii-bundled token has detectable on-chain fingerprints
 regardless of the scammer's chosen exit strategy.
 """
 
-from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("tool-fingerprinter")
 
@@ -239,7 +240,9 @@ class ToolFingerprinter:
         self._known_scammers: set[str] = set()
         self._cex_wallets: set[str] = set()
 
-    async def fingerprint_transaction(self, tx_data: dict, chain: str = "solana") -> list[ToolFingerprintResult]:
+    async def fingerprint_transaction(
+        self, tx_data: dict, chain: str = "solana"
+    ) -> list[ToolFingerprintResult]:
         """Analyze a single transaction for tool fingerprints."""
         results = []
         instructions = tx_data.get("instructions", tx_data.get("ix", []))
@@ -281,7 +284,9 @@ class ToolFingerprinter:
 
         return results
 
-    async def detect_bundlers(self, tx_list: list[dict], token_address: str) -> list[ToolFingerprintResult]:
+    async def detect_bundlers(
+        self, tx_list: list[dict], token_address: str
+    ) -> list[ToolFingerprintResult]:
         """Detect bundler patterns across multiple transactions."""
         results = []
         evidence_smithii = []
@@ -463,7 +468,9 @@ class ToolFingerprinter:
             flags=flags,
         )
 
-    async def profile_deployer(self, deployer_address: str, chain: str = "solana") -> DeployerProfile:
+    async def profile_deployer(
+        self, deployer_address: str, chain: str = "solana"
+    ) -> DeployerProfile:
         """Profile the token deployer wallet for risk factors."""
         flags = []
         risk = 0
@@ -497,7 +504,9 @@ class ToolFingerprinter:
                             first_sig = sigs[-1]
                             first_ts = first_sig.get("blockTime", 0)
                             if first_ts:
-                                age_days = (datetime.now(UTC) - datetime.fromtimestamp(first_ts, tz=UTC)).days
+                                age_days = (
+                                    datetime.now(UTC) - datetime.fromtimestamp(first_ts, tz=UTC)
+                                ).days
                         prev_tokens = len(
                             [
                                 s
@@ -567,7 +576,9 @@ class ToolFingerprinter:
             flags=flags,
         )
 
-    async def detect_volume_bots(self, trades: list[dict], token_address: str) -> list[ToolFingerprintResult]:
+    async def detect_volume_bots(
+        self, trades: list[dict], token_address: str
+    ) -> list[ToolFingerprintResult]:
         """Detect volume bot / wash trading patterns."""
         results = []
         if not trades or len(trades) < 10:
@@ -600,7 +611,9 @@ class ToolFingerprinter:
         if trade_sizes:
             unique_sizes = len(set(trade_sizes))
             if unique_sizes < len(trade_sizes) * 0.3:
-                evidence.append(f"Repetitive trade sizes: {unique_sizes} unique from {len(trade_sizes)} trades")
+                evidence.append(
+                    f"Repetitive trade sizes: {unique_sizes} unique from {len(trade_sizes)} trades"
+                )
 
         if evidence:
             results.append(

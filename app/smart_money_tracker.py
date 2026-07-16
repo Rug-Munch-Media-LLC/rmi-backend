@@ -31,13 +31,14 @@ Usage:
 import asyncio
 import json
 import logging
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -235,7 +236,9 @@ class SmartMoneyTracker:
 
     def __init__(self, data_dir: str | None = None):
         if data_dir is None:
-            base = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else os.getcwd()
+            base = (
+                os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else os.getcwd()
+            )
             self.data_dir = os.path.join(base, "..", "data", "smart_money")
         else:
             self.data_dir = data_dir
@@ -266,7 +269,9 @@ class SmartMoneyTracker:
                             SmartWallet(
                                 address=str(w.get("address", "")),
                                 chain=str(w.get("chain", "")),
-                                label=str(w.get("label", f"Wallet-{w.get('address', 'unknown')[:8]}")),
+                                label=str(
+                                    w.get("label", f"Wallet-{w.get('address', 'unknown')[:8]}")
+                                ),
                                 category=safe_wallet_category(w.get("category", "unknown")),
                                 tags=w.get("tags", []) if isinstance(w.get("tags"), list) else [],
                                 total_value_usd=float(w.get("total_value_usd", 0.0)),
@@ -433,13 +438,19 @@ class SmartMoneyTracker:
     def remove_wallet(self, address: str, chain: str) -> bool:
         """Remove a wallet from tracking."""
         before = len(self._wallets)
-        self._wallets = [w for w in self._wallets if not (w.address.lower() == address.lower() and w.chain == chain)]
+        self._wallets = [
+            w
+            for w in self._wallets
+            if not (w.address.lower() == address.lower() and w.chain == chain)
+        ]
         if len(self._wallets) < before:
             self._save_wallets()
             return True
         return False
 
-    def get_wallets(self, category: WalletCategory | None = None, chain: str | None = None) -> list[SmartWallet]:
+    def get_wallets(
+        self, category: WalletCategory | None = None, chain: str | None = None
+    ) -> list[SmartWallet]:
         """Get tracked wallets, optionally filtered."""
         wallets = self._wallets
         if category:
@@ -450,7 +461,9 @@ class SmartMoneyTracker:
 
     # ── Transaction Fetching (Chain Clients) ─────────────────────
 
-    async def _fetch_recent_tx(self, wallet: SmartWallet, lookback_minutes: int = 60) -> list[dict[str, Any]]:
+    async def _fetch_recent_tx(
+        self, wallet: SmartWallet, lookback_minutes: int = 60
+    ) -> list[dict[str, Any]]:
         """
         Fetch recent transactions for a wallet on its chain.
         Uses the appropriate chain connector based on wallet.chain.
@@ -471,7 +484,9 @@ class SmartMoneyTracker:
 
         return txs
 
-    async def _fetch_solana_txs(self, wallet: SmartWallet, lookback_minutes: int) -> list[dict[str, Any]]:
+    async def _fetch_solana_txs(
+        self, wallet: SmartWallet, lookback_minutes: int
+    ) -> list[dict[str, Any]]:
         """Fetch Solana transactions via public RPC."""
         import httpx
 
@@ -486,7 +501,9 @@ class SmartMoneyTracker:
         }
 
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(rpc_url, json=payload, headers={"Content-Type": "application/json"})
+            resp = await client.post(
+                rpc_url, json=payload, headers={"Content-Type": "application/json"}
+            )
             if resp.status_code != 200:
                 logger.warning(f"Solana RPC returned {resp.status_code} for {wallet.label}")
                 return []
@@ -522,7 +539,9 @@ class SmartMoneyTracker:
 
             return txs
 
-    async def _fetch_evm_txs(self, wallet: SmartWallet, chain: str, lookback_minutes: int) -> list[dict[str, Any]]:
+    async def _fetch_evm_txs(
+        self, wallet: SmartWallet, chain: str, lookback_minutes: int
+    ) -> list[dict[str, Any]]:
         """Fetch EVM transactions via Etherscan-like API."""
         import httpx
 
@@ -536,7 +555,9 @@ class SmartMoneyTracker:
             "avalanche": ("https://api.avax.network/ext/bc/C/rpc", "https://api.snowtrace.io/api"),
         }
 
-        rpc_url, explorer_url = chain_rpcs.get(chain, ("https://eth.llamarpc.com", "https://api.etherscan.io/api"))
+        rpc_url, explorer_url = chain_rpcs.get(
+            chain, ("https://eth.llamarpc.com", "https://api.etherscan.io/api")
+        )
         _ = explorer_url  # Kept for future explorer API integration
 
         # Get latest block number via JSON-RPC
@@ -548,7 +569,9 @@ class SmartMoneyTracker:
                 "params": [],
                 "id": 1,
             }
-            resp = await client.post(rpc_url, json=block_payload, headers={"Content-Type": "application/json"})
+            resp = await client.post(
+                rpc_url, json=block_payload, headers={"Content-Type": "application/json"}
+            )
             if resp.status_code != 200:
                 return []
 
@@ -572,7 +595,9 @@ class SmartMoneyTracker:
                         "address": None,
                         "topics": [
                             "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",  # Transfer
-                            (f"0x{'0' * 24}{wallet.address[2:].lower()}") if wallet.address.startswith("0x") else "",
+                            (f"0x{'0' * 24}{wallet.address[2:].lower()}")
+                            if wallet.address.startswith("0x")
+                            else "",
                         ],
                     }
                 ],
@@ -580,7 +605,9 @@ class SmartMoneyTracker:
             }
 
             try:
-                resp2 = await client.post(rpc_url, json=tx_payload, headers={"Content-Type": "application/json"})
+                resp2 = await client.post(
+                    rpc_url, json=tx_payload, headers={"Content-Type": "application/json"}
+                )
                 if resp2.status_code == 200:
                     logs = resp2.json().get("result", [])
                     txs = []
@@ -609,7 +636,9 @@ class SmartMoneyTracker:
 
     # ── Move Detection ────────────────────────────────────────────
 
-    async def _analyze_moves(self, wallet: SmartWallet, txs: list[dict[str, Any]]) -> list[DetectedMove]:
+    async def _analyze_moves(
+        self, wallet: SmartWallet, txs: list[dict[str, Any]]
+    ) -> list[DetectedMove]:
         """
         Analyze raw transactions for a wallet and detect meaningful position changes.
         Compare against historical state to classify direction and impact.
@@ -642,7 +671,9 @@ class SmartMoneyTracker:
             # Estimate USD value from token amount and rough price (simplified)
             # In production, this would use the price oracle / token scanner
             impact = self._score_impact(wallet, value, direction)
-            token_safety = await self._get_token_safety(tx.get("token_address", ""), tx.get("chain", wallet.chain))
+            token_safety = await self._get_token_safety(
+                tx.get("token_address", ""), tx.get("chain", wallet.chain)
+            )
 
             move = DetectedMove(
                 wallet=wallet,
@@ -664,7 +695,9 @@ class SmartMoneyTracker:
 
         return moves
 
-    def _score_impact(self, wallet: SmartWallet, value_usd: float, direction: MoveDirection) -> ImpactLevel:
+    def _score_impact(
+        self, wallet: SmartWallet, value_usd: float, direction: MoveDirection
+    ) -> ImpactLevel:
         """Score the impact level of a wallet's move."""
         # Combine wallet reputation + value + direction
         rep = wallet.reputation_score / 100.0
@@ -681,7 +714,9 @@ class SmartMoneyTracker:
         else:
             return ImpactLevel.INFO
 
-    def _generate_context(self, direction: MoveDirection, wallet: SmartWallet, value_usd: float) -> str:
+    def _generate_context(
+        self, direction: MoveDirection, wallet: SmartWallet, value_usd: float
+    ) -> str:
         """Generate human-readable context for a detected move."""
         if direction == MoveDirection.ENTER:
             return f"{wallet.label} opened a new position worth ${value_usd:,.0f}"

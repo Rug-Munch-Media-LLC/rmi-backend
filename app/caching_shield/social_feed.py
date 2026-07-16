@@ -8,11 +8,13 @@ Reddit top posts from r/CryptoCurrency, r/ethfinance, r/solana.
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 import time
 from datetime import UTC, datetime
 
 import httpx
+from defusedxml import ElementTree as SafeET
+
+from app.core.logging import get_logger
 
 logger = get_logger("social_feed")
 
@@ -183,14 +185,16 @@ async def get_twitter_feed(limit: int = 30) -> dict:
                 r = await c.get(nitter_url)
 
                 if r.status_code == 200:
-                    import xml.etree.ElementTree as ET
-
-                    root = ET.fromstring(r.text)
+                    root = SafeET.fromstring(r.text)
                     for item in root.findall(".//item")[:3]:
                         title = item.find("title").text if item.find("title") is not None else ""
                         link = item.find("link").text if item.find("link") is not None else ""
-                        item.find("description").text if item.find("description") is not None else ""
-                        pubdate = item.find("pubDate").text if item.find("pubDate") is not None else ""
+                        item.find("description").text if item.find(
+                            "description"
+                        ) is not None else ""
+                        pubdate = (
+                            item.find("pubDate").text if item.find("pubDate") is not None else ""
+                        )
 
                         if title and "RT @" not in title:
                             tweets.append(
@@ -249,7 +253,9 @@ async def get_reddit_feed(limit: int = 20) -> dict:
                                 "score": d["score"],
                                 "num_comments": d["num_comments"],
                                 "url": f"https://reddit.com{d['permalink']}",
-                                "published": datetime.fromtimestamp(d["created_utc"], UTC).isoformat(),
+                                "published": datetime.fromtimestamp(
+                                    d["created_utc"], UTC
+                                ).isoformat(),
                                 "source": "reddit",
                                 "type": "post",
                             }

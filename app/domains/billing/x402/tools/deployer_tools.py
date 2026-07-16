@@ -9,10 +9,11 @@ Endpoints mounted on sub_router:
 Wallet-side tools (wallet, smartmoney, cluster, whale, portfolio_tracker,
 copy_trade_finder) live in tools/wallet_tools.py.
 """
+
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -119,7 +120,7 @@ async def insider_tracker(req: InsiderRequest):
         return {
             "tool": "Insider Tracker",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -150,7 +151,7 @@ async def whale_accumulation(req: GenericRequest):
         return {
             "tool": "Whale Accumulation Detector",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }

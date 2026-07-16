@@ -1,4 +1,5 @@
 """Token domain - public API + health check."""
+
 from __future__ import annotations
 
 from app.core import health as health_mod
@@ -9,6 +10,7 @@ async def _health_check() -> DomainHealth:
     """Token health: DataBus is importable."""
     try:
         import app.databus  # noqa: F401
+
         return DomainHealth(
             name="token",
             healthy=True,

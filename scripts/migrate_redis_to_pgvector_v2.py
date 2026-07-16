@@ -42,7 +42,9 @@ def _get_url():
 
 
 def _get_key():
-    return os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    return os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get(
+        "SUPABASE_SERVICE_ROLE_KEY", ""
+    )
 
 
 def _get_headers():
@@ -98,18 +100,24 @@ async def insert_with_retry(client: httpx.AsyncClient, rows: list, batch_num: in
 
     for attempt in range(MAX_RETRIES):
         try:
-            resp = await client.post(url, json=rows, params=params, headers=_get_headers(), timeout=60)
+            resp = await client.post(
+                url, json=rows, params=params, headers=_get_headers(), timeout=60
+            )
             if resp.status_code in (200, 201):
                 return len(rows)
             elif resp.status_code == 500 and "timeout" in (resp.text or "").lower():
                 # Statement timeout - split into smaller batches
-                logger.warning(f"Batch {batch_num}: statement timeout (attempt {attempt + 1}), splitting")
+                logger.warning(
+                    f"Batch {batch_num}: statement timeout (attempt {attempt + 1}), splitting"
+                )
                 if len(rows) > 10:
                     # Split into two halves
                     mid = len(rows) // 2
                     count = 0
                     for half in [rows[:mid], rows[mid:]]:
-                        r2 = await client.post(url, json=half, params=params, headers=_get_headers(), timeout=90)
+                        r2 = await client.post(
+                            url, json=half, params=params, headers=_get_headers(), timeout=90
+                        )
                         if r2.status_code in (200, 201):
                             count += len(half)
                         else:
@@ -130,7 +138,9 @@ async def insert_with_retry(client: httpx.AsyncClient, rows: list, batch_num: in
                                     pass
                     return count
             else:
-                logger.error(f"Batch {batch_num} insert failed: {resp.status_code} {resp.text[:300]}")
+                logger.error(
+                    f"Batch {batch_num} insert failed: {resp.status_code} {resp.text[:300]}"
+                )
                 return 0
         except httpx.ReadTimeout:
             logger.warning(f"Batch {batch_num}: timeout (attempt {attempt + 1})")
@@ -142,7 +152,9 @@ async def insert_with_retry(client: httpx.AsyncClient, rows: list, batch_num: in
     return 0
 
 
-async def migrate_collection(r: aioredis.Redis, client: httpx.AsyncClient, collection: str, existing_ids: set) -> int:
+async def migrate_collection(
+    r: aioredis.Redis, client: httpx.AsyncClient, collection: str, existing_ids: set
+) -> int:
     """Migrate all docs from one Redis collection to Supabase."""
     idx_key = f"rag:idx:{collection}"
     doc_ids = await r.smembers(idx_key)
@@ -198,7 +210,9 @@ async def migrate_collection(r: aioredis.Redis, client: httpx.AsyncClient, colle
                 migrated += count
                 batch_count += 1
                 if batch_count % 10 == 0:
-                    logger.info(f"  Progress: {migrated}/{len(to_migrate)} migrated ({batch_count} batches)")
+                    logger.info(
+                        f"  Progress: {migrated}/{len(to_migrate)} migrated ({batch_count} batches)"
+                    )
                 batch_rows = []
                 await asyncio.sleep(0.1)
 

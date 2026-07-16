@@ -188,7 +188,8 @@ def get_human_catalog() -> dict[str, Any]:
                 "DEX analytics",
                 "crypto trading tools",
             ],
-            "total_tools": len(TOOL_PRICES) + len([k for k in DATABUS_TOOLS if k not in TOOL_PRICES]),
+            "total_tools": len(TOOL_PRICES)
+            + len([k for k in DATABUS_TOOLS if k not in TOOL_PRICES]),
             "total_categories": len(TOOL_CATEGORIES),
             "chains_supported": 13,
             "facilitators": 10,
@@ -251,7 +252,9 @@ def get_human_catalog() -> dict[str, Any]:
                         {
                             "id": tool_id,
                             "name": tier_info.get("name", tool_id.replace("_", " ").title()),
-                            "description": tier_info.get("description", pricing.get("description", "")),
+                            "description": tier_info.get(
+                                "description", pricing.get("description", "")
+                            ),
                             "price_usd": tier_info.get("price_usd", pricing.get("price_usd", 0.01)),
                             "trial_free": tier_info.get("trial_free", pricing.get("trial_free", 1)),
                             "tier": tier_info.get("tier", pricing.get("category", "basic")),
@@ -322,7 +325,8 @@ def get_bot_catalog() -> dict[str, Any]:
         "discovery": "https://mcp.rugmunch.io/.well-known/x402",
         "total_tools": len(tools),
         "categories": {
-            cat: sum(1 for t in tools if t["category"] == cat) for cat in sorted({t["category"] for t in tools})
+            cat: sum(1 for t in tools if t["category"] == cat)
+            for cat in sorted({t["category"] for t in tools})
         },
         "chains_supported": 13,
         "tools": sorted(tools, key=lambda t: t["category"]),

@@ -4,11 +4,12 @@ Called by Workers to annotate tool responses with label data.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+
+from app.core.logging import get_logger
 
 logger = get_logger("labels.lookup")
 

@@ -78,7 +78,7 @@ _llama_rag = None
 def get_llama_rag() -> LlamaRAGAdapter | None:
     """Get LlamaIndex RAG adapter if enabled."""
     global _llama_rag
-    if not os.getenv("LLAMA_RAG_ENABLED", "").lower() == "true":
+    if os.getenv("LLAMA_RAG_ENABLED", "").lower() != "true":
         return None
     if _llama_rag is None:
         _llama_rag = LlamaRAGAdapter()

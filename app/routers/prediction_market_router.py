@@ -19,10 +19,9 @@ Caching: Redis-backed, 30s-1hr TTL by endpoint.
 Rate limiting: Inherited from app-wide slowapi configuration.
 """
 
-from app.core.logging import get_logger
-
 from fastapi import APIRouter, HTTPException, Query
 
+from app.core.logging import get_logger
 from app.prediction_market_service import (
     PredictionDigest,
     PredictionMarket,
@@ -78,7 +77,10 @@ async def trending_markets(
                 m
                 for m in results
                 if m.is_security_relevant
-                and any(kw in m.question.lower() for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"])
+                and any(
+                    kw in m.question.lower()
+                    for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"]
+                )
             ]
 
     return {
@@ -105,7 +107,9 @@ async def token_markets(
     return {
         "token": symbol.upper(),
         "total": len(results),
-        "avg_probability": (sum(m.probability_yes for m in results) / len(results) if results else 0),
+        "avg_probability": (
+            sum(m.probability_yes for m in results) / len(results) if results else 0
+        ),
         "security_relevant": sum(1 for m in results if m.is_security_relevant),
         "results": [_market_response(m) for m in results[:limit]],
     }
@@ -289,6 +293,10 @@ def _interpret_market(m: PredictionMarket) -> dict:
     return {
         "market_sentiment": sentiment,
         "probability": f"{prob_pct:.1f}%",
-        "confidence": "high" if m.volume_usd > 100000 else "moderate" if m.volume_usd > 10000 else "low",
+        "confidence": "high"
+        if m.volume_usd > 100000
+        else "moderate"
+        if m.volume_usd > 10000
+        else "low",
         "intelligence_signals": signals,
     }

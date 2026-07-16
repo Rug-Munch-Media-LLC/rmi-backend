@@ -82,6 +82,9 @@ def _levenshtein_distance(s1: str, s2: str) -> int:
 async def _check_copycat(symbol: str, name: str) -> dict[str, Any] | None:
     """Check if token is a copycat of a top symbol."""
     top_symbols = _get_top_symbols()
+    # Exact match should be clean, not high_risk
+    if symbol.upper() in top_symbols:
+        return {"check": "copycat", "result": "clean"}
     for top in top_symbols:
         if _levenshtein_distance(symbol.upper(), top) <= 2:
             return {"check": "copycat", "result": "high_risk", "similar_to": top}

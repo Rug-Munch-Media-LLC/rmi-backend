@@ -8,7 +8,6 @@ RMI Freemium Scan Rate Limiter
 - Returns clear upsell messaging when limit is hit
 """
 
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -16,6 +15,7 @@ from typing import Any
 import redis
 
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

@@ -23,7 +23,6 @@ Tiers:
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 import os
 import random
 from datetime import UTC, datetime, timedelta
@@ -31,6 +30,8 @@ from typing import Any
 
 import feedparser
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -530,7 +531,9 @@ class NewsService:
                         client_kwargs["proxy"] = proxy
 
                 async with httpx.AsyncClient(**client_kwargs) as client:
-                    headers = {"User-Agent": "Mozilla/5.0 (compatible; RMI-NewsBot/3.0; +https://rugmunch.io)"}
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (compatible; RMI-NewsBot/3.0; +https://rugmunch.io)"
+                    }
                     if needs_proxy:
                         headers.update(
                             {
@@ -571,7 +574,7 @@ class NewsService:
                 if pub_parsed and isinstance(pub_parsed, (tuple, list)) and len(pub_parsed) >= 6:
                     published = datetime(*pub_parsed[:6], tzinfo=UTC).isoformat()
                     pub_dt = datetime(*pub_parsed[:6])
-                    if datetime.utcnow() - pub_dt > timedelta(hours=72):
+                    if datetime.now(UTC) - pub_dt > timedelta(hours=72):
                         continue
                 else:
                     published = datetime.now(UTC).isoformat()
@@ -640,7 +643,9 @@ class NewsService:
                 permalink = post_data.get("permalink", "")
                 url = f"https://reddit.com{permalink}" if permalink else ""
                 text = post_data.get("selftext", "")[:300]
-                created = datetime.fromtimestamp(post_data.get("created_utc", 0), tz=UTC).isoformat()
+                created = datetime.fromtimestamp(
+                    post_data.get("created_utc", 0), tz=UTC
+                ).isoformat()
                 score = post_data.get("score", 0)
                 num_comments = post_data.get("num_comments", 0)
 
@@ -752,7 +757,11 @@ class NewsService:
                 title = item.get("title", "")
                 url = item.get("url", "")
                 source = item.get("source", {})
-                source_title = source.get("title", "CryptoPanic") if isinstance(source, dict) else "CryptoPanic"
+                source_title = (
+                    source.get("title", "CryptoPanic")
+                    if isinstance(source, dict)
+                    else "CryptoPanic"
+                )
                 pub_str = item.get("published_at", item.get("created_at", ""))
                 content_hash = hashlib.sha256(f"cp:{title}:{url}".encode()).hexdigest()
                 if content_hash in self.seen_hashes:
@@ -766,7 +775,9 @@ class NewsService:
                 votes = item.get("votes", {})
                 bull = votes.get("positive", 0) if isinstance(votes, dict) else 0
                 bear = votes.get("negative", 0) if isinstance(votes, dict) else 0
-                sentiment = "bullish" if bull > bear * 2 else "bearish" if bear > bull * 2 else "neutral"
+                sentiment = (
+                    "bullish" if bull > bear * 2 else "bearish" if bear > bull * 2 else "neutral"
+                )
 
                 articles.append(
                     {
@@ -818,7 +829,9 @@ class NewsService:
                     continue
                 self.seen_hashes.add(content_hash)
 
-                sentiment = "bearish" if risk > 60 else "slightly_bearish" if risk > 30 else "neutral"
+                sentiment = (
+                    "bearish" if risk > 60 else "slightly_bearish" if risk > 30 else "neutral"
+                )
 
                 articles.append(
                     {
@@ -847,7 +860,9 @@ class NewsService:
         """Fetch real RMI alerts as news."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{BACKEND_URL}/api/v1/rag/search?q=scam exploit hack rug drain alert&limit=5")
+                resp = await client.get(
+                    f"{BACKEND_URL}/api/v1/rag/search?q=scam exploit hack rug drain alert&limit=5"
+                )
                 if resp.status_code != 200:
                     return []
                 data = resp.json()
@@ -869,7 +884,9 @@ class NewsService:
                         "url": r.get("url", "https://rugmunch.io/alerts"),
                         "description": content,
                         "source": "RMI Alerts",
-                        "published_at": r.get("created_at", r.get("published_at", datetime.now(UTC).isoformat())),
+                        "published_at": r.get(
+                            "created_at", r.get("published_at", datetime.now(UTC).isoformat())
+                        ),
                         "category": "security",
                         "sentiment": "bearish",
                         "kind": "internal",
@@ -976,7 +993,9 @@ class NewsService:
         # Sort by recency
         def parse_ts(a):
             try:
-                return datetime.fromisoformat(a.get("published_at", "2020-01-01").replace("Z", "+00:00"))
+                return datetime.fromisoformat(
+                    a.get("published_at", "2020-01-01").replace("Z", "+00:00")
+                )
             except Exception:
                 return datetime(2020, 1, 1, tzinfo=UTC)
 

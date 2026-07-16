@@ -11,14 +11,15 @@ Reference: Cong et al. (2023), Victor & Weintraud (2021), Niedermayer (2024)
 """
 
 import json
-from app.core.logging import get_logger
 import math
 import os
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 
 import numpy as np
 import redis
+
+from app.core.logging import get_logger
 
 logger = get_logger("volume_authenticity")
 
@@ -330,7 +331,7 @@ class VolumeAuthenticityScorer:
             result.method_count = 0
             result.signals = [s.to_dict() for s in signals]
             result.risk_level = "UNKNOWN"
-            result.scan_timestamp = datetime.utcnow().isoformat()
+            result.scan_timestamp = datetime.now(UTC).isoformat()
             return result
 
         # Normalize: redistribute unused weight
@@ -372,7 +373,7 @@ class VolumeAuthenticityScorer:
         result.method_count = len(breakdown)
         result.signals = [s.to_dict() for s in signals]
         result.risk_level = risk
-        result.scan_timestamp = datetime.utcnow().isoformat()
+        result.scan_timestamp = datetime.now(UTC).isoformat()
 
         return result
 
@@ -442,7 +443,9 @@ def _redis_connect():
     )
 
 
-async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum", **kw) -> dict | None:
+async def analyze_volume_authenticity(
+    address: str = "", chain: str = "ethereum", **kw
+) -> dict | None:
     """DataBus provider: Full fake volume analysis for a token pair.
 
     Collects trade data from available sources, runs through all 4 detection layers,

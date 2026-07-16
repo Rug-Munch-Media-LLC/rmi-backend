@@ -9,9 +9,10 @@ Tier: Premium ($0.10)
 Endpoint: POST /api/v1/x402-tools/whale_accumulation
 """
 
-from app.core.logging import get_logger
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("whale_accumulation")
 
@@ -174,7 +175,8 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
         pairs = [
             p
             for p in dex_data["pairs"]
-            if p.get("chainId") == chain or p.get("baseToken", {}).get("address", "").lower() == token_address.lower()
+            if p.get("chainId") == chain
+            or p.get("baseToken", {}).get("address", "").lower() == token_address.lower()
         ]
         if pairs:
             result["sources_used"].append("dexscreener")
@@ -211,7 +213,9 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
         result["analysis"]["sell_count_24h"] = sell_count_24h
 
         if buy_volume_ratio > 1.5:
-            signal_messages.append(f"🔵 Heavy buy pressure: {buy_volume_ratio:.1f}x more buys than sells in 24h")
+            signal_messages.append(
+                f"🔵 Heavy buy pressure: {buy_volume_ratio:.1f}x more buys than sells in 24h"
+            )
         elif buy_volume_ratio > 1.0:
             signal_messages.append(f"🔵 Slight buy advantage: {buy_volume_ratio:.1f}x buy ratio")
 
@@ -268,14 +272,18 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
         # Check if this token has smart money activity by looking at recent buys
         if chain == "solana":
             # Fetch recent signatures for the token
-            sigs = await _rpc_call("solana", "getSignaturesForAddress", [token_address, {"limit": 20}])
+            sigs = await _rpc_call(
+                "solana", "getSignaturesForAddress", [token_address, {"limit": 20}]
+            )
             if sigs and len(sigs) > 5:
                 # High recent transaction count is a signal of interest
                 result["analysis"]["recent_tx_count"] = len(sigs)
                 if len(sigs) > 10:
                     smart_money_involved = True
                     recent_large_buys = min(len(sigs) // 4, 10)
-                    signal_messages.append(f"🟢 Smart money activity: {len(sigs)} recent transactions detected")
+                    signal_messages.append(
+                        f"🟢 Smart money activity: {len(sigs)} recent transactions detected"
+                    )
     except Exception:
         pass
 
@@ -287,7 +295,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
             created_at = pairs[0].get("pairCreatedAt", 0)
             if created_at:
                 created_dt = datetime.fromtimestamp(created_at / 1000)
-                wallet_age_days = (datetime.utcnow() - created_dt).days
+                wallet_age_days = (datetime.now(UTC) - created_dt).days
                 result["analysis"]["token_age_days"] = wallet_age_days
                 if wallet_age_days < 7:
                     signal_messages.append(
@@ -322,7 +330,9 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
             "during dip (smart money buying the dip)"
         )
     elif price_change_24h > 20 and buy_volume_ratio > 1.5:
-        signal_messages.append("📈 Price up 20%+ with continued buy pressure - momentum accumulation")
+        signal_messages.append(
+            "📈 Price up 20%+ with continued buy pressure - momentum accumulation"
+        )
 
     # ── Step 9: Assemble report ───────────────────────────────────
     persona = "trader"  # default persona for API tool
@@ -333,7 +343,9 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
     result["classification"] = classification
     result["signals"] = signal_messages
     result["recommendation"] = recommendation
-    result["analysis"]["price_usd"] = round(price_usd, 8) if price_usd < 0.01 else round(price_usd, 4)
+    result["analysis"]["price_usd"] = (
+        round(price_usd, 8) if price_usd < 0.01 else round(price_usd, 4)
+    )
     result["analysis"]["volume_24h_usd"] = round(volume_24h, 2)
     result["analysis"]["liquidity_usd"] = round(liquidity_usd, 2)
 

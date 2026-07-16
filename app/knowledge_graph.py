@@ -28,12 +28,13 @@ Key naming:
 
 import contextlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from typing import Any
 
 import redis.asyncio as aioredis
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -225,7 +226,9 @@ class KnowledgeGraph:
                     {
                         "node_type": neighbor_type,
                         "node_id": neighbor_id,
-                        "label": neighbor_node.get("label", neighbor_id) if neighbor_node else neighbor_id,
+                        "label": neighbor_node.get("label", neighbor_id)
+                        if neighbor_node
+                        else neighbor_id,
                         "relation": edge_data.get("relation", ""),
                         "weight": weight,
                         "direction": dir_key[1],
@@ -394,14 +397,18 @@ class KnowledgeGraph:
             for token in held_tokens if isinstance(held_tokens, list) else []:
                 token_addr = token.get("address", "") or token.get("mint", "")
                 if token_addr:
-                    await self.add_node(NodeType.TOKEN, token_addr, label=token.get("symbol", token_addr[:10]))
+                    await self.add_node(
+                        NodeType.TOKEN, token_addr, label=token.get("symbol", token_addr[:10])
+                    )
                     await self.add_edge(
                         NodeType.WALLET,
                         address,
                         EdgeType.HOLDS,
                         NodeType.TOKEN,
                         token_addr,
-                        weight=float(token.get("amount_usd", 0)) / max(float(metadata.get("balance_usd", 1)), 1) or 0.5,
+                        weight=float(token.get("amount_usd", 0))
+                        / max(float(metadata.get("balance_usd", 1)), 1)
+                        or 0.5,
                         metadata={"symbol": token.get("symbol", ""), "chain": chain},
                     )
                     edges_created += 1
@@ -560,7 +567,9 @@ class KnowledgeGraph:
             # Auditor
             auditor = metadata.get("auditor", "")
             if auditor:
-                await self.add_node(NodeType.ENTITY, auditor, label=auditor, metadata={"type": "auditor"})
+                await self.add_node(
+                    NodeType.ENTITY, auditor, label=auditor, metadata={"type": "auditor"}
+                )
                 await self.add_edge(
                     NodeType.ENTITY,
                     auditor,

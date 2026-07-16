@@ -18,13 +18,14 @@ Sources:
 import contextlib
 import csv
 import json
-from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("wallet_memory.label_importer")
 
@@ -42,9 +43,7 @@ SOLANA_LABELS_REPO = (
 )
 
 # Additional ImMike repo dataset paths
-BSC_LABELS_REPO = (
-    "https://raw.githubusercontent.com/ImMike/crypto-wallet-address-labels/main/datasets/bsc-ethereum-address-tags"
-)
+BSC_LABELS_REPO = "https://raw.githubusercontent.com/ImMike/crypto-wallet-address-labels/main/datasets/bsc-ethereum-address-tags"
 ETH_EXCHANGE_LABELS_REPO = (
     "https://raw.githubusercontent.com/ImMike/"
     "crypto-wallet-address-labels/main/datasets/ethereum-exchange-and-dex-labels"
@@ -53,12 +52,12 @@ ETH_CLUSTER_LABELS_REPO = (
     "https://raw.githubusercontent.com/ImMike/"
     "crypto-wallet-address-labels/main/datasets/ethereum-cluster-exchange-labels"
 )
-ETH_CONTRACT_LABELS_REPO = (
-    "https://raw.githubusercontent.com/ImMike/crypto-wallet-address-labels/main/datasets/ethereum-contract-name-labels"
-)
+ETH_CONTRACT_LABELS_REPO = "https://raw.githubusercontent.com/ImMike/crypto-wallet-address-labels/main/datasets/ethereum-contract-name-labels"
 
 # OFAC sanctions URL
-OFAC_URL = "https://raw.githubusercontent.com/OFAC/crypto-sanctions-list/main/crypto-sanctions-list.json"
+OFAC_URL = (
+    "https://raw.githubusercontent.com/OFAC/crypto-sanctions-list/main/crypto-sanctions-list.json"
+)
 
 # Solana label file specs: (filename, chain, address_col, label_col_map)
 SOLANA_CSV_SPECS = [
@@ -353,9 +352,13 @@ async def _load_csv_labels(
     # Skip if source already has labels in ClickHouse (prevents re-import)
     if storage._ch:
         try:
-            existing = storage._ch.execute("SELECT count() FROM wallet_labels WHERE source = %(src)s", {"src": src})
+            existing = storage._ch.execute(
+                "SELECT count() FROM wallet_labels WHERE source = %(src)s", {"src": src}
+            )
             if existing and existing[0][0] > 100:
-                logger.info(f"Source '{src}' already has {existing[0][0]:,} labels in CH - skipping re-import")
+                logger.info(
+                    f"Source '{src}' already has {existing[0][0]:,} labels in CH - skipping re-import"
+                )
                 return existing[0][0]
         except Exception:
             pass  # CH unavailable - import anyway for Redis
@@ -681,7 +684,10 @@ async def _load_bsc_detail(storage) -> int:
                     "exchange"
                     if "exchange" in (label_name + name_tag).lower()
                     else "defi"
-                    if any(w in (label_name + name_tag).lower() for w in ("protocol", "swap", "defi", "lend"))
+                    if any(
+                        w in (label_name + name_tag).lower()
+                        for w in ("protocol", "swap", "defi", "lend")
+                    )
                     else "bridge"
                     if "bridge" in (label_name + name_tag).lower()
                     else "wallet"
@@ -1142,7 +1148,9 @@ async def load_all_static_labels() -> dict[str, int]:
             path = os.path.join(LABELS_DIR, filename)
             key = filename.replace(".csv", "").replace("_labels", "")
             if os.path.exists(path):
-                c = await _load_csv_labels(storage, path, chain, addr_col, label_cols, source_name=key)
+                c = await _load_csv_labels(
+                    storage, path, chain, addr_col, label_cols, source_name=key
+                )
                 counts[key] = c
             else:
                 counts[key] = 0
@@ -1153,7 +1161,9 @@ async def load_all_static_labels() -> dict[str, int]:
             path = os.path.join(LABELS_DIR, filename)
             key = filename.replace(".csv", "").replace("_labels", "")
             if os.path.exists(path):
-                c = await _load_csv_labels(storage, path, chain, addr_col, label_cols, source_name=key)
+                c = await _load_csv_labels(
+                    storage, path, chain, addr_col, label_cols, source_name=key
+                )
                 counts[key] = c
             else:
                 counts[key] = 0

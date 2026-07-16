@@ -11,11 +11,12 @@ Fixes false positives, enriches all responses, populates empty providers.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import redis
+
+from app.core.logging import get_logger
 
 logger = get_logger("data_quality")
 
@@ -261,7 +262,9 @@ async def enrich_response(result: dict, address: str, chain: str) -> dict:
     # 2. Wallet vs token detection
     if is_wallet_not_token(address, chain):
         enriched["address_type"] = "wallet"
-        enriched["wallet_note"] = "This is a wallet address, not a token contract. Token-specific checks may not apply."
+        enriched["wallet_note"] = (
+            "This is a wallet address, not a token contract. Token-specific checks may not apply."
+        )
     else:
         enriched["address_type"] = "token"
 
@@ -494,9 +497,7 @@ def smart_verdict(report: dict) -> str:
         elif etype == "stablecoin":
             return f"KNOWN STABLECOIN - {known['name']}. Established, high-liquidity asset. Standard risk profile for stablecoins."
         elif etype == "protocol_token":
-            return (
-                f"CORE PROTOCOL - {known['name']}. Fundamental blockchain infrastructure token. Extremely low rug risk."
-            )
+            return f"CORE PROTOCOL - {known['name']}. Fundamental blockchain infrastructure token. Extremely low rug risk."
         elif etype == "exchange":
             return f"EXCHANGE WALLET - {known['name']}. This is an exchange hot wallet, not a token address."
         return f"KNOWN SAFE ENTITY - {known['name']}. Verified by RugCharts entity registry."
@@ -619,7 +620,9 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
     }
 
     # ── Data Quality Score ──
-    sections_with_data = sum(1 for s in base_report.get("sections", {}).values() if s and not s.get("error"))
+    sections_with_data = sum(
+        1 for s in base_report.get("sections", {}).values() if s and not s.get("error")
+    )
     base_report["data_quality"] = {
         "score": min(100, sections_with_data * 15),
         "level": "EXCELLENT"
@@ -661,7 +664,9 @@ async def get_tier_comparison(**kw) -> dict:
                 "name": v["name"],
                 "rate_limit_rpm": v["rate_limit_rpm"],
                 "price": v.get("price_monthly", 0),
-                "features": len(v["allowed_data_types"]) if v["allowed_data_types"] != ["*"] else 49,
+                "features": len(v["allowed_data_types"])
+                if v["allowed_data_types"] != ["*"]
+                else 49,
             }
             for k, v in TIER_DEFINITIONS.items()
         },

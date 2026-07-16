@@ -14,10 +14,11 @@ Key features:
 """
 
 import hashlib
-from app.core.logging import get_logger
 import re
 from dataclasses import dataclass, field
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("contract_diff")
 
@@ -196,7 +197,11 @@ class ContractDiffAnalyzer:
     def _scan_rug_patterns(self, bytecode: str) -> list[str]:
         """Scan bytecode for known rug contract patterns."""
         found = []
-        raw = bytecode.lower().encode() if not bytecode.startswith("0x") else bytecode[2:].lower().encode()
+        raw = (
+            bytecode.lower().encode()
+            if not bytecode.startswith("0x")
+            else bytecode[2:].lower().encode()
+        )
 
         for pattern in RUG_BYTECODE_PATTERNS:
             try:
@@ -230,7 +235,9 @@ class ContractDiffAnalyzer:
 
             # Hash the bytecode
             report.bytecode_hash = self._hash_bytecode(bytecode)
-            report.runtime_bytecode_hash = hashlib.sha256(bytecode.lower().replace("0x", "").encode()).hexdigest()
+            report.runtime_bytecode_hash = hashlib.sha256(
+                bytecode.lower().replace("0x", "").encode()
+            ).hexdigest()
 
             # Extract function selectors
             report.function_selectors = self._extract_selectors(bytecode)
@@ -298,7 +305,9 @@ class ContractDiffAnalyzer:
             risk_score = 0.0
 
             # Exact hash match = instant high risk
-            if report.is_clone and any(m.get("type") == "exact_hash_match" for m in report.known_rug_matches):
+            if report.is_clone and any(
+                m.get("type") == "exact_hash_match" for m in report.known_rug_matches
+            ):
                 risk_score += 60.0
 
             # High selector similarity
@@ -352,9 +361,13 @@ class ContractDiffAnalyzer:
                     f"Contract selectors {report.clone_similarity:.0%} similar to known rug at {report.clone_of}"
                 )
             if report.dangerous_functions:
-                report.warnings.append(f"Dangerous functions detected: {', '.join(report.dangerous_functions[:3])}")
+                report.warnings.append(
+                    f"Dangerous functions detected: {', '.join(report.dangerous_functions[:3])}"
+                )
             if rug_patterns:
-                report.warnings.append(f"Rug-pattern bytecode markers found: {', '.join(rug_patterns[:3])}")
+                report.warnings.append(
+                    f"Rug-pattern bytecode markers found: {', '.join(rug_patterns[:3])}"
+                )
 
             # Enhance warnings with RAG citations
             try:

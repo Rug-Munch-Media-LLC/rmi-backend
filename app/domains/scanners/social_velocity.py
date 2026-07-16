@@ -17,10 +17,11 @@ Input: list of mention dicts
   [{timestamp: str|int|float, platform: str, text: str}, ...]
 """
 
-from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger("social_velocity")
 
@@ -292,7 +293,11 @@ class SocialVelocityAnalyzer:
                 }
             )
         # Always include the final point
-        if len(timestamps) > 1 and mention_timeline and mention_timeline[-1]["cumulative_count"] < len(timestamps):
+        if (
+            len(timestamps) > 1
+            and mention_timeline
+            and mention_timeline[-1]["cumulative_count"] < len(timestamps)
+        ):
             mention_timeline.append(
                 {
                     "timestamp": timestamps[-1],
@@ -307,12 +312,18 @@ class SocialVelocityAnalyzer:
                 f"CRITICAL: {max_in_window} mentions arrived within {self.BOT_FARM_WINDOW_SEC}s - bot farm detected"
             )
         if largest_cluster_size >= 5:
-            cluster_types = ", ".join(f"{len(c)} mentions in {c[-1] - c[0]:.2f}s" for c in clusters if len(c) >= 5)
+            cluster_types = ", ".join(
+                f"{len(c)} mentions in {c[-1] - c[0]:.2f}s" for c in clusters if len(c) >= 5
+            )
             warnings.append(f"COORDINATED CLUSTERS: {cluster_types}")
         if median_interarrival_ms < 100:
-            warnings.append(f"BOT-LIKE VELOCITY: median inter-arrival time is {median_interarrival_ms:.0f}ms")
+            warnings.append(
+                f"BOT-LIKE VELOCITY: median inter-arrival time is {median_interarrival_ms:.0f}ms"
+            )
         if total < 10:
-            warnings.append(f"LOW VOLUME: only {total} mentions available (need ≥10 for reliable velocity analysis)")
+            warnings.append(
+                f"LOW VOLUME: only {total} mentions available (need ≥10 for reliable velocity analysis)"
+            )
 
         return SocialVelocityReport(
             velocity_score=velocity_score,

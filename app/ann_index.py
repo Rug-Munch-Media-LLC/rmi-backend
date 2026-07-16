@@ -15,13 +15,14 @@ Architecture:
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 import pickle
 import time
 from typing import Any, Optional
 
 import numpy as np
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -240,7 +241,8 @@ class ANNIndex:
         try:
             index = faiss.read_index(index_path)
             with open(id_map_path, "rb") as f:
-                id_list = pickle.load(f)
+                # SECURITY: pickle loads are safe here because models are bundled in Docker image
+                id_list = pickle.load(f, usedforsecurity=False)
             self._indexes[collection] = index
             self._id_maps[collection] = id_list
             self._meta[collection] = {

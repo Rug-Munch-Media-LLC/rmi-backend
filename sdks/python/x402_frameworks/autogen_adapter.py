@@ -21,9 +21,12 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from .base import x402Adapter
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger("x402.autogen")
 
@@ -45,7 +48,8 @@ class x402AutoGen(x402Adapter):
         """
         return {
             "name": f"x402_{tool_name}",
-            "description": description or f"x402 paid tool: {tool_name}. Pay per call via x402 protocol.",
+            "description": description
+            or f"x402 paid tool: {tool_name}. Pay per call via x402 protocol.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -66,6 +70,7 @@ class x402AutoGen(x402Adapter):
                 if not available:
                     invoice = self.get_invoice(tool_name)
                     from .langchain_adapter import PaymentRequiredError
+
                     raise PaymentRequiredError(
                         tool=tool_name,
                         price_usd=price,

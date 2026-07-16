@@ -128,7 +128,9 @@ class AirdropV2Distributor:
 
         return qualified
 
-    def calculate_distribution(self, total_amount: float, distribution_type: str = "proportional") -> dict[str, float]:
+    def calculate_distribution(
+        self, total_amount: float, distribution_type: str = "proportional"
+    ) -> dict[str, float]:
         """Calculate airdrop amounts per holder"""
         qualified = [h for h in self.qualify_holders() if not h.is_blacklisted]
 
@@ -158,11 +160,16 @@ class AirdropV2Distributor:
 
             # Normalize to total amount
             total_weighted = sum(distribution.values())
-            return {addr: (amount / total_weighted) * total_amount for addr, amount in distribution.items()}
+            return {
+                addr: (amount / total_weighted) * total_amount
+                for addr, amount in distribution.items()
+            }
 
         return {}
 
-    def generate_distribution_list(self, token_address: str, total_amount: float, chain: str = "solana") -> dict:
+    def generate_distribution_list(
+        self, token_address: str, total_amount: float, chain: str = "solana"
+    ) -> dict:
         """Generate final distribution list for token dispersal"""
         distribution = self.calculate_distribution(total_amount)
         qualified = self.qualify_holders()
@@ -177,7 +184,8 @@ class AirdropV2Distributor:
             "total_excluded": len([h for h in qualified if h.is_blacklisted]),
             "distribution_type": "proportional",
             "recipients": [
-                {"address": addr, "amount": round(amount, 6), "chain": chain} for addr, amount in distribution.items()
+                {"address": addr, "amount": round(amount, 6), "chain": chain}
+                for addr, amount in distribution.items()
             ],
             "excluded": [
                 {"address": h.address, "reason": h.blacklist_reason, "chain": h.chain}
@@ -188,7 +196,9 @@ class AirdropV2Distributor:
 
         return result
 
-    def save_distribution(self, output_path: str, token_address: str, total_amount: float, chain: str = "solana"):
+    def save_distribution(
+        self, output_path: str, token_address: str, total_amount: float, chain: str = "solana"
+    ):
         """Save distribution list to file"""
         result = self.generate_distribution_list(token_address, total_amount, chain)
         json.dump(result, open(output_path, "w"), indent=2)  # noqa: SIM115
@@ -206,7 +216,9 @@ def main():
     parser.add_argument("--chain", default="solana", choices=["solana", "base", "ethereum"])
     parser.add_argument("--output", default="/root/backend/data/airdrop_v2_distribution.json")
     parser.add_argument("--min-hold", type=float, default=0, help="Minimum holding to qualify")
-    parser.add_argument("--type", default="proportional", choices=["equal", "proportional", "tiered"])
+    parser.add_argument(
+        "--type", default="proportional", choices=["equal", "proportional", "tiered"]
+    )
 
     args = parser.parse_args()
 

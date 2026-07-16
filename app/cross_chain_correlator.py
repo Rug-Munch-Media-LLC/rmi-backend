@@ -9,10 +9,11 @@ Links wallets across Solana/Ethereum/BSC/Base using:
 Paper ref: Section 5.3 - Cross-Chain Fragmentation
 """
 
-from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -239,7 +240,9 @@ class CrossChainCorrelator:
                 entity_id=f"cc_{gid[:8]}",
                 chains=dict(chains_map),
                 total_addresses=len(keys),
-                links=[line for line in links if f"{line.source_chain}:{line.source_address}" in keys],
+                links=[
+                    line for line in links if f"{line.source_chain}:{line.source_address}" in keys
+                ],
             )
             profiles.append(profile)
 

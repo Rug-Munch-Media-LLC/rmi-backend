@@ -18,6 +18,7 @@ class TestHealthIntegration:
     def test_get_health_status_healthy(self):
         """Test get_health_status when all checks pass."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def healthy_check():
@@ -32,6 +33,7 @@ class TestHealthIntegration:
     def test_get_health_status_degraded(self):
         """Test get_health_status when some checks fail."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def healthy_check():
@@ -49,6 +51,7 @@ class TestHealthIntegration:
     def test_get_health_status_unhealthy(self):
         """Test get_health_status when all checks fail."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def failing_check1():
@@ -72,6 +75,7 @@ class TestRunHealthChecksAsync:
     async def test_run_health_checks_with_async_check(self):
         """Test run_health_checks with an async health check."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         async def async_health_check():
@@ -89,6 +93,7 @@ class TestRunHealthChecksAsync:
     async def test_run_health_checks_with_sync_check(self):
         """Test run_health_checks with a synchronous health check."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def sync_health_check():
@@ -104,6 +109,7 @@ class TestRunHealthChecksAsync:
     async def test_run_health_checks_error_handling(self):
         """Test that run_health_checks handles exceptions gracefully."""
         from app.core.health import _health_checks
+
         _health_checks.clear()
 
         def failing_check():
@@ -114,7 +120,10 @@ class TestRunHealthChecksAsync:
 
         assert "failing" in results
         assert results["failing"].healthy is False
-        assert "failing" in results["failing"].error.lower() or "health check" in results["failing"].error.lower()
+        assert (
+            "failing" in results["failing"].error.lower()
+            or "health check" in results["failing"].error.lower()
+        )
 
 
 class TestDomainHealthEdgeCases:
@@ -135,6 +144,6 @@ class TestDomainHealthEdgeCases:
         health = DomainHealth(
             name="test",
             healthy=True,
-            details={"key" + str(i): "value" + str(i) for i in range(100)}
+            details={"key" + str(i): "value" + str(i) for i in range(100)},
         )
         assert len(health.details) == 100

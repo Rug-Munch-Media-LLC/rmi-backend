@@ -5,10 +5,10 @@ Fetch trending tokens across chains from the RMI backend.
 """
 
 import json
-from app.core.logging import get_logger
 from urllib.request import Request, urlopen
 
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.trending")
 

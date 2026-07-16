@@ -21,12 +21,13 @@ Endpoint: POST /api/v1/x402-tools/profile_flip
 """
 
 import json
-from app.core.logging import get_logger
 import re
 from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
+
+from app.core.logging import get_logger
 
 logger = get_logger("profile_flip_detector")
 
@@ -98,27 +99,32 @@ _BEHAVIOR_RISK_TABLE = {
 }
 
 
-async def _fetch(url: str, timeout: int = 10, headers: dict | None = None, max_retries: int = 2) -> dict | None:
+async def _fetch(
+    url: str, timeout: int = 10, headers: dict | None = None, max_retries: int = 2
+) -> dict | None:
     """Single URL fetch with aiohttp and retry logic."""
     import asyncio
 
     for attempt in range(max_retries + 1):
         try:
-            async with aiohttp.ClientSession() as session, session.get(
-                url,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-                headers=headers or {},
-            ) as resp:
-                    if resp.status == 200:
-                        return await resp.json()
-                    elif resp.status in (429, 503) and attempt < max_retries:
-                        wait = 2**attempt
-                        logger.debug(f"Rate limited on {url}, retrying in {wait}s")
-                        await asyncio.sleep(wait)
-                        continue
-                    else:
-                        logger.debug(f"Fetch returned {resp.status} for {url}")
-                        return None
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    url,
+                    timeout=aiohttp.ClientTimeout(total=timeout),
+                    headers=headers or {},
+                ) as resp,
+            ):
+                if resp.status == 200:
+                    return await resp.json()
+                elif resp.status in (429, 503) and attempt < max_retries:
+                    wait = 2**attempt
+                    logger.debug(f"Rate limited on {url}, retrying in {wait}s")
+                    await asyncio.sleep(wait)
+                    continue
+                else:
+                    logger.debug(f"Fetch returned {resp.status} for {url}")
+                    return None
         except (TimeoutError, aiohttp.ClientError) as e:
             if attempt < max_retries:
                 wait = 2**attempt
@@ -325,17 +331,15 @@ def _compute_identity_flip_score(
     # Classification
     if score >= 70:
         classification = "critical"
-        recommendation = (
-            "Immediate investigation warranted. High probability of identity laundering or scam preparation."
-        )
+        recommendation = "Immediate investigation warranted. High probability of identity laundering or scam preparation."
     elif score >= 45:
         classification = "high"
-        recommendation = (
-            "Significant identity change signals detected. Proceed with caution and verify all project claims."
-        )
+        recommendation = "Significant identity change signals detected. Proceed with caution and verify all project claims."
     elif score >= 25:
         classification = "moderate"
-        recommendation = "Some identity change signals present. Recommend monitoring for additional red flags."
+        recommendation = (
+            "Some identity change signals present. Recommend monitoring for additional red flags."
+        )
     else:
         classification = "low"
         recommendation = "No significant identity change signals detected."
@@ -423,13 +427,29 @@ async def detect_profile_flip(
 
     # ── Input validation ─────────────────────────────────────────
     if token_address and len(token_address) > _MAX_INPUT_LEN:
-        return {"error": "token_address exceeds max input length", "score": 0, "classification": "invalid"}
+        return {
+            "error": "token_address exceeds max input length",
+            "score": 0,
+            "classification": "invalid",
+        }
     if wallet_address and len(wallet_address) > _MAX_INPUT_LEN:
-        return {"error": "wallet_address exceeds max input length", "score": 0, "classification": "invalid"}
+        return {
+            "error": "wallet_address exceeds max input length",
+            "score": 0,
+            "classification": "invalid",
+        }
     if project_name and len(project_name) > _MAX_INPUT_LEN:
-        return {"error": "project_name exceeds max input length", "score": 0, "classification": "invalid"}
+        return {
+            "error": "project_name exceeds max input length",
+            "score": 0,
+            "classification": "invalid",
+        }
     if project_url and len(project_url) > _MAX_INPUT_LEN:
-        return {"error": "project_url exceeds max input length", "score": 0, "classification": "invalid"}
+        return {
+            "error": "project_url exceeds max input length",
+            "score": 0,
+            "classification": "invalid",
+        }
 
     # ── Step 1: Look up token/project data from free sources ─────
     if token_address:

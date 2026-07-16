@@ -11,12 +11,13 @@ Provides real-time notification via WebSocket for:
 
 import asyncio
 import json
-from app.core.logging import get_logger
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -65,8 +66,8 @@ class RealTimeAlert:
         self.chain = chain
         self.wallet_address = wallet_address
         self.related_entities = related_entities or []
-        self.timestamp = datetime.utcnow().isoformat()
-        self.id = f"{alert_type}_{datetime.utcnow().timestamp()}"
+        self.timestamp = datetime.now(UTC).isoformat()
+        self.id = f"{alert_type}_{datetime.now(UTC).timestamp()}"
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -164,7 +165,9 @@ class AlertBroadcaster:
         )
         await self.broadcast(alert)
 
-    async def broadcast_security_alert(self, wallet: str, severity: str, message: str, chain: str = "ethereum"):
+    async def broadcast_security_alert(
+        self, wallet: str, severity: str, message: str, chain: str = "ethereum"
+    ):
         """Broadcast a security alert."""
         alert = RealTimeAlert(
             alert_type=AlertType.SECURITY_ALERT,
@@ -244,7 +247,9 @@ class WebSocketManager:
                 wallet = data.get("wallet")
                 if wallet:
                     self.broadcaster.subscribe(client_id, wallet)
-                    await self.active_connections[client_id].send_json({"type": "subscribed", "wallet": wallet})
+                    await self.active_connections[client_id].send_json(
+                        {"type": "subscribed", "wallet": wallet}
+                    )
 
             elif msg_type == "unsubscribe":
                 wallet = data.get("wallet")
@@ -253,7 +258,7 @@ class WebSocketManager:
 
             elif msg_type == "ping":
                 await self.active_connections[client_id].send_json(
-                    {"type": "pong", "timestamp": datetime.utcnow().isoformat()}
+                    {"type": "pong", "timestamp": datetime.now(UTC).isoformat()}
                 )
 
             else:
@@ -266,7 +271,9 @@ class WebSocketManager:
         """Broadcast an alert to all connected clients."""
         await self.broadcaster.broadcast(alert)
 
-    async def broadcast_security_alert(self, wallet: str, severity: str, message: str, chain: str = "ethereum"):
+    async def broadcast_security_alert(
+        self, wallet: str, severity: str, message: str, chain: str = "ethereum"
+    ):
         """Broadcast a security alert."""
         await self.broadcaster.broadcast_security_alert(wallet, severity, message, chain)
 

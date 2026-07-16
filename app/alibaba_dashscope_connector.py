@@ -3,10 +3,11 @@ Alibaba Cloud DashScope Connector - Qwen Models for Content Generation.
 Supports: qwen-max, qwen-plus, qwen-turbo, qwen-coder, qwen-vl-max
 """
 
-from app.core.logging import get_logger
 import os
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -134,7 +135,9 @@ class AlibabaDashScopeConnector:
             logger.error(f"DashScope text generation failed: {e}")
             return {"error": str(e)}
 
-    async def generate_marketing_content(self, content_type: str, topic: str, details: dict | None = None) -> dict:
+    async def generate_marketing_content(
+        self, content_type: str, topic: str, details: dict | None = None
+    ) -> dict:
         """Generate marketing content for specific use cases."""
 
         # Content type templates
@@ -257,7 +260,9 @@ Tone: Exciting, clear, benefit-focused
             temperature=details.get("temperature", 0.7),
         )
 
-    async def generate_variations(self, base_content: str, num_variations: int = 5, platform: str = "twitter") -> dict:
+    async def generate_variations(
+        self, base_content: str, num_variations: int = 5, platform: str = "twitter"
+    ) -> dict:
         """Generate multiple variations of content."""
 
         prompt = f"""Generate {num_variations} variations of this content for {platform}:
@@ -278,7 +283,9 @@ Variation 2: [content]
 ...
 """
 
-        return await self.generate_text(prompt=prompt, model="qwen-plus", max_tokens=2000, temperature=0.8)
+        return await self.generate_text(
+            prompt=prompt, model="qwen-plus", max_tokens=2000, temperature=0.8
+        )
 
     async def summarize_content(self, content: str, summary_type: str = "bullet_points") -> dict:
         """Summarize long content into different formats."""
@@ -295,7 +302,9 @@ Variation 2: [content]
 {content[:3000]}  # Limit input length
 """
 
-        return await self.generate_text(prompt=prompt, model="qwen-turbo", max_tokens=500, temperature=0.5)
+        return await self.generate_text(
+            prompt=prompt, model="qwen-turbo", max_tokens=500, temperature=0.5
+        )
 
     def list_models(self) -> list[dict]:
         """List available Qwen models."""

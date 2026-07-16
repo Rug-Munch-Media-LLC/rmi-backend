@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from app.core.logging import get_logger
-
 from app.mcp.manifest import MCPServerManifest, MCPToolManifest
 from app.mcp.server import (
     TOOL_CATALOG,
@@ -93,7 +92,9 @@ def _dict_to_manifest(tool_name: str, auth_scope: str) -> MCPToolManifest:
         output_schema={},
         auth_scope=auth_scope,
         deprecated=tool_name in TOOL_DEPRECATED,
-        successor=(_qualify_name(TOOL_SUCCESSORS[tool_name]) if tool_name in TOOL_SUCCESSORS else None),
+        successor=(
+            _qualify_name(TOOL_SUCCESSORS[tool_name]) if tool_name in TOOL_SUCCESSORS else None
+        ),
     )
 
 
@@ -128,7 +129,9 @@ async def resolve_tool(
     if name in TOOL_DEPRECATED and not include_deprecated:
         successor = TOOL_SUCCESSORS.get(name)
         if successor:
-            return await resolve_tool(successor, major_version=major_version, include_deprecated=False)
+            return await resolve_tool(
+                successor, major_version=major_version, include_deprecated=False
+            )
         log.warning("Tool %s is deprecated with no successor", name)
         return None
 

@@ -15,9 +15,10 @@ Designed to work with existing RAG pipeline: images → descriptions → embed �
 """
 
 import hashlib
-from app.core.logging import get_logger
 import os
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -101,7 +102,9 @@ def _hash_from_raw(data: bytes, width: int, height: int, hash_size: int) -> str:
                         idx = (by * width + bx) * 3  # Assume RGB
                         if idx + 2 < len(data):
                             # Grayscale: 0.299*R + 0.587*G + 0.114*B
-                            gray = int(0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2])
+                            gray = int(
+                                0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]
+                            )
                             block_sum += gray
                             block_count += 1
                 block_avg = block_sum / max(block_count, 1)

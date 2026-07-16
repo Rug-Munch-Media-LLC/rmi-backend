@@ -85,7 +85,14 @@ for w in mgr._wallets.values():
             owner = args.to or "Gix4P9AmwcZRGzr2hCEME5m2QAvY86dBfm8c7e7MpFzv"
             rpc = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
             seed = Bip39SeedGenerator(mnemonic).Generate()
-            ctx = Bip44.FromSeed(seed, Bip44Coins.SOLANA).Purpose().Coin().Account(0).Change(0).AddressIndex(0)
+            ctx = (
+                Bip44.FromSeed(seed, Bip44Coins.SOLANA)
+                .Purpose()
+                .Coin()
+                .Account(0)
+                .Change(0)
+                .AddressIndex(0)
+            )
             kp = Keypair.from_bytes(ctx.PrivateKey().Raw().ToBytes())
 
             async def _do():

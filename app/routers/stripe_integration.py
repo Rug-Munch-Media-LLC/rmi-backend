@@ -13,13 +13,14 @@ Endpoints:
 from __future__ import annotations
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+from app.core.logging import get_logger
 
 logger = get_logger("stripe")
 
@@ -30,6 +31,7 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 try:
     import stripe as _stripe_check  # noqa: F401
+
     STRIPE_PACKAGE_INSTALLED = True
 except ImportError:
     STRIPE_PACKAGE_INSTALLED = False
@@ -39,9 +41,17 @@ STRIPE_ENABLED = bool(STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY and STRIPE_PA
 # Credit packages (USD -> API credits)
 CREDIT_PACKAGES = {
     "starter": {"price_usd": 1000, "credits": 1000, "label": "Starter Pack - 1,000 credits"},
-    "growth": {"price_usd": 5000, "credits": 6000, "label": "Growth Pack - 6,000 credits (16% off)"},
+    "growth": {
+        "price_usd": 5000,
+        "credits": 6000,
+        "label": "Growth Pack - 6,000 credits (16% off)",
+    },
     "pro": {"price_usd": 10000, "credits": 14000, "label": "Pro Pack - 14,000 credits (28% off)"},
-    "enterprise": {"price_usd": 50000, "credits": 80000, "label": "Enterprise Pack - 80,000 credits (37% off)"},
+    "enterprise": {
+        "price_usd": 50000,
+        "credits": 80000,
+        "label": "Enterprise Pack - 80,000 credits (37% off)",
+    },
 }
 
 # Monthly subscription tiers
@@ -75,7 +85,11 @@ class CreditEntry:
 
     def add_credits(self, api_key: str, amount: int, source: str = "stripe"):
         if api_key not in self._credits:
-            self._credits[api_key] = {"balance": 100, "total_purchased": 0, "created_at": time.time()}
+            self._credits[api_key] = {
+                "balance": 100,
+                "total_purchased": 0,
+                "created_at": time.time(),
+            }
         self._credits[api_key]["balance"] += amount
         self._credits[api_key]["total_purchased"] += amount
         self._credits[api_key]["last_purchase"] = time.time()
@@ -108,13 +122,24 @@ async def create_checkout(req: CheckoutRequest):
             content={
                 "error": "Stripe not configured",
                 "note": "Add STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY to environment. Set STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY in environment",
-                "packages": {k: {"price_usd": v["price_usd"], "credits": v["credits"], "label": v["label"]} for k, v in CREDIT_PACKAGES.items()},
-                "subscriptions": {k: {"price_usd": v["price_usd"], "credits_per_month": v["credits_per_month"], "label": v["label"]} for k, v in SUBSCRIPTION_TIERS.items()},
+                "packages": {
+                    k: {"price_usd": v["price_usd"], "credits": v["credits"], "label": v["label"]}
+                    for k, v in CREDIT_PACKAGES.items()
+                },
+                "subscriptions": {
+                    k: {
+                        "price_usd": v["price_usd"],
+                        "credits_per_month": v["credits_per_month"],
+                        "label": v["label"],
+                    }
+                    for k, v in SUBSCRIPTION_TIERS.items()
+                },
             },
         )
 
     try:
         import stripe
+
         stripe.api_key = STRIPE_SECRET_KEY
 
         package = None
@@ -177,6 +202,7 @@ async def stripe_webhook(request: Request):
 
     try:
         import stripe
+
         stripe.api_key = STRIPE_SECRET_KEY
 
         if STRIPE_WEBHOOK_SECRET:
@@ -198,7 +224,9 @@ async def stripe_webhook(request: Request):
 
             if api_key and credits > 0:
                 _credit_store.add_credits(api_key, credits)
-                logger.info(f"Stripe payment: {session.get('id','')} -> {credits} credits for {api_key[:16]}")
+                logger.info(
+                    f"Stripe payment: {session.get('id', '')} -> {credits} credits for {api_key[:16]}"
+                )
 
         return {"received": True, "processed": True}
 
@@ -211,8 +239,18 @@ async def stripe_webhook(request: Request):
 async def list_packages():
     """List available credit packages and subscription tiers."""
     return {
-        "packages": {k: {"price_usd": v["price_usd"], "credits": v["credits"], "label": v["label"]} for k, v in CREDIT_PACKAGES.items()},
-        "subscriptions": {k: {"price_usd": v["price_usd"], "credits_per_month": v["credits_per_month"], "label": v["label"]} for k, v in SUBSCRIPTION_TIERS.items()},
+        "packages": {
+            k: {"price_usd": v["price_usd"], "credits": v["credits"], "label": v["label"]}
+            for k, v in CREDIT_PACKAGES.items()
+        },
+        "subscriptions": {
+            k: {
+                "price_usd": v["price_usd"],
+                "credits_per_month": v["credits_per_month"],
+                "label": v["label"],
+            }
+            for k, v in SUBSCRIPTION_TIERS.items()
+        },
         "stripe_configured": STRIPE_ENABLED,
         "publishable_key": STRIPE_PUBLISHABLE_KEY or "",
         "note": "Pay with credit card. No crypto wallet needed. Credits never expire.",
@@ -245,16 +283,22 @@ async def buy_credits(api_key: str = "", amount_usd: int = 1000):
 
     if STRIPE_ENABLED:
         import stripe
+
         stripe.api_key = STRIPE_SECRET_KEY
         session = stripe.checkout.Session.create(
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {"name": "API Credits", "description": f"{amount_usd} credits"},
-                    "unit_amount": amount_usd,
-                },
-                "quantity": 1,
-            }],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {
+                            "name": "API Credits",
+                            "description": f"{amount_usd} credits",
+                        },
+                        "unit_amount": amount_usd,
+                    },
+                    "quantity": 1,
+                }
+            ],
             mode="payment",
             metadata={"api_key": api_key, "manual_amount": str(amount_usd)},
         )
@@ -282,6 +326,7 @@ async def customer_portal(customer_id: str = ""):
         }
     try:
         import stripe
+
         stripe.api_key = STRIPE_SECRET_KEY
         session = stripe.billing_portal.Session.create(customer=customer_id)
         return {"portal_url": session.url}

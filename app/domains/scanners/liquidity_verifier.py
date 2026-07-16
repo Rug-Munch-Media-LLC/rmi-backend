@@ -20,7 +20,6 @@ Data sources (direct API calls - no self.api_base):
               Helius Enhanced Transactions (LP burn events)
 """
 
-from app.core.logging import get_logger  # noqa: E402
 import os  # noqa: E402
 from dataclasses import dataclass, field  # noqa: E402
 from datetime import UTC, datetime  # noqa: E402
@@ -29,6 +28,7 @@ from enum import Enum  # noqa: E402
 import httpx  # noqa: E402
 
 from app.chain_registry import get_known_lockers, is_solana  # noqa: E402
+from app.core.logging import get_logger  # noqa: E402
 
 logger = get_logger("liquidity_verifier")
 
@@ -175,7 +175,9 @@ class LiquidityVerifier:
             logger.warning("MORALIS_API_KEY not set")
             return None
         try:
-            resp = await self.client.get(url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"})
+            resp = await self.client.get(
+                url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"}
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
@@ -246,7 +248,7 @@ class LiquidityVerifier:
         return chain_lockers.get(address.lower() if not is_solana(chain) else address)
 
     # Known stablecoin / wrapped token symbols - LP lock check is irrelevant
-    STABLECOIN_SYMBOLS: ClassVar[dict] ={
+    STABLECOIN_SYMBOLS: ClassVar[dict] = {
         "USDC",
         "USDT",
         "DAI",
@@ -281,7 +283,7 @@ class LiquidityVerifier:
         if not symbol:
             return False
         sym = symbol.upper().strip()
-        return sym in self.STABLECOIN_SYMBOLS or sym.startswith("W") or sym.startswith("ST")
+        return sym in self.STABLECOIN_SYMBOLS or sym.startswith(("W", "ST"))
 
     def is_dead_address(self, address: str, chain: str) -> bool:
         """Check if address is a known burn/dead address."""
@@ -292,7 +294,9 @@ class LiquidityVerifier:
             "0x0000000000000000000000000000000000000000".lower(),
         }
 
-    async def verify_lock(self, token_address: str, chain: str, lp_token: str = "", symbol: str = "") -> LockReport:
+    async def verify_lock(
+        self, token_address: str, chain: str, lp_token: str = "", symbol: str = ""
+    ) -> LockReport:
         """Full liquidity verification for a token.
 
         Steps:
@@ -419,13 +423,17 @@ class LiquidityVerifier:
         # Detect split locks (e.g., 80% locked, 20% unlocked)
         if lock_details:
             max_lock = max(d.percentage_locked for d in lock_details)
-            other_locks = [d for d in lock_details if d.percentage_locked < max_lock and not d.is_burned]
+            other_locks = [
+                d for d in lock_details if d.percentage_locked < max_lock and not d.is_burned
+            ]
             if other_locks and max_lock < 90:
                 has_split_lock = True
 
         # Determine overall status
         if total_locked_pct >= 95:
-            status = LockStatus.BURNED if any(d.is_burned for d in lock_details) else LockStatus.LOCKED
+            status = (
+                LockStatus.BURNED if any(d.is_burned for d in lock_details) else LockStatus.LOCKED
+            )
         elif total_locked_pct >= 70:
             status = LockStatus.LOCKED
         elif total_locked_pct >= 30:
@@ -465,7 +473,9 @@ class LiquidityVerifier:
         """
         # Try DexScreener to find the LP pair info
         try:
-            resp = await self.client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            resp = await self.client.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
@@ -480,7 +490,12 @@ class LiquidityVerifier:
                         accounts = await self._helius_get_token_accounts(burn_addr)
                         if accounts:
                             for acct in accounts:
-                                info = acct.get("account", {}).get("data", {}).get("parsed", {}).get("info", {})
+                                info = (
+                                    acct.get("account", {})
+                                    .get("data", {})
+                                    .get("parsed", {})
+                                    .get("info", {})
+                                )
                                 mint = info.get("mint", "")
                                 if mint == lp_address:
                                     return True
@@ -561,7 +576,9 @@ class LiquidityVerifier:
                     holder_totals[addr] = holder_totals.get(addr, 0) + value
                 if holder_totals:
                     total = sum(holder_totals.values()) or 1
-                    sorted_holders = sorted(holder_totals.items(), key=lambda x: x[1], reverse=True)[:25]
+                    sorted_holders = sorted(
+                        holder_totals.items(), key=lambda x: x[1], reverse=True
+                    )[:25]
                     for addr, bal in sorted_holders:
                         holders.append(
                             {
@@ -613,6 +630,14 @@ class LiquidityVerifier:
                 warnings.append(f"UNLOCK SOON: Lock expires in {u.unlock_in_days} days")
 
         score = min(100, score)
-        level = "CRITICAL" if score >= 70 else "HIGH" if score >= 40 else "MEDIUM" if score >= 20 else "LOW"
+        level = (
+            "CRITICAL"
+            if score >= 70
+            else "HIGH"
+            if score >= 40
+            else "MEDIUM"
+            if score >= 20
+            else "LOW"
+        )
 
         return score, level, warnings

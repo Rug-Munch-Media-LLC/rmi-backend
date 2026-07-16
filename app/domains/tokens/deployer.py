@@ -44,13 +44,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
+
+from app.core.logging import get_logger
 
 logger = get_logger("darkroom_token_deployer")
 
@@ -83,8 +84,8 @@ class TokenDeployment:
     anti_bot_delay: int = 0
     max_supply: str | None = None
     metadata_uri: str | None = None
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -143,72 +144,58 @@ class ChainDeployer(ABC):
     @abstractmethod
     def _derive_address(self) -> str:
         """Derive deployer wallet address from private key."""
-        pass
 
     @abstractmethod
     async def deploy_token(self, params: DeployParams) -> TokenDeployment:
         """Deploy a new token contract."""
-        pass
 
     @abstractmethod
     async def mint_tokens(self, contract_address: str, to_address: str, amount: str) -> str:
         """Mint additional tokens. Returns tx hash."""
-        pass
 
     @abstractmethod
     async def burn_tokens(self, contract_address: str, amount: str) -> str:
         """Burn tokens from deployer balance. Returns tx hash."""
-        pass
 
     @abstractmethod
     async def transfer_ownership(self, contract_address: str, new_owner: str) -> str:
         """Transfer contract ownership. Returns tx hash."""
-        pass
 
     @abstractmethod
     async def renounce_ownership(self, contract_address: str) -> str:
         """Renounce contract ownership (immutable). Returns tx hash."""
-        pass
 
     @abstractmethod
     async def get_token_info(self, contract_address: str) -> dict[str, Any]:
         """Get token metadata from contract."""
-        pass
 
     @abstractmethod
     async def get_balance(self, contract_address: str, wallet_address: str) -> str:
         """Get token balance for a wallet."""
-        pass
 
     @abstractmethod
     async def blacklist_add(self, contract_address: str, address: str) -> str:
         """Add an address to the token blacklist. Returns tx hash."""
-        pass
 
     @abstractmethod
     async def blacklist_remove(self, contract_address: str, address: str) -> str:
         """Remove an address from the token blacklist. Returns tx hash."""
-        pass
 
     @abstractmethod
     async def is_blacklisted(self, contract_address: str, address: str) -> bool:
         """Check if an address is blacklisted."""
-        pass
 
     @abstractmethod
     async def set_trading_enabled(self, contract_address: str, enabled: bool) -> str:
         """Enable or disable trading. Returns tx hash."""
-        pass
 
     @abstractmethod
     async def set_max_wallet(self, contract_address: str, max_amount: str) -> str:
         """Set max wallet holding limit. Returns tx hash."""
-        pass
 
     @abstractmethod
     async def set_max_tx(self, contract_address: str, max_amount: str) -> str:
         """Set max transaction limit. Returns tx hash."""
-        pass
 
     def _generate_deployment_id(self, chain: str, symbol: str, tx_hash: str) -> str:
         """Generate unique deployment ID."""
@@ -1420,7 +1407,7 @@ class DeploymentStorage:
             return False
 
         dep.status = status
-        dep.updated_at = datetime.utcnow().isoformat()
+        dep.updated_at = datetime.now(UTC).isoformat()
         if extra:
             dep.extra.update(extra)
 

@@ -88,9 +88,19 @@ async def run():
         if os.path.exists(csv_path):
             with open(csv_path, newline="", encoding="utf-8") as f:
                 rows = list(csv.DictReader(f))
-            scam_rows = [r for r in rows if any(kw in (r.get("label", "") or "").lower() for kw in SCAM_KEYWORDS)]
-            wallet_rows = [r for r in rows if not any(kw in (r.get("label", "") or "").lower() for kw in SCAM_KEYWORDS)]
-            logger.info(f"2. Etherscan combined: {len(rows)} total → {len(scam_rows)} scam, {len(wallet_rows)} wallets")
+            scam_rows = [
+                r
+                for r in rows
+                if any(kw in (r.get("label", "") or "").lower() for kw in SCAM_KEYWORDS)
+            ]
+            wallet_rows = [
+                r
+                for r in rows
+                if not any(kw in (r.get("label", "") or "").lower() for kw in SCAM_KEYWORDS)
+            ]
+            logger.info(
+                f"2. Etherscan combined: {len(rows)} total → {len(scam_rows)} scam, {len(wallet_rows)} wallets"
+            )
 
             ok_scam = ok_wallet = err = 0
             # Scam addresses first
@@ -148,7 +158,9 @@ async def run():
                 except:  # noqa: E722
                     pass
                 if (i // batch_size + 1) % 20 == 0:
-                    logger.info(f"  Wallets: {i + len(batch)}/{min(len(wallet_rows), 5000)} | ok={ok_wallet}")
+                    logger.info(
+                        f"  Wallets: {i + len(batch)}/{min(len(wallet_rows), 5000)} | ok={ok_wallet}"
+                    )
                     await asyncio.sleep(0.1)
 
             total_ingested += ok_scam + ok_wallet

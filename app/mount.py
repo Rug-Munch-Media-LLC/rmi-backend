@@ -13,8 +13,9 @@ doesn't break the others.
 from __future__ import annotations
 
 import importlib
-from app.core.logging import get_logger
 from typing import Any, Final
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 

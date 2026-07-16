@@ -15,8 +15,18 @@ MODEL_COSTS = {
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60, "provider": "gemini"},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00, "provider": "gemini"},
     "gemini-3.5-flash": {"input": 1.50, "output": 9.00, "provider": "gemini"},
-    "mistral-small-latest": {"input": 0.0, "output": 0.0, "provider": "mistral", "note": "Free tier - 1B tokens/mo"},
-    "mistral-medium-latest": {"input": 0.0, "output": 0.0, "provider": "mistral", "note": "Free tier - use sparingly"},
+    "mistral-small-latest": {
+        "input": 0.0,
+        "output": 0.0,
+        "provider": "mistral",
+        "note": "Free tier - 1B tokens/mo",
+    },
+    "mistral-medium-latest": {
+        "input": 0.0,
+        "output": 0.0,
+        "provider": "mistral",
+        "note": "Free tier - use sparingly",
+    },
     "mistral-embed": {
         "input": 0.0,
         "output": 0.0,
@@ -93,7 +103,9 @@ async def get_usage(limit: int = Query(50, le=200)) -> dict:
 
 
 @router.get("/cheapest")
-async def cheapest_for_task(quality: str = Query("medium", description="minimum quality tier")) -> dict:
+async def cheapest_for_task(
+    quality: str = Query("medium", description="minimum quality tier"),
+) -> dict:
     """Get cheapest model for a given quality tier."""
     if quality == "high":
         candidates = ["deepseek-v4-pro", "gemini-2.5-pro", "mistral-large"]

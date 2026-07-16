@@ -16,14 +16,16 @@ Design (per DESIGN.md M3):
 - FAIL LOUD: if both backends fail, raise RAGUnavailableError
 - Monitor via Prometheus counter rag_empty_returns_total
 """
+
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import os
 from typing import Final
 
 import httpx
 import numpy as np
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -63,7 +65,11 @@ def _ollama_reachable() -> bool:
 def _resize(vec: list[float], dim: int) -> list[float]:
     """Pad or truncate a vector to target dim, then L2 normalize."""
     arr = np.asarray(vec, dtype=np.float32)
-    arr = arr[:dim] if arr.shape[0] >= dim else np.concatenate([arr, np.zeros(dim - arr.shape[0], dtype=np.float32)])
+    arr = (
+        arr[:dim]
+        if arr.shape[0] >= dim
+        else np.concatenate([arr, np.zeros(dim - arr.shape[0], dtype=np.float32)])
+    )
     n = float(np.linalg.norm(arr))
     if n > 0:
         arr = arr / n

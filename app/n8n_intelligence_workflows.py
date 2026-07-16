@@ -14,8 +14,9 @@ Integrations:
 - Forta: real-time threat detection
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

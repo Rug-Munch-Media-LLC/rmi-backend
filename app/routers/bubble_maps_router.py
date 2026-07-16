@@ -4,10 +4,10 @@ Self-contained engine, no BubbleMaps.com API dependency.
 Connects to /api/v1/rugmaps/*
 """
 
-from app.core.logging import get_logger
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -57,7 +57,9 @@ async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)):
         "risk_level": d.get("risk_level", "unknown"),
         "risk_score": d.get("risk_score", 0),
         "stats": d.get("stats", {}),
-        "top_counterparties": [n["address"][:12] + "..." for n in d.get("nodes", []) if n.get("layer") == 1][:10],
+        "top_counterparties": [
+            n["address"][:12] + "..." for n in d.get("nodes", []) if n.get("layer") == 1
+        ][:10],
     }
 
 
@@ -110,7 +112,9 @@ async def token_holder_graph(
         result = await rm.generate_map(center_wallet=token_address, depth=3, min_strength=0.05)
         d = result.to_dict()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Graph generation failed: {str(e)[:200]}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Graph generation failed: {str(e)[:200]}"
+        ) from e
 
     nodes = d.get("nodes", [])
     links = d.get("links", [])
@@ -162,7 +166,9 @@ async def token_holder_graph(
     }
 
     try:
-        ai_analysis = await generate_ai_analysis(token_address, chain, graph_data, holders, labels, similar_scams)
+        ai_analysis = await generate_ai_analysis(
+            token_address, chain, graph_data, holders, labels, similar_scams
+        )
     except Exception as e:
         logger.warning(f"AI analysis failed, using fallback: {e}")
         ai_analysis = generate_fallback_analysis(

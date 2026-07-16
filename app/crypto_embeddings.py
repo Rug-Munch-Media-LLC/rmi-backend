@@ -29,7 +29,6 @@ Collections:
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import re
 import time
@@ -38,6 +37,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -276,7 +277,11 @@ def extract_transaction_features(tx_data: dict) -> np.ndarray:
         vec[12] = min(entropy / 3.2, 1.0)  # normalized entropy
         # Burstiness: ratio of txs in 10% of time to total
         window = max(1, (ts_sorted[-1] - ts_sorted[0]) // 10)
-        burst_txs = sum(1 for i in range(len(ts_sorted) - 1) if ts_sorted[i + 1] - ts_sorted[i] < max(60, window))
+        burst_txs = sum(
+            1
+            for i in range(len(ts_sorted) - 1)
+            if ts_sorted[i + 1] - ts_sorted[i] < max(60, window)
+        )
         vec[13] = min(burst_txs / max(1, len(ts_sorted)), 1.0)
 
     # ── Diversity metrics (dims 20-29) ──
@@ -424,7 +429,9 @@ class LocalBGEEmbedder:
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         model = self._get_model()
-        embeddings = await asyncio.to_thread(lambda: model.encode(texts, normalize_embeddings=True).tolist())
+        embeddings = await asyncio.to_thread(
+            lambda: model.encode(texts, normalize_embeddings=True).tolist()
+        )
         return embeddings
 
     async def embed_one(self, text: str) -> list[float]:
@@ -599,7 +606,9 @@ class ContractCodeEmbedder:
             # Take first 4000 chars - enough for the key logic
             code_snippet = code[:4000]
             try:
-                semantic_vec = await semantic_embedder.embed_one(f"Smart contract code: {code_snippet[:3000]}")
+                semantic_vec = await semantic_embedder.embed_one(
+                    f"Smart contract code: {code_snippet[:3000]}"
+                )
                 # Truncate or pad to 192
                 semantic = np.array(semantic_vec[:192], dtype=np.float32)
                 if len(semantic) < 192:
@@ -820,7 +829,9 @@ Metadata: {json.dumps(metadata or {})[:1000]}"""
         semantic_dim = len(semantic_vec)
 
         # Get code features
-        code_vec = extract_contract_features(contract_code).tolist() if contract_code else [0.0] * 128
+        code_vec = (
+            extract_contract_features(contract_code).tolist() if contract_code else [0.0] * 128
+        )
 
         # Get behavioral features (from metadata)
         behavioral = extract_transaction_features(metadata or {})
@@ -1006,12 +1017,16 @@ Code patterns: {"; ".join(code_snippets or [])[:3000]}"""
 
         sem_sim = CryptoEmbedder.cosine_similarity(vec_a[:semantic_dim], vec_b[:semantic_dim])
         code_sim = (
-            CryptoEmbedder.cosine_similarity(vec_a[code_start:behav_start], vec_b[code_start:behav_start])
+            CryptoEmbedder.cosine_similarity(
+                vec_a[code_start:behav_start], vec_b[code_start:behav_start]
+            )
             if len(vec_a) > code_start
             else 0.0
         )
         behav_sim = (
-            CryptoEmbedder.cosine_similarity(vec_a[behav_start:wallet_start], vec_b[behav_start:wallet_start])
+            CryptoEmbedder.cosine_similarity(
+                vec_a[behav_start:wallet_start], vec_b[behav_start:wallet_start]
+            )
             if len(vec_a) > behav_start
             else 0.0
         )
@@ -1021,7 +1036,12 @@ Code patterns: {"; ".join(code_snippets or [])[:3000]}"""
             else 0.0
         )
 
-        return weights[0] * sem_sim + weights[1] * code_sim + weights[2] * behav_sim + weights[3] * wallet_sim
+        return (
+            weights[0] * sem_sim
+            + weights[1] * code_sim
+            + weights[2] * behav_sim
+            + weights[3] * wallet_sim
+        )
 
     # ─── VECTOR STORE INTEGRATION ───────────────────────────────
 

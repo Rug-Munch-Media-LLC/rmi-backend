@@ -9,11 +9,12 @@ Processes Helius, Moralis, and custom webhook events with:
 """
 
 import hashlib
-from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -254,7 +255,10 @@ class IntelligentWebhookProcessor:
             amount_usd = amount_sol * 150.0  # Approx SOL price
 
             token_transfers = event.get("tokenTransfers", [])
-            is_dust = any(float(tt.get("tokenAmount", {}).get("uiAmount", 0) or 0) < 0.001 for tt in token_transfers)
+            is_dust = any(
+                float(tt.get("tokenAmount", {}).get("uiAmount", 0) or 0) < 0.001
+                for tt in token_transfers
+            )
 
             # Enrich
             enriched = await self._enrich_wallet(wallet, "solana")
@@ -280,9 +284,13 @@ class IntelligentWebhookProcessor:
             alert = SmartAlert(
                 alert_id=self._generate_alert_id("helius", wallet, timestamp),
                 severity=severity,
-                alert_type="whale_transfer" if amount_sol > self.WHALE_THRESHOLD_SOL else "transfer",
+                alert_type="whale_transfer"
+                if amount_sol > self.WHALE_THRESHOLD_SOL
+                else "transfer",
                 source="helius",
-                timestamp=datetime.fromtimestamp(timestamp, tz=UTC) if timestamp else datetime.now(UTC),
+                timestamp=datetime.fromtimestamp(timestamp, tz=UTC)
+                if timestamp
+                else datetime.now(UTC),
                 wallet=wallet,
                 chain="solana",
                 description=description[:200],
@@ -335,7 +343,8 @@ class IntelligentWebhookProcessor:
             # Check for token transfers
             erc20_transfers = event.get("erc20Transfers", [])
             is_approval = any(
-                t.get("value") == "0" and t.get("toAddress", "").lower() != wallet.lower() for t in erc20_transfers
+                t.get("value") == "0" and t.get("toAddress", "").lower() != wallet.lower()
+                for t in erc20_transfers
             )
 
             # Enrich
@@ -360,9 +369,13 @@ class IntelligentWebhookProcessor:
             alert = SmartAlert(
                 alert_id=self._generate_alert_id("moralis", wallet, time.time()),
                 severity=severity,
-                alert_type="whale_transfer" if amount_eth > self.WHALE_THRESHOLD_ETH else "transfer",
+                alert_type="whale_transfer"
+                if amount_eth > self.WHALE_THRESHOLD_ETH
+                else "transfer",
                 source="moralis",
-                timestamp=datetime.fromisoformat(timestamp.replace("Z", "+00:00")) if timestamp else datetime.now(UTC),
+                timestamp=datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                if timestamp
+                else datetime.now(UTC),
                 wallet=wallet,
                 chain=chain,
                 description=f"Transfer to {to_address[:12]}... ({amount_eth:.4f} ETH)",

@@ -2,6 +2,7 @@
 
 No FastAPI imports. Pure data shapes.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

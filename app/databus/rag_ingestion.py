@@ -10,9 +10,10 @@ Redis-backed with permanence to R2.
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger("rag_ingestion")
 
@@ -31,7 +32,9 @@ async def nightly_rag_index(**kw) -> dict:
         news = await aggregate_all_news(limit=100)
         news_docs = []
         for article in news.get("articles", [])[:50]:
-            h = hashlib.sha256((article.get("url", "") + article.get("title", "")).encode()).hexdigest()[:12]
+            h = hashlib.sha256(
+                (article.get("url", "") + article.get("title", "")).encode()
+            ).hexdigest()[:12]
             news_docs.append(
                 {
                     "id": f"news:{h}",
@@ -60,7 +63,9 @@ async def nightly_rag_index(**kw) -> dict:
         ct = await fetch_ct_rundown(limit=30)
         ct_docs = []
         for story in ct.get("rundown", [])[:20]:
-            h = hashlib.sha256((story.get("url", "") + story.get("text", "")).encode()).hexdigest()[:12]
+            h = hashlib.sha256((story.get("url", "") + story.get("text", "")).encode()).hexdigest()[
+                :12
+            ]
             ct_docs.append(
                 {
                     "id": f"ct:{h}",

@@ -12,10 +12,11 @@ Redis keys:
   token_id format: "{chain}:{token_address}"
 """
 
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("liquidity_watchdog")
 
@@ -215,7 +216,9 @@ def check_all_locks_summary() -> dict[str, Any]:
         t
         for t in tokens
         if t["lock_expiry"] > now_ts
-        and not any(e["token"] == t["token_address"] and e["chain"] == t["chain"] for e in expiring_soon)
+        and not any(
+            e["token"] == t["token_address"] and e["chain"] == t["chain"] for e in expiring_soon
+        )
     ]
 
     return {

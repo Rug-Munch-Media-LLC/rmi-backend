@@ -11,12 +11,13 @@ Key features:
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import time
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -107,7 +108,9 @@ class AlchemyConnector:
             logger.debug(f"Alchemy request failed: {e}")
             return None
 
-    async def _get(self, endpoint: str, network: str = "eth", params: dict | None = None) -> dict | None:
+    async def _get(
+        self, endpoint: str, network: str = "eth", params: dict | None = None
+    ) -> dict | None:
         """REST API call to Alchemy."""
         base = self._network_url(network)
         url = f"{base}/{self.api_key}/{endpoint}"
@@ -152,12 +155,16 @@ class AlchemyConnector:
         params = {"contractAddress": contract, "tokenId": token_id}
         return await self._get("getNFTMetadata", network, params) or {}
 
-    async def get_owners_for_collection(self, contract: str, network: str = "eth", page_size: int = 50) -> dict:
+    async def get_owners_for_collection(
+        self, contract: str, network: str = "eth", page_size: int = 50
+    ) -> dict:
         """Get all owners of an NFT collection."""
         params = {"contractAddress": contract, "pageSize": page_size}
         return await self._get("getOwnersForCollection", network, params) or {}
 
-    async def get_nft_sales(self, contract: str | None = None, network: str = "eth", limit: int = 50) -> dict:
+    async def get_nft_sales(
+        self, contract: str | None = None, network: str = "eth", limit: int = 50
+    ) -> dict:
         """Get recent NFT sales (optional: filter by contract)."""
         params = {"limit": limit}
         if contract:
@@ -209,9 +216,14 @@ class AlchemyConnector:
         """Get transaction receipt with enhanced data."""
         return await self._rpc_call(network, "eth_getTransactionReceipt", [tx_hash]) or {}
 
-    async def get_block_by_number(self, block_number: int, network: str = "eth", include_txs: bool = False) -> dict:
+    async def get_block_by_number(
+        self, block_number: int, network: str = "eth", include_txs: bool = False
+    ) -> dict:
         """Get block data."""
-        return await self._rpc_call(network, "eth_getBlockByNumber", [hex(block_number), include_txs]) or {}
+        return (
+            await self._rpc_call(network, "eth_getBlockByNumber", [hex(block_number), include_txs])
+            or {}
+        )
 
     async def get_balance(self, address: str, network: str = "eth", block: str = "latest") -> str:
         """Get native token balance (hex wei)."""

@@ -25,12 +25,13 @@ Endpoint: POST /api/v1/x402-tools/launch_fairness
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("launch_fairness_analyzer")
 

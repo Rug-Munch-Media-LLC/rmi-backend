@@ -9,7 +9,6 @@ Sources: 25+ trusted crypto news outlets, newsletters, blogs, and mirrors.
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
@@ -17,6 +16,8 @@ from datetime import UTC, datetime
 
 import feedparser
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("news_network")
 
@@ -322,7 +323,9 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
                         for word, weight in SENTIMENT_DICT.items():
                             if word in text:
                                 score += weight
-                        article.sentiment_score = round(score / max(abs(score), 1), 2) if score != 0 else 0
+                        article.sentiment_score = (
+                            round(score / max(abs(score), 1), 2) if score != 0 else 0
+                        )
                         article.sentiment_label = (
                             "bullish"
                             if article.sentiment_score > 0.15
@@ -339,7 +342,10 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
                         article.impact_level = (
                             "high"
                             if abs(article.sentiment_score) > 0.5
-                            or any(kw in text for kw in ["hack", "exploit", "crash", "surge", "breakout"])
+                            or any(
+                                kw in text
+                                for kw in ["hack", "exploit", "crash", "surge", "breakout"]
+                            )
                             else "medium"
                             if abs(article.sentiment_score) > 0.2
                             else "low"

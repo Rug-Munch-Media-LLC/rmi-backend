@@ -63,7 +63,9 @@ async def _coingecko_price(**kwargs) -> dict | None:
     try:
         headers = {"x-cg-pro-api-key": api_key} if api_key else {}
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(f"https://api.coingecko.com/api/v3/simple/token_price/{token}", headers=headers)
+            r = await c.get(
+                f"https://api.coingecko.com/api/v3/simple/token_price/{token}", headers=headers
+            )
             if r.status_code == 200:
                 return r.json()
     except Exception:
@@ -91,7 +93,9 @@ async def _moralis_price(**kwargs) -> dict | None:
 # ── ALCHEMY PROVIDER ──────────────────────────────────────────
 
 
-async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet", **kw) -> dict | None:
+async def _alchemy_token_balances(
+    address: str = "", network: str = "eth-mainnet", **kw
+) -> dict | None:
     """Alchemy - get all token balances for an address."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -115,7 +119,9 @@ async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet
     return None
 
 
-async def _alchemy_token_metadata(contract: str = "", network: str = "eth-mainnet", **kw) -> dict | None:
+async def _alchemy_token_metadata(
+    contract: str = "", network: str = "eth-mainnet", **kw
+) -> dict | None:
     """Alchemy - get token metadata."""
     api_key = kw.get("api_key", "")
     if not contract or not api_key:
@@ -261,7 +267,9 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
     """SENTINEL scanner - our own token security analysis."""
     try:
         async with httpx.AsyncClient(timeout=30) as c:
-            r = await c.post("http://localhost:8000/api/v1/token/scan", json={"address": address, "chain": chain})
+            r = await c.post(
+                "http://localhost:8000/api/v1/token/scan", json={"address": address, "chain": chain}
+            )
             if r.status_code == 200:
                 return r.json()
     except Exception:
@@ -392,7 +400,9 @@ async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict | None:
         return None
     try:
         async with httpx.AsyncClient(timeout=20) as c:
-            r = await c.get(f"{_MORALIS_BASE}/wallets/{address}/net-worth", headers={"X-API-Key": api_key})
+            r = await c.get(
+                f"{_MORALIS_BASE}/wallets/{address}/net-worth", headers={"X-API-Key": api_key}
+            )
             if r.status_code == 200:
                 return {"net_worth": r.json(), "address": address}
     except Exception:
@@ -467,7 +477,9 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
                 }
             )
             cmd = MCP_COMMANDS[mcp_server]
-            result = subprocess.run(cmd, input=mcp_request, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(
+                cmd, input=mcp_request, capture_output=True, text=True, timeout=30
+            )
             if result.returncode == 0 and result.stdout:
                 data = _json.loads(result.stdout)
                 if "result" in data:
@@ -551,7 +563,9 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
     try:
         headers = {"API-Key": api_key}
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(f"{_ARKHAM_BASE}/intelligence/search", params={"query": query}, headers=headers)
+            r = await c.get(
+                f"{_ARKHAM_BASE}/intelligence/search", params={"query": query}, headers=headers
+            )
             if r.status_code == 200:
                 return {"results": r.json(), "query": query, "source": "arkham"}
     except Exception:
@@ -613,7 +627,9 @@ async def _arkham_labels(address: str = "", **kw) -> dict | None:
                 if label and label.get("name"):
                     labels.append({"name": label["name"], "id": label.get("id"), "type": "arkham"})
                 if entity and entity.get("name"):
-                    labels.append({"name": entity["name"], "id": entity.get("id"), "type": "entity"})
+                    labels.append(
+                        {"name": entity["name"], "id": entity.get("id"), "type": "entity"}
+                    )
                 return {
                     "labels": labels,
                     "address": address,
@@ -792,7 +808,11 @@ async def _defillama_chains(**kw) -> dict | None:
             if r.status_code == 200:
                 data = r.json()
                 return {
-                    "chains": [{"name": c.get("name"), "tvl": c.get("tvl")} for c in data if isinstance(c, dict)],
+                    "chains": [
+                        {"name": c.get("name"), "tvl": c.get("tvl")}
+                        for c in data
+                        if isinstance(c, dict)
+                    ],
                     "source": "defillama",
                 }
     except Exception:
@@ -850,7 +870,11 @@ async def _birdeye_overview(address: str = "", **kw) -> dict | None:
     if not address:
         return None
     try:
-        headers = {"X-API-KEY": api_key, "accept": "application/json"} if api_key else {"accept": "application/json"}
+        headers = (
+            {"X-API-KEY": api_key, "accept": "application/json"}
+            if api_key
+            else {"accept": "application/json"}
+        )
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(
                 f"https://public-api.birdeye.so/defi/token_overview?address={address}",
@@ -870,9 +894,15 @@ async def _birdeye_price(address: str = "", **kw) -> dict | None:
     if not address:
         return None
     try:
-        headers = {"X-API-KEY": api_key, "accept": "application/json"} if api_key else {"accept": "application/json"}
+        headers = (
+            {"X-API-KEY": api_key, "accept": "application/json"}
+            if api_key
+            else {"accept": "application/json"}
+        )
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(f"https://public-api.birdeye.so/defi/price?address={address}", headers=headers)
+            r = await c.get(
+                f"https://public-api.birdeye.so/defi/price?address={address}", headers=headers
+            )
             if r.status_code == 200:
                 data = r.json()
                 return {
@@ -945,7 +975,9 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
     try:
         headers = {"X-Messari-API-Key": api_key, "Accept": "application/json"}
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get("https://api.messari.io/news/v1/news/feed", params={"limit": limit}, headers=headers)
+            r = await c.get(
+                "https://api.messari.io/news/v1/news/feed", params={"limit": limit}, headers=headers
+            )
             if r.status_code == 200:
                 data = r.json()
                 if data.get("data"):
@@ -954,7 +986,9 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
                     for item in data["data"]:
                         assets = [a.get("symbol", "Unknown") for a in item.get("assets", [])]
                         sentiment = item.get("sentiment", [])
-                        avg_sentiment = sum(s.get("sentiment", 0) for s in sentiment) / max(len(sentiment), 1)
+                        avg_sentiment = sum(s.get("sentiment", 0) for s in sentiment) / max(
+                            len(sentiment), 1
+                        )
 
                         articles.append(
                             {
@@ -999,7 +1033,8 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
                                 "url": item.get("url", ""),
                                 "source": item.get("source", "CoinDesk"),
                                 "published_at": datetime.fromtimestamp(
-                                    item.get("published_on", 0), tz=timezone.utc  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+                                    item.get("published_on", 0),
+                                    tz=timezone.utc,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
                                 ).isoformat(),
                                 "description": item.get("body", ""),
                                 "category": item.get("categories", "news").lower(),
@@ -1045,7 +1080,9 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict |
                 data = r.json()
                 return {
                     "project": project_slug,
-                    "dev_activity": data.get("data", {}).get("getMetric", {}).get("timeseriesData", []),
+                    "dev_activity": data.get("data", {})
+                    .get("getMetric", {})
+                    .get("timeseriesData", []),
                     "source": "santiment",
                 }
     except Exception:
@@ -1066,7 +1103,9 @@ async def _virustotal_url_scan(url: str, **kw) -> dict | None:
 
         url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": api_key})
+            r = await c.get(
+                f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": api_key}
+            )
             if r.status_code == 200:
                 data = r.json()
                 stats = data.get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
@@ -1152,8 +1191,8 @@ async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", *
     return result
 
 
-
 # ── HYPERLIQUID PASS-THROUGH ─────────────────────────────────────
+
 
 async def _passthrough_hyperliquid(**kwargs) -> dict | None:
     """Hyperliquid perp markets from our own /api/v1/market/hyperliquid."""
@@ -1183,13 +1222,16 @@ async def _passthrough_hyperliquid_action(**kwargs) -> dict | None:
 
 # ── INSIDER WALLETS PASS-THROUGH ─────────────────────────────────
 
+
 async def _passthrough_insider_wallets(**kwargs) -> dict | None:
     """Likely insider trader wallets from our own /api/v1/market/insider-wallets."""
     try:
         limit = kwargs.get("limit", 10)
         tier = kwargs.get("tier", "free")
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(f"http://localhost:8000/api/v1/market/insider-wallets?limit={limit}&tier={tier}")
+            r = await c.get(
+                f"http://localhost:8000/api/v1/market/insider-wallets?limit={limit}&tier={tier}"
+            )
             if r.status_code == 200:
                 return r.json()
     except Exception:
@@ -1199,16 +1241,18 @@ async def _passthrough_insider_wallets(**kwargs) -> dict | None:
 
 # ── PREDICTION SIGNALS PASS-THROUGH ─────────────────────────────
 
+
 async def _passthrough_prediction_signals(**kwargs) -> dict | None:
     """Prediction market intelligence from our own /api/v1/market/prediction-signals."""
     try:
         limit = kwargs.get("limit", 5)
         tier = kwargs.get("tier", "free")
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(f"http://localhost:8000/api/v1/market/prediction-signals?limit={limit}&tier={tier}")
+            r = await c.get(
+                f"http://localhost:8000/api/v1/market/prediction-signals?limit={limit}&tier={tier}"
+            )
             if r.status_code == 200:
                 return r.json()
     except Exception:
         pass
     return None
-

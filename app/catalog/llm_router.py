@@ -11,12 +11,14 @@ We never call OpenAI directly. If LiteLLM is unreachable, the catalog
 operations that need LLM analysis return None/empty with a logged warning
 rather than failing the whole request.
 """
+
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import os
 
 import httpx
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -81,9 +83,7 @@ class LLMRouter:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-            self._client = httpx.AsyncClient(
-                base_url=self.url, headers=headers, timeout=30.0
-            )
+            self._client = httpx.AsyncClient(base_url=self.url, headers=headers, timeout=30.0)
         return self._client
 
     async def chat(
@@ -115,7 +115,8 @@ class LLMRouter:
             return None
 
     async def analyze_news(
-        self, news_item: NewsItem  # type: ignore  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        self,
+        news_item: NewsItem,  # type: ignore  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     ) -> str | None:
         """Generate AI analysis for a NewsItem. Per v4.0 §T28."""
         prompt = NEWS_ANALYSIS_PROMPT.format(

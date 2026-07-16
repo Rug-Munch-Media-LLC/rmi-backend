@@ -73,8 +73,12 @@ def main():
                 "metadata": {
                     "arxiv_id": arxiv_id,
                     "title": title,
-                    "authors": ", ".join(authors_list[:3]) if isinstance(authors_list, list) else str(authors_list),
-                    "attack_types": ", ".join(attack_types) if isinstance(attack_types, list) else str(attack_types),
+                    "authors": ", ".join(authors_list[:3])
+                    if isinstance(authors_list, list)
+                    else str(authors_list),
+                    "attack_types": ", ".join(attack_types)
+                    if isinstance(attack_types, list)
+                    else str(attack_types),
                     "chunk_index": i,
                     "total_chunks": len(chunks),
                     "source": "research_paper",

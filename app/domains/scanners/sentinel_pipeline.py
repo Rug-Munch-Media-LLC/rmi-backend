@@ -29,12 +29,13 @@ Modules:
 """
 
 import asyncio
-from app.core.logging import get_logger
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 from .address_labeler import AddressLabeler
 from .block_zero_sniper import BlockZeroSniperAnalyzer
@@ -602,7 +603,9 @@ async def run_sentinel_scan(
         coros["dev_reputation"] = None
 
     coros["wash_trading"] = _wash_trading.analyze(token_address, chain)
-    coros["metadata_fingerprint"] = _metadata_fingerprinter.analyze_token_metadata(token_address, chain)
+    coros["metadata_fingerprint"] = _metadata_fingerprinter.analyze_token_metadata(
+        token_address, chain
+    )
     coros["sentiment"] = _sentiment_analyzer.analyze(token_address, chain)
     coros["honeypot_detection"] = _honeypot_detector.analyze(token_address, chain)
     coros["contract_authority"] = _contract_authority.analyze(token_address, chain)
@@ -689,7 +692,9 @@ async def run_sentinel_scan(
     if chain.lower() == "solana":
         coros["pumpfun_analysis"] = _pumpfun_analyzer.analyze(token_address)
     else:
-        report.errors["pumpfun_analysis"] = f"skipped: PumpFun analyzer is Solana-only (chain={chain})"
+        report.errors["pumpfun_analysis"] = (
+            f"skipped: PumpFun analyzer is Solana-only (chain={chain})"
+        )
         coros["pumpfun_analysis"] = None
 
     # ── Run all modules concurrently with graceful degradation ────
@@ -815,21 +820,27 @@ async def run_sentinel_scan(
 # ─── Standalone single-module runners (for individual endpoint use) ──
 
 
-async def run_holder_analysis(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_holder_analysis(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run HolderAnalyzer only, return dict."""
     _ensure_modules(config)
     result = await _holder_analyzer.analyze(token_address, chain)
     return dataclass_to_dict(result)
 
 
-async def run_bundle_detection(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_bundle_detection(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run BundleDetector only, return dict."""
     _ensure_modules(config)
     result = await _bundle_detector.detect_bundles(token_address, chain)
     return dataclass_to_dict(result)
 
 
-async def run_exchange_funding(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_exchange_funding(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run ExchangeFunderDetector only, return dict."""
     _ensure_modules(config)
     result = await _exchange_funder.analyze(token_address, chain)
@@ -854,7 +865,9 @@ async def run_dev_reputation(
     return dataclass_to_dict(result)
 
 
-async def run_wash_trading(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_wash_trading(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run WashTradingDetector only, return dict."""
     _ensure_modules(config)
     result = await _wash_trading.analyze(token_address, chain)
@@ -870,14 +883,18 @@ async def run_metadata_fingerprint(
     return dataclass_to_dict(result)
 
 
-async def run_sentiment(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_sentiment(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run SentimentAnalyzer only, return dict."""
     _ensure_modules(config)
     result = await _sentiment_analyzer.analyze(token_address, chain)
     return dataclass_to_dict(result)
 
 
-async def run_pumpfun_analysis(token_address: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_pumpfun_analysis(
+    token_address: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run PumpFunAnalyzer only (Solana only), return dict."""
     _ensure_modules(config)
     result = await _pumpfun_analyzer.analyze(token_address)
@@ -902,7 +919,9 @@ async def run_contract_authority(
     return dataclass_to_dict(result)
 
 
-async def run_mev_detection(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_mev_detection(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run MEVDetector only, return dict."""
     _ensure_modules(config)
     result = await _mev_detector.analyze(token_address, chain)
@@ -936,21 +955,27 @@ async def run_oracle_manipulation(
     return dataclass_to_dict(result)
 
 
-async def run_governance_attack(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_governance_attack(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run GovernanceAttackDetector only, return dict."""
     _ensure_modules(config)
     result = await _governance_attack.analyze(token_address, chain)
     return dataclass_to_dict(result)
 
 
-async def run_proxy_detection(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_proxy_detection(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run ProxyDetector only, return dict."""
     _ensure_modules(config)
     result = await _proxy_detector.analyze(token_address, chain)
     return dataclass_to_dict(result)
 
 
-async def run_static_analysis(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_static_analysis(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run StaticAnalyzer only, return dict."""
     _ensure_modules(config)
     result = await _static_analyzer.analyze(token_address, chain)
@@ -966,21 +991,27 @@ async def run_decompiler_analysis(
     return dataclass_to_dict(result)
 
 
-async def run_address_labels(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_address_labels(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run AddressLabeler only, return dict."""
     _ensure_modules(config)
     result = await _address_labeler.analyze(token_address, chain)
     return dataclass_to_dict(result)
 
 
-async def run_fund_flow(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_fund_flow(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run FundFlowVisualizer only, return dict."""
     _ensure_modules(config)
     result = await _fund_flow_visualizer.analyze(token_address, chain)
     return dataclass_to_dict(result)
 
 
-async def run_contract_diff(token_address: str, chain: str, config: SentinelConfig | None = None) -> dict[str, Any]:
+async def run_contract_diff(
+    token_address: str, chain: str, config: SentinelConfig | None = None
+) -> dict[str, Any]:
     """Run ContractDiffAnalyzer only, return dict."""
     _ensure_modules(config)
     result = await _contract_diff.analyze(token_address, chain)

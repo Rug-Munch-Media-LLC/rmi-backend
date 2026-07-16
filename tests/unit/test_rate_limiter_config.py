@@ -6,10 +6,6 @@ configure_providers function works as expected.
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
-import pytest
-
 
 class TestProviderLimit:
     """Tests for ProviderLimit dataclass."""
@@ -78,7 +74,7 @@ class TestConfigureProviders:
         from app.rate_limiter import PROVIDERS, configure_providers
 
         configure_providers(has_openrouter_credits=False)
-        count_before = len(PROVIDERS)
+        len(PROVIDERS)
 
         configure_providers(has_openrouter_credits=True)
         count_after = len(PROVIDERS)

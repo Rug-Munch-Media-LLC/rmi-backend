@@ -89,9 +89,10 @@ async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict
             # Convert symbols to Pyth feed IDs (simplified - production would use lookup)
             params["ids"] = symbols
 
-        async with aiohttp.ClientSession() as session, session.get(
-            url, params=params, timeout=aiohttp.ClientTimeout(total=10)
-        ) as resp:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as resp,
+        ):
             if resp.status == 200:
                 data = await resp.json()
                 results = {

@@ -11,12 +11,13 @@ Arkham + Helius + Moralis + local data. Multi-method fallbacks.
 """
 
 import json
-from app.core.logging import get_logger
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 import redis
+
+from app.core.logging import get_logger
 
 logger = get_logger("premium_scanner")
 
@@ -49,7 +50,11 @@ def _redis_connect():
 
 
 def _cache_key(scan_type: str, address: str, chain: str = "") -> str:
-    return f"premium:scan:{scan_type}:{chain}:{address}" if chain else f"premium:scan:{scan_type}:{address}"
+    return (
+        f"premium:scan:{scan_type}:{chain}:{address}"
+        if chain
+        else f"premium:scan:{scan_type}:{address}"
+    )
 
 
 # ── 1. BUNDLE DETECTION (like Bubblemaps) ────────────────────────
@@ -129,7 +134,9 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
                             if len(signers) >= 2:
                                 bundles.append(
                                     {
-                                        "window_start": datetime.fromtimestamp(window * 300).isoformat(),
+                                        "window_start": datetime.fromtimestamp(
+                                            window * 300
+                                        ).isoformat(),
                                         "size": len(signers),
                                         "wallets": list(signers),
                                         "coordination_score": min(1.0, len(signers) / 10.0),
@@ -160,7 +167,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
         "bundles": bundles,
         "total_detected": len(bundles),
         "largest_bundle_size": max((b["size"] for b in bundles), default=0),
-        "scan_timestamp": datetime.utcnow().isoformat(),
+        "scan_timestamp": datetime.now(UTC).isoformat(),
         "source": "premium_scanner",
     }
 
@@ -279,7 +286,11 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
                                 )
                                 if tx_resp.status_code == 200:
                                     tx_data = tx_resp.json().get("result", {})
-                                    accts = tx_data.get("transaction", {}).get("message", {}).get("accountKeys", [])
+                                    accts = (
+                                        tx_data.get("transaction", {})
+                                        .get("message", {})
+                                        .get("accountKeys", [])
+                                    )
                                     for acc in accts[:5]:
                                         acc_addr = acc.get("pubkey", "")
                                         if (
@@ -290,7 +301,9 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
                                         ):
                                             visited.add(acc_addr)
                                             queue.append((acc_addr, current_depth + 1))
-                                            edges.append({"from": current, "to": acc_addr, "value": 1})
+                                            edges.append(
+                                                {"from": current, "to": acc_addr, "value": 1}
+                                            )
                 except Exception:
                     pass
 
@@ -485,7 +498,11 @@ def _assess_dev_risk(wallets: list) -> dict:
             score += 15
 
     score = min(100, max(0, score))
-    level = "CRITICAL" if score >= 70 else ("HIGH" if score >= 50 else ("MEDIUM" if score >= 30 else "LOW"))
+    level = (
+        "CRITICAL"
+        if score >= 70
+        else ("HIGH" if score >= 50 else ("MEDIUM" if score >= 30 else "LOW"))
+    )
 
     return {"score": score, "level": level, "factors": factors}
 
@@ -526,8 +543,12 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
                     sigs = resp.json().get("result", [])
 
                     # Find first 20 blocks of token existence
-                    earliest = min(s.get("blockTime", float("inf")) for s in sigs if s.get("blockTime"))
-                    first_blocks = [s for s in sigs if s.get("blockTime", 0) < earliest + 3600]  # first hour
+                    earliest = min(
+                        s.get("blockTime", float("inf")) for s in sigs if s.get("blockTime")
+                    )
+                    first_blocks = [
+                        s for s in sigs if s.get("blockTime", 0) < earliest + 3600
+                    ]  # first hour
 
                     # Look for large buys in first hour
                     for sig_data in first_blocks[:50]:
@@ -553,7 +574,9 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
                                     {
                                         "address": buyer,
                                         "entry_block": sig_data.get("slot", 0),
-                                        "entry_time": datetime.fromtimestamp(sig_data.get("blockTime", 0)).isoformat(),
+                                        "entry_time": datetime.fromtimestamp(
+                                            sig_data.get("blockTime", 0)
+                                        ).isoformat(),
                                     }
                                 )
     except Exception:
@@ -563,7 +586,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
         "snipers": list({s["address"]: s for s in snipers}.values())[:20],
         "total_snipers": len({s["address"] for s in snipers}),
         "dump_warning": len(snipers) > 5,
-        "scan_timestamp": datetime.utcnow().isoformat(),
+        "scan_timestamp": datetime.now(UTC).isoformat(),
         "source": "premium_sniper_detect",
     }
 
@@ -590,7 +613,7 @@ async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | 
             "gas_pattern_matching",
             "funding_source_clustering",
         ],
-        "scan_timestamp": datetime.utcnow().isoformat(),
+        "scan_timestamp": datetime.now(UTC).isoformat(),
         "source": "premium_bot_detect",
     }
 
@@ -611,7 +634,7 @@ async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict
     result = {
         "copies": [],
         "total_patterns": 0,
-        "scan_timestamp": datetime.utcnow().isoformat(),
+        "scan_timestamp": datetime.now(UTC).isoformat(),
         "source": "premium_copy_trade_detect",
     }
 
@@ -633,7 +656,7 @@ async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> d
         "signals": [],
         "total_signals": 0,
         "insider_probability": 0,
-        "scan_timestamp": datetime.utcnow().isoformat(),
+        "scan_timestamp": datetime.now(UTC).isoformat(),
         "source": "premium_insider_detect",
     }
 
@@ -656,7 +679,7 @@ async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict
         "volume_anomaly": 0,
         "circular_patterns": 0,
         "risk_level": "MEDIUM",
-        "scan_timestamp": datetime.utcnow().isoformat(),
+        "scan_timestamp": datetime.now(UTC).isoformat(),
         "source": "premium_wash_trade_detect",
     }
 
@@ -678,7 +701,7 @@ async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict
         "sandwich_attacks": [],
         "total_attacks": 0,
         "estimated_loss_usd": 0,
-        "scan_timestamp": datetime.utcnow().isoformat(),
+        "scan_timestamp": datetime.now(UTC).isoformat(),
         "source": "premium_mev_detect",
     }
 
@@ -702,7 +725,7 @@ async def detect_fresh_wallets(address: str, chain: str = "solana", **kw) -> dic
         "fresh_percentage": 0,
         "avg_wallet_age_hours": 0,
         "risk_assessment": {"score": 50, "level": "MEDIUM", "factors": []},
-        "scan_timestamp": datetime.utcnow().isoformat(),
+        "scan_timestamp": datetime.now(UTC).isoformat(),
         "source": "premium_fresh_wallet_detect",
     }
 

@@ -11,8 +11,9 @@ Produces entity_id (deterministic hash) for each resolved entity group.
 """
 
 import hashlib
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 from .storage import WalletStorage, get_storage
 
@@ -172,8 +173,12 @@ class EntityResolver:
         entity_id = self._make_entity_id(source_addr, source_chain)
 
         # Link both addresses
-        await self.storage.save_entity_link(entity_id, source_addr, source_chain, "bridge_mapping", confidence)
-        await self.storage.save_entity_link(entity_id, dest_addr, dest_chain, "bridge_mapping", confidence)
+        await self.storage.save_entity_link(
+            entity_id, source_addr, source_chain, "bridge_mapping", confidence
+        )
+        await self.storage.save_entity_link(
+            entity_id, dest_addr, dest_chain, "bridge_mapping", confidence
+        )
 
         # Check if dest_addr already has an entity and merge
         dest_entity = await self.storage.get_entity_for_wallet(dest_addr, dest_chain)

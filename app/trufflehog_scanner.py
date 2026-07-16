@@ -10,10 +10,11 @@ Secure scanning for git repositories and code to detect:
 """
 
 import json
-from app.core.logging import get_logger
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -103,21 +104,33 @@ class TruffleHogScanner:
                             detector_type=data.get("DetectorType", ""),
                             detector_name=data.get("DetectorName", ""),
                             source_type=data.get("SourceType", ""),
-                            source=data.get("SourceMetadata", {}).get("Data", {}).get("Filesystem", {}).get("File", ""),
+                            source=data.get("SourceMetadata", {})
+                            .get("Data", {})
+                            .get("Filesystem", {})
+                            .get("File", ""),
                             secret=data.get("Raw", ""),
                             secret_hash=data.get("Redacted", ""),
                             raw=data.get("Raw", ""),
                             raw_v2=data.get("RawV2", ""),
                             verified=data.get("Verified", False),
                             verified_type=data.get("VerificationStatus", ""),
-                            time_found=datetime.utcnow().isoformat(),
-                            commit=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Commit", ""),
+                            time_found=datetime.now(UTC).isoformat(),
+                            commit=data.get("SourceMetadata", {})
+                            .get("Data", {})
+                            .get("Git", {})
+                            .get("Commit", ""),
                             file_path=data.get("SourceMetadata", {})
                             .get("Data", {})
                             .get("Filesystem", {})
                             .get("File", ""),
-                            line=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Line", 0),
-                            column=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Column", 0),
+                            line=data.get("SourceMetadata", {})
+                            .get("Data", {})
+                            .get("Git", {})
+                            .get("Line", 0),
+                            column=data.get("SourceMetadata", {})
+                            .get("Data", {})
+                            .get("Git", {})
+                            .get("Column", 0),
                         )
                         findings.append(finding)
                     except json.JSONDecodeError:
@@ -168,18 +181,33 @@ class TruffleHogScanner:
                                 detector_type=data.get("DetectorType", ""),
                                 detector_name=data.get("DetectorName", ""),
                                 source_type=data.get("SourceType", ""),
-                                source=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Repo", ""),
+                                source=data.get("SourceMetadata", {})
+                                .get("Data", {})
+                                .get("Git", {})
+                                .get("Repo", ""),
                                 secret=data.get("Raw", ""),
                                 secret_hash=data.get("Redacted", ""),
                                 raw=data.get("Raw", ""),
                                 raw_v2=data.get("RawV2", ""),
                                 verified=data.get("Verified", False),
                                 verified_type=data.get("VerificationStatus", ""),
-                                time_found=datetime.utcnow().isoformat(),
-                                commit=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Commit", ""),
-                                file_path=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("File", ""),
-                                line=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Line", 0),
-                                column=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Column", 0),
+                                time_found=datetime.now(UTC).isoformat(),
+                                commit=data.get("SourceMetadata", {})
+                                .get("Data", {})
+                                .get("Git", {})
+                                .get("Commit", ""),
+                                file_path=data.get("SourceMetadata", {})
+                                .get("Data", {})
+                                .get("Git", {})
+                                .get("File", ""),
+                                line=data.get("SourceMetadata", {})
+                                .get("Data", {})
+                                .get("Git", {})
+                                .get("Line", 0),
+                                column=data.get("SourceMetadata", {})
+                                .get("Data", {})
+                                .get("Git", {})
+                                .get("Column", 0),
                             )
                         )
                     except json.JSONDecodeError:
@@ -205,7 +233,7 @@ class TruffleHogScanner:
                 raw_v2="",
                 verified=False,
                 verified_type="",
-                time_found=datetime.utcnow().isoformat(),
+                time_found=datetime.now(UTC).isoformat(),
                 commit="",
                 file_path=path,
                 line=0,
@@ -213,7 +241,9 @@ class TruffleHogScanner:
             )
         ]
 
-    def filter_findings(self, findings: list[SecretFinding], min_severity: int = 0) -> list[SecretFinding]:
+    def filter_findings(
+        self, findings: list[SecretFinding], min_severity: int = 0
+    ) -> list[SecretFinding]:
         """
         Filter findings by severity/verified status.
 

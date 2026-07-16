@@ -13,7 +13,7 @@ Other SENTINEL modules live in tools/evidence_tools.py and tools/report_tools.py
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -43,7 +43,7 @@ async def address_labels_endpoint(req: SentinelModuleRequest):
         return {
             "tool": "SENTINEL Address Labels",
             "version": "1.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "address": req.address,
             "chain": req.chain,
             **result,

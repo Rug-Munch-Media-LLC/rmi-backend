@@ -12,12 +12,13 @@ Used for:
   - Smoke testing after deploys
   - Demonstrating the secret-scrubbing before_send hook
 """
-from __future__ import annotations
 
-from app.core.logging import get_logger
+from __future__ import annotations
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -39,6 +40,7 @@ async def test_glitchtip(req: GlitchtipTestRequest) -> dict:
         except Exception as e:
             try:
                 from app.core.observability import capture_exception
+
                 capture_exception(e, secret=req.secret, route="/api/v1/_test/glitchtip")
             except ImportError:
                 log.exception("test_exception_no_sentry")
@@ -46,6 +48,7 @@ async def test_glitchtip(req: GlitchtipTestRequest) -> dict:
     if req.type == "message":
         try:
             from app.core.observability import capture_message
+
             capture_message(req.message, level="warning", secret=req.secret)
         except ImportError:
             log.warning(f"test_message_no_sentry: {req.message}")
@@ -54,6 +57,7 @@ async def test_glitchtip(req: GlitchtipTestRequest) -> dict:
     log.error(f"test_error: {req.message} (secret={req.secret})")
     try:
         from app.core.observability import capture_message
+
         capture_message(req.message, level="error", secret=req.secret)
     except ImportError:
         pass

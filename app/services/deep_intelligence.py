@@ -12,12 +12,13 @@ Post-Purchase Monitor, Cross-Chain Identity Resolution, Social-Onchain Correlati
 Uses real on-chain data from GMGN, Birdeye, Helius, Etherscan, and our DB.
 """
 
-from app.core.logging import get_logger  # noqa: E402
 import os  # noqa: E402
 from datetime import UTC, datetime  # noqa: E402
 from typing import Any  # noqa: E402
 
 import httpx  # noqa: E402
+
+from app.core.logging import get_logger  # noqa: E402
 
 logger = get_logger("deep_intel")
 
@@ -105,7 +106,9 @@ class MultiChainClient:
                 # Filter to matching chain
                 matching = [p for p in pairs if p.get("chainId") == chain_id]
                 if matching:
-                    best = max(matching, key=lambda p: float(p.get("volume", {}).get("h24", 0) or 0))
+                    best = max(
+                        matching, key=lambda p: float(p.get("volume", {}).get("h24", 0) or 0)
+                    )
                     return best
                 return {"error": "no matching pair found"}
             return {"error": f"DexScreener HTTP {resp.status_code}"}
@@ -144,7 +147,9 @@ class MultiChainClient:
         if not cfg.HELIUS_KEY:
             return {"error": "HELIUS_API_KEY not set"}
         try:
-            resp = await self.http.post(f"https://api.helius.xyz/v0{path}?api-key={cfg.HELIUS_KEY}", json=payload)
+            resp = await self.http.post(
+                f"https://api.helius.xyz/v0{path}?api-key={cfg.HELIUS_KEY}", json=payload
+            )
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Helius HTTP {resp.status_code}"}
@@ -366,7 +371,9 @@ async def deployer_reputation(address: str, chain: str = "sol") -> dict[str, Any
         if contracts.get("status") == "1":
             txs = contracts.get("result", [])
             contract_creations = [
-                tx for tx in txs if tx.get("to") == "" or tx.get("input", "").startswith("0x60806040")
+                tx
+                for tx in txs
+                if tx.get("to") == "" or tx.get("input", "").startswith("0x60806040")
             ]
             result["tokens_deployed"] = len(contract_creations)
 
@@ -584,7 +591,13 @@ async def liquidity_lock_authenticity(token_address: str, chain: str = "sol") ->
     result["authenticity_score"] = max(0, min(100, score))
     result["flags"] = flags
     result["recommendation"] = (
-        "SAFE" if score >= 80 else "CAUTION" if score >= 60 else "RISKY" if score >= 40 else "DANGEROUS"
+        "SAFE"
+        if score >= 80
+        else "CAUTION"
+        if score >= 60
+        else "RISKY"
+        if score >= 40
+        else "DANGEROUS"
     )
 
     return result
@@ -640,12 +653,16 @@ async def volume_authenticity(token_address: str, chain: str = "sol") -> dict[st
     # Signal 2: Buy/sell ratio near 1.0 (symmetric trading)
     if 0.8 < buy_sell_ratio < 1.2 and total_txs > 20:
         wash_score += 20
-        wash_indicators.append(f"Symmetric buy/sell ratio ({buy_sell_ratio:.2f}) - common in wash trading")
+        wash_indicators.append(
+            f"Symmetric buy/sell ratio ({buy_sell_ratio:.2f}) - common in wash trading"
+        )
 
     # Signal 3: Many small transactions
     if avg_tx_value < 50 and total_txs > 100:
         wash_score += 15
-        wash_indicators.append(f"Many small transactions (avg ${avg_tx_value:.0f}/tx) - possible bot activity")
+        wash_indicators.append(
+            f"Many small transactions (avg ${avg_tx_value:.0f}/tx) - possible bot activity"
+        )
 
     # Signal 4: Higher volume than liquidity (impossible without wash trading)
     liquidity = float(dex_info.get("liquidity", {}).get("usd", 0) or 0)
@@ -721,7 +738,9 @@ async def slow_rug_detector(token_address: str, chain: str = "sol") -> dict[str,
     # Pattern 1: Price declining while volume stays high (LP being drained)
     if price_change_24h < -10 and volume_24h > current_liq * 0.5:
         slow_rug_score += 30
-        patterns.append(f"Price down {price_change_24h:.1f}% in 24h with high volume - possible LP drain")
+        patterns.append(
+            f"Price down {price_change_24h:.1f}% in 24h with high volume - possible LP drain"
+        )
 
     # Pattern 2: Steady decline with no recovery
     if price_change_24h < -5 and price_change_6h < -2:
@@ -737,7 +756,9 @@ async def slow_rug_detector(token_address: str, chain: str = "sol") -> dict[str,
     # Pattern 4: High volume-to-liquidity ratio (churning through thin pool)
     if current_liq > 0 and volume_24h / current_liq > 2:
         slow_rug_score += 15
-        patterns.append(f"24h volume is {volume_24h / current_liq:.1f}x the liquidity - high churn rate")
+        patterns.append(
+            f"24h volume is {volume_24h / current_liq:.1f}x the liquidity - high churn rate"
+        )
 
     result["slow_rug_score"] = min(slow_rug_score, 100)
     result["patterns"] = patterns
@@ -790,7 +811,9 @@ async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, A
     # For Solana - use Helius
     if chain == "sol" and cfg.HELIUS_KEY:
         # Get transaction history
-        txs = await client.helius_post("/addresses/transactions", {"addresses": [address], "options": {"limit": 50}})
+        txs = await client.helius_post(
+            "/addresses/transactions", {"addresses": [address], "options": {"limit": 50}}
+        )
         if "error" not in txs:
             # Parse earliest transactions for funding source
             for _tx in txs if isinstance(txs, list) else txs.get("result", []):
@@ -854,9 +877,17 @@ async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, A
     result["risk_flags"] = flags
     result["risk_score"] = min(risk_score, 100)
     result["risk_level"] = (
-        "CRITICAL" if risk_score >= 60 else "HIGH" if risk_score >= 40 else "MEDIUM" if risk_score >= 20 else "LOW"
+        "CRITICAL"
+        if risk_score >= 60
+        else "HIGH"
+        if risk_score >= 40
+        else "MEDIUM"
+        if risk_score >= 20
+        else "LOW"
     )
-    result["summary"] = f"Found {len(sources)} funding source(s). {len(flags)} risk flag(s) detected."
+    result["summary"] = (
+        f"Found {len(sources)} funding source(s). {len(flags)} risk flag(s) detected."
+    )
 
     return result
 
@@ -909,8 +940,12 @@ async def ownership_theater_detector(token_address: str, chain: str = "sol") -> 
             },
         )
         if contract_info.get("status") == "1":
-            source_data = contract_info.get("result", [{}])[0] if contract_info.get("result") else {}
-            is_proxy = bool(source_data.get("Proxy", "0") == "1" or source_data.get("Implementation", ""))
+            source_data = (
+                contract_info.get("result", [{}])[0] if contract_info.get("result") else {}
+            )
+            is_proxy = bool(
+                source_data.get("Proxy", "0") == "1" or source_data.get("Implementation", "")
+            )
             source_data.get("ContractName", "Unknown")
             source_data.get("OptimizationUsed", "0")
 
@@ -993,7 +1028,9 @@ async def exit_liquidity_calculator(
 
     flags = []
     if position_pct_of_liq > 10:
-        flags.append(f"Your position is {position_pct_of_liq:.1f}% of the pool - exiting will crash the price")
+        flags.append(
+            f"Your position is {position_pct_of_liq:.1f}% of the pool - exiting will crash the price"
+        )
     if position_pct_of_liq > 50:
         flags.append("CRITICAL: Position exceeds half the liquidity - exit is nearly impossible")
     if liquidity < 10000:
@@ -1002,7 +1039,9 @@ async def exit_liquidity_calculator(
     # Cascade simulation: what if top holders sell?
     cascade = []
     for pct_sell in [5, 10, 20, 30, 50]:
-        sell_value = mcap * (pct_sell / 100) * 0.1  # rough: tokens worth pct of supply hitting thin pool
+        sell_value = (
+            mcap * (pct_sell / 100) * 0.1
+        )  # rough: tokens worth pct of supply hitting thin pool
         price_impact = (sell_value / max(liquidity, 1)) * 50  # simplified AMM model
         cascade.append(
             {
@@ -1311,7 +1350,9 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
     # Cross-reference on other chains
     if token_symbol:
         try:
-            resp = await client.http.get(f"https://api.dexscreener.com/latest/dex/search?q={token_symbol}")
+            resp = await client.http.get(
+                f"https://api.dexscreener.com/latest/dex/search?q={token_symbol}"
+            )
             if resp.status_code == 200:
                 search_data = resp.json()
                 pairs = search_data.get("pairs") or []
@@ -1328,7 +1369,9 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
                                 "liquidity_usd": pair.get("liquidity", {}).get("usd", 0)
                                 if pair.get("liquidity")
                                 else 0,
-                                "volume_24h_usd": pair.get("volume", {}).get("h24", 0) if pair.get("volume") else 0,
+                                "volume_24h_usd": pair.get("volume", {}).get("h24", 0)
+                                if pair.get("volume")
+                                else 0,
                                 "pair_created": pair.get("pairCreatedAt", ""),
                             }
                         )
@@ -1337,7 +1380,9 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
 
     # Risk analysis of cross-chain presence
     if len(profiles) >= 3:
-        flags.append(f"Same symbol found on {len(profiles)} chains - possible coordinated multi-chain scam")
+        flags.append(
+            f"Same symbol found on {len(profiles)} chains - possible coordinated multi-chain scam"
+        )
     elif len(profiles) >= 2:
         flags.append(f"Token exists on {len(profiles)} chains - verify they're the same team")
 
@@ -1347,7 +1392,11 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
     result["risk_flags"] = flags
     result["identity_confidence"] = min(len(profiles) * 25, 100)
     result["verdict"] = (
-        "MULTI_CHAIN_ENTITY" if len(profiles) >= 3 else "POSSIBLE_DUPLICATE" if len(profiles) >= 1 else "SINGLE_CHAIN"
+        "MULTI_CHAIN_ENTITY"
+        if len(profiles) >= 3
+        else "POSSIBLE_DUPLICATE"
+        if len(profiles) >= 1
+        else "SINGLE_CHAIN"
     )
 
     return result
@@ -1393,7 +1442,9 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
 
     # Social signal extraction
     social_data = {
-        "has_website": bool(info.get("websites")) if isinstance(info, dict) and info.get("websites") else False,
+        "has_website": bool(info.get("websites"))
+        if isinstance(info, dict) and info.get("websites")
+        else False,
         "social_count": len(socials),
         "socials": socials,
         "description": info.get("description", "") if isinstance(info, dict) else "",
@@ -1406,7 +1457,9 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
     # Check for pump pattern (price spike without organic social presence)
     if price_change_24h > 100 and volume_24h > mcap * 0.5:
         correlation_score += 20
-        flags.append("Massive price spike with volume exceeding 50% of market cap - possible coordinated pump")
+        flags.append(
+            "Massive price spike with volume exceeding 50% of market cap - possible coordinated pump"
+        )
 
     if price_change_6h > 50 and volume_6h > volume_24h * 0.5:
         correlation_score += 15
@@ -1433,7 +1486,11 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
     }
     result["correlation"] = {
         "correlation_score": correlation_score,
-        "pump_likelihood": "HIGH" if correlation_score >= 40 else "MEDIUM" if correlation_score >= 20 else "LOW",
+        "pump_likelihood": "HIGH"
+        if correlation_score >= 40
+        else "MEDIUM"
+        if correlation_score >= 20
+        else "LOW",
     }
     result["flags"] = flags
     result["verdict"] = (
@@ -1513,7 +1570,13 @@ async def threat_intel_check(address: str, chain: str = "sol") -> dict[str, Any]
     result["risk_flags"] = flags
     result["risk_score"] = min(score, 100)
     result["verdict"] = (
-        "CRITICAL" if score >= 60 else "HIGH_RISK" if score >= 40 else "SUSPICIOUS" if score >= 20 else "CLEAN"
+        "CRITICAL"
+        if score >= 60
+        else "HIGH_RISK"
+        if score >= 40
+        else "SUSPICIOUS"
+        if score >= 20
+        else "CLEAN"
     )
 
     return result
@@ -1524,7 +1587,9 @@ async def threat_intel_check(address: str, chain: str = "sol") -> dict[str, Any]
 # ══════════════════════════════════════════════════════════════════════════
 
 
-async def full_deep_intel(token_address: str, chain: str = "sol", wallet: str | None = None) -> dict[str, Any]:
+async def full_deep_intel(
+    token_address: str, chain: str = "sol", wallet: str | None = None
+) -> dict[str, Any]:
     """
     Run ALL 12 features and produce a composite deep intelligence report.
     """
@@ -1533,7 +1598,9 @@ async def full_deep_intel(token_address: str, chain: str = "sol", wallet: str | 
     # Run all analyses in parallel
     [
         deployer_reputation(token_address, chain),
-        preflight_simulate(token_address, wallet or "0x0000000000000000000000000000000000000000", 100, chain),
+        preflight_simulate(
+            token_address, wallet or "0x0000000000000000000000000000000000000000", 100, chain
+        ),
         liquidity_lock_authenticity(token_address, chain),
         volume_authenticity(token_address, chain),
         slow_rug_detector(token_address, chain),

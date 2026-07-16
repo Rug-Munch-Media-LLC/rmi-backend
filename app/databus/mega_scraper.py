@@ -6,11 +6,12 @@ Grabs EVERYTHING crypto. Biggest free news DB on the internet.
 import hashlib
 import json
 import logging
-from app.core.logging import get_logger
 import time
-from xml.etree import ElementTree as ET
 
 import httpx
+from defusedxml import ElementTree as SafeET
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.scraper")
 
@@ -117,7 +118,7 @@ def fetch_generic_feeds(feed_list, prefix="", label="generic"):
             resp = httpx.get(url, timeout=15, headers={"User-Agent": "RMI/4.0 MegaScraper"})
             if resp.status_code != 200:
                 continue
-            root = ET.fromstring(resp.content)
+            root = SafeET.fromstring(resp.content)
             items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
             for item in items[:20]:
                 title = (item.findtext("title", "") or "").strip()

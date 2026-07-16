@@ -90,7 +90,9 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
 
     # Try fallback
     if decision.fallback_model:
-        result = await _call_provider(decision.fallback_provider, decision.fallback_model, prompt, **kwargs)
+        result = await _call_provider(
+            decision.fallback_provider, decision.fallback_model, prompt, **kwargs
+        )
         if result:
             return {**result, "routing": vars(decision), "fallback_used": True}
 
@@ -113,7 +115,8 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs):
 
             async with httpx.AsyncClient(timeout=60) as c:
                 r = await c.post(
-                    "http://localhost:11434/api/generate", json={"model": model, "prompt": prompt, "stream": False}
+                    "http://localhost:11434/api/generate",
+                    json={"model": model, "prompt": prompt, "stream": False},
                 )
                 if r.status_code == 200:
                     return {"response": r.json()["response"], "model": model, "provider": "ollama"}

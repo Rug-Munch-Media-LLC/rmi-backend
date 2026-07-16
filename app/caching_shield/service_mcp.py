@@ -19,11 +19,12 @@ Services wrapped:
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("service_mcp")
 
@@ -84,7 +85,9 @@ class GMGNTools:
                         "top10_holder_pct": d.get("top10_holder_rate"),
                     }
 
-        return await _cached_call("gmgn", "token_security", {"chain": chain, "address": address}, fn, 60)
+        return await _cached_call(
+            "gmgn", "token_security", {"chain": chain, "address": address}, fn, 60
+        )
 
     async def holder_distribution(self, chain: str, address: str) -> dict | None:
         async def fn(chain, address):
@@ -200,7 +203,9 @@ class SolscanTools:
                 if r.status_code == 200:
                     return {"holders": r.json().get("data", [])}
 
-        return await _cached_call("solscan", "holders", {"address": address, "limit": limit}, fn, 60)
+        return await _cached_call(
+            "solscan", "holders", {"address": address, "limit": limit}, fn, 60
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -234,7 +239,9 @@ class CoinGeckoTools:
     async def trending(self) -> dict | None:
         async def fn():
             async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(f"{self._base}/search/trending", headers={"x-cg-pro-api-key": self._key})
+                r = await c.get(
+                    f"{self._base}/search/trending", headers={"x-cg-pro-api-key": self._key}
+                )
                 if r.status_code == 200:
                     coins = r.json().get("coins", [])
                     return {"trending": [c.get("item", {}).get("name") for c in coins[:10]]}
@@ -317,7 +324,9 @@ class MoralisTools:
                 if r.status_code == 200:
                     return {"balance_wei": r.json().get("balance")}
 
-        return await _cached_call("moralis", "coinmarketcap", "balance", {"address": address, "chain": chain}, fn, 15)
+        return await _cached_call(
+            "moralis", "coinmarketcap", "balance", {"address": address, "chain": chain}, fn, 15
+        )
 
     async def wallet_tokens(self, address: str, chain: str = "eth") -> dict | None:
         async def fn(address, chain):
@@ -331,7 +340,9 @@ class MoralisTools:
                     tokens = r.json()
                     return {"token_count": len(tokens), "tokens": tokens[:20]}
 
-        return await _cached_call("moralis", "coinmarketcap", "tokens", {"address": address, "chain": chain}, fn, 30)
+        return await _cached_call(
+            "moralis", "coinmarketcap", "tokens", {"address": address, "chain": chain}, fn, 30
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -425,6 +436,8 @@ class CoinMarketCapTools:
                 )
                 if r.status_code == 200:
                     data = r.json().get("data", {})
-                    return {s: {"price": data[s]["quote"]["USD"]["price"]} for s in symbols if s in data}
+                    return {
+                        s: {"price": data[s]["quote"]["USD"]["price"]} for s in symbols if s in data
+                    }
 
         return await _cached_call("cmc", "quotes", {"symbols": tuple(symbols)}, fn, 30)

@@ -9,12 +9,13 @@ Wired into DataBus as 'ohlcv' chain.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
 
 import redis
+
+from app.core.logging import get_logger
 
 logger = get_logger("ohlcv_engine")
 
@@ -58,7 +59,9 @@ def _frame_key(token: str, chain: str, timeframe: str) -> str:
     return f"ohlcv:{chain}:{token}:{timeframe}"
 
 
-def _candle_cache_key(token: str, chain: str, timeframe: str, limit: int, end_ts: int | None = None) -> str:
+def _candle_cache_key(
+    token: str, chain: str, timeframe: str, limit: int, end_ts: int | None = None
+) -> str:
     """Cache key for bulk candle queries."""
     end = end_ts or int(time.time())
     return f"ohlcv_cache:{chain}:{token}:{timeframe}:{limit}:{end}"
@@ -255,7 +258,9 @@ class OHLCVEngine:
                     candles.append(active.to_dict())
 
             # Cache the result
-            r.setex(cache_key, 60, json.dumps(candles[-limit:] if len(candles) > limit else candles))
+            r.setex(
+                cache_key, 60, json.dumps(candles[-limit:] if len(candles) > limit else candles)
+            )
             r.close()
 
             return candles[-limit:] if len(candles) > limit else candles
@@ -269,7 +274,9 @@ class OHLCVEngine:
         candles = self.get_candles(token, chain, timeframe, limit=1)
         return candles[0] if candles else None
 
-    def get_price_change(self, token: str, chain: str, periods: int = 24, timeframe: str = "1h") -> dict:
+    def get_price_change(
+        self, token: str, chain: str, periods: int = 24, timeframe: str = "1h"
+    ) -> dict:
         """Calculate price change over N periods."""
         candles = self.get_candles(token, chain, timeframe, limit=periods + 1)
         if len(candles) < 2:
@@ -330,7 +337,9 @@ async def fetch_ohlcv(
         volumes = [c["volume"] for c in candles]
         summary = {
             "current_price": prices[-1],
-            "price_change_pct": round(((prices[-1] - prices[0]) / prices[0] * 100), 2) if prices[0] > 0 else 0,
+            "price_change_pct": round(((prices[-1] - prices[0]) / prices[0] * 100), 2)
+            if prices[0] > 0
+            else 0,
             "high_24h": max(c["high"] for c in candles),
             "low_24h": min(c["low"] for c in candles),
             "volume_24h": sum(volumes),

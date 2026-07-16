@@ -12,10 +12,13 @@ Architecture:
 from __future__ import annotations
 
 import asyncio
-from app.core.logging import get_logger
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 log = get_logger(__name__)
 

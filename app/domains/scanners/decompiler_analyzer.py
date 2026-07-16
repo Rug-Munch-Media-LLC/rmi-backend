@@ -17,7 +17,6 @@ For Solana:
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 import re
 import shutil
@@ -29,6 +28,7 @@ import httpx
 
 from app.chain_client import ChainClient
 from app.chain_registry import CHAINS, is_evm, is_solana
+from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("decompiler_analyzer")
@@ -324,7 +324,11 @@ class DecompilerAnalyzer:
             return False, "", ""
 
         chain_cfg = CHAINS.get(chain)
-        rpc_url = chain_cfg.rpc_endpoints[0] if chain_cfg and chain_cfg.rpc_endpoints else "https://eth.llamarpc.com"
+        rpc_url = (
+            chain_cfg.rpc_endpoints[0]
+            if chain_cfg and chain_cfg.rpc_endpoints
+            else "https://eth.llamarpc.com"
+        )
 
         tmp_dir = tempfile.mkdtemp(prefix="heimdall_dec_")
 
@@ -449,7 +453,9 @@ class DecompilerAnalyzer:
             name = ix.get("name", "").lower()
             for dangerous in ANCHOR_DANGEROUS_IX_NAMES:
                 if dangerous in name:
-                    risks.append(f"Anchor IX '{ix.get('name')}' matches dangerous pattern '{dangerous}'")
+                    risks.append(
+                        f"Anchor IX '{ix.get('name')}' matches dangerous pattern '{dangerous}'"
+                    )
 
         return risks
 
@@ -469,7 +475,10 @@ class DecompilerAnalyzer:
             if any(d in match.lower() for d in ("drain", "rug", "withdrawall", "pullfunds")):
                 score += 20
                 red_flags.append(f"CRITICAL: Known rug selector found: {match}")
-            elif any(d in match.lower() for d in ("emergencywithdraw", "setowner", "setfees", "blacklist")):
+            elif any(
+                d in match.lower()
+                for d in ("emergencywithdraw", "setowner", "setfees", "blacklist")
+            ):
                 score += 12
                 red_flags.append(f"HIGH: Suspicious selector found: {match}")
             elif any(d in match.lower() for d in ("mint", "settrading", "setswap")):
@@ -577,9 +586,15 @@ class DecompilerAnalyzer:
                             if result and len(result) > 0:
                                 source_code = result[0].get("SourceCode", "")
                                 if source_code:
-                                    report.dangerous_functions = _scan_decompiled_source(source_code)
-                                    func_pattern = re.compile(r"function\s+(\w+)\s*\(", re.IGNORECASE)
-                                    report.decompiled_functions = sorted(set(func_pattern.findall(source_code)))
+                                    report.dangerous_functions = _scan_decompiled_source(
+                                        source_code
+                                    )
+                                    func_pattern = re.compile(
+                                        r"function\s+(\w+)\s*\(", re.IGNORECASE
+                                    )
+                                    report.decompiled_functions = sorted(
+                                        set(func_pattern.findall(source_code))
+                                    )
                     except Exception as e:
                         logger.debug(f"Source scan failed for {token_address}: {e}")
 
@@ -591,7 +606,9 @@ class DecompilerAnalyzer:
             if idl_data:
                 report.solana_anchor_risks = self._check_anchor_risks(idl_data)
             else:
-                report.warnings.append("Could not extract Anchor IDL - limited analysis for Solana program")
+                report.warnings.append(
+                    "Could not extract Anchor IDL - limited analysis for Solana program"
+                )
 
         # 4. Compute risk
         self._compute_risk(report)

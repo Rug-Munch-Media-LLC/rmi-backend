@@ -7,11 +7,12 @@ Redis caching, FastAPI endpoints, usage tracking, retry logic.
 import contextlib
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 import urllib.request
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.ai_v3")
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", "")
@@ -66,7 +67,9 @@ def usage_stats() -> dict:
 
 
 # ── Retry with Exponential Backoff ──
-def _call_ollama(system: str, prompt: str, max_tokens: int = 250, temp: float = 0.3, cache_ttl: int = 300) -> str:
+def _call_ollama(
+    system: str, prompt: str, max_tokens: int = 250, temp: float = 0.3, cache_ttl: int = 300
+) -> str:
     cache_key = hashlib.sha256(f"{system[:60]}|{prompt[:120]}".encode()).hexdigest()
     cached = _cache_get(cache_key)
     if cached:
@@ -160,12 +163,18 @@ def profile_wallet(tx: dict) -> str:
 
 def enrich_rag(query: str, docs: str) -> str:
     return (
-        _call_ollama("Reformat RAG chunks into 2-3 sentence answer.", f"Q:{query}\nD:{docs[:2000]}", 200) or docs[:400]
+        _call_ollama(
+            "Reformat RAG chunks into 2-3 sentence answer.", f"Q:{query}\nD:{docs[:2000]}", 200
+        )
+        or docs[:400]
     )
 
 
 def rank_alerts(alerts: list) -> list:
-    s = "\n".join(f"{a.get('id', '?')}|{a.get('severity', '?')}|{str(a.get('title', ''))[:80]}" for a in alerts[:10])
+    s = "\n".join(
+        f"{a.get('id', '?')}|{a.get('severity', '?')}|{str(a.get('title', ''))[:80]}"
+        for a in alerts[:10]
+    )
     r = _call_ollama("Rank by urgency. Reply: id1,id2,id3...", s, 50)
     return [x.strip() for x in r.split(",") if x.strip()] if r else []
 
@@ -229,7 +238,9 @@ def blog_draft(topic: str, data: dict) -> str:
 
 def social_post(incident: dict) -> str:
     return (
-        _call_ollama("Tweet(<280)+Telegram(<500). Hook first.", json.dumps(incident)[:1000], 200, 0.7)
+        _call_ollama(
+            "Tweet(<280)+Telegram(<500). Hook first.", json.dumps(incident)[:1000], 200, 0.7
+        )
         or "Post unavailable."
     )
 

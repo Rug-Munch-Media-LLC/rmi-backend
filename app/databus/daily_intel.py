@@ -15,13 +15,14 @@ Free models used (zero cost):
   Writing:  google/gemma-4-26b-a4b-it:free (262K ctx, excellent prose)
 """
 
-from app.core.logging import get_logger
 import os
 import re
 import subprocess
 from datetime import UTC, datetime
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("daily_intel")
 
@@ -41,7 +42,9 @@ GHOST_URL = os.getenv("GHOST_URL", "http://172.19.0.3:2368")
 GHOST_KEY = os.getenv("GHOST_ADMIN_API_KEY", "") or os.getenv("GHOST_CONTENT_API_KEY", "")
 
 
-async def _openrouter_chat(model: str, system: str, user: str, max_tokens: int = 1500, temperature: float = 0.5) -> str:
+async def _openrouter_chat(
+    model: str, system: str, user: str, max_tokens: int = 1500, temperature: float = 0.5
+) -> str:
     """Call OpenRouter with a free model."""
     if not OPENROUTER_KEY:
         return ""
@@ -150,14 +153,17 @@ def _build_research_context(data: dict) -> str:
     # Fear & Greed
     fg = data.get("fear_greed", {})
     if fg.get("value"):
-        parts.append(f"## FEAR & GREED INDEX\n{fg['value']}/100 - {fg.get('classification', 'Neutral')}")
+        parts.append(
+            f"## FEAR & GREED INDEX\n{fg['value']}/100 - {fg.get('classification', 'Neutral')}"
+        )
 
     # News headlines
     news = data.get("news", {})
     articles = news.get("articles", [])
     if articles:
         headlines = "\n".join(
-            f"- [{a.get('sentiment', {}).get('sentiment', '➖')}] {a.get('title', '')}" for a in articles[:15]  # noqa: RUF001
+            f"- [{a.get('sentiment', {}).get('sentiment', '➖')}] {a.get('title', '')}"
+            for a in articles[:15]
         )
         parts.append(f"## TOP HEADLINES\n{headlines}")
 
@@ -165,7 +171,9 @@ def _build_research_context(data: dict) -> str:
     ct = data.get("ct", {})
     rundown = ct.get("rundown", [])
     if rundown:
-        ct_pulse = "\n".join(f"- @{s.get('author_handle', '?')}: {s.get('text', '')[:150]}" for s in rundown[:10])
+        ct_pulse = "\n".join(
+            f"- @{s.get('author_handle', '?')}: {s.get('text', '')[:150]}" for s in rundown[:10]
+        )
         parts.append(f"## CRYPTO TWITTER PULSE\n{ct_pulse}")
 
     # Social metrics
@@ -178,7 +186,9 @@ def _build_research_context(data: dict) -> str:
     pm = data.get("prediction_markets", {})
     pmarkets = pm.get("markets", [])
     if pmarkets:
-        pm_str = "\n".join(f"- {m.get('title', '')[:80]}: ${m.get('volume', 0):,.0f} vol" for m in pmarkets[:3])
+        pm_str = "\n".join(
+            f"- {m.get('title', '')[:80]}: ${m.get('volume', 0):,.0f} vol" for m in pmarkets[:3]
+        )
         parts.append(f"## PREDICTION MARKETS\n{pm_str}")
 
     return "\n\n".join(parts)
@@ -294,7 +304,9 @@ Scams, hacks, regulatory actions. What to avoid today.
 1-2 sentence actionable takeaway.
 """
 
-    final_report = await ai_call("writing", WRITING_STANDARDS, writing_prompt, max_tokens=2000, temperature=0.7)
+    final_report = await ai_call(
+        "writing", WRITING_STANDARDS, writing_prompt, max_tokens=2000, temperature=0.7
+    )
 
     if not final_report or len(final_report) < 200:
         headlines = data.get("news", {}).get("articles", [])
@@ -372,7 +384,7 @@ async def _publish_to_x(report: str, date_str: str) -> dict:
     tldr = ""
 
     for line in lines:
-        if line.startswith("### MARKET SNAPSHOT") or line.startswith("##"):
+        if line.startswith(("### MARKET SNAPSHOT", "##")):
             continue
         if not headline and len(line.strip()) > 20:
             headline = line.strip().lstrip("#- ")[:240]

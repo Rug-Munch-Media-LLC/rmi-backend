@@ -9,6 +9,7 @@ Per v4.0 §T01 + modern factory pattern:
 
 Run: `python -u main.py` (CMD in Dockerfile)
 """
+
 from __future__ import annotations
 
 import os
@@ -19,6 +20,7 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host=os.getenv("HOST", "0.0.0.0"),

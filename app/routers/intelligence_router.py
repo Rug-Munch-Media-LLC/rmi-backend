@@ -3,11 +3,12 @@ Intelligence Router - Market, Premium, and Security Intelligence.
 Receives data from n8n workflows, provides query endpoints for users.
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -89,16 +90,18 @@ async def receive_market_update(update: MarketUpdate):
         # Route to appropriate table based on workflow
         if workflow == "trending_tokens":
             # Process trending tokens
-            tokens = data.get("coingecko_trending", {}).get("coins", []) + data.get("dexscreener_trending", {}).get(
-                "pairs", []
-            )
+            tokens = data.get("coingecko_trending", {}).get("coins", []) + data.get(
+                "dexscreener_trending", {}
+            ).get("pairs", [])
 
             for token in tokens[:20]:  # Top 20
                 supabase.table("market_trending_tokens").insert(
                     {
-                        "token_address": token.get("address") or token.get("baseToken", {}).get("address"),
+                        "token_address": token.get("address")
+                        or token.get("baseToken", {}).get("address"),
                         "token_name": token.get("name") or token.get("baseToken", {}).get("name"),
-                        "token_symbol": token.get("symbol") or token.get("baseToken", {}).get("symbol"),
+                        "token_symbol": token.get("symbol")
+                        or token.get("baseToken", {}).get("symbol"),
                         "chain": "solana",
                         "price_usd": token.get("priceUsd") or token.get("priceNative"),
                         "volume_24h": token.get("volume", {}).get("h24"),
@@ -318,7 +321,9 @@ async def get_exchange_flows(
     if not supabase:
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    query = supabase.table("exchange_flows").select("*").order("collected_at", desc=True).limit(limit)
+    query = (
+        supabase.table("exchange_flows").select("*").order("collected_at", desc=True).limit(limit)
+    )
 
     if exchange_name:
         query = query.eq("exchange_name", exchange_name)
@@ -419,9 +424,9 @@ async def get_my_alerts(
 
     # Mark as read if unread_only
     if unread_only and result.data:
-        supabase.table("intelligence_alerts").update({"is_read": True, "read_at": datetime.now(UTC).isoformat()}).eq(
-            "user_id", user_id
-        ).eq("is_read", False).execute()
+        supabase.table("intelligence_alerts").update(
+            {"is_read": True, "read_at": datetime.now(UTC).isoformat()}
+        ).eq("user_id", user_id).eq("is_read", False).execute()
 
     return {"alerts": result.data or []}
 

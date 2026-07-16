@@ -5,13 +5,14 @@ Items 6-10 from the strategic roadmap.
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import os
 import secrets
 import time
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402.growth")
 
@@ -72,9 +73,12 @@ async def webhook_events(limit: int = 100):
     return {"events": list(reversed(_webhooks))[:limit], "total": len(_webhook_events)}
 
 
-async def fire_payment_webhook(tx_hash: str, tool: str, amount_usd: float, chain: str, status: str = "confirmed"):
+async def fire_payment_webhook(
+    tx_hash: str, tool: str, amount_usd: float, chain: str, status: str = "confirmed"
+):
     """Fire webhook notifications for payment events."""
     import httpx
+
     event = {
         "event": f"payment.{status}",
         "tx_hash": tx_hash,
@@ -97,6 +101,7 @@ async def fire_payment_webhook(tx_hash: str, tool: str, amount_usd: float, chain
 #  7. USAGE ANALYTICS
 # ═══════════════════════════════════════════════════════════════════
 
+
 @router.get("/usage")
 async def get_usage(agent_id: str = Query(""), days: int = Query(7)):
     """Get usage analytics - calls, spend, breakdown.
@@ -104,6 +109,7 @@ async def get_usage(agent_id: str = Query(""), days: int = Query(7)):
     Returns per-tool call counts, total spend, and daily breakdown.
     """
     from app.routers.x402_enforcement import TOOL_PRICES, _ensure_tool_prices
+
     _ensure_tool_prices()
 
     total_calls = 0
@@ -127,8 +133,14 @@ async def get_usage(agent_id: str = Query(""), days: int = Query(7)):
         "available_tools": len(TOOL_PRICES),
         "paid_tools": sum(1 for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0),
         "price_range_usd": {
-            "min": min((v["price_usd"] for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0), default=0),
-            "max": max((v["price_usd"] for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0), default=0),
+            "min": min(
+                (v["price_usd"] for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0),
+                default=0,
+            ),
+            "max": max(
+                (v["price_usd"] for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0),
+                default=0,
+            ),
         },
         "tools": per_tool,
         "note": "Full usage tracking requires Redis. Install redis for per-call analytics.",
@@ -138,6 +150,7 @@ async def get_usage(agent_id: str = Query(""), days: int = Query(7)):
 # ═══════════════════════════════════════════════════════════════════
 #  8. HOSTED PAYMENT PAGE
 # ═══════════════════════════════════════════════════════════════════
+
 
 @router.get("/pay/{invoice_id}")
 async def payment_page(invoice_id: str):
@@ -261,6 +274,7 @@ async def add_chains():
     The new chains use self-verification (same EVM wallet works across all).
     """
     from app.routers.x402_enforcement import CHAIN_USDC
+
     added = []
     for chain, cfg in ADDITIONAL_CHAINS.items():
         if chain not in CHAIN_USDC:
@@ -273,11 +287,17 @@ async def add_chains():
 async def list_chains():
     """List all payment chains with USDC addresses."""
     from app.routers.x402_enforcement import CHAIN_USDC
+
     return {
-        "chains": {k: {"network": v.get("network", ""), "usdc": v.get("usdc", ""),
-                        "method": v.get("method", v.get("verify", "self")),
-                        "facilitators": v.get("facilitators", [])}
-                   for k, v in CHAIN_USDC.items()},
+        "chains": {
+            k: {
+                "network": v.get("network", ""),
+                "usdc": v.get("usdc", ""),
+                "method": v.get("method", v.get("verify", "self")),
+                "facilitators": v.get("facilitators", []),
+            }
+            for k, v in CHAIN_USDC.items()
+        },
         "total": len(CHAIN_USDC),
         "note": f"{len(CHAIN_USDC)} chains supported. All EVM chains share the same payment address.",
     }

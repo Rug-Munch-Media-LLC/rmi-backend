@@ -32,9 +32,10 @@ This ensures no consumer can enumerate our data sources or pull more than
 they're authorized for. The DataBus is the ONLY way to access external data.
 """
 
-from app.core.logging import get_logger
 import os
 from enum import Enum
+
+from app.core.logging import get_logger
 
 logger = get_logger("databus.access_control")
 
@@ -700,7 +701,9 @@ class AccessController:
             return {
                 "error": "access_denied",
                 "message": f"Access to {data_type} requires higher tier",
-                "required_tier": "authenticated" if consumer == ConsumerType.PUBLIC_WEB else "premium",
+                "required_tier": "authenticated"
+                if consumer == ConsumerType.PUBLIC_WEB
+                else "premium",
             }
 
         if packaging == "full":
@@ -732,7 +735,9 @@ class AccessController:
             if isinstance(v, dict):
                 result[k] = AccessController._strip_dangerous(v)
             elif isinstance(v, list):
-                result[k] = [AccessController._strip_dangerous(i) if isinstance(i, dict) else i for i in v]
+                result[k] = [
+                    AccessController._strip_dangerous(i) if isinstance(i, dict) else i for i in v
+                ]
             else:
                 result[k] = v
         return result

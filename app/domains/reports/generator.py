@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from app.core.logging import get_logger
 import time
 from typing import Any
 from uuid import uuid4
@@ -32,6 +31,7 @@ from app.catalog.models import (
     ScanReport,
     utcnow,
 )
+from app.core.logging import get_logger
 from app.domains.reports.citation_validator import validate_section
 
 log = get_logger(__name__)
@@ -229,10 +229,9 @@ def _compute_risk_wallet(wallet_data: dict) -> tuple[int, list[str], RiskTier]:
     factors = []
     wallet = wallet_data.get("wallet")
     entity = wallet_data.get("entity", {})
-    if entity and entity.get("wallets"):
-        if len(entity["wallets"]) > 2:
-            score += 15
-            factors.append(f"cross_chain_{len(entity['wallets'])}")
+    if entity and entity.get("wallets") and len(entity["wallets"]) > 2:
+        score += 15
+        factors.append(f"cross_chain_{len(entity['wallets'])}")
     if wallet and wallet.is_suspicious:
         score += 30
         factors.append("flagged_suspicious")
@@ -257,7 +256,9 @@ def _compute_risk_wallet(wallet_data: dict) -> tuple[int, list[str], RiskTier]:
 
 
 # ── Report generation ──────────────────────────────────────────────
-async def generate_token_report(catalog, chain: str, address: str, model: str = "deepseek-v3") -> ScanReport:
+async def generate_token_report(
+    catalog, chain: str, address: str, model: str = "deepseek-v3"
+) -> ScanReport:
     """Generate a research report for a token. Falls back to templated
     sections if LLM is unreachable."""
     start = time.monotonic()
@@ -335,7 +336,9 @@ async def generate_token_report(catalog, chain: str, address: str, model: str = 
             log.warning(f"section_{name}_llm_fail: {e}")
             return _template_fallback(name, sections_ctx[name])
 
-    tasks = [_section(name, REPORT_PROMPTS[name].format(**ctx)) for name, ctx in sections_ctx.items()]
+    tasks = [
+        _section(name, REPORT_PROMPTS[name].format(**ctx)) for name, ctx in sections_ctx.items()
+    ]
     section_texts = await asyncio.gather(*tasks)
     sections = dict(zip(sections_ctx.keys(), section_texts, strict=False))
 
@@ -397,7 +400,9 @@ async def generate_token_report(catalog, chain: str, address: str, model: str = 
     return report
 
 
-async def generate_wallet_report(catalog, chain: str, address: str, model: str = "deepseek-v3") -> ScanReport:
+async def generate_wallet_report(
+    catalog, chain: str, address: str, model: str = "deepseek-v3"
+) -> ScanReport:
     """Generate a research report for a wallet."""
     data = await _gather_wallet(catalog, chain, address)
     if "error" in data:
@@ -421,7 +426,12 @@ async def generate_wallet_report(catalog, chain: str, address: str, model: str =
             "data": f"tx_count={data.get('wallet').tx_count if data.get('wallet') else '?'}, "
             f"is_known_exchange={data.get('wallet').is_known_exchange if data.get('wallet') else '?'}",
         },
-        "deployer": {"deployer": "n/a (wallet report)", "reputation_score": 50, "rug_count": 0, "deployments": 0},
+        "deployer": {
+            "deployer": "n/a (wallet report)",
+            "reputation_score": 50,
+            "rug_count": 0,
+            "deployments": 0,
+        },
         "news_sentiment": {
             "subject_id": f"{chain}:{address}",
             "news_count": len(news),
@@ -528,7 +538,15 @@ def _template_fallback(name: str, ctx: dict) -> str:
     if name == "social_signals":
         return "## Social Signals\n\nTemplated (no real data)"
     if name == "recommendation":
-        verdict = "AVOID" if rs >= 75 else "CAUTION" if rs >= 50 else "NEUTRAL" if rs >= 25 else "OPPORTUNITY"
+        verdict = (
+            "AVOID"
+            if rs >= 75
+            else "CAUTION"
+            if rs >= 50
+            else "NEUTRAL"
+            if rs >= 25
+            else "OPPORTUNITY"
+        )
         return f"## Recommendation\n\n**{verdict}** (risk {rs}/100). Templated fallback."
     return f"## {name.title()}\n\n(Templated fallback)"
 

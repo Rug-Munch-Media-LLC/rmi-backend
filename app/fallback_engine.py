@@ -24,10 +24,11 @@ Date: 2026-05-03
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import re
 import time
 from html.parser import HTMLParser
+
+from app.core.logging import get_logger
 
 logger = get_logger("fallback_engine")
 
@@ -116,7 +117,9 @@ async def fetch_page_text(url: str, timeout: int = 10) -> str | None:
             session.get(
                 url,
                 timeout=aiohttp.ClientTimeout(total=timeout),
-                headers={"User-Agent": "Mozilla/5.0 (compatible; RMI-Bot/1.0; +https://rugmunch.io/bot)"},
+                headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; RMI-Bot/1.0; +https://rugmunch.io/bot)"
+                },
             ) as resp,
         ):
             if resp.status == 200:
@@ -272,7 +275,9 @@ async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
         url = f"https://api.geckoterminal.com/api/v2/networks/{gecko_chain}/tokens/{address}"
         async with (
             aiohttp.ClientSession() as session,
-            session.get(url, timeout=aiohttp.ClientTimeout(total=10), headers={"Accept": "application/json"}) as resp,
+            session.get(
+                url, timeout=aiohttp.ClientTimeout(total=10), headers={"Accept": "application/json"}
+            ) as resp,
         ):
             if resp.status == 200:
                 data = await resp.json()
@@ -457,7 +462,9 @@ async def scrape_twitter_search(token: str) -> dict:
         url = f"https://api.allorigins.win/raw?url={__import__('urllib.parse').quote(f'https://twitter.com/search?q={token}&f=live')}"
         async with (
             aiohttp.ClientSession() as session,
-            session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "Mozilla/5.0"}) as resp,
+            session.get(
+                url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "Mozilla/5.0"}
+            ) as resp,
         ):
             if resp.status == 200:
                 text = await resp.text()
@@ -482,13 +489,16 @@ async def scrape_reddit_search(token: str) -> dict:
         url = f"https://www.reddit.com/search.json?q={token}&sort=new&limit=10"
         async with (
             aiohttp.ClientSession() as session,
-            session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "RMI-Bot/1.0"}) as resp,
+            session.get(
+                url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "RMI-Bot/1.0"}
+            ) as resp,
         ):
             if resp.status == 200:
                 data = await resp.json()
                 posts = data.get("data", {}).get("children", [])
                 result["posts"] = [
-                    {"title": p["data"].get("title"), "score": p["data"].get("score")} for p in posts[:10]
+                    {"title": p["data"].get("title"), "score": p["data"].get("score")}
+                    for p in posts[:10]
                 ]
                 result["post_count"] = len(result["posts"])
     except Exception:
@@ -550,7 +560,9 @@ async def ai_web_search(query: str) -> dict:
         url = f"https://html.duckduckgo.com/html/?q={__import__('urllib.parse').quote(query)}"
         async with (
             aiohttp.ClientSession() as session,
-            session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "Mozilla/5.0"}) as resp,
+            session.get(
+                url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "Mozilla/5.0"}
+            ) as resp,
         ):
             if resp.status == 200:
                 text = await resp.text()
@@ -733,14 +745,20 @@ async def try_all_fallbacks(
     # Extract best price from all sources
     for source, data in results.items():
         if source == "geckoterminal":
-            merged["best_price"] = data.get("geckoterminal", {}).get("price_usd", merged["best_price"])
+            merged["best_price"] = data.get("geckoterminal", {}).get(
+                "price_usd", merged["best_price"]
+            )
             merged["best_liquidity"] = data.get("geckoterminal", {}).get("volume_usd_h24")
         elif source == "dexlab":
             merged["best_price"] = data.get("dexlab", {}).get("price", merged["best_price"])
         elif source == "web_scrape_solana":
-            merged["best_price"] = data.get("web_scrape", {}).get("scraped_price", merged["best_price"])
+            merged["best_price"] = data.get("web_scrape", {}).get(
+                "scraped_price", merged["best_price"]
+            )
         elif source == "dexscreener_web":
-            merged["best_price"] = data.get("dexscreener_web", {}).get("scraped_price", merged["best_price"])
+            merged["best_price"] = data.get("dexscreener_web", {}).get(
+                "scraped_price", merged["best_price"]
+            )
 
     # Store in cache
     await cache.set(cache_key, merged, ttl=3600)  # Cache for 1 hour

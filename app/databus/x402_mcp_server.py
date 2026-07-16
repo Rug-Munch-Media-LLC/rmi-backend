@@ -149,6 +149,7 @@ def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -
     """Get live token price via Pyth Network institutional feeds."""
     try:
         import httpx
+
         fid = "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"  # SOL/USD
         resp = httpx.get(
             f"https://hermes.pyth.network/api/latest_price_feeds?ids[]={fid}", timeout=5

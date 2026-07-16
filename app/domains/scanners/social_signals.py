@@ -1,7 +1,6 @@
 import asyncio
 import os
-
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.apify_tools import logger
 
@@ -10,7 +9,7 @@ from app.apify_tools import logger
 # Free tier: 10K calls/month, no additional cost
 
 
-async def _check_coingecko_trending() -> Optional[Dict[str, Any]]:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+async def _check_coingecko_trending() -> dict[str, Any] | None:
     """CoinGecko trending - top-15 most searched coins (social signal).
 
     Tracks what retail is actively searching for - strong leading indicator

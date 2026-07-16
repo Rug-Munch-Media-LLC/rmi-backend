@@ -2,11 +2,16 @@
 
 Uses core/websocket's broadcast helper. No FastAPI imports.
 """
+
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
 from app.core.websocket import broadcast_alert
-from app.domains.alerts.models import AlertEvent
+
+if TYPE_CHECKING:
+    from app.domains.alerts.models import AlertEvent
 
 log = get_logger(__name__)
 

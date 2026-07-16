@@ -9,6 +9,7 @@ Quick start:
     >>> risk = await client.get_token_risk(chain="solana", address="Dez...")
     >>> print(risk.tier, risk.score)
 """
+
 from .client import RMI, RMI_sync, SyncRMI
 from .models import (
     McpTool,

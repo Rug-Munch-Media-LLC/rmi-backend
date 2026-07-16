@@ -27,11 +27,11 @@ Usage:
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from typing import Any
 
+from app.core.logging import get_logger
 from app.databus.access_control import access_controller
 from app.databus.cache import CacheLayer, get_cache
 from app.databus.providers import ProviderChain, ProviderTier, build_provider_chains
@@ -131,7 +131,9 @@ class ProviderHealthTracker:
         if p["consecutive_failures"] >= 3:
             p["circuit_open_until"] = time.monotonic() + 30
             p["is_available"] = False
-            logger.warning(f"Provider '{provider_name}' circuit breaker OPEN (3 consecutive failures)")
+            logger.warning(
+                f"Provider '{provider_name}' circuit breaker OPEN (3 consecutive failures)"
+            )
 
     def is_available(self, provider_name: str) -> bool:
         p = self._providers[provider_name]
@@ -295,7 +297,9 @@ class DataBus:
             {"data_type": "live_prices", "kwargs": {}},
         ]
         self._warm_task = asyncio.create_task(self._warm_loop(interval_seconds))
-        logger.info(f"Cache warm started (interval={interval_seconds}s, {len(self._warm_types)} FREE types)")
+        logger.info(
+            f"Cache warm started (interval={interval_seconds}s, {len(self._warm_types)} FREE types)"
+        )
 
     async def stop_cache_warm(self):
         """Stop the cache warm task."""
@@ -522,7 +526,10 @@ class DataBus:
         Returns formatted result dict if found, None if we need external APIs.
         """
         address = (
-            kwargs.get("address", "") or kwargs.get("mint", "") or kwargs.get("contract", "") or kwargs.get("token", "")
+            kwargs.get("address", "")
+            or kwargs.get("mint", "")
+            or kwargs.get("contract", "")
+            or kwargs.get("token", "")
         )
         query = kwargs.get("query", "")
         chain = kwargs.get("chain", "") or kwargs.get("network", "")
@@ -586,7 +593,11 @@ class DataBus:
                         decode_responses=True,
                         socket_connect_timeout=2,
                     )
-                    scan_key = f"sentinelscan:{address}" if not chain else f"sentinelscan:{chain}:{address}"
+                    scan_key = (
+                        f"sentinelscan:{address}"
+                        if not chain
+                        else f"sentinelscan:{chain}:{address}"
+                    )
                     cached = r.get(scan_key)
                     if cached:
                         r.close()

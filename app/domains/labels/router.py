@@ -17,11 +17,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.core.logging import get_logger
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.logging import get_logger
 from app.domains.labels import get_federated_api
 
 log = get_logger(__name__)

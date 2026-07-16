@@ -68,7 +68,9 @@ class WalletProfile:
             hour_counts = defaultdict(int)
             for h in hours:
                 hour_counts[h] += 1
-            self.preferred_hours = sorted(hour_counts.keys(), key=lambda x: hour_counts[x], reverse=True)[:3]
+            self.preferred_hours = sorted(
+                hour_counts.keys(), key=lambda x: hour_counts[x], reverse=True
+            )[:3]
 
 
 @dataclass
@@ -348,7 +350,8 @@ class WalletClusteringEngine:
                 continue
 
             fingerprint = {
-                "avg_size": wallet.avg_transaction_size or (wallet.total_volume / wallet.total_transactions),
+                "avg_size": wallet.avg_transaction_size
+                or (wallet.total_volume / wallet.total_transactions),
                 "frequency": wallet.transaction_frequency,
                 "preferred_hours": wallet.preferred_hours,
                 "program_diversity": len(wallet.programs_used),
@@ -532,12 +535,16 @@ class WalletClusteringEngine:
 
         # Average transaction size similarity (normalized)
         if fp1["avg_size"] > 0 and fp2["avg_size"] > 0:
-            size_ratio = min(fp1["avg_size"], fp2["avg_size"]) / max(fp1["avg_size"], fp2["avg_size"])
+            size_ratio = min(fp1["avg_size"], fp2["avg_size"]) / max(
+                fp1["avg_size"], fp2["avg_size"]
+            )
             scores.append(size_ratio)
 
         # Frequency similarity
         if fp1["frequency"] > 0 and fp2["frequency"] > 0:
-            freq_ratio = min(fp1["frequency"], fp2["frequency"]) / max(fp1["frequency"], fp2["frequency"])
+            freq_ratio = min(fp1["frequency"], fp2["frequency"]) / max(
+                fp1["frequency"], fp2["frequency"]
+            )
             scores.append(freq_ratio)
 
         # Preferred hours overlap
@@ -626,14 +633,18 @@ class WalletClusteringEngine:
 
         return list(all_wallets), relevant_connections
 
-    def generate_bubble_map_data(self, center_wallet: str, depth: int = 2, max_wallets: int = 250) -> dict:
+    def generate_bubble_map_data(
+        self, center_wallet: str, depth: int = 2, max_wallets: int = 250
+    ) -> dict:
         """
         Generate data for interactive bubble map visualization.
         Supports up to 250 wallets deep for comprehensive cluster analysis.
 
         Returns JSON-ready data structure for D3.js or similar.
         """
-        wallets, connections = self.get_connections_for_bubble_map(center_wallet, depth, max_wallets=max_wallets)
+        wallets, connections = self.get_connections_for_bubble_map(
+            center_wallet, depth, max_wallets=max_wallets
+        )
 
         # Build nodes
         nodes = []
@@ -733,7 +744,9 @@ class WalletClusteringEngine:
             risk_vectors.append("Complex layering detected (>50 intermediate wallets)")
 
         # Check for high transaction velocity
-        total_txs = sum(self.wallets[w].total_transactions for w in initial_wallets if w in self.wallets)
+        total_txs = sum(
+            self.wallets[w].total_transactions for w in initial_wallets if w in self.wallets
+        )
         if total_txs > 500:
             risk_score += 0.4
             risk_vectors.append("High transaction velocity detected")
@@ -778,7 +791,9 @@ class WalletClusteringEngine:
                         "total_transactions": profile.total_transactions,
                         "total_volume": profile.total_volume,
                         "unique_counterparties_count": len(profile.unique_counterparties),
-                        "first_seen": profile.first_seen.isoformat() if profile.first_seen else None,
+                        "first_seen": profile.first_seen.isoformat()
+                        if profile.first_seen
+                        else None,
                         "last_seen": profile.last_seen.isoformat() if profile.last_seen else None,
                         "preferred_hours": profile.preferred_hours,
                     }
@@ -832,7 +847,9 @@ class WalletClusteringEngine:
                         "transactions": profile.total_transactions,
                         "volume": profile.total_volume,
                         "counterparties": len(profile.unique_counterparties),
-                        "first_seen": profile.first_seen.isoformat() if profile.first_seen else None,
+                        "first_seen": profile.first_seen.isoformat()
+                        if profile.first_seen
+                        else None,
                         "last_seen": profile.last_seen.isoformat() if profile.last_seen else None,
                     }
                 )

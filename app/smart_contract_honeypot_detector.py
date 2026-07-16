@@ -46,13 +46,14 @@ CLI:
 import asyncio
 import json
 import logging
-from app.core.logging import get_logger
 import os
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -873,7 +874,7 @@ class HoneypotDetector:
                 if "ff" in bytecode:  # SELFDESTRUCT opcode
                     # Verify it's actual SELFDESTRUCT, not coincidental bytes
                     selfdestruct_patterns = [
-                        "ff" in bytecode[i : i + 2] for i in range(0, len(bytecode) - 1)
+                        "ff" in bytecode[i : i + 2] for i in range(len(bytecode) - 1)
                     ]
                     if any(selfdestruct_patterns):
                         already_found = any(

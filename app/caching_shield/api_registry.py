@@ -28,10 +28,11 @@ Providers managed:
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
+
+from app.core.logging import get_logger
 
 logger = get_logger("api_registry")
 
@@ -361,7 +362,10 @@ class KeyPool:
                     continue
 
                 # Monthly quota check
-                if self.config.monthly_quota > 0 and key.calls_this_month >= self.config.monthly_quota:
+                if (
+                    self.config.monthly_quota > 0
+                    and key.calls_this_month >= self.config.monthly_quota
+                ):
                     continue
 
                 key.tokens -= 1.0
@@ -392,7 +396,9 @@ class KeyPool:
         now = time.monotonic()
         key_stats = []
         for k in self.keys:
-            k.tokens = min(float(self.config.burst), k.tokens + (now - k.last_refill) * self.config.rate_rps)
+            k.tokens = min(
+                float(self.config.burst), k.tokens + (now - k.last_refill) * self.config.rate_rps
+            )
             key_stats.append(
                 {
                     "name": k.key_name,
@@ -408,7 +414,9 @@ class KeyPool:
         return {
             "provider": self.provider,
             "total_keys": len(self.keys),
-            "active_keys": sum(1 for k in self.keys if not k.disabled and not (now < k.rate_limited_until)),
+            "active_keys": sum(
+                1 for k in self.keys if not k.disabled and not (now < k.rate_limited_until)
+            ),
             "total_calls": self.total_calls,
             "rate_rps": self.config.rate_rps,
             "burst": self.config.burst,
@@ -493,7 +501,9 @@ class UnifiedApiManager:
             status = "OK"
             if combined_rps < 10:
                 status = "LOW_RPS"
-                bottlenecks.append(f"{name}: only {combined_rps:.0f} RPS across {total_keys} key(s)")
+                bottlenecks.append(
+                    f"{name}: only {combined_rps:.0f} RPS across {total_keys} key(s)"
+                )
             if combined_quota and combined_quota < 10000:
                 status = "LOW_QUOTA"
                 bottlenecks.append(f"{name}: only {combined_quota}/mo across {total_keys} key(s)")

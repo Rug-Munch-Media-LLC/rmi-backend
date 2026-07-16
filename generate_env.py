@@ -103,7 +103,9 @@ def generate():
     print(f"\n{'=' * 60}")
     print("Generated .env from:")
     print(f"  Hermes .env: {len(hermes_env)} keys loaded")
-    print(f"  Secrets dir: {len(secrets_found)} found ({', '.join(secrets_found) if secrets_found else 'none'})")
+    print(
+        f"  Secrets dir: {len(secrets_found)} found ({', '.join(secrets_found) if secrets_found else 'none'})"
+    )
     print(f"  Result: {filled} filled, {missing} still empty")
     print(f"{'=' * 60}\n")
 

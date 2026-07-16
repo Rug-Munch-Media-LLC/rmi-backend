@@ -16,12 +16,12 @@ Recipe coverage:
   Recipe 4: news_price_correlation             (Postgres, basic v1)
   Recipe 5: resolve_entity                     (Neo4j Cypher)
 """
+
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from typing import Any
@@ -35,8 +35,11 @@ from app.catalog.models import (
     Wallet,
     utcnow,
 )
-from app.rag.engine import ingest_document as rag_ingest_document
-from app.rag.engine import three_pillar_search as rag_three_pillar_search
+from app.core.logging import get_logger
+from app.rag.engine import (
+    ingest_document as rag_ingest_document,
+    three_pillar_search as rag_three_pillar_search,
+)
 
 log = get_logger(__name__)
 
@@ -155,9 +158,7 @@ class CatalogService:
                 from neo4j import GraphDatabase
 
                 cfg = self.config["neo4j"]
-                auth = (
-                    (cfg["user"], cfg["password"]) if cfg["password"] else None
-                )
+                auth = (cfg["user"], cfg["password"]) if cfg["password"] else None
                 self._neo_driver = GraphDatabase.driver(cfg["uri"], auth=auth)
                 with self._neo_driver.session() as s:
                     s.run("RETURN 1").consume()
@@ -186,9 +187,7 @@ class CatalogService:
             try:
                 cfg = self.config["qdrant"]
                 headers = {"api-key": cfg["api_key"]} if cfg["api_key"] else {}
-                self._qdrant = httpx.AsyncClient(
-                    base_url=cfg["url"], headers=headers, timeout=5.0
-                )
+                self._qdrant = httpx.AsyncClient(base_url=cfg["url"], headers=headers, timeout=5.0)
                 r = await self._qdrant.get("/collections")
                 if r.status_code == 200:
                     self._health.qdrant = True
@@ -229,7 +228,8 @@ class CatalogService:
             async with self._pg_pool.acquire() as conn:
                 row = await conn.fetchrow(
                     "SELECT * FROM tokens WHERE chain=$1 AND address=$2",
-                    chain.value, address,
+                    chain.value,
+                    address,
                 )
             if not row:
                 return None
@@ -271,21 +271,30 @@ class CatalogService:
                         risk_score=EXCLUDED.risk_score,
                         risk_factors=EXCLUDED.risk_factors
                     """,
-                    token.token_id, token.chain.value, token.address,
-                    token.symbol, token.name, token.decimals,
-                    token.deployer_wallet_id, token.deployed_at,
-                    token.initial_supply, token.current_supply,
-                    token.is_honeypot, token.is_mintable, token.is_proxy,
-                    token.tax_buy_bps, token.tax_sell_bps,
+                    token.token_id,
+                    token.chain.value,
+                    token.address,
+                    token.symbol,
+                    token.name,
+                    token.decimals,
+                    token.deployer_wallet_id,
+                    token.deployed_at,
+                    token.initial_supply,
+                    token.current_supply,
+                    token.is_honeypot,
+                    token.is_mintable,
+                    token.is_proxy,
+                    token.tax_buy_bps,
+                    token.tax_sell_bps,
                     token.risk_tier.value if token.risk_tier else None,
-                    token.risk_score, token.risk_factors, token.rag_embedding_id,
+                    token.risk_score,
+                    token.risk_factors,
+                    token.rag_embedding_id,
                 )
             # Invalidate cache
             if self._health.redis:
                 with contextlib.suppress(Exception):
-                    await self._redis.delete(
-                        f"catalog:token:{token.chain.value}:{token.address}"
-                    )
+                    await self._redis.delete(f"catalog:token:{token.chain.value}:{token.address}")
             return True
         except Exception as e:
             log.warning("token_save_fail: %s", e)
@@ -310,6 +319,7 @@ class CatalogService:
             for k in ("first_seen", "last_seen"):
                 if isinstance(node.get(k), str):
                     from datetime import datetime
+
                     with contextlib.suppress(Exception):
                         node[k] = datetime.fromisoformat(node[k].replace("Z", "+00:00"))
             return Wallet(**node)
@@ -369,8 +379,7 @@ class CatalogService:
                 wallets = [
                     r["w.wallet_id"]
                     for r in s.run(
-                        "MATCH (w:Deployer) WHERE w.rug_count >= $min "
-                        "RETURN w.wallet_id LIMIT 200",
+                        "MATCH (w:Deployer) WHERE w.rug_count >= $min RETURN w.wallet_id LIMIT 200",
                         min=min_rug_count,
                     )
                 ]
@@ -378,9 +387,7 @@ class CatalogService:
                 return []
             # Step 2: Postgres - find tokens deployed by those wallets
             async with self._pg_pool.acquire() as conn:
-                query = (
-                    "SELECT * FROM tokens WHERE deployer_wallet_id = ANY($1::text[]) "
-                )
+                query = "SELECT * FROM tokens WHERE deployer_wallet_id = ANY($1::text[]) "
                 params: list[Any] = [wallets]
                 if chain:
                     query += "AND chain=$2 "
@@ -394,9 +401,7 @@ class CatalogService:
             return []
 
     # ── Recipe 3: get_token_risk (3-store composition) ──────────────
-    async def get_token_risk(
-        self, chain: Chain, address: str
-    ) -> dict[str, Any]:
+    async def get_token_risk(self, chain: Chain, address: str) -> dict[str, Any]:
         """Real-time risk score - composes Redis cache + Postgres + Neo4j.
 
         Returns dict (not Token) because it's a cross-store projection.
@@ -455,9 +460,7 @@ class CatalogService:
         return result
 
     # ── Recipe 5: resolve_entity (Neo4j Cypher) ─────────────────────
-    async def resolve_entity(
-        self, wallet_id: str, max_chains: int = 5
-    ) -> dict[str, Any]:
+    async def resolve_entity(self, wallet_id: str, max_chains: int = 5) -> dict[str, Any]:
         """Cross-chain entity resolution via Neo4j.
 
         Uses the SAME_AS / FUNDED_BY_SAME / CLONE_OF / BEHAVIORAL_MATCH
@@ -485,7 +488,8 @@ class CatalogService:
                                confidence: path_conf
                            }) AS cross_chain_wallets
                     """,
-                    wallet_id=wallet_id, limit=max_chains,
+                    wallet_id=wallet_id,
+                    limit=max_chains,
                 ).single()
             if not result:
                 return {"entity_id": None, "wallets": [], "note": "no edges"}
@@ -509,9 +513,7 @@ class CatalogService:
         Use get_token_risk / etc. when you want catalog-typed results.
         """
         try:
-            return await rag_three_pillar_search(
-                query=query, collection=collection, top_k=top_k
-            )
+            return await rag_three_pillar_search(query=query, collection=collection, top_k=top_k)
         except Exception as e:
             log.warning("rag_search_fail: %s", e)
             return []
@@ -543,9 +545,7 @@ class CatalogService:
             log.warning("rag_ingest_fail: %s", e)
             return {"status": "failed", "error": str(e)}
 
-    async def attach_rag_to_token(
-        self, chain: Chain, address: str, qdrant_point_id: str
-    ) -> bool:
+    async def attach_rag_to_token(self, chain: Chain, address: str, qdrant_point_id: str) -> bool:
         """Link an existing Qdrant point to a Token row as rag_embedding_id."""
         token = await self.get_token(chain, address)
         if not token:
@@ -570,8 +570,12 @@ class CatalogService:
         if self._health.neo4j:
             try:
                 with self._neo_driver.session() as s:
-                    out["wallets"] = s.run("MATCH (w:Wallet) RETURN COUNT(w) AS c").single()["c"] or 0
-                    out["deployers"] = s.run("MATCH (d:Deployer) RETURN COUNT(d) AS c").single()["c"] or 0
+                    out["wallets"] = (
+                        s.run("MATCH (w:Wallet) RETURN COUNT(w) AS c").single()["c"] or 0
+                    )
+                    out["deployers"] = (
+                        s.run("MATCH (d:Deployer) RETURN COUNT(d) AS c").single()["c"] or 0
+                    )
             except Exception as e:
                 out["neo4j_error"] = str(e)
         if self._health.qdrant:

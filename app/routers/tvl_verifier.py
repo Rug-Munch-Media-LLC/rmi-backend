@@ -67,13 +67,17 @@ def _compute_discrepancy(defl_tvl: float, onchain_tvl: float) -> dict:
 
     if diff_pct > 30:
         risk = "CRITICAL"
-        explanation = f"DeFiLlama reports {diff_pct:.0f}% higher TVL than on-chain. Possible inflated TVL."
+        explanation = (
+            f"DeFiLlama reports {diff_pct:.0f}% higher TVL than on-chain. Possible inflated TVL."
+        )
     elif diff_pct > 15:
         risk = "HIGH"
         explanation = f"Significant discrepancy ({diff_pct:.0f}%). Verify manually."
     elif diff_pct < -30:
         risk = "HIGH"
-        explanation = f"On-chain TVL exceeds reported TVL by {abs(diff_pct):.0f}%. Possible unreported risk."
+        explanation = (
+            f"On-chain TVL exceeds reported TVL by {abs(diff_pct):.0f}%. Possible unreported risk."
+        )
     elif diff_pct < -10:
         risk = "MEDIUM"
         explanation = f"On-chain TVL higher than reported ({abs(diff_pct):.0f}%)."

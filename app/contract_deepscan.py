@@ -317,7 +317,9 @@ class ContractScanner:
         self.slither = SlitherScanner()
         self.mythril = MythrilScanner()
 
-    def scan(self, contract_address: str, chain: str = "base", deep: bool = False) -> dict[str, Any]:
+    def scan(
+        self, contract_address: str, chain: str = "base", deep: bool = False
+    ) -> dict[str, Any]:
         """
         Scan contract using available tools.
 

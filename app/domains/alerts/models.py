@@ -2,6 +2,7 @@
 
 No FastAPI imports. Pure data shapes.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -34,11 +35,15 @@ class AlertSubscription(BaseModel):
 
     id: str = Field(..., description="Unique subscription id, e.g. alert:1700000000")
     token_address: str = Field(..., min_length=1, max_length=256)
-    alert_types: list[AlertType] = Field(default_factory=lambda: [AlertType.LIQUIDITY_REMOVE, AlertType.MINT, AlertType.BLACKLIST])
+    alert_types: list[AlertType] = Field(
+        default_factory=lambda: [AlertType.LIQUIDITY_REMOVE, AlertType.MINT, AlertType.BLACKLIST]
+    )
     webhook_url: str | None = Field(default=None, max_length=2048)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     active: bool = True
-    owner_id: str | None = Field(default=None, description="User id of subscription owner, None = anonymous")
+    owner_id: str | None = Field(
+        default=None, description="User id of subscription owner, None = anonymous"
+    )
 
     @field_validator("alert_types")
     @classmethod

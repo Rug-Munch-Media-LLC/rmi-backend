@@ -52,12 +52,13 @@ import argparse
 import asyncio
 import json
 import logging
-from app.core.logging import get_logger
 import math
 import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

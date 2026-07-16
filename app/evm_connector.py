@@ -11,8 +11,9 @@ Includes:
 - Chain abstraction (Ethereum, Base, Arbitrum, etc.)
 """
 
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -156,7 +157,9 @@ class EVMClient:
 
             # Build provider with optional Moralis auth header
             if self._use_moralis and MORALIS_API_KEY:
-                provider = HTTPProvider(self.rpc_url, request_kwargs={"headers": {"X-API-Key": MORALIS_API_KEY}})
+                provider = HTTPProvider(
+                    self.rpc_url, request_kwargs={"headers": {"X-API-Key": MORALIS_API_KEY}}
+                )
             else:
                 provider = HTTPProvider(self.rpc_url)
 
@@ -310,7 +313,9 @@ class ClientManager:
     def __init__(self):
         self.clients: dict[str, EVMClient] = {}
 
-    def get_client(self, chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False) -> EVMClient:
+    def get_client(
+        self, chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False
+    ) -> EVMClient:
         """Get or create client for chain."""
         key = f"{chain}:{rpc_url or 'default'}:{use_moralis}"
         if key not in self.clients:
@@ -326,6 +331,8 @@ class ClientManager:
 _client_manager = ClientManager()
 
 
-def get_evm_client(chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False) -> EVMClient:
+def get_evm_client(
+    chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False
+) -> EVMClient:
     """Get global EVM client."""
     return _client_manager.get_client(chain, rpc_url, use_moralis)

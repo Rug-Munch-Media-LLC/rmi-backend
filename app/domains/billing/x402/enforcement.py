@@ -22,12 +22,12 @@ Date: 2026-05-23
 from __future__ import annotations
 
 import json
-from app.core.logging import get_logger
 import os
 import re
 import time
 from typing import TYPE_CHECKING, Any
 
+from app.core.logging import get_logger
 from app.routers.protection import get_client_id
 
 if TYPE_CHECKING:
@@ -94,7 +94,7 @@ def _ensure_verifier() -> None:
         logger.warning(f"x402 enforcement: PaymentVerifier not available: {e}")
 
 
-def get_redis_async() -> Any:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+def get_redis_async() -> Any:
     """Get async Redis client. Use in async middleware paths."""
     try:
         from app.core.redis import get_redis_async as _get_async
@@ -1592,16 +1592,7 @@ async def x402_enforcement_middleware(request: Request, call_next: Any) -> Respo
     # Also exempt all /api/v1/x402/ admin endpoints, /api/v1/developer/, /api/v1/analytics/, /api/v1/state/, /api/v1/status, /api/v1/webhooks/, and /api/v1/tools/ (changelog) endpoints
     # Also exempt /api/v1/x402/facilitator-health/ endpoints
     if (
-        path.rstrip("/") in FREE_PATHS
-        or path.startswith("/api/v1/x402/")
-        or path.startswith("/api/v1/developer/")
-        or path.startswith("/api/v1/analytics/")
-        or path.startswith("/api/v1/state/")
-        or path.startswith("/api/v1/status")
-        or path.startswith("/api/v1/webhooks/")
-        or path.startswith("/api/v1/tools/changelog")
-        or path.startswith("/api/v1/tools/version")
-        or path.startswith("/api/v1/tools/deprecated")
+        path.rstrip("/") in FREE_PATHS or path.startswith(("/api/v1/x402/", "/api/v1/developer/", "/api/v1/analytics/", "/api/v1/state/", "/api/v1/status", "/api/v1/webhooks/", "/api/v1/tools/changelog", "/api/v1/tools/version", "/api/v1/tools/deprecated"))
     ):
         return await call_next(request)
     # GET requests to free paths are always allowed (discovery for agents)
@@ -1650,7 +1641,6 @@ async def x402_enforcement_middleware(request: Request, call_next: Any) -> Respo
     except Exception as e:
         logger.warning(f"Developer key check failed: {e}")
         # Fail open - don't block paying customers on dev tier errors
-        pass
 
     # ── Bot / abuse detection ─────────────────────────────────────
     # Only block bots on PAID tool endpoints, not discovery
@@ -2397,10 +2387,10 @@ async def get_revenue(request: Request | None = None) -> JSONResponse:
 
         # Daily breakdown (last 30 days)
         daily = {}
-        from datetime import datetime, timedelta
+        from datetime import UTC, datetime, timedelta
 
         for i in range(30):
-            day = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
+            day = (datetime.now(UTC) - timedelta(days=i)).strftime("%Y-%m-%d")
             val = float(r.get(f"x402:revenue:daily:{day}") or 0)
             if val > 0:
                 daily[day] = val
@@ -2788,41 +2778,41 @@ class X402Enforcer:
 
 
 __all__ = [
-    "X402Enforcer",
-    "TOOL_PRICES",
     "CHAIN_USDC",
+    "EVM_PAY_TO",
     "SECURITY_HEADERS",
-    "check_idempotency",
-    "check_trial",
-    "consume_trial",
-    "build_402_response",
-    "parse_x_pay_header",
-    "verify_payment",
-    "verify_payment_via_router",
-    "self_verify_evm_usdc",
-    "x402_enforcement_middleware",
-    "x402_discovery",
-    "get_trial_status",
-    "get_revenue",
-    "get_pricing_suggestions",
-    "request_refund",
-    "_ensure_tool_prices",
+    "SOL_PAY_TO",
+    "TOOL_PRICES",
+    "VERIFIER",
+    "X402Enforcer",
+    "_build_accepts_list",
+    "_build_bazaar_extension",
+    "_build_discovery_response",
+    "_build_extra",
+    "_build_resource_info",
+    "_detect_token_from_asset",
     "_ensure_pay_addresses",
+    "_ensure_tool_prices",
     "_ensure_verifier",
     "_get_pay_to_address",
     "_load_tool_prices",
-    "_build_accepts_list",
-    "_build_bazaar_extension",
-    "_build_resource_info",
-    "_build_discovery_response",
-    "_resolve_pay_to",
-    "_resolve_asset",
-    "_build_extra",
     "_record_refundable_payment",
+    "_resolve_asset",
+    "_resolve_pay_to",
     "_verify_refund_ownership",
-    "_detect_token_from_asset",
+    "build_402_response",
+    "check_idempotency",
+    "check_trial",
+    "consume_trial",
+    "get_pricing_suggestions",
     "get_redis_async",
-    "EVM_PAY_TO",
-    "SOL_PAY_TO",
-    "VERIFIER",
+    "get_revenue",
+    "get_trial_status",
+    "parse_x_pay_header",
+    "request_refund",
+    "self_verify_evm_usdc",
+    "verify_payment",
+    "verify_payment_via_router",
+    "x402_discovery",
+    "x402_enforcement_middleware",
 ]

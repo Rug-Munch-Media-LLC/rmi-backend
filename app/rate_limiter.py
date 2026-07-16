@@ -19,11 +19,12 @@ Auto-detects credit status and adjusts limits accordingly.
 import asyncio
 import contextlib
 import hashlib
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("rate.limiter")
 
@@ -282,10 +283,14 @@ class RateTracker:
         minute_margin = int(provider.rpm * 0.9)
 
         if counts["day"] >= day_margin:
-            logger.debug(f"{provider.name}: daily limit approached ({counts['day']}/{provider.rpd})")
+            logger.debug(
+                f"{provider.name}: daily limit approached ({counts['day']}/{provider.rpd})"
+            )
             return False
         if counts["minute"] >= minute_margin:
-            logger.debug(f"{provider.name}: RPM limit approached ({counts['minute']}/{provider.rpm})")
+            logger.debug(
+                f"{provider.name}: RPM limit approached ({counts['minute']}/{provider.rpm})"
+            )
             return False
 
         return True
@@ -440,7 +445,9 @@ class EmbeddingDispatcher:
         try:
             import sentence_transformers
 
-            self._local_model = sentence_transformers.SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
+            self._local_model = sentence_transformers.SentenceTransformer(
+                "BAAI/bge-small-en-v1.5", device="cpu"
+            )
             logger.info("Local BGE-small loaded")
         except Exception as e:
             logger.warning(f"Local model: {e}")
@@ -526,7 +533,9 @@ class EmbeddingDispatcher:
                 continue
 
             # ── API providers ──
-            key = os.environ.get(p.key_env, "") or os.environ.get(p.key_env.replace("_KEY", "_API_KEY"), "")
+            key = os.environ.get(p.key_env, "") or os.environ.get(
+                p.key_env.replace("_KEY", "_API_KEY"), ""
+            )
             if not key or len(key) < 10:
                 continue
 
@@ -580,7 +589,9 @@ class EmbeddingDispatcher:
         except Exception:
             pass
 
-    async def _embed_api(self, p: ProviderLimit, key: str, texts: list[str]) -> list[list[float]] | None:
+    async def _embed_api(
+        self, p: ProviderLimit, key: str, texts: list[str]
+    ) -> list[list[float]] | None:
         import httpx
 
         # Gemini uses different auth (key in query param) and different payload format
@@ -629,11 +640,15 @@ class EmbeddingDispatcher:
             try:
                 import sentence_transformers
 
-                self._local_model = sentence_transformers.SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
+                self._local_model = sentence_transformers.SentenceTransformer(
+                    "BAAI/bge-small-en-v1.5", device="cpu"
+                )
             except Exception:
                 return None
         loop = asyncio.get_event_loop()
-        vecs = await loop.run_in_executor(None, lambda: self._local_model.encode(texts, normalize_embeddings=True))
+        vecs = await loop.run_in_executor(
+            None, lambda: self._local_model.encode(texts, normalize_embeddings=True)
+        )
         return vecs.tolist() if hasattr(vecs, "tolist") else [[float(x) for x in v] for v in vecs]
 
     def _embed_hash(self, texts: list[str]) -> list[list[float]]:
@@ -642,7 +657,10 @@ class EmbeddingDispatcher:
         vecs = []
         for t in texts:
             h = hashlib.sha256(t.encode()).digest() + hashlib.sha256(("v2:" + t).encode()).digest()
-            v = [(int.from_bytes(h[i : i + 4], "big") / 2**32) * 2 - 1 for i in range(0, min(len(h), 1536), 4)]
+            v = [
+                (int.from_bytes(h[i : i + 4], "big") / 2**32) * 2 - 1
+                for i in range(0, min(len(h), 1536), 4)
+            ]
             while len(v) < 384:
                 v.append(0.0)
             v = v[:384]

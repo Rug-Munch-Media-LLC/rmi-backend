@@ -17,14 +17,16 @@ Endpoints:
 This module is pure logic - no I/O at import time. Router/background job
 call `cluster_items(items) -> list[StoryCluster]`.
 """
+
 from __future__ import annotations
 
 import hashlib
-from app.core.logging import get_logger
 import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -112,8 +114,7 @@ def _dbscan(
                 q_neighbors = [
                     j
                     for j in range(n)
-                    if j != q
-                    and (1.0 - _jaccard_minhash(signatures[q], signatures[j])) <= eps
+                    if j != q and (1.0 - _jaccard_minhash(signatures[q], signatures[j])) <= eps
                 ]
                 if len(q_neighbors) >= min_samples - 1:
                     seed_set.extend(q_neighbors)
@@ -251,9 +252,9 @@ def cluster_items(
             rep = max(members, key=lambda x: len(x.title))
             sentiments = [m.sentiment for m in members if m.sentiment is not None]
             avg_sent = sum(sentiments) / len(sentiments) if sentiments else 0.0
-            cluster_id = hashlib.sha1(
-                ":".join(sorted(m.id for m in members)).encode()
-            ).hexdigest()[:16]
+            cluster_id = hashlib.sha1(":".join(sorted(m.id for m in members)).encode()).hexdigest()[
+                :16
+            ]
             stories.append(
                 StoryCluster(
                     cluster_id=cluster_id,

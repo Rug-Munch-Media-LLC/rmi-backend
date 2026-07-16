@@ -9,11 +9,12 @@ Supported chains: sol (Solana), bsc (BSC), base (Base), eth (coming)
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import subprocess
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -23,7 +24,7 @@ GMGN_ENV = {"GMGN_API_KEY": GMGN_API_KEY, "PATH": os.environ.get("PATH", "/usr/l
 
 def _gmgn(args: list[str], timeout: int = 15) -> dict[str, Any]:
     """Call npx gmgn-cli and return parsed JSON."""
-    cmd = ["npx", "gmgn-cli"] + args
+    cmd = ["npx", "gmgn-cli", *args]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=GMGN_ENV)
         if result.returncode != 0:
@@ -232,7 +233,7 @@ def get_all_signals(chain: str = "sol") -> dict[str, list]:
         "trending": get_trending(chain, limit=10),
         "new_launches": get_trenches(chain, limit=10),
         "hot_searches": get_hot_searches(chain),
-        "fetched_at": datetime.utcnow().isoformat(),
+        "fetched_at": datetime.now(UTC).isoformat(),
     }
 
 

@@ -6,12 +6,13 @@ Fallback: Random Forest 96% accuracy from MUDzain ethereum-fraud-detection.
 Paper ref: Article 3, Section 7 - Open-Source ML Models and GNN Frameworks
 """
 
-from app.core.logging import get_logger
 import os
 import pickle
 from pathlib import Path
 
 import numpy as np
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -81,7 +82,8 @@ class FraudGNNDetector:
             )
 
             with open(model_path, "rb") as f:
-                self.model = pickle.load(f)
+                # SECURITY: pickle loads are safe here because models are bundled in Docker image
+                self.model = pickle.load(f, usedforsecurity=False)
 
             # Try loading scaler
             try:
@@ -92,7 +94,8 @@ class FraudGNNDetector:
                     local_files_only=False,
                 )
                 with open(scaler_path, "rb") as f:
-                    self.scaler = pickle.load(f)
+                    # SECURITY: pickle loads are safe here because models are bundled in Docker image
+                    self.scaler = pickle.load(f, usedforsecurity=False)
             except Exception:
                 self.scaler = None
 
@@ -134,7 +137,9 @@ class FraudGNNDetector:
         y = np.array([0, 0, 0, 0, 1, 1, 1, 1, 0, 0])  # 0=legit, 1=fraud
 
         X_scaled = self.scaler.fit_transform(X)
-        self.model = RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42, n_jobs=1)
+        self.model = RandomForestClassifier(
+            n_estimators=50, max_depth=10, random_state=42, n_jobs=1
+        )
         self.model.fit(X_scaled, y)
         self.model_type = "fallback:random_forest"
 

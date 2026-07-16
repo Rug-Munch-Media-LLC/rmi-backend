@@ -2,11 +2,12 @@
 Expanded to include 200+ tools across 40+ services
 """
 
-from app.core.logging import get_logger
 import os
 import re
 
 from fastapi import APIRouter
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -108,7 +109,7 @@ def parse_gateway_tools(gateway_dir: str) -> list[dict]:
         # Skip non-tool entries
         if tool_id in ("interface", "type", "export", "import", "const", "let", "var"):
             continue
-        if tool_id.startswith("//") or tool_id.startswith("RMI_TOOLS"):
+        if tool_id.startswith(("//", "RMI_TOOLS")):
             continue
 
         # Find the matching closing brace for this tool
@@ -308,7 +309,9 @@ def discover_route_tools() -> list[dict]:
                 continue
             # Try to find docstring for description
             desc = f"Tool: {route}"
-            doc_match = re.search(rf'@router\.(?:get|post)\("/{route}"\)[\s\S]*?"""([^"]*)"""', content)
+            doc_match = re.search(
+                rf'@router\.(?:get|post)\("/{route}"\)[\s\S]*?"""([^"]*)"""', content
+            )
             if doc_match:
                 desc = doc_match.group(1).strip().split("\n")[0].strip()
             tools.append(
@@ -450,8 +453,12 @@ def get_catalog():
         tid = t["id"]
         if tid in all_tools:
             # Enrich - route definitions may have more accurate descriptions
-            if not all_tools[tid].get("description") or all_tools[tid].get("description", "").startswith("Tool:"):
-                all_tools[tid]["description"] = t.get("description", all_tools[tid].get("description", ""))
+            if not all_tools[tid].get("description") or all_tools[tid].get(
+                "description", ""
+            ).startswith("Tool:"):
+                all_tools[tid]["description"] = t.get(
+                    "description", all_tools[tid].get("description", "")
+                )
         else:
             all_tools[tid] = t
             services.add("rmi-native")
@@ -526,7 +533,9 @@ def get_catalog():
                 tool["chains"] = sorted(set(variant_chains + tool.get("chains", [])))
 
     # Sanitize ALL tools before returning
-    tool_list = sorted([_sanitize_tool(dict(t)) for t in all_tools.values()], key=lambda x: x.get("priceUsd", 0))
+    tool_list = sorted(
+        [_sanitize_tool(dict(t)) for t in all_tools.values()], key=lambda x: x.get("priceUsd", 0)
+    )
 
     result = {
         "chains": chains or {"base": 0, "solana": 0},

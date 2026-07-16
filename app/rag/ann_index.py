@@ -11,15 +11,16 @@ Persistence shape (per collection):
   rag:ann:{collection}:meta   → JSON {count, dim}
   rag:ann:{collection}:docs   → HASH doc_id → {"vector": [...], "metadata": {...}, "text": "..."}
 """
+
 from __future__ import annotations
 
 import json
-from app.core.logging import get_logger
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 
+from app.core.logging import get_logger
 from app.rag.embeddings import EMBEDDING_DIM
 
 log = get_logger(__name__)
@@ -77,7 +78,9 @@ class ANNIndex:
         pipe = r.pipeline()
         for doc_id in self._ids:
             entry = {
-                "vector": (self._matrix[self._ids.index(doc_id)] if self._matrix is not None else []).tolist(),
+                "vector": (
+                    self._matrix[self._ids.index(doc_id)] if self._matrix is not None else []
+                ).tolist(),
                 "metadata": self._meta[doc_id].get("metadata", {}),
                 "text": self._meta[doc_id].get("text", ""),
             }
@@ -138,9 +141,7 @@ class ANNIndex:
             if arr.shape[0] >= self.dim:
                 arr = arr[: self.dim]
             else:
-                arr = np.concatenate(
-                    [arr, np.zeros(self.dim - arr.shape[0], dtype=np.float32)]
-                )
+                arr = np.concatenate([arr, np.zeros(self.dim - arr.shape[0], dtype=np.float32)])
         # L2 normalize
         n = float(np.linalg.norm(arr))
         if n > 0:

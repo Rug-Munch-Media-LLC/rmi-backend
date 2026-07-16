@@ -180,7 +180,9 @@ class BlockchairClient:
             Mempool data
         """
         try:
-            response = httpx.get(f"{BLOCKCHAIR_API}{ENDPOINTS['mempool'].format(chain=chain)}", timeout=self.timeout)
+            response = httpx.get(
+                f"{BLOCKCHAIR_API}{ENDPOINTS['mempool'].format(chain=chain)}", timeout=self.timeout
+            )
             response.raise_for_status()
             return response.json()["data"]
         except Exception as e:

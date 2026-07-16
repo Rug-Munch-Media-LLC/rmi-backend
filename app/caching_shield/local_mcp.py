@@ -18,10 +18,11 @@ Usage:
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import subprocess
 import time
 from pathlib import Path
+
+from app.core.logging import get_logger
 
 logger = get_logger("local_mcp")
 
@@ -54,7 +55,9 @@ class LocalMCPClient:
 
         # Detect package manager and install deps
         if (server_dir / "package.json").exists():
-            subprocess.run(["npm", "install", "--production"], cwd=server_dir, capture_output=True, timeout=60)
+            subprocess.run(
+                ["npm", "install", "--production"], cwd=server_dir, capture_output=True, timeout=60
+            )
         elif (server_dir / "requirements.txt").exists():
             subprocess.run(
                 ["pip", "install", "-r", "requirements.txt"],
@@ -111,11 +114,16 @@ class LocalMCPClient:
             json.loads(line.decode())
 
             # Send initialized notification
-            proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + b"\n")
+            proc.stdin.write(
+                json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + b"\n"
+            )
             await proc.stdin.drain()
 
             # List tools
-            proc.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}) + b"\n")
+            proc.stdin.write(
+                json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
+                + b"\n"
+            )
             await proc.stdin.drain()
             line = await asyncio.wait_for(proc.stdout.readline(), timeout=10)
             tools_resp = json.loads(line.decode())
@@ -164,7 +172,9 @@ class LocalMCPClient:
 
     async def call(self, server: str, tool: str, args: dict, ttl: int = 60) -> dict | None:
         """Call an MCP tool through caching shield."""
-        cache_key = hashlib.sha256(f"mcp:{server}:{tool}:{json.dumps(args, sort_keys=True)}".encode()).hexdigest()[:24]
+        cache_key = hashlib.sha256(
+            f"mcp:{server}:{tool}:{json.dumps(args, sort_keys=True)}".encode()
+        ).hexdigest()[:24]
 
         # L1 cache
         entry = self._l1.get(cache_key)
@@ -288,7 +298,9 @@ async def install_curated_mcps() -> dict:
     return results
 
 
-async def call_expanded_tool(service: str, tool_name: str, args: dict | None = None, ttl: int = 60) -> dict | None:
+async def call_expanded_tool(
+    service: str, tool_name: str, args: dict | None = None, ttl: int = 60
+) -> dict | None:
     """Call a tool from a curated MCP service."""
     args = args or {}
     client = get_local_mcp()

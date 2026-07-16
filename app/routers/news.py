@@ -15,13 +15,13 @@ Endpoints:
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.auth import require_public_profile
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -90,7 +90,9 @@ _COMMENTS: dict[str, list[dict]] = {}
 
 
 def _make_comment_id(article_id: str, content: str) -> str:
-    h = hashlib.sha256(f"{article_id}:{content}:{datetime.now(UTC).isoformat()}".encode()).hexdigest()
+    h = hashlib.sha256(
+        f"{article_id}:{content}:{datetime.now(UTC).isoformat()}".encode()
+    ).hexdigest()
     return f"comment-{h[:12]}"
 
 
@@ -122,7 +124,9 @@ async def _refresh_cache(include_rss: bool, include_reddit: bool, include_intern
 @router.get("/feed", response_model=NewsFeedResponse)
 async def get_news_feed(
     limit: int = Query(50, ge=1, le=200),
-    sentiment: str | None = Query(None, description="bullish, bearish, neutral, slightly_bullish, slightly_bearish"),
+    sentiment: str | None = Query(
+        None, description="bullish, bearish, neutral, slightly_bullish, slightly_bearish"
+    ),
     source: str | None = Query(None),
     category: str | None = Query(None),
     tier: str | None = Query(None, description="news, social, market, rmi, api"),
@@ -163,7 +167,9 @@ async def get_news_feed(
                 if _NEWS_CACHE:
                     result = _NEWS_CACHE
                 else:
-                    raise HTTPException(status_code=500, detail=f"News aggregation failed: {e!s}") from e
+                    raise HTTPException(
+                        status_code=500, detail=f"News aggregation failed: {e!s}"
+                    ) from e
 
     articles = result.get("articles", [])
 
@@ -279,7 +285,9 @@ async def get_categories():
         cat = a.category or "general"
         cats[cat] = cats.get(cat, 0) + 1
     return {
-        "categories": [{"name": n, "count": c} for n, c in sorted(cats.items(), key=lambda x: -x[1])],
+        "categories": [
+            {"name": n, "count": c} for n, c in sorted(cats.items(), key=lambda x: -x[1])
+        ],
     }
 
 
@@ -345,7 +353,9 @@ async def get_comments(article_id: str):
 
 
 @router.post("/internal/scanner-alert")
-async def post_scanner_alert(token_name: str, chain: str, risk_score: float, address: str, flags: str = ""):
+async def post_scanner_alert(
+    token_name: str, chain: str, risk_score: float, address: str, flags: str = ""
+):
     """Internal endpoint for cron jobs to inject scanner findings into news feed."""
     global _NEWS_CACHE
     content_hash = hashlib.sha256(f"internal:{address}:{chain}".encode()).hexdigest()

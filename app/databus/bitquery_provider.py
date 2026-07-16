@@ -31,11 +31,11 @@ Rate limits:
 """
 
 import hashlib
-from app.core.logging import get_logger
 import time
 
 import httpx
 
+from app.core.logging import get_logger
 from app.databus.cache import CacheLayer, get_cache
 
 logger = get_logger("databus.bitquery")
@@ -271,7 +271,9 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_holder_distribution(self, network: str, token_address: str, limit: int = 100) -> dict | None:
+    async def get_holder_distribution(
+        self, network: str, token_address: str, limit: int = 100
+    ) -> dict | None:
         """
         Get top token holders and their balances.
 
@@ -414,7 +416,9 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_cross_chain_transfers(self, address: str, networks: list[str] | None = None) -> dict | None:
+    async def get_cross_chain_transfers(
+        self, address: str, networks: list[str] | None = None
+    ) -> dict | None:
         """
         Track token transfers across multiple chains for an address.
 

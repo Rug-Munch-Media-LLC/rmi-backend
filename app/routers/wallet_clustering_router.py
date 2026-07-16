@@ -3,11 +3,12 @@ Wallet Clustering API Router - Cluster detection, funding paths, risk analysis.
 Connects to /api/v1/wallet-clusters/*
 """
 
-from app.core.logging import get_logger
 from datetime import UTC
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from app.core.logging import get_logger
 
 router = APIRouter(prefix="/api/v1/wallet-clusters", tags=["wallet-clustering"])
 logger = get_logger(__name__)
@@ -82,7 +83,9 @@ async def detect_clusters(req: ClusterRequest):
 async def trace_funding_path(req: FundingPathRequest):
     """Trace the funding path between two wallets (BFS)."""
     detector = _get_detector()
-    path = await detector.trace_funding_path(source=req.source, target=req.target, max_depth=req.max_depth)
+    path = await detector.trace_funding_path(
+        source=req.source, target=req.target, max_depth=req.max_depth
+    )
     if path:
         return {"source": req.source, "target": req.target, "path": path.to_dict()}
     return {"source": req.source, "target": req.target, "path": None, "note": "No path found"}
@@ -143,7 +146,9 @@ async def get_bubble_map_data(req: BubblemapRequest):
     """Generate bubble map data for a wallet.
     Supports up to 250 wallets deep. Optional AI deep dive for advanced forensics."""
     engine = _get_engine()
-    depth = min(req.depth, 10)  # Cap depth at 10 to prevent infinite loops, but max_wallets handles the 250 limit
+    depth = min(
+        req.depth, 10
+    )  # Cap depth at 10 to prevent infinite loops, but max_wallets handles the 250 limit
     data = engine.generate_bubble_map_data(
         center_wallet=req.center_wallet, depth=depth, max_wallets=min(req.max_wallets, 250)
     )
@@ -155,7 +160,9 @@ async def get_bubble_map_data(req: BubblemapRequest):
 
             # Extract top suspicious wallets for AI context
             suspicious_wallets = [
-                n for n in data["nodes"] if n.get("type") in ["scammer", "exchange"] or n.get("volume", 0) > 10000
+                n
+                for n in data["nodes"]
+                if n.get("type") in ["scammer", "exchange"] or n.get("volume", 0) > 10000
             ][:10]
 
             prompt = f"""Analyze this wallet cluster for {req.center_wallet}.
@@ -185,7 +192,9 @@ async def get_bubble_map_data(req: BubblemapRequest):
             if "error" in result:
                 data["ai_deep_dive_analysis"] = f"AI analysis failed: {result['error']}"
             else:
-                data["ai_deep_dive_analysis"] = result.get("content", "AI analysis completed but returned empty.")
+                data["ai_deep_dive_analysis"] = result.get(
+                    "content", "AI analysis completed but returned empty."
+                )
         except Exception as e:
             logger.warning(f"AI deep dive failed: {e}")
             data["ai_deep_dive_analysis"] = "AI analysis temporarily unavailable."
@@ -253,7 +262,9 @@ Be direct and avoid fluff."""
             if "error" in result:
                 breakdown["ai_llm_analysis"] = f"AI analysis failed: {result['error']}"
             else:
-                breakdown["ai_llm_analysis"] = result.get("content", "AI analysis completed but returned empty.")
+                breakdown["ai_llm_analysis"] = result.get(
+                    "content", "AI analysis completed but returned empty."
+                )
         except Exception as e:
             logger.warning(f"AI LLM deep dive failed: {e}")
             breakdown["ai_llm_analysis"] = (
@@ -327,7 +338,8 @@ async def scan_contract_clusters(req: ContractScanRequest):
         "total_holders": len(holders) + len(excluded_entities),
         "holders": holders[:10],
         "excluded_infrastructure": [
-            {"address": e.address, "entity": e.entity_name, "type": e.entity_type} for e in excluded_entities
+            {"address": e.address, "entity": e.entity_name, "type": e.entity_type}
+            for e in excluded_entities
         ],
         "holders_labeled": sum(1 for h in holders if engine._get_known_scammer_wallets()),
         "spam_check": {},
@@ -344,7 +356,9 @@ async def scan_contract_clusters(req: ContractScanRequest):
 
     # Step 3: Detect clusters
     if req.detect_clusters and len(holders) >= 2:
-        clusters = await detector.detect_clusters(wallets=holders[:50], min_confidence=0.3, include_sleepers=True)
+        clusters = await detector.detect_clusters(
+            wallets=holders[:50], min_confidence=0.3, include_sleepers=True
+        )
         result["clusters_found"] = len(clusters)
         result["clusters"] = [c.to_dict() for c in clusters]
 
@@ -362,7 +376,8 @@ async def scan_contract_clusters(req: ContractScanRequest):
                     "wallets_scored": len(gnn_scores),
                     "high_risk_count": len(high_risk),
                     "avg_fraud_probability": round(
-                        sum(s.get("fraud_probability", 0) for s in gnn_scores) / max(len(gnn_scores), 1),
+                        sum(s.get("fraud_probability", 0) for s in gnn_scores)
+                        / max(len(gnn_scores), 1),
                         4,
                     ),
                     "model": gnn.status().get("model_type", "unknown"),

@@ -4,11 +4,12 @@ Uses detective character, purple/gold colors, circular frames.
 NO DEVIATION from brand guidelines.
 """
 
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 from PIL import Image, ImageDraw, ImageFont
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -132,7 +133,9 @@ def add_circular_frame(img, color=BRAND["gold"], width=5):
     """Add gold circular frame."""
     draw = ImageDraw.Draw(img)
     margin = 20
-    draw.ellipse([margin, margin, img.size[0] - margin, img.size[1] - margin], outline=color, width=width)
+    draw.ellipse(
+        [margin, margin, img.size[0] - margin, img.size[1] - margin], outline=color, width=width
+    )
     return img
 
 
@@ -141,7 +144,9 @@ def add_text_centered(img, text, position, font_size, color, font_path=None):
     draw = ImageDraw.Draw(img)
 
     try:
-        font = ImageFont.truetype(font_path or "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+        font = ImageFont.truetype(
+            font_path or "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
+        )
     except Exception:
         font = ImageFont.load_default()
 
@@ -185,7 +190,9 @@ def generate_feature_graphic(feature_key: str) -> dict:
         y += 50
 
     # Add watermark
-    add_text_centered(img, "@cryptorugmunch", (config["size"][0] // 2, config["size"][1] - 80), 28, BRAND["gold"])
+    add_text_centered(
+        img, "@cryptorugmunch", (config["size"][0] // 2, config["size"][1] - 80), 28, BRAND["gold"]
+    )
 
     # Save
     filename = f"feature_{feature_key}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.png"
@@ -214,7 +221,9 @@ def generate_launch_graphic() -> dict:
     add_text_centered(img, copy["subhead"], (config["size"][0] // 2, 320), 48, BRAND["white"])
     add_text_centered(img, copy["body"], (config["size"][0] // 2, 420), 36, BRAND["white"])
     add_text_centered(img, copy.get("cta", ""), (config["size"][0] // 2, 550), 42, BRAND["cyan"])
-    add_text_centered(img, "@cryptorugmunch", (config["size"][0] // 2, config["size"][1] - 80), 28, BRAND["gold"])
+    add_text_centered(
+        img, "@cryptorugmunch", (config["size"][0] // 2, config["size"][1] - 80), 28, BRAND["gold"]
+    )
 
     # Save
     filename = f"launch_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.png"

@@ -11,10 +11,11 @@ Architecture:
   - Returns: success/fail, expected output, tax rate, risk assessment
 """
 
-from app.core.logging import get_logger
 from dataclasses import dataclass, field
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -102,7 +103,9 @@ async def simulate_solana(token_address: str) -> SimulationResult:
                 result.warnings.append("⚠️ Cannot sell this token - liquidity may not exist")
             elif result.sell_tax_pct > 90:
                 result.risk = "critical"
-                result.warnings.append(f"☠️ {result.sell_tax_pct:.0f}% effective tax on sell - likely scam")
+                result.warnings.append(
+                    f"☠️ {result.sell_tax_pct:.0f}% effective tax on sell - likely scam"
+                )
             elif result.sell_tax_pct > 50:
                 result.risk = "dangerous"
                 result.warnings.append(f"🔴 {result.sell_tax_pct:.0f}% tax on sell")
@@ -120,7 +123,9 @@ async def simulate_solana(token_address: str) -> SimulationResult:
     return result
 
 
-async def _get_quote(client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int) -> dict | None:
+async def _get_quote(
+    client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int
+) -> dict | None:
     """Get a Jupiter swap quote."""
     try:
         params = {
@@ -272,7 +277,9 @@ async def simulate_transaction(token_address: str, chain: str = "solana") -> Sim
       - risk assessment
       - warnings
     """
-    if chain == "solana" or (len(token_address) in range(32, 45) and not token_address.startswith("0x")):
+    if chain == "solana" or (
+        len(token_address) in range(32, 45) and not token_address.startswith("0x")
+    ):
         return await simulate_solana(token_address)
     else:
         return await simulate_evm(token_address, chain)

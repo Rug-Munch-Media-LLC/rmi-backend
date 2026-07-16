@@ -14,12 +14,13 @@ Architecture:
   Layer 4 (paid):  Helius → Moralis → Alchemy → DeepSeek
 """
 
-from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -523,7 +524,7 @@ class DataFallbackChain:
                 report["summary"]["rate_limited"] += 1
 
         # Overall data independence score
-        our_healthy = report["summary"]["our_data_healthy"]
+        report["summary"]["our_data_healthy"]
         total_queries = sum(src.success_count + src.error_count for src in self.sources.values())
         ours_pct = 0
         if total_queries > 0:

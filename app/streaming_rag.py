@@ -16,11 +16,12 @@ Architecture:
 import asyncio
 import contextlib
 import json
-from app.core.logging import get_logger
 import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

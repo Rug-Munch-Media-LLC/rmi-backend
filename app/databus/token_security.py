@@ -19,7 +19,6 @@ Scoring bands:
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
@@ -28,6 +27,8 @@ from typing import Any, ClassVar
 
 import httpx
 import redis
+
+from app.core.logging import get_logger
 
 logger = get_logger("token_security")
 
@@ -213,10 +214,18 @@ SECURITY_CHECKS = [
         "Creator wallet removed significant liquidity",
     ),
     # ── CATEGORY: Holder Distribution (HD) ──
-    SecurityCheck("HD01", "Top 10 Concentration", "holders", 2.0, 1, "Top 10 holders control >50% of supply"),
-    SecurityCheck("HD02", "Creator Holdings", "holders", 2.5, 1, "Creator/deployer wallet holds >5% supply"),
-    SecurityCheck("HD03", "Holder Count", "holders", 1.0, 1, "Very few holders suggests no organic adoption"),
-    SecurityCheck("HD04", "Whale Dominance", "holders", 1.5, 2, "Wallets >1% supply own >80% collectively"),
+    SecurityCheck(
+        "HD01", "Top 10 Concentration", "holders", 2.0, 1, "Top 10 holders control >50% of supply"
+    ),
+    SecurityCheck(
+        "HD02", "Creator Holdings", "holders", 2.5, 1, "Creator/deployer wallet holds >5% supply"
+    ),
+    SecurityCheck(
+        "HD03", "Holder Count", "holders", 1.0, 1, "Very few holders suggests no organic adoption"
+    ),
+    SecurityCheck(
+        "HD04", "Whale Dominance", "holders", 1.5, 2, "Wallets >1% supply own >80% collectively"
+    ),
     SecurityCheck(
         "HD05",
         "Fresh Wallet %",
@@ -261,7 +270,9 @@ SECURITY_CHECKS = [
         2,
         "Deployer wallet previously launched scam tokens",
     ),
-    SecurityCheck("DT02", "Deployer Funding", "deployer", 2.0, 2, "Deployer funded from Tornado Cash or mixer"),
+    SecurityCheck(
+        "DT02", "Deployer Funding", "deployer", 2.0, 2, "Deployer funded from Tornado Cash or mixer"
+    ),
     SecurityCheck(
         "DT03",
         "Multi-Token Deployer",
@@ -295,7 +306,9 @@ SECURITY_CHECKS = [
         1,
         "Creator/team controls >20% of total supply",
     ),
-    SecurityCheck("TE02", "Tax Anomaly", "tokenomics", 2.5, 1, "Buy/sell tax >10% - predatory economics"),
+    SecurityCheck(
+        "TE02", "Tax Anomaly", "tokenomics", 2.5, 1, "Buy/sell tax >10% - predatory economics"
+    ),
     SecurityCheck(
         "TE03",
         "Transfer Fee",
@@ -339,7 +352,9 @@ SECURITY_CHECKS = [
         "LP was removed or significantly drained",
         auto_fail=True,
     ),
-    SecurityCheck("RP03", "Price Crash", "rug_pull", 2.0, 2, "Price dropped >90% within 24h - possible rug"),
+    SecurityCheck(
+        "RP03", "Price Crash", "rug_pull", 2.0, 2, "Price dropped >90% within 24h - possible rug"
+    ),
     SecurityCheck(
         "RP04",
         "Duplicate Token",
@@ -394,7 +409,7 @@ def get_check_matrix() -> dict:
 class TokenSecurityScorer:
     """Weighs and aggregates security check results into a 0-100 risk score."""
 
-    SCORE_BANDS: ClassVar[list] =[
+    SCORE_BANDS: ClassVar[list] = [
         (0, 20, "SAFE", "#00FF88"),
         (21, 40, "LOW RISK", "#88FF00"),
         (41, 60, "MEDIUM RISK", "#FFD700"),
@@ -542,7 +557,9 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
                 owner_change_balance = goplus_data.get("owner_change_balance", "0")
                 results["CR04"] = {
                     "status": "warning" if owner_change_balance in ("1", "1.0") else "pass",
-                    "details": "Owner can change balances" if owner_change_balance in ("1", "1.0") else "",
+                    "details": "Owner can change balances"
+                    if owner_change_balance in ("1", "1.0")
+                    else "",
                 }
 
                 # Blacklist
@@ -572,7 +589,11 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
     # ── Our DataBus checks ──
     # Age check
     try:
-        api_key = kw.get("api_key", "") or os.getenv("HELIUS_API_KEY", "") or os.getenv("ALCHEMY_API_KEY", "")
+        api_key = (
+            kw.get("api_key", "")
+            or os.getenv("HELIUS_API_KEY", "")
+            or os.getenv("ALCHEMY_API_KEY", "")
+        )
         if api_key and chain == "solana":
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.post(

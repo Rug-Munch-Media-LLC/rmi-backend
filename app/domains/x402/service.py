@@ -4,6 +4,7 @@ Calls into the existing x402 catalog/enforcement routers. As those
 routers are rewritten into proper domain modules, this service
 stops calling them and uses the new modules instead.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -33,6 +34,7 @@ class X402Service:
         log.info("x402_catalog_fetch_started")
         try:
             import app.routers.x402_catalog as _catalog_mod
+
             raw = await _catalog_mod.list_tools_catalog()
             return self._wrap_catalog(raw)
         except Exception as e:
@@ -50,6 +52,7 @@ class X402Service:
         log.info("x402_facilitators_fetch_started")
         try:
             import app.routers.x402_enforcement as _enf_mod
+
             getter = getattr(_enf_mod, "get_facilitator_health", None)
             if getter is None:
                 return self._default_facilitators()
@@ -65,9 +68,27 @@ class X402Service:
     def _default_facilitators() -> list[PaymentFacilitator]:
         """Default facilitator list - matches the legacy enforcement config."""
         return [
-            PaymentFacilitator(name="Coinbase CDP", url="https://api.cdp.coinbase.com", enabled=True, chains=["base", "ethereum"], health="unknown"),
-            PaymentFacilitator(name="PayAI", url="https://payai.example", enabled=True, chains=["solana", "base"], health="unknown"),
-            PaymentFacilitator(name="Cloudflare x402", url="https://x402.cloudflare.com", enabled=True, chains=["base", "polygon"], health="unknown"),
+            PaymentFacilitator(
+                name="Coinbase CDP",
+                url="https://api.cdp.coinbase.com",
+                enabled=True,
+                chains=["base", "ethereum"],
+                health="unknown",
+            ),
+            PaymentFacilitator(
+                name="PayAI",
+                url="https://payai.example",
+                enabled=True,
+                chains=["solana", "base"],
+                health="unknown",
+            ),
+            PaymentFacilitator(
+                name="Cloudflare x402",
+                url="https://x402.cloudflare.com",
+                enabled=True,
+                chains=["base", "polygon"],
+                health="unknown",
+            ),
         ]
 
     @staticmethod
@@ -93,7 +114,9 @@ class X402Service:
                         name=t.get("name", t.get("tool", "")),
                         description=t.get("description", ""),
                         category=t.get("category", ""),
-                        tier_required=X402Tier(tier_str.lower() if isinstance(tier_str, str) else "free"),
+                        tier_required=X402Tier(
+                            tier_str.lower() if isinstance(tier_str, str) else "free"
+                        ),
                         price_usd=float(t.get("price_usd", 0) or 0),
                         endpoint=t.get("endpoint", ""),
                         enabled=bool(t.get("enabled", True)),
@@ -120,11 +143,13 @@ class X402Service:
             items = raw
         for f in items:
             if isinstance(f, dict):
-                out.append(PaymentFacilitator(
-                    name=f.get("name", ""),
-                    url=f.get("url", ""),
-                    enabled=bool(f.get("enabled", True)),
-                    chains=f.get("chains", []) or [],
-                    health=f.get("health", "unknown"),
-                ))
+                out.append(
+                    PaymentFacilitator(
+                        name=f.get("name", ""),
+                        url=f.get("url", ""),
+                        enabled=bool(f.get("enabled", True)),
+                        chains=f.get("chains", []) or [],
+                        health=f.get("health", "unknown"),
+                    )
+                )
         return out

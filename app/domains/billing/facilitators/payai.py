@@ -10,11 +10,11 @@ Priority: 20 (second after Coinbase CDP for Base; primary for Solana)
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 from typing import Any
 
 import aiohttp
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorType,

@@ -28,7 +28,9 @@ async def ingest_via_api(content: str, metadata: dict) -> bool:
         import httpx
 
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(RAG_API, json={"collection": COLLECTION, "content": content, "metadata": metadata})
+            resp = await client.post(
+                RAG_API, json={"collection": COLLECTION, "content": content, "metadata": metadata}
+            )
             return resp.status_code == 200
     except Exception:
         return False
@@ -65,12 +67,14 @@ async def ingest_yaml():
                 current["reporter"] = stripped[11:].strip().strip('"')
             elif stripped.startswith("    ETH:"):
                 current["chain"] = "ethereum"
-            elif stripped.startswith('    - "0x') or stripped.startswith("    - 0x"):
-                addr = stripped.split('"')[-2] if '"' in stripped else stripped.split("-")[-1].strip()
+            elif stripped.startswith(('    - "0x', "    - 0x")):
+                addr = (
+                    stripped.split('"')[-2] if '"' in stripped else stripped.split("-")[-1].strip()
+                )
                 current.setdefault("addresses", []).append(addr)
             elif stripped.startswith("    BTC:"):
                 current["chain"] = "bitcoin"
-            elif stripped.startswith("    BSC:") or stripped.startswith("    BNB:"):
+            elif stripped.startswith(("    BSC:", "    BNB:")):
                 current["chain"] = "bsc"
         if current:
             entries.append(current)
@@ -121,7 +125,9 @@ async def ingest_yaml():
                     ingested += 1
 
         if (i + 1) % 500 == 0:
-            logger.info(f"Progress: {i + 1}/{len(entries)} | addr_entries: {ingested}, url_only: {no_address}")
+            logger.info(
+                f"Progress: {i + 1}/{len(entries)} | addr_entries: {ingested}, url_only: {no_address}"
+            )
             await asyncio.sleep(0.1)
 
     logger.info(f"COMPLETE: addr_entries={ingested}, url_only={no_address}")

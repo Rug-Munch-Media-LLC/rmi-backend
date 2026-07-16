@@ -9,10 +9,11 @@ Features:
 - Proxying to TCP services
 """
 
-from app.core.logging import get_logger
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -45,7 +46,9 @@ class GhostunnelManager:
     def _check_available(self) -> bool:
         """Check if ghostunnel is installed."""
         try:
-            result = subprocess.run([self.ghostunnel_bin, "version"], capture_output=True, timeout=5)
+            result = subprocess.run(
+                [self.ghostunnel_bin, "version"], capture_output=True, timeout=5
+            )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
@@ -131,7 +134,7 @@ class GhostunnelManager:
             status[addr] = {
                 "pid": process.pid,
                 "alive": process.poll() is None,
-                "started_at": datetime.utcnow().isoformat(),
+                "started_at": datetime.now(UTC).isoformat(),
             }
         return status
 

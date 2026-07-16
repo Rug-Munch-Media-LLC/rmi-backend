@@ -15,12 +15,13 @@ Auth: Session cookie from owner login. Cookie refreshed on 401.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -166,7 +167,9 @@ async def create_post(
         return {"error": str(e)}
 
 
-async def get_feed(page: int = 1, limit: int = 20, tag: str = "", include: str = "tags,authors") -> dict[str, Any]:
+async def get_feed(
+    page: int = 1, limit: int = 20, tag: str = "", include: str = "tags,authors"
+) -> dict[str, Any]:
     """Get feed via Ghost Content API."""
     if not GHOST_CONTENT_KEY:
         return {"posts": [], "error": "content key not configured"}
@@ -193,7 +196,9 @@ async def get_feed(page: int = 1, limit: int = 20, tag: str = "", include: str =
                 posts = []
                 for p in data.get("posts", []):
                     ptags = [t["name"] for t in p.get("tags", [])]
-                    post_type = next((t for t in POST_TYPES if POST_TYPES[t]["tag"] in ptags), "article")
+                    post_type = next(
+                        (t for t in POST_TYPES if POST_TYPES[t]["tag"] in ptags), "article"
+                    )
                     posts.append(
                         {
                             "id": p["id"],
@@ -237,7 +242,9 @@ async def create_thread(posts: list[str], post_type: str = "thread") -> dict[str
 
 async def generate_briefing() -> dict[str, Any]:
     """Generate daily intelligence briefing from RAG + news sources."""
-    content_parts = [f"# 🕵️ Daily Intelligence Briefing\n\n*{datetime.now(UTC).strftime('%B %d, %Y')}*\n"]
+    content_parts = [
+        f"# 🕵️ Daily Intelligence Briefing\n\n*{datetime.now(UTC).strftime('%B %d, %Y')}*\n"
+    ]
 
     # Pull from RAG
     try:
@@ -272,7 +279,9 @@ async def generate_briefing() -> dict[str, Any]:
 
 async def generate_newsletter() -> dict[str, Any]:
     """Generate weekly newsletter with top stories and analysis."""
-    content_parts = [f"# 📰 Weekly Intelligence Report\n\n*Week of {datetime.now(UTC).strftime('%B %d, %Y')}*\n"]
+    content_parts = [
+        f"# 📰 Weekly Intelligence Report\n\n*Week of {datetime.now(UTC).strftime('%B %d, %Y')}*\n"
+    ]
 
     try:
         from app.rag_service import three_pillar_search

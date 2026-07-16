@@ -21,9 +21,12 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from .base import x402Adapter
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger("x402.crewai")
 
@@ -62,6 +65,7 @@ class x402CrewAI(x402Adapter):
                 if not available:
                     invoice = self.get_invoice(tool_name)
                     from .langchain_adapter import PaymentRequiredError
+
                     raise PaymentRequiredError(
                         tool=tool_name,
                         price_usd=price,

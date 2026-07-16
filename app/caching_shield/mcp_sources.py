@@ -16,10 +16,11 @@ Usage:
 """
 
 import json
-from app.core.logging import get_logger
 import time
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("mcp_sources")
 
@@ -109,7 +110,9 @@ class MCPDataSources:
             ttl=15,
         )
 
-    async def evm_transactions(self, address: str, chain: str = "ethereum", limit: int = 10) -> dict | None:
+    async def evm_transactions(
+        self, address: str, chain: str = "ethereum", limit: int = 10
+    ) -> dict | None:
         """Get recent transactions."""
         return await self._mcp_call(
             BOAR_URL,
@@ -145,7 +148,9 @@ class MCPDataSources:
             ttl=3600,
         )
 
-    async def evm_block_info(self, block_number: int | None = None, chain: str = "ethereum") -> dict | None:
+    async def evm_block_info(
+        self, block_number: int | None = None, chain: str = "ethereum"
+    ) -> dict | None:
         """Get block info."""
         args = {"chain": chain}
         if block_number:

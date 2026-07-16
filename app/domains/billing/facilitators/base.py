@@ -17,11 +17,12 @@ Supporting types:
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("facilitator_base")
 

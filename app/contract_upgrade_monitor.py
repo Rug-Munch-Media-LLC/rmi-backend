@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 import re
 import time
@@ -28,6 +27,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -191,7 +192,9 @@ async def _fetch_url(url: str, headers: dict | None = None, timeout: float = 15.
         return _cache.get(cache_key, (0, None))[1]
 
 
-async def _background_refresh(url: str, headers: dict | None, timeout: float, cache_key: str) -> None:
+async def _background_refresh(
+    url: str, headers: dict | None, timeout: float, cache_key: str
+) -> None:
     """Refresh cache in background so stale data serves immediately."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -205,7 +208,9 @@ async def _background_refresh(url: str, headers: dict | None, timeout: float, ca
 # ── RPC Storage Slot Reader ──────────────────────────────────────
 
 
-async def read_storage_slot(address: str, slot: str, chain: str, client: httpx.AsyncClient | None = None) -> str | None:
+async def read_storage_slot(
+    address: str, slot: str, chain: str, client: httpx.AsyncClient | None = None
+) -> str | None:
     """Read an EVM storage slot using a public RPC endpoint.
 
     Uses chain-specific public RPCs. Returns the 32-byte hex value.
@@ -246,7 +251,9 @@ async def read_storage_slot(address: str, slot: str, chain: str, client: httpx.A
             )
             if resp.status_code == 200:
                 result = resp.json()
-                value = result.get("result", "0x0000000000000000000000000000000000000000000000000000000000000000")
+                value = result.get(
+                    "result", "0x0000000000000000000000000000000000000000000000000000000000000000"
+                )
                 # Extract address from padded 32 bytes (last 20 bytes = 40 hex chars)
                 if value and len(value) >= 66:
                     addr = "0x" + value[-40:]
@@ -264,7 +271,9 @@ async def read_storage_slot(address: str, slot: str, chain: str, client: httpx.A
 # ── Proxy Detection ──────────────────────────────────────────────
 
 
-async def detect_proxy(address: str, chain: str, client: httpx.AsyncClient | None = None) -> ProxyInfo:
+async def detect_proxy(
+    address: str, chain: str, client: httpx.AsyncClient | None = None
+) -> ProxyInfo:
     """Detect if an address is a proxy contract and identify its type.
 
     Checks multiple proxy standards in order:
@@ -448,7 +457,11 @@ async def fetch_upgrade_history(
     if admin_data and admin_data.get("status") == "1" and admin_data.get("result"):
         for log in admin_data["result"]:
             if isinstance(log, dict):
-                logger.debug("Admin event found for %s: %s", address[:10], log.get("transactionHash", "")[:20])
+                logger.debug(
+                    "Admin event found for %s: %s",
+                    address[:10],
+                    log.get("transactionHash", "")[:20],
+                )
 
     return events
 
@@ -524,7 +537,6 @@ async def check_timelock(address: str, chain: str) -> str | None:
     # Try to detect timelock by checking admin's own storage
     # Active timelocks have a minimum delay > 0
     try:
-
         # Use storage slot to check if admin has timelock delay
         delay_slot = "0x0000000000000000000000000000000000000000000000000000000000000002"
         result = await read_storage_slot(admin, delay_slot, chain)
@@ -555,7 +567,9 @@ def _assess_risk(
     # 2. Beacon proxies have higher attack surface
     if proxy_info.proxy_type == "beacon":
         risk += 15.0
-        factors.append("Beacon proxy - multiple implementations share same beacon (wider attack surface)")
+        factors.append(
+            "Beacon proxy - multiple implementations share same beacon (wider attack surface)"
+        )
 
     # 3. UUPS proxies - upgrade logic in implementation (higher risk if buggy)
     if proxy_info.proxy_type == "eip1822":
@@ -565,14 +579,20 @@ def _assess_risk(
         )
 
     # 4. Recent upgrades increase risk
-    recent_count = sum(1 for u in upgrades if u.timestamp and current_time - u.timestamp < SUSPICIOUS_UPGRADE_WINDOW)
+    recent_count = sum(
+        1
+        for u in upgrades
+        if u.timestamp and current_time - u.timestamp < SUSPICIOUS_UPGRADE_WINDOW
+    )
     if recent_count > 0:
         risk += min(recent_count * 15.0, 40.0)
         factors.append(f"{recent_count} upgrade(s) in the last 24 hours")
 
     # 5. Multiple upgrades in 30 days
     thirty_days = 30 * 86400
-    month_count = sum(1 for u in upgrades if u.timestamp and current_time - u.timestamp < thirty_days)
+    month_count = sum(
+        1 for u in upgrades if u.timestamp and current_time - u.timestamp < thirty_days
+    )
     if month_count > 5:
         risk += 20.0
         factors.append(f"Frequent upgrades: {month_count} upgrades in 30 days")
@@ -604,7 +624,9 @@ def _assess_risk(
 class ContractUpgradeAnalyzer:
     """Main analyzer for contract upgrade monitoring."""
 
-    async def analyze(self, contract_address: str, chain: str = "ethereum") -> ContractUpgradeReport:
+    async def analyze(
+        self, contract_address: str, chain: str = "ethereum"
+    ) -> ContractUpgradeReport:
         """Run complete upgrade monitoring analysis on a contract."""
         report = ContractUpgradeReport(
             contract_address=contract_address,
@@ -634,7 +656,9 @@ class ContractUpgradeAnalyzer:
 
             # Step 4: Identify recent suspicious upgrades
             report.recent_suspicious_upgrades = [
-                u for u in upgrades if u.timestamp and current_time - u.timestamp < SUSPICIOUS_UPGRADE_WINDOW
+                u
+                for u in upgrades
+                if u.timestamp and current_time - u.timestamp < SUSPICIOUS_UPGRADE_WINDOW
             ]
 
             # Step 5: Implementation age
@@ -642,11 +666,15 @@ class ContractUpgradeAnalyzer:
                 last_upgrade = max(upgrades, key=lambda u: u.timestamp or 0)
                 report.last_upgrade_time = last_upgrade.timestamp
                 if last_upgrade.timestamp:
-                    report.implementation_age_days = (current_time - last_upgrade.timestamp) // 86400
+                    report.implementation_age_days = (
+                        current_time - last_upgrade.timestamp
+                    ) // 86400
 
             # Step 6: Admin privileges
             if proxy_info.detected_selectors:
-                report.admin_privileges = [DANGEROUS_SELECTORS.get(s, s) for s in proxy_info.detected_selectors]
+                report.admin_privileges = [
+                    DANGEROUS_SELECTORS.get(s, s) for s in proxy_info.detected_selectors
+                ]
 
             # Step 7: Risk assessment
             risk, factors = _assess_risk(proxy_info, upgrades, current_time)
@@ -658,7 +686,9 @@ class ContractUpgradeAnalyzer:
             if proxy_info.proxy_type_name:
                 summary_parts.append(f"is a **{proxy_info.proxy_type_name}**")
             if proxy_info.implementation_address:
-                summary_parts.append(f"→ implementation at **{proxy_info.implementation_address[:10]}...**")
+                summary_parts.append(
+                    f"→ implementation at **{proxy_info.implementation_address[:10]}...**"
+                )
             if report.upgrade_count_30d > 0:
                 summary_parts.append(f"| **{report.upgrade_count_30d}** upgrades in 30 days")
             summary_parts.append(f"| Risk: **{report.risk_score}/100**")

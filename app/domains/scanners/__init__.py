@@ -26,7 +26,11 @@ Modules:
 from .address_labeler import AddressLabeler, AddressLabelReport  # noqa: F401
 from .block_zero_sniper import BlockZeroReport, BlockZeroSniperAnalyzer  # noqa: F401
 from .bundle_detector import BundleDetector  # noqa: F401
-from .bytecode_similarity import BytecodeSimilarityAnalyzer, BytecodeSimilarityReport, hash_bytecode  # noqa: F401
+from .bytecode_similarity import (  # noqa: F401
+    BytecodeSimilarityAnalyzer,
+    BytecodeSimilarityReport,
+    hash_bytecode,
+)
 from .contract_authority import (
     ContractAuthorityReport,  # noqa: F401
     ContractAuthorityScanner,  # noqa: F401
@@ -54,7 +58,11 @@ from .oracle_manipulation import OracleManipulationDetector, OracleManipulationR
 from .proxy_detector import ProxyDetector, ProxyReport  # noqa: F401
 from .pump_dump_detector import PumpDumpDetector, PumpDumpReport  # noqa: F401
 from .pumpfun_analyzer import PumpFunAnalyzer  # noqa: F401
-from .rag_citations import build_citation_string, query_address_rag, query_rag_citations  # noqa: F401
+from .rag_citations import (  # noqa: F401
+    build_citation_string,
+    query_address_rag,
+    query_rag_citations,
+)
 from .sentiment_analyzer import SentimentAnalyzer  # noqa: F401
 
 # Pipeline orchestrator

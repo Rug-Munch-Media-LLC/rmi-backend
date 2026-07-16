@@ -19,10 +19,11 @@ where lambda = ln(2) / half_life
 Also supports recency boosting for very fresh content (<24h).
 """
 
-from app.core.logging import get_logger
 import math
 from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -89,7 +90,9 @@ def compute_decay(age_days: float, half_life_days: float) -> float:
     return math.exp(-lam * age_days)
 
 
-def compute_recency_boost(age_days: float, boost_days: float = 1.0, boost_factor: float = 1.15) -> float:
+def compute_recency_boost(
+    age_days: float, boost_days: float = 1.0, boost_factor: float = 1.15
+) -> float:
     """
     Boost very fresh content (published within last boost_days).
     Linearly decays from boost_factor to 1.0 over boost_days.

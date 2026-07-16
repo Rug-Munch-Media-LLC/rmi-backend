@@ -3,12 +3,14 @@
 Stub for unauthenticated wallet queries. Real implementation will
 resolve wallets, fetch labels, and return balance/history data.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic.config import ConfigDict
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
 
@@ -16,12 +18,14 @@ router = APIRouter(prefix="/wallet", tags=["wallet"])
 class WalletResolveResponse(BaseModel):
     """Response for wallet resolution."""
 
-    chain: str
-    address: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    chain: str = Field(..., min_length=1, max_length=50, pattern=r'^(ethereum|bsc|polygon|arbitrum|base|optimism|avalanche|solana)$')
+    address: str = Field(..., min_length=26, max_length=44, pattern=r'^0x[a-fA-F0-9]{40}$')
     labels: list[str] = []
-    entity: str | None = None
-    balance_usd: float | None = None
-    tx_count: int | None = None
+    entity: str | None = Field(None, min_length=1, max_length=100)
+    balance_usd: float | None = Field(None, ge=0)
+    tx_count: int | None = Field(None, ge=0)
 
 
 @router.get("/{address}", response_model=WalletResolveResponse)

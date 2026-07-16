@@ -77,7 +77,9 @@ def main():
     # 3. Verify
     print("  [3/3] Verifying...")
     size_mb = sum(
-        os.path.getsize(os.path.join(dirpath, f)) for dirpath, _, filenames in os.walk(OUTPUT_DIR) for f in filenames
+        os.path.getsize(os.path.join(dirpath, f))
+        for dirpath, _, filenames in os.walk(OUTPUT_DIR)
+        for f in filenames
     ) / (1024 * 1024)
 
     elapsed = time.time() - start

@@ -17,17 +17,19 @@ Usage:
   asyncio.create_task(start_listener())        # in lifespan
   python3 -m app.domains.threat.certstream_listener --duration 300   # CLI
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-from app.core.logging import get_logger
 import os
 import signal
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -95,6 +97,7 @@ async def _telegram_alert(domain: str, brand: str, issuer: str) -> bool:
         if not bot_token or not chat_id:
             return False
         import httpx
+
         text = (
             f"⚠️ Phishing domain registered: {domain}\n"
             f"Brand: {brand}\n"
@@ -176,9 +179,7 @@ async def _persist_domain(domain: str, brand: str, issued_at: datetime | None, i
 
 # ── CertStream WebSocket listener ──────────────────────────────────
 # Public CertStream (CaliDog) - the canonical free CT feed.
-CERTSTREAM_URL = os.getenv(
-    "CERTSTREAM_URL", "wss://certstream.calidog.io/"
-)
+CERTSTREAM_URL = os.getenv("CERTSTREAM_URL", "wss://certstream.calidog.io/")
 
 
 async def _process_message(msg: dict) -> int:
@@ -201,10 +202,7 @@ async def _process_message(msg: dict) -> int:
     if subject and not subject.startswith("*"):
         domains.add(subject.lower().strip())
 
-    issuer = (
-        msg.get("data", {}).get("chain", [{}])[0].get("subject", {}).get("O", "")
-        or "unknown"
-    )
+    issuer = msg.get("data", {}).get("chain", [{}])[0].get("subject", {}).get("O", "") or "unknown"
     issued_at = None
     not_before = leaf.get("not_before")
     if not_before:
@@ -222,7 +220,9 @@ async def _process_message(msg: dict) -> int:
             threats += 1
             logger.warning(
                 "certstream_threat_detected domain=%s brand=%s issuer=%s",
-                d, brand, issuer,
+                d,
+                brand,
+                issuer,
             )
             await _persist_domain(d, brand, issued_at, issuer)
             await _telegram_alert(d, brand, issuer)
@@ -317,9 +317,11 @@ def _cli() -> None:
     async def _main() -> None:
         stop = asyncio.Event()
         if args.duration > 0:
+
             async def _trigger() -> None:
                 await asyncio.sleep(args.duration)
                 stop.set()
+
             asyncio.create_task(_trigger())
 
         await _run_listener(stop)
@@ -328,6 +330,7 @@ def _cli() -> None:
         # Forever mode: install SIGINT handler
         def _sigint(*_a: object) -> None:
             raise KeyboardInterrupt
+
         signal.signal(signal.SIGINT, _sigint)
     try:
         asyncio.run(_main())

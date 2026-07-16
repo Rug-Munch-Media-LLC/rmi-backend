@@ -3,12 +3,14 @@
 Stub for unauthenticated token queries. Real implementation will
 fetch token metadata, holders, liquidity, and risk score.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic.config import ConfigDict
 
 router = APIRouter(prefix="/token", tags=["token"])
 
@@ -16,22 +18,26 @@ router = APIRouter(prefix="/token", tags=["token"])
 class TokenSummary(BaseModel):
     """Basic token metadata."""
 
-    chain: str
-    address: str
-    name: str | None = None
-    symbol: str | None = None
-    decimals: int | None = None
-    deployed_at: str | None = None
-    deployer: str | None = None
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    chain: str = Field(..., min_length=1, max_length=50, pattern=r'^(ethereum|bsc|polygon|arbitrum|base|optimism|avalanche|solana)$')
+    address: str = Field(..., min_length=26, max_length=44, pattern=r'^0x[a-fA-F0-9]{40}$')
+    name: str | None = Field(None, min_length=1, max_length=100)
+    symbol: str | None = Field(None, min_length=1, max_length=20)
+    decimals: int | None = Field(None, ge=0, le=18)
+    deployed_at: str | None = Field(None, min_length=1, max_length=100)
+    deployer: str | None = Field(None, min_length=26, max_length=44, pattern=r'^0x[a-fA-F0-9]{40}$')
 
 
 class TokenRisk(BaseModel):
     """Token risk assessment."""
 
-    address: str
-    chain: str
-    risk_score: int
-    risk_tier: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    address: str = Field(..., min_length=26, max_length=44, pattern=r'^0x[a-fA-F0-9]{40}$')
+    chain: str = Field(..., min_length=1, max_length=50, pattern=r'^(ethereum|bsc|polygon|arbitrum|base|optimism|avalanche|solana)$')
+    risk_score: int = Field(..., ge=0, le=100)
+    risk_tier: str = Field(..., min_length=1, max_length=20)
     factors: list[str] = []
 
 

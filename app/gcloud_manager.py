@@ -18,8 +18,9 @@ Available services:
 """
 
 import json
-from app.core.logging import get_logger
 import os
+
+from app.core.logging import get_logger
 
 logger = get_logger("gcloud")
 
@@ -188,7 +189,9 @@ class GoogleCloudManager:
 
     # ── Cloud Vision ───────────────────────────────────────
 
-    async def vision_ocr(self, image_url: str | None = None, image_bytes: bytes | None = None) -> str:
+    async def vision_ocr(
+        self, image_url: str | None = None, image_bytes: bytes | None = None
+    ) -> str:
         """OCR text from image. Free tier: 1,000 units/month."""
         import httpx
 
@@ -221,7 +224,9 @@ class GoogleCloudManager:
             logger.warning(f"Vision: {e}")
             return ""
 
-    async def vision_labels(self, image_url: str | None = None, image_bytes: bytes | None = None) -> list:
+    async def vision_labels(
+        self, image_url: str | None = None, image_bytes: bytes | None = None
+    ) -> list:
         """Detect labels in image. Free tier: 1,000 units/month."""
         import httpx
 

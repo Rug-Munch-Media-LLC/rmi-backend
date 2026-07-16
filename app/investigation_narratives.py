@@ -14,9 +14,10 @@ Pipeline:
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -353,9 +354,13 @@ async def investigate(
 
     # Aggregate confidence
     confidence_scores = [
-        h.get("confidence", {}).get("score", 0) for h in hops_executed if h.get("success") and h.get("confidence")
+        h.get("confidence", {}).get("score", 0)
+        for h in hops_executed
+        if h.get("success") and h.get("confidence")
     ]
-    avg_confidence = round(sum(confidence_scores) / len(confidence_scores)) if confidence_scores else 0
+    avg_confidence = (
+        round(sum(confidence_scores) / len(confidence_scores)) if confidence_scores else 0
+    )
 
     elapsed = time.time() - start_time
 

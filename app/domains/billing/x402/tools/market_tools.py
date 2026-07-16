@@ -14,9 +14,10 @@ Endpoints mounted on sub_router:
   POST /api/v1/x402-tools/airdrop_finder
   POST /api/v1/x402-tools/mev_protection
 """
+
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import aiohttp
 from fastapi import APIRouter, HTTPException
@@ -114,7 +115,7 @@ async def launch_radar(chain: str = "solana", window_minutes: int = 5):
         return {
             "tool": "Launch Radar",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -189,7 +190,7 @@ async def launch_intel(req: GenericRequest):
         return {
             "tool": "Launch Intelligence",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -264,7 +265,7 @@ async def anomaly_detector(req: GenericRequest):
         return {
             "tool": "Anomaly Detector",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -337,7 +338,7 @@ async def market_overview(req: GenericRequest):
         return {
             "tool": "Market Overview",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -380,16 +381,19 @@ async def _chain_health(chain: str) -> dict:
         healthy = 0
         for rpc in rpcs[:2]:
             try:
-                async with aiohttp.ClientSession() as session, session.post(
-                    rpc,
-                    json={
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "eth_blockNumber" if c != "solana" else "getBlockHeight",
-                        "params": [],
-                    },
-                    timeout=aiohttp.ClientTimeout(total=5),
-                ) as resp:
+                async with (
+                    aiohttp.ClientSession() as session,
+                    session.post(
+                        rpc,
+                        json={
+                            "jsonrpc": "2.0",
+                            "id": 1,
+                            "method": "eth_blockNumber" if c != "solana" else "getBlockHeight",
+                            "params": [],
+                        },
+                        timeout=aiohttp.ClientTimeout(total=5),
+                    ) as resp,
+                ):
                     if resp.status == 200:
                         healthy += 1
             except Exception:
@@ -408,7 +412,7 @@ async def chain_health(req: GenericRequest):
         return {
             "tool": "Chain Health",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -461,7 +465,7 @@ async def defi_yield_scanner(req: GenericRequest):
         return {
             "tool": "DeFi Yield Scanner",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -520,7 +524,7 @@ async def gas_forecast(req: GenericRequest):
         return {
             "tool": "Gas Forecast",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -595,7 +599,7 @@ async def sniper_alert(req: GenericRequest):
         return {
             "tool": "Sniper Alert",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -645,7 +649,7 @@ async def airdrop_finder(req: GenericRequest):
         return {
             "tool": "Airdrop Finder",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -725,7 +729,7 @@ async def mev_protection(req: GenericRequest):
         return {
             "tool": "MEV Protection",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }

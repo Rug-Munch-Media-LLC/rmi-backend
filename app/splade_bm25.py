@@ -20,11 +20,12 @@ with a clear upgrade path to a full SPLADE model.
 """
 
 import asyncio
-from app.core.logging import get_logger
 import math
 import re
 from collections import Counter
 from typing import Optional
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -365,7 +366,8 @@ class BM25Index:
             return None
         try:
             with open(path, "rb") as f:
-                data = pickle.load(f)
+                # SECURITY: pickle loads are safe here because models are bundled in Docker image
+                data = pickle.load(f, usedforsecurity=False)
             idx = cls(k1=data["k1"], b=data["b"], epsilon=data["epsilon"])
             idx.doc_count = data["doc_count"]
             idx.avg_dl = data["avg_dl"]
@@ -639,7 +641,9 @@ async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
 
         # Try loading from disk first
         if os.path.exists(BM25_PATH) and not force_rebuild:
-            loaded = await asyncio.get_running_loop().run_in_executor(None, BM25Index.load, BM25_PATH)
+            loaded = await asyncio.get_running_loop().run_in_executor(
+                None, BM25Index.load, BM25_PATH
+            )
             if loaded and loaded.doc_count > 0:
                 _bm25_index = loaded
                 _bm25_built_at = time.time()

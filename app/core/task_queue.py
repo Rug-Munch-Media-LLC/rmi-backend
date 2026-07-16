@@ -2,10 +2,11 @@
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import os
 import time
 from collections.abc import Callable
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")
@@ -25,7 +26,13 @@ async def enqueue(name: str, payload: dict, delay: int = 0, max_retries: int = 3
     try:
         r = redis.from_url(REDIS_URL)
         task = json.dumps(
-            {"name": name, "payload": payload, "retries": 0, "max_retries": max_retries, "created_at": time.time()}
+            {
+                "name": name,
+                "payload": payload,
+                "retries": 0,
+                "max_retries": max_retries,
+                "created_at": time.time(),
+            }
         )
         if delay:
             r.zadd("rmi:task_queue:delayed", {task: time.time() + delay})
@@ -75,11 +82,14 @@ async def process_tasks() -> None:
                     delay = 2**retries  # exponential backoff: 2, 4, 8 seconds
                     task["retries"] = retries
                     r.zadd("rmi:task_queue:delayed", {json.dumps(task): time.time() + delay})
-                    logger.warning(f"Task {name} failed (attempt {retries}/{max_retries}), retrying in {delay}s")
+                    logger.warning(
+                        f"Task {name} failed (attempt {retries}/{max_retries}), retrying in {delay}s"
+                    )
                 else:
                     # Dead letter queue
                     r.lpush(
-                        "rmi:task_queue:dead", json.dumps({"task": task, "error": str(e), "failed_at": time.time()})
+                        "rmi:task_queue:dead",
+                        json.dumps({"task": task, "error": str(e), "failed_at": time.time()}),
                     )
                     logger.error(f"Task {name} permanently failed after {max_retries} retries")
         except Exception as e:

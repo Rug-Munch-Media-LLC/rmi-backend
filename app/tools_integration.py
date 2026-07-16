@@ -353,7 +353,9 @@ async def vault_list_secrets(path: str = "secret") -> list[str]:
     """List secrets in Vault."""
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(f"{VAULT_ADDR}/v1/{path}?list=true", headers={"X-Vault-Token": "root"})
+            r = await client.get(
+                f"{VAULT_ADDR}/v1/{path}?list=true", headers={"X-Vault-Token": "root"}
+            )
             if r.status_code == 200:
                 return r.json().get("data", {}).get("keys", [])
     except Exception:

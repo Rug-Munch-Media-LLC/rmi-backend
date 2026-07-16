@@ -12,9 +12,10 @@ Endpoints mounted on sub_router:
   POST /api/v1/x402-tools/nft_wash_detector
   POST /api/v1/x402-tools/bridge_security
 """
+
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
@@ -137,7 +138,7 @@ async def social_sentiment(req: SentimentRequest):
         return {
             "tool": "Social Sentiment Radar",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -265,7 +266,7 @@ async def url_scam_detector(req: URLRequest):
         return {
             "tool": "URL Scam Detector",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -322,7 +323,7 @@ async def twitter_profile(req: GenericRequest):
         return {
             "tool": "Twitter Profile",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -358,7 +359,7 @@ async def twitter_timeline(req: GenericRequest):
         return {
             "tool": "Twitter Timeline",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "user": query,
             "tweets": tweets,
             "sources_used": ["duckduckgo"] if tweets else [],
@@ -394,7 +395,7 @@ async def twitter_search(req: GenericRequest):
         return {
             "tool": "Twitter Search",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "query": query,
             "results": results,
             "sources_used": ["duckduckgo"] if results else [],
@@ -456,7 +457,7 @@ async def social_signal(req: GenericRequest):
         return {
             "tool": "Social Signal",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -537,7 +538,7 @@ async def nft_wash_detector(req: GenericRequest):
         return {
             "tool": "NFT Wash Detector",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
@@ -593,7 +594,7 @@ async def bridge_security(req: GenericRequest):
         return {
             "tool": "Bridge Security",
             "version": "2.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }

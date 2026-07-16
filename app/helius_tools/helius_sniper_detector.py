@@ -12,14 +12,15 @@ Key metrics:
 - Jito bundle detection
 """
 
-from app.core.logging import get_logger
 import os
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
+
+from app.core.logging import get_logger
 
 logger = get_logger("sniper-detector")
 
@@ -130,7 +131,9 @@ class SniperDetector:
         coordinated = [s for s in sniper_wallets if s.similarity_score > 0.7]
 
         # Step 5: Calculate insider probability
-        insider_prob = self._calculate_insider_probability(sniper_wallets, ring_size, jito_count, coordinated)
+        insider_prob = self._calculate_insider_probability(
+            sniper_wallets, ring_size, jito_count, coordinated
+        )
 
         # Step 6: Build evidence
         evidence = self._build_evidence(sniper_wallets, ring_funding, ring_size, jito_count)
@@ -142,12 +145,13 @@ class SniperDetector:
             token_address=token_address,
             launch_tx=launch_tx,
             launch_time=launch_time,
-            detection_time=datetime.utcnow(),
+            detection_time=datetime.now(UTC),
             sniper_wallets=sniper_wallets,
             total_sniper_count=len(sniper_wallets),
             coordinated_sniper_count=len(coordinated),
             jito_bundle_count=jito_count,
-            avg_time_to_first_buy_ms=sum(s.first_buy_time_ms for s in sniper_wallets) / max(len(sniper_wallets), 1),
+            avg_time_to_first_buy_ms=sum(s.first_buy_time_ms for s in sniper_wallets)
+            / max(len(sniper_wallets), 1),
             total_sniper_volume_sol=sum(s.position_size_sol for s in sniper_wallets),
             ring_detected=ring_size >= 3,
             ring_size=ring_size,
@@ -159,7 +163,9 @@ class SniperDetector:
 
     async def _find_creation_tx(self, token_address: str) -> dict[str, Any] | None:
         """Find the transaction that created the token."""
-        sigs_result = await self._rpc_call("getSignaturesForAddress", [token_address, {"limit": 50}])
+        sigs_result = await self._rpc_call(
+            "getSignaturesForAddress", [token_address, {"limit": 50}]
+        )
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
         if not signatures:
@@ -173,9 +179,13 @@ class SniperDetector:
             "block": creation_sig.get("slot", 0),
         }
 
-    async def _get_early_buyers(self, token_address: str, launch_block: int, blocks_after: int = 10) -> list[dict]:
+    async def _get_early_buyers(
+        self, token_address: str, launch_block: int, blocks_after: int = 10
+    ) -> list[dict]:
         """Get wallets that interacted with the token in first N blocks."""
-        sigs_result = await self._rpc_call("getSignaturesForAddress", [token_address, {"limit": 200}])
+        sigs_result = await self._rpc_call(
+            "getSignaturesForAddress", [token_address, {"limit": 200}]
+        )
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
         buyers = []
@@ -269,7 +279,9 @@ class SniperDetector:
 
     async def _trace_funding(self, wallet_address: str) -> str | None:
         """Trace the funding source of a wallet."""
-        sigs_result = await self._rpc_call("getSignaturesForAddress", [wallet_address, {"limit": 5}])
+        sigs_result = await self._rpc_call(
+            "getSignaturesForAddress", [wallet_address, {"limit": 5}]
+        )
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
         if not signatures:
@@ -359,8 +371,8 @@ class SniperDetector:
         return SniperReport(
             token_address=token_address,
             launch_tx="",
-            launch_time=datetime.utcnow(),
-            detection_time=datetime.utcnow(),
+            launch_time=datetime.now(UTC),
+            detection_time=datetime.now(UTC),
             sniper_wallets=[],
             total_sniper_count=0,
             coordinated_sniper_count=0,

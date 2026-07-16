@@ -3,11 +3,11 @@ Chain Data Feeder - Pre-loads wallet clustering engine with real on-chain data.
 Uses Helius (primary) with QuickNode fallback. Rate-limited + cached.
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 from app.chain_cache import get_chain_cache
 from app.chain_client import get_chain_client
+from app.core.logging import get_logger
 from app.wallet_clustering import Transaction, get_clustering_engine
 
 logger = get_logger(__name__)

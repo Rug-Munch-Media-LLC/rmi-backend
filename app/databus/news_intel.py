@@ -19,7 +19,6 @@ Sources (all free):
 
 import asyncio
 import hashlib
-from app.core.logging import get_logger
 import os
 import re
 import time
@@ -28,6 +27,8 @@ from datetime import UTC, datetime
 
 import feedparser
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("news_intel")
 
@@ -286,7 +287,9 @@ SENTIMENT_KEYWORDS = {
 def score_quality(article: dict) -> float:
     """Score article quality 0-1 based on signals."""
     score = 0.5
-    text = (article.get("title", "") + " " + article.get("summary", "") + article.get("description", "")).lower()
+    text = (
+        article.get("title", "") + " " + article.get("summary", "") + article.get("description", "")
+    ).lower()
 
     # Length - substantive articles are better
     content_len = len(article.get("summary", "") + article.get("description", ""))
@@ -332,7 +335,9 @@ def analyze_sentiment(article: dict) -> dict:
 
     # Calculate weighted score (-1.0 to 1.0)
     # Bears are weighted slightly higher in crypto due to risk asymmetry
-    sentiment_score = ((bulls * 1.0) - (bears * 1.2) + high_impact_title + (high_impact_body * 0.5)) / max(total, 1)
+    sentiment_score = (
+        (bulls * 1.0) - (bears * 1.2) + high_impact_title + (high_impact_body * 0.5)
+    ) / max(total, 1)
 
     # Determine label
     if sentiment_score > 0.3:
@@ -557,7 +562,10 @@ async def _fetch_x_crypto() -> list[dict]:
                 )
                 if r.status_code == 200:
                     data = r.json()
-                    users = {u["id"]: u.get("username", "") for u in data.get("includes", {}).get("users", [])}
+                    users = {
+                        u["id"]: u.get("username", "")
+                        for u in data.get("includes", {}).get("users", [])
+                    }
                     for tweet in data.get("data", []):
                         metrics = tweet.get("public_metrics", {})
                         articles.append(
@@ -760,7 +768,9 @@ async def get_social_feed(limit: int = 30, **kw) -> dict:
     # Sort by engagement
     all_social.sort(
         key=lambda a: (
-            a.get("likes", 0) + a.get("retweets", 0) * 2 + a.get("sentiment_votes", {}).get("important", 0) * 3
+            a.get("likes", 0)
+            + a.get("retweets", 0) * 2
+            + a.get("sentiment_votes", {}).get("important", 0) * 3
         ),
         reverse=True,
     )

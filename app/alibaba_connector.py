@@ -3,10 +3,11 @@ Alibaba Cloud Connector - Tongyi Wanxiang AI for Image Generation.
 Generate professional graphics for cards, scorecards, marketing assets.
 """
 
-from app.core.logging import get_logger
 import os
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -68,7 +69,8 @@ class AlibabaConnector:
             "model": "wanx-v1",  # Tongyi Wanxiang model
             "input": {
                 "prompt": prompt,
-                "negative_prompt": negative_prompt or "blurry, low quality, distorted, ugly, text, watermark",
+                "negative_prompt": negative_prompt
+                or "blurry, low quality, distorted, ugly, text, watermark",
                 "size": f"{width}*{height}",
                 "style": style,
             },

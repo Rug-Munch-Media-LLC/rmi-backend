@@ -33,11 +33,12 @@ with zero setup.
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import os
 import time
 from pathlib import Path
 from typing import Any
+
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -213,9 +214,8 @@ class DuckDBAnalytics:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         # Use COPY (SELECT ... ) TO 'file.parquet' (FORMAT PARQUET) for direct export
         start = time.monotonic()
-        self._conn.execute(f"COPY ({sql}) TO ? (FORMAT PARQUET)", [output_path, *(params or [])])
+        self._conn.execute(f"COPY ({sql}) TO '{output_path}' (FORMAT PARQUET)", params or [])
         elapsed_ms = (time.monotonic() - start) * 1000
-        # Count rows - validated path, safe for string interpolation
         rows = self.query(f"SELECT count(*) AS n FROM '{output_path}'")
         n = rows[0]["n"] if rows else 0
         log.info(
@@ -241,17 +241,10 @@ class DuckDBAnalytics:
         )
         return [r["table_name"] for r in rows]
 
-    def _attach_postgres(self, pg_url: str) -> None:
-        """Attach a Postgres DB as READ_ONLY under the alias 'pg'.
-
-        Idempotent: skips if already attached.
-        """
-        if "pg" in self._attached:
-            return
-        # DuckDB's ATTACH syntax for Postgres: ATTACH 'postgres://...' AS pg (READ_ONLY)
+    # DuckDB's ATTACH syntax for Postgres: ATTACH 'postgres://...' AS pg (READ_ONLY)
         # Use the SQL escaping: escape single quotes in URL by doubling them
         escaped_url = pg_url.replace("'", "''")
-        self._conn.execute(f"ATTACH '{escaped_url}' AS pg (READ_ONLY)")
+        self._conn.execute("ATTACH ? AS pg (READ_ONLY)", [escaped_url])
         self._attached.add("pg")
         log.info("duckdb_attached_postgres alias=pg")
 

@@ -1,12 +1,11 @@
 """Payment ORM model."""
 
 import uuid
+from typing import Any
 
 from sqlalchemy import JSON, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
-
-from typing import Any
 
 from app.models import Base
 from app.models.base import TimestampMixin

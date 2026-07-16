@@ -18,23 +18,24 @@ into the prior (they are orthogonal signals, not evidence).
 The legacy 0-100 score is derived deterministically from probability:
   score = round((1 - probability) * 100)
 """
+
 from __future__ import annotations
 
-from app.core.logging import get_logger
 import math
 
 from app.catalog.models import Deployer, utcnow
+from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
 
 # ── Prior adjustments (Bayesian update weights) ────────────────
 PRIOR_WEIGHTS: dict[str, int] = {
-    "prior_alpha": 1,            # Beta(1,1) = uniform prior
+    "prior_alpha": 1,  # Beta(1,1) = uniform prior
     "prior_beta": 1,
-    "news_pessimistic_shift": 2, # +2 to beta if avg sentiment < -0.3
+    "news_pessimistic_shift": 2,  # +2 to beta if avg sentiment < -0.3
     "news_optimistic_shift": 2,  # +2 to alpha if avg sentiment > 0.3
-    "news_window_hours": 720,    # 30 days
+    "news_window_hours": 720,  # 30 days
     "news_negative_threshold": -0.3,
     "news_positive_threshold": 0.3,
 }
@@ -94,6 +95,7 @@ async def compute_deployer_posterior(
             cached = await catalog._redis.get(cache_key)
             if cached:
                 import json as _json
+
                 return _json.loads(cached)
         except Exception:
             pass
@@ -155,6 +157,7 @@ async def compute_deployer_posterior(
     if catalog._health.redis:
         try:
             import json as _json
+
             await catalog._redis.setex(cache_key, 3600, _json.dumps(result))
         except Exception:
             pass
@@ -163,6 +166,7 @@ async def compute_deployer_posterior(
 
 
 # ── Backward-compatible wrapper (returns just the int score) ──
+
 
 async def compute_deployer_reputation(
     deployer: Deployer,

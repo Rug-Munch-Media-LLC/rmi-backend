@@ -45,7 +45,7 @@ import sys  # noqa: E402
 import time  # noqa: E402
 from collections import defaultdict  # noqa: E402
 from dataclasses import asdict, dataclass, field  # noqa: E402
-from datetime import datetime  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
 
 from app.core.logging import get_logger  # noqa: E402
 
@@ -322,7 +322,7 @@ class DegenSecurityScanner:
 
         report = SecurityReport(
             token_address=token_address,
-            scan_timestamp=datetime.utcnow().isoformat(),
+            scan_timestamp=datetime.now(UTC).isoformat(),
         )
 
         # ── Phase 1: Token Metadata ──────────────────────────────────────────

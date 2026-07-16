@@ -1,11 +1,10 @@
 """Unified Scanner Router v3 - matches WalletScanner v3 fields."""
 
-from app.core.logging import get_logger
-
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
 from app.unified_token_scanner import get_token_scanner
 from app.unified_wallet_scanner import get_wallet_scanner
 

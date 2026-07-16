@@ -22,11 +22,12 @@ Usage:
 
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("helius_das")
 
@@ -55,7 +56,9 @@ class HeliusDasClient:
 
     async def _post(self, method: str, params: dict, ttl: int = 60) -> dict | None:
         """Make a cached DAS API call."""
-        cache_key = hashlib.sha256(f"{method}:{json.dumps(params, sort_keys=True)}".encode()).hexdigest()[:24]
+        cache_key = hashlib.sha256(
+            f"{method}:{json.dumps(params, sort_keys=True)}".encode()
+        ).hexdigest()[:24]
 
         # L1 cache
         entry = self._l1.get(cache_key)

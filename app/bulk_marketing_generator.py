@@ -4,11 +4,12 @@ Uses Alibaba's best vision model for professional marketing graphics.
 All graphics follow EXACT brand guidelines. Uploads to Dropbox automatically.
 """
 
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 from PIL import Image, ImageDraw, ImageFont
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -393,7 +394,9 @@ def add_circular_frame(img, color=BRAND["gold"], width=5):
     """Add gold circular frame."""
     draw = ImageDraw.Draw(img)
     margin = 20
-    draw.ellipse([margin, margin, img.size[0] - margin, img.size[1] - margin], outline=color, width=width)
+    draw.ellipse(
+        [margin, margin, img.size[0] - margin, img.size[1] - margin], outline=color, width=width
+    )
     return img
 
 
@@ -527,12 +530,16 @@ def generate_all_graphics() -> list[dict]:
         # Upload to Dropbox
         if result["status"] == "success":
             upload_to_dropbox(result["path"])
-            print(f"[{i:3d}/{len(GRAPHIC_CONCEPTS)}] ✅ {result['type']:15} - {result['name']:25} - {result['size']}")
+            print(
+                f"[{i:3d}/{len(GRAPHIC_CONCEPTS)}] ✅ {result['type']:15} - {result['name']:25} - {result['size']}"
+            )
         else:
             print(f"[{i:3d}/{len(GRAPHIC_CONCEPTS)}] ❌ {result.get('error', 'Unknown error')}")
 
     print("=" * 60)
-    print(f"\n✅ Generated {len([r for r in results if r['status'] == 'success'])}/{len(GRAPHIC_CONCEPTS)} graphics")
+    print(
+        f"\n✅ Generated {len([r for r in results if r['status'] == 'success'])}/{len(GRAPHIC_CONCEPTS)} graphics"
+    )
     print(f"📁 Local: {OUTPUT_DIR}")
     print(f"☁️  Dropbox: {DROPBOX_DIR}")
 

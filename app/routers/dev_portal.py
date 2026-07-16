@@ -91,6 +91,9 @@ async def api_docs():
             {"method": "GET", "path": "/prediction-markets/markets", "desc": "Prediction markets"},
             {"method": "GET", "path": "/dify-tools/catalog", "desc": "All 15 AI tools"},
         ],
-        "sdks": ["Python: pip install rmi-sdk (coming soon)", "JavaScript: npm install rmi-sdk (coming soon)"],
+        "sdks": [
+            "Python: pip install rmi-sdk (coming soon)",
+            "JavaScript: npm install rmi-sdk (coming soon)",
+        ],
         "swagger": "https://rugmunch.io/docs",
     }

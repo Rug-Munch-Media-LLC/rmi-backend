@@ -44,7 +44,6 @@ Dependencies (optional):
 
 import asyncio
 import json
-from app.core.logging import get_logger
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -52,6 +51,8 @@ from enum import Enum
 from typing import Any
 
 import aiohttp
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

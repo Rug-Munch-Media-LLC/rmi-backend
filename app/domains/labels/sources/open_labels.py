@@ -5,11 +5,15 @@ TODO: wire up when OLI endpoint is confirmed. GitHub repo:
 
 For now returns []. Stub.
 """
+
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
 
-from app.domains.labels.models import Label
+if TYPE_CHECKING:
+    from app.domains.labels.models import Label
 
 log = get_logger(__name__)
 

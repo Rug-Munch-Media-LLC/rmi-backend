@@ -6,12 +6,13 @@ Schema (verified):
 chain_id mapping:
   1 = ethereum, 42161 = arbitrum, 137 = polygon, etc.
 """
+
 from __future__ import annotations
 
 import asyncio
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
+from app.core.logging import get_logger
 from app.domains.labels.models import Label, LabelSource
 
 log = get_logger(__name__)
@@ -41,6 +42,7 @@ async def query_eth_labels_db(address: str, chain: str = "ethereum") -> list[Lab
     Returns:
         List of labels found (one per chain_id that has a match).
     """
+
     def _query() -> list[Label]:
         import sqlite3
 

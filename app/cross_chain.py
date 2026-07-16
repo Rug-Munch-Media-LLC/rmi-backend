@@ -15,11 +15,12 @@ Input: Address on any chain
 Output: Linked addresses on other chains with confidence + evidence
 """
 
-from app.core.logging import get_logger
 import re
 from typing import Any
 
 import numpy as np
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -120,7 +121,11 @@ def analyze_funding_chain(
         "mixer_funded": mixer_signal,
         "cex_funded": cex_signal,
         "funding_addresses": addresses_found[:10],
-        "complexity": "high" if cross_chain_hops > 2 else "medium" if cross_chain_hops > 0 else "low",
+        "complexity": "high"
+        if cross_chain_hops > 2
+        else "medium"
+        if cross_chain_hops > 0
+        else "low",
     }
 
 
@@ -180,7 +185,9 @@ def resolve_cross_chain_identity(
         if funding_analysis["mixer_funded"]:
             evidence.append("Mixer-funded - possible laundering")
         if funding_analysis["cross_chain_hops"] > 0:
-            evidence.append(f"{funding_analysis['cross_chain_hops']} cross-chain funding hops detected")
+            evidence.append(
+                f"{funding_analysis['cross_chain_hops']} cross-chain funding hops detected"
+            )
 
     # 3. Label-based hints (from wallet memory bank)
     if label_hints:

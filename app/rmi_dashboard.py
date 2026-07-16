@@ -40,7 +40,7 @@ class Colors:
 
 def clear_screen():
     """Clear terminal screen."""
-    os.system("clear" if os.name == "posix" else "cls")
+    os.system("clear" if os.name == "posix" else "cls")  # nosec B605
 
 
 def print_header(title: str):
@@ -51,6 +51,8 @@ def print_header(title: str):
         f"{Colors.BLUE}║{Colors.RESET}{Colors.BOLD}{title.center(width - 2)}{Colors.RESET}{Colors.BLUE}║{Colors.RESET}"
     )
     logger.info(f"{Colors.BLUE}{'=' * width}{Colors.RESET}\n")
+
+
 def print_box(title: str, content: str, color=Colors.WHITE):
     """Print content in a box."""
     lines = content.split("\n")
@@ -58,11 +60,15 @@ def print_box(title: str, content: str, color=Colors.WHITE):
     width = max_len + 4
 
     logger.info(f"\n{color}┌{'─' * width}┐{Colors.RESET}")
-    logger.info(f"{color}│{Colors.RESET} {Colors.BOLD}{title.center(width - 2)}{Colors.RESET} {color}│{Colors.RESET}")
+    logger.info(
+        f"{color}│{Colors.RESET} {Colors.BOLD}{title.center(width - 2)}{Colors.RESET} {color}│{Colors.RESET}"
+    )
     logger.info(f"{color}├{'─' * width}┤{Colors.RESET}")
     for line in lines:
         logger.info(f"{color}│{Colors.RESET} {line.ljust(width - 2)} {color}│{Colors.RESET}")
     logger.info(f"{color}└{'─' * width}┘{Colors.RESET}\n")
+
+
 # ─── STATUS MONITOR ────────────────────────────────────────────────
 
 
@@ -155,8 +161,11 @@ class Dashboard:
         ]
 
         for key, (name, desc) in enumerate(features):
-            logger.info(f"  {Colors.GREEN}{key}{Colors.RESET}. {Colors.CYAN}{name:<20}{Colors.RESET} - {desc}")
+            logger.info(
+                f"  {Colors.GREEN}{key}{Colors.RESET}. {Colors.CYAN}{name:<20}{Colors.RESET} - {desc}"
+            )
         logger.info(f"\n{Colors.PURPLE}Use 'help' for more information{Colors.RESET}\n")
+
     def display_server_control(self):
         """Display server control menu."""
         print_header("Server Control")
@@ -164,7 +173,9 @@ class Dashboard:
         pid = self._get_backend_pid()
         status = "Running" if pid else "Stopped"
 
-        logger.info(f"  Backend Status: {Colors.GREEN if pid else Colors.RED}{status}{Colors.RESET}")
+        logger.info(
+            f"  Backend Status: {Colors.GREEN if pid else Colors.RED}{status}{Colors.RESET}"
+        )
         if pid:
             logger.info(f"  PID: {pid}")
         logger.info("\n  Actions:")
@@ -184,7 +195,9 @@ class Dashboard:
     def _get_backend_pid(self) -> int | None:
         """Get backend process ID."""
         try:
-            result = subprocess.run(["pgrep", "-f", "uvicorn main:app"], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["pgrep", "-f", "uvicorn main:app"], capture_output=True, text=True, timeout=5
+            )
             if result.stdout.strip():
                 return int(result.stdout.strip())
         except Exception:
@@ -205,6 +218,7 @@ class Dashboard:
             logger.info(f"{Colors.GREEN}Backend started!{Colors.RESET}")
         except Exception as e:
             logger.warning(f"{Colors.RED}Error starting backend: {e}{Colors.RESET}")
+
     def _stop_backend(self):
         """Stop backend server."""
         pid = self._get_backend_pid()
@@ -214,6 +228,7 @@ class Dashboard:
                 logger.info(f"{Colors.GREEN}Backend stopped (PID: {pid}){Colors.RESET}")
             except Exception as e:
                 logger.warning(f"{Colors.RED}Error stopping backend: {e}{Colors.RESET}")
+
     def _restart_backend(self):
         """Restart backend server."""
         self._stop_backend()
@@ -335,6 +350,8 @@ class Dashboard:
                 self.running = False
             else:
                 logger.info(f"{Colors.RED}Invalid option{Colors.RESET}")
+
+
 # ─── SINGLETON LAUNCHER ────────────────────────────────────────────
 
 
@@ -347,6 +364,8 @@ def launch_dashboard():
         pass
     except Exception as e:
         logger.warning(f"{Colors.RED}Dashboard error: {e}{Colors.RESET}")
+
+
 # ─── CLI ENTRY POINT ───────────────────────────────────────────────
 
 if __name__ == "__main__":

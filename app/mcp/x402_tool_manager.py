@@ -1,7 +1,8 @@
 """x402 tool manager - loads and exposes tool bundles across free/trial/premium tiers."""
 
-from app.core.logging import get_logger
 from dataclasses import dataclass
+
+from app.core.logging import get_logger
 
 from .x402_bundles import X402Bundle
 
@@ -60,7 +61,11 @@ class X402ToolManager:
                 description="7-day trial of premium security tools",
                 category="trial",
                 endpoints=[
-                    {"method": "POST", "path": "/scan/contract", "description": "Smart contract scan"},
+                    {
+                        "method": "POST",
+                        "path": "/scan/contract",
+                        "description": "Smart contract scan",
+                    },
                     {"method": "POST", "path": "/scan/token", "description": "Token risk scan"},
                     {"method": "POST", "path": "/scan/wallet", "description": "Wallet risk scan"},
                 ],

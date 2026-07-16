@@ -18,11 +18,12 @@ Endpoint: POST /api/v1/x402-tools/governance_attack
 """
 
 import contextlib
-from app.core.logging import get_logger
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("governance_attack_detector")
 
@@ -93,9 +94,12 @@ async def _fetch_json(
     import aiohttp
 
     try:
-        async with aiohttp.ClientSession() as session, session.get(
-            url, headers=headers, params=params, timeout=aiohttp.ClientTimeout(total=timeout)
-        ) as resp:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(
+                url, headers=headers, params=params, timeout=aiohttp.ClientTimeout(total=timeout)
+            ) as resp,
+        ):
             if resp.status == 200:
                 return await resp.json()
     except Exception as e:
@@ -108,16 +112,19 @@ async def _eth_call(rpc_url: str, to: str, data: str) -> str | None:
     import aiohttp
 
     try:
-        async with aiohttp.ClientSession() as session, session.post(
-            rpc_url,
-            json={
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "eth_call",
-                "params": [{"to": to, "data": data}, "latest"],
-            },
-            timeout=aiohttp.ClientTimeout(total=10),
-        ) as resp:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                rpc_url,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "eth_call",
+                    "params": [{"to": to, "data": data}, "latest"],
+                },
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp,
+        ):
             if resp.status == 200:
                 body = await resp.json()
                 return body.get("result")
@@ -491,7 +498,7 @@ async def detect_governance_attack(
     result = GovernanceAttackResult(
         token_address=token_address,
         chain=chain,
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
     # 1. Fetch DEX data + holders

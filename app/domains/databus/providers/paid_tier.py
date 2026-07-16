@@ -12,6 +12,7 @@ Providers:
 - _dune_early_buyers
 - _virustotal_url_scan
 """
+
 from app.databus.providers import (  # noqa: F401
     _arkham_counterparties,
     _arkham_entity,

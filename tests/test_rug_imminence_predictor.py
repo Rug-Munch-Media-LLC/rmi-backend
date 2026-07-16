@@ -245,25 +245,28 @@ class TestRugImminencePredictor:
                 name=sig_id.replace("_", " ").title(),
                 weight=weight,
             )
-        with patch.object(
-            predictor,
-            "_fetch_dexscreener_pool",
-            new=AsyncMock(
-                return_value={
-                    "pairs": [
-                        {
-                            "liquidity": {"usd": 500},
-                            "volume": {"h24": 100},
-                            "txns": {"h24": {"buys": 5, "sells": 20}},
-                        }
-                    ]
-                }
+        with (
+            patch.object(
+                predictor,
+                "_fetch_dexscreener_pool",
+                new=AsyncMock(
+                    return_value={
+                        "pairs": [
+                            {
+                                "liquidity": {"usd": 500},
+                                "volume": {"h24": 100},
+                                "txns": {"h24": {"buys": 5, "sells": 20}},
+                            }
+                        ]
+                    }
+                ),
             ),
-        ), patch.object(
-            predictor,
-            "_check_lp_lock",
-            new=AsyncMock(
-                return_value={"locked": False, "unlocked": True, "unlock_date": None}
+            patch.object(
+                predictor,
+                "_check_lp_lock",
+                new=AsyncMock(
+                    return_value={"locked": False, "unlocked": True, "unlock_date": None}
+                ),
             ),
         ):
             await predictor._analyze_lp_health(result)
@@ -281,7 +284,7 @@ class TestRugImminencePredictor:
                 name=sig_id.replace("_", " ").title(),
                 weight=weight,
             )
-        with patch("app.scanners.social_velocity.SocialVelocityAnalyzer") as mock:
+        with patch("app.domains.scanners.social_velocity.SocialVelocityAnalyzer") as mock:
             mock_instance = AsyncMock()
             mock_instance.analyze = AsyncMock(
                 return_value={
@@ -305,7 +308,7 @@ class TestRugImminencePredictor:
                 name=sig_id.replace("_", " ").title(),
                 weight=weight,
             )
-        with patch("app.scanners.honeypot_detector.HoneypotDetector") as mock_hp:
+        with patch("app.domains.scanners.honeypot_detector.HoneypotDetector") as mock_hp:
             mock_instance = AsyncMock()
             mock_instance.detect = AsyncMock(
                 return_value={
@@ -314,7 +317,9 @@ class TestRugImminencePredictor:
                 }
             )
             mock_hp.return_value = mock_instance
-            with patch("app.scanners.contract_authority.ContractAuthorityScanner") as mock_auth:
+            with patch(
+                "app.domains.scanners.contract_authority.ContractAuthorityScanner"
+            ) as mock_auth:
                 auth_instance = AsyncMock()
                 auth_instance.scan = AsyncMock(
                     return_value={

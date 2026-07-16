@@ -186,7 +186,6 @@ def defi_analytics(protocol: str = "", chain: str = "", fingerprint: str = "anon
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
     import httpx as req
 
-
     result = {"protocol": protocol, "chain": chain}
     try:
         r = req.get(

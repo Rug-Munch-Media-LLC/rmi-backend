@@ -34,14 +34,14 @@ class TestHelpers(unittest.TestCase):
 
     def test_gini_coefficient_empty(self):
         """Empty list → Gini = 0."""
-        self.assertEqual(_gini_coefficient([]), 0.0)
+        assert _gini_coefficient([]) == 0.0
 
     def test_gini_coefficient_typical(self):
         """Typical uneven distribution."""
         vals = [50.0, 20.0, 10.0, 5.0, 5.0, 5.0, 3.0, 1.0, 1.0, 0.0]
         gini = _gini_coefficient(vals)
-        self.assertGreater(gini, 0.5)
-        self.assertLess(gini, 0.9)
+        assert gini > 0.5
+        assert gini < 0.9
 
     def test_entropy_uniform(self):
         """Uniform distribution → entropy = 1.0 (normalized)."""
@@ -56,54 +56,54 @@ class TestHelpers(unittest.TestCase):
     def test_time_cluster_similarity_all_same(self):
         """All buys at same timestamp → similarity = 1.0."""
         ts = [1000.0] * 10
-        self.assertEqual(_time_cluster_similarity(ts), 1.0)
+        assert _time_cluster_similarity(ts) == 1.0
 
     def test_time_cluster_similarity_spread(self):
         """Buys spread over 10 minutes → low similarity."""
         ts = [1000.0, 1600.0]
-        self.assertLess(_time_cluster_similarity(ts), 0.5)
+        assert _time_cluster_similarity(ts) < 0.5
 
     def test_time_cluster_similarity_single(self):
         """Single timestamp → 0.0."""
-        self.assertEqual(_time_cluster_similarity([1000.0]), 0.0)
+        assert _time_cluster_similarity([1000.0]) == 0.0
 
     def test_time_cluster_similarity_empty(self):
         """Empty list → 0.0."""
-        self.assertEqual(_time_cluster_similarity([]), 0.0)
+        assert _time_cluster_similarity([]) == 0.0
 
     def test_funding_overlap_no_overlap(self):
         """All unique sources → 0.0."""
         sources = ["src_a", "src_b", "src_c"]
-        self.assertEqual(_funding_overlap(sources), 0.0)
+        assert _funding_overlap(sources) == 0.0
 
     def test_funding_overlap_full_overlap(self):
         """All same source → 1.0."""
         sources = ["src_x"] * 5
-        self.assertEqual(_funding_overlap(sources), 1.0)
+        assert _funding_overlap(sources) == 1.0
 
     def test_funding_overlap_partial(self):
         """2 of 4 share a source → 0.5."""
         sources = ["src_a", "src_b", "src_a", "src_c"]
-        self.assertEqual(_funding_overlap(sources), 0.5)
+        assert _funding_overlap(sources) == 0.5
 
     def test_label_risk_critical(self):
-        self.assertEqual(_label_risk(80), "critical")
-        self.assertEqual(_label_risk(75), "critical")
+        assert _label_risk(80) == "critical"
+        assert _label_risk(75) == "critical"
 
     def test_label_risk_high(self):
-        self.assertEqual(_label_risk(60), "high")
-        self.assertEqual(_label_risk(50), "high")
+        assert _label_risk(60) == "high"
+        assert _label_risk(50) == "high"
 
     def test_label_risk_medium(self):
-        self.assertEqual(_label_risk(30), "medium")
-        self.assertEqual(_label_risk(25), "medium")
+        assert _label_risk(30) == "medium"
+        assert _label_risk(25) == "medium"
 
     def test_label_risk_low(self):
-        self.assertEqual(_label_risk(10), "low")
-        self.assertEqual(_label_risk(1), "low")
+        assert _label_risk(10) == "low"
+        assert _label_risk(1) == "low"
 
     def test_label_risk_none(self):
-        self.assertEqual(_label_risk(0), "none")
+        assert _label_risk(0) == "none"
 
 
 class TestDataModels(unittest.TestCase):
@@ -126,10 +126,10 @@ class TestDataModels(unittest.TestCase):
             risk_label="critical",
         )
         d = report.to_dict()
-        self.assertEqual(d["token_address"], "0x123")
-        self.assertEqual(d["risk_label"], "critical")
-        self.assertEqual(d["bundler_score"], 85.0)
-        self.assertEqual(d["signals"]["supply_concentration"], 90.0)
+        assert d["token_address"] == "0x123"
+        assert d["risk_label"] == "critical"
+        assert d["bundler_score"] == 85.0
+        assert d["signals"]["supply_concentration"] == 90.0
 
     def test_bundler_report_summary(self):
         report = BundlerReport(
@@ -161,11 +161,11 @@ class TestDataModels(unittest.TestCase):
             ],
         )
         summary = report.summary()
-        self.assertIn("CRITICAL", summary)
-        self.assertIn("TST", summary)
-        self.assertIn("85/100", summary)
-        self.assertIn("1 clusters", summary)
-        self.assertIn("3 entities", summary)
+        assert "CRITICAL" in summary
+        assert "TST" in summary
+        assert "85/100" in summary
+        assert "1 clusters" in summary
+        assert "3 entities" in summary
 
     def test_bundled_buy_to_dict(self):
         buy = BundledBuy(
@@ -178,9 +178,9 @@ class TestDataModels(unittest.TestCase):
             is_sniper=True,
         )
         d = buy.to_dict()
-        self.assertEqual(d["wallet"], "abc123")
-        self.assertEqual(d["amount_usd"], 5000.0)
-        self.assertTrue(d["is_sniper"])
+        assert d["wallet"] == "abc123"
+        assert d["amount_usd"] == 5000.0
+        assert d["is_sniper"]
 
     def test_holder_cluster_to_dict(self):
         cluster = HolderCluster(
@@ -191,8 +191,8 @@ class TestDataModels(unittest.TestCase):
             common_funding_source="cex_shared",
         )
         d = cluster.to_dict()
-        self.assertEqual(d["wallet_count"], 3)
-        self.assertEqual(d["total_supply_pct"], 45.0)
+        assert d["wallet_count"] == 3
+        assert d["total_supply_pct"] == 45.0
 
 
 class TestBundlerDetector(unittest.TestCase):
@@ -207,22 +207,24 @@ class TestBundlerDetector(unittest.TestCase):
     # ── Address Validation ──────────────────────────
 
     def test_validate_address_evm(self):
-        self.assertTrue(self.detector._validate_address("0x1234567890123456789012345678901234567890", "ethereum"))
-        self.assertFalse(self.detector._validate_address("invalid_address", "ethereum"))
+        assert self.detector._validate_address("0x1234567890123456789012345678901234567890", "ethereum")
+        assert not self.detector._validate_address("invalid_address", "ethereum")
 
     def test_validate_address_solana(self):
         valid = "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLsLvDt2BQHpM"
-        self.assertTrue(self.detector._validate_address(valid, "solana"))
-        self.assertFalse(self.detector._validate_address("0xshort", "solana"))
+        assert self.detector._validate_address(valid, "solana")
+        assert not self.detector._validate_address("0xshort", "solana")
 
     def test_validate_address_unsupported_chain(self):
         """Address format validation is chain-agnostic; scan() rejects unsupported chains."""
         # Format validation passes for any valid EVM address regardless of chain string
-        self.assertTrue(self.detector._validate_address("0x1234567890123456789012345678901234567890", "bitcoin"))
+        assert self.detector._validate_address("0x1234567890123456789012345678901234567890", "bitcoin")
         # But scan() will reject unsupported chains
-        report = asyncio.run(self.detector.scan("0x1234567890123456789012345678901234567890", "bitcoin"))
-        self.assertEqual(report.risk_label, "error")
-        self.assertIn("unsupported chain", str(report.errors).lower())
+        report = asyncio.run(
+            self.detector.scan("0x1234567890123456789012345678901234567890", "bitcoin")
+        )
+        assert report.risk_label == "error"
+        assert "unsupported chain" in str(report.errors).lower()
 
     # ── Supply Concentration ────────────────────────
 
@@ -233,18 +235,18 @@ class TestBundlerDetector(unittest.TestCase):
             {"address": "a3", "percentage": 15.0},
             {"address": "a4", "percentage": 5.0},
         ]
-        self.assertEqual(self.detector._compute_top_holder_pct(holders, 3), 95.0)
-        self.assertEqual(self.detector._compute_top_holder_pct(holders, 1), 50.0)
+        assert self.detector._compute_top_holder_pct(holders, 3) == 95.0
+        assert self.detector._compute_top_holder_pct(holders, 1) == 50.0
 
     def test_compute_top_holder_pct_empty(self):
-        self.assertEqual(self.detector._compute_top_holder_pct([], 10), 0.0)
+        assert self.detector._compute_top_holder_pct([], 10) == 0.0
 
     def test_extract_dev_hold_pct(self):
         holders = [{"address": "dev", "percentage": 25.0}]
-        self.assertEqual(self.detector._extract_dev_hold_pct(holders, {}), 25.0)
+        assert self.detector._extract_dev_hold_pct(holders, {}) == 25.0
 
     def test_extract_dev_hold_pct_empty(self):
-        self.assertEqual(self.detector._extract_dev_hold_pct([], {}), 0.0)
+        assert self.detector._extract_dev_hold_pct([], {}) == 0.0
 
     # ── Clustering ─────────────────────────────────
 
@@ -257,18 +259,18 @@ class TestBundlerDetector(unittest.TestCase):
             {"address": "small", "percentage": 2.0},
         ]
         clusters = self.detector._cluster_wallets([], holders)
-        self.assertEqual(len(clusters), 1)
-        self.assertIn("top_holders_cluster", clusters[0].common_funding_source)
+        assert len(clusters) == 1
+        assert "top_holders_cluster" in clusters[0].common_funding_source
 
     def test_cluster_wallets_middle_belt(self):
         """5+ holders with 2-15% each form a mid-holder belt cluster."""
         holders = [{"address": f"mid{i}", "percentage": 4.0} for i in range(10)]
         clusters = self.detector._cluster_wallets([], holders)
-        self.assertEqual(len(clusters), 1)
-        self.assertIn("mid_holder_belt", clusters[0].common_funding_source)
+        assert len(clusters) == 1
+        assert "mid_holder_belt" in clusters[0].common_funding_source
 
     def test_cluster_wallets_empty(self):
-        self.assertEqual(self.detector._cluster_wallets([], []), [])
+        assert self.detector._cluster_wallets([], []) == []
 
     # ── Entity Estimation ──────────────────────────
 
@@ -287,19 +289,19 @@ class TestBundlerDetector(unittest.TestCase):
             0,
         )
         # 20 holders - 3 in cluster = 17 + 1 for the cluster
-        self.assertEqual(entities, 17)
+        assert entities == 17
 
     # ── Scoring ────────────────────────────────────
 
     def test_score_supply_concentration_critical(self):
         holders = [{"percentage": p} for p in [90.0, 5.0, 2.0, 1.0, 1.0, 0.5, 0.3, 0.1, 0.05, 0.05]]
         score = self.detector._score_supply_concentration(holders, 100.0)
-        self.assertGreaterEqual(score, 75)
+        assert score >= 75
 
     def test_score_supply_concentration_low(self):
         holders = [{"percentage": p} for p in [10.0, 8.0, 7.0, 6.0, 5.0, 5.0, 5.0, 4.0, 4.0, 4.0]]
         score = self.detector._score_supply_concentration(holders, 58.0)
-        self.assertLess(score, 75)
+        assert score < 75
 
     def test_compute_bundler_score_weights(self):
         report = BundlerReport(
@@ -311,7 +313,7 @@ class TestBundlerDetector(unittest.TestCase):
             fund_flow_risk_score=100.0,
         )
         score = self.detector._compute_bundler_score(report)
-        self.assertEqual(score, 100.0)
+        assert score == 100.0
 
     def test_compute_bundler_score_half(self):
         report = BundlerReport(
@@ -323,7 +325,7 @@ class TestBundlerDetector(unittest.TestCase):
             fund_flow_risk_score=50.0,
         )
         score = self.detector._compute_bundler_score(report)
-        self.assertEqual(score, 50.0)
+        assert score == 50.0
 
     # ── Launch Timing ──────────────────────────────
 
@@ -332,25 +334,29 @@ class TestBundlerDetector(unittest.TestCase):
             {"m5_buys": 80, "h1_buys": 20, "h6_buys": 5, "pair_address": "0xpair"},
         ]
         result = self.detector._analyze_launch_timing(buys)
-        self.assertGreater(result["buy_concentration_ratio"], 0.4)
+        assert result["buy_concentration_ratio"] > 0.4
 
     def test_analyze_launch_timing_empty(self):
         result = self.detector._analyze_launch_timing([])
-        self.assertEqual(result["total_buys_first_blocks"], 0)
+        assert result["total_buys_first_blocks"] == 0
 
     # ── Quick Check ────────────────────────────────
 
     def test_quick_check_invalid_address(self):
         result = asyncio.run(self.detector.quick_check("bad", "ethereum"))
-        self.assertIn("error", result)
+        assert "error" in result
 
     def test_quick_check_no_holders(self):
         with (
             patch.object(self.detector, "_fetch_holders", return_value=[]),
-            patch.object(self.detector, "_fetch_metadata", return_value={"name": "TST", "symbol": "TST"}),
+            patch.object(
+                self.detector, "_fetch_metadata", return_value={"name": "TST", "symbol": "TST"}
+            ),
         ):
-            result = asyncio.run(self.detector.quick_check("0x1234567890123456789012345678901234567890", "ethereum"))
-            self.assertIn("error", result)
+            result = asyncio.run(
+                self.detector.quick_check("0x1234567890123456789012345678901234567890", "ethereum")
+            )
+            assert "error" in result
 
 
 class TestEdgeCases(unittest.TestCase):
@@ -366,24 +372,24 @@ class TestEdgeCases(unittest.TestCase):
 
     def test_entropy_all_zeros(self):
         """All zeros → 0.0."""
-        self.assertEqual(_entropy([0.0] * 5), 0.0)
+        assert _entropy([0.0] * 5) == 0.0
 
     def test_time_cluster_similarity_two_fast(self):
         """Two buys within 1 second → high similarity."""
-        self.assertGreater(_time_cluster_similarity([1000.0, 1001.0]), 0.8)
+        assert _time_cluster_similarity([1000.0, 1001.0]) > 0.8
 
     def test_time_cluster_similarity_wide(self):
         """Buys spread over 1 hour → very low similarity."""
         ts = [0.0, 600.0, 1200.0, 1800.0, 3600.0]
-        self.assertLess(_time_cluster_similarity(ts), 0.2)
+        assert _time_cluster_similarity(ts) < 0.2
 
     def test_funding_overlap_empty(self):
         """Empty list → 0.0."""
-        self.assertEqual(_funding_overlap([]), 0.0)
+        assert _funding_overlap([]) == 0.0
 
     def test_funding_overlap_single(self):
         """Single source → 0.0."""
-        self.assertEqual(_funding_overlap(["only_source"]), 0.0)
+        assert _funding_overlap(["only_source"]) == 0.0
 
     def test_bundler_report_no_clusters(self):
         """Report without clusters should not crash on summary."""
@@ -392,8 +398,8 @@ class TestEdgeCases(unittest.TestCase):
             chain="solana",
         )
         s = report.summary()
-        self.assertIn("NONE", s)
-        self.assertIn("0 clusters", s)
+        assert "NONE" in s
+        assert "0 clusters" in s
 
     def test_launch_timing_handles_missing_keys(self):
         """Buys with missing keys should not crash."""
@@ -402,7 +408,7 @@ class TestEdgeCases(unittest.TestCase):
             {"m5_buys": 10},  # missing h1_buys, h6_buys
         ]
         result = detector._analyze_launch_timing(buys)
-        self.assertEqual(result["total_buys_first_blocks"], 10)
+        assert result["total_buys_first_blocks"] == 10
 
 
 if __name__ == "__main__":

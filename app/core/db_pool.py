@@ -1,7 +1,8 @@
 """Database connection pooling - Redis + Postgres with auto-reconnect."""
 
-from app.core.logging import get_logger
 import os
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -10,5 +11,3 @@ PG_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:543
 
 _redis_pool = None
 _pg_pool = None
-
-

@@ -7,8 +7,9 @@ Sources:
 
 import csv
 import json
-from app.core.logging import get_logger
 import os
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -94,7 +95,9 @@ def load_all_labels(redis_client) -> dict:
     return counts
 
 
-def _load_csv_labels(redis_client, path: str, chain: str, addr_col: str, label_cols: dict[str, str]) -> int:
+def _load_csv_labels(
+    redis_client, path: str, chain: str, addr_col: str, label_cols: dict[str, str]
+) -> int:
     """Load a CSV of labeled addresses into Redis."""
     count = 0
     try:

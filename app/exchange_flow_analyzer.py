@@ -10,10 +10,11 @@ Tracks:
 - Risk scoring based on pool participation
 """
 
-from app.core.logging import get_logger
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 try:
     from web3 import Web3
@@ -248,7 +249,7 @@ class ExchangeFlowAnalyzer:
             "total_inflow_usd": 0,
             "total_outflow_usd": 0,
             "risk_score": 0,
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": datetime.now(UTC).isoformat(),
         }
 
         # Simplified analysis - real implementation would track actual flows
@@ -270,7 +271,7 @@ class ExchangeFlowAnalyzer:
             "chain": chain,
             "addresses": {},
             "correlations": [],
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": datetime.now(UTC).isoformat(),
         }
 
         for addr in addresses:
@@ -300,7 +301,9 @@ class ExchangeFlowAnalyzer:
             "total_liquidity": pool.total_liquidity_usd,
         }
 
-    def track_whale_movements(self, address: str, threshold_usd: float = 100000) -> list[WhaleMovement]:
+    def track_whale_movements(
+        self, address: str, threshold_usd: float = 100000
+    ) -> list[WhaleMovement]:
         """
         Track large movements for an address.
 

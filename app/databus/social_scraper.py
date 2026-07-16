@@ -13,9 +13,9 @@ Cache strategy:
 Cron: Every 6 hours, discover new tweets, extract content, update metrics.
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
+from app.core.logging import get_logger
 from app.databus.cache import CacheLayer, get_cache
 
 logger = get_logger("databus.social_scraper")
@@ -102,7 +102,8 @@ class XWebScraper:
         tweet_urls = [
             t["url"]
             for t in all_tweets.values()
-            if "CryptoRugMunch/status/" in t["url"] or "twitter.com/CryptoRugMunch/status/" in t["url"]
+            if "CryptoRugMunch/status/" in t["url"]
+            or "twitter.com/CryptoRugMunch/status/" in t["url"]
         ]
 
         if tweet_urls:
@@ -273,9 +274,11 @@ class XWebScraper:
             "avg_likes_per_tweet": round(avg_likes, 1),
             "best_tweets": sorted(
                 [t for t in tweets if t and t.get("description")],
-                key=lambda t: int(re.search(r"(\d+)\s+likes?", t.get("description", "")).group(1))
-                if re.search(r"(\d+)\s+likes?", t.get("description", ""))
-                else 0,
+                key=lambda t: (
+                    int(re.search(r"(\d+)\s+likes?", t.get("description", "")).group(1))
+                    if re.search(r"(\d+)\s+likes?", t.get("description", ""))
+                    else 0
+                ),
                 reverse=True,
             )[:5],
             "generated_at": datetime.now(UTC).isoformat(),
@@ -308,7 +311,9 @@ async def run_social_scan():
 
     # Generate engagement report
     report = await scraper.get_engagement_report()
-    logger.info(f"Social scan: engagement report - avg {report.get('avg_likes_per_tweet', 0)} likes/tweet")
+    logger.info(
+        f"Social scan: engagement report - avg {report.get('avg_likes_per_tweet', 0)} likes/tweet"
+    )
 
     return {
         "tweets_found": len(tweets),

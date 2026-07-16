@@ -29,12 +29,13 @@ Quality Standards:
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("model_registry")
 
@@ -589,7 +590,9 @@ async def _call_openrouter(
         return ""
 
 
-async def _call_groq(model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5) -> str:
+async def _call_groq(
+    model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5
+) -> str:
     """Call Groq API (free tier)."""
     if not GROQ_KEY:
         return ""
@@ -619,7 +622,9 @@ async def _call_groq(model_id: str, system: str, user: str, max_tokens: int = 10
         return ""
 
 
-async def _call_mistral(model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5) -> str:
+async def _call_mistral(
+    model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5
+) -> str:
     """Call Mistral API (free tier)."""
     if not MISTRAL_KEY:
         return ""
@@ -683,11 +688,17 @@ async def ai_call(
             continue
 
         if model["provider"] == "openrouter":
-            result = await _call_openrouter(model["id"], system_prompt, user_prompt, max_tokens, temperature)
+            result = await _call_openrouter(
+                model["id"], system_prompt, user_prompt, max_tokens, temperature
+            )
         elif model["provider"] == "groq":
-            result = await _call_groq(model["id"], system_prompt, user_prompt, max_tokens, temperature)
+            result = await _call_groq(
+                model["id"], system_prompt, user_prompt, max_tokens, temperature
+            )
         elif model["provider"] == "mistral":
-            result = await _call_mistral(model["id"], system_prompt, user_prompt, max_tokens, temperature)
+            result = await _call_mistral(
+                model["id"], system_prompt, user_prompt, max_tokens, temperature
+            )
         else:
             continue
 
@@ -705,7 +716,9 @@ async def ai_call(
                 continue
             model = mconfig[tier]
             if _can_use(model):
-                result = await _call_mistral(model["id"], system_prompt, user_prompt, max_tokens, temperature)
+                result = await _call_mistral(
+                    model["id"], system_prompt, user_prompt, max_tokens, temperature
+                )
                 if result:
                     return result
 
@@ -723,9 +736,13 @@ async def ai_call(
                             model["id"], system_prompt, user_prompt, max_tokens, temperature
                         )
                     elif model["provider"] == "groq":
-                        result = await _call_groq(model["id"], system_prompt, user_prompt, max_tokens, temperature)
+                        result = await _call_groq(
+                            model["id"], system_prompt, user_prompt, max_tokens, temperature
+                        )
                     elif model["provider"] == "mistral":
-                        result = await _call_mistral(model["id"], system_prompt, user_prompt, max_tokens, temperature)
+                        result = await _call_mistral(
+                            model["id"], system_prompt, user_prompt, max_tokens, temperature
+                        )
                     if result:
                         return result
 
@@ -838,7 +855,9 @@ async def review_content(content: str, content_type: str = "article") -> dict:
     # ── AI Review (if score is borderline) ──
     if base_score < 85 and len(issues) > 1:
         try:
-            ai_review = await ai_call("review", QUALITY_REVIEW_PROMPT, content, max_tokens=800, temperature=0.2)
+            ai_review = await ai_call(
+                "review", QUALITY_REVIEW_PROMPT, content, max_tokens=800, temperature=0.2
+            )
             if ai_review:
                 try:
                     review_data = json.loads(ai_review.strip().lstrip("```json").rstrip("```"))  # noqa: B005
@@ -901,7 +920,9 @@ def build_research_prompt(topic: str, data: dict | None = None) -> str:
             if isinstance(value, str):
                 parts.append(f"## {key.upper()}\n{value[:2000]}")
             elif isinstance(value, list):
-                parts.append(f"## {key.upper()}\n" + "\n".join(f"- {str(v)[:200]}" for v in value[:10]))
+                parts.append(
+                    f"## {key.upper()}\n" + "\n".join(f"- {str(v)[:200]}" for v in value[:10])
+                )
             elif isinstance(value, dict):
                 parts.append(f"## {key.upper()}\n{json.dumps(value, default=str)[:1000]}")
 

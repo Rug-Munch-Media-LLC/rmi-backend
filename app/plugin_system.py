@@ -29,7 +29,6 @@ Date: 2026-05-31
 
 import importlib
 import importlib.util
-from app.core.logging import get_logger
 import os
 import time
 from abc import ABC, abstractmethod
@@ -37,6 +36,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi_plugin_system")
 
@@ -83,25 +84,21 @@ class Plugin(ABC):
     @abstractmethod
     def name(self) -> str:
         """Plugin name."""
-        pass
 
     @property
     @abstractmethod
     def version(self) -> str:
         """Plugin version."""
-        pass
 
     @property
     @abstractmethod
     def plugin_type(self) -> PluginType:
         """Plugin type."""
-        pass
 
     @property
     @abstractmethod
     def description(self) -> str:
         """Plugin description."""
-        pass
 
     def initialize(self) -> bool:
         """Initialize plugin. Return True if successful."""
@@ -117,7 +114,6 @@ class Plugin(ABC):
 
     def _setup(self):  # noqa: B027
         """Override for setup logic."""
-        pass
 
     def health_check(self) -> dict[str, Any]:
         """Return health status."""

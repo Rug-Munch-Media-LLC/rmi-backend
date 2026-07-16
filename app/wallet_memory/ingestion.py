@@ -20,7 +20,6 @@ Rate limiting:
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime
@@ -29,6 +28,7 @@ from typing import Any
 import httpx
 
 from app.chain_registry import is_evm, is_solana
+from app.core.logging import get_logger
 from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 
 logger = get_logger("wallet_memory.ingestion")

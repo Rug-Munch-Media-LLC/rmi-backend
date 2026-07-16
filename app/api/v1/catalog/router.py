@@ -2,6 +2,7 @@
 
 Per v4.0 §T27. The thin HTTP layer over app.catalog.service.CatalogService.
 """
+
 from __future__ import annotations
 
 from typing import Any

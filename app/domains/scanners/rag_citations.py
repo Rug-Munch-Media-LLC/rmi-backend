@@ -21,8 +21,9 @@ Citations add credibility:
 """
 
 import asyncio
-from app.core.logging import get_logger
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("rag_citations")
 

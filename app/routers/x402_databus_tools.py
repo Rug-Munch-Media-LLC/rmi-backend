@@ -23,12 +23,13 @@ Security:
 """
 
 import json
-from app.core.logging import get_logger
 import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402_databus_tools")
 
@@ -962,7 +963,9 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
     if not x402_payment:
         # Resolve identifier for trial check: wallet first, then fingerprint, then IP
         wallet = request.headers.get("X-WALLET", "") or request.query_params.get("wallet", "")
-        fingerprint = request.headers.get("X-Device-Id", "") or request.headers.get("X-Fingerprint", "")
+        fingerprint = request.headers.get("X-Device-Id", "") or request.headers.get(
+            "X-Fingerprint", ""
+        )
         ip = request.client.host if request.client else "unknown"
 
         # Use the most specific identifier available
@@ -1016,7 +1019,9 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
                         "solana": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                         "ethereum": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                     },
-                    "pay_to": os.getenv("X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9"),
+                    "pay_to": os.getenv(
+                        "X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9"
+                    ),
                     "wallet_connect": True,
                     "connect_wallet_for_trials": pricing.get("trial_free", 0) > 0,
                 },
@@ -1122,7 +1127,9 @@ class GenericDataRequest(BaseModel):
 async def x402_catalog(request: Request):
     """Full catalog of available x402 DataBus tools with pricing."""
     catalog = []
-    for tool_id, info in sorted(X402_TOOL_PRICING.items(), key=lambda x: (x[1]["category"], x[1]["price_usd"])):
+    for tool_id, info in sorted(
+        X402_TOOL_PRICING.items(), key=lambda x: (x[1]["category"], x[1]["price_usd"])
+    ):
         from app.databus.access_control import access_controller
 
         allowed_free = access_controller.get_x402_allowed_types("free")
@@ -1308,7 +1315,9 @@ async def x402_tvl(req: QueryRequest, request: Request):
 async def x402_news(req: QueryRequest, request: Request):
     """Crypto news feed. $0.01/call."""
     await verify_x402_payment(request, "news", 0.01)
-    result = await databus.fetch("news", category=req.category, consumer_type="x402_paid", x402_tier="basic")
+    result = await databus.fetch(
+        "news", category=req.category, consumer_type="x402_paid", x402_tier="basic"
+    )
     return _clean_response(result) or {"error": "no_data"}
 
 
@@ -1324,7 +1333,9 @@ async def x402_social_feed(request: Request):
 async def x402_dex_data(req: MintRequest, request: Request):
     """DEX liquidity data. $0.01/call."""
     await verify_x402_payment(request, "dex_data", 0.01)
-    result = await databus.fetch("dex_data", mint=req.mint, consumer_type="x402_paid", x402_tier="basic")
+    result = await databus.fetch(
+        "dex_data", mint=req.mint, consumer_type="x402_paid", x402_tier="basic"
+    )
     return _clean_response(result) or {"error": "no_data"}
 
 
@@ -1391,7 +1402,9 @@ async def x402_rugmaps_analysis(req: AddressRequest, request: Request):
 async def x402_wallet_balance(req: AddressRequest, request: Request):
     """Wallet balance check. $0.01/call."""
     await verify_x402_payment(request, "wallet_balance", 0.01)
-    result = await databus.fetch("wallet_balance", address=req.address, consumer_type="x402_paid", x402_tier="basic")
+    result = await databus.fetch(
+        "wallet_balance", address=req.address, consumer_type="x402_paid", x402_tier="basic"
+    )
     return _clean_response(result) or {"error": "no_data"}
 
 
@@ -1441,7 +1454,9 @@ async def x402_threat_check(req: AddressRequest, request: Request):
 async def x402_socialfi_resolve(req: AddressRequest, request: Request):
     """Social identity resolver. $0.01/call."""
     await verify_x402_payment(request, "socialfi_resolve", 0.01)
-    result = await databus.fetch("socialfi_resolve", address=req.address, consumer_type="x402_paid", x402_tier="basic")
+    result = await databus.fetch(
+        "socialfi_resolve", address=req.address, consumer_type="x402_paid", x402_tier="basic"
+    )
     return _clean_response(result) or {"error": "no_data"}
 
 
@@ -1467,7 +1482,9 @@ async def x402_wallet_profile(req: AddressRequest, request: Request):
 async def x402_smart_money(req: QueryRequest, request: Request):
     """Smart money tracker. $0.05/call."""
     payment = await verify_x402_payment(request, "smart_money", 0.05)
-    result = await databus.fetch("smart_money", consumer_type="x402_paid", x402_tier="premium", **payment)
+    result = await databus.fetch(
+        "smart_money", consumer_type="x402_paid", x402_tier="premium", **payment
+    )
     return _clean_response(result) or {"error": "no_data"}
 
 

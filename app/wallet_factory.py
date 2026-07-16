@@ -23,7 +23,6 @@ Date: 2026-05-23
 import base64
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import secrets
 import time
@@ -31,6 +30,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("wallet_factory")
 
@@ -471,11 +472,15 @@ class WalletFactory:
 
     # ── Generation Methods ──────────────────────────────────
 
-    def generate(self, chain_key: str, label: str = "", tags: list[str] | None = None) -> WalletResult:
+    def generate(
+        self, chain_key: str, label: str = "", tags: list[str] | None = None
+    ) -> WalletResult:
         """Generate a wallet for any supported chain."""
         cfg = SUPPORTED_CHAINS.get(chain_key.lower())
         if not cfg:
-            raise ValueError(f"Unsupported chain: {chain_key}. Supported: {list(SUPPORTED_CHAINS.keys())}")
+            raise ValueError(
+                f"Unsupported chain: {chain_key}. Supported: {list(SUPPORTED_CHAINS.keys())}"
+            )
 
         now = datetime.now(UTC).isoformat()
 
@@ -550,7 +555,9 @@ class WalletFactory:
             # Can't derive pubkey without library - still usable for key storage
             pub = b""
 
-        address = "0x" + hashlib.sha3_256(pub).hexdigest()[-40:] if pub else "0x" + secrets.token_hex(20)
+        address = (
+            "0x" + hashlib.sha3_256(pub).hexdigest()[-40:] if pub else "0x" + secrets.token_hex(20)
+        )
         return WalletResult(
             chain="",
             chain_name="",
@@ -617,7 +624,11 @@ class WalletFactory:
             address = base58.b58encode(bytes(vk)).decode() if _HAS_BASE58 else pub_hex
         else:
             priv_hex = secrets.token_hex(32)
-            address = base58.b58encode(secrets.token_bytes(32)).decode()[:44] if _HAS_BASE58 else secrets.token_hex(22)
+            address = (
+                base58.b58encode(secrets.token_bytes(32)).decode()[:44]
+                if _HAS_BASE58
+                else secrets.token_hex(22)
+            )
 
         return WalletResult(
             chain="",
@@ -641,7 +652,9 @@ class WalletFactory:
             pub = secrets.token_bytes(64)
 
         hashed = (
-            hashlib.sha3_256(pub).digest() if isinstance(pub, bytes) else hashlib.sha3_256(bytes.fromhex(pub)).digest()
+            hashlib.sha3_256(pub).digest()
+            if isinstance(pub, bytes)
+            else hashlib.sha3_256(bytes.fromhex(pub)).digest()
         )
         addr_bytes = b"\x41" + hashed[-20:]
 
@@ -727,7 +740,11 @@ class WalletFactory:
         elif cfg.key in ("sui", "aptos"):
             address = "0x" + (pub.hex() if isinstance(pub, bytes) else pub)
         elif cfg.key == "ada":
-            address = "addr1" + base58.b58encode(pub).decode()[:50] if _HAS_BASE58 else "addr1" + secrets.token_hex(24)
+            address = (
+                "addr1" + base58.b58encode(pub).decode()[:50]
+                if _HAS_BASE58
+                else "addr1" + secrets.token_hex(24)
+            )
         else:
             address = base58.b58encode(pub).decode()[:44] if _HAS_BASE58 else pub.hex()[:42]
 
@@ -787,7 +804,9 @@ class WalletFactory:
             chain="",
             chain_name="",
             symbol="",
-            address=base58.b58encode(secrets.token_bytes(36)).decode()[:58] if _HAS_BASE58 else secrets.token_hex(29),
+            address=base58.b58encode(secrets.token_bytes(36)).decode()[:58]
+            if _HAS_BASE58
+            else secrets.token_hex(29),
             private_key_hex=secrets.token_hex(32),
             derivation_path=cfg.hd_path,
         )
@@ -852,7 +871,9 @@ class WalletFactory:
 
     # ── Storage ─────────────────────────────────────────────
 
-    def save_to_vault(self, wallet: WalletResult, vault_path: str = "/root/.rmi/wallets/vault.json"):
+    def save_to_vault(
+        self, wallet: WalletResult, vault_path: str = "/root/.rmi/wallets/vault.json"
+    ):
         """Save wallet to encrypted vault."""
         os.makedirs(os.path.dirname(vault_path), exist_ok=True, mode=0o700)
 
@@ -877,9 +898,13 @@ class WalletFactory:
 
     # ── Rotation System ─────────────────────────────────────
 
-    def rotate(self, chain_key: str, vault_path: str = "/root/.rmi/wallets/vault.json") -> WalletResult:
+    def rotate(
+        self, chain_key: str, vault_path: str = "/root/.rmi/wallets/vault.json"
+    ) -> WalletResult:
         """Generate a new wallet and mark it as the active rotation for this chain."""
-        wallet = self.generate(chain_key, label=f"rotation_{int(time.time())}", tags=["rotated", "active"])
+        wallet = self.generate(
+            chain_key, label=f"rotation_{int(time.time())}", tags=["rotated", "active"]
+        )
         self.save_to_vault(wallet, vault_path)
 
         idx = self._rotation_index.get(chain_key, 0)
@@ -899,7 +924,8 @@ class WalletFactory:
             "rotations": dict(self._rotation_index),
             "encryption_enabled": self._encrypt,
             "chains": {
-                k: {"name": c.name, "symbol": c.symbol, "family": c.family.value} for k, c in SUPPORTED_CHAINS.items()
+                k: {"name": c.name, "symbol": c.symbol, "family": c.family.value}
+                for k, c in SUPPORTED_CHAINS.items()
             },
         }
 

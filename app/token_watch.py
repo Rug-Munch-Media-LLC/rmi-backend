@@ -23,7 +23,6 @@ Watch conditions supported:
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import asdict, dataclass, field
@@ -32,6 +31,8 @@ from enum import StrEnum
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("token_watch")
 
@@ -158,7 +159,9 @@ class TokenWatchService:
         webhook_url: str = "",
     ) -> TokenWatch:
         """Create a new token watch."""
-        watch_id = hashlib.sha256(f"watch:{token_address}:{chain}:{condition}:{time.time()}".encode()).hexdigest()[:12]
+        watch_id = hashlib.sha256(
+            f"watch:{token_address}:{chain}:{condition}:{time.time()}".encode()
+        ).hexdigest()[:12]
 
         now = datetime.now(UTC)
         expires = now + timedelta(days=30)
@@ -186,7 +189,9 @@ class TokenWatchService:
             # Global active watches set
             await r.sadd("token_watches:active", watch.watch_id)
 
-        logger.info(f"Created watch {watch_id} for {token_address} on {chain}: {condition} < {threshold}")
+        logger.info(
+            f"Created watch {watch_id} for {token_address} on {chain}: {condition} < {threshold}"
+        )
         return watch
 
     async def get_watch(self, watch_id: str) -> TokenWatch | None:
@@ -199,7 +204,9 @@ class TokenWatchService:
             return TokenWatch.from_dict(json.loads(data))
         return None
 
-    async def list_watches(self, token_address: str = "", chain: str = "", created_by: str = "") -> list[TokenWatch]:
+    async def list_watches(
+        self, token_address: str = "", chain: str = "", created_by: str = ""
+    ) -> list[TokenWatch]:
         """List watches, optionally filtered."""
         r = await self._get_redis()
         if not r:
@@ -289,7 +296,13 @@ class TokenWatchService:
         if watch.condition == WatchCondition.LP_DROP_BELOW:
             # Check LP from liquidity info
             liquidity = pair_data.get("liquidity", {})
-            lp_usd = liquidity.get("usd", 0) if isinstance(liquidity, dict) else float(liquidity) if liquidity else 0
+            lp_usd = (
+                liquidity.get("usd", 0)
+                if isinstance(liquidity, dict)
+                else float(liquidity)
+                if liquidity
+                else 0
+            )
 
             # Track LP relative to baseline
             if watch.last_value is not None and watch.last_value > 0:
@@ -307,7 +320,9 @@ class TokenWatchService:
                 severity = "critical"
             elif lp_pct_change > 20:  # More than 20% LP drop since last check
                 triggered = True
-                message = f"LP dropped {lp_pct_change:.1f}% since last check - ${lp_usd:,.0f} remaining"
+                message = (
+                    f"LP dropped {lp_pct_change:.1f}% since last check - ${lp_usd:,.0f} remaining"
+                )
                 severity = "high"
 
         elif watch.condition == WatchCondition.LP_UNLOCKED:
@@ -338,9 +353,7 @@ class TokenWatchService:
                 if pct_change > watch.threshold:
                     direction = "up" if price_usd > watch.last_value else "down"
                     triggered = True
-                    message = (
-                        f"Price {direction} {pct_change:.1f}% for {watch.token_address[:10]}... - ${price_usd:.6f}"
-                    )
+                    message = f"Price {direction} {pct_change:.1f}% for {watch.token_address[:10]}... - ${price_usd:.6f}"
                     severity = "warning" if pct_change < 30 else "high"
             watch.last_value = price_usd
 
@@ -352,7 +365,6 @@ class TokenWatchService:
                 # Check if renounced ownership, etc.
                 # This is a simplified check - full implementation would
                 # use the contract_diff analysis
-                pass
 
         # Update watch in Redis
         r = await self._get_redis()
@@ -458,7 +470,9 @@ class TokenWatchService:
 
     # ── Alert Retrieval ────────────────────────────────────────────
 
-    async def get_alerts(self, watch_id: str = "", token_address: str = "", chain: str = "") -> list[dict]:
+    async def get_alerts(
+        self, watch_id: str = "", token_address: str = "", chain: str = ""
+    ) -> list[dict]:
         """Get alerts for a watch or token."""
         r = await self._get_redis()
         if not r:

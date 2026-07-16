@@ -15,9 +15,10 @@ Signals weighted:
   - Entity exact-match bonus: direct address/token match (10%)
 """
 
-from app.core.logging import get_logger
 from datetime import UTC
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -230,7 +231,11 @@ def _score_freshness(results: list[dict]) -> float:
         created = r.get("metadata", {}).get("created_at") or r.get("created_at")
         if created:
             try:
-                dt = datetime.fromisoformat(created.replace("Z", "+00:00")) if isinstance(created, str) else created
+                dt = (
+                    datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    if isinstance(created, str)
+                    else created
+                )
                 age = (now - dt).days if hasattr(dt, "days") else 365
                 ages_days.append(age)
             except (ValueError, TypeError):

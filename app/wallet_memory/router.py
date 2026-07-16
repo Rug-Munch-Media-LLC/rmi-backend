@@ -7,12 +7,13 @@ Unified wallet intelligence endpoints for both:
 """
 
 import contextlib
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
+
+from app.core.logging import get_logger
 
 logger = get_logger("wallet_memory.router")
 

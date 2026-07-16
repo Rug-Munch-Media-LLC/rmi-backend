@@ -3,6 +3,7 @@
 The RAG system is the most coupled module (14 legacy files). This
 facade exposes the most-used operations: search, ingest, feedback.
 """
+
 from __future__ import annotations
 
 from typing import Annotated, Any
@@ -18,8 +19,7 @@ from app.rag import (
     SearchRequest,
     SearchResponse,
 )
-from app.rag.engine import bulk_ingest as engine_bulk_ingest
-from app.rag.engine import get_stats as engine_get_stats
+from app.rag.engine import bulk_ingest as engine_bulk_ingest, get_stats as engine_get_stats
 
 router = APIRouter(prefix="/api/v1/rag/v2", tags=["rag"])
 

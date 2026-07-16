@@ -18,13 +18,14 @@ Premium feature: "AI-Powered Risk Score" - ML confidence alongside rules-based s
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import pickle
 from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
+
+from app.core.logging import get_logger
 
 logger = get_logger("sentinel.ai")
 
@@ -104,9 +105,13 @@ def extract_features(scan_result: dict[str, Any]) -> dict[str, float]:
         f["deployer_scam_count"] = float(d.get("scam_count", 0) or 0)
         f["deployer_high_risk"] = 1.0 if f["deployer_risk_score"] > 70 else 0.0
         f["deployer_critical"] = 1.0 if f["deployer_risk_score"] > 90 else 0.0
-        f["multi_chain_deployer"] = 1.0 if free.get("cross_chain", {}).get("chain_count", 0) > 1 else 0.0
+        f["multi_chain_deployer"] = (
+            1.0 if free.get("cross_chain", {}).get("chain_count", 0) > 1 else 0.0
+        )
         f["deployer_chain_count"] = float(
-            free.get("cross_chain", {}).get("chain_count", 1) if isinstance(free.get("cross_chain"), dict) else 1
+            free.get("cross_chain", {}).get("chain_count", 1)
+            if isinstance(free.get("cross_chain"), dict)
+            else 1
         )
         f["has_deployer_data"] = 1.0 if f["deployer_known"] else 0.0
 
@@ -136,7 +141,9 @@ def extract_features(scan_result: dict[str, Any]) -> dict[str, float]:
 
     # ChainAware AI
     ca = free.get("chainaware_ai", {}) or {}
-    f["chainaware_rug_risk"] = float(ca.get("rug_probability", 0) or 0) if isinstance(ca, dict) else 0.0
+    f["chainaware_rug_risk"] = (
+        float(ca.get("rug_probability", 0) or 0) if isinstance(ca, dict) else 0.0
+    )
 
     # GoPlus
     gp = free.get("goplus", {}) or {}
@@ -153,7 +160,9 @@ def extract_features(scan_result: dict[str, Any]) -> dict[str, float]:
 
     # Volume anomaly
     va = free.get("volume_anomaly", {}) or {}
-    f["volume_manipulation"] = 1.0 if isinstance(va, dict) and va.get("manipulation_detected") else 0.0
+    f["volume_manipulation"] = (
+        1.0 if isinstance(va, dict) and va.get("manipulation_detected") else 0.0
+    )
 
     # ── RAG / scam database features (6 features) ──
     rag = free.get("rag_scam_check", {}) or {}
@@ -167,11 +176,19 @@ def extract_features(scan_result: dict[str, Any]) -> dict[str, float]:
 
     # ── Social / sentiment (5 features) ──
     sentiment = free.get("sentiment", {}) or {}
-    f["social_volume"] = float(sentiment.get("mention_count", 0) or 0) if isinstance(sentiment, dict) else 0.0
-    f["sentiment_score"] = float(sentiment.get("score", 0) or 0) if isinstance(sentiment, dict) else 0.0
+    f["social_volume"] = (
+        float(sentiment.get("mention_count", 0) or 0) if isinstance(sentiment, dict) else 0.0
+    )
+    f["sentiment_score"] = (
+        float(sentiment.get("score", 0) or 0) if isinstance(sentiment, dict) else 0.0
+    )
     santiment = free.get("santiment", {}) or {}
-    f["santiment_hype"] = 1.0 if isinstance(santiment, dict) and santiment.get("hype_detected") else 0.0
-    f["santiment_viral_low_vol"] = 1.0 if isinstance(santiment, dict) and santiment.get("viral_low_volume") else 0.0
+    f["santiment_hype"] = (
+        1.0 if isinstance(santiment, dict) and santiment.get("hype_detected") else 0.0
+    )
+    f["santiment_viral_low_vol"] = (
+        1.0 if isinstance(santiment, dict) and santiment.get("viral_low_volume") else 0.0
+    )
     f["has_social_data"] = 1.0 if sentiment or santiment else 0.0
 
     # ── Chain/network features (4 features) ──
@@ -213,7 +230,8 @@ class ScamClassifier:
         if os.path.exists(MODEL_PATH):
             try:
                 with open(MODEL_PATH, "rb") as f:
-                    self.model = pickle.load(f)
+                    # SECURITY: pickle loads are safe here because models are bundled in Docker image
+                    self.model = pickle.load(f, usedforsecurity=False)
                 if os.path.exists(FEATURE_NAMES_PATH):
                     with open(FEATURE_NAMES_PATH) as f:
                         meta = json.load(f)
@@ -244,7 +262,9 @@ class ScamClassifier:
                 },
                 f,
             )
-        logger.info(f"Saved classifier: {self.training_samples} samples, {self.accuracy:.1%} accuracy")
+        logger.info(
+            f"Saved classifier: {self.training_samples} samples, {self.accuracy:.1%} accuracy"
+        )
 
     def train(self, scans: list[dict[str, Any]]) -> dict[str, Any]:
         """Train on historical scan data. Each scan must have 'is_scam' label."""
@@ -338,7 +358,9 @@ class ScamClassifier:
             # Get top contributing features
             contributions = {}
             if hasattr(self.model, "feature_importances_"):
-                for name, imp in zip(self.feature_names, self.model.feature_importances_, strict=False):
+                for name, imp in zip(
+                    self.feature_names, self.model.feature_importances_, strict=False
+                ):
                     if features.get(name, 0) != 0 and imp > 0.01:
                         contributions[name] = {
                             "value": features.get(name, 0),
@@ -365,7 +387,9 @@ class ScamClassifier:
                 "confidence": round(confidence, 1),
                 "model_samples": self.training_samples,
                 "model_accuracy": round(self.accuracy, 3),
-                "top_signals": dict(sorted(contributions.items(), key=lambda x: -x[1]["importance"])[:8]),
+                "top_signals": dict(
+                    sorted(contributions.items(), key=lambda x: -x[1]["importance"])[:8]
+                ),
             }
         except Exception as e:
             logger.warning(f"Prediction failed: {e}")

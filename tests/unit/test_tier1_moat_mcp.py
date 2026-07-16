@@ -3,6 +3,7 @@
 These tests verify the tool catalog, versioning, and dispatch - all without
 needing a live database or external service. They test the contract.
 """
+
 from __future__ import annotations
 
 from app.mcp.server import (
@@ -56,6 +57,7 @@ def test_all_tools_have_versions():
 def test_version_format_is_semver():
     """All tool versions must be MAJOR.MINOR.PATCH."""
     import re
+
     semver_re = re.compile(r"^\d+\.\d+\.\d+$")
     for name, ver in TOOL_VERSIONS.items():
         assert semver_re.match(ver), f"{name} version '{ver}' is not semver"
@@ -92,6 +94,7 @@ def test_successor_targets_exist():
 def test_server_version_is_set():
     """Server version must be a non-empty semantic version."""
     import re
+
     assert re.match(r"^\d+\.\d+\.\d+$", MCP_SERVER_VERSION), (
         f"MCP_SERVER_VERSION '{MCP_SERVER_VERSION}' is not semver"
     )
@@ -109,6 +112,7 @@ def test_duckdb_query_supports_max_rows():
     import inspect
 
     from app.core.duckdb_analytics import DuckDBAnalytics
+
     sig = inspect.signature(DuckDBAnalytics.query)
     assert "max_rows" in sig.parameters, "DuckDBAnalytics.query must support max_rows parameter"
 
@@ -116,6 +120,7 @@ def test_duckdb_query_supports_max_rows():
 def test_duckdb_max_rows_caps_results():
     """When max_rows is set, fetchmany is used (not fetchall)."""
     from app.core.duckdb_analytics import DuckDBAnalytics
+
     d = DuckDBAnalytics()
     # Insert 5 rows
     d._conn.execute("CREATE TABLE IF NOT EXISTS _test_max_rows AS SELECT 1 AS n")
@@ -129,6 +134,7 @@ def test_duckdb_max_rows_caps_results():
 def test_tool_names_are_kebab_case():
     """Tool names should be lowercase with underscores (per MCP convention)."""
     import re
+
     name_re = re.compile(r"^[a-z][a-z0-9_]*$")
     for tool in TOOL_CATALOG:
         name = tool["name"]

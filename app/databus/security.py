@@ -10,10 +10,11 @@ Three tiers:
 Never exposes API keys in responses. Never leaks internal data to public users.
 """
 
-from app.core.logging import get_logger
 import os
 
 from fastapi import Request
+
+from app.core.logging import get_logger
 
 logger = get_logger("databus.security")
 
@@ -142,7 +143,9 @@ class SecurityGate:
                 sanitized[k] = SecurityGate.sanitize_response(v, data_type, access_level)
             elif isinstance(v, list):
                 sanitized[k] = [
-                    SecurityGate.sanitize_response(item, data_type, access_level) if isinstance(item, dict) else item
+                    SecurityGate.sanitize_response(item, data_type, access_level)
+                    if isinstance(item, dict)
+                    else item
                     for item in v
                 ]
             else:

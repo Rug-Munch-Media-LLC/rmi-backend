@@ -44,7 +44,9 @@ from app.ai_router import router as ai_router  # noqa: E402
 from app.auth import get_current_user, require_auth  # noqa: E402
 
 # ── DB path ──
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "rmi.db")
+DB_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "rmi.db"
+)
 
 # ── Free API endpoints for market context ──
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -146,7 +148,9 @@ class ChatRequest(BaseModel):
     tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$", description="AI model tier")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=64, le=8192)
-    context_override: dict[str, Any] | None = Field(default=None, description="Custom context injection")
+    context_override: dict[str, Any] | None = Field(
+        default=None, description="Custom context injection"
+    )
 
 
 class StreamRequest(BaseModel):
@@ -186,7 +190,9 @@ async def _fetch_market_context() -> dict[str, Any]:
     return {}
 
 
-async def _build_messages(user_id: str, message: str, system_context: str | None = None) -> list[dict]:
+async def _build_messages(
+    user_id: str, message: str, system_context: str | None = None
+) -> list[dict]:
     """Build message list with conversation history + market context + security hardening."""
     # Fetch recent conversation history
     conn = _get_db()
@@ -333,7 +339,11 @@ async def chat_stream(
     if not scan.safe:
         ai_guard.record_block(user_id)
         return StreamingResponse(
-            iter([f"data: {json.dumps({'type': 'error', 'content': f'Security alert: {scan.reason}'})}\n\n"]),
+            iter(
+                [
+                    f"data: {json.dumps({'type': 'error', 'content': f'Security alert: {scan.reason}'})}\n\n"
+                ]
+            ),
             media_type="text/event-stream",
         )
 
@@ -434,7 +444,9 @@ async def chat_stats(user: dict = Depends(require_auth)):
     user_id = user.get("id")
 
     conn = _get_db()
-    total = conn.execute("SELECT COUNT(*) FROM chat_messages WHERE user_id = ?", (user_id,)).fetchone()[0]
+    total = conn.execute(
+        "SELECT COUNT(*) FROM chat_messages WHERE user_id = ?", (user_id,)
+    ).fetchone()[0]
     total_users = conn.execute("SELECT COUNT(DISTINCT user_id) FROM chat_messages").fetchone()[0]
     conn.close()
 

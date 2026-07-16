@@ -14,9 +14,10 @@ Primary API:
   flag_deployer(address, chain, reason) - the data flywheel from scans
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 from typing import Any
+
+from app.core.logging import get_logger
 
 from .clustering import (
     WalletClusteringEngine,

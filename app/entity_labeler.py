@@ -11,12 +11,12 @@ Exposes:
   • Token metadata (name, symbol, decimals)
 """
 
-from app.core.logging import get_logger
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel
 
+from app.core.logging import get_logger
 from app.entity_clustering import EntityClusteringEngine
 
 logger = get_logger(__name__)
@@ -110,7 +110,9 @@ def detect_token_type(symbol: str, name: str = "") -> list[str]:
     return types
 
 
-def detect_whale(address: str, balance_eth: float = 0, balance_usd: float = 0) -> dict[str, Any] | None:
+def detect_whale(
+    address: str, balance_eth: float = 0, balance_usd: float = 0
+) -> dict[str, Any] | None:
     """Detect if address is a whale (high-value wallet)."""
     whale_thresholds = {
         "super_whale": 10000,  # $10M+ USD
@@ -228,7 +230,7 @@ class EntityLabeler:
             "protocol": None,
             "token_type": [],
             "contract": {},
-            "verified_at": datetime.utcnow().isoformat(),
+            "verified_at": datetime.now(UTC).isoformat(),
         }
 
         # Detect exchange

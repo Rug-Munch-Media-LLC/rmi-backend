@@ -60,6 +60,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if RMI_AUTH_TOKEN and api_key != RMI_AUTH_TOKEN:
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Unauthorized - valid X-API-Key header required for write operations"},
+                content={
+                    "detail": "Unauthorized - valid X-API-Key header required for write operations"
+                },
             )
         return await call_next(request)

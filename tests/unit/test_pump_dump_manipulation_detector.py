@@ -256,7 +256,9 @@ def test_empty_findings_score() -> None:
 def test_max_score_cap() -> None:
     """Test risk score is capped at 100."""
     findings = [
-        ManipulationFinding(finding_type=t, severity=FindingSeverity.CRITICAL, description=f"test {i}")
+        ManipulationFinding(
+            finding_type=t, severity=FindingSeverity.CRITICAL, description=f"test {i}"
+        )
         for i, t in enumerate([ManipulationType.COORDINATED_PUMP] * 4)
     ]
     detector = PumpDumpDetector()
@@ -432,7 +434,6 @@ def test_lifecycle_pattern_young_pair() -> None:
     # The lifecycle methods operate on pairs_data dicts, not the actual data source
     # This tests the pattern matching logic directly
     # We already check via threshold tests above
-    pass
 
 
 def test_thresholds_immutable() -> None:

@@ -98,9 +98,7 @@ class TestParquetRoundTrip:
             assert r == [{"n": 50}]
 
             # Aggregation
-            r = db.query(
-                f"SELECT count(*) AS n, sum(doubled) AS total FROM '{path}'"
-            )
+            r = db.query(f"SELECT count(*) AS n, sum(doubled) AS total FROM '{path}'")
             assert r[0]["n"] == 50
             assert r[0]["total"] == 2 * sum(range(50))
         finally:
@@ -115,9 +113,7 @@ class TestParquetRoundTrip:
                 path,
             )
             # Use query_parquet with explicit SQL
-            r = db.query_parquet(
-                path, "SELECT chain, n FROM parquet ORDER BY chain"
-            )
+            r = db.query_parquet(path, "SELECT chain, n FROM parquet ORDER BY chain")
             assert r == [{"chain": "eth", "n": 2}, {"chain": "sol", "n": 1}]
         finally:
             os.unlink(path)

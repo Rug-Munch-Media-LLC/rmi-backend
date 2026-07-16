@@ -27,13 +27,14 @@ Data Sources (all free):
 """
 
 import asyncio
-from app.core.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 __all__ = [
     "MevFactor",
@@ -125,7 +126,9 @@ class MevShieldResult:
 
 
 # ── MEV Shield Analysis Engine ────────────────────────────────────
-async def _fetch_free_rpc(chain: str, method: str, params: list[Any] | None = None) -> dict[str, Any] | None:
+async def _fetch_free_rpc(
+    chain: str, method: str, params: list[Any] | None = None
+) -> dict[str, Any] | None:
     """Call an RPC with fallback URLs."""
     urls: list[str] = [FREE_RPCS.get(chain, "")]
     if chain in FALLBACK_RPCS:
@@ -213,7 +216,9 @@ async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> Me
                 if avg_gas > 100:
                     score = max(score, 0.75)
                     findings.append("High gas price environment")
-                    details.append(f"Avg gas: {avg_gas:.1f} gwei - competitive bidding indicates MEV activity")
+                    details.append(
+                        f"Avg gas: {avg_gas:.1f} gwei - competitive bidding indicates MEV activity"
+                    )
                 elif avg_gas > 30:
                     score = max(score, 0.45)
                     findings.append("Elevated gas prices")
@@ -308,7 +313,9 @@ async def _check_pool_liquidity(pair_address: str | None, chain: str) -> MevFact
 
     try:
         async with httpx.AsyncClient(timeout=MEV_API_TIMEOUT) as client:
-            resp = await client.get(f"https://api.dexscreener.com/latest/dex/pairs/{chain}/{pair_address}")
+            resp = await client.get(
+                f"https://api.dexscreener.com/latest/dex/pairs/{chain}/{pair_address}"
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs", [])
@@ -319,17 +326,13 @@ async def _check_pool_liquidity(pair_address: str | None, chain: str) -> MevFact
                     if liquidity_usd < THIN_LIQUIDITY_USD:
                         score = 0.85
                         finding = "Thin liquidity pool"
-                        detail = (
-                            f"${liquidity_usd:,.0f} liquidity - highly vulnerable to sandwich/liquidity manipulation"
-                        )
+                        detail = f"${liquidity_usd:,.0f} liquidity - highly vulnerable to sandwich/liquidity manipulation"
                         suggestion = "Avoid trading in sub-$50K liquidity pools, or use small orders split across time"
                     elif liquidity_usd < MODERATE_LIQUIDITY_USD:
                         score = 0.5
                         finding = "Moderate liquidity"
                         detail = f"${liquidity_usd:,.0f} liquidity - sandwich possible for orders >${liquidity_usd * 0.01:,.0f}"
-                        suggestion = (
-                            "Keep individual trades under 1% of pool liquidity to minimize slippage and MEV risk"
-                        )
+                        suggestion = "Keep individual trades under 1% of pool liquidity to minimize slippage and MEV risk"
                     else:
                         score = 0.15
                         finding = "Deep liquidity pool"
@@ -433,9 +436,7 @@ async def _check_timing_risk() -> MevFactor:
         score = 0.6
         finding = "Peak MEV hours"
         detail = "US market hours - highest MEV bot competition"
-        suggestion = (
-            "Consider transacting outside peak hours (before 14:00 UTC) for lower MEV risk, or use private mempool"
-        )
+        suggestion = "Consider transacting outside peak hours (before 14:00 UTC) for lower MEV risk, or use private mempool"
     elif 6 <= hour <= 13:
         score = 0.35
         finding = "Off-peak hours"
@@ -456,7 +457,9 @@ async def _check_timing_risk() -> MevFactor:
     )
 
 
-def _compute_protection_strategies(risk_level: MevRiskLevel, factors: list[MevFactor], chain: str) -> list[str]:
+def _compute_protection_strategies(
+    risk_level: MevRiskLevel, factors: list[MevFactor], chain: str
+) -> list[str]:
     """Generate actionable protection strategies based on risk profile."""
     strategies = []
 
@@ -472,17 +475,23 @@ def _compute_protection_strategies(risk_level: MevRiskLevel, factors: list[MevFa
             "🔒 Use MEV Blocker (https://mevblocker.io/) - sends tx to private mempool with backrunning protection"
         )
         if any(f.name == "pool_liquidity" for f in high_factors):
-            strategies.append("📊 Split large trades into smaller chunks to reduce slippage and sandwich exposure")
+            strategies.append(
+                "📊 Split large trades into smaller chunks to reduce slippage and sandwich exposure"
+            )
         if any(f.name == "slippage_tolerance" for f in high_factors):
             strategies.append(
                 "⚡ Set slippage to 0.5% or lower - this is the single most effective MEV reduction tactic"
             )
     elif risk_level == MevRiskLevel.MODERATE:
         strategies.append("🛡️ Consider MEV Blocker for moderate-value transactions - free to use")
-        strategies.append("⏰ Time your transaction during off-peak hours (before 14:00 UTC) for lower MEV competition")
+        strategies.append(
+            "⏰ Time your transaction during off-peak hours (before 14:00 UTC) for lower MEV competition"
+        )
     else:
         strategies.append("✅ Standard transaction appears safe - no special MEV protection needed")
-        strategies.append("💡 For high-value transactions (>$10K), still consider Flashbots as a precaution")
+        strategies.append(
+            "💡 For high-value transactions (>$10K), still consider Flashbots as a precaution"
+        )
 
     # Chain-specific
     if chain == "ethereum":
@@ -562,7 +571,9 @@ async def analyze_transaction_risk(
     """
     chain = await _resolve_chain_id(chain)
     if chain not in FREE_RPCS:
-        raise ValueError(f"Unsupported chain: '{chain}'. Supported chains: {', '.join(sorted(FREE_RPCS.keys()))}")
+        raise ValueError(
+            f"Unsupported chain: '{chain}'. Supported chains: {', '.join(sorted(FREE_RPCS.keys()))}"
+        )
     slippage_bps = slippage_bps or DEFAULT_SLIPPAGE_BPS
 
     if gas_price_gwei is None:
@@ -612,7 +623,9 @@ async def analyze_transaction_risk(
         "timing": 0.10,
     }
 
-    overall_score = sum(f.score * weights.get(f.name, 0.15) for f in factors) / sum(weights.values())
+    overall_score = sum(f.score * weights.get(f.name, 0.15) for f in factors) / sum(
+        weights.values()
+    )
 
     # Determine risk level
     if overall_score >= 0.7:
@@ -702,7 +715,9 @@ async def main() -> None:
 
     print(f"\nRisk Level: {result.risk_level.value.upper()}")
     print(f"Overall Score: {result.overall_score:.2f} / 1.00")
-    print(f"Estimated Loss if MEV'd: {result.estimated_loss_bps} bps ({result.estimated_loss_bps / 100:.1f}%)")
+    print(
+        f"Estimated Loss if MEV'd: {result.estimated_loss_bps} bps ({result.estimated_loss_bps / 100:.1f}%)"
+    )
     print()
 
     print("Factor Breakdown:")

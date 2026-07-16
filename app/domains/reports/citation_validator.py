@@ -221,7 +221,11 @@ def validate_section(
     if not sources:
         # No sources provided - every claim is unciteable
         return {
-            "validated_text": ("[Data not available - no RAG sources retrieved]" if on_unciteable == "strip" else text),
+            "validated_text": (
+                "[Data not available - no RAG sources retrieved]"
+                if on_unciteable == "strip"
+                else text
+            ),
             "citations": [],
             "unciteable_count": _count_sentences(text),
             "validation_rate": 0.0,
@@ -236,7 +240,9 @@ def validate_section(
         if not indices:
             # No citations at all - unciteable
             unciteable_count += 1
-            citations.append({"claim": sent, "source_idx": 0, "source_text": "", "supported": False})
+            citations.append(
+                {"claim": sent, "source_idx": 0, "source_text": "", "supported": False}
+            )
             if on_unciteable == "strip":
                 validated_sentences.append("[Data not available]")
             elif on_unciteable == "keep":

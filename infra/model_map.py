@@ -14,6 +14,7 @@ PLACEHOLDER (no real key, skipped):
 Per v4.0 master stack: all hosted APIs are routed through LiteLLM proxy at
 http://rmi-litellm:4000 with the sovereign OpenAI-compatible interface.
 """
+
 from __future__ import annotations
 
 import os
@@ -48,15 +49,26 @@ def _check(name: str, env_var: str, models: list[str], min_len: int = 30) -> Pro
 def get_model_map() -> list[Provider]:
     """Read all API keys from env. Returns provider status."""
     return [
-        _check("openrouter", "OPENROUTER_API_KEY", [
-            "deepseek/deepseek-chat", "MiniMax/MiniMax-M3",
-            "google/gemini-2.5-flash", "mistralai/mistral-large-latest",
-            "meta-llama/llama-3-70b-instruct",
-        ]),
+        _check(
+            "openrouter",
+            "OPENROUTER_API_KEY",
+            [
+                "deepseek/deepseek-chat",
+                "MiniMax/MiniMax-M3",
+                "google/gemini-2.5-flash",
+                "mistralai/mistral-large-latest",
+                "meta-llama/llama-3-70b-instruct",
+            ],
+        ),
         _check("deepseek", "DEEPSEEK_API_KEY", ["deepseek-chat"], min_len=30),
-        _check("groq", "GROQ_API_KEY", [
-            "llama-3.3-70b-versatile", "llama-3.1-8b-instant",
-        ]),
+        _check(
+            "groq",
+            "GROQ_API_KEY",
+            [
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant",
+            ],
+        ),
         _check("gemini", "GEMINI_API_KEY", ["gemini-2.5-flash"], min_len=30),
         _check("minimax", "MiniMax_API_KEY", ["MiniMax-M3"], min_len=30),
         _check("mistral", "MISTRAL_API_KEY", ["mistral-large-latest"], min_len=30),

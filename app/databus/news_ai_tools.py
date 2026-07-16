@@ -12,8 +12,9 @@ All powered by local Ollama - no external API costs.
 """
 
 import json
-from app.core.logging import get_logger
 import time
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.news.ai")
 

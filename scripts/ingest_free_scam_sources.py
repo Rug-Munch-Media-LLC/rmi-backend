@@ -25,7 +25,9 @@ logger = logging.getLogger("ingest_free_scam_sources")
 RAG_API = "http://localhost:8000/api/v1/rag/ingest"
 COLLECTION = "known_scams"
 
-METAMASK_LIST_URL = "https://raw.githubusercontent.com/MetaMask/eth-phishing-detect/master/src/config.json"
+METAMASK_LIST_URL = (
+    "https://raw.githubusercontent.com/MetaMask/eth-phishing-detect/master/src/config.json"
+)
 CRYPTOSCAMDB_URLS = [
     "https://api.cryptoscamdb.org/v1/all",
     "https://api.cryptoscamdb.org/v1/scams",
@@ -107,7 +109,9 @@ async def ingest_metamask_blacklist():
             errors += 1
 
         if (batch_idx + 1) % 100 == 0:
-            logger.info(f"Progress: {batch_idx + 1}/{total_batches} batches | ingested: {ingested}, errors: {errors}")
+            logger.info(
+                f"Progress: {batch_idx + 1}/{total_batches} batches | ingested: {ingested}, errors: {errors}"
+            )
             await asyncio.sleep(0.05)
 
         # Rate limit: small delay every 20 batches
@@ -125,7 +129,11 @@ async def try_cryptoscamdb():
                 resp = await client.get(url)
                 if resp.status_code == 200:
                     data = resp.json()
-                    scams = data if isinstance(data, list) else data.get("result", data.get("scams", []))
+                    scams = (
+                        data
+                        if isinstance(data, list)
+                        else data.get("result", data.get("scams", []))
+                    )
                     logger.info(f"CryptoScamDB returned {len(scams)} entries from {url}")
                     return scams
         except Exception as e:
@@ -184,7 +192,9 @@ async def ingest_cryptoscamdb(scams: list):
                 errors += 1
 
         if (i + 1) % 100 == 0:
-            logger.info(f"CryptoScamDB progress: {i + 1}/{len(scams)} | ingested: {ingested}, errors: {errors}")
+            logger.info(
+                f"CryptoScamDB progress: {i + 1}/{len(scams)} | ingested: {ingested}, errors: {errors}"
+            )
 
     return ingested, errors
 

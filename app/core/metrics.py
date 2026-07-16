@@ -11,11 +11,13 @@ The factory expects `router` attribute (mounted at app root).
 from __future__ import annotations
 
 import time
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Response
 from prometheus_client import REGISTRY, Counter, Gauge, Histogram, generate_latest
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 # ── Metrics definitions ──────────────────────────────────────────────
 REQUEST_COUNT = Counter(

@@ -24,11 +24,12 @@ Architecture:
 from __future__ import annotations
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
+
+from app.core.logging import get_logger
 
 logger = get_logger("darkroom_multichain_airdrop")
 
@@ -122,7 +123,7 @@ class MultiChainAirdropCampaign:
 
     # Status
     status: str = "draft"
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     snapshot_completed_at: str | None = None
     distribution_completed_at: str | None = None
 
@@ -164,7 +165,9 @@ class MultiChainSnapshotEngine:
         excluded = {a.lower() for a in (exclude_addresses or [])}
 
         for source in sources:
-            logger.info(f"Snapshotting {source.token_symbol} on {source.chain} at {source.token_address}")
+            logger.info(
+                f"Snapshotting {source.token_symbol} on {source.chain} at {source.token_address}"
+            )
 
             # Get holders for this source
             holders = await MultiChainSnapshotEngine._get_holders_for_source(source)
@@ -188,7 +191,9 @@ class MultiChainSnapshotEngine:
                 # Update chain address mapping
                 all_holders[addr].chain_addresses[source.chain] = addr
 
-        logger.info(f"Multi-chain snapshot: {len(all_holders)} unique holders across {len(sources)} sources")
+        logger.info(
+            f"Multi-chain snapshot: {len(all_holders)} unique holders across {len(sources)} sources"
+        )
         return all_holders
 
     @staticmethod
@@ -353,7 +358,9 @@ class WeightedAirdropCalculator:
             if cross_chain_bonus > 0 and len(chains_present) > 1:
                 bonus = score * cross_chain_bonus * (len(chains_present) - 1)
                 score += bonus
-                logger.debug(f"Cross-chain bonus for {addr}: +{bonus} ({len(chains_present)} chains)")
+                logger.debug(
+                    f"Cross-chain bonus for {addr}: +{bonus} ({len(chains_present)} chains)"
+                )
 
             holder.weighted_score = score
 
@@ -378,7 +385,9 @@ class WeightedAirdropCalculator:
             allocation = int(total_pool_int * ratio)
             holder.airdrop_allocation = str(allocation)
 
-        logger.info(f"Proportional allocation: {len(qualified)} qualified, total score: {total_score}")
+        logger.info(
+            f"Proportional allocation: {len(qualified)} qualified, total score: {total_score}"
+        )
         return {h.primary_address: h for h in qualified}
 
     @staticmethod
@@ -726,7 +735,9 @@ class CustomSnapshotLoader:
                 for source_key, amount in holder.holdings_per_source.items():
                     if source_key in deduped[lower_addr].holdings_per_source:
                         existing = int(deduped[lower_addr].holdings_per_source[source_key])
-                        deduped[lower_addr].holdings_per_source[source_key] = str(existing + int(amount))
+                        deduped[lower_addr].holdings_per_source[source_key] = str(
+                            existing + int(amount)
+                        )
                     else:
                         deduped[lower_addr].holdings_per_source[source_key] = amount
                 # Merge chain addresses
@@ -781,7 +792,9 @@ class MultiChainAirdropManager:
         # Create multi-chain snapshot
         holders = await MultiChainSnapshotEngine.create_multichain_snapshot(
             sources=campaign.source_tokens,
-            exclude_addresses=campaign.blacklist_preloaded if hasattr(campaign, "blacklist_preloaded") else [],
+            exclude_addresses=campaign.blacklist_preloaded
+            if hasattr(campaign, "blacklist_preloaded")
+            else [],
         )
 
         # Apply anti-gaming filters
@@ -823,12 +836,14 @@ class MultiChainAirdropManager:
 
         campaign.qualified_holders = list(holders.values())
         campaign.total_qualified = len(holders)
-        campaign.snapshot_completed_at = datetime.utcnow().isoformat()
+        campaign.snapshot_completed_at = datetime.now(UTC).isoformat()
         campaign.status = "snapshot_complete"
 
         await MultiChainAirdropManager._save_campaign(campaign)
 
-        logger.info(f"Snapshot complete: {campaign.total_qualified} qualified for {campaign.campaign_id}")
+        logger.info(
+            f"Snapshot complete: {campaign.total_qualified} qualified for {campaign.campaign_id}"
+        )
         return campaign
 
     @staticmethod
@@ -859,7 +874,9 @@ class MultiChainAirdropManager:
 
         # Calculate allocations
         if campaign.distribution_mode == "one_to_one":
-            holders, total_pool = WeightedAirdropCalculator.calculate_one_to_one_allocations(holders)
+            holders, total_pool = WeightedAirdropCalculator.calculate_one_to_one_allocations(
+                holders
+            )
             campaign.total_airdrop_pool = total_pool
         elif campaign.distribution_mode == "proportional":
             holders = WeightedAirdropCalculator.calculate_proportional_allocations(
@@ -871,18 +888,24 @@ class MultiChainAirdropManager:
                 cross_chain_bonus=campaign.cross_chain_bonus,
             )
         elif campaign.distribution_mode == "tiered":
-            holders = WeightedAirdropCalculator.calculate_tiered_allocations(holders, campaign.tiers)
+            holders = WeightedAirdropCalculator.calculate_tiered_allocations(
+                holders, campaign.tiers
+            )
         elif campaign.distribution_mode == "fixed":
-            holders = WeightedAirdropCalculator.calculate_fixed_allocations(holders, campaign.total_airdrop_pool)
+            holders = WeightedAirdropCalculator.calculate_fixed_allocations(
+                holders, campaign.total_airdrop_pool
+            )
 
         campaign.qualified_holders = list(holders.values())
         campaign.total_qualified = len(holders)
-        campaign.snapshot_completed_at = datetime.utcnow().isoformat()
+        campaign.snapshot_completed_at = datetime.now(UTC).isoformat()
         campaign.status = "snapshot_complete"
 
         await MultiChainAirdropManager._save_campaign(campaign)
 
-        logger.info(f"Custom snapshot complete: {campaign.total_qualified} qualified for {campaign.campaign_id}")
+        logger.info(
+            f"Custom snapshot complete: {campaign.total_qualified} qualified for {campaign.campaign_id}"
+        )
         return campaign
 
     @staticmethod
@@ -908,7 +931,9 @@ class MultiChainAirdropManager:
 
             try:
                 # Determine target address on target chain
-                target_address = holder.chain_addresses.get(campaign.target_chain, holder.primary_address)
+                target_address = holder.chain_addresses.get(
+                    campaign.target_chain, holder.primary_address
+                )
 
                 tx = await deployer.mint_tokens(
                     campaign.target_token,
@@ -928,8 +953,10 @@ class MultiChainAirdropManager:
 
         campaign.total_distributed = str(total_distributed)
         campaign.tx_hashes = tx_hashes
-        campaign.distribution_completed_at = datetime.utcnow().isoformat()
-        campaign.status = "completed" if len(tx_hashes) == len(campaign.qualified_holders) else "partial"
+        campaign.distribution_completed_at = datetime.now(UTC).isoformat()
+        campaign.status = (
+            "completed" if len(tx_hashes) == len(campaign.qualified_holders) else "partial"
+        )
 
         await MultiChainAirdropManager._save_campaign(campaign)
 

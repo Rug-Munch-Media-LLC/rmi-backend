@@ -64,19 +64,27 @@ def _chain_payload(chain: str, **kwargs: Any) -> dict[str, Any]:
 
 
 @mcp.tool()
-async def whale_scan(chain: str = DEFAULT_CHAIN, address: str | None = None, min_usd: float | None = None) -> dict:
+async def whale_scan(
+    chain: str = DEFAULT_CHAIN, address: str | None = None, min_usd: float | None = None
+) -> dict:
     """Track whale wallet movements and large transactions."""
     return await _call_tool("whale_scan", _chain_payload(chain, address=address, min_usd=min_usd))
 
 
 @mcp.tool()
-async def smartmoney(chain: str = DEFAULT_CHAIN, address: str | None = None, timeframe: str | None = None) -> dict:
+async def smartmoney(
+    chain: str = DEFAULT_CHAIN, address: str | None = None, timeframe: str | None = None
+) -> dict:
     """Identify smart money wallets and their positions."""
-    return await _call_tool("smartmoney", _chain_payload(chain, address=address, timeframe=timeframe))
+    return await _call_tool(
+        "smartmoney", _chain_payload(chain, address=address, timeframe=timeframe)
+    )
 
 
 @mcp.tool()
-async def cluster(chain: str = DEFAULT_CHAIN, address: str | None = None, depth: int | None = None) -> dict:
+async def cluster(
+    chain: str = DEFAULT_CHAIN, address: str | None = None, depth: int | None = None
+) -> dict:
     """Cluster related wallets by behavior patterns."""
     return await _call_tool("cluster", _chain_payload(chain, address=address, depth=depth))
 
@@ -184,9 +192,13 @@ async def token_deep_dive(chain: str = DEFAULT_CHAIN, token: str | None = None) 
 
 
 @mcp.tool()
-async def token_comparison(chain: str = DEFAULT_CHAIN, token_a: str | None = None, token_b: str | None = None) -> dict:
+async def token_comparison(
+    chain: str = DEFAULT_CHAIN, token_a: str | None = None, token_b: str | None = None
+) -> dict:
     """Side-by-side token comparison analysis."""
-    return await _call_tool("token_comparison", _chain_payload(chain, token_a=token_a, token_b=token_b))
+    return await _call_tool(
+        "token_comparison", _chain_payload(chain, token_a=token_a, token_b=token_b)
+    )
 
 
 @mcp.tool()
@@ -337,7 +349,9 @@ async def contract_info(chain: str = DEFAULT_CHAIN, address: str | None = None) 
 
 
 @mcp.tool()
-async def storage_reader(chain: str = DEFAULT_CHAIN, contract: str | None = None, slot: str | None = None) -> dict:
+async def storage_reader(
+    chain: str = DEFAULT_CHAIN, contract: str | None = None, slot: str | None = None
+) -> dict:
     """Read contract storage slots."""
     return await _call_tool("storage_reader", _chain_payload(chain, contract=contract, slot=slot))
 
@@ -378,7 +392,9 @@ async def bundle_security_pack(chain: str = DEFAULT_CHAIN, token: str | None = N
 
 
 @mcp.tool()
-async def forensics_trace(chain: str = DEFAULT_CHAIN, address: str | None = None, depth: int | None = None) -> dict:
+async def forensics_trace(
+    chain: str = DEFAULT_CHAIN, address: str | None = None, depth: int | None = None
+) -> dict:
     """Trace funds through complex transaction graphs."""
     return await _call_tool("forensics_trace", _chain_payload(chain, address=address, depth=depth))
 

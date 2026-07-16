@@ -6,11 +6,12 @@ Every major news organization's crypto coverage. The biggest on the internet.
 import hashlib
 import json
 import logging
-from app.core.logging import get_logger
 import time
-from xml.etree import ElementTree as ET
 
 import httpx
+from defusedxml import ElementTree as SafeET
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.global")
 
@@ -124,11 +125,11 @@ def fetch_rss(source, url, limit=30):
 
         # Some feeds have HTML entities that break XML parsing
         try:
-            root = ET.fromstring(resp.content)
+            root = SafeET.fromstring(resp.content)
         except Exception:
             try:
                 cleaned = resp.text.replace("&", "&amp;").replace("&amp;amp;", "&amp;")
-                root = ET.fromstring(cleaned.encode())
+                root = SafeET.fromstring(cleaned.encode())
             except Exception:
                 return results
 

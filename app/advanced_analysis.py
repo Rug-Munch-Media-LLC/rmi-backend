@@ -10,12 +10,13 @@ Chains: solana, ethereum, base, bsc, arbitrum, polygon, avalanche,
         optimism, fantom, linea, zksync, scroll, mantle
 """
 
-from app.core.logging import get_logger
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -83,7 +84,9 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
     # Get token balances via Moralis/DexScreener
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
-            resp = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": address})
+            resp = await client.get(
+                "https://api.dexscreener.com/latest/dex/search", params={"q": address}
+            )
             if resp.status_code == 200:
                 pairs = resp.json().get("pairs", [])
                 tokens = {}
@@ -105,7 +108,9 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
     return result
 
 
-async def get_transaction_history(address: str, chain: str, limit: int = 50, offset: int = 0) -> dict[str, Any]:
+async def get_transaction_history(
+    address: str, chain: str, limit: int = 50, offset: int = 0
+) -> dict[str, Any]:
     """Get transaction history via explorer API."""
     explorer_api = EXPLORER_APIS.get(chain)
     if not explorer_api:
@@ -209,7 +214,9 @@ def _match_label(address: str, chain: str) -> str | None:
     return None
 
 
-async def trace_funding(address: str, chain: str, max_hops: int = 5, max_depth: int = 3) -> dict[str, Any]:
+async def trace_funding(
+    address: str, chain: str, max_hops: int = 5, max_depth: int = 3
+) -> dict[str, Any]:
     """Trace funding source hop-by-hop."""
     hops: list[FundingHop] = []
     visited = {address.lower()}
@@ -240,7 +247,9 @@ async def trace_funding(address: str, chain: str, max_hops: int = 5, max_depth: 
                                     chain=current_chain,
                                     amount_usd=float(tx.get("amount", 0)),
                                     tx_hash=tx.get("txHash", ""),
-                                    timestamp=datetime.fromtimestamp(tx.get("blockTime", 0), tz=UTC).isoformat()
+                                    timestamp=datetime.fromtimestamp(
+                                        tx.get("blockTime", 0), tz=UTC
+                                    ).isoformat()
                                     if tx.get("blockTime")
                                     else None,
                                 )
@@ -319,7 +328,11 @@ async def trace_funding(address: str, chain: str, max_hops: int = 5, max_depth: 
         "total_hops": len(hops),
         "max_depth_reached": depth >= max_depth,
         "funding_source": funding_source,
-        "risk_level": "high" if any(h.is_mixer for h in hops) else "medium" if len(hops) > 3 else "low",
+        "risk_level": "high"
+        if any(h.is_mixer for h in hops)
+        else "medium"
+        if len(hops) > 3
+        else "low",
         "traced_at": datetime.now(UTC).isoformat(),
     }
 
@@ -449,7 +462,9 @@ class RugRiskReport:
     factors_analyzed: int = 0
 
 
-async def analyze_contract_rug_risk(token_address: str, chain: str, tier: str = "free") -> dict[str, Any]:
+async def analyze_contract_rug_risk(
+    token_address: str, chain: str, tier: str = "free"
+) -> dict[str, Any]:
     """100-factor contract rug risk analysis."""
     report = RugRiskReport(token_address=token_address, chain=chain)
     factors_checked = 0
@@ -459,7 +474,9 @@ async def analyze_contract_rug_risk(token_address: str, chain: str, tier: str = 
     async with httpx.AsyncClient(timeout=20.0) as client:
         # ── Get DexScreener data (covers ~50 factors) ──
         try:
-            resp = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            resp = await client.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs", [])
@@ -486,8 +503,12 @@ async def analyze_contract_rug_risk(token_address: str, chain: str, tier: str = 
 
                     # Ratios
                     if report.liquidity_usd > 0:
-                        report.mcap_to_liquidity_ratio = report.market_cap_usd / report.liquidity_usd
-                        report.volume_to_liquidity_ratio = report.volume_24h_usd / report.liquidity_usd
+                        report.mcap_to_liquidity_ratio = (
+                            report.market_cap_usd / report.liquidity_usd
+                        )
+                        report.volume_to_liquidity_ratio = (
+                            report.volume_24h_usd / report.liquidity_usd
+                        )
 
                     factors_checked += 15
 
@@ -597,7 +618,9 @@ async def analyze_contract_rug_risk(token_address: str, chain: str, tier: str = 
                         lp_holder = lp_data[0] if isinstance(lp_data, list) else lp_data
                         report.lp_lock_pct = float(lp_holder.get("percent", 0))
                         report.lp_locked = (
-                            float(lp_holder.get("locked", 0)) > 0 if isinstance(lp_holder, dict) else False
+                            float(lp_holder.get("locked", 0)) > 0
+                            if isinstance(lp_holder, dict)
+                            else False
                         )
 
                     # Check owner
@@ -667,7 +690,9 @@ async def analyze_contract_rug_risk(token_address: str, chain: str, tier: str = 
 
         # ── Holder distribution (10 factors) ──
         try:
-            resp = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            resp = await client.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            )
             if resp.status_code == 200:
                 pairs = resp.json().get("pairs", [])
                 if pairs:

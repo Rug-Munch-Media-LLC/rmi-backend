@@ -1,10 +1,11 @@
 """Mistral AI provider for DataBus - Free tier: 1B tokens/month, 1 req/sec.
 Credit-conserving: uses Small 4 for bulk, Medium 3.5 only when needed."""
 
-from app.core.logging import get_logger
 import os
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -26,7 +27,11 @@ MODELS = {
 
 
 async def mistral_chat(
-    prompt: str, model: str | None = None, system: str | None = None, max_tokens: int = 512, temperature: float = 0.7
+    prompt: str,
+    model: str | None = None,
+    system: str | None = None,
+    max_tokens: int = 512,
+    temperature: float = 0.7,
 ) -> dict | None:
     """Chat completion via Mistral. Conserves free credits by using fast models."""
     if not MISTRAL_KEY:

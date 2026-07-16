@@ -20,6 +20,7 @@ Public API (re-exported):
   Entity, Wallet, Deployer, Token, Alert, NewsItem, RAGFinding, ScanReport
   DeployerReputation, RECIPES
 """
+
 from __future__ import annotations
 
 from app.core import health as health_mod

@@ -4,22 +4,30 @@ Wallet Authentication Helpers
 Wallet signature verification and user creation.
 """
 
-from app.core.logging import get_logger
+import base64
 import os
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def verify_wallet_signature(message: str, signature: str, address: str) -> bool:
+def verify_wallet_signature(
+    message: str, signature: str, address: str, chain: str = "base"
+) -> bool:
     """
-    Verify a wallet signature.
+    Verify a wallet signature with cryptographic validation and nonce freshness check.
 
-    NOTE: This is a validation stub. In production, use a proper signing library
-    (e.g., web3.py for Ethereum, @solana/web3.js for Solana) to verify signatures.
+    Args:
+        message: The message that was signed (includes nonce and timestamp)
+        signature: The signature to verify
+        address: The wallet address that supposedly signed the message
+        chain: The blockchain network (evm, solana)
 
-    For now, returns True if all fields are non-empty (basic validation).
+    Returns:
+        bool: True if signature is valid and nonce is fresh, False otherwise
     """
     if not message or not signature or not address:
         return False
@@ -28,9 +36,106 @@ def verify_wallet_signature(message: str, signature: str, address: str) -> bool:
     if len(address) < 20:
         return False
 
-    # Basic signature length check
-    # Typical sig is 65 hex chars for EVM
-    return len(signature) >= 60
+    # Extract nonce from message for freshness check
+    nonce = None
+    for line in message.split("\n"):
+        if line.startswith("Nonce: "):
+            nonce = line.split("Nonce: ")[1].strip()
+            break
+
+    if not nonce:
+        logger.warning("No nonce found in message")
+        return False
+
+    # Check nonce freshness in Redis
+    try:
+        import redis
+
+        r = redis.Redis(
+            host=os.getenv("REDIS_HOST", "localhost"),
+            port=int(os.getenv("REDIS_PORT", "6379")),
+            password=os.getenv("REDIS_PASSWORD", ""),
+            decode_responses=True,
+        )
+
+        # Check if nonce exists and get its timestamp
+        nonce_key = f"rmi:wallet_nonce:{nonce}"
+        nonce_data = r.get(nonce_key)
+
+        if not nonce_data:
+            logger.warning(f"Nonce not found or already used: {nonce}")
+            return False
+
+        # Parse nonce data (format: "address:timestamp")
+        try:
+            stored_address, timestamp_str = nonce_data.split(":", 1)
+            stored_timestamp = datetime.fromisoformat(timestamp_str)
+
+            # Check if nonce is expired (5 minutes)
+            if datetime.now(UTC) - stored_timestamp > timedelta(minutes=5):
+                logger.warning(f"Nonce expired: {nonce}")
+                r.delete(nonce_key)
+                return False
+
+            # Verify the address matches the stored address
+            if stored_address.lower() != address.lower():
+                logger.warning(f"Address mismatch in nonce: {address} vs {stored_address}")
+                return False
+
+            # Delete nonce after successful verification (replay protection)
+            r.delete(nonce_key)
+
+        except Exception as e:
+            logger.warning(f"Error parsing nonce data: {e}")
+            return False
+
+    except Exception as e:
+        logger.warning(f"Redis not available for nonce verification: {e}")
+        # Continue with signature verification even if Redis is unavailable
+        # This maintains backward compatibility
+
+    # Perform actual cryptographic signature verification based on chain type
+    if chain == "solana":
+        return _verify_solana_signature(address, message, signature)
+    else:
+        # Default to EVM signature verification for all other chains
+        return _verify_evm_signature(address, message, signature)
+
+
+def _verify_evm_signature(address: str, message: str, signature: str) -> bool:
+    """Verify an EVM wallet signature."""
+    try:
+        from eth_account import Account
+        from eth_account.messages import encode_defunct
+
+        encoded = encode_defunct(text=message)
+        recovered = Account.recover_message(encoded, signature=signature)
+        return recovered.lower() == address.lower()
+    except ImportError:
+        # eth_account not available - fail closed
+        logger.error("eth_account not available for EVM signature verification")
+        return False
+    except Exception as e:
+        logger.debug(f"EVM signature verification failed: {e}")
+        return False
+
+
+def _verify_solana_signature(address: str, message: str, signature: str) -> bool:
+    """Verify a Solana wallet signature."""
+    try:
+        from nacl.signing import VerifyKey
+
+        pubkey = VerifyKey(base64.b58decode(address))
+        msg_bytes = message.encode("utf-8")
+        sig_bytes = base64.b64decode(signature)
+        pubkey.verify(msg_bytes, sig_bytes)
+        return True
+    except ImportError:
+        logger.error("nacl not available for Solana signature verification")
+        return False
+    except Exception as e:
+        logger.debug(f"Solana signature verification failed: {e}")
+        return False
 
 
 def decode_signature(signature: str) -> tuple[str, str, int]:
@@ -104,7 +209,7 @@ async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[s
             "chain": chain,
             "tier": "FREE",
             "role": "USER",
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "xp": 0,
             "level": 1,
             "badges": [],

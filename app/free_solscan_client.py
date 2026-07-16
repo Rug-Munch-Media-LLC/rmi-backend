@@ -9,11 +9,12 @@ Extended with RMI security intelligence
 import base64
 import hashlib
 import logging
-from app.core.logging import get_logger
 import time
 from typing import Any
 
 import cloudscraper
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -30,7 +31,9 @@ def generate_solauth_token() -> str:
 
 # ─── Scrapers (separate instances for parallelism) ────────────────────────────
 
-_scraper = cloudscraper.create_scraper(browser={"browser": "chrome", "platform": "windows", "desktop": True})
+_scraper = cloudscraper.create_scraper(
+    browser={"browser": "chrome", "platform": "windows", "desktop": True}
+)
 
 BASE_URL = "https://api-v2.solscan.io/v2"
 
@@ -91,7 +94,9 @@ class FreeSolscanClient:
     @staticmethod
     def account_transactions(address: str, page: int = 1, page_size: int = 40) -> list | None:
         """Get transaction history for an address."""
-        return _request("/account/transaction", {"address": address, "page": page, "page_size": page_size})
+        return _request(
+            "/account/transaction", {"address": address, "page": page, "page_size": page_size}
+        )
 
     @staticmethod
     def account_transfers(
@@ -137,7 +142,9 @@ class FreeSolscanClient:
         return _request("/account/balance_change", {"address": address})
 
     @staticmethod
-    def account_portfolio(address: str, page: int = 1, page_size: int = 100, hide_zero: bool = True) -> dict | None:
+    def account_portfolio(
+        address: str, page: int = 1, page_size: int = 100, hide_zero: bool = True
+    ) -> dict | None:
         """Get token portfolio for an address."""
         return _request(
             "/account/tokenaccounts",

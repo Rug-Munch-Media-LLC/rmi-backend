@@ -34,11 +34,7 @@ class TestSupplyScoring(unittest.TestCase):
         profile.is_deflationary = True
 
         _analyze_supply_mechanics(profile)
-        self.assertLess(
-            profile.supply_risk_score,
-            30,
-            f"Healthy supply should score low, got {profile.supply_risk_score}",
-        )
+        assert profile.supply_risk_score < 30, f"Healthy supply should score low, got {profile.supply_risk_score}"
 
     def test_unlimited_mint_supply(self) -> None:
         """A token with no max supply and mint function should score high."""
@@ -50,12 +46,8 @@ class TestSupplyScoring(unittest.TestCase):
         profile.mint_function_type = "unlimited"
 
         _analyze_supply_mechanics(profile)
-        self.assertGreater(
-            profile.supply_risk_score,
-            50,
-            f"Unlimited mint should score high, got {profile.supply_risk_score}",
-        )
-        self.assertIn("unlimited_mint_function", str(profile.patterns_detected))
+        assert profile.supply_risk_score > 50, f"Unlimited mint should score high, got {profile.supply_risk_score}"
+        assert "unlimited_mint_function" in str(profile.patterns_detected)
 
     def test_supply_exceeds_max(self) -> None:
         """A token where total > max supply should be critical."""
@@ -65,12 +57,8 @@ class TestSupplyScoring(unittest.TestCase):
         profile.max_supply = 1_000_000_000
 
         _analyze_supply_mechanics(profile)
-        self.assertGreaterEqual(
-            profile.supply_risk_score,
-            40,
-            f"Supply overflow should score high, got {profile.supply_risk_score}",
-        )
-        self.assertIn("supply_exceeds_max", str(profile.patterns_detected))
+        assert profile.supply_risk_score >= 40, f"Supply overflow should score high, got {profile.supply_risk_score}"
+        assert "supply_exceeds_max" in str(profile.patterns_detected)
 
     def test_dilution_risk(self) -> None:
         """A token with <30% circ/total ratio should flag dilution."""
@@ -79,7 +67,7 @@ class TestSupplyScoring(unittest.TestCase):
         profile.circulating_supply = 2_000_000
 
         _analyze_supply_mechanics(profile)
-        self.assertIn("high_dilution_risk", str(profile.patterns_detected))
+        assert "high_dilution_risk" in str(profile.patterns_detected)
 
     def test_large_mint_headroom(self) -> None:
         """A token with >50% of max supply remaining should flag."""
@@ -90,7 +78,7 @@ class TestSupplyScoring(unittest.TestCase):
         profile.has_mint_function = True
 
         _analyze_supply_mechanics(profile)
-        self.assertIn("large_mint_headroom", str(profile.patterns_detected))
+        assert "large_mint_headroom" in str(profile.patterns_detected)
 
 
 class TestConcentrationScoring(unittest.TestCase):
@@ -103,8 +91,8 @@ class TestConcentrationScoring(unittest.TestCase):
         profile.top_50_holder_pct = 99.9
 
         _analyze_concentration(profile)
-        self.assertIn("extreme_concentration:top_10_holds_>99%", str(profile.patterns_detected))
-        self.assertIn(profile.concentration_risk, (SupplyRisk.HIGH, SupplyRisk.CRITICAL))
+        assert "extreme_concentration:top_10_holds_>99%" in str(profile.patterns_detected)
+        assert profile.concentration_risk in (SupplyRisk.HIGH, SupplyRisk.CRITICAL)
 
     def test_deployer_holds_majority(self) -> None:
         """Deployer holding >50% should be critical."""
@@ -113,7 +101,7 @@ class TestConcentrationScoring(unittest.TestCase):
         profile.top_10_holder_pct = 85.0
 
         _analyze_concentration(profile)
-        self.assertIn("deployer_holds_majority", str(profile.patterns_detected))
+        assert "deployer_holds_majority" in str(profile.patterns_detected)
 
     def test_no_concentration(self) -> None:
         """No significant concentration should score low."""
@@ -123,11 +111,7 @@ class TestConcentrationScoring(unittest.TestCase):
         profile.top_50_holder_pct = 30.0
 
         _analyze_concentration(profile)
-        self.assertLess(
-            profile.concentration_score,
-            20,
-            f"Fair distribution should score low, got {profile.concentration_score}",
-        )
+        assert profile.concentration_score < 20, f"Fair distribution should score low, got {profile.concentration_score}"
 
 
 class TestLiquidityScoring(unittest.TestCase):
@@ -139,8 +123,8 @@ class TestLiquidityScoring(unittest.TestCase):
         profile.lock_status = LockStatus.REMOVED
 
         _analyze_liquidity(profile)
-        self.assertIn("liquidity_removed", str(profile.patterns_detected))
-        self.assertGreater(profile.liquidity_score, 40)
+        assert "liquidity_removed" in str(profile.patterns_detected)
+        assert profile.liquidity_score > 40
 
     def test_liquidity_locked(self) -> None:
         """Locked liquidity should reduce risk."""
@@ -151,8 +135,8 @@ class TestLiquidityScoring(unittest.TestCase):
         profile.pair_liquidity_usd = 200_000
 
         _analyze_liquidity(profile)
-        self.assertIn("liquidity_locked", str(profile.patterns_detected))
-        self.assertLess(profile.liquidity_score, 20)
+        assert "liquidity_locked" in str(profile.patterns_detected)
+        assert profile.liquidity_score < 20
 
     def test_very_new_pair(self) -> None:
         """Very new pair should be flagged."""
@@ -161,8 +145,8 @@ class TestLiquidityScoring(unittest.TestCase):
         profile.pair_liquidity_usd = 500
 
         _analyze_liquidity(profile)
-        self.assertIn("very_new_pair", str(profile.patterns_detected))
-        self.assertIn("very_low_liquidity", str(profile.patterns_detected))
+        assert "very_new_pair" in str(profile.patterns_detected)
+        assert "very_low_liquidity" in str(profile.patterns_detected)
 
 
 class TestOverallRisk(unittest.TestCase):
@@ -186,11 +170,7 @@ class TestOverallRisk(unittest.TestCase):
         _analyze_concentration(profile)
         _analyze_liquidity(profile)
         _compute_overall_risk(profile)
-        self.assertIn(
-            profile.overall_risk,
-            (SupplyRisk.HIGH, SupplyRisk.CRITICAL),
-            f"Scam token should be high/critical, got {profile.overall_risk}",
-        )
+        assert profile.overall_risk in (SupplyRisk.HIGH, SupplyRisk.CRITICAL), f"Scam token should be high/critical, got {profile.overall_risk}"
 
     def test_safe_token(self) -> None:
         """A token with good practices should be safe/low."""
@@ -215,11 +195,7 @@ class TestOverallRisk(unittest.TestCase):
         _analyze_concentration(profile)
         _analyze_liquidity(profile)
         _compute_overall_risk(profile)
-        self.assertIn(
-            profile.overall_risk,
-            (SupplyRisk.SAFE, SupplyRisk.LOW),
-            f"Safe token should be safe/low, got {profile.overall_risk}",
-        )
+        assert profile.overall_risk in (SupplyRisk.SAFE, SupplyRisk.LOW), f"Safe token should be safe/low, got {profile.overall_risk}"
 
 
 class TestUtilities(unittest.TestCase):
@@ -227,29 +203,26 @@ class TestUtilities(unittest.TestCase):
 
     def test_detect_chain(self) -> None:
         """Chain detection should work for common formats."""
-        self.assertEqual(_detect_chain("0xabcd1234"), "ethereum")
-        self.assertEqual(
-            _detect_chain("AbCdEf1234567890AbCdEf1234567890AbCdEf1234567890AbCdEf1234567890"),
-            "solana",
-        )
-        self.assertEqual(_detect_chain("unknown"), "unknown")
+        assert _detect_chain("0xabcd1234") == "ethereum"
+        assert _detect_chain("AbCdEf1234567890AbCdEf1234567890AbCdEf1234567890AbCdEf1234567890") == "solana"
+        assert _detect_chain("unknown") == "unknown"
 
     def test_normalize_address(self) -> None:
         """Address normalization should lowercase and strip."""
-        self.assertEqual(_normalize_address("0xABC123"), "0xabc123")
-        self.assertEqual(_normalize_address("  0xABC  "), "0xabc")
+        assert _normalize_address("0xABC123") == "0xabc123"
+        assert _normalize_address("  0xABC  ") == "0xabc"
 
     def test_risk_classification(self) -> None:
         """Risk classification boundaries."""
-        self.assertEqual(_classify_risk(0), SupplyRisk.SAFE)
-        self.assertEqual(_classify_risk(10), SupplyRisk.SAFE)
-        self.assertEqual(_classify_risk(11), SupplyRisk.LOW)
-        self.assertEqual(_classify_risk(25), SupplyRisk.LOW)
-        self.assertEqual(_classify_risk(26), SupplyRisk.MEDIUM)
-        self.assertEqual(_classify_risk(50), SupplyRisk.MEDIUM)
-        self.assertEqual(_classify_risk(51), SupplyRisk.HIGH)
-        self.assertEqual(_classify_risk(75), SupplyRisk.HIGH)
-        self.assertEqual(_classify_risk(76), SupplyRisk.CRITICAL)
+        assert _classify_risk(0) == SupplyRisk.SAFE
+        assert _classify_risk(10) == SupplyRisk.SAFE
+        assert _classify_risk(11) == SupplyRisk.LOW
+        assert _classify_risk(25) == SupplyRisk.LOW
+        assert _classify_risk(26) == SupplyRisk.MEDIUM
+        assert _classify_risk(50) == SupplyRisk.MEDIUM
+        assert _classify_risk(51) == SupplyRisk.HIGH
+        assert _classify_risk(75) == SupplyRisk.HIGH
+        assert _classify_risk(76) == SupplyRisk.CRITICAL
 
     def test_pair_age_computation(self) -> None:
         """Pair age from Unix ms timestamp."""
@@ -259,11 +232,11 @@ class TestUtilities(unittest.TestCase):
         self.assertAlmostEqual(age, 1.0, delta=0.1)
 
         # Zero timestamp
-        self.assertEqual(_compute_pair_age_days(0), 0.0)
+        assert _compute_pair_age_days(0) == 0.0
 
         # Future timestamp
         future = int((now.timestamp() + 86400) * 1000)
-        self.assertEqual(_compute_pair_age_days(future), 0.0)
+        assert _compute_pair_age_days(future) == 0.0
 
 
 class TestOwnershipAndTax(unittest.TestCase):
@@ -276,7 +249,7 @@ class TestOwnershipAndTax(unittest.TestCase):
         profile.is_renounced = False
 
         _compute_overall_risk(profile)
-        self.assertIn("proxy_admin:contract_can_be_upgraded", str(profile.patterns_detected))
+        assert "proxy_admin:contract_can_be_upgraded" in str(profile.patterns_detected)
 
     def test_multisig_benefit(self) -> None:
         """Multi-sig ownership should reduce risk."""
@@ -285,7 +258,7 @@ class TestOwnershipAndTax(unittest.TestCase):
         profile.is_renounced = False
 
         _compute_overall_risk(profile)
-        self.assertIn("multisig_owner", str(profile.patterns_detected))
+        assert "multisig_owner" in str(profile.patterns_detected)
 
     def test_dynamic_tax_detection(self) -> None:
         """Dynamic tax should be flagged."""
@@ -294,8 +267,8 @@ class TestOwnershipAndTax(unittest.TestCase):
         profile.has_blacklist = True
 
         _compute_overall_risk(profile)
-        self.assertIn("dynamic_tax:tax_can_change", str(profile.patterns_detected))
-        self.assertIn("blacklist_function", str(profile.patterns_detected))
+        assert "dynamic_tax:tax_can_change" in str(profile.patterns_detected)
+        assert "blacklist_function" in str(profile.patterns_detected)
 
     def test_high_sell_tax(self) -> None:
         """Very high sell tax should flag honeypot risk."""
@@ -303,7 +276,7 @@ class TestOwnershipAndTax(unittest.TestCase):
         profile.sell_tax_pct = 99.0
 
         _compute_overall_risk(profile)
-        self.assertIn("very_high_sell_tax:99.0%", str(profile.patterns_detected))
+        assert "very_high_sell_tax:99.0%" in str(profile.patterns_detected)
 
 
 if __name__ == "__main__":

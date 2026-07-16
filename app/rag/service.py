@@ -3,6 +3,7 @@
 Provides a clean async Pydantic surface for search, ingest, feedback.
 Delegates to the M3 engine in app.rag.engine (built per v3 unfuck plan).
 """
+
 from __future__ import annotations
 
 import time
@@ -11,11 +12,7 @@ from typing import Any
 from app.core.logging import get_logger
 from app.rag.engine import (
     get_stats as engine_get_stats,
-)
-from app.rag.engine import (
     ingest_document as engine_ingest_document,
-)
-from app.rag.engine import (
     three_pillar_search as engine_three_pillar_search,
 )
 from app.rag.models import (
@@ -71,7 +68,7 @@ class RAGService:
             content_len=len(req.content),
         )
         try:
-            doc_id = req.doc_id or f"doc:{int(time.time()*1000)}"
+            doc_id = req.doc_id or f"doc:{int(time.time() * 1000)}"
             r = await engine_ingest_document(
                 collection=req.collection,
                 doc_id=doc_id,

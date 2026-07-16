@@ -24,17 +24,15 @@ class TestDataBusCache:
     @pytest.mark.integration
     async def test_l1_cache_hit_returns_data(self):
         """L1 memory cache should return cached data on second fetch."""
-        pass  # TODO: mock databus.fetch() with cache
+        # TODO: mock databus.fetch() with cache
 
     @pytest.mark.integration
     async def test_l2_redis_fallback_on_l1_miss(self):
         """L2 Redis should serve when L1 misses."""
-        pass
 
     @pytest.mark.integration
     async def test_stale_while_revalidate_returns_stale(self):
         """SWR should return stale data while refreshing in background."""
-        pass
 
 
 class TestCircuitBreakers:
@@ -43,17 +41,14 @@ class TestCircuitBreakers:
     @pytest.mark.integration
     async def test_circuit_opens_after_three_failures(self):
         """Circuit should open after 3 consecutive provider failures."""
-        pass
 
     @pytest.mark.integration
     async def test_half_open_allows_one_probe(self):
         """After timeout, half-open state should allow one probe request."""
-        pass
 
     @pytest.mark.integration
     async def test_closed_after_successful_probe(self):
         """Successful probe in half-open should close the circuit."""
-        pass
 
 
 class TestProviderFallback:
@@ -62,12 +57,10 @@ class TestProviderFallback:
     @pytest.mark.integration
     async def test_fallback_to_secondary_provider(self):
         """When primary fails, secondary provider should be tried."""
-        pass
 
     @pytest.mark.integration
     async def test_all_providers_fail_returns_none(self):
         """When all providers fail, databus should return None."""
-        pass
 
 
 class TestDataBusSmoke:

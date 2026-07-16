@@ -17,7 +17,6 @@ No new dependencies. No ML training. Pure immediate value.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from collections import defaultdict
@@ -25,6 +24,8 @@ from datetime import UTC, datetime
 
 import httpx
 import redis
+
+from app.core.logging import get_logger
 
 logger = get_logger("rugcharts_intel")
 
@@ -221,7 +222,9 @@ async def whale_alert_stream(
                             # Detect large balance changes
                             for pb, ab in zip(pre[:5], post[:5], strict=False):
                                 pre_amt = float(pb.get("uiTokenAmount", {}).get("uiAmount", 0) or 0)
-                                post_amt = float(ab.get("uiTokenAmount", {}).get("uiAmount", 0) or 0)
+                                post_amt = float(
+                                    ab.get("uiTokenAmount", {}).get("uiAmount", 0) or 0
+                                )
                                 delta = abs(post_amt - pre_amt)
                                 if delta > 1000:  # Threshold
                                     whales.append(
@@ -331,7 +334,9 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
                         new_tokens.append(
                             {
                                 "signature": sig_data["signature"][:16] + "...",
-                                "launch_time": datetime.fromtimestamp(sig_data.get("blockTime", 0), tz=UTC).isoformat(),
+                                "launch_time": datetime.fromtimestamp(
+                                    sig_data.get("blockTime", 0), tz=UTC
+                                ).isoformat(),
                                 "age_minutes": round(age_minutes, 1),
                                 "risk_score": risk_score,
                                 "risk_level": risk,
@@ -434,10 +439,14 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
                                 if len(windows[nw]) > avg_tx_per_window * 2:
                                     insider_signals.append(
                                         {
-                                            "window_start": datetime.fromtimestamp(window * 600, tz=UTC).isoformat(),
+                                            "window_start": datetime.fromtimestamp(
+                                                window * 600, tz=UTC
+                                            ).isoformat(),
                                             "tx_count_spike": len(tx_list),
                                             "avg_tx_count": round(avg_tx_per_window, 1),
-                                            "spike_multiplier": round(len(tx_list) / max(avg_tx_per_window, 1), 1),
+                                            "spike_multiplier": round(
+                                                len(tx_list) / max(avg_tx_per_window, 1), 1
+                                            ),
                                             "followed_by_continued_volume": True,
                                             "signal_strength": "HIGH"
                                             if len(tx_list) > avg_tx_per_window * 5
@@ -454,7 +463,9 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
         "total_signals": len(insider_signals),
         "address": address,
         "chain": chain,
-        "confidence": "HIGH" if len(insider_signals) >= 2 else ("MEDIUM" if insider_signals else "LOW"),
+        "confidence": "HIGH"
+        if len(insider_signals) >= 2
+        else ("MEDIUM" if insider_signals else "LOW"),
         "scan_time": datetime.now(UTC).isoformat(),
         "source": "insider_pattern_detector",
     }
@@ -524,7 +535,11 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
 
                     lp_holders_list = []
                     for h in holders[:10]:
-                        pct = (float(h.get("amount", 0)) / total_supply * 100) if total_supply > 0 else 0
+                        pct = (
+                            (float(h.get("amount", 0)) / total_supply * 100)
+                            if total_supply > 0
+                            else 0
+                        )
                         lp_holders_list.append(
                             {
                                 "address": h.get("address", "")[:12] + "...",
@@ -656,7 +671,9 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
 
                     # Gini coefficient
                     n = len(amounts)
-                    gini = (2 * sum((i + 1) * amounts[i] for i in range(n))) / (n * total) - (n + 1) / n
+                    gini = (2 * sum((i + 1) * amounts[i] for i in range(n))) / (n * total) - (
+                        n + 1
+                    ) / n
                     health["gini_coefficient"] = round(gini, 3)
 
                     # Top concentration
@@ -670,8 +687,12 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
                     # Factors: Gini inverted, holder count, whale count reduction
                     gini_penalty = min(1.0, gini / 0.9) * 40  # Up to 40 point penalty
                     holder_bonus = min(1.0, n / 1000) * 30  # Up to 30 point bonus
-                    whale_penalty = min(1.0, health["whale_count"] / 10) * 30  # Up to 30 point penalty
-                    health["decentralization_score"] = max(0, round(100 - gini_penalty + holder_bonus - whale_penalty))
+                    whale_penalty = (
+                        min(1.0, health["whale_count"] / 10) * 30
+                    )  # Up to 30 point penalty
+                    health["decentralization_score"] = max(
+                        0, round(100 - gini_penalty + holder_bonus - whale_penalty)
+                    )
 
                     # Risk assessment
                     if gini > 0.8:
@@ -688,13 +709,17 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
 
                     if health["top1_dominance"] > 50:
                         health["risk_level"] = "CRITICAL"
-                        health["risk_factors"].append(f"Single wallet dominance {health['top1_dominance']}%")
+                        health["risk_factors"].append(
+                            f"Single wallet dominance {health['top1_dominance']}%"
+                        )
 
                     if n < 20:
                         health["risk_level"] = max(
                             health["risk_level"],
                             "HIGH",
-                            key=lambda x: {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}.get(x, 0),
+                            key=lambda x: {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}.get(
+                                x, 0
+                            ),
                         )
                         health["risk_factors"].append(f"Very few holders ({n})")
 
@@ -939,7 +964,9 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
                         signals["holder_count"] = len(holders)
                         total = sum(float(h.get("amount", 0)) for h in holders)
                         if total > 0:
-                            signals["top_holder_pct"] = float(holders[0].get("amount", 0)) / total * 100
+                            signals["top_holder_pct"] = (
+                                float(holders[0].get("amount", 0)) / total * 100
+                            )
 
                 # Get first transaction to determine age
                 r3 = await c.post(
@@ -1117,11 +1144,17 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
                         # Estimate token deployments by counting program interactions
                         reputation["total_transactions"] = len(sigs)
 
-                        oldest = min(s.get("blockTime", float("inf")) for s in sigs if s.get("blockTime"))
+                        oldest = min(
+                            s.get("blockTime", float("inf")) for s in sigs if s.get("blockTime")
+                        )
                         newest = max(s.get("blockTime", 0) for s in sigs if s.get("blockTime"))
                         if oldest < float("inf") and newest > 0:
-                            reputation["first_seen"] = datetime.fromtimestamp(oldest, tz=UTC).isoformat()
-                            reputation["last_active"] = datetime.fromtimestamp(newest, tz=UTC).isoformat()
+                            reputation["first_seen"] = datetime.fromtimestamp(
+                                oldest, tz=UTC
+                            ).isoformat()
+                            reputation["last_active"] = datetime.fromtimestamp(
+                                newest, tz=UTC
+                            ).isoformat()
                             reputation["activity_span_days"] = round((newest - oldest) / 86400, 1)
 
                         # Heuristic: many transactions to token programs = likely deployer
@@ -1249,7 +1282,11 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         try:
             rug_data = await rug_pattern_matcher(address, chain, api_key=api_key)
             if rug_data:
-                top_match = rug_data.get("pattern_matches", [{}])[0] if rug_data.get("pattern_matches") else {}
+                top_match = (
+                    rug_data.get("pattern_matches", [{}])[0]
+                    if rug_data.get("pattern_matches")
+                    else {}
+                )
                 report["sections"]["rug_patterns"] = {
                     "total_matches": rug_data.get("total_matches", 0),
                     "overall_risk": rug_data.get("overall_rug_risk", "LOW"),

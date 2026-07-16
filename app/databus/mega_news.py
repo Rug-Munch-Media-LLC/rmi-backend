@@ -6,12 +6,12 @@ RMI Mega News Aggregator - Largest Free Crypto News Pipeline
 import hashlib
 import json
 import logging
-from app.core.logging import get_logger
 import re
 import time
-from xml.etree import ElementTree as ET
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("rmi.news")
 
@@ -157,7 +157,7 @@ def fetch_all_feeds(db=None) -> dict:
                 errors.append(f"{source}: HTTP {resp.status_code}")
                 continue
 
-            root = ET.fromstring(resp.content)
+            root = SafeET.fromstring(resp.content)
             items = root.findall(".//item")
             if not items:
                 items = root.findall(".//{http://www.w3.org/2005/Atom}entry")

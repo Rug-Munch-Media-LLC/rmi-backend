@@ -12,15 +12,16 @@ Features:
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
+
+from app.core.logging import get_logger
 
 logger = get_logger("whale-watcher")
 
@@ -108,7 +109,9 @@ class WhaleWatcher:
         # Get token supply
         supply_result = await self._rpc_call("getTokenSupply", [token_address])
         supply_info = supply_result.get("value", {}) if isinstance(supply_result, dict) else {}
-        total_supply = float(supply_info.get("amount", 1)) / (10 ** supply_info.get("decimals", 0)) or 1
+        total_supply = (
+            float(supply_info.get("amount", 1)) / (10 ** supply_info.get("decimals", 0)) or 1
+        )
 
         # Get largest holders
         holders_result = await self._rpc_call("getTokenLargestAccounts", [token_address])
@@ -177,7 +180,7 @@ class WhaleWatcher:
             "risk_level": risk_level,
             "risk_score": risk_score,
             "alerts": alerts,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def detect_whale_dump(self, token_address: str, hours_back: int = 24) -> dict[str, Any]:
@@ -185,10 +188,12 @@ class WhaleWatcher:
         logger.info(f"Detecting whale dumps for {token_address}...")
 
         # Get recent transactions
-        sigs_result = await self._rpc_call("getSignaturesForAddress", [token_address, {"limit": 200}])
+        sigs_result = await self._rpc_call(
+            "getSignaturesForAddress", [token_address, {"limit": 200}]
+        )
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours_back)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_back)
         dumps = []
 
         for sig_info in signatures[:50]:  # Check last 50 txs
@@ -229,7 +234,7 @@ class WhaleWatcher:
             "period_hours": hours_back,
             "dump_events": dumps,
             "total_dump_count": len(dumps),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def get_whale_profile(self, wallet_address: str) -> dict[str, Any]:
@@ -265,7 +270,9 @@ class WhaleWatcher:
                 )
 
         # Get recent tx count
-        sigs_result = await self._rpc_call("getSignaturesForAddress", [wallet_address, {"limit": 1000}])
+        sigs_result = await self._rpc_call(
+            "getSignaturesForAddress", [wallet_address, {"limit": 1000}]
+        )
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
         # Classify behavior
@@ -285,7 +292,9 @@ class WhaleWatcher:
             if age_days < 30 and len(signatures) > 200:
                 tags.append("aggressive_trader")
 
-        influence_score = min(100, int((sol_balance / 100) * 2 + len(token_holdings) * 3 + len(signatures) / 50))
+        influence_score = min(
+            100, int((sol_balance / 100) * 2 + len(token_holdings) * 3 + len(signatures) / 50)
+        )
 
         return {
             "address": wallet_address,
@@ -296,7 +305,7 @@ class WhaleWatcher:
             "influence_score": influence_score,
             "behavior_tags": tags,
             "is_whale": sol_balance > 100 or influence_score > 50,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def _get_enhanced_tx(self, signature: str) -> dict[str, Any] | None:

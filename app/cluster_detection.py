@@ -275,7 +275,9 @@ class ClusterDetectionPro:
             for tx in profile.get("transactions", []):
                 timestamp = tx.get("timestamp")
                 if timestamp:
-                    window = timestamp.replace(minute=(timestamp.minute // 5) * 5, second=0, microsecond=0)
+                    window = timestamp.replace(
+                        minute=(timestamp.minute // 5) * 5, second=0, microsecond=0
+                    )
                     time_windows[window].add(wallet)
 
         # Find wallets appearing together frequently
@@ -661,7 +663,9 @@ class ClusterDetectionPro:
 
         return clusters
 
-    def _merge_clusters_by_overlap(self, all_signals: dict, wallets: list[str]) -> list[WalletCluster]:
+    def _merge_clusters_by_overlap(
+        self, all_signals: dict, wallets: list[str]
+    ) -> list[WalletCluster]:
         """Merge clusters that share wallets."""
         # Build wallet -> clusters mapping
         wallet_clusters = defaultdict(set)
@@ -785,12 +789,17 @@ class ClusterDetectionPro:
 
         # Average amount similarity
         if fp1["avg_amount"] > 0 and fp2["avg_amount"] > 0:
-            ratio = min(fp1["avg_amount"], fp2["avg_amount"]) / max(fp1["avg_amount"], fp2["avg_amount"])
+            ratio = min(fp1["avg_amount"], fp2["avg_amount"]) / max(
+                fp1["avg_amount"], fp2["avg_amount"]
+            )
             scores.append(ratio)
 
         # Hour distribution similarity (cosine similarity)
         if fp1["hour_distribution"] and fp2["hour_distribution"]:
-            dot = sum(a * b for a, b in zip(fp1["hour_distribution"], fp2["hour_distribution"], strict=False))
+            dot = sum(
+                a * b
+                for a, b in zip(fp1["hour_distribution"], fp2["hour_distribution"], strict=False)
+            )
             norm1 = sum(a**2 for a in fp1["hour_distribution"]) ** 0.5
             norm2 = sum(a**2 for a in fp2["hour_distribution"]) ** 0.5
             if norm1 > 0 and norm2 > 0:
@@ -807,7 +816,9 @@ class ClusterDetectionPro:
         total = sum(counts)
         return [c / total if total > 0 else 0 for c in counts]
 
-    async def trace_funding_path(self, source: str, target: str, max_depth: int = 5) -> FundingPath | None:
+    async def trace_funding_path(
+        self, source: str, target: str, max_depth: int = 5
+    ) -> FundingPath | None:
         """Trace funding path between two wallets."""
         # BFS to find path
         visited = {source}

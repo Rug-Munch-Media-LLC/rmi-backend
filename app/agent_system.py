@@ -27,10 +27,11 @@ Specialists:
 import contextlib
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
+
+from app.core.logging import get_logger
 
 logger = get_logger("agent.system")
 
@@ -384,14 +385,19 @@ async def fetch_databus_context(chains: list[str]) -> str:
                         result = data.get("data", data.get("results", [{}]))
                         if isinstance(result, list) and result:
                             result = result[0].get("data", result[0]) if result else {}
-                        context_parts.append(f"[{chain} DATA]: {json.dumps(result, default=str)[:800]}")
+                        context_parts.append(
+                            f"[{chain} DATA]: {json.dumps(result, default=str)[:800]}"
+                        )
             except Exception as e:
                 logger.warning(f"DataBus context fetch failed for {chain}: {e}")
     except Exception as e:
         logger.warning(f"DataBus context system unavailable: {e}")
 
     if context_parts:
-        return "\n\nREAL-TIME PLATFORM DATA (use this in your analysis, do not fabricate):\n" + "\n".join(context_parts)
+        return (
+            "\n\nREAL-TIME PLATFORM DATA (use this in your analysis, do not fabricate):\n"
+            + "\n".join(context_parts)
+        )
     return ""
 
 
@@ -522,7 +528,11 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                                     return
                                 try:
                                     ch = json.loads(d)
-                                    txt = ch.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                    txt = (
+                                        ch.get("choices", [{}])[0]
+                                        .get("delta", {})
+                                        .get("content", "")
+                                    )
                                     if txt:
                                         full_response += txt
                                         yield {"type": "token", "text": txt}
@@ -570,12 +580,15 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                     "stream": True,
                 }
 
-                async with httpx.AsyncClient(timeout=60) as c, c.stream(
-                    "POST",
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    json=body,
-                    headers=headers,
-                ) as r:
+                async with (
+                    httpx.AsyncClient(timeout=60) as c,
+                    c.stream(
+                        "POST",
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        json=body,
+                        headers=headers,
+                    ) as r,
+                ):
                     if r.status_code == 200:
                         async for line in r.aiter_lines():
                             if line.startswith("data: "):
@@ -587,7 +600,11 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                                     return
                                 try:
                                     ch = json.loads(d)
-                                    txt = ch.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                    txt = (
+                                        ch.get("choices", [{}])[0]
+                                        .get("delta", {})
+                                        .get("content", "")
+                                    )
                                     if txt:
                                         full_response += txt
                                         yield {"type": "token", "text": txt}

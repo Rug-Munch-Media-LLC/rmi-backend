@@ -24,10 +24,11 @@ Storage impact: ~500 Redis keys at steady state, 0 ClickHouse writes.
 
 import datetime
 import json
-from app.core.logging import get_logger
 import time
 from dataclasses import dataclass, field
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger("x402.enrich")
 
@@ -420,7 +421,10 @@ def build_risk_summary(
         parts.append(f"{len(sanctioned)} OFAC-sanctioned wallet(s)")
 
     scam_count = sum(
-        1 for v in labels.values() for line in v if line.label_category in ("phish-hack", "scam", "etherscan-phish-hack-list")
+        1
+        for v in labels.values()
+        for line in v
+        if line.label_category in ("phish-hack", "scam", "etherscan-phish-hack-list")
     )
     if scam_count:
         parts.append(f"{scam_count} known phishing/scam address(es) detected")
@@ -499,7 +503,9 @@ def enrich_tool_response(
 
         for addr in addresses[:5]:
             try:
-                result = asyncio.run(detect_scam_patterns({"address": addr, "chain": "ethereum"}, 0.65))
+                result = asyncio.run(
+                    detect_scam_patterns({"address": addr, "chain": "ethereum"}, 0.65)
+                )
                 if result and result.get("risk_score", 0) > 0:
                     scam_flags.append(
                         {
@@ -588,7 +594,7 @@ def enrich_tool_response(
                         {
                             "address": addr,
                             "tool": tool_name,
-                            "timestamp": datetime.utcnow().isoformat(),
+                            "timestamp": datetime.now(datetime.UTC).isoformat(),
                         }
                     ),
                 )
@@ -686,7 +692,7 @@ def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None):
                 "tool": tool_name,
                 "type": alert_type,
                 "data": data,
-                "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
+                "timestamp": __import__("datetime").datetime.now(datetime.UTC).isoformat(),
             }
         )
         r.lpush("x402:alerts:high_risk", alert)
@@ -842,7 +848,14 @@ def preload_enrichment_cache(addresses: list[str]):
                 r.setex(
                     f"x402:enrich:{addr}",
                     1800,
-                    json.dumps({"labels": [{"category": line.label_category, "name": line.label_name} for line in labels]}),
+                    json.dumps(
+                        {
+                            "labels": [
+                                {"category": line.label_category, "name": line.label_name}
+                                for line in labels
+                            ]
+                        }
+                    ),
                 )
         except Exception:
             continue

@@ -1,6 +1,6 @@
 import asyncio
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 
@@ -24,7 +24,9 @@ class BirdeyeClient:
             await asyncio.sleep(wait)
         self.last_call = time.time()
         try:
-            r = await self.client.get(f"{BASE_URL}{endpoint}", headers=self.headers, params=params or {})
+            r = await self.client.get(
+                f"{BASE_URL}{endpoint}", headers=self.headers, params=params or {}
+            )
             return r.json() if r.status_code == 200 else {"error": f"HTTP {r.status_code}"}
         except Exception as e:
             return {"error": str(e)}
@@ -102,7 +104,7 @@ class BirdeyeClient:
         # 4. TRADE ACTIVITY (0-15 pts)
         last_trade = d.get("lastTradeUnixTime", 0) or 0
         if last_trade > 0:
-            mins = (datetime.utcnow().timestamp() - last_trade) / 60
+            mins = (datetime.now(UTC).timestamp() - last_trade) / 60
             if mins > 60:
                 score += 15
                 flags.append(f"No trades for {int(mins)} min - possible dead token")
@@ -179,7 +181,7 @@ class BirdeyeClient:
             "flags": flags,
             "positive_signals": signals,
             "metadata": {"website": has_web, "socials": has_social, "description": has_desc},
-            "analyzed_at": datetime.utcnow().isoformat(),
+            "analyzed_at": datetime.now(UTC).isoformat(),
             "birdeye_powered": True,
         }
 

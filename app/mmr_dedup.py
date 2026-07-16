@@ -21,9 +21,10 @@ top-K results contain minimal duplicate/near-duplicate content.
 
 import contextlib
 import json
-from app.core.logging import get_logger
 import math
 from typing import Any
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

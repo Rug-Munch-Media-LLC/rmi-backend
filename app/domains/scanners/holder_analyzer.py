@@ -14,7 +14,6 @@ Uses direct API calls: DexScreener (pairs/market), Birdeye (overview),
 Solscan (holders), Helius (account metadata).
 """
 
-from app.core.logging import get_logger
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -23,6 +22,7 @@ import httpx
 
 from app.birdeye_client import BirdeyeClient
 from app.chain_registry import is_solana
+from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient
 
 logger = get_logger("holder_analyzer")
@@ -97,7 +97,9 @@ class HolderAnalyzer:
     async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
-            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            resp = await self._http.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
@@ -296,7 +298,9 @@ class HolderAnalyzer:
                         combined_percentage=round(combined_pct, 2),
                         confidence=confidence,
                         cluster_type="funding",
-                        evidence=[f"All {len(group)} wallets funded from {source[:8]}...{source[-6:]}"],
+                        evidence=[
+                            f"All {len(group)} wallets funded from {source[:8]}...{source[-6:]}"
+                        ],
                     )
                 )
 
@@ -331,7 +335,9 @@ class HolderAnalyzer:
                             combined_percentage=round(combined_pct, 2),
                             confidence=0.7,
                             cluster_type="creation",
-                            evidence=[f"{len(current_cluster)} wallets created within 1 hour of each other"],
+                            evidence=[
+                                f"{len(current_cluster)} wallets created within 1 hour of each other"
+                            ],
                         )
                     )
                 current_cluster = [sorted_holders[i]]
@@ -473,7 +479,9 @@ class HolderAnalyzer:
 
         now_ms = int(time.time() * 1000)
         week_ms = 7 * 24 * 3600 * 1000
-        new_wallets = [h for h in holders if h.first_tx_timestamp and (now_ms - h.first_tx_timestamp) < week_ms]
+        new_wallets = [
+            h for h in holders if h.first_tx_timestamp and (now_ms - h.first_tx_timestamp) < week_ms
+        ]
         new_wallet_pct = sum(h.percentage for h in new_wallets)
 
         # Generate warnings
@@ -486,7 +494,9 @@ class HolderAnalyzer:
             warnings.append(f"MODERATE: HHI {hhi:.0f} - some concentration, monitor whale activity")
 
         if cluster_pct > 10:
-            warnings.append(f"FAKE DIVERSIFICATION: {cluster_pct:.1f}% of supply in detected clusters")
+            warnings.append(
+                f"FAKE DIVERSIFICATION: {cluster_pct:.1f}% of supply in detected clusters"
+            )
 
         if new_wallet_pct > 30:
             warnings.append(f"NEW WALLETS: {new_wallet_pct:.1f}% held by wallets < 7 days old")

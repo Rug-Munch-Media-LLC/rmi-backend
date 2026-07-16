@@ -9,11 +9,12 @@ cross-encoder relevance with original vector similarity.
 """
 
 import asyncio
-from app.core.logging import get_logger
 import time
 from typing import Optional
 
 from sentence_transformers import CrossEncoder
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -144,6 +145,7 @@ class CrossEncoderReranker:
         """Load the full fp32 cross-encoder (2.1 GB, ~45s)."""
         logger.info("Loading cross-encoder model '%s' (CPU, fp32) ...", _MODEL_NAME)
         start = time.perf_counter()
+        # TODO: pin to specific revision SHA for supply-chain integrity
         self._model = CrossEncoder(_MODEL_NAME, device="cpu")
         elapsed = time.perf_counter() - start
         self._load_time_secs = round(elapsed, 2)

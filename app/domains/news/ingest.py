@@ -12,6 +12,7 @@ embeds into RAG engine for semantic search.
 
 Run as a cron: every 15 minutes.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -111,7 +112,14 @@ async def ingest_all(
     if not cat._health.postgres:
         return {"error": "postgres unavailable"}
 
-    counts = {"feeds_ok": 0, "feeds_fail": 0, "items": 0, "ingested": 0, "duplicate": 0, "errors": 0}
+    counts = {
+        "feeds_ok": 0,
+        "feeds_fail": 0,
+        "items": 0,
+        "ingested": 0,
+        "duplicate": 0,
+        "errors": 0,
+    }
     async with httpx.AsyncClient() as client:
         # Fetch all feeds in parallel
         results = await asyncio.gather(
@@ -173,9 +181,17 @@ async def ingest_all(
                                 chains_mentioned, tokens_mentioned, sentiment_score
                             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
                             """,
-                            ni.news_id, str(ni.url), ni.title, ni.summary, ni.body_markdown,
-                            ni.source, ni.published_at, ni.ingested_at,
-                            ni.chains_mentioned, ni.tokens_mentioned, ni.sentiment_score,
+                            ni.news_id,
+                            str(ni.url),
+                            ni.title,
+                            ni.summary,
+                            ni.body_markdown,
+                            ni.source,
+                            ni.published_at,
+                            ni.ingested_at,
+                            ni.chains_mentioned,
+                            ni.tokens_mentioned,
+                            ni.sentiment_score,
                         )
                         counts["ingested"] += 1
                     except Exception as e:
@@ -200,7 +216,8 @@ async def ingest_all(
                         async with cat._pg_pool.acquire() as conn:
                             await conn.execute(
                                 "UPDATE news_items SET rag_embedding_id=$1 WHERE news_id=$2",
-                                r["qdrant_point_id"], ni.news_id,
+                                r["qdrant_point_id"],
+                                ni.news_id,
                             )
                     except Exception:
                         pass
@@ -213,6 +230,7 @@ async def ingest_all(
 # ── CLI entry point ──────────────────────────────────────────────
 if __name__ == "__main__":
     import json
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     result = asyncio.run(ingest_all())
     logger.info(json.dumps(result, indent=2))

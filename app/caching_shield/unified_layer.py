@@ -13,13 +13,14 @@ No tool anywhere in the system makes a raw HTTP call. Period.
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import time
 from collections.abc import Callable
 from typing import Any
 
 import httpx
+
+from app.core.logging import get_logger
 
 logger = get_logger("unified_data")
 
@@ -354,7 +355,9 @@ class UnifiedDataLayer:
                 d = r.json()
                 return {
                     "score": d.get("score", 0),
-                    "risks": [r.get("name") for r in d.get("risks", []) if r.get("score", 0) > 1000],
+                    "risks": [
+                        r.get("name") for r in d.get("risks", []) if r.get("score", 0) > 1000
+                    ],
                 }
 
     async def _honeypot(self, address: str, **kw):
@@ -423,7 +426,9 @@ class UnifiedDataLayer:
     async def _evm_rpc(self, address: str, chain_id: int = 1, **kw):
         from app.consensus_rpc import get_consensus_rpc
 
-        r = await get_consensus_rpc().evm_query_with_consensus(chain_id, "eth_getBalance", [address, "latest"])
+        r = await get_consensus_rpc().evm_query_with_consensus(
+            chain_id, "eth_getBalance", [address, "latest"]
+        )
         if r and r.value:
             return {"balance": int(r.value, 16) / 1e18 if isinstance(r.value, str) else r.value}
 

@@ -21,13 +21,21 @@ async def fetch_market_data() -> dict:
     """Gather all market data for the report."""
     async with httpx.AsyncClient(timeout=30) as c:
         # Top tokens
-        trending = await c.get(f"{BACKEND}/api/v1/databus/fetch/trending?limit=20", headers={"X-RMI-Key": RMI_KEY})
+        trending = await c.get(
+            f"{BACKEND}/api/v1/databus/fetch/trending?limit=20", headers={"X-RMI-Key": RMI_KEY}
+        )
         # Market overview
-        market = await c.get(f"{BACKEND}/api/v1/databus/fetch/market_overview", headers={"X-RMI-Key": RMI_KEY})
+        market = await c.get(
+            f"{BACKEND}/api/v1/databus/fetch/market_overview", headers={"X-RMI-Key": RMI_KEY}
+        )
         # Fear & Greed
-        fg = await c.get(f"{BACKEND}/api/v1/databus/fetch/fear_greed", headers={"X-RMI-Key": RMI_KEY})
+        fg = await c.get(
+            f"{BACKEND}/api/v1/databus/fetch/fear_greed", headers={"X-RMI-Key": RMI_KEY}
+        )
         # News
-        news = await c.get(f"{BACKEND}/api/v1/databus/fetch/news?limit=10", headers={"X-RMI-Key": RMI_KEY})
+        news = await c.get(
+            f"{BACKEND}/api/v1/databus/fetch/news?limit=10", headers={"X-RMI-Key": RMI_KEY}
+        )
 
         return {
             "trending": trending.json() if trending.status_code == 200 else {},

@@ -12,7 +12,6 @@ Depends on: httpx, numpy (for median/percentile), optional env keys.
 """
 
 import asyncio
-from app.core.logging import get_logger
 import os
 import time
 from dataclasses import dataclass, field
@@ -20,6 +19,8 @@ from typing import Any
 
 import httpx
 import numpy as np
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -116,7 +117,9 @@ class PriceConsensusEngine:
         for name, fetcher, weight in sources:
             self._sources[name] = PriceSource(name=name, weight=weight, fetcher=fetcher)
 
-        logger.info(f"PriceConsensusEngine: {len(self._sources)} sources registered: {list(self._sources.keys())}")
+        logger.info(
+            f"PriceConsensusEngine: {len(self._sources)} sources registered: {list(self._sources.keys())}"
+        )
 
     # ── Source Fetchers ──────────────────────────────────────────────────
 
@@ -133,7 +136,9 @@ class PriceConsensusEngine:
                     pairs = data.get("pairs", [])
                     if pairs:
                         # Find the pair with highest liquidity
-                        best = max(pairs, key=lambda p: float(p.get("liquidity", {}).get("usd", 0) or 0))
+                        best = max(
+                            pairs, key=lambda p: float(p.get("liquidity", {}).get("usd", 0) or 0)
+                        )
                         price = best.get("priceUsd")
                         if price:
                             return float(price)
@@ -508,13 +513,17 @@ class PriceConsensusEngine:
         }
         outlier_names = [
             name
-            for name, price, is_outlier in zip(price_names, price_values, outliers_mask, strict=False)
+            for name, price, is_outlier in zip(
+                price_names, price_values, outliers_mask, strict=False
+            )
             if is_outlier
         ]
 
         # If all prices are outliers, fall back to all with low confidence
         if not inlier_prices:
-            logger.warning(f"All prices flagged as outliers for {token_address} - using all with low confidence")
+            logger.warning(
+                f"All prices flagged as outliers for {token_address} - using all with low confidence"
+            )
             weighted_avg = self._weighted_mean(prices)
             return PriceConsensus(
                 price=weighted_avg,
@@ -610,7 +619,9 @@ class PriceConsensusEngine:
             for name, src in self._sources.items():
                 source_stats[name] = {
                     "weight": src.weight,
-                    "effective_weight": round(src.weight * (1.0 - min(0.5, src.error_count * 0.1)), 3),
+                    "effective_weight": round(
+                        src.weight * (1.0 - min(0.5, src.error_count * 0.1)), 3
+                    ),
                     "last_price": src.last_price,
                     "last_latency": round(src.last_latency, 3),
                     "error_count": src.error_count,

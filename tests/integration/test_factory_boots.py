@@ -41,6 +41,7 @@ def test_factory_has_minimum_routes(app) -> None:
     direct Route objects; APIRouter containers don't have a .path
     attribute but contain many Route objects.
     """
+
     def _flatten(routes):
         n = 0
         for r in routes:

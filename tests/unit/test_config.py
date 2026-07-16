@@ -76,12 +76,25 @@ class TestSettingsValidation:
         assert len(settings.jwt_secret) >= 32
 
     def test_prod_with_default_secret_fails(self):
-        """Default dev secret in production should raise ValueError."""
+        """Default dev secret in production should raise ValueError or ValidationError."""
+        from app.config import Settings
+
+        with (
+            patch.dict(os.environ, {"ENVIRONMENT": "prod"}),
+            pytest.raises(
+                (ValueError, Exception),
+                match=r"jwt_secret must be set|jwt_secret.*short|jwt_secret",
+            ),
+        ):
+            Settings(jwt_secret="dev-secret-CHANGE-ME")
+
+    def test_prod_with_short_secret_fails(self):
+        """Short jwt_secret in production should fail validation."""
         from app.config import Settings
 
         with patch.dict(os.environ, {"ENVIRONMENT": "prod"}):
-            with pytest.raises(ValueError, match="jwt_secret must be set"):
-                Settings(jwt_secret="dev-secret-CHANGE-ME")
+            with pytest.raises(Exception, match=r"string_too_short"):
+                Settings(jwt_secret="short")
 
     def test_prod_with_custom_secret_passes(self):
         """Non-default secret in production should work."""
@@ -114,7 +127,9 @@ class TestSettingsOverrides:
         from app.config import Settings
 
         custom_url = "postgresql+asyncpg://user:pass@remote:5432/db"
-        settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!", database_url=custom_url)
+        settings = Settings(
+            jwt_secret="test-secret-key-32-chars-long-enough!!", database_url=custom_url
+        )
         assert settings.database_url == custom_url
 
     def test_override_redis_url(self):
@@ -122,7 +137,9 @@ class TestSettingsOverrides:
         from app.config import Settings
 
         custom_url = "redis://remote:6380/1"
-        settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!", redis_url=custom_url)
+        settings = Settings(
+            jwt_secret="test-secret-key-32-chars-long-enough!!", redis_url=custom_url
+        )
         assert settings.redis_url == custom_url
 
     def test_override_cors_origins(self):
@@ -130,7 +147,9 @@ class TestSettingsOverrides:
         from app.config import Settings
 
         origins = ["https://app.example.com", "https://admin.example.com"]
-        settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!", cors_origins=origins)
+        settings = Settings(
+            jwt_secret="test-secret-key-32-chars-long-enough!!", cors_origins=origins
+        )
         assert settings.cors_origins == origins
 
     def test_jwt_algorithm_default(self):

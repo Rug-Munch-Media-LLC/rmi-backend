@@ -7,6 +7,7 @@ The generated file is checked into git so dev installs work offline.
 Re-run this script only when the chain topology changes (new data type,
 new provider, etc.).
 """
+
 from pathlib import Path
 
 SOURCE = Path("app/databus/provider_chains.py")
@@ -26,7 +27,7 @@ def main():
     )
     body = content.split('"""', 2)[2] if '"""' in content else content
     TARGET.write_text(header + body)
-    print("wrote {} ({} bytes)".format(TARGET, TARGET.stat().st_size))
+    print(f"wrote {TARGET} ({TARGET.stat().st_size} bytes)")
 
 
 if __name__ == "__main__":

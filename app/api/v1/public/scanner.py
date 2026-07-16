@@ -4,12 +4,14 @@ Stub for unauthenticated token scans. Real implementation will
 trigger the scanner pipeline (honeypot detection, flash loan checks,
 oracle manipulation analysis).
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic.config import ConfigDict
 
 router = APIRouter(prefix="/scanner", tags=["scanner"])
 
@@ -17,18 +19,22 @@ router = APIRouter(prefix="/scanner", tags=["scanner"])
 class ScanRequest(BaseModel):
     """Request to scan a token or wallet."""
 
-    chain: str = "ethereum"
-    address: str
-    depth: str = "standard"  # "quick" | "standard" | "deep"
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    chain: str = Field(..., min_length=1, max_length=50, pattern=r'^(ethereum|bsc|polygon|arbitrum|base|optimism|avalanche|solana)$')
+    address: str = Field(..., min_length=26, max_length=44, pattern=r'^0x[a-fA-F0-9]{40}$')
+    depth: str = Field(..., min_length=1, max_length=20, pattern=r'^(quick|standard|deep)$')
 
 
 class ScanResult(BaseModel):
     """Result of a scan."""
 
-    scan_id: str
-    status: str  # "queued" | "running" | "completed" | "failed"
-    risk_score: int | None = None
-    risk_tier: str | None = None
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    scan_id: str = Field(..., min_length=1, max_length=100)
+    status: str = Field(..., min_length=1, max_length=20, pattern=r'^(queued|running|completed|failed)$')
+    risk_score: int | None = Field(None, ge=0, le=100)
+    risk_tier: str | None = Field(None, min_length=1, max_length=20)
     findings: list[str] = []
 
 

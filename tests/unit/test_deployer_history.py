@@ -4,6 +4,8 @@ Tests for DeployerHistoryAnalyzer
 
 import unittest
 
+import pytest
+
 from app.deployer_history import (
     DeployerHistoryAnalyzer,
     DeployerProfile,
@@ -28,8 +30,8 @@ class TestDeployerHistoryScoring(unittest.TestCase):
         profile.avg_token_lifespan_days = 365.0
 
         score = _compute_deployer_risk(profile)
-        self.assertLess(score, 20)
-        self.assertEqual(_classify_deployer_risk(score), "safe")
+        assert score < 20
+        assert _classify_deployer_risk(score) == "safe"
 
     def test_serial_scammer(self) -> None:
         """A deployer with multiple rugs should score high."""
@@ -46,8 +48,8 @@ class TestDeployerHistoryScoring(unittest.TestCase):
         ]
 
         score = _compute_deployer_risk(profile)
-        self.assertGreater(score, 40)
-        self.assertIn(_classify_deployer_risk(score), ("critical", "high"))
+        assert score > 40
+        assert _classify_deployer_risk(score) in ("critical", "high")
 
     def test_moderate_risk(self) -> None:
         """A deployer with some concerns."""
@@ -60,8 +62,8 @@ class TestDeployerHistoryScoring(unittest.TestCase):
         profile.avg_token_lifespan_days = 45.0
 
         score = _compute_deployer_risk(profile)
-        self.assertGreaterEqual(score, 10)
-        self.assertLess(score, 60)
+        assert score >= 10
+        assert score < 60
 
     def test_recommendation_safe(self) -> None:
         rec = _generate_recommendation(
@@ -73,7 +75,7 @@ class TestDeployerHistoryScoring(unittest.TestCase):
             ),
             5.0,
         )
-        self.assertIn("SAFE", rec.upper())
+        assert "SAFE" in rec.upper()
 
     def test_recommendation_critical(self) -> None:
         profile = DeployerProfile(
@@ -84,27 +86,27 @@ class TestDeployerHistoryScoring(unittest.TestCase):
             patterns_detected=["serial_scammer:multiple_rugs"],
         )
         rec = _generate_recommendation(profile, 85.0)
-        self.assertIn("CRITICAL", rec.upper())
+        assert "CRITICAL" in rec.upper()
 
     def test_classify_thresholds(self) -> None:
-        self.assertEqual(_classify_deployer_risk(75), "critical")
-        self.assertEqual(_classify_deployer_risk(55), "high")
-        self.assertEqual(_classify_deployer_risk(35), "moderate")
-        self.assertEqual(_classify_deployer_risk(15), "low")
-        self.assertEqual(_classify_deployer_risk(5), "safe")
+        assert _classify_deployer_risk(75) == "critical"
+        assert _classify_deployer_risk(55) == "high"
+        assert _classify_deployer_risk(35) == "moderate"
+        assert _classify_deployer_risk(15) == "low"
+        assert _classify_deployer_risk(5) == "safe"
 
     def test_address_type_detection(self) -> None:
         evm = _detect_chain_from_address("0x1234567890abcdef1234567890abcdef12345678")
-        self.assertIn("ethereum", evm)
-        self.assertIn("bsc", evm)
+        assert "ethereum" in evm
+        assert "bsc" in evm
 
         sol = _detect_chain_from_address("DeFi123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefg")
-        self.assertIn("solana", sol)
+        assert "solana" in sol
 
     def test_invalid_address(self) -> None:
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             DeployerHistoryAnalyzer("not_an_address")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             DeployerHistoryAnalyzer("")
 
 
@@ -120,20 +122,20 @@ class TestDeployerHistoryIntegration(unittest.TestCase):
         async def run() -> dict[str, object]:
             analyzer = DeployerHistoryAnalyzer("0x0000000000000000000000000000000000000001")
             result = await analyzer.analyze()
-            self.assertIn("errors", result)
-            self.assertIn("risk_level", result)
+            assert "errors" in result
+            assert "risk_level" in result
             # Should not crash
             return result
 
         result = asyncio.run(run())
-        self.assertEqual(result["total_tokens_deployed"], 0)
+        assert result["total_tokens_deployed"] == 0
 
     def test_scoring_empty_profile(self) -> None:
         """Even empty profiles should not crash scoring."""
         profile = DeployerProfile(address="0x1111111111111111111111111111111111111111")
         score = _compute_deployer_risk(profile)
-        self.assertIsInstance(score, float)
-        self.assertGreaterEqual(score, 0)
+        assert isinstance(score, float)
+        assert score >= 0
 
 
 if __name__ == "__main__":

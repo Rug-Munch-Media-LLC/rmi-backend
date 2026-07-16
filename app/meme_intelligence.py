@@ -12,10 +12,11 @@ Integrations:
 - Pump.fun: new meme launches
 """
 
-from app.core.logging import get_logger
 import os
 
 from dotenv import load_dotenv
+
+from app.core.logging import get_logger
 
 load_dotenv("/app/.env", override=True)
 from datetime import UTC, datetime, timedelta  # noqa: E402
@@ -211,7 +212,11 @@ async def get_kol_scorecard(kol_handle: str) -> dict | None:
     winning_calls = len([c for c in (calls.data or []) if c.get("pnl_pct", 0) > 0])
     win_rate = (winning_calls / total_calls * 100) if total_calls > 0 else 0
 
-    avg_pnl = sum([c.get("pnl_pct", 0) for c in (calls.data or [])]) / total_calls if total_calls > 0 else 0
+    avg_pnl = (
+        sum([c.get("pnl_pct", 0) for c in (calls.data or [])]) / total_calls
+        if total_calls > 0
+        else 0
+    )
 
     return {
         "kol": kol,

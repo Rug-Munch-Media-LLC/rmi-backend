@@ -14,7 +14,6 @@ per data point, well under Helius/QuickNode free limits.
 import asyncio
 import hashlib
 import json
-from app.core.logging import get_logger
 import os
 import random
 import time
@@ -24,6 +23,7 @@ from dataclasses import dataclass
 import redis.asyncio as aioredis
 
 from app.consensus_rpc import ConsensusResult, get_consensus_rpc
+from app.core.logging import get_logger
 
 logger = get_logger("rpc_cache")
 
@@ -138,7 +138,9 @@ class RpcCacheClient:
                 port = int(os.getenv("REDIS_PORT", "6379"))
                 password = self._redis_password or os.getenv("REDIS_PASSWORD", "")
                 url = f"redis://:{password}@{host}:{port}" if password else f"redis://{host}:{port}"
-                self._redis = aioredis.from_url(url, socket_connect_timeout=2, socket_timeout=2, decode_responses=False)
+                self._redis = aioredis.from_url(
+                    url, socket_connect_timeout=2, socket_timeout=2, decode_responses=False
+                )
                 await self._redis.ping()
                 logger.info("RpcCache: Redis connected OK")
                 return self._redis
@@ -256,7 +258,9 @@ class RpcCacheClient:
                 self.stats.redis_errors += 1
                 logger.debug(f"RpcCache Redis set error: {e}")
 
-    async def query_with_cache(self, method, params, chain="solana", min_agreement=2, bypass_cache=False):
+    async def query_with_cache(
+        self, method, params, chain="solana", min_agreement=2, bypass_cache=False
+    ):
         """Main entry: cache hit -> return; miss -> query RPC -> cache -> return."""
         key = self.make_key(method, params, chain)
         cached = await self.get(method, params, chain, bypass_cache=bypass_cache)
@@ -306,12 +310,18 @@ class RpcCacheClient:
         )
 
     async def get_balance(self, address, chain="solana", bypass_cache=False):
-        return await self.query_with_cache("getBalance", [address], chain=chain, bypass_cache=bypass_cache)
+        return await self.query_with_cache(
+            "getBalance", [address], chain=chain, bypass_cache=bypass_cache
+        )
 
     async def get_token_supply(self, mint, chain="solana", bypass_cache=False):
-        return await self.query_with_cache("getTokenSupply", [mint], chain=chain, bypass_cache=bypass_cache)
+        return await self.query_with_cache(
+            "getTokenSupply", [mint], chain=chain, bypass_cache=bypass_cache
+        )
 
-    async def get_signatures_for_address(self, address, limit=20, chain="solana", bypass_cache=False):
+    async def get_signatures_for_address(
+        self, address, limit=20, chain="solana", bypass_cache=False
+    ):
         return await self.query_with_cache(
             "getSignaturesForAddress",
             [address, {"limit": limit}],
@@ -347,7 +357,10 @@ class RpcCacheClient:
                             raw = await redis.get(key_str)
                             if raw:
                                 cached = self.deserialize(raw)
-                                if cached and address.lower() in json.dumps(cached, default=str).lower():
+                                if (
+                                    cached
+                                    and address.lower() in json.dumps(cached, default=str).lower()
+                                ):
                                     await redis.delete(key_str)
                                     deleted += 1
                         except Exception:

@@ -14,12 +14,12 @@ Author: RMI Development
 Date: 2026-06-05
 """
 
-from app.core.logging import get_logger
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from app.core.logging import get_logger
 from app.core.redis import get_redis
 
 logger = get_logger("facilitator_health")
@@ -149,7 +149,9 @@ async def get_all_health():
                 "healthy": healthy,
                 "degraded": degraded,
                 "dead": dead,
-                "offline": sum(1 for v in FACILITATORS.values() if v.get("status_override") == "dead"),
+                "offline": sum(
+                    1 for v in FACILITATORS.values() if v.get("status_override") == "dead"
+                ),
             },
             "timestamp": datetime.now(UTC).isoformat(),
         }

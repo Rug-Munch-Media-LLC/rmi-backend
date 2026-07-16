@@ -24,7 +24,6 @@ This is the #1 premium feature. Charge for access.
 """
 
 import asyncio
-from app.core.logging import get_logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -32,6 +31,7 @@ from typing import Any
 
 import httpx
 
+from app.core.logging import get_logger
 from app.scanners import gmgn_client as gmgn
 from app.scanners.known_entities import label_wallet
 
@@ -136,7 +136,7 @@ class InsiderReport:
         self.total_frontrun_value += evidence.pnl_estimate
 
     def to_dict(self) -> dict:
-        unique_wallets = set(e.wallet for e in self.insiders)
+        unique_wallets = {e.wallet for e in self.insiders}
         return {
             "token": self.token,
             "token_symbol": self.token_symbol,
@@ -286,7 +286,6 @@ async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
     pre_event_count = 0
     total_lead_time = 0.0
     total_profit = 0.0
-    wallets_with_same_funding = set()
 
     for trade in wallet_trades[:100]:
         bought_at = trade.get("timestamp", 0)
@@ -559,11 +558,11 @@ async def _get_token_traders(
                 for pair in pairs:
                     dd = pair.get("txns", {})
                     for side_key in ("m5", "h1", "h6", "h24"):
-                        for side_name, side_data in dd.get(side_key, {}).items():
+                        for _side_name, side_data in dd.get(side_key, {}).items():
                             if isinstance(side_data, (int, float)):
                                 continue
                             if isinstance(side_data, list):
-                                for sd in side_data:
+                                for _sd in side_data:
                                     pass
     except Exception as e:
         logger.debug("DexScreener pair data failed: %s", e)
@@ -858,7 +857,6 @@ async def _detect_pre_kol(
         confidence = Confidence.HIGH
         if lead_time > 120:
             confidence = Confidence.CRITICAL
-            conf_label = "CRITICAL"
         elif lead_time < 30:
             confidence = Confidence.MEDIUM
         else:
@@ -906,11 +904,10 @@ async def _detect_dev_insider(
     created_at = events.get("deployer_created_at") or events.get("dexscreener_first_seen")
 
     # Get deployer's known token deployments for cross-referencing
-    deployer_tokens: list[str] = []
     try:
         info = gmgn.get_token_info(token_address, chain)
         if isinstance(info, dict):
-            deployer_tokens = [token_address]
+            pass
     except Exception:
         pass
 
@@ -940,10 +937,7 @@ async def _detect_dev_insider(
         if created_at and first_buy < created_at:
             lead = (created_at - first_buy) / 60
             signals.append(f"Bought {lead:.0f}min before token creation (pre-launch access)")
-            if lead > 30:
-                confidence = Confidence.CRITICAL
-            else:
-                confidence = Confidence.HIGH
+            confidence = Confidence.CRITICAL if lead > 30 else Confidence.HIGH
 
         # Signal 2: Low trade count + large buy = confident insider
         if trade_count <= 3 and total_bought >= 1000 and created_at:
@@ -954,9 +948,8 @@ async def _detect_dev_insider(
                 confidence = Confidence.MEDIUM
 
         # Signal 3: Wallet received funds from deployer
-        if created_at and first_buy < created_at:
-            if confidence == Confidence.LOW:
-                confidence = Confidence.MEDIUM
+        if created_at and first_buy < created_at and confidence == Confidence.LOW:
+            confidence = Confidence.MEDIUM
 
         # Signal 4: Wallet was funded by same source as deployer
         # (Cross-referenced via chain indexing; deferred to wallet profile)
@@ -1190,7 +1183,9 @@ def _deduplicate_evidence(evidence_list: list[InsiderEvidence]) -> list[InsiderE
         ev_score = confidence_score.get(ev.confidence, 0)
         ex_score = confidence_score.get(existing.confidence, 0)
 
-        if ev_score > ex_score or (ev_score == ex_score and ev.pnl_estimate > existing.pnl_estimate):
+        if ev_score > ex_score or (
+            ev_score == ex_score and ev.pnl_estimate > existing.pnl_estimate
+        ):
             best[key] = ev
 
     return list(best.values())
@@ -1207,7 +1202,7 @@ def _generate_insights(report: InsiderReport) -> list[str]:
         types[ev.insider_type].append(ev)
 
     for insider_type, evs in types.items():
-        wallets = set(e.wallet for e in evs)
+        wallets = {e.wallet for e in evs}
         total_pnl = sum(e.pnl_estimate for e in evs)
         avg_lead = sum(e.lead_time_minutes for e in evs) / len(evs) if evs else 0
 
@@ -1233,7 +1228,7 @@ def _generate_insights(report: InsiderReport) -> list[str]:
             )
 
     insights.append(
-        f"Total: {len(set(e.wallet for e in report.insiders))} unique wallets, "
+        f"Total: {len({e.wallet for e in report.insiders})} unique wallets, "
         f"${report.total_frontrun_value:,.0f} frontrun value"
     )
 
@@ -1271,10 +1266,9 @@ async def _check_early_buy(
         "pumpfun_graduated_at",
     ):
         ts = events.get(key)
-        if ts and ts > bought_at:
-            if event_timestamp is None or ts < event_timestamp:
-                event_timestamp = ts
-                event_desc = key
+        if ts and ts > bought_at and (event_timestamp is None or ts < event_timestamp):
+            event_timestamp = ts
+            event_desc = key
 
     if not event_timestamp:
         return False, 0, None

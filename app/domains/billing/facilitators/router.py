@@ -16,11 +16,11 @@ Usage:
     result = await router.verify(payload, chain="base", token="USDC")
 """
 
-from app.core.logging import get_logger
 import time
 from collections import defaultdict
 from typing import Any
 
+from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorRegistry,

@@ -114,7 +114,9 @@ class CommunityForensicsWorker:
                 try:
                     resp = await self.blockscout.get("/api/v2/main-page/indexing-status")
                     if resp.status_code == 200:
-                        logger.info(f"[OK] Blockscout healthy: {resp.json().get('finished_indexing_blocks', False)}")
+                        logger.info(
+                            f"[OK] Blockscout healthy: {resp.json().get('finished_indexing_blocks', False)}"
+                        )
                 except Exception as e:
                     logger.warning(f"[WARN] Blockscout health check failed: {e}")
             except Exception as e:
@@ -126,6 +128,8 @@ class CommunityForensicsWorker:
         self.running = False
         await self.blockscout.aclose()
         logger.info("[OK] Community Forensics Worker stopped")
+
+
 async def main():
     worker = CommunityForensicsWorker()
 

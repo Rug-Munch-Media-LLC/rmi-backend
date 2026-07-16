@@ -9,6 +9,7 @@ To add a new domain:
     2. Import and append it to `api_v1_router` below
     3. Mount the route prefix in the domain's __init__.py
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter

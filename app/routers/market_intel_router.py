@@ -5,13 +5,14 @@ All endpoints have in-memory caching and graceful fallbacks.
 """
 
 import json
-from app.core.logging import get_logger
 import os
 import time
 from datetime import UTC, datetime, timedelta
 
 import httpx
 from fastapi import APIRouter, Query, Request
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/market", tags=["market-intel"])
@@ -152,7 +153,9 @@ async def _hyperliquid_markets(limit=50, ttl=120):
                                     "volume_24h": _safe_float(ctx.get("dayNtlVlm")),
                                     "open_interest": _safe_float(ctx.get("openInterest")),
                                     "funding_rate": _safe_float(ctx.get("funding")),
-                                    "funding_rate_pct": round(_safe_float(ctx.get("funding")) * 100, 4),
+                                    "funding_rate_pct": round(
+                                        _safe_float(ctx.get("funding")) * 100, 4
+                                    ),
                                 }
                             )
                     # Sort by volume descending by default
@@ -178,10 +181,12 @@ async def _hyperliquid_action(limit=10, ttl=60):
     active = [m for m in markets if m["volume_24h"] >= 1_000_000]
 
     action_data = {
-        "top_gainers": sorted([m for m in active if m["change_24h"] > 0], key=lambda x: x["change_24h"], reverse=True)[
-            :limit
-        ],
-        "top_losers": sorted([m for m in active if m["change_24h"] < 0], key=lambda x: x["change_24h"])[:limit],
+        "top_gainers": sorted(
+            [m for m in active if m["change_24h"] > 0], key=lambda x: x["change_24h"], reverse=True
+        )[:limit],
+        "top_losers": sorted(
+            [m for m in active if m["change_24h"] < 0], key=lambda x: x["change_24h"]
+        )[:limit],
         "long_squeeze_highest_funding": sorted(
             [m for m in active if m["funding_rate"] > 0],
             key=lambda x: x["funding_rate"],
@@ -341,7 +346,9 @@ async def get_market_movers(
                     "liquidity": _safe_float(c.get("fully_diluted_valuation")),
                     "holders": 0,
                     "risk_score": min(
-                        max(int(50 + abs(_safe_float(c.get("price_change_percentage_24h"))) / 2), 0),
+                        max(
+                            int(50 + abs(_safe_float(c.get("price_change_percentage_24h"))) / 2), 0
+                        ),
                         100,
                     ),
                     "image": c.get("image", ""),
@@ -415,8 +422,12 @@ async def get_market_launches(
                         "name": coin.get("name", ""),
                         "chain": "multi",
                         "launch_time": now,
-                        "price": _safe_float(coin.get("data", {}).get("price") if coin.get("data") else 0),
-                        "market_cap": _safe_float(coin.get("data", {}).get("market_cap") if coin.get("data") else 0),
+                        "price": _safe_float(
+                            coin.get("data", {}).get("price") if coin.get("data") else 0
+                        ),
+                        "market_cap": _safe_float(
+                            coin.get("data", {}).get("market_cap") if coin.get("data") else 0
+                        ),
                         "liquidity": 0,
                         "holders": 0,
                         "volume_24h": 0,
@@ -449,12 +460,20 @@ async def get_market_trending(
                     "name": coin.get("name", ""),
                     "address": coin.get("id", ""),
                     "chain": "multi",
-                    "price": _safe_float(coin.get("data", {}).get("price") if coin.get("data") else 0),
-                    "change_24h": _safe_float(
-                        coin.get("data", {}).get("price_change_percentage_24h") if coin.get("data") else 0
+                    "price": _safe_float(
+                        coin.get("data", {}).get("price") if coin.get("data") else 0
                     ),
-                    "volume_24h": _safe_float(coin.get("data", {}).get("total_volume") if coin.get("data") else 0),
-                    "market_cap": _safe_float(coin.get("data", {}).get("market_cap") if coin.get("data") else 0),
+                    "change_24h": _safe_float(
+                        coin.get("data", {}).get("price_change_percentage_24h")
+                        if coin.get("data")
+                        else 0
+                    ),
+                    "volume_24h": _safe_float(
+                        coin.get("data", {}).get("total_volume") if coin.get("data") else 0
+                    ),
+                    "market_cap": _safe_float(
+                        coin.get("data", {}).get("market_cap") if coin.get("data") else 0
+                    ),
                     "risk_score": 40,
                     "image": coin.get("thumb", ""),
                 }
@@ -504,7 +523,11 @@ async def get_market_chains(request: Request):
                 "txs_24h": f"{int(ch['tps'] * 86400 / 10):,}",
                 "active_addresses": int(ch["tps"] * 500),
                 "new_contracts": int(ch["tps"] * 10),
-                "ai_risk_score": 25 if ch["status"] == "cool" else 55 if ch["status"] == "warm" else 75,
+                "ai_risk_score": 25
+                if ch["status"] == "cool"
+                else 55
+                if ch["status"] == "warm"
+                else 75,
                 "status": ch["status"],
             }
         )
@@ -553,9 +576,13 @@ async def get_market_scams(
                 liquidity = _safe_float(
                     p.get("liquidity", {}).get("usd") if isinstance(p.get("liquidity"), dict) else 0
                 )
-                vol_24h = _safe_float((p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0)
+                vol_24h = _safe_float(
+                    (p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0
+                )
                 change_24h = _safe_float(
-                    (p.get("priceChange") or {}).get("h24") if isinstance(p.get("priceChange"), dict) else 0
+                    (p.get("priceChange") or {}).get("h24")
+                    if isinstance(p.get("priceChange"), dict)
+                    else 0
                 )
 
             # Flag as scam if extreme price change (>300%) or very low liquidity
@@ -564,8 +591,12 @@ async def get_market_scams(
                 or (mcap > 0 and liquidity > 0 and liquidity / mcap < 0.01)
                 or (price > 0 and price < 0.00001 and vol_24h > 100000)
             ):
-                scam_type = "rug_pull" if change_24h > 500 else "honeypot" if price < 0.0001 else "copycat"
-                severity = "critical" if change_24h > 500 else "high" if change_24h > 300 else "medium"
+                scam_type = (
+                    "rug_pull" if change_24h > 500 else "honeypot" if price < 0.0001 else "copycat"
+                )
+                severity = (
+                    "critical" if change_24h > 500 else "high" if change_24h > 300 else "medium"
+                )
                 indicators = []
                 if change_24h > 300:
                     indicators.append(f"+{change_24h:.0f}% 24h pump")
@@ -613,13 +644,19 @@ async def get_market_whales(
         ds_data = await _ds(f"/latest/dex/search?q={query}", ttl=60)
         if ds_data and isinstance(ds_data, dict) and ds_data.get("pairs"):
             for p in ds_data["pairs"][:5]:
-                vol = _safe_float((p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0)
+                vol = _safe_float(
+                    (p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0
+                )
                 if vol < 1_000_000:
                     continue
                 bt = p.get("baseToken", {})
                 txns = p.get("txns", {})
-                h24_buys = _safe_float(txns.get("h24", {}).get("buys", 0) if isinstance(txns.get("h24"), dict) else 0)
-                h24_sells = _safe_float(txns.get("h24", {}).get("sells", 0) if isinstance(txns.get("h24"), dict) else 0)
+                h24_buys = _safe_float(
+                    txns.get("h24", {}).get("buys", 0) if isinstance(txns.get("h24"), dict) else 0
+                )
+                h24_sells = _safe_float(
+                    txns.get("h24", {}).get("sells", 0) if isinstance(txns.get("h24"), dict) else 0
+                )
                 vol / max(h24_buys + h24_sells, 1)
                 # Create whale movements from large transactions
                 for tx_type, count, action in [
@@ -695,7 +732,9 @@ async def get_market_predictions(
         for m in data[:limit]:
             raw_prices = m.get("outcomePrices", "[]")
             price_str = (
-                raw_prices.strip("[]").split(",")[0] if isinstance(raw_prices, str) and raw_prices.strip("[]") else "0"
+                raw_prices.strip("[]").split(",")[0]
+                if isinstance(raw_prices, str) and raw_prices.strip("[]")
+                else "0"
             )
             price = _safe_float(price_str)
             if price <= 0:
@@ -753,7 +792,13 @@ async def get_market_insiders(
             c.get("name", "")
             coin_id = c.get("id", "")
             action = "buy" if change > 0 else "sell"
-            wallet_type = "dev_wallet" if abs(change) > 20 else "cex_deposit" if change > 0 else "cex_withdrawal"
+            wallet_type = (
+                "dev_wallet"
+                if abs(change) > 20
+                else "cex_deposit"
+                if change > 0
+                else "cex_withdrawal"
+            )
             confidence = min(abs(change) / 5, 0.95)
             value = _safe_float(c.get("market_cap", 0)) * 0.001  # ~0.1% of mcap as proxy
             items.append(
@@ -816,7 +861,10 @@ async def get_market_sentiment(
                 "platform": "X (Twitter)",
                 "sentiment_score": round(avg_sentiment + 0.05, 2),
                 "volume_24h": int(len(trending.get("coins", [])) * 15000),
-                "trending_topics": [c.get("item", {}).get("symbol", "").upper() for c in trending.get("coins", [])[:5]],
+                "trending_topics": [
+                    c.get("item", {}).get("symbol", "").upper()
+                    for c in trending.get("coins", [])[:5]
+                ],
                 "trending_tokens": [],
                 "fear_greed_contribution": 0.3,
             },
@@ -824,7 +872,10 @@ async def get_market_sentiment(
                 "platform": "Reddit",
                 "sentiment_score": round(avg_sentiment - 0.1, 2),
                 "volume_24h": int(len(trending.get("coins", [])) * 8000),
-                "trending_topics": [c.get("item", {}).get("symbol", "").upper() for c in trending.get("coins", [])[:3]],
+                "trending_topics": [
+                    c.get("item", {}).get("symbol", "").upper()
+                    for c in trending.get("coins", [])[:3]
+                ],
                 "trending_tokens": [],
                 "fear_greed_contribution": 0.2,
             },
@@ -865,7 +916,11 @@ async def get_market_onchain(
             "metric": "Total Market Cap",
             "value": total_mcap,
             "change_24h": mcap_change,
-            "signal": "bullish" if mcap_change > 1 else "bearish" if mcap_change < -1 else "neutral",
+            "signal": "bullish"
+            if mcap_change > 1
+            else "bearish"
+            if mcap_change < -1
+            else "neutral",
             "description": "Crypto total market capitalization",
         },
         {
@@ -878,7 +933,9 @@ async def get_market_onchain(
         {
             "metric": "BTC Dominance",
             "value": _safe_float(
-                global_data.get("data", {}).get("market_cap_percentage", {}).get("btc", 60.5) if global_data else 60.5
+                global_data.get("data", {}).get("market_cap_percentage", {}).get("btc", 60.5)
+                if global_data
+                else 60.5
             ),
             "change_24h": 0,
             "signal": "neutral",
@@ -942,7 +999,11 @@ async def get_market_funding(
                     "symbol": symbol.replace("USDT", "").replace("BUSD", ""),
                     "rate": rate,
                     "annualized": rate * 3 * 365,  # 8h funding * 3/day * 365
-                    "signal": "long_dominant" if rate > 0.0001 else "short_dominant" if rate < -0.0001 else "neutral",
+                    "signal": "long_dominant"
+                    if rate > 0.0001
+                    else "short_dominant"
+                    if rate < -0.0001
+                    else "neutral",
                 }
             )
 
@@ -973,7 +1034,9 @@ async def get_market_options(
                     "id": f"opt_{symbol}_{now[:10]}",
                     "symbol": symbol,
                     "expiry": (datetime.now(UTC) + timedelta(days=7)).strftime("%Y-%m-%d"),
-                    "strike": round(mark_price * (1.05 if rate > 0 else 0.95), 2) if mark_price > 0 else 0,
+                    "strike": round(mark_price * (1.05 if rate > 0 else 0.95), 2)
+                    if mark_price > 0
+                    else 0,
                     "type": "call" if rate > 0 else "put",
                     "size": round(abs(rate) * 100_000_000, 0),
                     "premium": round(abs(rate) * mark_price * 100, 2) if mark_price > 0 else 0,
@@ -1147,7 +1210,9 @@ async def get_market_runners(
         for item in trending["coins"][:limit]:
             coin = item.get("item", {})
             price_change = _safe_float(
-                coin.get("data", {}).get("price_change_percentage_24h", 0) if coin.get("data") else 0
+                coin.get("data", {}).get("price_change_percentage_24h", 0)
+                if coin.get("data")
+                else 0
             )
             items.append(
                 {
@@ -1266,9 +1331,13 @@ async def get_market_alerts_feed(
                 liquidity = _safe_float(
                     p.get("liquidity", {}).get("usd") if isinstance(p.get("liquidity"), dict) else 0
                 )
-                vol_24h = _safe_float((p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0)
+                vol_24h = _safe_float(
+                    (p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0
+                )
                 change_24h = _safe_float(
-                    (p.get("priceChange") or {}).get("h24") if isinstance(p.get("priceChange"), dict) else 0
+                    (p.get("priceChange") or {}).get("h24")
+                    if isinstance(p.get("priceChange"), dict)
+                    else 0
                 )
 
             # Flag various alert types
@@ -1280,7 +1349,9 @@ async def get_market_alerts_feed(
                 elif change_24h < -80:
                     alert_type = "rug_pull"
                     severity = "critical"
-                    desc = f"{symbol} crashed {change_24h:.0f}% in 24h. Likely rug pull or honeypot."
+                    desc = (
+                        f"{symbol} crashed {change_24h:.0f}% in 24h. Likely rug pull or honeypot."
+                    )
                 elif mcap > 0 and liquidity / mcap < 0.02:
                     alert_type = "low_liquidity"
                     severity = "high"

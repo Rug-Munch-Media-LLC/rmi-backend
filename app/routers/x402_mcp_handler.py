@@ -63,6 +63,7 @@ async def well_known_x402():
     payment capabilities, supported chains, pricing, and facilitator info.
     """
     from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES, _ensure_tool_prices
+
     _ensure_tool_prices()
 
     paid = sum(1 for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0)

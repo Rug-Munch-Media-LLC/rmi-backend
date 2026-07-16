@@ -22,9 +22,10 @@ Usage:
     # Returns: {source_address, source_type, confidence, hops, ...}
 """
 
-from app.core.logging import get_logger
 import os
 from dataclasses import dataclass, field
+
+from app.core.logging import get_logger
 
 logger = get_logger("funding_tracer")
 

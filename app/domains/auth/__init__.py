@@ -8,7 +8,7 @@ import json
 import os
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
@@ -120,11 +120,17 @@ if JWT_ALGORITHM == "RS256":
         _JWT_PRIVATE_KEY = _load_key(_raw_private)
         _JWT_PUBLIC_KEY = _load_key(_raw_public)
     else:
-        logger.warning(
-            "JWT_ALGORITHM=RS256 configured but JWT_PRIVATE_KEY or JWT_PUBLIC_KEY not set. "
-            "Falling back to HS256 (symmetric). Set both RSA key env vars to enable RS256."
-        )
-        JWT_ALGORITHM = "HS256"
+        if _settings.environment == "prod":
+            raise RuntimeError(
+                "JWT_ALGORITHM=RS256 configured but JWT_PRIVATE_KEY or JWT_PUBLIC_KEY not set. "
+                "Set both RSA key env vars to enable RS256."
+            )
+        else:
+            logger.warning(
+                "JWT_ALGORITHM=RS256 configured but JWT_PRIVATE_KEY or JWT_PUBLIC_KEY not set. "
+                "Falling back to HS256 (symmetric). Set both RSA key env vars to enable RS256."
+            )
+            JWT_ALGORITHM = "HS256"
 
 
 def hash_password(password: str) -> str:
@@ -190,7 +196,7 @@ def _is_valid_email(email: str) -> bool:
 def _create_jwt(
     user_id: str, email: str, tier: str = "FREE", role: str = "USER", wallet: str | None = None
 ) -> str:
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     payload = {
         "sub": user_id,
         "email": email,
@@ -209,11 +215,7 @@ def _create_jwt(
 def _verify_jwt(token: str) -> dict[str, Any] | None:
     try:
         if JWT_ALGORITHM == "RS256" and _JWT_PUBLIC_KEY:
-            try:
-                payload = jwt.decode(token, _JWT_PUBLIC_KEY, algorithms=["RS256"])
-            except JWTError:
-                # Fallback: token may have been signed with HS256 before the RS256 migration
-                payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            payload = jwt.decode(token, _JWT_PUBLIC_KEY, algorithms=["RS256"])
         else:
             payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         return {
@@ -360,7 +362,7 @@ def register_email(req: EmailRegisterRequest) -> dict[str, Any]:
         "wallet_chain": req.wallet_chain,
         "tier": "FREE",
         "role": "USER",
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "xp": 0,
         "level": 1,
         "badges": [],
@@ -424,7 +426,7 @@ def login_email(req: EmailLoginRequest) -> dict[str, Any]:
             _JWT_PRIVATE_KEY if (JWT_ALGORITHM == "RS256" and _JWT_PRIVATE_KEY) else JWT_SECRET
         )
         payload = jose_jwt.decode(pre_token, _decode_key, algorithms=[JWT_ALGORITHM])
-        payload["exp"] = datetime.utcnow() + timedelta(minutes=5)
+        payload["exp"] = datetime.now(UTC) + timedelta(minutes=5)
         payload["2fa_required"] = True
         payload["pre_auth"] = True
         pre_token = jose_jwt.encode(payload, _encode_key, algorithm=JWT_ALGORITHM)
@@ -474,7 +476,7 @@ def login_email(req: EmailLoginRequest) -> dict[str, Any]:
 async def wallet_nonce(req: WalletNonceRequest) -> dict[str, Any]:
     """Get a nonce for wallet signature."""
     nonce = generate_nonce()
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     message = f"RugMunch Intelligence wants you to sign in with your {req.chain.title()} account.\n\nWallet: {req.address}\nNonce: {nonce}\nTimestamp: {timestamp}"
     return {
         "nonce": nonce,
@@ -488,7 +490,7 @@ async def wallet_verify(req: WalletVerifyRequest) -> dict[str, Any]:
     """Verify wallet signature and create session."""
     from app.domains.auth.wallet import get_or_create_wallet_user, verify_wallet_signature
 
-    if not verify_wallet_signature(req.message, req.signature, req.address):
+    if not verify_wallet_signature(req.message, req.signature, req.address, req.chain):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
     user_data = await get_or_create_wallet_user(req.address)
@@ -631,7 +633,7 @@ async def google_callback(request: Request) -> Any:
                 "display_name": google_user.get("name", email),
                 "tier": "FREE",
                 "role": "USER",
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "xp": 0,
                 "level": 1,
                 "badges": [],
@@ -708,7 +710,7 @@ async def google_callback_post(request: Request) -> dict[str, Any]:
                 "display_name": google_user.get("name", email),
                 "tier": "FREE",
                 "role": "USER",
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "xp": 0,
                 "level": 1,
                 "badges": [],
@@ -791,7 +793,7 @@ async def telegram_auth(req: TelegramAuthRequest) -> dict[str, Any]:
             "telegram_username": req.username,
             "tier": "FREE",
             "role": "USER",
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "xp": 0,
             "level": 1,
             "badges": [],
@@ -928,7 +930,7 @@ async def github_callback(request: Request) -> Any:
                 "display_name": github_user.get("name", github_user.get("login", email)),
                 "tier": "FREE",
                 "role": "USER",
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "xp": 0,
                 "level": 1,
                 "badges": [],
@@ -1033,7 +1035,7 @@ async def x_callback(request: Request) -> Any:
                 "display_name": x_user.get("name", username),
                 "tier": "FREE",
                 "role": "USER",
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "xp": 0,
                 "level": 1,
                 "badges": [],
@@ -1107,7 +1109,7 @@ async def twofa_setup(request: Request) -> dict[str, Any]:
     pending = {
         "secret": secret,
         "backup_codes": [_hash_backup_code(c) for c in backup_codes],
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     r.setex(f"rmi:2fa_pending:{user['id']}", timedelta(minutes=10), json.dumps(pending))
 
@@ -1245,7 +1247,7 @@ async def twofa_verify(req: TwoFAVerifyRequest, request: Request) -> dict[str, A
         raise HTTPException(status_code=400, detail="Invalid TOTP code")
 
     # Update last used
-    user["totp_last_used"] = datetime.utcnow().isoformat()
+    user["totp_last_used"] = datetime.now(UTC).isoformat()
     _save_user(user)
 
     return {"status": "ok", "verified": True}
@@ -1290,7 +1292,7 @@ async def twofa_login(req: TwoFALoginRequest) -> dict[str, Any]:
             raise HTTPException(status_code=401, detail="Invalid 2FA code or backup code")
 
     # Update last used
-    user["totp_last_used"] = datetime.utcnow().isoformat()
+    user["totp_last_used"] = datetime.now(UTC).isoformat()
     _save_user(user)
 
     token = _create_jwt(

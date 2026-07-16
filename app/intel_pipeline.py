@@ -6,13 +6,13 @@ wallet labeling via RAG pattern matching, Supabase hybrid storage.
 """
 
 import hashlib
-from app.core.logging import get_logger
 import os
 from datetime import UTC, datetime
 
 import httpx
 from dotenv import load_dotenv
 
+from app.core.logging import get_logger
 from app.core.secrets import get_secret_or_none
 
 load_dotenv("/app/.env", override=True)
