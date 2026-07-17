@@ -64,7 +64,8 @@ async def telegram_stats(request: Request, _=Depends(_verify_admin)):
             with open(bot_state_file) as f:
                 data = json.load(f)
                 stats.update(data)
-        except Exception:
+        except (ValueError, ConnectionError, RuntimeError):
+            logger.warning("error")
             pass
 
     # Check if bot process is running
@@ -77,7 +78,8 @@ async def telegram_stats(request: Request, _=Depends(_verify_admin)):
                 break
         else:
             stats["status"] = "stopped"
-    except Exception:
+    except (ValueError, ConnectionError, RuntimeError):
+        logger.warning("error")
         stats["status"] = "unknown"
 
     return stats
@@ -95,7 +97,8 @@ async def telegram_users(
             with open(users_file) as f:
                 data = json.load(f)
                 users = data.get("users", [])[:limit]
-        except Exception:
+        except (ValueError, ConnectionError, RuntimeError):
+            logger.warning("error")
             pass
 
     if not users:
@@ -117,7 +120,8 @@ async def telegram_messages(
             with open(messages_file) as f:
                 data = json.load(f)
                 messages = data.get("messages", [])[:limit]
-        except Exception:
+        except (ValueError, ConnectionError, RuntimeError):
+            logger.warning("error")
             pass
 
     return {"messages": messages, "total": len(messages)}
@@ -147,7 +151,8 @@ async def telegram_send(request: Request, req: TelegramSendRequest, _=Depends(_v
             if data.get("ok"):
                 return {"status": "sent", "message_id": data["result"]["message_id"]}
             return {"status": "failed", "error": data.get("description", "Unknown error")}
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"status": "failed", "error": str(e)}
 
 
@@ -176,7 +181,8 @@ async def telegram_broadcast(
                     for u in data.get("users", [])
                     if u.get("chat_id") or u.get("id")
                 ]
-        except Exception:
+        except (ValueError, ConnectionError, RuntimeError):
+            logger.warning("error")
             pass
 
     if not chat_ids:
@@ -198,9 +204,11 @@ async def telegram_broadcast(
                         sent += 1
                     else:
                         failed += 1
-                except Exception:
+                except (ValueError, ConnectionError, RuntimeError):
+                    logger.warning("error")
                     failed += 1
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"status": "partial", "sent": sent, "failed": failed, "error": str(e)}
 
     return {"status": "completed", "sent": sent, "failed": failed, "total": len(chat_ids)}
@@ -252,7 +260,8 @@ async def ghost_drafts(request: Request, _=Depends(_verify_admin), limit: int = 
                     )
                 return {"posts": posts, "total": len(posts)}
             return {"posts": [], "error": f"Ghost HTTP {resp.status_code}"}
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"posts": [], "error": str(e)}
 
 
@@ -291,7 +300,8 @@ async def ghost_tags(request: Request, _=Depends(_verify_admin)):
                     )
                 return {"tags": tags, "total": len(tags)}
             return {"tags": [], "error": f"Ghost HTTP {resp.status_code}"}
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"tags": [], "error": str(e)}
 
 
@@ -334,7 +344,8 @@ async def ghost_analytics(request: Request, _=Depends(_verify_admin)):
                                 pub_dt = datetime.fromisoformat(pub_at.replace("Z", "+00:00"))
                                 if pub_dt >= month_start:
                                     posts_this_month += 1
-                            except Exception:
+                            except (ValueError, ConnectionError, RuntimeError):
+                                logger.warning("error")
                                 pass
 
         # Try to get member count from Ghost admin API
@@ -350,7 +361,8 @@ async def ghost_analytics(request: Request, _=Depends(_verify_admin)):
             "source": "ghost_content_api",
             "note": "Analytics computed from Ghost Content API - no Ghost Pro required",
         }
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"error": str(e)}
 
 
@@ -384,7 +396,8 @@ async def ghost_publish(request: Request, post_id: str, _=Depends(_verify_admin)
                     "url": p.get("url", ""),
                 }
             return {"error": f"Ghost HTTP {resp.status_code}", "detail": resp.text[:300]}
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"error": str(e)}
 
 
@@ -419,9 +432,11 @@ async def cron_jobs(request: Request, _=Depends(_verify_admin)):
                                     "prompt": job.get("prompt", "")[:100],
                                 }
                             )
-                    except Exception:
+                    except (ValueError, ConnectionError, RuntimeError):
+                        logger.warning("error")
                         pass
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.error(f"Cron jobs error: {e}")
 
     if not jobs:
@@ -475,7 +490,8 @@ async def cron_logs(request: Request, _=Depends(_verify_admin), limit: int = Que
                         logs.append(
                             {"timestamp": line[:19] if len(line) > 19 else "", "message": line}
                         )
-        except Exception:
+        except (ValueError, ConnectionError, RuntimeError):
+            logger.warning("error")
             pass
 
     return {"logs": logs, "total": len(logs)}
@@ -570,7 +586,8 @@ async def dify_status(request: Request, _=Depends(_verify_admin)):
                 "key_configured": bool(dify_key),
                 "connected": True,
             }
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {
             "status": "disconnected",
             "url": dify_url,
@@ -623,7 +640,8 @@ async def dify_conversations(
                 "error": f"Dify HTTP {resp.status_code}",
                 "proxy": use_proxy,
             }
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         if not use_proxy:
             return await dify_conversations(request, _, limit, use_proxy=True)
         return {"conversations": [], "error": str(e), "proxy": use_proxy}
@@ -654,7 +672,8 @@ async def dify_apps(request: Request, _=Depends(_verify_admin), use_proxy: bool 
                     "proxy": use_proxy,
                 }
             return {"apps": [], "error": f"Dify HTTP {resp.status_code}", "proxy": use_proxy}
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         if not use_proxy:
             return await dify_apps(request, _, use_proxy=True)
         return {"apps": [], "error": str(e), "proxy": use_proxy}
@@ -689,7 +708,8 @@ async def dify_messages(
                     "proxy": use_proxy,
                 }
             return {"messages": [], "error": f"Dify HTTP {resp.status_code}", "proxy": use_proxy}
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         if not use_proxy:
             return await dify_messages(request, conversation_id, _, use_proxy=True)
         return {"messages": [], "error": str(e), "proxy": use_proxy}
@@ -744,7 +764,8 @@ async def dify_chat(request: Request, req: DifyChatRequest, _=Depends(_verify_ad
             "message_id": data.get("message_id", ""),
             "status": "completed",
         }
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"error": str(e)[:300]}
 
 
@@ -776,9 +797,11 @@ async def admin_processes(request: Request, _=Depends(_verify_admin)):
                         "status": info.get("status", "unknown"),
                     }
                 )
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"error": str(e)}
 
     # Sort by memory usage
@@ -805,9 +828,11 @@ async def admin_disk(request: Request, _=Depends(_verify_admin)):
                         "percent": round(usage.used / usage.total * 100, 1),
                     }
                 )
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"error": str(e)}
 
     return {"disks": disks}
@@ -833,7 +858,8 @@ async def admin_network(request: Request, _=Depends(_verify_admin)):
                     "drops_out": stat.dropout,
                 }
             )
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         return {"error": str(e)}
 
     return {"interfaces": interfaces}
