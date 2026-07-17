@@ -346,9 +346,9 @@ if __name__ == "__main__":
     import asyncio
 
     async def test():
-        print("=" * 70)
-        print("OMEGA FORENSIC V5 - CROSS-TOKEN AFFILIATION TRACKER")
-        print("=" * 70)
+        logger.info("=" * 70)
+        logger.info("OMEGA FORENSIC V5 - CROSS-TOKEN AFFILIATION TRACKER")
+        logger.info("=" * 70)
 
         tracker = CrossTokenAffiliationTracker()
 
@@ -360,35 +360,35 @@ if __name__ == "__main__":
         ]
 
         for wallet in test_wallets:
-            print(f"\n🔗 Tracking: {wallet}")
-            print("-" * 70)
+            logger.info(f"\n🔗 Tracking: {wallet}")
+            logger.info("-" * 70)
 
             affiliations = await tracker.track_wallet_affiliations(wallet)
 
             for aff in affiliations:
-                print(f"  ✓ {aff.project}: {aff.balance:,.2f} ({aff.evidence_strength})")
+                logger.info(f"  ✓ {aff.project}: {aff.balance:,.2f} ({aff.evidence_strength})")
 
         # Find cross-project wallets
-        print("\n" + "=" * 70)
-        print("CROSS-PROJECT WALLETS:")
-        print("=" * 70)
+        logger.info("\n" + "=" * 70)
+        logger.info("CROSS-PROJECT WALLETS:")
+        logger.info("=" * 70)
 
         connections = await tracker.find_cross_project_wallets(
             ["CRM", "SOSANA", "PBTC", "SHIFT_AI"], min_projects=2
         )
 
         for conn in connections[:10]:
-            print(f"\n🔹 {conn.wallet}")
-            print(f"   Projects: {', '.join(conn.projects)}")
-            print(f"   Type: {conn.connection_type}")
-            print(f"   Tier: {conn.evidence_tier}")
+            logger.info(f"\n🔹 {conn.wallet}")
+            logger.info(f"   Projects: {', '.join(conn.projects)}")
+            logger.info(f"   Type: {conn.connection_type}")
+            logger.info(f"   Tier: {conn.evidence_tier}")
 
         # Get smoking guns
         smoking_guns = tracker.get_smoking_guns()
-        print(f"\n🔥 SMOKING GUNS: {len(smoking_guns)}")
+        logger.info(f"\n🔥 SMOKING GUNS: {len(smoking_guns)}")
         for gun in smoking_guns:
-            print(f"   {gun.wallet} → {', '.join(gun.projects)}")
+            logger.info(f"   {gun.wallet} → {', '.join(gun.projects)}")
 
-        print("\n" + "=" * 70)
+        logger.info("\n" + "=" * 70)
 
     asyncio.run(test())
