@@ -43,6 +43,15 @@ logger = get_logger("status_page")
 router = APIRouter(prefix="/api/v1/status", tags=["status-page"])
 
 
+def _try_mark_down(store: str) -> None:
+    try:
+        from app.core.degradation import get_registry
+
+        get_registry().mark_down(store)
+    except Exception:
+        pass
+
+
 # ── Health Check Functions ───────────────────────────────────────
 
 
@@ -147,6 +156,7 @@ def check_clickhouse() -> dict[str, Any]:
         }
     except Exception as e:
         latency_ms = (time.monotonic() - start) * 1000
+        _try_mark_down("clickhouse")
         return {
             "status": "degraded",
             "latency_ms": round(latency_ms, 1),

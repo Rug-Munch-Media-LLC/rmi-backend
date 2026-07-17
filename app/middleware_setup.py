@@ -34,6 +34,8 @@ def register_middleware(app: FastAPI) -> None:
     _try_register_prometheus(app)
     _try_register_cost_tracking(app)
     _try_register_tracing(app)
+    _try_register_degradation_header(app)
+    _try_register_deprecation_header(app)
     _try_register_slowapi(app)
 
 
@@ -67,6 +69,102 @@ def _try_register_request_id(app: FastAPI) -> None:
         log.info("middleware_registered name=request_id_timing")
     except Exception as exc:
         log.warning("middleware_skipped name=request_id_timing err=%s", exc)
+
+
+def _try_register_degradation_header(app: FastAPI) -> None:
+    """Win #14 — inject X-Degraded-Stores header on every response."""
+    try:
+        from starlette.middleware.base import BaseHTTPMiddleware
+
+        class DegradationHeaderMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next: Any) -> Response:
+                response = cast("Response", await call_next(request))
+                try:
+                    from app.core.degradation import get_registry
+
+                    header = get_registry().degraded_header
+                    if header:
+                        response.headers["X-Degraded-Stores"] = header
+                except (ImportError, RuntimeError):
+                    pass
+                return response
+
+        app.add_middleware(DegradationHeaderMiddleware)
+        log.info("middleware_registered name=degradation_header")
+    except Exception as exc:
+        log.warning("middleware_skipped name=degradation_header err=%s", exc)
+
+
+def _try_register_deprecation_header(app: FastAPI) -> None:
+    """Win #19 — inject Deprecation + Sunset headers on root-level routes.
+
+    Known root-level routes that have /api/v1/* equivalents receive
+    deprecation warning headers. Infra routes (health, metrics, MCP, docs)
+    are excluded.
+    """
+    # Routes that should NOT receive deprecation headers
+    _EXCLUDED_PREFIXES: tuple[str, ...] = (
+        "/api/",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/health",
+        "/live",
+        "/ready",
+        "/metrics",
+        "/mcp/",
+        "/.well-known/",
+        "/llms.txt",
+        "/tools",
+        "/x402/docs",
+        "/old-docs",
+        "/favicon",
+    )
+
+    # Root-level route patterns that ARE deprecated (have /api/v1/* equivalents)
+    _DEPRECATED_PREFIXES: tuple[str, ...] = (
+        "/scam-school/",
+        "/stream/",
+        "/rug_probability",
+        "/history",
+        "/narrative",
+        "/reputation_score",
+        "/webhook_register",
+        "/webhook_list",
+        "/investigation_report",
+        "/cache/",
+    )
+
+    try:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        from starlette.requests import Request
+        from starlette.responses import Response
+
+        _SUNSET_DATE: str = "Sat, 17 Oct 2026 00:00:00 GMT"
+
+        class DeprecationHeaderMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next: Any) -> Response:
+                response = await call_next(request)
+                path = request.url.path
+
+                # Skip excluded paths
+                if any(path.startswith(p) for p in _EXCLUDED_PREFIXES):
+                    return response
+
+                # Add deprecation headers to known root-level routes
+                if any(path.startswith(p) for p in _DEPRECATED_PREFIXES):
+                    response.headers["Deprecation"] = "true"
+                    response.headers["Sunset"] = _SUNSET_DATE
+                    response.headers["Link"] = (
+                        f'<https://docs.rugmunch.io/api/versioning>; rel="deprecation"'
+                    )
+
+                return response
+
+        app.add_middleware(DeprecationHeaderMiddleware)
+        log.info("middleware_registered name=deprecation_header")
+    except Exception as exc:
+        log.warning("middleware_skipped name=deprecation_header err=%s", exc)
 
 
 def _try_register_slowapi(app: FastAPI) -> None:

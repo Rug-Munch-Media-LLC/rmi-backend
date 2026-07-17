@@ -20,6 +20,15 @@ from .storage import WalletStorage, get_storage
 logger = get_logger("wallet_memory.entity_resolver")
 
 
+def _mark_degraded(store: str) -> None:
+    try:
+        from app.core.degradation import get_registry
+
+        get_registry().mark_down(store)
+    except Exception:
+        pass
+
+
 class EntityResolver:
     """
     Cross-chain entity linking. Resolves wallets to entities.
@@ -33,6 +42,9 @@ class EntityResolver:
         """
         Resolve a wallet address to its cross-chain entity.
 
+        Win #14: Neo4j degradation → if entity storage is down (ClickHouse/Neo4j),
+        returns a degraded single-entity result instead of 500.
+
         Returns:
             {
                 "entity_id": str,
@@ -45,9 +57,13 @@ class EntityResolver:
         entity_id = self._make_entity_id(addr, chain)
 
         # Already resolved in storage?
-        stored_entity = await self.storage.get_entity_for_wallet(addr, chain)
-        if stored_entity and stored_entity.get("entity_id"):
-            entity_id = stored_entity["entity_id"]
+        try:
+            stored_entity = await self.storage.get_entity_for_wallet(addr, chain)
+            if stored_entity and stored_entity.get("entity_id"):
+                entity_id = stored_entity["entity_id"]
+        except Exception as e:
+            logger.warning(f"Entity storage lookup failed (degraded): {e}")
+            _mark_degraded("neo4j")
 
         addresses = [{"address": addr, "chain": chain, "confidence": 1.0, "method": "direct"}]
 
