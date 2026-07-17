@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 Cluster Detection Pro - Advanced Wallet Clustering
 ==================================================
@@ -863,28 +865,28 @@ def get_cluster_detection_pro() -> ClusterDetectionPro:
 
 
 if __name__ == "__main__":
-    print("=" * 70)
-    print("CLUSTER DETECTION PRO - Advanced Wallet Clustering")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("CLUSTER DETECTION PRO - Advanced Wallet Clustering")
+    logger.info("=" * 70)
 
-    print("\n✅ What makes us better than competitors:")
-    print("  • 7 detection methods (not just 1)")
-    print("  • Temporal proximity analysis")
-    print("  • Behavioral fingerprinting")
-    print("  • Sleeper cluster detection")
-    print("  • Machine learning classification")
-    print("  • Confidence scoring")
-    print("  • Funding path tracing")
-    print("  • Cluster evolution tracking")
-    print("  • Cross-project detection")
+    logger.info("\n✅ What makes us better than competitors:")
+    logger.info("  • 7 detection methods (not just 1)")
+    logger.info("  • Temporal proximity analysis")
+    logger.info("  • Behavioral fingerprinting")
+    logger.info("  • Sleeper cluster detection")
+    logger.info("  • Machine learning classification")
+    logger.info("  • Confidence scoring")
+    logger.info("  • Funding path tracing")
+    logger.info("  • Cluster evolution tracking")
+    logger.info("  • Cross-project detection")
 
-    print("\n📊 Detection Methods:")
-    print("  1. Temporal Proximity - Same-time activity")
-    print("  2. Common Counterparties - Shared senders/recipients")
-    print("  3. Behavioral Similarity - Same patterns")
-    print("  4. Common Funding - Same source")
-    print("  5. Transaction Patterns - Similar flows")
-    print("  6. Machine Learning - DBSCAN clustering")
-    print("  7. Sleeper Detection - Dormant clusters")
+    logger.info("\n📊 Detection Methods:")
+    logger.info("  1. Temporal Proximity - Same-time activity")
+    logger.info("  2. Common Counterparties - Shared senders/recipients")
+    logger.info("  3. Behavioral Similarity - Same patterns")
+    logger.info("  4. Common Funding - Same source")
+    logger.info("  5. Transaction Patterns - Similar flows")
+    logger.info("  6. Machine Learning - DBSCAN clustering")
+    logger.info("  7. Sleeper Detection - Dormant clusters")
 
-    print("\n" + "=" * 70)
+    logger.info("\n" + "=" * 70)

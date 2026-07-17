@@ -80,7 +80,9 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
 
                 result["launches"] = launches
                 result["sources_used"].append("pumpfun")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
         # Layer 2: Raydium new pools
@@ -89,7 +91,9 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
             if data and data.get("data"):
                 result["raydium_pools"] = len(data["data"])
                 result["sources_used"].append("raydium")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
     # Layer 3: DexScreener - new pairs
@@ -100,7 +104,9 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
         if data and data.get("pairs"):
             result["dexscreener_pairs"] = len(data["pairs"])
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     return result
@@ -119,7 +125,9 @@ async def launch_radar(chain: str = "solana", window_minutes: int = 5):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -153,7 +161,9 @@ async def _launch_intel(chain: str, hours: int) -> dict:
                         }
                     )
                 result["sources_used"].append("pumpfun")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
     # DexScreener trending
@@ -173,7 +183,9 @@ async def _launch_intel(chain: str, hours: int) -> dict:
                     }
                 )
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     result["new_launches"] = launches
@@ -194,7 +206,9 @@ async def launch_intel(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -217,7 +231,9 @@ async def _anomaly_detector(chain: str) -> dict:
                 "market_cap_change_percentage_24h_usd", 0
             )
             result["sources_used"].append("coingecko")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     # DexScreener for volume spikes
@@ -240,7 +256,9 @@ async def _anomaly_detector(chain: str) -> dict:
                         }
                     )
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     result["anomaly_count"] = len(result["anomalies"])
@@ -269,7 +287,9 @@ async def anomaly_detector(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -293,7 +313,9 @@ async def _market_overview(chain: str) -> dict:
             result["eth_dominance"] = gd.get("market_cap_percentage", {}).get("eth", 0)
             result["active_cryptocurrencies"] = gd.get("active_cryptocurrencies", 0)
             result["sources_used"].append("coingecko")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     # CoinGecko top coins
@@ -314,7 +336,9 @@ async def _market_overview(chain: str) -> dict:
                 for c in data
             ]
             result["sources_used"].append("coingecko_markets")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     # DeFiLlama TVL
@@ -323,7 +347,9 @@ async def _market_overview(chain: str) -> dict:
         if data:
             result["chain_tvls"] = {c.get("name"): c.get("tvl") for c in data[:10]}
             result["sources_used"].append("defillama")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     return result
@@ -342,7 +368,9 @@ async def market_overview(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -372,7 +400,9 @@ async def _chain_health(chain: str) -> dict:
                             "chain_id": c.get("chainId"),
                         }
             result["sources_used"].append("defillama")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     # RPC health check
@@ -396,7 +426,9 @@ async def _chain_health(chain: str) -> dict:
                 ):
                     if resp.status == 200:
                         healthy += 1
-            except Exception:
+            except (ValueError, KeyError, ConnectionError, RuntimeError):
+                logger.exception("market_tools error")
+                raise
                 pass
         result["chains"].setdefault(c, {})["rpc_healthy"] = healthy
 
@@ -416,7 +448,9 @@ async def chain_health(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -447,7 +481,9 @@ async def _defi_yield_scanner(chain: str) -> dict:
                     }
                 )
             result["sources_used"].append("defillama")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     result["total_pools"] = len(result["pools"])
@@ -469,7 +505,9 @@ async def defi_yield_scanner(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -492,7 +530,9 @@ async def _gas_forecast(chain: str) -> dict:
                 result["current_gas_gwei"] = gas_gwei
                 result["current_gas_usd_estimate"] = gas_gwei * 0.001  # Rough estimate
                 result["sources_used"].append(f"{chain}_rpc")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
     # Solana compute units
@@ -500,7 +540,9 @@ async def _gas_forecast(chain: str) -> dict:
         try:
             result["sol_compute_unit_price"] = "dynamic (based on priority fees)"
             result["sources_used"].append("solana_docs")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
     # Blocknative gas station (free tier)
@@ -509,7 +551,9 @@ async def _gas_forecast(chain: str) -> dict:
         if data and data.get("estimatedPrices"):
             result["blocknative"] = data["estimatedPrices"]
             result["sources_used"].append("blocknative")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     return result
@@ -528,7 +572,9 @@ async def gas_forecast(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -562,7 +608,9 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
                         }
                     )
                 result["sources_used"].append("pumpfun")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
     # DexScreener for abnormal early trading
@@ -583,7 +631,9 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
                         }
                     )
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     result["total_alerts"] = len(result["sniper_activity"])
@@ -603,7 +653,9 @@ async def sniper_alert(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -633,7 +685,9 @@ async def _airdrop_finder(chain: str) -> dict:
                     }
                 )
             result["sources_used"].append("defillama")
-    except Exception:
+    except (ValueError, KeyError, ConnectionError, RuntimeError):
+        logger.exception("market_tools error")
+        raise
         pass
 
     result["total_opportunities"] = len(result["opportunities"])
@@ -653,7 +707,9 @@ async def airdrop_finder(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -675,7 +731,9 @@ async def _mev_protection(chain: str) -> dict:
             if data:
                 result["mev_stats"]["jito"] = True
                 result["sources_used"].append("jito")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
         # Check for MEV bots in recent blocks
@@ -685,7 +743,9 @@ async def _mev_protection(chain: str) -> dict:
                 result["current_slot"] = slot
                 result["mev_stats"]["slot"] = slot
                 result["sources_used"].append("solana_rpc")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
     elif chain in ["base", "ethereum", "bsc"]:
@@ -695,7 +755,9 @@ async def _mev_protection(chain: str) -> dict:
             if data:
                 result["mev_stats"]["flashbots"] = True
                 result["sources_used"].append("flashbots")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
         # Gas price for MEV detection
@@ -704,7 +766,9 @@ async def _mev_protection(chain: str) -> dict:
             if gas:
                 result["gas_price_gwei"] = int(gas, 16) / 1e9
                 result["sources_used"].append(f"{chain}_rpc")
-        except Exception:
+        except (ValueError, KeyError, ConnectionError, RuntimeError):
+            logger.exception("market_tools error")
+            raise
             pass
 
     result["mev_risk"] = (
@@ -733,5 +797,7 @@ async def mev_protection(req: GenericRequest):
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+        logger.exception(f"market_tools error: {e}")
+        raise
         raise HTTPException(status_code=500, detail=str(e)) from e
