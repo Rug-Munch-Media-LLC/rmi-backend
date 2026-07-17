@@ -18,9 +18,18 @@ from typing import Any
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for Etherscan family APIs (shared across all networks)
+_etherscan_cb = AsyncCircuitBreaker(
+    name="etherscan",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ── API Keys ────────────────────────────────────────────────
 
@@ -99,7 +108,7 @@ class EtherscanConnector:
             del self._cache[oldest]
 
     async def _get(self, network: str, params: dict) -> dict | None:
-        """Make API call to Etherscan family."""
+        """Make API call to Etherscan family with circuit breaker."""
         net = self._get_network(network)
         api_key = self._network_key(network)
 
@@ -109,6 +118,17 @@ class EtherscanConnector:
         cached = self._cached(cache_key)
         if cached is not None:
             return cached
+
+        # Circuit breaker check — serve stale cache if OPEN
+        if not await _etherscan_cb.can_call():
+            stale = _etherscan_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _etherscan_cb.name,
+                _etherscan_cb.state,
+                f"Etherscan circuit OPEN — failing fast",
+            )
 
         await self._rate_limit(network)
 
@@ -120,21 +140,33 @@ class EtherscanConnector:
                     if data.get("status") == "1":
                         result = data.get("result")
                         self._set_cache(cache_key, result)
+                        _etherscan_cb.set_stale_result(result)
+                        await _etherscan_cb.record_success()
                         return result
                     elif data.get("status") == "0":
                         logger.debug(f"Etherscan error: {data.get('message', '')}")
+                        await _etherscan_cb.record_failure(is_server_error=False)
                         return None
                     else:
                         self._set_cache(cache_key, data)
+                        _etherscan_cb.set_stale_result(data)
+                        await _etherscan_cb.record_success()
                         return data
                 elif r.status_code == 429:
                     logger.warning(f"{net['name']} rate limited")
+                    await _etherscan_cb.record_failure(is_server_error=False)
+                    return None
+                elif r.status_code >= 500:
+                    logger.debug(f"{net['name']} {r.status_code}")
+                    await _etherscan_cb.record_failure(is_server_error=True)
                     return None
                 else:
                     logger.debug(f"{net['name']} {r.status_code}")
+                    await _etherscan_cb.record_failure(is_server_error=False)
                     return None
         except Exception as e:
             logger.debug(f"{net['name']} request failed: {e}")
+            await _etherscan_cb.record_failure(is_server_error=True)
             return None
 
     # ── Account API ──────────────────────────────────────────

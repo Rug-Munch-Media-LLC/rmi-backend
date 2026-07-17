@@ -17,9 +17,18 @@ from typing import Any
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for Alchemy API
+_alchemy_cb = AsyncCircuitBreaker(
+    name="alchemy",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ── API Keys ────────────────────────────────────────────────
 
@@ -73,13 +82,24 @@ class AlchemyConnector:
             del self._cache[oldest]
 
     async def _rpc_call(self, network: str, method: str, params: list[Any]) -> dict | None:
-        """Make JSON-RPC call to Alchemy."""
+        """Make JSON-RPC call to Alchemy with circuit breaker."""
         url = f"{self._network_url(network)}/{self.api_key}"
         cache_key = f"rpc:{network}:{method}:{str(params)[:100]}"
 
         cached = self._cached(cache_key)
         if cached is not None:
             return cached
+
+        # Circuit breaker check — serve stale cache if OPEN
+        if not await _alchemy_cb.can_call():
+            stale = _alchemy_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _alchemy_cb.name,
+                _alchemy_cb.state,
+                f"Alchemy RPC circuit OPEN — failing fast",
+            )
 
         await self._rate_limit()
 
@@ -94,24 +114,34 @@ class AlchemyConnector:
                     data = r.json()
                     if "error" in data:
                         logger.debug(f"Alchemy error: {data['error'].get('message', '')}")
+                        await _alchemy_cb.record_failure(is_server_error=False)
                         return None
                     result = data.get("result")
                     self._set_cache(cache_key, result)
+                    _alchemy_cb.set_stale_result(result)
+                    await _alchemy_cb.record_success()
                     return result
                 elif r.status_code == 429:
                     logger.warning("Alchemy rate limited")
+                    await _alchemy_cb.record_failure(is_server_error=False)
+                    return None
+                elif r.status_code >= 500:
+                    logger.debug(f"Alchemy {r.status_code}: {url[:80]}")
+                    await _alchemy_cb.record_failure(is_server_error=True)
                     return None
                 else:
                     logger.debug(f"Alchemy {r.status_code}: {url[:80]}")
+                    await _alchemy_cb.record_failure(is_server_error=False)
                     return None
         except Exception as e:
             logger.debug(f"Alchemy request failed: {e}")
+            await _alchemy_cb.record_failure(is_server_error=True)
             return None
 
     async def _get(
         self, endpoint: str, network: str = "eth", params: dict | None = None
     ) -> dict | None:
-        """REST API call to Alchemy."""
+        """REST API call to Alchemy with circuit breaker."""
         base = self._network_url(network)
         url = f"{base}/{self.api_key}/{endpoint}"
         cache_key = f"rest:{network}:{endpoint}:{params or {}!s}"
@@ -119,6 +149,17 @@ class AlchemyConnector:
         cached = self._cached(cache_key)
         if cached is not None:
             return cached
+
+        # Circuit breaker check — serve stale cache if OPEN
+        if not await _alchemy_cb.can_call():
+            stale = _alchemy_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _alchemy_cb.name,
+                _alchemy_cb.state,
+                f"Alchemy REST circuit OPEN — failing fast",
+            )
 
         await self._rate_limit()
 
@@ -128,15 +169,24 @@ class AlchemyConnector:
                 if r.status_code == 200:
                     data = r.json()
                     self._set_cache(cache_key, data)
+                    _alchemy_cb.set_stale_result(data)
+                    await _alchemy_cb.record_success()
                     return data
                 elif r.status_code == 429:
                     logger.warning("Alchemy rate limited")
+                    await _alchemy_cb.record_failure(is_server_error=False)
+                    return None
+                elif r.status_code >= 500:
+                    logger.debug(f"Alchemy REST {r.status_code}: {endpoint}")
+                    await _alchemy_cb.record_failure(is_server_error=True)
                     return None
                 else:
                     logger.debug(f"Alchemy REST {r.status_code}: {endpoint}")
+                    await _alchemy_cb.record_failure(is_server_error=False)
                     return None
         except Exception as e:
             logger.debug(f"Alchemy REST failed: {e}")
+            await _alchemy_cb.record_failure(is_server_error=True)
             return None
 
     # ── NFT API ──────────────────────────────────────────────

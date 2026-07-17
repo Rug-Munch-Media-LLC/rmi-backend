@@ -11,9 +11,18 @@ from typing import Any
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for Solana RPC (Helius + QuickNode)
+_chain_cb = AsyncCircuitBreaker(
+    name="chain_client",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ── Provider Keys ──────────────────────────────────────────
 
@@ -71,8 +80,18 @@ class ChainClient:
         return key
 
     async def rpc_call(self, method: str, params: list[Any]) -> dict | None:
-        """Rate-limited RPC with Helius fallback."""
+        """Rate-limited RPC with Helius fallback and circuit breaker."""
+        # Circuit breaker check — fail fast if both providers are down
+        if not await _chain_cb.can_call():
+            raise CircuitBreakerOpenError(
+                _chain_cb.name,
+                _chain_cb.state,
+                f"Chain RPC circuit OPEN — failing fast",
+            )
+
         await self._rate_limit()
+
+        all_failed = True
 
         # Try Helius
         if HELIUS_KEYS:
@@ -87,6 +106,8 @@ class ChainClient:
                             json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
                         )
                         if r.status_code == 200:
+                            all_failed = False
+                            await _chain_cb.record_success()
                             return r.json()
                         if r.status_code == 429:
                             logger.debug("Helius rate limited, rotating key")
@@ -103,10 +124,14 @@ class ChainClient:
                         json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
                     )
                     if r.status_code == 200:
+                        all_failed = False
+                        await _chain_cb.record_success()
                         return r.json()
             except Exception:
                 pass
 
+        if all_failed:
+            await _chain_cb.record_failure(is_server_error=True)
         return None
 
     async def get_signatures(self, address: str, limit: int = 20) -> list[dict]:
@@ -124,6 +149,13 @@ class ChainClient:
     async def get_token_metadata(self, mint: str) -> dict | None:
         if not HELIUS_KEYS:
             return None
+        # Circuit breaker check
+        if not await _chain_cb.can_call():
+            stale = _chain_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            return None  # Non-critical endpoint, just return None instead of raising
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 r = await client.post(
@@ -133,8 +165,18 @@ class ChainClient:
                 if r.status_code == 200:
                     data = r.json()
                     if data and isinstance(data, list) and len(data) > 0:
+                        await _chain_cb.record_success()
                         return data[0]
+                    await _chain_cb.record_failure(is_server_error=False)
+                    return None
+                elif r.status_code >= 500:
+                    await _chain_cb.record_failure(is_server_error=True)
+                    return None
+                else:
+                    await _chain_cb.record_failure(is_server_error=False)
+                    return None
         except Exception:
+            await _chain_cb.record_failure(is_server_error=True)
             pass
         return None
 
