@@ -640,39 +640,39 @@ async def main() -> None:
     chain = sys.argv[2] if len(sys.argv) > 2 else "ethereum"
     depth = sys.argv[3] if len(sys.argv) > 3 else "standard"
 
-    print(f"Cross-Chain Fund Trace: {address}")
-    print(f"Chain: {chain} | Depth: {depth}")
-    print("=" * 60)
+    logger.info(f"Cross-Chain Fund Trace: {address}")
+    logger.info(f"Chain: {chain} | Depth: {depth}")
+    logger.info("=" * 60)
 
     result = await trace_funds(address, chain, depth=depth)
 
-    print(f"\nSummary: {result['summary']}")
-    print(f"\nHops: {len(result['trace_path'])}")
-    print(f"Chains: {result['chain_count']}")
-    print(f"Bridges: {result['bridge_hops']}")
-    print(f"Mixers: {result['mixer_hops']}")
-    print(f"Suspicious Score: {result['suspicious_score']}")
-    print(f"Confidence Score: {result['confidence_score']}")
-    print(f"Source: {result['source_of_funds']}")
-    print(f"Sink: {result['ultimate_sink']}")
-    print(f"Analysis Time: {result['analysis_time_ms']}ms")
+    logger.info(f"\nSummary: {result['summary']}")
+    logger.info(f"\nHops: {len(result['trace_path'])}")
+    logger.info(f"Chains: {result['chain_count']}")
+    logger.info(f"Bridges: {result['bridge_hops']}")
+    logger.info(f"Mixers: {result['mixer_hops']}")
+    logger.info(f"Suspicious Score: {result['suspicious_score']}")
+    logger.info(f"Confidence Score: {result['confidence_score']}")
+    logger.info(f"Source: {result['source_of_funds']}")
+    logger.info(f"Sink: {result['ultimate_sink']}")
+    logger.info(f"Analysis Time: {result['analysis_time_ms']}ms")
 
     if result["warnings"]:
-        print(f"\nWarnings ({len(result['warnings'])}):")
+        logger.info(f"\nWarnings ({len(result['warnings'])}):")
         for w in result["warnings"]:
-            print(f"  ⚠ {w}")
+            logger.info(f"  ⚠ {w}")
 
     if result["trace_path"]:
-        print(f"\nTrace Path ({len(result['trace_path'])} hops):")
+        logger.info(f"\nTrace Path ({len(result['trace_path'])} hops):")
         for hop in result["trace_path"]:
             conf_icon = {"high": "🟢", "medium": "🟡", "low": "🟠", "guess": "🔴"}
             suspicious = " ⚠" if hop["is_suspicious"] else ""
-            print(
+            logger.info(
                 f"  {conf_icon.get(hop['confidence'], '⚪')} Hop {hop['hop']}: {hop['type']} "
                 f"→ {hop['protocol'] or 'unknown'}{suspicious}"
             )
             if hop["tx_hash"]:
-                print(f"     Tx: {hop['tx_hash'][:20]}...")
+                logger.info(f"     Tx: {hop['tx_hash'][:20]}...")
 
 
 if __name__ == "__main__":

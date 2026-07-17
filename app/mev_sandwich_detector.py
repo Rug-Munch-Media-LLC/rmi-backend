@@ -30,7 +30,7 @@ Usage:
     detector = MEVSandwichDetector()
     report = await detector.scan()
     for sandwich in report.top_sandwiches(limit=10):
-        print(sandwich.summary())
+        logger.info(sandwich.summary())
 
 CLI:
     python3 mev_sandwich_detector.py                    # Full scan
@@ -1027,57 +1027,57 @@ async def _run_scan(args: Any = None) -> None:
         ]
     )
 
-    print("🔍 MEV & Sandwich Attack Detector - Scan Starting")
-    print(f"  Chains: {', '.join(detector.chains)}")
-    print(f"  Known bots in registry: {len(detector._known_bots)}")
-    print()
+    logger.info("🔍 MEV & Sandwich Attack Detector - Scan Starting")
+    logger.info(f"  Chains: {', '.join(detector.chains)}")
+    logger.info(f"  Known bots in registry: {len(detector._known_bots)}")
+    logger.info()
 
     report = await detector.scan()
 
-    print(report.summary())
-    print()
+    logger.info(report.summary())
+    logger.info()
 
     # Top sandwiches
     top = report.top_sandwiches(limit=5)
     if top:
-        print("═══ TOP SANDWICH ATTACKS ═══")
+        logger.info("═══ TOP SANDWICH ATTACKS ═══")
         for s in top:
-            print(f"  {s.summary()}")
-        print()
+            logger.info(f"  {s.summary()}")
+        logger.info()
 
     # Top bots
     bots = report.top_bots(limit=5)
     if bots:
-        print("═══ TOP MEV BOTS ═══")
+        logger.info("═══ TOP MEV BOTS ═══")
         for b in bots:
-            print(f"  {b.summary()}")
-        print()
+            logger.info(f"  {b.summary()}")
+        logger.info()
 
     # Vulnerable pools
     if report.vulnerable_pools:
-        print("═══ VULNERABLE POOLS ═══")
+        logger.info("═══ VULNERABLE POOLS ═══")
         for p in sorted(
             report.vulnerable_pools,
             key=lambda x: x["mev_vulnerability_score"],
             reverse=True,
         )[:5]:
-            print(
+            logger.info(
                 f"  {p['name']} ({p['chain']}) - "
                 f"score: {p['mev_vulnerability_score']} - {p['assessment']}"
             )
             if p["flags"]:
                 for f in p["flags"]:
-                    print(f"    ⚠ {f}")
-        print()
+                    logger.info(f"    ⚠ {f}")
+        logger.info()
 
     # Errors
     if report.errors:
-        print("═══ ERRORS ═══")
+        logger.info("═══ ERRORS ═══")
         for e in report.errors:
-            print(f"  ❌ {e}")
-        print()
+            logger.info(f"  ❌ {e}")
+        logger.info()
 
-    print(f"✅ Scan complete in {report.scan_end}")
+    logger.info(f"✅ Scan complete in {report.scan_end}")
     detector.save_bot_registry()
 
 
