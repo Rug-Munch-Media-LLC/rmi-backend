@@ -23,6 +23,10 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import Response
 
+
+# ── CSRF-protected methods ───────────────────────────────────────────
+_CSRF_METHODS: tuple[str, ...] = ("POST", "PUT", "DELETE", "PATCH")
+
 log = get_logger(__name__)
 
 
@@ -37,6 +41,7 @@ def register_middleware(app: FastAPI) -> None:
     _try_register_degradation_header(app)
     _try_register_deprecation_header(app)
     _try_register_slowapi(app)
+    _try_register_csrf(app)
 
 
 def _try_register_request_id(app: FastAPI) -> None:
@@ -202,7 +207,13 @@ def _try_register_cors(app: FastAPI) -> None:
             allow_origins=settings.cors_origins,
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Payment"],
+            allow_headers=[
+                "Authorization",
+                "Content-Type",
+                "X-Request-ID",
+                "X-Payment",
+                "X-CSRF-Token",
+            ],
         )
         log.info("middleware_registered name=cors")
     except Exception as exc:
@@ -277,3 +288,50 @@ def _try_register_tracing(app: FastAPI) -> None:
         log.info("middleware_registered name=tracing")
     except Exception as exc:
         log.warning("middleware_skipped name=tracing err=%s", exc)
+
+
+def _try_register_csrf(app: FastAPI) -> None:
+    """Win #12 — Double-submit cookie CSRF protection.
+
+    - Skips CSRF check for GET/HEAD/OPTIONS (safe methods).
+    - Skips CSRF check when ``Authorization: Bearer`` header is present
+      (API clients authenticate via token, not cookie — immune to CSRF).
+    - For state-changing requests via cookie auth: requires ``X-CSRF-Token``
+      header matching the ``csrf_token`` cookie value.
+    """
+    try:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        from starlette.responses import JSONResponse
+
+        class CSRFMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next: Any) -> Response:
+                # Skip safe methods
+                if request.method not in _CSRF_METHODS:
+                    return cast("Response", await call_next(request))
+
+                # Skip if Authorization: Bearer header is present (API clients)
+                auth = request.headers.get("Authorization", "")
+                if auth.startswith("Bearer "):
+                    return cast("Response", await call_next(request))
+
+                # Validate CSRF token from header against cookie
+                csrf_cookie = request.cookies.get("csrf_token")
+                csrf_header = request.headers.get("X-CSRF-Token")
+
+                if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+                    log.warning(
+                        "csrf_validation_failed method=%s path=%s",
+                        request.method,
+                        request.url.path,
+                    )
+                    return JSONResponse(
+                        status_code=403,
+                        content={"detail": "CSRF validation failed"},
+                    )
+
+                return cast("Response", await call_next(request))
+
+        app.add_middleware(CSRFMiddleware)
+        log.info("middleware_registered name=csrf")
+    except Exception as exc:
+        log.warning("middleware_skipped name=csrf err=%s", exc)
