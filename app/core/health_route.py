@@ -6,6 +6,20 @@ Per RMIV5 v4.0 §T33. Provides basic Kubernetes-style health endpoints:
   - /ready   - readiness (critical deps reachable)
 
 Emits Prometheus HEALTH_CHECK_DURATION + HEALTH_CHECK_STATUS gauges per store.
+
+Environment variables for service URLs — defaults are Docker Compose
+service names so containers discover each other without explicit env.
+Dev/local/test mode switches defaults to localhost.
+
+  URL                    Env var           Docker default            Dev default
+  ─────────────────────────────────────────────────────────────────────────────
+  Qdrant                 QDRANT_URL        http://rmi-qdrant:6333    http://127.0.0.1:6333
+  ClickHouse             CLICKHOUSE_URL    http://rmi-clickhouse:8123/  http://127.0.0.1:8123/
+  MinIO                  MINIO_URL         http://rmi-minio:9000     http://127.0.0.1:9000
+  Ethereum RPC           RETH_URL          http://127.0.0.1:8545     http://127.0.0.1:8545
+  PostgreSQL             DATABASE_URL      postgresql://rmi:***@rmi-postgres:5432/rmi  postgresql://rmi:***@127.0.0.1:5432/rmi
+  Neo4j                  NEO4J_URI/NEO4J_URL bolt://rmi-neo4j:7687  bolt://localhost:7687
+  Redis                  REDIS_URL         redis://rmi-redis:6379/0  redis://localhost:6379/0
 """
 
 from __future__ import annotations
@@ -25,11 +39,72 @@ if TYPE_CHECKING:
 
 router = APIRouter(tags=["health"])
 
+# ── Environment ──────────────────────────────────────────────────
+_ENV = os.getenv("ENVIRONMENT", "production").lower()
+_IS_DEV = _ENV in ("dev", "development", "local", "test")
 
-QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
-CLICKHOUSE_URL = os.getenv("CLICKHOUSE_URL", "http://127.0.0.1:8123/")
-MINIO_URL = os.getenv("MINIO_URL", "http://127.0.0.1:9000")
-RETH_URL = os.getenv("RETH_URL", "http://127.0.0.1:8545")
+
+def _get_url(key: str, docker: str, local: str) -> str:
+    """Resolve a service URL: explicit env var wins, otherwise pick the
+    Docker-Compose default (production) or the localhost default (dev).
+    """
+    val = os.getenv(key)
+    return val if val is not None else (local if _IS_DEV else docker)
+
+
+# ── Service URLs (module-level for reuse) ────────────────────────
+# Defaults use Docker Compose service names so containers resolve
+# each other without explicit env vars.  Dev / test mode overrides
+# to localhost so ``pytest`` and local ``uvicorn`` work out of the box.
+QDRANT_URL = _get_url(
+    "QDRANT_URL",
+    docker="http://rmi-qdrant:6333",
+    local="http://127.0.0.1:6333",
+)
+CLICKHOUSE_URL = _get_url(
+    "CLICKHOUSE_URL",
+    docker="http://rmi-clickhouse:8123/",
+    local="http://127.0.0.1:8123/",
+)
+MINIO_URL = _get_url(
+    "MINIO_URL",
+    docker="http://rmi-minio:9000",
+    local="http://127.0.0.1:9000",
+)
+# reth typically runs on the host or as a sidecar — same default for both
+RETH_URL = _get_url(
+    "RETH_URL",
+    docker="http://127.0.0.1:8545",
+    local="http://127.0.0.1:8545",
+)
+
+# Fallback constants used by inline os.getenv() in the check functions.
+# These mirror the _get_url pattern so module-level validation can
+# inspect them without duplicating the URL logic.
+_DATABASE_URL_DOCKER = "postgresql://rmi:***@rmi-postgres:5432/rmi"
+_DATABASE_URL_DEV = "postgresql://rmi:***@127.0.0.1:5432/rmi"
+_NEO4J_URI_DOCKER = "bolt://rmi-neo4j:7687"
+_NEO4J_URI_DEV = "bolt://localhost:7687"
+_REDIS_URL_DOCKER = "redis://rmi-redis:6379/0"
+_REDIS_URL_DEV = "redis://localhost:6379/0"
+
+# ── Config validation schema ────────────────────────────────────
+# Required — health check considers these critical
+_REQUIRED_CONFIG: dict[str, str] = {
+    "DATABASE_URL": "PostgreSQL connection string",
+    "REDIS_URL": "Redis connection string (used by app.core.redis)",
+    "CLICKHOUSE_URL": "ClickHouse HTTP endpoint",
+}
+# Optional — health check tolerates these being unset or placeholder
+_OPTIONAL_CONFIG: dict[str, str] = {
+    "QDRANT_URL": "Qdrant HTTP endpoint",
+    "MINIO_URL": "MinIO S3-compatible storage endpoint",
+    "NEO4J_URI": "Neo4j bolt URI (NEO4J_URL is also accepted)",
+    "RETH_URL": "Ethereum RPC endpoint",
+    "CLICKHOUSE_USER": "ClickHouse username (default: rmi)",
+    "NEO4J_USER": "Neo4j username (default: neo4j)",
+}
+
 _SHARED_HTTP_CLIENT: httpx.AsyncClient | None = None
 
 
@@ -42,11 +117,46 @@ async def _get_http_client() -> httpx.AsyncClient:
     return _SHARED_HTTP_CLIENT
 
 
+# ── Config validation ───────────────────────────────────────────
+
+
+def check_config() -> list[dict[str, str]]:
+    """Validate required / optional env vars.
+
+    Returns a list of issues (empty = all good).  Each issue has
+    ``key``, ``description``, and ``severity`` (``"missing"`` or
+    ``"placeholder"``).
+    """
+    issues: list[dict[str, str]] = []
+
+    _placeholder_patterns = ("***", "changeme", "placeholder", "your_")
+
+    for key, desc in _REQUIRED_CONFIG.items():
+        val = os.getenv(key)
+        if not val:
+            issues.append({"key": key, "description": desc, "severity": "missing"})
+        elif any(p in val.lower() for p in _placeholder_patterns):
+            issues.append({"key": key, "description": desc, "severity": "placeholder"})
+
+    for key, desc in _OPTIONAL_CONFIG.items():
+        val = os.getenv(key)
+        if val and any(p in val.lower() for p in _placeholder_patterns):
+            issues.append({"key": key, "description": desc, "severity": "placeholder"})
+
+    return issues
+
+
+# ── Response models ─────────────────────────────────────────────
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
     uptime_seconds: float
     stores: dict[str, dict[str, Any]]
+
+    model_config = {"extra": "allow"}
+    config_issues: list[dict[str, str]] = []
 
 
 class LivenessResponse(BaseModel):
@@ -59,6 +169,9 @@ class ReadinessResponse(BaseModel):
 
 
 _START_TIME = time.monotonic()
+
+
+# ── Store check helpers ─────────────────────────────────────────
 
 
 async def _check_store(name: str, coro) -> dict[str, Any]:
@@ -95,9 +208,11 @@ async def _check_postgres() -> dict[str, Any]:
     try:
         import asyncpg
 
-        conn = await asyncpg.connect(
-            os.getenv("DATABASE_URL", "postgresql://rmi:***@rmi-postgres:5432/rmi")
+        db_url = os.getenv(
+            "DATABASE_URL",
+            _DATABASE_URL_DEV if _IS_DEV else _DATABASE_URL_DOCKER,
         )
+        conn = await asyncpg.connect(db_url)
         await asyncio.wait_for(conn.fetchval("SELECT 1"), timeout=5.0)
         await conn.close()
         return {"healthy": True}
@@ -112,7 +227,11 @@ async def _check_neo4j() -> dict[str, Any]:
         except ImportError:
             from neo4j import GraphDatabase
 
-            uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+            uri = (
+                os.getenv("NEO4J_URI")
+                or os.getenv("NEO4J_URL")
+                or (_NEO4J_URI_DEV if _IS_DEV else _NEO4J_URI_DOCKER)
+            )
             user = os.getenv("NEO4J_USER", "neo4j")
             password = os.getenv("NEO4J_PASSWORD", "")
             _driver = GraphDatabase.driver(uri, auth=(user, password)) if password else None
@@ -146,7 +265,6 @@ async def _check_qdrant() -> dict[str, Any]:
 async def _check_clickhouse() -> dict[str, Any]:
     try:
         import base64
-        import os
 
         user = os.getenv("CLICKHOUSE_USER", "rmi")
         password = os.getenv("CLICKHOUSE_PASSWORD", os.getenv("CLICKHOUSE_PASS", ""))
@@ -189,6 +307,35 @@ async def _check_reth() -> dict[str, Any]:
         return {"healthy": False, "error": str(e)[:200]}
 
 
+def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
+    """Win #14: Sync health check results to the degradation registry."""
+    try:
+        from app.core.degradation import get_registry
+
+        registry = get_registry()
+        for name in ("clickhouse", "neo4j", "minio", "redis"):
+            if name in stores:
+                if stores[name].get("healthy"):
+                    registry.mark_healthy(name)
+                else:
+                    registry.mark_down(name)
+    except Exception:
+        pass
+
+
+def _get_degradation_section() -> dict[str, Any]:
+    """Win #14: Get degradation section for health endpoint."""
+    try:
+        from app.core.degradation import get_degradation_health
+
+        return {"degradation": get_degradation_health()}
+    except Exception:
+        return {}
+
+
+# ── Endpoints ───────────────────────────────────────────────────
+
+
 @router.get("/live", response_model=LivenessResponse)
 async def liveness() -> LivenessResponse:
     return LivenessResponse(status="alive")
@@ -228,10 +375,24 @@ async def health() -> HealthResponse:
             ref["latency_ms"] = int((time.monotonic() - started) * 1000)
         stores[name] = ref
 
+    # Sync health check results with degradation registry (Win #14)
+    _sync_degradation_from_health(stores)
+
     # Critical = redis or postgres down. Non-critical stores can be degraded.
     critical_up = stores["redis"].get("healthy") and stores["postgres"].get("healthy")
     any_non_critical_down = not all(
         s.get("healthy", False) for n, s in stores.items() if n not in ("redis", "postgres")
+    )
+    status = "unhealthy" if not critical_up else "degraded" if any_non_critical_down else "healthy"
+
+    # Include degradation info in response
+    degradation = _get_degradation_section()
+
+    return HealthResponse(
+        status=status,
+        version="2026.06.21",
+        uptime_seconds=time.monotonic() - _START_TIME,
+        stores=stores | degradation,
     )
     status = "unhealthy" if not critical_up else "degraded" if any_non_critical_down else "healthy"
 
@@ -240,4 +401,5 @@ async def health() -> HealthResponse:
         version="2026.06.21",
         uptime_seconds=time.monotonic() - _START_TIME,
         stores=stores,
+        config_issues=check_config(),
     )

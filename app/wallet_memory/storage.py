@@ -26,7 +26,12 @@ _ch_client = None
 
 
 async def _get_clickhouse():
-    """Lazy-init ClickHouse client. Returns None if unavailable."""
+    """Lazy-init ClickHouse client. Returns None if unavailable.
+
+    Win #14: Degradation-aware — if ClickHouse is down, the degradation
+    registry is notified so X-Degraded-Stores header is set and DuckDB
+    fallback can be used.
+    """
     global _ch_client
     if _ch_client is not None:
         return _ch_client
@@ -47,15 +52,34 @@ async def _get_clickhouse():
             connect_timeout=5,
             send_receive_timeout=30,
         )
-        # Test connection
         _ch_client.execute("SELECT 1")
         logger.info(f"ClickHouse connected: {ch_host}:{ch_port}/{ch_db}")
+        _try_mark_healthy("clickhouse")
         return _ch_client
     except (ValueError, ConnectionError, RuntimeError) as e:
         logger.warning(f"error: {e}")
         logger.warning(f"ClickHouse unavailable, running Redis-only: {e}")
         _ch_client = None
+        _try_mark_down("clickhouse")
         return None
+
+
+def _try_mark_healthy(store: str) -> None:
+    try:
+        from app.core.degradation import get_registry
+
+        get_registry().mark_healthy(store)
+    except Exception:
+        pass
+
+
+def _try_mark_down(store: str) -> None:
+    try:
+        from app.core.degradation import get_registry
+
+        get_registry().mark_down(store)
+    except Exception:
+        pass
 
 
 # ── Redis connection (lazy) ─────────────────────────────────────────
@@ -261,9 +285,11 @@ class WalletStorage:
                 if rows:
                     cols = [d[0] for d in self._ch.execute("DESCRIBE wallet_profiles")]
                     profile = dict(zip(cols, rows[0], strict=False))
+                _try_mark_healthy("clickhouse")
             except (ValueError, ConnectionError, RuntimeError) as e:
                 logger.warning(f"error: {e}")
                 logger.debug(f"ClickHouse profile query failed: {e}")
+                _try_mark_down("clickhouse")
 
         # Cache the result (even None for negative caching, short TTL)
         if self._redis:
@@ -358,6 +384,7 @@ class WalletStorage:
             except (ValueError, ConnectionError, RuntimeError) as e:
                 logger.warning(f"error: {e}")
                 logger.debug(f"ClickHouse entity query failed: {e}")
+                _try_mark_down("clickhouse")
 
         if self._redis and result:
             with contextlib.suppress(Exception):
