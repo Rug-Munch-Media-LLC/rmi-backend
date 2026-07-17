@@ -91,7 +91,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"GMGN HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── DexScreener ──
@@ -112,7 +113,8 @@ class MultiChainClient:
                     return best
                 return {"error": "no matching pair found"}
             return {"error": f"DexScreener HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── Etherscan / BSCScan ──
@@ -127,7 +129,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Scanner HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── Helius (Solana) ──
@@ -140,7 +143,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Helius HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     async def helius_post(self, path: str, payload: dict) -> dict:
@@ -153,7 +157,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Helius HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── Birdeye ──
@@ -169,7 +174,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Birdeye HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── Moralis ──
@@ -194,7 +200,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Moralis HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── Webacy (Threat Intel) ──
@@ -221,7 +228,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Webacy HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── Bitquery v2 (GraphQL) ──
@@ -241,7 +249,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Bitquery HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── LunarCrush (Social Sentiment) ──
@@ -258,7 +267,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"LunarCrush HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── GoPlus (On-Chain Security) ──
@@ -287,7 +297,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"GoPlus HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── Chainabuse (Threat Intel) ──
@@ -303,7 +314,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Chainabuse HTTP {resp.status_code}"}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
     # ── Generic ──
@@ -314,7 +326,8 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"HTTP {resp.status_code}", "url": url}
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             return {"error": str(e)}
 
 
@@ -1119,7 +1132,8 @@ async def token_lifespan_predictor(token_address: str, chain: str = "sol") -> di
         try:
             created_dt = datetime.fromisoformat(pair_created.replace("Z", "+00:00"))
             pair_age_days = (datetime.now(UTC) - created_dt).days
-        except Exception:
+        except (ValueError, ConnectionError, RuntimeError):
+            logger.warning("err")
             pass
 
     # Collect risk signals
@@ -1375,7 +1389,8 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
                                 "pair_created": pair.get("pairCreatedAt", ""),
                             }
                         )
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"err: {e}")
             logger.warning(f"Cross-chain search failed: {e}")
 
     # Risk analysis of cross-chain presence

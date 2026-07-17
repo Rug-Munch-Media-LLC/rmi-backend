@@ -51,7 +51,8 @@ async def _get_clickhouse():
         _ch_client.execute("SELECT 1")
         logger.info(f"ClickHouse connected: {ch_host}:{ch_port}/{ch_db}")
         return _ch_client
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.warning(f"ClickHouse unavailable, running Redis-only: {e}")
         _ch_client = None
         return None
@@ -85,7 +86,8 @@ async def _get_redis() -> aioredis.Redis | None:
         await _redis_client.ping()
         logger.info(f"Redis connected for wallet memory: {url.split('@')[-1]}")
         return _redis_client
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.warning(f"Redis unavailable for wallet memory: {e}")
         _redis_client = None
         return None
@@ -203,7 +205,8 @@ async def ensure_schema():
                 ch.execute(stmt)
         logger.info("ClickHouse schema ensured")
         return True
-    except Exception as e:
+    except (ValueError, ConnectionError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.error(f"ClickHouse schema creation failed: {e}")
         return False
 
@@ -244,7 +247,8 @@ class WalletStorage:
                 cached = await self._redis.get(cache_key)
                 if cached:
                     return json.loads(cached)
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
 
         # Try ClickHouse
@@ -258,7 +262,8 @@ class WalletStorage:
                 if rows:
                     cols = [d[0] for d in self._ch.execute("DESCRIBE wallet_profiles")]
                     profile = dict(zip(cols, rows[0], strict=False))
-            except Exception as e:
+            except (ValueError, ConnectionError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.debug(f"ClickHouse profile query failed: {e}")
 
         # Cache the result (even None for negative caching, short TTL)
@@ -266,7 +271,8 @@ class WalletStorage:
             try:
                 ttl = self.PROFILE_TTL if profile else 60  # Negative cache: 1 min
                 await self._redis.set(cache_key, json.dumps(profile), ex=ttl)
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
 
         return profile
@@ -304,7 +310,8 @@ class WalletStorage:
                         )
                     ],
                 )
-            except Exception as e:
+            except (ValueError, ConnectionError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.warning(f"ClickHouse profile save failed: {e}")
 
         # Update Redis cache
@@ -312,7 +319,8 @@ class WalletStorage:
             try:
                 cache_key = f"wm:profile:{chain}:{addr}"
                 await self._redis.set(cache_key, json.dumps(profile), ex=self.PROFILE_TTL)
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
 
         return True
@@ -329,7 +337,8 @@ class WalletStorage:
                 cached = await self._redis.get(cache_key)
                 if cached:
                     return json.loads(cached)
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
 
         result = None
@@ -350,7 +359,8 @@ class WalletStorage:
                         "confidence_score": rows[0][3],
                         "heuristic_type": rows[0][4],
                     }
-            except Exception as e:
+            except (ValueError, ConnectionError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.debug(f"ClickHouse entity query failed: {e}")
 
         if self._redis and result:
@@ -382,7 +392,8 @@ class WalletStorage:
                 }
                 for r in rows
             ]
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.debug(f"ClickHouse entity wallets query failed: {e}")
             return []
 
@@ -413,7 +424,8 @@ class WalletStorage:
                             }
                         ),
                     )
-                except Exception:
+                except (ValueError, ConnectionError, RuntimeError):
+                    logger.warning("error")
                     pass
             return True
 
@@ -442,10 +454,12 @@ class WalletStorage:
                 try:
                     cache_key = f"wm:entity:{chain_id}:{wallet_address.lower()}"
                     await self._redis.delete(cache_key)
-                except Exception:
+                except (ValueError, ConnectionError, RuntimeError):
+                    logger.warning("error")
                     pass
             return True
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.warning(f"Entity link save failed: {e}")
             return False
 
@@ -461,7 +475,8 @@ class WalletStorage:
                 cached = await self._redis.get(cache_key)
                 if cached:
                     return json.loads(cached)
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
 
         result = None
@@ -481,7 +496,8 @@ class WalletStorage:
                         "first_seen_at": str(rows[0][3]),
                         "evidence": rows[0][4],
                     }
-            except Exception as e:
+            except (ValueError, ConnectionError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.debug(f"ClickHouse scam query failed: {e}")
 
         if self._redis:
@@ -518,7 +534,8 @@ class WalletStorage:
                         )
                     ],
                 )
-            except Exception as e:
+            except (ValueError, ConnectionError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.warning(f"Scam address save failed: {e}")
 
         # Update Redis
@@ -529,7 +546,8 @@ class WalletStorage:
                 await self._redis.set(cache_key, json.dumps(data), ex=self.LABEL_TTL)
                 # Also add to Redis set for fast batch checks
                 await self._redis.sadd(f"wm:scam_set:{chain_id}", address.lower())
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
         return True
 
@@ -577,7 +595,8 @@ class WalletStorage:
                 }
                 for r in rows
             ]
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.debug(f"ClickHouse deployer history query failed: {e}")
             return []
 
@@ -615,7 +634,8 @@ class WalletStorage:
                         )
                     ],
                 )
-            except Exception as e:
+            except (ValueError, ConnectionError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.warning(f"Deployer event save failed: {e}")
         return True
 
@@ -644,7 +664,8 @@ class WalletStorage:
                 }
                 for r in rows
             ]
-        except Exception as e:
+        except (ValueError, ConnectionError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.debug(f"ClickHouse bridge query failed: {e}")
             return []
 
@@ -679,7 +700,8 @@ class WalletStorage:
                         )
                     ],
                 )
-            except Exception as e:
+            except (ValueError, ConnectionError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.warning(f"Bridge link save failed: {e}")
         return True
 
@@ -690,7 +712,8 @@ class WalletStorage:
         if self._redis:
             try:
                 return await self._redis.get(key)
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
         return None
 
@@ -703,7 +726,8 @@ class WalletStorage:
                 else:
                     await self._redis.set(key, value)
                 return True
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
         return False
 
@@ -713,7 +737,8 @@ class WalletStorage:
             try:
                 await self._redis.sadd(key, *values)
                 return True
-            except Exception:
+            except (ValueError, ConnectionError, RuntimeError):
+                logger.warning("error")
                 pass
         return False
 
