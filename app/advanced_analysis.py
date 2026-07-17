@@ -78,7 +78,8 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
                 if data.get("result"):
                     result["native_balance"] = int(data["result"], 16) / 1e18
 
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.warning(f"Balance RPC failed for {chain}: {e}")
 
     # Get token balances via Moralis/DexScreener
@@ -102,7 +103,8 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
                             "liquidity_usd": float(pair.get("liquidity", {}).get("usd", 0)),
                         }
                 result["token_balances"] = list(tokens.values())[:50]
-        except Exception:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            logger.warning("error")
             pass
 
     return result
@@ -147,7 +149,8 @@ async def get_transaction_history(
                     )
 
                 return {"transactions": txs[:limit], "total": len(txs)}
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.warning(f"TX history failed for {chain}: {e}")
 
     return {"transactions": [], "total": 0}
@@ -262,7 +265,8 @@ async def trace_funding(
                                 visited.add(signer.lower())
                                 current_address = signer
                                 break
-                except Exception:
+                except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+                    logger.warning("error")
                     break
             else:
                 # EVM chains - use DexScreener pairs as proxy
@@ -294,7 +298,8 @@ async def trace_funding(
                                     hop.is_mixer = label == "mixer"
                                 hops.append(hop)
                                 visited.add(pa.lower())
-                except Exception:
+                except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+                    logger.warning("error")
                     pass
 
             depth += 1
@@ -568,7 +573,8 @@ async def analyze_contract_rug_risk(
                         risk_score += 15
                         risk_flags.append("PUMP_LOW_LIQ")
 
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.warning(f"DexScreener analysis failed: {e}")
 
         # ── GoPlus Security (25 factors) ──
@@ -685,7 +691,8 @@ async def analyze_contract_rug_risk(
                         risk_score += 10
                         risk_flags.append("OWNER_ACTIVE")
 
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.warning(f"GoPlus analysis failed: {e}")
 
         # ── Holder distribution (10 factors) ──
@@ -712,7 +719,8 @@ async def analyze_contract_rug_risk(
                     elif report.buy_sell_ratio_24h < 0.1:
                         risk_score += 15
                         risk_flags.append("ONE_SIDED_SELLING")
-        except Exception:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            logger.warning("error")
             pass
 
         # ── Birdeye (5 factors) ──
@@ -732,7 +740,8 @@ async def analyze_contract_rug_risk(
                         risk_score += 5
                         risk_flags.append("MINT_AUTHORITY")
                     factors_checked += 5
-        except Exception:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            logger.warning("error")
             pass
 
     # ── Aggregate scores ──

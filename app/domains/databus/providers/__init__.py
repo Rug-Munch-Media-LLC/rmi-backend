@@ -40,6 +40,14 @@ logger = get_logger("databus.providers")
 
 # Import SPL metadata decoder
 from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider  # noqa: E402
+from app.core.circuit_breaker import AsyncCircuitBreaker
+
+# Provider-specific circuit breakers
+_cb_coingecko = AsyncCircuitBreaker("coingecko", failure_threshold=5)
+_cb_etherscan = AsyncCircuitBreaker("etherscan", failure_threshold=5)
+_cb_moralis = AsyncCircuitBreaker("moralis", failure_threshold=5)
+_cb_alchemy = AsyncCircuitBreaker("alchemy", failure_threshold=5)
+_cb_default = AsyncCircuitBreaker("default", failure_threshold=3)
 
 
 class ProviderTier(Enum):
