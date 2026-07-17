@@ -22,6 +22,8 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
+from app.core.slowrate import limiter
+
 router = APIRouter(tags=["auth"])
 
 # ── 2FA / TOTP ──
@@ -337,6 +339,7 @@ class TwoFAStatusResponse(BaseModel):
 
 # ── Email Auth ──
 @router.post("/register", response_model=WalletAuthResponse)
+@limiter.limit("5/minute")
 def register_email(req: EmailRegisterRequest) -> dict[str, Any]:
     """Register a new user with email/password."""
     if not _is_valid_email(req.email):
@@ -396,6 +399,7 @@ def register_email(req: EmailRegisterRequest) -> dict[str, Any]:
 
 
 @router.post("/login", response_model=WalletAuthResponse)
+@limiter.limit("5/minute")
 def login_email(req: EmailLoginRequest) -> dict[str, Any]:
     """Login with email/password. If 2FA enabled, returns partial token requiring /2fa/login."""
     user = _get_user_by_email(req.email)
@@ -473,6 +477,7 @@ def login_email(req: EmailLoginRequest) -> dict[str, Any]:
 
 # ── Wallet Auth ──
 @router.post("/wallet/nonce", response_model=NonceResponse)
+@limiter.limit("10/minute")
 async def wallet_nonce(req: WalletNonceRequest) -> dict[str, Any]:
     """Get a nonce for wallet signature."""
     nonce = generate_nonce()
@@ -486,6 +491,7 @@ async def wallet_nonce(req: WalletNonceRequest) -> dict[str, Any]:
 
 
 @router.post("/wallet/verify", response_model=WalletAuthResponse)
+@limiter.limit("5/minute")
 async def wallet_verify(req: WalletVerifyRequest) -> dict[str, Any]:
     """Verify wallet signature and create session."""
     from app.domains.auth.wallet import get_or_create_wallet_user, verify_wallet_signature

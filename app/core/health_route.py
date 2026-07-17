@@ -65,7 +65,7 @@ async def _check_store(name: str, coro) -> dict[str, Any]:
     """Run a health check and emit Prometheus metrics."""
     start = time.perf_counter()
     try:
-        result = await coro
+        result = await asyncio.wait_for(coro, timeout=10.0)
         elapsed = time.perf_counter() - start
         healthy = result.get("healthy", False)
         HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
@@ -120,8 +120,9 @@ async def _check_neo4j() -> dict[str, Any]:
         if _driver is None:
             return {"healthy": False, "error": "Neo4j not configured (no NEO4J_PASSWORD set)"}
         with _driver.session() as session:
-            result = session.run("RETURN 1")
-            val = result.single()
+            val = await asyncio.wait_for(
+                asyncio.to_thread(lambda: session.run("RETURN 1").single()), timeout=10.0
+            )
         return {"healthy": val[0] == 1}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
@@ -152,10 +153,8 @@ async def _check_clickhouse() -> dict[str, Any]:
         token = base64.b64encode(f"{user}:{password}".encode()).decode()
         headers = {"Authorization": f"Basic {token}"}
         client = await _get_http_client()
-        resp = await client.post("http://rmi-clickhouse:8123/", content="SELECT 1", headers=headers)
-        db_resp = await client.post(
-            "http://rmi-clickhouse:8123/", content="SHOW DATABASES", headers=headers
-        )
+        resp = await client.post(CLICKHOUSE_URL, content="SELECT 1", headers=headers)
+        db_resp = await client.post(CLICKHOUSE_URL, content="SHOW DATABASES", headers=headers)
         dbs = db_resp.text.strip().split("\n") if db_resp.status_code == 200 else []
         return {
             "healthy": resp.text.strip() == "1",
@@ -227,9 +226,12 @@ async def health() -> HealthResponse:
             ref["latency_ms"] = int((time.monotonic() - started) * 1000)
         stores[name] = ref
 
-    critical_down = not (stores["redis"].get("healthy") and stores["postgres"].get("healthy"))
-    any_down = not all(s.get("healthy", False) for s in stores.values())
-    status = "unhealthy" if critical_down else "degraded" if any_down else "healthy"
+    # Critical = redis or postgres down. Non-critical stores can be degraded.
+    critical_up = stores["redis"].get("healthy") and stores["postgres"].get("healthy")
+    any_non_critical_down = not all(
+        s.get("healthy", False) for n, s in stores.items() if n not in ("redis", "postgres")
+    )
+    status = "unhealthy" if not critical_up else "degraded" if any_non_critical_down else "healthy"
 
     return HealthResponse(
         status=status,

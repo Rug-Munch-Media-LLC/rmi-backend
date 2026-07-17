@@ -40,3 +40,16 @@ jobs:
 
       - name: Run integration tests (allow failure)
         run: pytest tests/integration/ -x --tb=short --maxfail=5 || true
+
+  trivy-scan:
+    runs-on: ubuntu-latest
+    needs: ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan backend image for CVEs
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'backend-rmi-backend:latest'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
