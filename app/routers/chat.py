@@ -26,7 +26,9 @@ from typing import Any
 
 import httpx
 import redis.asyncio as redis
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
+
+from app.core.errors import AuthorizationError, ExternalAPIError
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -266,10 +268,7 @@ async def chat(
     scan = ai_guard.scan_input(req.message, session_id=user_id)
     if not scan.safe:
         ai_guard.record_block(user_id)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Security alert: {scan.reason}",
-        )
+        raise AuthorizationError(message=f"Security alert: {scan.reason}")
 
     # Get or create user context
     user_context = ""
@@ -292,10 +291,10 @@ async def chat(
             max_tokens=req.max_tokens,
         )
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI provider error: {e}") from e
+        raise ExternalAPIError(message=f"AI provider error: {e}") from e
 
     if "error" in result:
-        raise HTTPException(status_code=502, detail=result["error"])
+        raise ExternalAPIError(message=result["error"])
 
     # ── SECURITY LAYER 3: Output sanitization ──
     response_content = ai_guard.sanitize_output(result.get("content", ""))

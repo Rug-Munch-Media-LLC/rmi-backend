@@ -105,7 +105,6 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
                 result["token_balances"] = list(tokens.values())[:50]
         except (ValueError, ConnectionError, TimeoutError, RuntimeError):
             logger.warning("error")
-            pass
 
     return result
 
@@ -300,7 +299,6 @@ async def trace_funding(
                                 visited.add(pa.lower())
                 except (ValueError, ConnectionError, TimeoutError, RuntimeError):
                     logger.warning("error")
-                    pass
 
             depth += 1
 
@@ -721,7 +719,6 @@ async def analyze_contract_rug_risk(
                         risk_flags.append("ONE_SIDED_SELLING")
         except (ValueError, ConnectionError, TimeoutError, RuntimeError):
             logger.warning("error")
-            pass
 
         # ── Birdeye (5 factors) ──
         try:
@@ -742,7 +739,6 @@ async def analyze_contract_rug_risk(
                     factors_checked += 5
         except (ValueError, ConnectionError, TimeoutError, RuntimeError):
             logger.warning("error")
-            pass
 
     # ── Aggregate scores ──
     report.rug_risk_score = min(100, max(0, risk_score))

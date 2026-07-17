@@ -46,7 +46,7 @@ def _cb_call(url: str, params: dict | None = None, timeout: int = 30) -> Any:
         raise CircuitBreakerOpenError(
             _blockchair_cb.name,
             _blockchair_cb.state,
-            f"Blockchair circuit OPEN — failing fast",
+            "Blockchair circuit OPEN — failing fast",
         )
     resp = httpx.get(url, params=params, timeout=timeout)
     resp.raise_for_status()

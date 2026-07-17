@@ -81,7 +81,6 @@ async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     smart_wallets = []
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -146,7 +145,6 @@ async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict
                         w["entity_type"] = entity.get("type", "")
             except (ValueError, ConnectionError, TimeoutError, RuntimeError):
                 logger.warning("error")
-                pass
 
     result = {
         "smart_money_wallets": smart_wallets[:limit],
@@ -162,7 +160,6 @@ async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return result
 
@@ -189,7 +186,6 @@ async def whale_alert_stream(
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     whales = []
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -261,7 +257,6 @@ async def whale_alert_stream(
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return result
 
@@ -286,7 +281,6 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     new_tokens = []
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -381,7 +375,6 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return result
 
@@ -409,7 +402,6 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
     insider_signals = []
@@ -488,7 +480,6 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return result
 
@@ -516,7 +507,6 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
     liquidity_data = {
@@ -605,7 +595,6 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
                             h["entity_type"] = entity.get("type", "")
             except (ValueError, ConnectionError, TimeoutError, RuntimeError):
                 logger.warning("error")
-                pass
 
     liquidity_data["token"] = address
     liquidity_data["chain"] = chain
@@ -618,7 +607,6 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return liquidity_data
 
@@ -646,7 +634,6 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
     health = {
@@ -756,7 +743,6 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return health
 
@@ -784,7 +770,6 @@ async def cross_chain_entity(address: str = "", **kw) -> dict | None:
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     if not ARKHAM_KEY:
         return {"error": "ARKHAM_API_KEY required", "address": address}
@@ -850,7 +835,6 @@ async def cross_chain_entity(address: str = "", **kw) -> dict | None:
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return result
 
@@ -941,7 +925,6 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     matches = []
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -1096,7 +1079,6 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return result
 
@@ -1124,7 +1106,6 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
     reputation = {
@@ -1213,7 +1194,6 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return reputation
 
@@ -1244,7 +1224,6 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     report = {
         "token": address,
@@ -1388,7 +1367,6 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                         risk_scores.append(5)  # Known entity = low risk
             except (ValueError, ConnectionError, TimeoutError, RuntimeError):
                 logger.warning("error")
-                pass
 
         # ── Compute Overall Risk ──
         if risk_scores:
@@ -1440,7 +1418,6 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         r.close()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
-        pass
 
     return report
 

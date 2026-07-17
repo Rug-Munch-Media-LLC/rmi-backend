@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 """
 Tests for mev_protection.py - MEV Shield Analysis

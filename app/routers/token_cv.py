@@ -6,7 +6,9 @@ import os
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+
+from app.core.errors import ExternalAPIError
 from pydantic import BaseModel
 
 from app.core.internal_key import INTERNAL_API_KEY
@@ -67,11 +69,11 @@ async def get_token_cv(chain: str, address: str):
                 headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             if resp.status_code != 200:
-                raise HTTPException(502, "Scanner unavailable")
+                raise ExternalAPIError(message="Scanner unavailable")
             scan = resp.json()
 
     except Exception as e:
-        raise HTTPException(502, f"Scan failed: {e}") from e
+        raise ExternalAPIError(message=f"Scan failed: {e}") from e
 
     free = scan.get("free", {})
     pro = scan.get("pro", {})

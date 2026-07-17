@@ -5,7 +5,13 @@ Connects to /api/v1/wallet-clusters/*
 
 from datetime import UTC
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+
+from app.core.errors import (
+    NotFoundError,
+    ServiceUnavailableError,
+    ValidationError,
+)
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
@@ -46,7 +52,7 @@ def _get_detector():
 
         return ClusterDetectionPro()
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}") from e
+        raise ServiceUnavailableError(message=f"Module unavailable: {e}") from e
 
 
 def _get_engine():
@@ -55,16 +61,16 @@ def _get_engine():
 
         return get_clustering_engine()
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}") from e
+        raise ServiceUnavailableError(message=f"Module unavailable: {e}") from e
 
 
 @router.post("/detect")
 async def detect_clusters(req: ClusterRequest):
     """Detect wallet clusters from a list of addresses (7 methods)."""
     if len(req.wallets) < 2:
-        raise HTTPException(status_code=400, detail="Need at least 2 wallets")
+        raise ValidationError(message="Need at least 2 wallets")
     if len(req.wallets) > 100:
-        raise HTTPException(status_code=400, detail="Max 100 wallets per request")
+        raise ValidationError(message="Max 100 wallets per request")
 
     detector = _get_detector()
     clusters = await detector.detect_clusters(

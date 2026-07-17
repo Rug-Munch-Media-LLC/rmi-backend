@@ -120,7 +120,7 @@ class ArkhamClient:
             raise CircuitBreakerOpenError(
                 _arkham_cb.name,
                 _arkham_cb.state,
-                f"Arkham circuit OPEN — failing fast",
+                "Arkham circuit OPEN — failing fast",
             )
 
         # Rate limit: 0.6 s between calls

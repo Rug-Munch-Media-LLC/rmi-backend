@@ -22,7 +22,13 @@ Admin endpoints (require admin session):
   POST /api/v1/admin/bulletin/process-expired - Archive expired posts
 """
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Request
+
+from app.core.errors import (
+    AuthorizationError,
+    NotFoundError,
+    ValidationError,
+)
 from pydantic import BaseModel, Field
 
 from app.admin_backend import AuditLogger, require_admin
@@ -92,7 +98,7 @@ async def public_get_post(request: Request, slug: str):
     """Get a single published post by slug (public)."""
     post = await BulletinBoardManager.get_post_by_slug(slug)
     if not post or post.status != PostStatus.PUBLISHED.value:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise NotFoundError(message="Post not found")
 
     # Track view
     await BulletinBoardManager.track_engagement(post.post_id, "view")
@@ -238,11 +244,11 @@ async def admin_create_post(request: Request, body: CreatePostRequest):
 
     # Validate category
     if body.category not in [c.value for c in PostCategory]:
-        raise HTTPException(status_code=400, detail=f"Invalid category: {body.category}")
+        raise ValidationError(message=f"Invalid category: {body.category}")
 
     # Validate status
     if body.status not in [s.value for s in PostStatus]:
-        raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
+        raise ValidationError(message=f"Invalid status: {body.status}")
 
     post = await BulletinBoardManager.create_post(
         title=body.title,
@@ -287,7 +293,7 @@ async def admin_get_post(request: Request, post_id: str):
 
     post = await BulletinBoardManager.get_post(post_id)
     if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise NotFoundError(message="Post not found")
 
     return {"post": post.to_dict()}
 
@@ -312,7 +318,7 @@ async def admin_update_post(
             updates[field_name] = value
 
     if not updates:
-        raise HTTPException(status_code=400, detail="No fields to update")
+        raise ValidationError(message="No fields to update")
 
     updated = await BulletinBoardManager.update_post(
         post_id=post_id,
@@ -322,7 +328,7 @@ async def admin_update_post(
     )
 
     if not updated:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise NotFoundError(message="Post not found")
 
     await AuditLogger.log(
         admin_id=admin["id"],
@@ -349,7 +355,7 @@ async def admin_delete_post(request: Request, post_id: str):
 
     result = await BulletinBoardManager.delete_post(post_id)
     if not result:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise NotFoundError(message="Post not found")
 
     await AuditLogger.log(
         admin_id=admin["id"],
@@ -381,7 +387,7 @@ async def admin_publish_post(request: Request, post_id: str):
     )
 
     if not updated:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise NotFoundError(message="Post not found")
 
     await AuditLogger.log(
         admin_id=admin["id"],
@@ -413,7 +419,7 @@ async def admin_unpublish_post(request: Request, post_id: str):
     )
 
     if not updated:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise NotFoundError(message="Post not found")
 
     await AuditLogger.log(
         admin_id=admin["id"],
@@ -448,7 +454,7 @@ async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...))
     )
 
     if not updated:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise NotFoundError(message="Post not found")
 
     await AuditLogger.log(
         admin_id=admin["id"],
@@ -622,11 +628,13 @@ async def x402_bot_post(request: Request, data: dict):
     category = data.get("category", "discussion")
 
     if not bot_addr or not tx_hash or not title or not content:
-        raise HTTPException(400, "Missing: bot_address, tx_hash, title, content")
+        raise ValidationError(message="Missing: bot_address, tx_hash, title, content")
 
     if not await verify_x402_bot(tx_hash, bot_addr):
-        raise HTTPException(
-            402, "$1 to join - send USDC to x402 address, get tx_hash, post 30 days unlimited"
+        raise AuthorizationError(
+            message="$1 to join - send USDC to x402 address, get tx_hash, post 30 days unlimited",
+            status_code=402,
+            code="payment.required",
         )
 
     post = await BulletinBoardManager.create_post(

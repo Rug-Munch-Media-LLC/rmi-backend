@@ -103,7 +103,7 @@ class NansenClient:
             raise CircuitBreakerOpenError(
                 _nansen_cb.name,
                 _nansen_cb.state,
-                f"Nansen circuit OPEN — failing fast",
+                "Nansen circuit OPEN — failing fast",
             )
 
         params = {"api_key": self.api_key}

@@ -125,7 +125,7 @@ class AlibabaDashScopeConnector:
             raise CircuitBreakerOpenError(
                 _dashscope_cb.name,
                 _dashscope_cb.state,
-                f"DashScope circuit OPEN — failing fast",
+                "DashScope circuit OPEN — failing fast",
             )
 
         try:

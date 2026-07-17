@@ -95,7 +95,6 @@ async def deep_contract_audit(req: TokenRequest):
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("token_tools error")
             raise
-            pass
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -157,7 +156,6 @@ async def _rug_shield(address: str, chain: str) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("token_tools error")
             raise
-            pass
 
     # Layer 3: CoinGecko verification
     try:
@@ -172,7 +170,6 @@ async def _rug_shield(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     risk_score = min(100, risk_score)
     verdict = "UNSAFE" if risk_score >= 60 else "CAUTION" if risk_score >= 30 else "SAFE"
@@ -232,7 +229,6 @@ async def _token_pulse(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # Layer 2: Coingecko - additional metrics
     try:
@@ -249,7 +245,6 @@ async def _token_pulse(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # Layer 3: Compute health score
     score = 50  # baseline
@@ -356,7 +351,6 @@ async def _token_forensics(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # CoinGecko
     try:
@@ -372,7 +366,6 @@ async def _token_forensics(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # GeckoTerminal
     try:
@@ -387,7 +380,6 @@ async def _token_forensics(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # DeFiLlama
     try:
@@ -398,7 +390,6 @@ async def _token_forensics(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # Risk scoring
     risk_score = 0
@@ -519,7 +510,6 @@ async def _honeypot_check(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # Check contract for EVM chains
     if chain in ["base", "ethereum", "bsc"]:
@@ -535,7 +525,6 @@ async def _honeypot_check(address: str, chain: str) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("token_tools error")
             raise
-            pass
 
     return result
 
@@ -647,7 +636,6 @@ async def _risk_monitor(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     result["alert_count"] = len(result["alerts"])
     result["risk_level"] = (
@@ -716,7 +704,6 @@ async def _liquidity_flow(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # DeFiLlama for protocol TVL
     try:
@@ -728,7 +715,6 @@ async def _liquidity_flow(address: str, chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     return result
 
@@ -821,13 +807,11 @@ async def _rug_pull_predictor(address: str, chain: str) -> dict:
                 except (ValueError, KeyError, ConnectionError, RuntimeError):
                     logger.exception("token_tools error")
                     raise
-                    pass
 
             result["sources_used"].append("dexscreener")
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("token_tools error")
         raise
-        pass
 
     # Calculate rug pull probability
     total_weight = sum(s["weight"] for s in result["signals"])

@@ -127,7 +127,7 @@ class EtherscanConnector:
             raise CircuitBreakerOpenError(
                 _etherscan_cb.name,
                 _etherscan_cb.state,
-                f"Etherscan circuit OPEN — failing fast",
+                "Etherscan circuit OPEN — failing fast",
             )
 
         await self._rate_limit(network)

@@ -1134,7 +1134,6 @@ async def token_lifespan_predictor(token_address: str, chain: str = "sol") -> di
             pair_age_days = (datetime.now(UTC) - created_dt).days
         except (ValueError, ConnectionError, RuntimeError):
             logger.warning("err")
-            pass
 
     # Collect risk signals
     risk_flags = []

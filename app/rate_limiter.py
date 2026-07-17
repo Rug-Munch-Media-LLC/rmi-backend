@@ -1,3 +1,7 @@
+# DEPRECATED as API rate limiter: Use app.core.rate_limiter (UnifiedRateLimiter).
+# This file is an AI EMBEDDING provider dispatcher — not a general API rate limiter.
+# The RateTracker/EmbeddingDispatcher here solves a different problem (load-balancing
+# across free embedding providers). For API request rate limiting, use UnifiedRateLimiter.
 """
 Rate-Limit-Aware Multi-Provider System
 =======================================

@@ -1,3 +1,6 @@
+# DEPRECATED: Use app.core.rate_limiter (UnifiedRateLimiter) instead.
+# The new UnifiedRateLimiter supports acquire_provider() for backward compat.
+# Remove after migration verified. Consolidates 7 rate limiters into 1.
 """
 Aggressive Caching Shield - Token Bucket Rate Limiter
 Redis-backed rate limiting to stay under free tier RPC limits.

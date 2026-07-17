@@ -86,7 +86,7 @@ class ChainClient:
             raise CircuitBreakerOpenError(
                 _chain_cb.name,
                 _chain_cb.state,
-                f"Chain RPC circuit OPEN — failing fast",
+                "Chain RPC circuit OPEN — failing fast",
             )
 
         await self._rate_limit()
@@ -177,7 +177,6 @@ class ChainClient:
                     return None
         except Exception:
             await _chain_cb.record_failure(is_server_error=True)
-            pass
         return None
 
 

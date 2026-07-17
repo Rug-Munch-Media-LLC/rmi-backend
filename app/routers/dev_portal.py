@@ -4,7 +4,9 @@ import hashlib
 import os
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header
+
+from app.core.errors import AuthError, AuthorizationError
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/developer", tags=["developer-portal"])
@@ -51,7 +53,7 @@ async def create_api_key(req: CreateKeyRequest):
 async def list_keys(x_api_key: str = Header(...)):
     """List your API keys."""
     if x_api_key not in _api_keys:
-        raise HTTPException(401, "Invalid API key")
+        raise AuthError(message="Invalid API key")
     return {"keys": [_api_keys[x_api_key]]}
 
 

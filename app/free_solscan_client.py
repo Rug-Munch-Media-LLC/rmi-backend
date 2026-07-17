@@ -70,7 +70,7 @@ def _request(endpoint: str, params: dict | None = None, retries: int = 3) -> Any
         raise CircuitBreakerOpenError(
             _solscan_cb.name,
             _solscan_cb.state,
-            f"Solscan circuit OPEN — failing fast",
+            "Solscan circuit OPEN — failing fast",
         )
 
     url = f"{BASE_URL}{endpoint}"
