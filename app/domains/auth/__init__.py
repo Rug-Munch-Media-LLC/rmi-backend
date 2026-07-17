@@ -12,7 +12,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 
@@ -337,10 +338,85 @@ class TwoFAStatusResponse(BaseModel):
     last_used: str | None = None
 
 
+# ── Cookie Helpers ──
+def _is_localhost(request: Request) -> bool:
+    """Check if the request is from localhost (for Secure flag logic)."""
+    host = request.headers.get("host", "")
+    return host.startswith("localhost") or host.startswith("127.0.0.1") or host.startswith("[::1]")
+
+
+def _set_auth_cookie(response: Response, token: str, request: Request) -> None:
+    """Set the JWT as an HttpOnly cookie.
+
+    - HttpOnly: not accessible from JavaScript (XSS-safe)
+    - Secure: only sent over HTTPS (conditional on localhost)
+    - SameSite=Strict: not sent on cross-site requests (CSRF-safe)
+    - Path=/: sent on all requests to the API domain
+    - Max-Age: 7 days (matches JWT_EXPIRY_DAYS)
+    """
+    max_age = JWT_EXPIRY_DAYS * 86400
+    secure = not _is_localhost(request)
+    response.set_cookie(
+        key="rmi_token",
+        value=token,
+        max_age=max_age,
+        expires=max_age,
+        path="/",
+        secure=secure,
+        httponly=True,
+        samesite="strict",
+    )
+
+
+def _set_csrf_cookie(response: Response, request: Request) -> str:
+    """Generate and set a CSRF token as a non-HttpOnly cookie.
+
+    Returns the token value so callers can include it in the response body.
+    The cookie is non-HttpOnly so the frontend JS can read it for headers.
+    """
+    csrf_token = secrets.token_hex(32)
+    secure = not _is_localhost(request)
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        max_age=JWT_EXPIRY_DAYS * 86400,
+        path="/",
+        secure=secure,
+        httponly=False,  # JS-readable so frontend can add X-CSRF-Token header
+        samesite="lax",  # Lax allows top-level GET navigations
+    )
+    return csrf_token
+
+
+def _clear_auth_cookie(response: Response, request: Request) -> None:
+    """Clear the auth cookie (logout)."""
+    secure = not _is_localhost(request)
+    response.set_cookie(
+        key="rmi_token",
+        value="",
+        max_age=0,
+        expires=0,
+        path="/",
+        secure=secure,
+        httponly=True,
+        samesite="strict",
+    )
+    response.set_cookie(
+        key="csrf_token",
+        value="",
+        max_age=0,
+        expires=0,
+        path="/",
+        secure=secure,
+        httponly=False,
+        samesite="lax",
+    )
+
+
 # ── Email Auth ──
-@router.post("/register", response_model=WalletAuthResponse)
+@router.post("/register")
 @limiter.limit("5/minute")
-def register_email(req: EmailRegisterRequest) -> dict[str, Any]:
+def register_email(req: EmailRegisterRequest, request: Request) -> JSONResponse:
     """Register a new user with email/password."""
     if not _is_valid_email(req.email):
         raise HTTPException(status_code=400, detail="Invalid email format")
@@ -382,7 +458,7 @@ def register_email(req: EmailRegisterRequest) -> dict[str, Any]:
 
     token = _create_jwt(user_id, req.email, "FREE", "USER", req.wallet_address)
 
-    return {
+    body = {
         "access_token": token,
         "refresh_token": token,
         "user": {
@@ -396,11 +472,15 @@ def register_email(req: EmailRegisterRequest) -> dict[str, Any]:
             "created_at": user["created_at"],
         },
     }
+    response = JSONResponse(content=body, status_code=200)
+    _set_auth_cookie(response, token, request)
+    _set_csrf_cookie(response, request)
+    return response
 
 
-@router.post("/login", response_model=WalletAuthResponse)
+@router.post("/login")
 @limiter.limit("5/minute")
-def login_email(req: EmailLoginRequest) -> dict[str, Any]:
+def login_email(req: EmailLoginRequest, request: Request) -> JSONResponse:
     """Login with email/password. If 2FA enabled, returns partial token requiring /2fa/login."""
     user = _get_user_by_email(req.email)
     if not user or not user.get("password_hash"):
@@ -435,7 +515,7 @@ def login_email(req: EmailLoginRequest) -> dict[str, Any]:
         payload["pre_auth"] = True
         pre_token = jose_jwt.encode(payload, _encode_key, algorithm=JWT_ALGORITHM)
 
-        return {
+        body = {
             "access_token": pre_token,
             "refresh_token": pre_token,
             "user": {
@@ -450,6 +530,10 @@ def login_email(req: EmailLoginRequest) -> dict[str, Any]:
                 "_2fa_required": True,
             },
         }
+        response = JSONResponse(content=body, status_code=200)
+        _set_auth_cookie(response, pre_token, request)
+        _set_csrf_cookie(response, request)
+        return response
 
     token = _create_jwt(
         user["id"],
@@ -459,7 +543,7 @@ def login_email(req: EmailLoginRequest) -> dict[str, Any]:
         user.get("wallet_address"),
     )
 
-    return {
+    body = {
         "access_token": token,
         "refresh_token": token,
         "user": {
@@ -473,6 +557,10 @@ def login_email(req: EmailLoginRequest) -> dict[str, Any]:
             "created_at": user.get("created_at"),
         },
     }
+    response = JSONResponse(content=body, status_code=200)
+    _set_auth_cookie(response, token, request)
+    _set_csrf_cookie(response, request)
+    return response
 
 
 # ── Wallet Auth ──
@@ -490,9 +578,9 @@ async def wallet_nonce(req: WalletNonceRequest) -> dict[str, Any]:
     }
 
 
-@router.post("/wallet/verify", response_model=WalletAuthResponse)
+@router.post("/wallet/verify")
 @limiter.limit("5/minute")
-async def wallet_verify(req: WalletVerifyRequest) -> dict[str, Any]:
+async def wallet_verify(req: WalletVerifyRequest, request: Request) -> JSONResponse:
     """Verify wallet signature and create session."""
     from app.domains.auth.wallet import get_or_create_wallet_user, verify_wallet_signature
 
@@ -501,7 +589,7 @@ async def wallet_verify(req: WalletVerifyRequest) -> dict[str, Any]:
 
     user_data = await get_or_create_wallet_user(req.address)
 
-    return {
+    body = {
         "access_token": user_data["access_token"],
         "refresh_token": user_data["refresh_token"],
         "user": {
@@ -515,17 +603,20 @@ async def wallet_verify(req: WalletVerifyRequest) -> dict[str, Any]:
             "created_at": user_data["created_at"],
         },
     }
+    response = JSONResponse(content=body, status_code=200)
+    _set_auth_cookie(response, user_data["access_token"], request)
+    _set_csrf_cookie(response, request)
+    return response
 
 
 # ── User Profile ──
 @router.get("/user/me", response_model=UserResponse)
 async def user_profile_me(request: Request) -> dict[str, Any]:
     """Get current authenticated user profile."""
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    token = _extract_token(request)
+    if not token:
         raise HTTPException(status_code=401, detail="Missing auth token")
 
-    token = auth_header[7:]
     payload = _verify_jwt(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -656,12 +747,14 @@ async def google_callback(request: Request) -> Any:
             user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
         )
 
-        # Redirect to frontend with token
-        return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={jwt_token}&provider=google")
+        # Redirect to frontend — cookie carries the token, URL has no token
+        redirect = RedirectResponse(f"{FRONTEND_URL}/auth/callback?provider=google")
+        _set_auth_cookie(redirect, jwt_token, request)
+        return redirect
 
 
-@router.post("/google/callback", response_model=WalletAuthResponse)
-async def google_callback_post(request: Request) -> dict[str, Any]:
+@router.post("/google/callback")
+async def google_callback_post(request: Request) -> JSONResponse:
     """Legacy POST endpoint for manual code exchange."""
     body = await request.json()
     code = body.get("code")
@@ -733,7 +826,7 @@ async def google_callback_post(request: Request) -> dict[str, Any]:
             user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
         )
 
-        return {
+        body = {
             "access_token": jwt_token,
             "refresh_token": jwt_token,
             "user": {
@@ -747,11 +840,15 @@ async def google_callback_post(request: Request) -> dict[str, Any]:
                 "created_at": user.get("created_at"),
             },
         }
+        response = JSONResponse(content=body, status_code=200)
+        _set_auth_cookie(response, jwt_token, request)
+        _set_csrf_cookie(response, request)
+        return response
 
 
 # ── Telegram Auth ──
-@router.post("/telegram", response_model=WalletAuthResponse)
-async def telegram_auth(req: TelegramAuthRequest) -> dict[str, Any]:
+@router.post("/telegram")
+async def telegram_auth(req: TelegramAuthRequest, request: Request) -> JSONResponse:
     """Authenticate via Telegram Web App data."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not bot_token:
@@ -816,7 +913,7 @@ async def telegram_auth(req: TelegramAuthRequest) -> dict[str, Any]:
         user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
     )
 
-    return {
+    body = {
         "access_token": jwt_token,
         "refresh_token": jwt_token,
         "user": {
@@ -830,6 +927,10 @@ async def telegram_auth(req: TelegramAuthRequest) -> dict[str, Any]:
             "created_at": user.get("created_at"),
         },
     }
+    response = JSONResponse(content=body, status_code=200)
+    _set_auth_cookie(response, jwt_token, request)
+    _set_csrf_cookie(response, request)
+    return response
 
 
 # ── GitHub OAuth ──
@@ -952,7 +1053,10 @@ async def github_callback(request: Request) -> Any:
         jwt_token = _create_jwt(
             user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
         )
-        return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={jwt_token}&provider=github")
+        # Redirect to frontend — cookie carries the token
+        redirect = RedirectResponse(f"{FRONTEND_URL}/auth/callback?provider=github")
+        _set_auth_cookie(redirect, jwt_token, request)
+        return redirect
 
 
 # ── X/Twitter OAuth ──
@@ -1057,16 +1161,31 @@ async def x_callback(request: Request) -> Any:
         jwt_token = _create_jwt(
             user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER")
         )
-        return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={jwt_token}&provider=x")
+        # Redirect to frontend — cookie carries the token
+        redirect = RedirectResponse(f"{FRONTEND_URL}/auth/callback?provider=x")
+        _set_auth_cookie(redirect, jwt_token, request)
+        return redirect
 
 
 # ── FastAPI Dependency Functions (for @router/@app endpoints) ──
-async def get_current_user(request: Request) -> dict[str, Any] | None:
-    """Verify JWT from Authorization header (wallet or email)."""
+def _extract_token(request: Request) -> str | None:
+    """Extract JWT from cookie first, then Authorization header fallback."""
+    # Check cookie first (browser clients with HttpOnly cookie)
+    cookie_token = request.cookies.get("rmi_token")
+    if cookie_token:
+        return cookie_token
+    # Fall back to Authorization header (API clients)
     auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    return None
+
+
+async def get_current_user(request: Request) -> dict[str, Any] | None:
+    """Verify JWT from cookie (browser) or Authorization header (API clients)."""
+    token = _extract_token(request)
+    if not token:
         return None
-    token = auth_header[7:]
     payload = _verify_jwt(token)
     if not payload:
         return None
@@ -1260,7 +1379,7 @@ async def twofa_verify(req: TwoFAVerifyRequest, request: Request) -> dict[str, A
 
 
 @router.post("/2fa/login")
-async def twofa_login(req: TwoFALoginRequest) -> dict[str, Any]:
+async def twofa_login(req: TwoFALoginRequest, request: Request) -> JSONResponse:
     """Login with email + password + 2FA code. Returns full JWT on success."""
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")
@@ -1311,7 +1430,7 @@ async def twofa_login(req: TwoFALoginRequest) -> dict[str, Any]:
 
     logger.info(f"[2FA LOGIN] user={user['id']} email={user['email']}")
 
-    return {
+    body = {
         "access_token": token,
         "refresh_token": token,
         "user": {
@@ -1325,3 +1444,53 @@ async def twofa_login(req: TwoFALoginRequest) -> dict[str, Any]:
             "created_at": user.get("created_at"),
         },
     }
+    response = JSONResponse(content=body, status_code=200)
+    _set_auth_cookie(response, token, request)
+    _set_csrf_cookie(response, request)
+    return response
+
+
+# ── Auth Cookie / Logout Endpoints ──
+
+
+@router.get("/cookie-token")
+async def cookie_token(request: Request) -> JSONResponse:
+    """Return user info from HttpOnly cookie. Used by frontend OAuth callback to bootstrap auth state.
+
+    Reads the rmi_token cookie (HttpOnly), verifies the JWT, and returns
+    the user object without exposing the raw token to JavaScript.
+    """
+    token = request.cookies.get("rmi_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="No auth cookie")
+
+    payload = _verify_jwt(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user = _get_user(payload["id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return JSONResponse(
+        content={
+            "user": {
+                "id": user["id"],
+                "email": user["email"],
+                "display_name": user.get("display_name", user["email"]),
+                "wallet_address": user.get("wallet_address"),
+                "wallet_chain": user.get("wallet_chain"),
+                "tier": user.get("tier", "FREE"),
+                "role": user.get("role", "USER"),
+                "created_at": user.get("created_at"),
+            },
+        }
+    )
+
+
+@router.post("/logout")
+async def logout(request: Request) -> JSONResponse:
+    """Clear auth cookies (logout)."""
+    response = JSONResponse(content={"status": "ok", "message": "Logged out"})
+    _clear_auth_cookie(response, request)
+    return response
