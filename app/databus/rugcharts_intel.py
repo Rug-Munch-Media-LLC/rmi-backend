@@ -79,7 +79,8 @@ async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     smart_wallets = []
@@ -126,7 +127,8 @@ async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict
                                     "signal": "large_holder",
                                 }
                             )
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Smart money feed: {e}")
 
     # Enrich with Arkham entity labels
@@ -142,7 +144,8 @@ async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict
                         entity = ar.json().get("arkhamEntity", {})
                         w["entity"] = entity.get("name", "")
                         w["entity_type"] = entity.get("type", "")
-            except Exception:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+                logger.warning("error")
                 pass
 
     result = {
@@ -157,7 +160,8 @@ async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict
         r = _r()
         r.setex(cache_key, CACHE_TTL["smart_money"], json.dumps(result, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return result
@@ -183,7 +187,8 @@ async def whale_alert_stream(
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     whales = []
@@ -236,7 +241,8 @@ async def whale_alert_stream(
                                             "block": sig_data.get("slot"),
                                         }
                                     )
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Whale alert: {e}")
 
     result = {
@@ -253,7 +259,8 @@ async def whale_alert_stream(
         r = _r()
         r.setex(cache_key, CACHE_TTL["whale_alert"], json.dumps(result, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return result
@@ -277,7 +284,8 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     new_tokens = []
@@ -345,7 +353,8 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
                             }
                         )
 
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Token launch scan: {e}")
 
     # Sort by newest first
@@ -370,7 +379,8 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
         r = _r()
         r.setex(cache_key, CACHE_TTL["token_launch"], json.dumps(result, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return result
@@ -397,7 +407,8 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -455,7 +466,8 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
                                     )
                                     break
 
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Insider detection: {e}")
 
     result = {
@@ -474,7 +486,8 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
         r = _r()
         r.setex(cache_key, CACHE_TTL["insider"], json.dumps(result, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return result
@@ -501,7 +514,8 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -571,7 +585,8 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
                             liquidity_data["risk_score"] = 20
                             liquidity_data["risk_level"] = "LOW"
 
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Liquidity monitor: {e}")
 
     # Arkham enrichment: check if LP holders are known entities
@@ -588,7 +603,8 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
                         if entity.get("name"):
                             h["entity"] = entity["name"]
                             h["entity_type"] = entity.get("type", "")
-            except Exception:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+                logger.warning("error")
                 pass
 
     liquidity_data["token"] = address
@@ -600,7 +616,8 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
         r = _r()
         r.setex(cache_key, CACHE_TTL["liquidity"], json.dumps(liquidity_data, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return liquidity_data
@@ -627,7 +644,8 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -723,7 +741,8 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
                         )
                         health["risk_factors"].append(f"Very few holders ({n})")
 
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Holder health: {e}")
 
     health["token"] = address
@@ -735,7 +754,8 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
         r = _r()
         r.setex(cache_key, CACHE_TTL["holder_health"], json.dumps(health, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return health
@@ -762,7 +782,8 @@ async def cross_chain_entity(address: str = "", **kw) -> dict | None:
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     if not ARKHAM_KEY:
@@ -811,7 +832,8 @@ async def cross_chain_entity(address: str = "", **kw) -> dict | None:
                                         "twitter": ent.get("twitter"),
                                     }
                                 )
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Cross-chain entity: {e}")
 
     result = {
@@ -826,7 +848,8 @@ async def cross_chain_entity(address: str = "", **kw) -> dict | None:
         r = _r()
         r.setex(cache_key, CACHE_TTL["cross_chain"], json.dumps(result, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return result
@@ -916,7 +939,8 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     matches = []
@@ -1038,7 +1062,8 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
                     }
                 )
 
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Rug pattern matcher: {e}")
 
     # Sort by match score descending
@@ -1069,7 +1094,8 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
         r = _r()
         r.setex(cache_key, CACHE_TTL["rug_pattern"], json.dumps(result, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return result
@@ -1096,7 +1122,8 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -1173,7 +1200,8 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
                             reputation["total_tokens_deployed"] = "0-1"
                             reputation["risk_level"] = "LOW"
 
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         logger.debug(f"Dev reputation: {e}")
 
     reputation["scan_time"] = datetime.now(UTC).isoformat()
@@ -1183,7 +1211,8 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
         r = _r()
         r.setex(cache_key, CACHE_TTL["dev_reputation"], json.dumps(reputation, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return reputation
@@ -1213,7 +1242,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     report = {
@@ -1242,7 +1272,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     "highlights": _extract_security_highlights(security),
                 }
                 risk_scores.append(security.get("security_score", 50))
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             report["sections"]["security"] = {"error": str(e)[:100]}
 
         # ── Section 2: Holder Health ──
@@ -1261,7 +1292,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     "risk": holder_data.get("risk_level", "UNKNOWN"),
                 }
                 risk_scores.append(gini_risk)
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             report["sections"]["holders"] = {"error": str(e)[:100]}
 
         # ── Section 3: Liquidity Risk ──
@@ -1275,7 +1307,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     "lp_holders": len(liq_data.get("lp_holders", [])),
                 }
                 risk_scores.append(liq_data.get("risk_score", 50))
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             report["sections"]["liquidity"] = {"error": str(e)[:100]}
 
         # ── Section 4: Rug Pattern Match ──
@@ -1299,7 +1332,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     risk_scores.append(75)
                 elif rug_data.get("overall_rug_risk") == "MEDIUM":
                     risk_scores.append(45)
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             report["sections"]["rug_patterns"] = {"error": str(e)[:100]}
 
         # ── Section 5: Developer Reputation ──
@@ -1316,7 +1350,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     dev_data.get("risk_level", "UNKNOWN"), 40
                 )
                 risk_scores.append(dev_risk)
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             report["sections"]["developer"] = {"error": str(e)[:100]}
 
         # ── Section 6: Volume Authenticity ──
@@ -1334,7 +1369,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     "risk_level": auth.get("risk_level", "UNKNOWN"),
                 }
                 risk_scores.append(auth.get("fake_volume_pct", 0))
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             report["sections"]["volume"] = {"error": str(e)[:100]}
 
         # ── Section 7: Entity Intel (Arkham) ──
@@ -1350,7 +1386,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     }
                     if entity["entity"].get("entity_name"):
                         risk_scores.append(5)  # Known entity = low risk
-            except Exception:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+                logger.warning("error")
                 pass
 
         # ── Compute Overall Risk ──
@@ -1392,7 +1429,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         report["sections_count"] = len(report["sections"])
         report["source"] = "instant_token_report"
 
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"error: {e}")
         report["error"] = str(e)[:200]
         logger.error(f"Token report failed: {e}")
 
@@ -1400,7 +1438,8 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         r = _r()
         r.setex(cache_key, CACHE_TTL["token_report"], json.dumps(report, default=str))
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("error")
         pass
 
     return report

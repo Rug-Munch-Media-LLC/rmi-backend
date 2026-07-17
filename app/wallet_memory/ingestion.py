@@ -304,7 +304,8 @@ class WalletIngestionPipeline:
             )
             return True
 
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.error(f"Ingestion failed for {addr} on {chain}: {e}")
             # Still mark cooldown to avoid hammering on error
             self._cooldown.mark_fetched(addr, chain)
@@ -372,7 +373,8 @@ class WalletIngestionPipeline:
                 if not cursor or len(txs) < self.HELIUS_PAGE_LIMIT:
                     break
 
-            except Exception as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.warning(f"Helius fetch error (page {page}): {e}")
                 break
 
@@ -433,7 +435,8 @@ class WalletIngestionPipeline:
                 else:
                     break
 
-            except Exception as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.warning(f"Etherscan fetch error (page {page}, {chain}): {e}")
                 break
 
@@ -461,7 +464,8 @@ class WalletIngestionPipeline:
                         for itx in int_txs:
                             itx["_internal"] = True
                         all_txs.extend(int_txs)
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.debug(f"Etherscan internal tx fetch failed for {chain}: {e}")
 
         # Fetch ERC-20 token transfers
@@ -487,7 +491,8 @@ class WalletIngestionPipeline:
                         for ttx in token_txs:
                             ttx["_token_transfer"] = True
                         all_txs.extend(token_txs)
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.debug(f"Etherscan token tx fetch failed for {chain}: {e}")
 
         logger.info(f"Fetched {len(all_txs)} EVM txs from Etherscan for {address} on {chain}")
@@ -649,7 +654,8 @@ class WalletIngestionPipeline:
                         )
                     )
 
-            except Exception as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.debug(f"Failed to normalize Helius tx: {e}")
                 continue
 
@@ -753,7 +759,8 @@ class WalletIngestionPipeline:
                             normalized[-1].counterparty = contract_addr
                             normalized[-1].is_contract_creation = True
 
-            except Exception as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.debug(f"Failed to normalize Etherscan tx: {e}")
                 continue
 
@@ -807,7 +814,8 @@ class WalletIngestionPipeline:
                 )
                 logger.info(f"Stored {len(rows)} token transfers in ClickHouse")
 
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"error: {e}")
             logger.warning(f"Token transfer storage failed: {e}")
 
     # ── Storage: deployer events ────────────────────────────────────
@@ -837,7 +845,8 @@ class WalletIngestionPipeline:
                     f"Recorded deployer event: {tx.address} deployed {token_addr} on {tx.chain_id}"
                 )
 
-            except Exception as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+                logger.warning(f"error: {e}")
                 logger.debug(f"Deployer event record failed: {e}")
 
     # ── Cleanup ─────────────────────────────────────────────────────
