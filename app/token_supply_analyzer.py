@@ -842,7 +842,7 @@ async def main() -> None:
                 return obj.isoformat()
             return str(obj)
 
-        print(
+        logger.info(
             json.dumps(
                 dataclasses.asdict(profile),
                 indent=2,
@@ -850,63 +850,63 @@ async def main() -> None:
             )
         )
     else:
-        print(f"\n{'=' * 60}")
-        print(f"TOKEN SUPPLY ANALYSIS: {profile.symbol} ({profile.name})")
-        print(f"{'=' * 60}")
-        print(f"Address: {profile.address}")
-        print(f"Chain:   {profile.chain}")
-        print("\n── Supply ──")
-        print(f"  Total supply:     {profile.total_supply:,.2f}")
-        print(f"  Circulating:      {profile.circulating_supply:,.2f}")
-        print(f"  Max supply:       {profile.max_supply:,.2f}")
-        print(f"  Burned:           {profile.burned_supply:,.2f}")
-        print(
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f"TOKEN SUPPLY ANALYSIS: {profile.symbol} ({profile.name})")
+        logger.info(f"{'=' * 60}")
+        logger.info(f"Address: {profile.address}")
+        logger.info(f"Chain:   {profile.chain}")
+        logger.info("\n── Supply ──")
+        logger.info(f"  Total supply:     {profile.total_supply:,.2f}")
+        logger.info(f"  Circulating:      {profile.circulating_supply:,.2f}")
+        logger.info(f"  Max supply:       {profile.max_supply:,.2f}")
+        logger.info(f"  Burned:           {profile.burned_supply:,.2f}")
+        logger.info(
             f"  Has mint:         {'YES' if profile.has_mint_function else 'no'} ({profile.mint_function_type})"
         )
-        print(
+        logger.info(
             f"  Has burn:         {'YES' if profile.has_burn_function else 'no'} ({profile.burn_function_type})"
         )
-        print(f"  Deflationary:     {'YES' if profile.is_deflationary else 'no'}")
-        print("\n── Concentration ──")
-        print(f"  Holders:          {profile.holder_count:,}")
-        print(f"  Top 10 hold:      {profile.top_10_holder_pct:.1f}%")
-        print(f"  Top 50 hold:      {profile.top_50_holder_pct:.1f}%")
-        print(f"  Deployer holds:   {profile.deployer_hold_pct:.1f}%")
-        print("\n── Liquidity ──")
-        print(f"  Lock status:      {profile.lock_status.value}")
-        print(f"  Lock expiry:      {profile.liquidity_lock_expiry or 'N/A'}")
-        print(f"  Liquidity (USD):  ${profile.pair_liquidity_usd:,.2f}")
-        print(f"  Pair age (days):  {profile.pair_age_days:.1f}")
-        print(f"  LP by deployer:   {profile.lp_token_pct_held_by_deployer:.1f}%")
-        print("\n── Tax ──")
-        print(f"  Buy tax:          {profile.buy_tax_pct:.1f}%")
-        print(f"  Sell tax:         {profile.sell_tax_pct:.1f}%")
-        print(f"  Dynamic tax:      {'YES' if profile.has_dynamic_tax else 'no'}")
-        print(f"  Blacklist:        {'YES' if profile.has_blacklist else 'no'}")
-        print("\n── Ownership ──")
-        print(f"  Renounced:        {'YES' if profile.is_renounced else 'NO'}")
-        print(f"  Proxy admin:      {'YES' if profile.has_proxy_admin else 'no'}")
-        print(f"  Multi-sig:        {'YES' if profile.has_multisig else 'no'}")
-        print("\n── Risk Scores ──")
-        print(
+        logger.info(f"  Deflationary:     {'YES' if profile.is_deflationary else 'no'}")
+        logger.info("\n── Concentration ──")
+        logger.info(f"  Holders:          {profile.holder_count:,}")
+        logger.info(f"  Top 10 hold:      {profile.top_10_holder_pct:.1f}%")
+        logger.info(f"  Top 50 hold:      {profile.top_50_holder_pct:.1f}%")
+        logger.info(f"  Deployer holds:   {profile.deployer_hold_pct:.1f}%")
+        logger.info("\n── Liquidity ──")
+        logger.info(f"  Lock status:      {profile.lock_status.value}")
+        logger.info(f"  Lock expiry:      {profile.liquidity_lock_expiry or 'N/A'}")
+        logger.info(f"  Liquidity (USD):  ${profile.pair_liquidity_usd:,.2f}")
+        logger.info(f"  Pair age (days):  {profile.pair_age_days:.1f}")
+        logger.info(f"  LP by deployer:   {profile.lp_token_pct_held_by_deployer:.1f}%")
+        logger.info("\n── Tax ──")
+        logger.info(f"  Buy tax:          {profile.buy_tax_pct:.1f}%")
+        logger.info(f"  Sell tax:         {profile.sell_tax_pct:.1f}%")
+        logger.info(f"  Dynamic tax:      {'YES' if profile.has_dynamic_tax else 'no'}")
+        logger.info(f"  Blacklist:        {'YES' if profile.has_blacklist else 'no'}")
+        logger.info("\n── Ownership ──")
+        logger.info(f"  Renounced:        {'YES' if profile.is_renounced else 'NO'}")
+        logger.info(f"  Proxy admin:      {'YES' if profile.has_proxy_admin else 'no'}")
+        logger.info(f"  Multi-sig:        {'YES' if profile.has_multisig else 'no'}")
+        logger.info("\n── Risk Scores ──")
+        logger.info(
             f"  Supply risk:      {profile.supply_risk.value} ({profile.supply_risk_score:.0f}/100)"
         )
-        print(
+        logger.info(
             f"  Concentration:    {profile.concentration_risk.value} ({profile.concentration_score:.0f}/100)"
         )
-        print(
+        logger.info(
             f"  Liquidity risk:   {profile.liquidity_risk.value} ({profile.liquidity_score:.0f}/100)"
         )
-        print(
+        logger.info(
             f"  OVERALL RISK:     {profile.overall_risk.value} ({profile.overall_risk_score:.0f}/100)"
         )
-        print("\n── Patterns Detected ──")
+        logger.info("\n── Patterns Detected ──")
         for p in profile.patterns_detected:
-            print(f"  • {p}")
-        print("\n── Recommendations ──")
+            logger.info(f"  • {p}")
+        logger.info("\n── Recommendations ──")
         for r in profile.recommendations:
-            print(f"  {r}")
-        print()
+            logger.info(f"  {r}")
+        logger.info()
 
 
 if __name__ == "__main__":

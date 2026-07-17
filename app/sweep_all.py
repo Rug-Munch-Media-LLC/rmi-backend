@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 #!/usr/bin/env python3
 """
 Universal wallet sweep tool for RMI x402 payment system.
@@ -35,14 +37,14 @@ from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402
 
 mgr = get_wallet_manager_v2(os.environ.get("WALLET_VAULT_PASSWORD", ""))
 
-print("=" * 60)
-print("RMI WALLET SWEEP TOOL")
-print("=" * 60)
-print("Time:", datetime.now(UTC).isoformat())
-print("Mode:", "DRY RUN" if args.dry_run else "LIVE")
-print("Chain filter:", args.chain or "ALL")
-print("Threshold: ${:.2f}{}".format(args.min, " (BYPASSED)" if args.force else ""))
-print()
+logger.info("=" * 60)
+logger.info("RMI WALLET SWEEP TOOL")
+logger.info("=" * 60)
+logger.info("Time:", datetime.now(UTC).isoformat())
+logger.info("Mode:", "DRY RUN" if args.dry_run else "LIVE")
+logger.info("Chain filter:", args.chain or "ALL")
+logger.info("Threshold: ${:.2f}{}".format(args.min, " (BYPASSED)" if args.force else ""))
+logger.info()
 
 # ── Find all x402-enabled wallets ──
 x402_wallets = []
@@ -53,7 +55,7 @@ for w in mgr._wallets.values():
         continue
     x402_wallets.append(w)
 
-print("x402 wallets found: %d" % len(x402_wallets))  # noqa: UP031
+logger.info("x402 wallets found: %d" % len(x402_wallets))  # noqa: UP031
 
 evm_chains = {
     "eth",
@@ -77,7 +79,7 @@ for w in x402_wallets:
         continue  # unsupported chain for sweep
 
     if not has_key:
-        print("  SKIP %-6s %s (no key)" % (w.chain, w.address[:16]))  # noqa: UP031
+        logger.info("  SKIP %-6s %s (no key)" % (w.chain, w.address[:16]))  # noqa: UP031
         continue
 
     if not args.force and balance < args.min:
@@ -85,38 +87,38 @@ for w in x402_wallets:
 
     sweepable.append(w)
 
-print("Sweepable wallets: %d" % len(sweepable))  # noqa: UP031
-print()
+logger.info("Sweepable wallets: %d" % len(sweepable))  # noqa: UP031
+logger.info()
 
 if not sweepable:
-    print("Nothing to sweep.")
+    logger.info("Nothing to sweep.")
     sys.exit(0)
 
 # ── Preview / Execute ──
 total = 0.0
 for w in sweepable:
     balance = w.balance_usd or 0
-    print("  %-6s %s...  \033[33m$%.2f\033[0m" % (w.chain, w.address[:24], balance))  # noqa: UP031
+    logger.info("  %-6s %s...  \033[33m$%.2f\033[0m" % (w.chain, w.address[:24], balance))  # noqa: UP031
     total += balance
 
-print()
-print(f"Total sweepable: \033[33m${total:.2f}\033[0m")
+logger.info()
+logger.info(f"Total sweepable: \033[33m${total:.2f}\033[0m")
 
 if args.dry_run:
-    print("\nDry run complete. Use without --dry-run to execute.")
+    logger.info("\nDry run complete. Use without --dry-run to execute.")
     sys.exit(0)
 
 # ── Confirm ──
 owner_fallback = args.to or "(default owner addresses)"
-print(f"\nDestination: {owner_fallback}")
-print("Type \033[1mYES\033[0m to broadcast %d transactions:" % len(sweepable))  # noqa: UP031
+logger.info(f"\nDestination: {owner_fallback}")
+logger.info("Type \033[1mYES\033[0m to broadcast %d transactions:" % len(sweepable))  # noqa: UP031
 confirm = input("> ").strip()
 if confirm != "YES":
-    print("Aborted.")
+    logger.info("Aborted.")
     sys.exit(0)
 
 # ── Execute ──
-print("\nBroadcasting transactions...")
+logger.info("\nBroadcasting transactions...")
 results = {"swept": [], "errors": [], "total_usd": 0.0}
 
 for w in sweepable:
@@ -177,7 +179,7 @@ for w in sweepable:
             )
             sweep_usd = float(w3.from_wei(sweep_wei, "ether")) * 2500
             results["total_usd"] += sweep_usd
-            print(
+            logger.info(
                 "  \033[32mOK\033[0m  %-6s %s -> %s ($%.2f)"
                 % (w.chain, w.address[:12], owner[:12], sweep_usd)
             )
@@ -241,22 +243,22 @@ for w in sweepable:
                 }
             )
             results["total_usd"] += sweep_sol * 75  # Approx SOL price
-            print(
+            logger.info(
                 "  \033[32mOK\033[0m  %-6s %s -> %s (%.4f SOL)"
                 % (w.chain, w.address[:12], owner[:12], sweep_sol)
             )
 
     except Exception as e:
         results["errors"].append({"chain": w.chain, "address": w.address, "error": str(e)})
-        print("  \033[31mERR\033[0m %-6s %s: %s" % (w.chain, w.address[:12], str(e)[:80]))  # noqa: UP031
+        logger.info("  \033[31mERR\033[0m %-6s %s: %s" % (w.chain, w.address[:12], str(e)[:80]))  # noqa: UP031
 
 # ── Summary ──
-print()
-print("=" * 60)
-print("SWEEP COMPLETE")
-print("  Swept:  %d transactions" % len(results["swept"]))  # noqa: UP031
-print("  Errors: %d" % len(results["errors"]))  # noqa: UP031
-print("  Total:  ${:.2f}".format(round(results["total_usd"], 2)))
+logger.info()
+logger.info("=" * 60)
+logger.info("SWEEP COMPLETE")
+logger.info("  Swept:  %d transactions" % len(results["swept"]))  # noqa: UP031
+logger.info("  Errors: %d" % len(results["errors"]))  # noqa: UP031
+logger.info("  Total:  ${:.2f}".format(round(results["total_usd"], 2)))
 
 mgr._save_vault()
-print("  Vault:  saved")
+logger.info("  Vault:  saved")
