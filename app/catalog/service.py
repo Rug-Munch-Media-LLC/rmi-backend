@@ -51,7 +51,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "redis": {
         "host": os.getenv("REDIS_HOST", "rmi-redis"),
         "port": int(os.getenv("REDIS_PORT", "6379")),
-        "password": os.getenv("REDIS_PASSWORD", "RMI_PROD_REDIS_2026"),
+        "password": os.getenv(
+            "REDIS_PASSWORD", "508042d92b89ee1a65397927f7b4d00ca2bab053850919fbb5103bb183962159"
+        ),  # Rotated 2026-07-17
         "db": int(os.getenv("REDIS_DB", "0")),
     },
     "postgres": {

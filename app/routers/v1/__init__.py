@@ -76,6 +76,21 @@ from app.routers.v1.providers import router as providers_v1_router  # noqa: E402
 
 v1_router.include_router(providers_v1_router)
 
+# Entity cross-chain endpoint (Win #20)
+from app.routers.v1.entity import router as entity_v1_router  # noqa: E402
+
+v1_router.include_router(entity_v1_router)
+
+# Custom report generation endpoint (Win #20)
+from app.routers.v1.reports import router as reports_v1_router  # noqa: E402
+
+v1_router.include_router(reports_v1_router)
+
+# Bulk alert configuration endpoint (Win #20)
+from app.routers.v1.alerts import router as alerts_v1_router  # noqa: E402
+
+v1_router.include_router(alerts_v1_router)
+
 # Full routers re-exported at v1 prefix (same handlers, new path)
 # Scam School: root-level routes at /scam-school/* become /api/v1/scam-school/*
 from app.routers.scam_school import router as scam_school_router  # noqa: E402

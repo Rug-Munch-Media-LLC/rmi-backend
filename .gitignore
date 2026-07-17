@@ -40,6 +40,7 @@ data/faiss/
 data/bm25_index.pkl
 data/models/
 .env.bak
+.env.backup-*
 # Large data files (excluded from HF mirror — 10+ MB each)
 tools/VarLifter/
 tools/VarLifter/

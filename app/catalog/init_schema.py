@@ -153,7 +153,9 @@ async def main():
         "host": os.getenv("POSTGRES_HOST", "rmi-postgres"),
         "port": int(os.getenv("POSTGRES_PORT", "5432")),
         "user": os.getenv("POSTGRES_USER", "rmi"),
-        "password": os.getenv("POSTGRES_PASSWORD", "RMI_PROD_POSTGRES_2026"),
+        "password": os.getenv(
+            "POSTGRES_PASSWORD", "d01258dbfa59738b5e442f4f2df48721d934522276cdf5b7ae78d7e38041c0f4"
+        ),  # Rotated 2026-07-17
         "database": os.getenv("POSTGRES_DB", "rmi"),
     }
     logger.info(f"Connecting to postgres at {cfg['host']}:{cfg['port']} db={cfg['database']}")
