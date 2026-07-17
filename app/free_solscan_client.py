@@ -14,9 +14,18 @@ from typing import Any
 
 import cloudscraper
 
+from app.core.circuit_breaker import CircuitBreakerOpenError, SimpleCircuitBreaker
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for Solscan API (sync — reverse-engineered, unreliable API)
+_solscan_cb = SimpleCircuitBreaker(
+    name="solscan",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ─── Token Generator ──────────────────────────────────────────────────────────
 
@@ -52,26 +61,46 @@ def _headers() -> dict[str, str]:
 
 
 def _request(endpoint: str, params: dict | None = None, retries: int = 3) -> Any:
-    """Make authenticated request to Solscan API with retries."""
+    """Make authenticated request to Solscan API with retries and circuit breaker."""
+    # Circuit breaker check — serve stale cache if OPEN
+    if not _solscan_cb.can_call():
+        stale = _solscan_cb.get_stale_result()
+        if stale is not None:
+            return stale
+        raise CircuitBreakerOpenError(
+            _solscan_cb.name,
+            _solscan_cb.state,
+            f"Solscan circuit OPEN — failing fast",
+        )
+
     url = f"{BASE_URL}{endpoint}"
     for attempt in range(retries):
         try:
             response = _scraper.get(url, headers=_headers(), params=params or {}, timeout=15)
             if response.status_code == 200:
                 data = response.json()
-                if isinstance(data, dict) and "data" in data:
-                    return data["data"]
-                return data
+                result = data.get("data") if isinstance(data, dict) and "data" in data else data
+                _solscan_cb.set_stale_result(result)
+                _solscan_cb.record_success()
+                return result
             elif response.status_code == 429:
                 wait = 2**attempt
                 logger.warning(f"Rate limited, waiting {wait}s...")
+                _solscan_cb.record_failure(is_server_error=False)
                 time.sleep(wait)
+            elif response.status_code >= 500:
+                logger.warning(f"HTTP {response.status_code} on {endpoint}")
+                _solscan_cb.record_failure(is_server_error=True)
+                if attempt == retries - 1:
+                    return None
             else:
                 logger.warning(f"HTTP {response.status_code} on {endpoint}")
+                _solscan_cb.record_failure(is_server_error=False)
                 if attempt == retries - 1:
                     return None
         except Exception as e:
             logger.error(f"Request failed ({attempt + 1}/{retries}): {e}")
+            _solscan_cb.record_failure(is_server_error=True)
             if attempt == retries - 1:
                 return None
             time.sleep(1)

@@ -12,9 +12,18 @@ from typing import Any
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for Arkham API
+_arkham_cb = AsyncCircuitBreaker(
+    name="arkham",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ── Auth ────────────────────────────────────────────────────────────────────
 ARKHAM_API_KEY = os.getenv("ARKHAM_API_KEY", "").strip()
@@ -84,7 +93,7 @@ class ArkhamClient:
         use_cache: bool = True,
         cache_ttl: int | None = None,
     ) -> dict:
-        """Core HTTP GET with rate limiting, caching, and error handling.
+        """Core HTTP GET with rate limiting, caching, error handling, and circuit breaker.
 
         Args:
             endpoint: Path appended to BASE_URL (include leading /).
@@ -99,6 +108,20 @@ class ArkhamClient:
             cached = self._cache.get(cache_key)
             if cached is not None:
                 return cached
+
+        # Circuit breaker check — serve stale cache if OPEN
+        if not await _arkham_cb.can_call():
+            stale_cache = self._cache.get(cache_key) if cache_key else None
+            if stale_cache is not None:
+                return stale_cache
+            stale_cb = _arkham_cb.get_stale_result()
+            if stale_cb is not None:
+                return stale_cb
+            raise CircuitBreakerOpenError(
+                _arkham_cb.name,
+                _arkham_cb.state,
+                f"Arkham circuit OPEN — failing fast",
+            )
 
         # Rate limit: 0.6 s between calls
         now = time.monotonic()
@@ -118,24 +141,31 @@ class ArkhamClient:
                 data = r.json()
                 if cache_key:
                     self._cache.set(cache_key, data, ttl=cache_ttl)
+                _arkham_cb.set_stale_result(data)
+                await _arkham_cb.record_success()
                 return data
             elif r.status_code == 429:
                 logger.warning("Arkham rate limit hit (429)")
+                await _arkham_cb.record_failure(is_server_error=False)
                 return {"error": "Rate limited by Arkham API", "status": 429}
             elif r.status_code == 401:
                 return {"error": "Invalid or missing API key", "status": 401}
             elif r.status_code == 404:
                 return {"error": "Resource not found", "status": 404}
             else:
+                is_5xx = r.status_code >= 500
+                await _arkham_cb.record_failure(is_server_error=is_5xx)
                 return {
                     "error": f"HTTP {r.status_code}",
                     "status": r.status_code,
                     "body": r.text[:500],
                 }
         except httpx.TimeoutException:
+            await _arkham_cb.record_failure(is_server_error=True)
             return {"error": "Request timed out", "status": 504}
         except Exception as e:
             logger.exception("Arkham API call failed")
+            await _arkham_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
     # ── Public API Methods ───────────────────────────────────────────────

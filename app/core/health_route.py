@@ -65,7 +65,7 @@ async def _check_store(name: str, coro) -> dict[str, Any]:
     """Run a health check and emit Prometheus metrics."""
     start = time.perf_counter()
     try:
-        result = await asyncio.wait_for(coro, timeout=10.0)
+        result = await asyncio.wait_for(coro, timeout=5.0)
         elapsed = time.perf_counter() - start
         healthy = result.get("healthy", False)
         HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
@@ -121,7 +121,7 @@ async def _check_neo4j() -> dict[str, Any]:
             return {"healthy": False, "error": "Neo4j not configured (no NEO4J_PASSWORD set)"}
         with _driver.session() as session:
             val = await asyncio.wait_for(
-                asyncio.to_thread(lambda: session.run("RETURN 1").single()), timeout=10.0
+                asyncio.to_thread(lambda: session.run("RETURN 1").single()), timeout=5.0
             )
         return {"healthy": val[0] == 1}
     except Exception as e:
@@ -209,13 +209,15 @@ async def readiness() -> ReadinessResponse:
 async def health() -> HealthResponse:
     started = time.monotonic()
     store_checks = {
-        "redis": _check_store("redis", _check_redis()),
-        "postgres": _check_store("postgres", _check_postgres()),
-        "neo4j": _check_store("neo4j", _check_neo4j()),
-        "qdrant": _check_store("qdrant", _check_qdrant()),
-        "clickhouse": _check_store("clickhouse", _check_clickhouse()),
-        "minio": _check_store("minio", _check_minio()),
-        "eth_rpc": _check_store("eth_rpc", _check_reth()),
+        "redis": asyncio.wait_for(_check_store("redis", _check_redis()), timeout=5.0),
+        "postgres": asyncio.wait_for(_check_store("postgres", _check_postgres()), timeout=5.0),
+        "neo4j": asyncio.wait_for(_check_store("neo4j", _check_neo4j()), timeout=5.0),
+        "qdrant": asyncio.wait_for(_check_store("qdrant", _check_qdrant()), timeout=5.0),
+        "clickhouse": asyncio.wait_for(
+            _check_store("clickhouse", _check_clickhouse()), timeout=5.0
+        ),
+        "minio": asyncio.wait_for(_check_store("minio", _check_minio()), timeout=5.0),
+        "eth_rpc": asyncio.wait_for(_check_store("eth_rpc", _check_reth()), timeout=5.0),
     }
     results = await asyncio.gather(*store_checks.values(), return_exceptions=True)
     stores = {}

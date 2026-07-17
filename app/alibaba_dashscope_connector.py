@@ -7,9 +7,18 @@ import os
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for Alibaba DashScope (Qwen) API
+_dashscope_cb = AsyncCircuitBreaker(
+    name="dashscope",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ── Alibaba DashScope Config ─────────────────────────────────
 
@@ -108,6 +117,17 @@ class AlibabaDashScopeConnector:
             },
         }
 
+        # Circuit breaker check
+        if not await _dashscope_cb.can_call():
+            stale = _dashscope_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _dashscope_cb.name,
+                _dashscope_cb.state,
+                f"DashScope circuit OPEN — failing fast",
+            )
+
         try:
             session = self._get_session()
             response = await session.post(
@@ -117,15 +137,26 @@ class AlibabaDashScopeConnector:
             if response.status_code == 200:
                 result = response.json()
                 output = result.get("output", {})
-                return {
+                data = {
                     "status": "success",
                     "text": output.get("text", ""),
                     "model": model,
                     "usage": output.get("usage", {}),
                     "prompt": prompt[:100] + "...",
                 }
+                _dashscope_cb.set_stale_result(data)
+                await _dashscope_cb.record_success()
+                return data
+            elif response.status_code >= 500:
+                logger.error(f"DashScope API error: {response.status_code} - {response.text[:200]}")
+                await _dashscope_cb.record_failure(is_server_error=True)
+                return {
+                    "error": f"API error: {response.status_code}",
+                    "details": response.text[:500],
+                }
             else:
                 logger.error(f"DashScope API error: {response.status_code} - {response.text[:200]}")
+                await _dashscope_cb.record_failure(is_server_error=False)
                 return {
                     "error": f"API error: {response.status_code}",
                     "details": response.text[:500],
@@ -133,6 +164,7 @@ class AlibabaDashScopeConnector:
 
         except Exception as e:
             logger.error(f"DashScope text generation failed: {e}")
+            await _dashscope_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
     async def generate_marketing_content(

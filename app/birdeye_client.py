@@ -4,9 +4,19 @@ from datetime import UTC, datetime
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+
 BIRDEYE_API_KEY = os.getenv("BIRDEYE_API_KEY", "")
 BASE_URL = "https://public-api.birdeye.so"
 HEADERS = {"X-API-KEY": BIRDEYE_API_KEY, "accept": "application/json"}
+
+# Circuit breaker for Birdeye API
+_birdeye_cb = AsyncCircuitBreaker(
+    name="birdeye",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 
 class BirdeyeClient:
@@ -18,6 +28,17 @@ class BirdeyeClient:
     async def _call(self, endpoint: str, params: dict | None = None) -> dict:
         import time
 
+        # Circuit breaker check
+        if not await _birdeye_cb.can_call():
+            stale = _birdeye_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _birdeye_cb.name,
+                _birdeye_cb.state,
+                f"Birdeye circuit OPEN — failing fast",
+            )
+
         now = time.time()
         wait = 0.6 - (now - self.last_call)
         if wait > 0:
@@ -27,8 +48,19 @@ class BirdeyeClient:
             r = await self.client.get(
                 f"{BASE_URL}{endpoint}", headers=self.headers, params=params or {}
             )
-            return r.json() if r.status_code == 200 else {"error": f"HTTP {r.status_code}"}
+            if r.status_code == 200:
+                data = r.json()
+                _birdeye_cb.set_stale_result(data)
+                await _birdeye_cb.record_success()
+                return data
+            elif r.status_code >= 500:
+                await _birdeye_cb.record_failure(is_server_error=True)
+                return {"error": f"HTTP {r.status_code}"}
+            else:
+                await _birdeye_cb.record_failure(is_server_error=False)
+                return {"error": f"HTTP {r.status_code}"}
         except Exception as e:
+            await _birdeye_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
     async def get_price(self, address: str) -> dict:

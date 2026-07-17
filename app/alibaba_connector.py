@@ -7,9 +7,18 @@ import os
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for Alibaba Cloud image generation API
+_alibaba_cb = AsyncCircuitBreaker(
+    name="alibaba",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ── Alibaba Cloud Config ─────────────────────────────────────
 
@@ -80,6 +89,17 @@ class AlibabaConnector:
             },
         }
 
+        # Circuit breaker check
+        if not await _alibaba_cb.can_call():
+            stale = _alibaba_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _alibaba_cb.name,
+                _alibaba_cb.state,
+                f"Alibaba circuit OPEN — failing fast",
+            )
+
         try:
             session = self._get_session()
             response = await session.post(IMAGE_GENERATION_ENDPOINT, json=payload)
@@ -90,7 +110,7 @@ class AlibabaConnector:
                 # Extract image URLs
                 images = result.get("output", {}).get("results", [])
                 if images and len(images) > 0:
-                    return {
+                    output = {
                         "status": "success",
                         "image_url": images[0].get("url"),
                         "thumbnail_url": images[0].get("thumbnail_url"),
@@ -99,10 +119,22 @@ class AlibabaConnector:
                         "size": size,
                         "style": style,
                     }
+                    _alibaba_cb.set_stale_result(output)
+                    await _alibaba_cb.record_success()
+                    return output
                 else:
+                    await _alibaba_cb.record_failure(is_server_error=False)
                     return {"error": "No images generated", "raw": result}
+            elif response.status_code >= 500:
+                logger.error(f"Alibaba API error: {response.status_code} - {response.text[:200]}")
+                await _alibaba_cb.record_failure(is_server_error=True)
+                return {
+                    "error": f"API error: {response.status_code}",
+                    "details": response.text[:500],
+                }
             else:
                 logger.error(f"Alibaba API error: {response.status_code} - {response.text[:200]}")
+                await _alibaba_cb.record_failure(is_server_error=False)
                 return {
                     "error": f"API error: {response.status_code}",
                     "details": response.text[:500],
@@ -110,6 +142,7 @@ class AlibabaConnector:
 
         except Exception as e:
             logger.error(f"Alibaba image generation failed: {e}")
+            await _alibaba_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
     async def generate_marketing_image(self, campaign_type: str, content: dict) -> dict:

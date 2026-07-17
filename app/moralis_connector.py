@@ -14,9 +14,18 @@ from typing import Any
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for Moralis APIs
+_moralis_cb = AsyncCircuitBreaker(
+    name="moralis",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ── API Keys ────────────────────────────────────────────────
 
@@ -111,13 +120,24 @@ class MoralisConnector:
     async def _get(
         self, url: str, key: str | None = None, use_auth_key: bool = False
     ) -> dict | None:
-        """Rate-limited GET with caching and key rotation."""
+        """Rate-limited GET with caching, key rotation, and circuit breaker."""
         cache_key = f"get:{url}"
         if key is None:
             key = cache_key
         cached = self._cached(key)
         if cached is not None:
             return cached
+
+        # Circuit breaker check — serve stale cache if OPEN
+        if not await _moralis_cb.can_call():
+            stale = _moralis_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _moralis_cb.name,
+                _moralis_cb.state,
+                f"Moralis circuit OPEN — failing fast",
+            )
 
         await self._rate_limit()
         # Rotate keys for load balancing (2 orgs = 2x rate limit)
@@ -143,15 +163,24 @@ class MoralisConnector:
                 if r.status_code == 200:
                     data = r.json()
                     self._set_cache(key, data)
+                    _moralis_cb.set_stale_result(data)
+                    await _moralis_cb.record_success()
                     return data
                 elif r.status_code == 429:
                     logger.warning("Moralis rate limited")
+                    await _moralis_cb.record_failure(is_server_error=False)
+                    return None
+                elif r.status_code >= 500:
+                    logger.debug(f"Moralis {r.status_code}: {url[:80]}")
+                    await _moralis_cb.record_failure(is_server_error=True)
                     return None
                 else:
                     logger.debug(f"Moralis {r.status_code}: {url[:80]}")
+                    await _moralis_cb.record_failure(is_server_error=False)
                     return None
         except Exception as e:
             logger.debug(f"Moralis request failed: {e}")
+            await _moralis_cb.record_failure(is_server_error=True)
             return None
 
     # ── Auth API (Key 2) ──────────────────────────────────

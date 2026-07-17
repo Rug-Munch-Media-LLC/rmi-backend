@@ -24,9 +24,18 @@ from typing import Any
 
 import httpx
 
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Circuit breaker for CoinGecko API
+_coingecko_cb = AsyncCircuitBreaker(
+    name="coingecko",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 # ── API Keys ───────────────────────────────────────────────
 
@@ -73,15 +82,26 @@ class CoinGeckoConnector:
         return self.BASE_URL
 
     async def _get(self, endpoint: str, params: dict | None = None, ttl: int = 300) -> Any | None:
-        """Rate-limited GET with caching."""
+        """Rate-limited GET with caching and circuit breaker."""
         cache_key = f"{endpoint}:{sorted(params.items()) if params else ''}"
         now = time.time()
 
-        # Check cache
+        # Check cache (fresh)
         if cache_key in self._cache:
             expiry, value = self._cache[cache_key]
             if now < expiry:
                 return value
+
+        # Circuit breaker check — serve stale cache if OPEN
+        if not await _coingecko_cb.can_call():
+            stale = _coingecko_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _coingecko_cb.name,
+                _coingecko_cb.state,
+                f"CoinGecko circuit OPEN — serving stale cache or failing fast",
+            )
 
         # Rate limit
         elapsed = now - self._last_request
@@ -97,16 +117,25 @@ class CoinGeckoConnector:
                 if r.status_code == 200:
                     data = r.json()
                     self._cache[cache_key] = (now + ttl, data)
+                    _coingecko_cb.set_stale_result(data)
+                    await _coingecko_cb.record_success()
                     return data
                 elif r.status_code == 429:
                     logger.warning("CoinGecko rate limited, backing off")
+                    await _coingecko_cb.record_failure(is_server_error=False)
                     await asyncio.sleep(30)
+                    return None
+                elif r.status_code >= 500:
+                    logger.debug(f"CoinGecko {endpoint}: {r.status_code} {r.text[:200]}")
+                    await _coingecko_cb.record_failure(is_server_error=True)
                     return None
                 else:
                     logger.debug(f"CoinGecko {endpoint}: {r.status_code} {r.text[:200]}")
+                    await _coingecko_cb.record_failure(is_server_error=False)
                     return None
         except Exception as e:
             logger.debug(f"CoinGecko error: {e}")
+            await _coingecko_cb.record_failure(is_server_error=True)
             return None
 
     # ── Health Check ─────────────────────────────────────────

@@ -15,11 +15,20 @@ from typing import Any
 
 import httpx
 
+from app.core.circuit_breaker import CircuitBreakerOpenError, SimpleCircuitBreaker
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 # TODO: migrate to async httpx.AsyncClient — this class uses sync httpx.get()
 # but may be called from async contexts. See async-http-patterns skill for pattern.
+
+# Circuit breaker for Nansen API (sync — pending async migration)
+_nansen_cb = SimpleCircuitBreaker(
+    name="nansen",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+)
 
 
 # ─── NANSEN API CONFIGURATION ─────────────────────────────────────
@@ -85,7 +94,18 @@ class NansenClient:
     # ── request helpers ───────────────────────────────────────────
 
     def _get(self, path: str, extra_params: dict[str, str] | None = None) -> dict[str, Any] | None:
-        """Authenticated GET request returning JSON or None on error."""
+        """Authenticated GET request with circuit breaker protection."""
+        # Circuit breaker check — serve stale if OPEN
+        if not _nansen_cb.can_call():
+            stale = _nansen_cb.get_stale_result()
+            if stale is not None:
+                return stale
+            raise CircuitBreakerOpenError(
+                _nansen_cb.name,
+                _nansen_cb.state,
+                f"Nansen circuit OPEN — failing fast",
+            )
+
         params = {"api_key": self.api_key}
         if extra_params:
             params.update(extra_params)
@@ -96,21 +116,31 @@ class NansenClient:
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            _nansen_cb.set_stale_result(data)
+            _nansen_cb.record_success()
+            return data
         except httpx.HTTPError as e:
             logger.error("Nansen API error (%s): %s", path, e)
+            status = getattr(e.response, "status_code", 0) if hasattr(e, "response") else 0
+            _nansen_cb.record_failure(is_server_error=status >= 500 or status == 0)
             return None
 
     # ── public API methods ────────────────────────────────────────
 
     def get_wallet_labels(self, address: str) -> dict[str, Any] | None:
-        """
-        Fetch on-chain labels for a wallet address.
-
-        Returns label metadata: entity type (exchange, smart money,
-        fund, whale, etc.), confidence, and related tags.
-        """
+        """Fetch on-chain labels for a wallet address."""
         path = ENDPOINTS["wallet_labels"].format(address=address)
+        return self._get(path)
+
+    def get_smart_money(self) -> list[dict[str, Any]] | None:
+        """Retrieve the list of tracked smart-money wallets."""
+        path = ENDPOINTS["smart_money"]
+        return self._get(path)
+
+    def get_wallet_activity(self, address: str) -> dict[str, Any] | None:
+        """Get transaction history for a wallet with entity labels."""
+        path = ENDPOINTS["wallet_activity"].format(address=address)
         return self._get(path)
 
     def get_smart_money(self) -> list[dict[str, Any]] | None:
