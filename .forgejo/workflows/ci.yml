@@ -49,3 +49,16 @@ jobs:
 
       - name: Test (pytest)
         run: source .venv/bin/activate && pytest tests/ -x -q --tb=short -m "not integration"
+
+  trivy-scan:
+    runs-on: docker-x64
+    needs: build
+    steps:
+      - name: Scan backend image for CVEs
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'backend-rmi-backend:latest'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'

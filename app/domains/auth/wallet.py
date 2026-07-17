@@ -54,7 +54,7 @@ def verify_wallet_signature(
         r = redis.Redis(
             host=os.getenv("REDIS_HOST", "localhost"),
             port=int(os.getenv("REDIS_PORT", "6379")),
-            password=os.getenv("REDIS_PASSWORD", ""),
+            password=os.environ["REDIS_PASSWORD"],
             decode_responses=True,
         )
 
@@ -183,7 +183,7 @@ async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[s
         r = redis.Redis(
             host=os.getenv("REDIS_HOST", "localhost"),
             port=int(os.getenv("REDIS_PORT", "6379")),
-            password=os.getenv("REDIS_PASSWORD", ""),
+            password=os.environ["REDIS_PASSWORD"],
             decode_responses=True,
         )
     except Exception as e:

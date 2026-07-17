@@ -31,6 +31,23 @@ def register_middleware(app: FastAPI) -> None:
     _try_register_prometheus(app)
     _try_register_cost_tracking(app)
     _try_register_tracing(app)
+    _try_register_slowapi(app)
+
+
+def _try_register_slowapi(app: FastAPI) -> None:
+    """T28 - slowapi rate limiting per PATH_CATEGORIES + decorators."""
+    try:
+        from slowapi import _rate_limit_exceeded_handler
+        from slowapi.middleware import SlowAPIMiddleware
+
+        from app.core.slowrate import limiter
+
+        app.state.limiter = limiter
+        app.add_exception_handler(429, _rate_limit_exceeded_handler)
+        app.add_middleware(SlowAPIMiddleware)
+        log.info("middleware_registered name=slowapi")
+    except Exception as exc:
+        log.warning("middleware_skipped name=slowapi err=%s", exc)
 
 
 def _try_register_cors(app: FastAPI) -> None:
