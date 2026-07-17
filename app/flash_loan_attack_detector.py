@@ -37,7 +37,7 @@ Usage:
     detector = FlashLoanAttackDetector()
     report = await detector.scan(blocks_back=50)
     for attack in report.attacks:
-        print(attack.summary())
+        logger.info(attack.summary())
 
 CLI:
     python3 flash_loan_attack_detector.py                    # Full scan
@@ -1471,15 +1471,15 @@ async def _run_cli() -> None:
     chain = args.chain if args.chain else None
 
     if args.tx:
-        print(f"\n🔍 Analyzing transaction: {args.tx}")
+        logger.info(f"\n🔍 Analyzing transaction: {args.tx}")
         attacks = await detector.analyze_transaction(args.tx, chain or "ethereum")
     else:
-        print(f"\n🔍 Scanning last {args.blocks} blocks...")
+        logger.info(f"\n🔍 Scanning last {args.blocks} blocks...")
         report = await detector.scan(blocks_back=args.blocks, chain=chain)
         attacks = report.attacks_confirmed
 
         if args.json:
-            print(
+            logger.info(
                 json.dumps(
                     {
                         "scanned": {
@@ -1495,12 +1495,12 @@ async def _run_cli() -> None:
             )
             return
 
-        print(f"\n{'═' * 60}")
-        print(report.summary())
-        print(f"{'═' * 60}\n")
+        logger.info(f"\n{'═' * 60}")
+        logger.info(report.summary())
+        logger.info(f"{'═' * 60}\n")
 
     if not attacks:
-        print("✅ No flash loan attacks detected.")
+        logger.info("✅ No flash loan attacks detected.")
         return
 
     min_severity = _severity_from_str(args.severity) if args.severity else AttackSeverity.INFO
@@ -1517,51 +1517,51 @@ async def _run_cli() -> None:
     filtered = [a for a in attacks if severity_order.index(a.severity) >= min_idx]
 
     if not filtered:
-        print(f"No attacks at severity >= {args.severity or 'info'}")
+        logger.info(f"No attacks at severity >= {args.severity or 'info'}")
         return
 
     for i, attack in enumerate(filtered, 1):
-        print(f"\n{'─' * 60}")
-        print(f"⚠️  ATTACK #{i}")
-        print(f"{'─' * 60}")
-        print(f"  Severity:     {attack.severity.value.upper()}")
-        print(f"  Type:         {attack.attack_type.value.replace('_', ' ').title()}")
-        print(f"  Protocol:     {attack.protocol_used.value.upper()}")
-        print(f"  Chain:        {attack.chain}")
-        print(f"  Block:        #{attack.block_number}")
-        print(f"  Tx Hash:      {attack.tx_hash[:66]}")
-        print(f"  Attacker:     {attack.attacker_address}")
-        print(f"  Profit:       ${attack.attacker_profit_usd:,.2f}")
-        print(f"  Victim Loss:  ${attack.victim_loss_usd:,.2f}")
-        print(f"  Confidence:   {attack.confidence:.0%}")
-        print(f"  Sophistication: {attack.sophistication_score:.1f}/10")
+        logger.info(f"\n{'─' * 60}")
+        logger.info(f"⚠️  ATTACK #{i}")
+        logger.info(f"{'─' * 60}")
+        logger.info(f"  Severity:     {attack.severity.value.upper()}")
+        logger.info(f"  Type:         {attack.attack_type.value.replace('_', ' ').title()}")
+        logger.info(f"  Protocol:     {attack.protocol_used.value.upper()}")
+        logger.info(f"  Chain:        {attack.chain}")
+        logger.info(f"  Block:        #{attack.block_number}")
+        logger.info(f"  Tx Hash:      {attack.tx_hash[:66]}")
+        logger.info(f"  Attacker:     {attack.attacker_address}")
+        logger.info(f"  Profit:       ${attack.attacker_profit_usd:,.2f}")
+        logger.info(f"  Victim Loss:  ${attack.victim_loss_usd:,.2f}")
+        logger.info(f"  Confidence:   {attack.confidence:.0%}")
+        logger.info(f"  Sophistication: {attack.sophistication_score:.1f}/10")
 
         if attack.tags:
-            print(f"  Tags:         {', '.join(attack.tags)}")
+            logger.info(f"  Tags:         {', '.join(attack.tags)}")
         if attack.targets:
-            print(f"  Targets:      {', '.join(a[:16] for a in attack.targets[:3])}")
+            logger.info(f"  Targets:      {', '.join(a[:16] for a in attack.targets[:3])}")
         if attack.flash_loan_calls:
-            print(f"  Flash Loans:  {len(attack.flash_loan_calls)}")
+            logger.info(f"  Flash Loans:  {len(attack.flash_loan_calls)}")
             for fl in attack.flash_loan_calls:
-                print(f"    • {fl.summary()}")
+                logger.info(f"    • {fl.summary()}")
         if attack.exploit_timeline:
-            print("  Timeline:")
+            logger.info("  Timeline:")
             for event in attack.exploit_timeline[:5]:
-                print(f"    → {event}")
+                logger.info(f"    → {event}")
 
-    print(f"\n{'═' * 60}")
-    print(f"Total: {len(filtered)} attack(s) detected")
+    logger.info(f"\n{'═' * 60}")
+    logger.info(f"Total: {len(filtered)} attack(s) detected")
     total_impact = sum(a.attacker_profit_usd + a.victim_loss_usd for a in filtered)
-    print(f"Total financial impact: ${total_impact:,.2f}")
-    print(f"{'═' * 60}")
+    logger.info(f"Total financial impact: ${total_impact:,.2f}")
+    logger.info(f"{'═' * 60}")
 
     if args.monitor:
-        print("\n🔄 Continuous monitoring mode. Next scan in 60s...")
+        logger.info("\n🔄 Continuous monitoring mode. Next scan in 60s...")
         while True:
             await asyncio.sleep(60)
             report = await detector.scan(blocks_back=args.blocks, chain=chain)
             for attack in report.attacks_confirmed:
-                print(f"\n⚠️  NEW: {attack.summary()}")
+                logger.info(f"\n⚠️  NEW: {attack.summary()}")
 
 
 def main() -> None:
