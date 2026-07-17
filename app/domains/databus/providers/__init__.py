@@ -137,7 +137,8 @@ class ProviderChain:
                     _circuit_breakers[provider.name].record_success()
                     return result
 
-            except Exception as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+                logger.warning(f"provider error: {e}")
                 logger.warning(f"Provider {provider.name} failed: {e}")
                 _circuit_breakers[provider.name].record_failure()
                 continue
@@ -218,7 +219,8 @@ async def _local_token_price(**kwargs) -> dict | None:
             if cached:
                 return json.loads(cached)
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -233,7 +235,8 @@ async def _dexscreener_price(**kwargs) -> dict | None:
             r = await c.get(f"https://api.dexscreener.com/latest/dex/tokens/{token}")
             if r.status_code == 200:
                 return r.json()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -250,7 +253,8 @@ async def _coingecko_price(**kwargs) -> dict | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -267,7 +271,8 @@ async def _moralis_price(**kwargs) -> dict | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -296,7 +301,8 @@ async def _alchemy_token_balances(
                 data = r.json()
                 if "result" in data:
                     return {"balances": data["result"], "address": address, "network": network}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -322,7 +328,8 @@ async def _alchemy_token_metadata(
                 data = r.json()
                 if "result" in data:
                     return {"metadata": data["result"], "contract": contract}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -337,7 +344,8 @@ async def _passthrough_market_overview(**kwargs) -> dict | None:
             r = await c.get("http://localhost:8000/api/v1/content/market-overview")
             if r.status_code == 200:
                 return r.json()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -350,7 +358,8 @@ async def _passthrough_trending(**kwargs) -> dict | None:
             r = await c.get(f"http://localhost:8000/api/v1/tokens/trending?limit={limit}")
             if r.status_code == 200:
                 return r.json()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -363,7 +372,8 @@ async def _passthrough_news(**kwargs) -> dict | None:
             r = await c.get(f"http://localhost:8000/api/v1/news/combined?limit={limit}")
             if r.status_code == 200:
                 return r.json()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -376,7 +386,8 @@ async def _passthrough_alerts(**kwargs) -> dict | None:
         count = await get_active_alert_count()
         recent = await get_recent_alerts(limit=kwargs.get("limit", 20))
         return {"count": count, "alerts": recent}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return {"count": 0, "alerts": []}
 
@@ -440,7 +451,8 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
                     "total_labels": "190K+",
                 }
         r.close()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -454,7 +466,8 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
             )
             if r.status_code == 200:
                 return r.json()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -469,7 +482,8 @@ async def _passthrough_rag(query: str = "", collection: str = "known_scams", **k
             )
             if r.status_code == 200:
                 return r.json()
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -493,7 +507,8 @@ async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) ->
             )
             if r.status_code == 200:
                 return {"tokens": r.json(), "address": address, "chain": chain}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -512,7 +527,8 @@ async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> d
             )
             if r.status_code == 200:
                 return {"nfts": r.json(), "address": address, "chain": chain}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -532,7 +548,8 @@ async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **
             )
             if r.status_code == 200:
                 return {"transactions": r.json(), "address": address, "chain": chain}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -551,7 +568,8 @@ async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> d
             )
             if r.status_code == 200:
                 return {"price": r.json(), "address": address, "chain": chain}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -570,7 +588,8 @@ async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -
             )
             if r.status_code == 200:
                 return {"metadata": r.json(), "address": address}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -587,7 +606,8 @@ async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict | None:
             )
             if r.status_code == 200:
                 return {"net_worth": r.json(), "address": address}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -607,7 +627,8 @@ async def _moralis_search_tokens(query: str = "", **kw) -> dict | None:
             )
             if r.status_code == 200:
                 return {"results": r.json(), "query": query}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -690,7 +711,8 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
                                 "server": mcp_server,
                                 "tool": mcp_tool,
                             }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -711,7 +733,8 @@ async def _arkham_entity(address: str = "", **kw) -> dict | None:
             r = await c.get(f"{_ARKHAM_BASE}/intelligence/address/{address}", headers=headers)
             if r.status_code == 200:
                 return {"entity": r.json(), "address": address, "source": "arkham"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -732,7 +755,8 @@ async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
             )
             if r.status_code == 200:
                 return {"counterparties": r.json(), "address": address, "source": "arkham"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -750,7 +774,8 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
             )
             if r.status_code == 200:
                 return {"results": r.json(), "query": query, "source": "arkham"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -766,7 +791,8 @@ async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
             r = await c.get(f"{_ARKHAM_BASE}/intelligence/address/{address}", headers=headers)
             if r.status_code == 200:
                 return {"portfolio": r.json(), "address": address, "source": "arkham"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -787,7 +813,8 @@ async def _arkham_transfers(address: str = "", **kw) -> dict | None:
             )
             if r.status_code == 200:
                 return {"transfers": r.json(), "address": address, "source": "arkham"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -818,7 +845,8 @@ async def _arkham_labels(address: str = "", **kw) -> dict | None:
                     "chain": data.get("chain"),
                     "source": "arkham",
                 }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -851,7 +879,8 @@ async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
                         },
                         "source": "dexscreener",
                     }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -869,7 +898,8 @@ async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
                 pairs = data.get("pairs", [])
                 if pairs:
                     return {"pairs": pairs, "total_pairs": len(pairs), "source": "dexscreener"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -894,7 +924,8 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
                         "pairs": pairs[:5],
                         "source": "dexscreener",
                     }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -916,7 +947,8 @@ async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw)
                         "pairs": pairs[:3],
                         "source": "dexscreener",
                     }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -955,7 +987,8 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
                         "tx_hash": tx_hash,
                         "source": "etherscan",
                     }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -977,7 +1010,8 @@ async def _defillama_tvl(**kw) -> dict | None:
                     "top_protocols": data[:10],
                     "source": "defillama",
                 }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -997,7 +1031,8 @@ async def _defillama_chains(**kw) -> dict | None:
                     ],
                     "source": "defillama",
                 }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1021,7 +1056,8 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -
                         "data": data["data"][address],
                         "source": "blockchair",
                     }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1038,7 +1074,8 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
                     "stats": data.get("data", {}).get("stats", {}),
                     "source": "blockchair",
                 }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1065,7 +1102,8 @@ async def _birdeye_overview(address: str = "", **kw) -> dict | None:
             if r.status_code == 200:
                 data = r.json()
                 return {"address": address, "data": data.get("data", {}), "source": "birdeye"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1092,7 +1130,8 @@ async def _birdeye_price(address: str = "", **kw) -> dict | None:
                     "price": data.get("data", {}).get("value"),
                     "source": "birdeye",
                 }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1111,7 +1150,8 @@ async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
         data = await st.get_price(mint)
         if data:
             return {"mint": mint, "price": data, "source": "solana_tracker"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1127,7 +1167,8 @@ async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
         data = await st.get_token(mint)
         if data:
             return {"mint": mint, "data": data, "source": "solana_tracker"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1141,7 +1182,8 @@ async def _solana_tracker_trending(**kw) -> dict | None:
         data = await st.get_tokens_trending(limit=20)
         if data:
             return {"trending": data, "source": "solana_tracker"}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1185,7 +1227,8 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
                             }
                         )
                     return {"articles": articles, "source": "messari", "count": len(articles)}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1225,7 +1268,8 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
                             }
                         )
                     return {"articles": articles, "source": "coindesk", "count": len(articles)}
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1267,7 +1311,8 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict |
                     .get("timeseriesData", []),
                     "source": "santiment",
                 }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1298,7 +1343,8 @@ async def _virustotal_url_scan(url: str, **kw) -> dict | None:
                     "harmless": stats.get("harmless", 0),
                     "source": "virustotal",
                 }
-    except Exception:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
         pass
     return None
 
@@ -1354,7 +1400,8 @@ async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", *
                                     }
                             elif r_result.status_code != 202:
                                 break
-        except Exception as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            logger.warning(f"provider error: {e}")
             logger.warning(f"Dune query failed with key: {e}")
         return None
 
@@ -1674,7 +1721,8 @@ def build_provider_chains() -> dict[str, ProviderChain]:
             ],
         )
         logger.info("Bitquery chains registered: holder_data, tx_trace, cross_chain")
-    except Exception as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        logger.warning(f"provider error: {e}")
         logger.warning(f"Bitquery not available: {e}")
 
     # Wallet Labels - OUR data first
@@ -2943,7 +2991,8 @@ def build_provider_chains() -> dict[str, ProviderChain]:
                 r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid?limit={limit}")
                 if r.status_code == 200:
                     return r.json()
-        except Exception:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            logger.warning("provider error")
             pass
         return None
 
@@ -2965,7 +3014,8 @@ def build_provider_chains() -> dict[str, ProviderChain]:
                 )
                 if r.status_code == 200:
                     return r.json()
-        except Exception:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            logger.warning("provider error")
             pass
         return None
 
@@ -2993,7 +3043,8 @@ def build_provider_chains() -> dict[str, ProviderChain]:
                 )
                 if r.status_code == 200:
                     return r.json()
-        except Exception:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            logger.warning("provider error")
             pass
         return None
 
@@ -3018,7 +3069,8 @@ def build_provider_chains() -> dict[str, ProviderChain]:
                 )
                 if r.status_code == 200:
                     return r.json()
-        except Exception:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            logger.warning("provider error")
             pass
         return None
 

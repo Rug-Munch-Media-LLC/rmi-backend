@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 Wallet Clustering Engine - Advanced Wallet Relationship Detection
 ================================================================
@@ -880,22 +882,22 @@ def get_clustering_engine() -> WalletClusteringEngine:
 
 
 if __name__ == "__main__":
-    print("=" * 70)
-    print("WALLET CLUSTERING ENGINE")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("WALLET CLUSTERING ENGINE")
+    logger.info("=" * 70)
 
     engine = get_clustering_engine()
 
-    print("\n🔍 Clustering Methods:")
-    print("  1. Temporal Proximity - Transactions within 5 minutes")
-    print("  2. Common Counterparties - Shared senders/recipients")
-    print("  3. Behavioral Patterns - Similar transaction patterns")
-    print("  4. Common Funding - Same funding source")
+    logger.info("\n🔍 Clustering Methods:")
+    logger.info("  1. Temporal Proximity - Transactions within 5 minutes")
+    logger.info("  2. Common Counterparties - Shared senders/recipients")
+    logger.info("  3. Behavioral Patterns - Similar transaction patterns")
+    logger.info("  4. Common Funding - Same funding source")
 
-    print("\n📊 Bubble Map Features:")
-    print("  - Size = Transaction volume")
-    print("  - Color = Wallet type (center/scammer/exchange/unknown)")
-    print("  - Line thickness = Connection strength")
-    print("  - Interactive depth control")
+    logger.info("\n📊 Bubble Map Features:")
+    logger.info("  - Size = Transaction volume")
+    logger.info("  - Color = Wallet type (center/scammer/exchange/unknown)")
+    logger.info("  - Line thickness = Connection strength")
+    logger.info("  - Interactive depth control")
 
-    print("\n" + "=" * 70)
+    logger.info("\n" + "=" * 70)
