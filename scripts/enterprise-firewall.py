@@ -28,9 +28,13 @@ BLOCKED CONTENT CATEGORIES:
   HIGH_ENTROPY — Suspicious high-entropy strings
 """
 
-import subprocess, sys, re, os, hashlib, struct, json, math
+import hashlib
+import math
+import os
+import re
+import subprocess
+import sys
 from pathlib import Path
-from datetime import datetime, timezone
 
 # ─── L1: CONTENT FINGERPRINTING ──────────────────────────────────────────────
 # SimHash implementation — detects near-duplicate proprietary code
@@ -251,7 +255,7 @@ def check_encrypted_patterns(content):
 def check_file(filepath):
     """Run ALL layers against a single file."""
     try:
-        with open(filepath, "r", errors="ignore") as f:
+        with open(filepath, errors="ignore") as f:
             content = f.read()
     except Exception:
         return []

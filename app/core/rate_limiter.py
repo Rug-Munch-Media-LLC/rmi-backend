@@ -1,39 +1,132 @@
-"""3-Tier Rate Limiter - Free/Pro/Enterprise with crypto paywall.
-Realistic limits for 31GB RAM, 12 vCPU, 42 containers. Competitive with market.
+"""
+Unified Rate Limiter — Token Bucket Algorithm
+================================================
+Redis-backed token bucket with in-memory fallback.
+Standard X-RateLimit-Limit / X-RateLimit-Remaining / X-RateLimit-Reset headers.
+Usable as: FastAPI middleware, FastAPI dependency, standalone async function.
 
-FREE:  100 req/day, 10 req/min, 10 SENTINEL scans/day
-PRO:   $19.99/mo (SOL/ETH/USDC), 10K req/day, 60 req/min, 100 scans/day
-ENTERPRISE: $499/mo, unlimited, white-label, dedicated support"""
+Also contains: 3-tier pricing router (FREE/PRO/ENTERPRISE), PII-safe hash utilities.
 
+Consolidates 7 separate rate limiter implementations into 1.
+The old files (app/middleware/rate_limit.py, app/caching_shield/rate_limiter.py,
+app/scan_rate_limiter.py, etc.) are deprecated — see each file's top comment.
+"""
+
+from __future__ import annotations
+
+import asyncio
 import hashlib
 import hmac
 import os
-import time
+import time as _time
+from collections import OrderedDict
 from enum import StrEnum
 from typing import Any
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/v1/rate-limits", tags=["rate-limits"])
+from app.core.logging import get_logger
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/3")
-X402_VERIFY = os.getenv("X402_VERIFY_URL", "http://localhost:8000/api/v1/x402/verify")
+logger = get_logger(__name__)
 
-# Server secret used as HMAC key material for the daily-rotating PII salt.
-# MUST be set via env (gopass rmi/rate_limit/salt). Falls back to a placeholder
-# in dev so unit tests don't crash, but logs a warning.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Rate Limit Configuration (from app/core/rate_limit_config.py)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# (requests_per_minute, burst_multiplier)
+# burst = max(1, requests_per_minute * burst_multiplier)
+DEFAULT_RATE_LIMITS: dict[str, tuple[int, float]] = {
+    "health": (1000, 0.2),  # 1000/min,  burst 200
+    "auth": (5, 0.4),  # 5/min,     burst 2
+    "x402": (1000, 0.2),  # 1000/min,  burst 200
+    "scan": (20, 0.25),  # 20/min,    burst 5
+    "ai": (10, 0.3),  # 10/min,    burst 3
+    "market": (60, 0.25),  # 60/min,    burst 15
+    "public": (100, 0.25),  # 100/min,   burst 25
+    "mcp": (30, 0.25),  # 30/min,    burst 7
+    "admin": (10, 0.2),  # 10/min,    burst 2
+    "default": (60, 0.25),  # 60/min,    burst 15
+}
+
+# Path prefix → category
+PATH_CATEGORIES: dict[str, str] = {
+    "/health": "health",
+    "/live": "health",
+    "/ready": "health",
+    "/metrics": "health",
+    "/register": "auth",
+    "/login": "auth",
+    "/2fa": "auth",
+    "/forgot-password": "auth",
+    "/api/v1/x402": "x402",
+    "/pay": "x402",
+    "/affiliates": "x402",
+    "/usage": "x402",
+    "/api/v1/scanner": "scan",
+    "/api/v1/contract-analyzer": "scan",
+    "/api/v1/death-clock": "scan",
+    "/api/v1/rugmaps": "scan",
+    "/api/v1/honeypot-map": "scan",
+    "/api/v1/tvl-verify": "scan",
+    "/api/v1/whale-alerts": "scan",
+    "/api/v1/criminal-clusters": "scan",
+    "/api/v1/address-profiler": "scan",
+    "/api/v1/mev-advisory": "scan",
+    "/api/v1/wallet-clusters": "scan",
+    "/api/v1/ai": "ai",
+    "/api/v1/chat": "ai",
+    "/api/v1/rag": "ai",
+    "/api/v1/market": "market",
+    "/api/v1/news": "market",
+    "/api/v1/bulletin": "market",
+    "/api/v1/bulletin-board": "market",
+    "/api/v1/catalog": "market",
+    "/api/v1/token": "public",
+    "/api/v1/wallet": "public",
+    "/api/v1/labels": "public",
+    "/mcp": "mcp",
+    "/api/v1/admin": "admin",
+    "/api/v1/_test": "admin",
+}
+
+
+def _resolve_rate_limit(path: str) -> tuple[float, float]:
+    """Resolve (rate_per_sec, burst_size) for a request path."""
+    for prefix, category in sorted(PATH_CATEGORIES.items(), key=lambda x: -len(x[0])):
+        if path.startswith(prefix):
+            rpm, burst_factor = DEFAULT_RATE_LIMITS[category]
+            burst = max(1, int(rpm * burst_factor))
+            return (rpm / 60.0, burst)
+    rpm, burst_factor = DEFAULT_RATE_LIMITS["default"]
+    burst = max(1, int(rpm * burst_factor))
+    return (rpm / 60.0, burst)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Redis helpers
+# ═══════════════════════════════════════════════════════════════════════════
+
+REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+REDIS_URL = os.getenv("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/3")
+
+RATE_LIMITER_REDIS_DB = int(os.getenv("RATE_LIMITER_REDIS_DB", "4"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PII-safe hash utilities (preserved from old file)
+# ═══════════════════════════════════════════════════════════════════════════
+
 RATE_LIMIT_SALT_SECRET = os.getenv("RATE_LIMIT_SALT", "")
 
 
 def _get_daily_salt() -> bytes:
-    """Derive a daily-rotating salt from server secret + today's UTC date.
-
-    Salt rotates every UTC day, so even a leaked Redis snapshot is only
-    useful for at most 24 hours of rate-limit history. PII (wallet
-    addresses, API keys) cannot be reversed from the stored hash.
-    """
-    date_str = time.strftime("%Y-%m-%d")
+    """Derive a daily-rotating salt from server secret + today's UTC date."""
+    date_str = _time.strftime("%Y-%m-%d")
     secret = (
         RATE_LIMIT_SALT_SECRET.encode()
         if RATE_LIMIT_SALT_SECRET
@@ -43,13 +136,413 @@ def _get_daily_salt() -> bytes:
 
 
 def _hash_identifier(identifier: str) -> str:
-    """HMAC-hash a user identifier (wallet, API key, IP) for Redis storage.
-
-    Same identifier -> same hash within a UTC day (rate limiting still works).
-    Different day -> different hash (privacy preserved across days).
-    """
+    """HMAC-hash a user identifier (wallet, API key, IP) for Redis storage."""
     salt = _get_daily_salt()
     return hmac.new(salt, identifier.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Token Bucket Lua script — atomic Redis operation
+# ═══════════════════════════════════════════════════════════════════════════
+
+_TOKEN_BUCKET_LUA = """
+local bucket_key = KEYS[1]
+local burst_key  = KEYS[2]
+local rate       = tonumber(ARGV[1])
+local burst      = tonumber(ARGV[2])
+local tokens     = tonumber(ARGV[3])
+local now        = tonumber(ARGV[4])
+local ttl        = tonumber(ARGV[5])
+
+local current     = redis.call('GET', bucket_key)
+local last_refill = redis.call('GET', burst_key)
+
+local available = burst
+if current and last_refill then
+    available = tonumber(current)
+    local elapsed = now - tonumber(last_refill)
+    available = math.min(burst, available + elapsed * rate)
+end
+
+if available >= tokens then
+    available = available - tokens
+    redis.call('SETEX', bucket_key, ttl, available)
+    redis.call('SET',   burst_key, now)
+    return {1, available, burst, 0}
+else
+    local needed = tokens - available
+    local wait   = math.ceil((needed / rate) * 100) / 100
+    return {0, available, burst, wait}
+end
+"""
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Unified Rate Limiter
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class UnifiedRateLimiter:
+    """Token bucket rate limiter — Redis-backed with in-memory fallback.
+
+    Usage as middleware:
+        limiter = get_rate_limiter()
+        app.add_middleware(UnifiedRateLimiterMiddleware, limiter=limiter)
+
+    Usage as dependency:
+        @router.get("/scan")
+        async def scan(req: Request, rl=Depends(get_rate_limit_dependency("scan"))):
+            ...
+
+    Usage standalone:
+        limiter = get_rate_limiter()
+        allowed, headers = await limiter.acquire("my-key", rate=1.0, burst=5)
+    """
+
+    BUCKET_PREFIX = "rmi:unified_bucket:"
+    BURST_PREFIX = "rmi:unified_burst:"
+    TTL_SECONDS = 120
+
+    def __init__(self):
+        self._redis: Any = None
+        self._redis_failed = False
+        self._init_lock = asyncio.Lock()
+        self._mem_buckets: dict[str, tuple[float, float]] = {}
+        self._mem_lock = asyncio.Lock()
+        self._lua_sha: str | None = None
+
+    async def _ensure_redis(self):
+        if self._redis is not None:
+            return self._redis
+        if self._redis_failed:
+            return None
+        async with self._init_lock:
+            if self._redis is not None:
+                return self._redis
+            if self._redis_failed:
+                return None
+            try:
+                import redis.asyncio as aioredis
+
+                url = (
+                    f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{RATE_LIMITER_REDIS_DB}"
+                    if REDIS_PASSWORD
+                    else f"redis://{REDIS_HOST}:{REDIS_PORT}/{RATE_LIMITER_REDIS_DB}"
+                )
+                self._redis = aioredis.from_url(
+                    url, socket_connect_timeout=2, decode_responses=False
+                )
+                await self._redis.ping()
+                self._lua_sha = await self._redis.script_load(_TOKEN_BUCKET_LUA)
+                logger.info("UnifiedRateLimiter: Redis connected OK")
+                return self._redis
+            except Exception as exc:
+                logger.warning(
+                    "UnifiedRateLimiter: Redis unavailable (%s), using in-memory fallback", exc
+                )
+                self._redis_failed = True
+                return None
+
+    # ── Core acquire ──────────────────────────────────────────────────
+
+    async def acquire(
+        self,
+        key: str,
+        rate: float = 1.0,
+        burst: float = 5.0,
+        tokens: float = 1.0,
+    ) -> tuple[bool, dict[str, int]]:
+        """Try to consume *tokens* from bucket *key*.
+
+        Returns (allowed, headers_dict) where headers_dict has:
+            X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+        """
+        redis = await self._ensure_redis()
+        if redis:
+            try:
+                return await self._acquire_redis(redis, key, rate, burst, tokens)
+            except Exception as exc:
+                logger.debug("Redis acquire failed (%s), falling back to memory", exc)
+        return await self._acquire_memory(key, rate, burst, tokens)
+
+    async def _acquire_redis(
+        self, redis: Any, key: str, rate: float, burst: float, tokens: float
+    ) -> tuple[bool, dict[str, int]]:
+        bucket_key = f"{self.BUCKET_PREFIX}{key}"
+        burst_key = f"{self.BURST_PREFIX}{key}"
+        now = _time.time()
+
+        result = await redis.evalsha(
+            self._lua_sha,
+            2,
+            bucket_key,
+            burst_key,
+            str(rate),
+            str(int(burst)),
+            str(tokens),
+            str(now),
+            str(self.TTL_SECONDS),
+        )
+        allowed = bool(result[0])
+        remaining = int(float(result[1]))
+        limit = int(float(result[2]))
+        wait = float(result[3])
+
+        # Reset when bucket fully refills
+        remaining_tokens = max(0, remaining)
+        time_to_full = (limit - remaining_tokens) / rate if rate > 0 else 0
+        reset_at = int(now + time_to_full)
+
+        headers = {
+            "X-RateLimit-Limit": limit,
+            "X-RateLimit-Remaining": remaining_tokens,
+            "X-RateLimit-Reset": reset_at,
+        }
+
+        if not allowed:
+            headers["Retry-After"] = int(wait) + 1
+
+        return (allowed, headers)
+
+    async def _acquire_memory(
+        self, key: str, rate: float, burst: float, tokens: float
+    ) -> tuple[bool, dict[str, int]]:
+        async with self._mem_lock:
+            now = _time.monotonic()
+            bucket = self._mem_buckets.get(key)
+
+            if bucket:
+                current, last_refill = bucket
+                elapsed = now - last_refill
+                current = min(burst, current + elapsed * rate)
+            else:
+                current = burst
+
+            limit = int(burst)
+            remaining = max(0, int(current))
+
+            if current >= tokens:
+                current -= tokens
+                self._mem_buckets[key] = (current, now)
+                remaining_after = max(0, int(current))
+                time_to_full = (limit - remaining_after) / rate if rate > 0 else 0
+                reset_at = int(_time.time() + time_to_full)
+                return (
+                    True,
+                    {
+                        "X-RateLimit-Limit": limit,
+                        "X-RateLimit-Remaining": remaining_after,
+                        "X-RateLimit-Reset": reset_at,
+                    },
+                )
+
+            needed = tokens - current
+            wait = needed / rate
+            time_to_full = (limit - remaining) / rate if rate > 0 else 0
+            reset_at = int(_time.time() + time_to_full)
+            return (
+                False,
+                {
+                    "X-RateLimit-Limit": limit,
+                    "X-RateLimit-Remaining": remaining,
+                    "X-RateLimit-Reset": reset_at,
+                    "Retry-After": int(wait) + 1,
+                },
+            )
+
+    # ── Per-path acquire (uses PATH_CATEGORIES) ───────────────────────
+
+    async def acquire_path(self, path: str, client_id: str) -> tuple[bool, dict[str, int]]:
+        """Acquire a token for the given request path and client."""
+        rate, burst = _resolve_rate_limit(path)
+        key = f"path:{path}:{client_id}"
+        return await self.acquire(key, rate=rate, burst=burst)
+
+    # ── Provider-style acquire (backward compat with RpcRateLimiter) ──
+
+    async def acquire_provider(
+        self,
+        provider: str,
+        method: str = "",
+        tokens: int = 1,
+        rate: float = 1.0,
+        burst: float = 10.0,
+    ) -> tuple[bool, float]:
+        """Backward-compat with RpcRateLimiter.acquire(provider, method).
+        Returns (allowed, wait_seconds)."""
+        key = f"provider:{provider}" + (f":{method}" if method else "")
+        _rate = rate
+        _burst = burst
+        redis = await self._ensure_redis()
+        if redis:
+            try:
+                r, headers = await self._acquire_redis(redis, key, _rate, _burst, tokens)
+                wait = float(headers.get("Retry-After", 0))
+                return (r, wait)
+            except Exception:
+                pass
+        r, headers = await self._acquire_memory(key, _rate, _burst, tokens)
+        wait = float(headers.get("Retry-After", 0))
+        return (r, wait)
+
+    # ── Stats ─────────────────────────────────────────────────────────
+
+    async def stats(self, key_prefix: str = "") -> dict[str, Any]:
+        """Return stats for buckets matching prefix."""
+        redis = await self._ensure_redis()
+        result: dict[str, Any] = {"redis_available": redis is not None, "buckets": {}}
+        if redis:
+            try:
+                pattern = f"{self.BUCKET_PREFIX}{key_prefix}*"
+                keys = []
+                async for k in redis.scan_iter(match=pattern, count=100):
+                    keys.append(k)
+                for k in keys[:50]:
+                    val = await redis.get(k)
+                    if val is not None:
+                        short = k.decode() if isinstance(k, bytes) else k
+                        short = short.removeprefix(self.BUCKET_PREFIX)
+                        result["buckets"][short] = round(float(val), 1)
+            except Exception as exc:
+                result["error"] = str(exc)
+        else:
+            for k, (tokens, _) in self._mem_buckets.items():
+                if k.startswith(key_prefix):
+                    result["buckets"][k] = round(tokens, 1)
+        return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Singleton
+# ═══════════════════════════════════════════════════════════════════════════
+
+_limiter_singleton: UnifiedRateLimiter | None = None
+
+
+def get_rate_limiter() -> UnifiedRateLimiter:
+    """Get the singleton unified rate limiter instance."""
+    global _limiter_singleton
+    if _limiter_singleton is None:
+        _limiter_singleton = UnifiedRateLimiter()
+    return _limiter_singleton
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FastAPI Middleware
+# ═══════════════════════════════════════════════════════════════════════════
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """FastAPI middleware that applies rate limits from PATH_CATEGORIES."""
+
+    def __init__(self, app, limiter: UnifiedRateLimiter | None = None):
+        super().__init__(app)
+        self.limiter = limiter or get_rate_limiter()
+
+    async def dispatch(self, request: Request, call_next: Any) -> StarletteResponse:
+        client_id = _extract_client_id(request)
+        allowed, headers = await self.limiter.acquire_path(request.url.path, client_id)
+        if not allowed:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded"},
+                headers=headers,
+            )
+        response = await call_next(request)
+        for k, v in headers.items():
+            response.headers[k] = str(v)
+        return response
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FastAPI Dependency
+# ═══════════════════════════════════════════════════════════════════════════
+
+from fastapi import Depends, HTTPException
+
+
+class RateLimitDependency:
+    """FastAPI dependency for per-endpoint rate limiting."""
+
+    def __init__(
+        self,
+        limit_key: str = "default",
+        rate: float | None = None,
+        burst: float | None = None,
+    ):
+        self.limit_key = limit_key
+        self._rate = rate
+        self._burst = burst
+
+    async def __call__(self, request: Request) -> Request:
+        limiter = get_rate_limiter()
+        client_id = _extract_client_id(request)
+
+        if self._rate is not None and self._burst is not None:
+            rate, burst = self._rate, self._burst
+        else:
+            if self.limit_key in DEFAULT_RATE_LIMITS:
+                rpm, burst_factor = DEFAULT_RATE_LIMITS[self.limit_key]
+                rate = rpm / 60.0
+                burst = max(1, int(rpm * burst_factor))
+            else:
+                rate, burst = _resolve_rate_limit(request.url.path)
+
+        key = f"dep:{self.limit_key}:{client_id}"
+        allowed, headers = await limiter.acquire(key, rate=rate, burst=burst)
+
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded",
+                headers={k: str(v) for k, v in headers.items()},
+            )
+
+        request.state.rate_limit_headers = headers
+        return request
+
+
+def get_rate_limit_dependency(
+    limit_key: str = "default",
+    rate: float | None = None,
+    burst: float | None = None,
+) -> RateLimitDependency:
+    """Create a FastAPI Depends() compatible rate limit dependency."""
+    return RateLimitDependency(limit_key=limit_key, rate=rate, burst=burst)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Client ID extraction
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _extract_client_id(request: Request) -> str:
+    """Extract client identifier: API key > X-Forwarded-For > remote IP."""
+    # Prefer API key for authenticated users
+    api_key = request.headers.get("X-API-Key", "")
+    if api_key:
+        return _hash_identifier(api_key)
+
+    # Check forwarded header
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+
+    # Fallback to client IP
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Tier / Pricing Router (preserved from old file)
+# ═══════════════════════════════════════════════════════════════════════════
+
+router = APIRouter(prefix="/api/v1/rate-limits", tags=["rate-limits"])
+X402_VERIFY = os.getenv("X402_VERIFY_URL", "http://localhost:8000/api/v1/x402/verify")
 
 
 class Tier(StrEnum):
@@ -58,7 +551,6 @@ class Tier(StrEnum):
     ENTERPRISE = "enterprise"
 
 
-# Realistic limits for our infrastructure
 TIER_LIMITS: dict[Tier, dict[str, Any]] = {
     Tier.FREE: {
         "requests_per_day": 100,
@@ -101,25 +593,23 @@ TIER_LIMITS: dict[Tier, dict[str, Any]] = {
     },
 }
 
-# Payment options
 PAYMENT_OPTIONS = {
     "solana": {"chain": "solana", "token": "USDC", "address": "PAY_WALLET_ADDRESS_HERE"},
     "ethereum": {"chain": "ethereum", "token": "USDC", "address": "0x_PAY_WALLET_ADDRESS_HERE"},
     "x402": {"chain": "any", "token": "any", "note": "Pay-per-call via x402 protocol"},
 }
 
-# In-memory user store (Redis in prod)
 _users: dict[str, dict[str, Any]] = {}
 
 
 class UpgradeRequest(BaseModel):
     user_id: str
     tier: Tier
-    tx_signature: str = ""  # blockchain tx for verification
+    tx_signature: str = ""
     chain: str = "solana"
 
 
-def _get_redis() -> Any:
+def _get_tier_redis() -> Any:
     import redis
 
     return redis.from_url(REDIS_URL, decode_responses=True)
@@ -129,9 +619,8 @@ def get_user_tier(user_id: str) -> Tier:
     """Get user's current tier. Defaults to FREE."""
     if user_id in _users:
         return Tier(_users[user_id].get("tier", "free"))
-    # Check Redis (key is HMAC-hashed, never plaintext PII)
     try:
-        r = _get_redis()
+        r = _get_tier_redis()
         tier = r.get(f"rmi:user_tier:{_hash_identifier(user_id)}")
         if tier:
             return Tier(tier)
@@ -146,23 +635,20 @@ def check_rate_limit(user_id: str, endpoint: str) -> bool:
     limits = TIER_LIMITS[tier]
 
     try:
-        r = _get_redis()
-        today = time.strftime("%Y-%m-%d")
+        r = _get_tier_redis()
+        today = _time.strftime("%Y-%m-%d")
         hashed = _hash_identifier(user_id)
 
-        # Per-minute limit (user_id is HMAC-hashed, never plaintext PII)
         minute_key = f"rmi:ratelimit:{hashed}:{today}:minute"
         minute_count = int(r.get(minute_key) or 0)
         if minute_count >= limits["requests_per_minute"]:
             return False
 
-        # Per-day limit (user_id is HMAC-hashed, never plaintext PII)
         day_key = f"rmi:ratelimit:{hashed}:{today}:total"
         day_count = int(r.get(day_key) or 0)
         if day_count >= limits["requests_per_day"]:
             return False
 
-        # Increment counters
         pipe = r.pipeline()
         pipe.incr(minute_key)
         pipe.expire(minute_key, 60)
@@ -171,7 +657,7 @@ def check_rate_limit(user_id: str, endpoint: str) -> bool:
         pipe.execute()
         return True
     except Exception:
-        return True  # Fail open if Redis down
+        return True
 
 
 @router.get("/tiers")
@@ -199,8 +685,8 @@ async def my_tier(x_api_key: str = Header(None)) -> dict[str, Any]:
     limits = TIER_LIMITS[tier]
 
     try:
-        r = _get_redis()
-        today = time.strftime("%Y-%m-%d")
+        r = _get_tier_redis()
+        today = _time.strftime("%Y-%m-%d")
         hashed = _hash_identifier(user_id)
         day_count = int(r.get(f"rmi:ratelimit:{hashed}:{today}:total") or 0)
         minute_count = int(r.get(f"rmi:ratelimit:{hashed}:{today}:minute") or 0)
@@ -229,11 +715,10 @@ async def upgrade_tier(req: UpgradeRequest) -> dict[str, Any]:
         _users[req.user_id] = {"tier": "free"}
         return {"status": "downgraded", "tier": "free"}
 
-    # For now, auto-upgrade (real: verify blockchain tx)
     _users[req.user_id] = {"tier": req.tier.value, "tx": req.tx_signature, "chain": req.chain}
 
     try:
-        r = _get_redis()
+        r = _get_tier_redis()
         r.set(f"rmi:user_tier:{_hash_identifier(req.user_id)}", req.tier.value)
     except Exception:
         pass
@@ -271,9 +756,9 @@ async def payment_links(tier: Tier = Tier.PRO) -> dict:
     }
 
 
-# ═══════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
 # Competitive analysis
-# ═══════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
 # CoinGecko API: Free 30 req/min, Pro $129/mo
 # CoinMarketCap: Free 10K/month, Pro $79/mo
 # Moralis: Free 40K/day, Pro $49/mo

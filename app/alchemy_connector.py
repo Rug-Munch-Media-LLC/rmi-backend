@@ -98,7 +98,7 @@ class AlchemyConnector:
             raise CircuitBreakerOpenError(
                 _alchemy_cb.name,
                 _alchemy_cb.state,
-                f"Alchemy RPC circuit OPEN — failing fast",
+                "Alchemy RPC circuit OPEN — failing fast",
             )
 
         await self._rate_limit()
@@ -158,7 +158,7 @@ class AlchemyConnector:
             raise CircuitBreakerOpenError(
                 _alchemy_cb.name,
                 _alchemy_cb.state,
-                f"Alchemy REST circuit OPEN — failing fast",
+                "Alchemy REST circuit OPEN — failing fast",
             )
 
         await self._rate_limit()

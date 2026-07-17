@@ -36,7 +36,7 @@ class BirdeyeClient:
             raise CircuitBreakerOpenError(
                 _birdeye_cb.name,
                 _birdeye_cb.state,
-                f"Birdeye circuit OPEN — failing fast",
+                "Birdeye circuit OPEN — failing fast",
             )
 
         now = time.time()

@@ -83,7 +83,6 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
         # Layer 2: Raydium new pools
         try:
@@ -94,7 +93,6 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
     # Layer 3: DexScreener - new pairs
     try:
@@ -107,7 +105,6 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     return result
 
@@ -164,7 +161,6 @@ async def _launch_intel(chain: str, hours: int) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
     # DexScreener trending
     try:
@@ -186,7 +182,6 @@ async def _launch_intel(chain: str, hours: int) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     result["new_launches"] = launches
     result["total_found"] = len(launches)
@@ -234,7 +229,6 @@ async def _anomaly_detector(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     # DexScreener for volume spikes
     try:
@@ -259,7 +253,6 @@ async def _anomaly_detector(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     result["anomaly_count"] = len(result["anomalies"])
     result["market_health"] = (
@@ -316,7 +309,6 @@ async def _market_overview(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     # CoinGecko top coins
     try:
@@ -339,7 +331,6 @@ async def _market_overview(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     # DeFiLlama TVL
     try:
@@ -350,7 +341,6 @@ async def _market_overview(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     return result
 
@@ -403,7 +393,6 @@ async def _chain_health(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     # RPC health check
     for c in chains_to_check:
@@ -429,7 +418,6 @@ async def _chain_health(chain: str) -> dict:
             except (ValueError, KeyError, ConnectionError, RuntimeError):
                 logger.exception("market_tools error")
                 raise
-                pass
         result["chains"].setdefault(c, {})["rpc_healthy"] = healthy
 
     return result
@@ -484,7 +472,6 @@ async def _defi_yield_scanner(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     result["total_pools"] = len(result["pools"])
     result["highest_apy"] = result["pools"][0]["apy"] if result["pools"] else 0
@@ -533,7 +520,6 @@ async def _gas_forecast(chain: str) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
     # Solana compute units
     elif chain == "solana":
@@ -543,7 +529,6 @@ async def _gas_forecast(chain: str) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
     # Blocknative gas station (free tier)
     try:
@@ -554,7 +539,6 @@ async def _gas_forecast(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     return result
 
@@ -611,7 +595,6 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
     # DexScreener for abnormal early trading
     try:
@@ -634,7 +617,6 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     result["total_alerts"] = len(result["sniper_activity"])
     return result
@@ -688,7 +670,6 @@ async def _airdrop_finder(chain: str) -> dict:
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
         raise
-        pass
 
     result["total_opportunities"] = len(result["opportunities"])
     return result
@@ -734,7 +715,6 @@ async def _mev_protection(chain: str) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
         # Check for MEV bots in recent blocks
         try:
@@ -746,7 +726,6 @@ async def _mev_protection(chain: str) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
     elif chain in ["base", "ethereum", "bsc"]:
         # Flashbots stats
@@ -758,7 +737,6 @@ async def _mev_protection(chain: str) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
         # Gas price for MEV detection
         try:
@@ -769,7 +747,6 @@ async def _mev_protection(chain: str) -> dict:
         except (ValueError, KeyError, ConnectionError, RuntimeError):
             logger.exception("market_tools error")
             raise
-            pass
 
     result["mev_risk"] = (
         "high" if chain == "ethereum" else "medium" if chain in ["base", "bsc"] else "low"

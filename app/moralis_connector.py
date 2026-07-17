@@ -136,7 +136,7 @@ class MoralisConnector:
             raise CircuitBreakerOpenError(
                 _moralis_cb.name,
                 _moralis_cb.state,
-                f"Moralis circuit OPEN — failing fast",
+                "Moralis circuit OPEN — failing fast",
             )
 
         await self._rate_limit()

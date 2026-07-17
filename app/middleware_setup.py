@@ -10,6 +10,8 @@ This module owns every middleware registration. Adding a new middleware:
 
 from __future__ import annotations
 
+import time
+import uuid
 from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import FastAPI
@@ -26,12 +28,45 @@ log = get_logger(__name__)
 
 def register_middleware(app: FastAPI) -> None:
     """Register all middleware. Each registration is isolated."""
+    _try_register_request_id(app)
     _try_register_cors(app)
     _try_register_security_headers(app)
     _try_register_prometheus(app)
     _try_register_cost_tracking(app)
     _try_register_tracing(app)
     _try_register_slowapi(app)
+
+
+def _try_register_request_id(app: FastAPI) -> None:
+    """Always-on request ID + response-time headers (Win #11 from fleet audit).
+
+    Sets ``X-Request-ID`` and ``X-Response-Time-Ms`` on every response.
+    Also populates ``request.state.request_id`` for error handlers.
+    Enabled independently of OTEL tracing so error responses always carry
+    a correlation ID.
+    """
+    try:
+        from starlette.middleware.base import BaseHTTPMiddleware
+
+        class RequestIDMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next: Any) -> Response:
+                request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+                request.state.request_id = request_id
+                start = time.perf_counter()
+
+                response = cast("Response", await call_next(request))
+
+                elapsed_ms = (time.perf_counter() - start) * 1000
+                response.headers["X-Request-ID"] = request_id
+                response.headers["X-Response-Time-Ms"] = str(round(elapsed_ms, 1))
+                response.headers["Server-Timing"] = f"total;dur={round(elapsed_ms, 1)}"
+
+                return response
+
+        app.add_middleware(RequestIDMiddleware)
+        log.info("middleware_registered name=request_id_timing")
+    except Exception as exc:
+        log.warning("middleware_skipped name=request_id_timing err=%s", exc)
 
 
 def _try_register_slowapi(app: FastAPI) -> None:
@@ -131,7 +166,12 @@ def _try_register_cost_tracking(app: FastAPI) -> None:
 
 
 def _try_register_tracing(app: FastAPI) -> None:
-    """Request-id + timing middleware (always on)."""
+    """OpenTelemetry tracing (gated by OTEL_ENABLED env var).
+
+    Note: the always-on request ID and response-time headers are set by the
+    ``_try_register_request_id`` middleware above (Win #11 from fleet audit).
+    This middleware adds OpenTelemetry spans only.
+    """
     try:
         from app.core.tracing import setup_tracing
 

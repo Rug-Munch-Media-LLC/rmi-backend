@@ -249,7 +249,6 @@ class WalletStorage:
                     return json.loads(cached)
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
 
         # Try ClickHouse
         profile = None
@@ -273,7 +272,6 @@ class WalletStorage:
                 await self._redis.set(cache_key, json.dumps(profile), ex=ttl)
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
 
         return profile
 
@@ -321,7 +319,6 @@ class WalletStorage:
                 await self._redis.set(cache_key, json.dumps(profile), ex=self.PROFILE_TTL)
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
 
         return True
 
@@ -339,7 +336,6 @@ class WalletStorage:
                     return json.loads(cached)
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
 
         result = None
         if self._ch:
@@ -426,7 +422,6 @@ class WalletStorage:
                     )
                 except (ValueError, ConnectionError, RuntimeError):
                     logger.warning("error")
-                    pass
             return True
 
         try:
@@ -456,7 +451,6 @@ class WalletStorage:
                     await self._redis.delete(cache_key)
                 except (ValueError, ConnectionError, RuntimeError):
                     logger.warning("error")
-                    pass
             return True
         except (ValueError, ConnectionError, RuntimeError) as e:
             logger.warning(f"error: {e}")
@@ -477,7 +471,6 @@ class WalletStorage:
                     return json.loads(cached)
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
 
         result = None
         if self._ch:
@@ -548,7 +541,6 @@ class WalletStorage:
                 await self._redis.sadd(f"wm:scam_set:{chain_id}", address.lower())
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
         return True
 
     # ── Deployer history ─────────────────────────────────────────
@@ -714,7 +706,6 @@ class WalletStorage:
                 return await self._redis.get(key)
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
         return None
 
     async def redis_set(self, key: str, value: str, ttl: int = 0) -> bool:
@@ -728,7 +719,6 @@ class WalletStorage:
                 return True
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
         return False
 
     async def redis_sadd(self, key: str, *values: str) -> bool:
@@ -739,7 +729,6 @@ class WalletStorage:
                 return True
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
         return False
 
 

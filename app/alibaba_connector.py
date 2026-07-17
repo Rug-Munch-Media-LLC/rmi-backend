@@ -97,7 +97,7 @@ class AlibabaConnector:
             raise CircuitBreakerOpenError(
                 _alibaba_cb.name,
                 _alibaba_cb.state,
-                f"Alibaba circuit OPEN — failing fast",
+                "Alibaba circuit OPEN — failing fast",
             )
 
         try:

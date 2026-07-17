@@ -34,40 +34,31 @@ from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 logger = get_logger("wallet_memory.ingestion")
 
 
-# ── Simple token-bucket rate limiter ────────────────────────────────
+# ── Token-bucket rate limiter (uses UnifiedRateLimiter) ──────────────
 
 
 class TokenBucketRateLimiter:
-    """Token bucket rate limiter for API call throttling."""
+    """Token bucket rate limiter wrapper using UnifiedRateLimiter.
+    Blocks until a token is available (unlike the non-blocking acquire).
+    """
 
     def __init__(self, rate: float, capacity: int):
-        """
-        Args:
-            rate: Tokens added per second (refill rate)
-            capacity: Maximum burst size
-        """
         self.rate = rate
         self.capacity = capacity
-        self._tokens: float = capacity
-        self._last_refill: float = time.monotonic()
-        self._lock = asyncio.Lock()
 
     async def acquire(self):
         """Wait until a token is available, then consume it."""
-        while True:
-            async with self._lock:
-                self._refill()
-                if self._tokens >= 1.0:
-                    self._tokens -= 1.0
-                    return
-            # No token available - brief sleep then retry
-            await asyncio.sleep(1.0 / self.rate)
+        from app.core.rate_limiter import get_rate_limiter
 
-    def _refill(self):
-        now = time.monotonic()
-        elapsed = now - self._last_refill
-        self._tokens = min(self.capacity, self._tokens + elapsed * self.rate)
-        self._last_refill = now
+        limiter = get_rate_limiter()
+        key = f"ingestion:token_bucket:{id(self)}"
+        while True:
+            allowed, _headers = await limiter.acquire(
+                key, rate=self.rate, burst=float(self.capacity)
+            )
+            if allowed:
+                return
+            await asyncio.sleep(1.0 / max(self.rate, 0.1))
 
 
 # ── Cooldown tracker ────────────────────────────────────────────────

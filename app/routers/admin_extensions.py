@@ -66,7 +66,6 @@ async def telegram_stats(request: Request, _=Depends(_verify_admin)):
                 stats.update(data)
         except (ValueError, ConnectionError, RuntimeError):
             logger.warning("error")
-            pass
 
     # Check if bot process is running
     try:
@@ -99,7 +98,6 @@ async def telegram_users(
                 users = data.get("users", [])[:limit]
         except (ValueError, ConnectionError, RuntimeError):
             logger.warning("error")
-            pass
 
     if not users:
         # Return placeholder structure
@@ -122,7 +120,6 @@ async def telegram_messages(
                 messages = data.get("messages", [])[:limit]
         except (ValueError, ConnectionError, RuntimeError):
             logger.warning("error")
-            pass
 
     return {"messages": messages, "total": len(messages)}
 
@@ -183,7 +180,6 @@ async def telegram_broadcast(
                 ]
         except (ValueError, ConnectionError, RuntimeError):
             logger.warning("error")
-            pass
 
     if not chat_ids:
         return {"status": "failed", "error": "No users to broadcast to"}
@@ -346,7 +342,6 @@ async def ghost_analytics(request: Request, _=Depends(_verify_admin)):
                                     posts_this_month += 1
                             except (ValueError, ConnectionError, RuntimeError):
                                 logger.warning("error")
-                                pass
 
         # Try to get member count from Ghost admin API
         member_count = 0
@@ -434,7 +429,6 @@ async def cron_jobs(request: Request, _=Depends(_verify_admin)):
                             )
                     except (ValueError, ConnectionError, RuntimeError):
                         logger.warning("error")
-                        pass
     except (ValueError, ConnectionError, RuntimeError) as e:
         logger.warning(f"error: {e}")
         logger.error(f"Cron jobs error: {e}")
@@ -492,7 +486,6 @@ async def cron_logs(request: Request, _=Depends(_verify_admin), limit: int = Que
                         )
         except (ValueError, ConnectionError, RuntimeError):
             logger.warning("error")
-            pass
 
     return {"logs": logs, "total": len(logs)}
 
@@ -799,7 +792,6 @@ async def admin_processes(request: Request, _=Depends(_verify_admin)):
                 )
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
     except (ValueError, ConnectionError, RuntimeError) as e:
         logger.warning(f"error: {e}")
         return {"error": str(e)}
@@ -830,7 +822,6 @@ async def admin_disk(request: Request, _=Depends(_verify_admin)):
                 )
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
-                pass
     except (ValueError, ConnectionError, RuntimeError) as e:
         logger.warning(f"error: {e}")
         return {"error": str(e)}

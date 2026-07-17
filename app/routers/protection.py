@@ -7,10 +7,7 @@ Provides safety checking for URLs, wallets, and tokens.
 import asyncio
 import json
 import os
-import time
-from collections import defaultdict
 from datetime import UTC, datetime
-from threading import Lock
 from typing import Any
 from urllib.parse import urlparse
 
@@ -24,27 +21,27 @@ logger = get_logger("protection")
 
 
 # ── Rate Limiter ─────────────────────────────────────────────────────────────
-class SimpleRateLimiter:
-    """Simple in-memory rate limiter for protection endpoints."""
-
-    def __init__(self):
-        self._requests: dict[str, list[float]] = defaultdict(list)
-        self._lock = Lock()
-
-    def is_allowed(self, client_id: str, limit: int = 60, window: int = 60) -> tuple:
-        now = time.time()
-        cutoff = now - window
-        with self._lock:
-            self._requests[client_id] = [t for t in self._requests[client_id] if t > cutoff]
-            if len(self._requests[client_id]) >= limit:
-                oldest = min(self._requests[client_id])
-                retry_after = int(oldest + window - now) + 1
-                return False, retry_after
-            self._requests[client_id].append(now)
-            return True, 0
+# Uses UnifiedRateLimiter from app.core.rate_limiter (token bucket, Redis + in-memory fallback)
 
 
-rate_limiter = SimpleRateLimiter()
+async def _check_rate_limit(request: Request, limit_key: str, req_per_min: int) -> None:
+    """Check rate limit using UnifiedRateLimiter. Raises 429 if exceeded."""
+    from app.core.rate_limiter import get_rate_limiter
+
+    client_id = get_client_id(request)
+    limiter = get_rate_limiter()
+    rate = req_per_min / 60.0
+    burst = max(1, req_per_min // 12)
+    allowed, headers = await limiter.acquire(
+        f"protection:{limit_key}:{client_id}", rate=rate, burst=burst
+    )
+    if not allowed:
+        retry_after = headers.get("Retry-After", "60")
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Retry after {retry_after} seconds.",
+            headers={k: str(v) for k, v in headers.items()},
+        )
 
 
 def get_client_id(request: Request) -> str:
@@ -233,13 +230,7 @@ async def check_url(request: URLCheckRequest, http_request: Request):
     Returns: {safe: bool, risk: low|medium|high|critical, reason: str, source: rag|scanner|blocklist}
     """
     try:
-        client_id = get_client_id(http_request)
-        allowed, retry_after = rate_limiter.is_allowed(client_id, limit=60, window=60)
-
-        if not allowed:
-            raise HTTPException(
-                status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds."
-            )
+        await _check_rate_limit(http_request, "check-url", 60)
 
         url = request.url.strip()
         if not url:
@@ -290,13 +281,7 @@ async def check_wallet(request: WalletCheckRequest, http_request: Request):
     Returns: {safe: bool, risk_score: 0-100, flags: [list], reason: str, source: ...}
     """
     try:
-        client_id = get_client_id(http_request)
-        allowed, retry_after = rate_limiter.is_allowed(client_id, limit=30, window=60)
-
-        if not allowed:
-            raise HTTPException(
-                status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds."
-            )
+        await _check_rate_limit(http_request, "check-wallet", 30)
 
         address = request.address.strip()
         chain = request.chain.lower().strip()
@@ -379,13 +364,7 @@ async def check_token(request: TokenCheckRequest, http_request: Request):
     Returns: full safety report from scanner with protection-focused summary.
     """
     try:
-        client_id = get_client_id(http_request)
-        allowed, retry_after = rate_limiter.is_allowed(client_id, limit=30, window=60)
-
-        if not allowed:
-            raise HTTPException(
-                status_code=429, detail=f"Rate limit exceeded. Retry after {retry_after} seconds."
-            )
+        await _check_rate_limit(http_request, "check-token", 30)
 
         address = request.address.strip()
         chain = request.chain.lower().strip()

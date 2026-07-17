@@ -100,7 +100,7 @@ class CoinGeckoConnector:
             raise CircuitBreakerOpenError(
                 _coingecko_cb.name,
                 _coingecko_cb.state,
-                f"CoinGecko circuit OPEN — serving stale cache or failing fast",
+                "CoinGecko circuit OPEN — serving stale cache or failing fast",
             )
 
         # Rate limit
