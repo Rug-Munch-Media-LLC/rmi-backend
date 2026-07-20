@@ -1,4 +1,4 @@
-"""Scanner modules - all scanner functions with real implementations."""
+"""Scanner modules — all scanner functions with real implementations."""
 
 import time
 from typing import Any
@@ -35,6 +35,22 @@ EXPLORER_APIS: dict[str, str] = {
     "avalanche": "https://api.snowtrace.io/api",
     "fantom": "https://api.ftmscan.com/api",
 }
+
+# Blockscout per-chain URLs
+BLOCKSCOUT_URLS: dict[str, str] = {
+    "ethereum": "https://eth.blockscout.com",
+    "base": "https://base.blockscout.com",
+    "arbitrum": "https://arbitrum.blockscout.com",
+    "polygon": "https://polygon.blockscout.com",
+    "optimism": "https://optimism.blockscout.com",
+    "linea": "https://linea.blockscout.com",
+    "zksync": "https://zksync.blockscout.com",
+    "bsc": "https://bsc.blockscout.com",
+    "avalanche": "https://avalanche.blockscout.com",
+}
+
+# DeFiLlama API base
+DEFILLAMA_API = "https://api.llama.fi"
 
 SOLANA_RPC_URLS = [
     "https://api.mainnet-beta.solana.com",
@@ -929,13 +945,500 @@ async def _check_spam(token_address: str, chain: str) -> dict[str, Any] | None:
     return {"check": "spam", "result": "error", "error": "Spam check unavailable"}
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# NEW CRITICAL CHECKS — Social Sentiment, Token Age, LP Concentration,
+# Ownership Renounced, Volume/Liquidity Ratio
+# ════════════════════════════════════════════════════════════════════════════
+
+
+# ── 11. Social Sentiment Check ──────────────────────────────────────────
+
+
+async def _check_social_sentiment(
+    token_address: str, chain: str, symbol: str = ""
+) -> dict[str, Any] | None:
+    """Check social sentiment — LunarCrush volume, dominance, sentiment score.
+
+    Flags suspicious patterns:
+      - High social volume but negative sentiment (paid shills)
+      - Very low social volume for a "popular" token (bot-like)
+      - Sudden spike in mentions without organic follow-through
+    """
+    result: dict[str, Any] = {
+        "check": "social_sentiment",
+        "result": "scanned",
+        "social_volume": 0,
+        "social_dominance": 0,
+        "sentiment_score": 0,
+        "mentions_24h": 0,
+        "is_suspicious": False,
+        "suspicion_reasons": [],
+    }
+
+    # Try LunarCrush via the existing connector
+    try:
+        from app.lunarcrush_connector import get_lunarcrush_connector
+
+        lc = get_lunarcrush_connector()
+        sentiment = await lc.get_sentiment(token_address)
+        if sentiment:
+            result["social_volume"] = sentiment.get("social_volume", 0)
+            result["social_dominance"] = sentiment.get("social_dominance", 0)
+            result["sentiment_score"] = sentiment.get("sentiment_score", 0)
+            result["mentions_24h"] = sentiment.get("mentions_24h", 0)
+            result["mentions_change_24h"] = sentiment.get("mentions_change_24h", 0)
+            result["source"] = "lunarcrush"
+
+            # Suspicion detection
+            volume = result["social_volume"]
+            mentions = result["mentions_24h"]
+            sentiment_score = result["sentiment_score"]
+
+            # High volume + negative sentiment = paid shills
+            if volume > 100 and sentiment_score < -0.3:
+                result["is_suspicious"] = True
+                result["suspicion_reasons"].append("high_volume_negative_sentiment")
+
+            # Very low mentions for a token with volume
+            if mentions < 5 and volume > 10:
+                result["is_suspicious"] = True
+                result["suspicion_reasons"].append("low_mentions_relative_to_volume")
+
+            # Extreme positive sentiment with no volume (bot-like)
+            if sentiment_score > 0.8 and volume < 5:
+                result["is_suspicious"] = True
+                result["suspicion_reasons"].append("extreme_sentiment_no_volume")
+
+    except ImportError:
+        logger.debug("lunarcrush_connector_not_available")
+    except Exception as e:
+        logger.debug("social_sentiment_failed", error=str(e)[:80])
+
+    # Fallback: try RMI news sentiment endpoint for signal
+    if not result.get("source"):
+        try:
+            from app.domains.x402.tools.news_tools import get_news_sentiment
+
+            news_data = await get_news_sentiment(token_address, chain=chain)
+            if news_data and news_data.get("articles", 0) > 0:
+                result["news_articles"] = news_data.get("articles", 0)
+                result["news_sentiment"] = news_data.get("sentiment", "neutral")
+                result["source"] = "news_fallback"
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.debug("news_sentiment_fallback_failed", error=str(e)[:60])
+
+    # Score: suspicious activity adds risk
+    risk_score = 0
+    if result["is_suspicious"]:
+        risk_score += 25 * len(result["suspicion_reasons"])
+    result["risk_score"] = min(100, risk_score)
+
+    return result
+
+
+# ── 12. Token Age Check ───────────────────────────────────────────────
+
+
+async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | None:
+    """Check how old the token/pool is.
+
+    New tokens (< 24h) are higher risk.
+    Very new (< 1h) are extremely high risk.
+    Mature (> 7d) are lower risk.
+    """
+    result: dict[str, Any] = {
+        "check": "token_age",
+        "result": "scanned",
+        "age_hours": None,
+        "age_days": None,
+        "created_at": None,
+        "risk_level": "unknown",
+        "is_new_token": False,
+        "risk_score": 0,
+    }
+
+    now = time.time()
+
+    # Try DexScreener for pool creation time
+    try:
+        data, _ = await _fetch_with_fallback(
+            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
+        )
+        if data and data.get("pairs"):
+            # Use the earliest pair creation time
+            creation_times = []
+            for pair in data["pairs"]:
+                created = pair.get("pairCreatedAt", 0)
+                if created and created > 0:
+                    creation_times.append(created / 1000)  # ms → s
+
+            if creation_times:
+                first_created = min(creation_times)
+                age_seconds = max(0, now - first_created)
+                age_hours = age_seconds / 3600
+
+                result["age_hours"] = round(age_hours, 1)
+                result["age_days"] = round(age_hours / 24, 1)
+                result["created_at"] = first_created
+                result["source"] = "dexscreener"
+
+                # Risk classification
+                if age_hours < 1:
+                    result["risk_level"] = "critical"
+                    result["is_new_token"] = True
+                    result["risk_score"] = 40
+                elif age_hours < 24:
+                    result["risk_level"] = "high"
+                    result["is_new_token"] = True
+                    result["risk_score"] = 25
+                elif age_hours < 168:  # 7 days
+                    result["risk_level"] = "medium"
+                    result["risk_score"] = 10
+                else:
+                    result["risk_level"] = "low"
+                    result["risk_score"] = 0
+                return result
+    except Exception as e:
+        logger.debug("token_age_dexscreener_failed", error=str(e)[:60])
+
+    # Fallback: GoPlus has creation info for some tokens
+    try:
+        chain_id = GOPLUS_CHAIN_IDS.get(chain, chain)
+        goplus_data = await _fetch_json(
+            f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}",
+            params={"contract_addresses": token_address},
+        )
+        if goplus_data and goplus_data.get("result"):
+            token_data = goplus_data["result"].get(token_address.lower(), {})
+            if token_data:
+                creator_time = token_data.get("creator_time", 0)
+                if creator_time:
+                    age_seconds = max(0, now - int(creator_time))
+                    age_hours = age_seconds / 3600
+                    result["age_hours"] = round(age_hours, 1)
+                    result["age_days"] = round(age_hours / 24, 1)
+                    result["created_at"] = int(creator_time)
+                    result["source"] = "goplus"
+
+                    if age_hours < 24:
+                        result["risk_level"] = "high"
+                        result["is_new_token"] = True
+                        result["risk_score"] = 25
+                    elif age_hours < 168:
+                        result["risk_level"] = "medium"
+                        result["risk_score"] = 10
+                    else:
+                        result["risk_level"] = "low"
+                        result["risk_score"] = 0
+                    return result
+    except Exception as e:
+        logger.debug("token_age_goplus_failed", error=str(e)[:60])
+
+    # No data available
+    result["result"] = "unavailable"
+    return result
+
+
+# ── 13. LP Concentration Check ─────────────────────────────────────────
+
+
+async def _check_lp_concentration(token_address: str, chain: str) -> dict[str, Any] | None:
+    """Check LP concentration — what % of LP is held by top wallets.
+
+    High concentration (> 50% in top 10) indicates price manipulation risk.
+    Extreme concentration (> 90% in top 5) is a rug-pull flag.
+    """
+    result: dict[str, Any] = {
+        "check": "lp_concentration",
+        "result": "scanned",
+        "top1_pct": 0.0,
+        "top5_pct": 0.0,
+        "top10_pct": 0.0,
+        "holder_count": 0,
+        "risk_level": "unknown",
+        "is_concentrated": False,
+        "risk_score": 0,
+    }
+
+    # Get holder data (reuses existing _get_holder_data)
+    try:
+        holder_data = await _get_holder_data(token_address, chain)
+        if not holder_data or holder_data.get("result") != "scanned":
+            result["result"] = "unavailable"
+            return result
+
+        top_holders = holder_data.get("top_holders", [])
+        if not top_holders:
+            result["result"] = "unavailable"
+            return result
+
+        result["holder_count"] = holder_data.get("holder_count", 0) or len(top_holders)
+        result["source"] = holder_data.get("source", "holder_module")
+
+        # Calculate concentration percentages
+        if top_holders:
+            result["top1_pct"] = top_holders[0].get("percentage", 0)
+
+        top5_pct = sum(h.get("percentage", 0) for h in top_holders[:5] if h.get("percentage"))
+        result["top5_pct"] = round(top5_pct, 2)
+
+        top10_pct = sum(h.get("percentage", 0) for h in top_holders[:10] if h.get("percentage"))
+        result["top10_pct"] = round(top10_pct, 2)
+
+        # Risk classification
+        if result["top10_pct"] >= 90:
+            result["risk_level"] = "critical"
+            result["is_concentrated"] = True
+            result["risk_score"] = 40
+        elif result["top10_pct"] >= 70:
+            result["risk_level"] = "high"
+            result["is_concentrated"] = True
+            result["risk_score"] = 25
+        elif result["top5_pct"] >= 50:
+            result["risk_level"] = "medium"
+            result["is_concentrated"] = True
+            result["risk_score"] = 15
+        else:
+            result["risk_level"] = "low"
+            result["risk_score"] = 0
+
+    except Exception as e:
+        logger.debug("lp_concentration_failed", error=str(e)[:80])
+        result["result"] = "error"
+        result["error"] = str(e)[:60]
+
+    return result
+
+
+# ── 14. Ownership Renounced Check ─────────────────────────────────────
+
+
+async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str, Any] | None:
+    """Check if contract ownership has been renounced.
+
+    Ownership renounced = good (can't be rugged by owner).
+    Active ownership = higher risk (owner can mint, pause, blacklist).
+    """
+    result: dict[str, Any] = {
+        "check": "ownership_renounced",
+        "result": "scanned",
+        "ownership_renounced": False,
+        "owner_address": "",
+        "is_proxy": False,
+        "risk_score": 0,
+        "risk_level": "unknown",
+    }
+
+    # ── Source 1: GoPlus data (best for EVM) ──
+    try:
+        chain_id = GOPLUS_CHAIN_IDS.get(chain, chain)
+        goplus_data = await _fetch_json(
+            f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}",
+            params={"contract_addresses": token_address},
+        )
+        if goplus_data and goplus_data.get("result"):
+            token_data = goplus_data["result"].get(token_address.lower(), {})
+            if token_data:
+                owner = token_data.get("owner_address", "")
+                is_renounced = not owner or owner == "0x0000000000000000000000000000000000000000"
+                result["ownership_renounced"] = is_renounced
+                result["owner_address"] = owner or ""
+                result["is_proxy"] = token_data.get("is_proxy") == "1"
+                result["source"] = "goplus"
+
+    except Exception as e:
+        logger.debug("ownership_goplus_failed", error=str(e)[:60])
+
+    # ── Source 2: Solana — check mint authority ──
+    if chain == "solana" and not result.get("source"):
+        try:
+            data = await _solana_rpc_call(
+                "getAccountInfo",
+                [token_address, {"encoding": "jsonParsed"}],
+            )
+            if data:
+                val = (data.get("result") or {}).get("value")
+                if val:
+                    parsed = (val.get("data") or {}).get("parsed", {})
+                    if parsed.get("type") == "mint":
+                        info = parsed.get("info", {})
+                        mint_auth = info.get("mintAuthority")
+                        is_renounced = mint_auth is None
+                        result["ownership_renounced"] = is_renounced
+                        result["owner_address"] = str(mint_auth) if mint_auth else ""
+                        result["source"] = "solana_rpc"
+        except Exception as e:
+            logger.debug("ownership_solana_failed", error=str(e)[:60])
+
+    # ── Source 3: HoneypotDetector fallback ──
+    if not result.get("source"):
+        try:
+            from app.smart_contract_honeypot_detector import HoneypotDetector
+
+            detector = HoneypotDetector()
+            hp_result = await detector.analyze_token(token_address, chain=chain)
+            if hp_result:
+                is_renounced = hp_result.token.ownership_renounced
+                result["ownership_renounced"] = is_renounced
+                result["owner_address"] = hp_result.token.owner_address or ""
+                result["is_proxy"] = hp_result.token.is_proxy
+                result["source"] = "honeypot_detector"
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.debug("ownership_honeypot_failed", error=str(e)[:60])
+
+    # ── Risk scoring ──
+    if result.get("ownership_renounced") is True:
+        result["risk_level"] = "safe"
+        result["risk_score"] = 0
+    elif result.get("owner_address"):
+        owner = result["owner_address"]
+        if owner and owner != "0x0000000000000000000000000000000000000000":
+            result["risk_level"] = "active_owner"
+            result["risk_score"] = 30  # Owner can still manipulate
+            if result.get("is_proxy"):
+                result["risk_score"] = 50  # Proxy + active owner = very risky
+                result["risk_level"] = "active_proxy_owner"
+        else:
+            result["ownership_renounced"] = True
+            result["risk_level"] = "safe"
+            result["risk_score"] = 0
+
+    return result
+
+
+# ── 15. Volume/Liquidity Ratio Check ──────────────────────────────────
+
+
+async def _check_volume_liquidity_ratio(token_address: str, chain: str) -> dict[str, Any] | None:
+    """Check volume-to-liquidity ratio.
+
+    volume_24h / liquidity_usd = turnover ratio.
+    High ratio (> 5) = potential wash trading (suspicious).
+    Very high ratio (> 20) = almost certainly wash trading.
+    Low ratio (< 0.5) + low absolute values = dead token.
+    """
+    result: dict[str, Any] = {
+        "check": "volume_liquidity_ratio",
+        "result": "scanned",
+        "volume_24h": 0.0,
+        "liquidity_usd": 0.0,
+        "ratio": 0.0,
+        "risk_level": "unknown",
+        "is_wash_trading_suspicious": False,
+        "risk_score": 0,
+    }
+
+    # Fetch DexScreener data for volume + liquidity
+    try:
+        data, _ = await _fetch_with_fallback(
+            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
+        )
+        if data and data.get("pairs"):
+            pair = data["pairs"][0]
+            volume = float(pair.get("volume", {}).get("h24", 0) or 0)
+            liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+            price_usd = float(pair.get("priceUsd", 0) or 0)
+
+            result["volume_24h"] = volume
+            result["liquidity_usd"] = liquidity
+            result["price_usd"] = price_usd
+            result["source"] = "dexscreener"
+
+            # Calculate ratio (avoid division by zero)
+            if liquidity > 0 and volume > 0:
+                ratio = volume / liquidity
+                result["ratio"] = round(ratio, 4)
+            elif volume > 0 and liquidity == 0:
+                result["ratio"] = float("inf")
+            else:
+                result["ratio"] = 0.0
+
+            # Risk classification
+            ratio = result["ratio"]
+            if ratio == float("inf") or ratio > 50:
+                result["risk_level"] = "critical"
+                result["is_wash_trading_suspicious"] = True
+                result["risk_score"] = 45
+            elif ratio > 20:
+                result["risk_level"] = "high"
+                result["is_wash_trading_suspicious"] = True
+                result["risk_score"] = 35
+            elif ratio > 5:
+                result["risk_level"] = "medium"
+                result["risk_score"] = 20
+                # Check if it's suspicious based on context
+                if volume > 10000 and liquidity < 1000:
+                    result["is_wash_trading_suspicious"] = True
+                    result["risk_score"] = 35
+                    result["risk_level"] = "high"
+            elif ratio < 0.5 and volume < 100:
+                result["risk_level"] = "low_activity"
+                result["risk_score"] = 5
+            else:
+                result["risk_level"] = "healthy"
+                result["risk_score"] = 0
+
+    except Exception as e:
+        logger.debug("volume_liquidity_failed", error=str(e)[:60])
+        result["result"] = "error"
+        result["error"] = str(e)[:60]
+
+    return result
+
+
 # ── Legacy stub modules (unchanged - return pending but are non-critical) ──
 
 
 async def _check_blockscout(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check token on Blockscout. (Legacy - contract verification check is primary.)"""
-    logger.info("check_blockscout", token=token_address, chain=chain)
-    return {"check": "blockscout", "result": "pending"}
+    """Check token on Blockscout — address metadata, contract status, tx count."""
+    result: dict[str, Any] = {
+        "check": "blockscout",
+        "result": "scanned",
+    }
+    base_url = BLOCKSCOUT_URLS.get(chain, BLOCKSCOUT_URLS["ethereum"])
+    try:
+        # Get address info
+        url = f"{base_url}/api/v2/addresses/{token_address}"
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                result["result"] = "unavailable"
+                result["error"] = f"Blockscout HTTP {resp.status_code}"
+                return result
+
+            data = resp.json()
+            result["is_contract"] = data.get("is_contract", False)
+            result["has_transactions"] = (data.get("tx_count", 0) or 0) > 0
+            result["tx_count"] = data.get("tx_count", 0)
+            result["token_type"] = (
+                data.get("token", {}).get("type", "") if data.get("token") else ""
+            )
+            result["ens_domain"] = data.get("ens_info", {}).get("domain", "") or None
+
+            # If it's a token, get market data
+            if data.get("token"):
+                token_data = data["token"]
+                result["symbol"] = token_data.get("symbol", "")
+                result["name"] = token_data.get("name", "")
+                result["decimals"] = token_data.get("decimals")
+                result["total_supply"] = token_data.get("total_supply", "")
+                result["holders"] = token_data.get("holders", "")
+                result["exchange_rate"] = token_data.get("exchange_rate")
+
+            result["source"] = "blockscout"
+            result["chain_url"] = base_url
+    except httpx.TimeoutException:
+        logger.debug("blockscout_timeout", chain=chain)
+        return {"check": "blockscout", "result": "unavailable", "error": "timeout"}
+    except Exception as e:
+        logger.debug("blockscout_failed", error=str(e)[:80])
+        return {"check": "blockscout", "result": "unavailable", "error": str(e)[:60]}
+
+    return result
 
 
 async def _check_token_sniffer(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -993,9 +1496,26 @@ async def _check_1inch_swap(
 async def _rag_scam_check(
     token_address: str, chain: str, deployer: str | None = None
 ) -> dict[str, Any] | None:
-    """Check RAG for scam indicators."""
+    """Check RAG for scam indicators via vector search + pattern matching."""
     logger.info("rag_scam_check", token=token_address, chain=chain, deployer=deployer)
-    return {"check": "rag", "result": "pending"}
+    try:
+        from app.domains.scanner.rag_scam_check import check_scam
+
+        result = await check_scam(
+            token_address=token_address,
+            chain=chain,
+            symbol="",
+            name="",
+            deployer=deployer,
+        )
+        if result:
+            return result
+    except ImportError:
+        logger.debug("rag_scam_check_module_not_available")
+    except Exception as e:
+        logger.warning("rag_scam_check_failed", error=str(e)[:100])
+
+    return {"check": "rag", "result": "scanned", "risk_score": 0, "source": "unavailable"}
 
 
 async def _check_cross_chain_deployer(deployer_addr: str, chain: str) -> dict[str, Any] | None:
@@ -1138,9 +1658,74 @@ async def _check_chainpatrol_asset(asset_type: str, asset_id: str) -> dict[str, 
 
 
 async def _check_defi_scanner(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check token on DeFi Scanner."""
-    logger.info("check_defi_scanner", token=token_address, chain=chain)
-    return {"check": "defi_scanner", "result": "pending"}
+    """Check token on DeFi Scanner — DeFiLlama for protocol presence & TVL."""
+    result: dict[str, Any] = {
+        "check": "defi_scanner",
+        "result": "scanned",
+        "has_defi_presence": False,
+        "protocols_found": 0,
+    }
+
+    try:
+        # Try DeFiLlama current price endpoint (works for any token with a known price)
+        if chain == "ethereum" and token_address.startswith("0x"):
+            llama_id = f"ethereum:{token_address}"
+        elif chain == "solana":
+            llama_id = f"solana:{token_address}"
+        elif chain == "bsc":
+            llama_id = f"bsc:{token_address}"
+        else:
+            llama_id = None
+
+        if llama_id:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                price_resp = await client.get(
+                    f"{DEFILLAMA_API}/prices/current/{llama_id}",
+                )
+                if price_resp.status_code == 200:
+                    price_data = price_resp.json()
+                    coins = price_data.get("coins", {})
+                    coin_data = coins.get(llama_id, coins.get(token_address, {}))
+                    if coin_data:
+                        result["price_usd"] = coin_data.get("price", 0)
+                        result["symbol"] = coin_data.get("symbol", "")
+                        result["defillama_confidence"] = coin_data.get("confidence", 0)
+
+        # Check simple token info endpoint
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            info_resp = await client.get(f"{DEFILLAMA_API}/token/{chain.upper()}/{token_address}")
+            if info_resp.status_code == 200:
+                info = info_resp.json()
+                if info:
+                    result["has_defi_presence"] = True
+                    result["protocols_found"] = len(info) if isinstance(info, list) else 1
+                    result["protocols"] = info[:5] if isinstance(info, list) else [info]
+                    result["source"] = "defillama"
+
+    except httpx.TimeoutException:
+        logger.debug("defiscanner_timeout", chain=chain)
+    except Exception as e:
+        logger.debug("defiscanner_failed", error=str(e)[:80])
+
+    # If DeFiLlama had no data, try DexScreener as fallback
+    if not result.get("source"):
+        try:
+            data, _ = await _fetch_with_fallback(
+                [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
+            )
+            if data and data.get("pairs"):
+                pair = data["pairs"][0]
+                result["price_usd"] = float(pair.get("priceUsd", 0) or 0)
+                result["volume_24h"] = float(pair.get("volume", {}).get("h24", 0) or 0)
+                result["liquidity_usd"] = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+                result["dex_name"] = pair.get("dexId", "")
+                result["has_defi_presence"] = True
+                result["protocols_found"] = 1
+                result["source"] = "dexscreener_fallback"
+        except Exception as e:
+            logger.debug("defiscanner_fallback_failed", error=str(e))
+
+    return result
 
 
 async def _check_volume_anomaly(

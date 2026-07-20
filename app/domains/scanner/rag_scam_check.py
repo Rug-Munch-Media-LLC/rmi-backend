@@ -10,7 +10,6 @@ Architecture:
   3. Final fallback: return neutral (no signal)
 """
 
-from time import time
 from typing import Any
 
 from app.core.logging import get_logger
@@ -70,7 +69,7 @@ async def _score_by_pattern(name: str, symbol: str) -> dict[str, Any]:
             matched_indicators.append(f"name_contains_{indicator}")
 
     # Check symbol for known mimic targets (levenshtein-like exact match)
-    for mimic_target, description in SCAM_SYMBOL_PATTERNS:
+    for mimic_target, _description in SCAM_SYMBOL_PATTERNS:
         if symbol_upper == mimic_target:
             risk_score += 0  # exact match to a real token = clean
             break

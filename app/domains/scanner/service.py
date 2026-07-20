@@ -1,4 +1,4 @@
-"""Scanner service - main scan_token function and entry points."""
+"""Scanner service — main scan_token function and entry points."""
 
 import asyncio
 from typing import Any
@@ -6,17 +6,22 @@ from typing import Any
 from app.core.logging import get_logger
 from app.domains.scanner.modules import (
     _check_bundle,
+    _check_contract_verification,
     _check_copycat,
     _check_goplus_security,
+    _check_honeypot_is,
+    _check_liquidity_lock_multi,
+    _check_lp_concentration,
+    _check_ownership_renounced,
+    _check_social_sentiment,
+    _check_spam,
+    _check_token_age,
+    _check_volume_liquidity_ratio,
     _get_deployer_info,
     _get_holder_data,
     _get_price_consensus,
-    _check_honeypot_is,
-    _check_contract_verification,
-    _check_liquidity_lock_multi,
-    _check_spam,
-    _deep_deployer_check,
 )
+from app.domains.scanner.rag_scam_check import check_scam as _rag_check_scam
 
 logger = get_logger(__name__)
 
@@ -26,16 +31,26 @@ from app.domains.scanner.models import ScanResult  # noqa: E402
 from app.domains.scanner.modules import (  # noqa: E402
     _check_blockscout,
     _check_defi_scanner,
-    _check_token_sniffer,
 )
 
 
 async def _rag_scam_check(
     token_address: str, chain: str, deployer: str | None = None
 ) -> dict[str, Any] | None:
-    """Check RAG for scam indicators."""
+    """Check RAG for scam indicators via vector search + pattern matching."""
     logger.info("rag_scam_check", token=token_address, chain=chain, deployer=deployer)
-    return {"check": "rag", "result": "pending"}
+    try:
+        result = await _rag_check_scam(
+            token_address=token_address,
+            chain=chain,
+            deployer=deployer,
+        )
+        if result:
+            return result
+    except Exception as e:
+        logger.warning("rag_scam_check_failed", error=str(e)[:100])
+
+    return {"check": "rag", "result": "scanned", "risk_score": 0, "source": "unavailable"}
 
 
 async def _check_cross_chain_deployer(deployer_addr: str, chain: str) -> dict[str, Any] | None:
@@ -200,23 +215,22 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
     risk_penalty = 0
     modules_with_data = 0
 
-    for mod_result in modules_results:
-        r = mod_result.get("result", {})
+    for mod_entry in modules_results:
+        r = mod_entry.get("result", {})
         if not isinstance(r, dict):
             continue
         result_status = r.get("result", "")
-        if result_status in ("error", "pending"):
+        if result_status in ("error", "pending", "unavailable"):
             continue  # Module didn't return useful data
 
         modules_with_data += 1
 
         # Check for risk indicators
         risk_score = r.get("risk_score", 0)
-        if risk_score:
-            if isinstance(risk_score, (int, float)):
-                risk_penalty += risk_score * 0.4  # penalty proportional to risk
+        if risk_score and isinstance(risk_score, (int, float)):
+            risk_penalty += risk_score * 0.4  # penalty proportional to risk
 
-        # Check for explicit risk flags
+        # ── Core risk flags ──
         is_honeypot = r.get("is_honeypot", False)
         if is_honeypot:
             risk_penalty += 35
@@ -240,7 +254,7 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
         elif is_verified is False:
             risk_penalty += 10
 
-        # Check deployer reputation
+        # ── Deployer reputation ──
         reputation_label = r.get("reputation_label", "")
         if reputation_label == "CRITICAL":
             risk_penalty += 30
@@ -249,7 +263,7 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
         elif reputation_label == "LOW":
             clean_bonus += 10
 
-        # Check copycat
+        # ── Copycat ──
         copycat_result = r.get("result", "")
         if copycat_result == "high_risk":
             risk_penalty += 25
@@ -258,7 +272,7 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
         elif copycat_result == "clean":
             clean_bonus += 5
 
-        # LP locked
+        # ── LP locked ──
         lp_locked = r.get("liquidity_locked_pct", 0)
         if lp_locked and isinstance(lp_locked, (int, float)):
             if lp_locked >= 90:
@@ -266,21 +280,63 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
             elif lp_locked <= 10 and r.get("liquidity_usd", 0) > 0:
                 risk_penalty += 20
 
-        # Ownership renounced
+        # ── Ownership renounced (new check) ──
         ownership_renounced = r.get("ownership_renounced", None)
         if ownership_renounced is True:
             clean_bonus += 10
+        elif ownership_renounced is False:
+            # Active ownership is moderate risk
+            risk_level = r.get("risk_level", "")
+            if risk_level == "active_proxy_owner":
+                risk_penalty += 25
+            else:
+                risk_penalty += 10
 
-        # High concentration
+        # ── High concentration (holders) ──
         concentration = r.get("concentration_pct", 0)
         if isinstance(concentration, (int, float)) and concentration > 50:
+            risk_penalty += 15
+
+        # ── LP concentration (new check) ──
+        top10_pct = r.get("top10_pct", 0)
+        if isinstance(top10_pct, (int, float)) and top10_pct > 0:
+            if top10_pct >= 90:
+                risk_penalty += 30
+            elif top10_pct >= 70:
+                risk_penalty += 20
+            elif top10_pct >= 50:
+                risk_penalty += 10
+
+        # ── Social sentiment (new check) ──
+        if r.get("is_suspicious"):
+            suspicion_count = len(r.get("suspicion_reasons", []))
+            risk_penalty += 15 * suspicion_count
+
+        # ── Token age (new check) ──
+        age_risk_level = r.get("risk_level", "")
+        if age_risk_level == "critical":
+            risk_penalty += 20
+        elif age_risk_level == "high":
+            risk_penalty += 12
+        elif age_risk_level == "medium":
+            risk_penalty += 5
+        elif age_risk_level == "low":
+            clean_bonus += 5
+
+        # ── Volume/liquidity ratio (new check) ──
+        if r.get("is_wash_trading_suspicious"):
+            risk_penalty += 20
+        vol_risk_level = r.get("risk_level", "")
+        if vol_risk_level == "critical":
+            risk_penalty += 25
+        elif vol_risk_level == "high":
             risk_penalty += 15
 
     # Apply modifiers
     score = score + clean_bonus - risk_penalty
 
     # If we have good data, boost confidence can raise score
-    if modules_with_data >= 4 and risk_penalty == 0:
+    if modules_with_data >= 6 and risk_penalty == 0:
         score = min(95, score + 10)
 
     # Clamp to 0-100
@@ -296,9 +352,12 @@ async def scan_token(
 ) -> ScanResult:
     """Scan a token for security issues across ALL SENTINEL modules.
 
-    FREE tier: SENTINEL Tier 1 (market_data, honeypot, goplus, copycat, spam)
-    PRO tier: Tier 1 + deployer, holders, verification, liquidity, bundle
-    ELITE tier: Tier 1+2 + deep deployer, price consensus, all modules
+    FREE tier:    SENTINEL Tier 1  (market_data, honeypot, goplus, copycat, spam,
+                                    blockscout, defiscanner, token_age, vol/liq ratio)
+    PRO tier:     Tier 1 + deployer, holders, verification, liquidity, bundle,
+                  lp_concentration, ownership_renounced, social_sentiment
+    ELITE tier:   Tier 1+2 + deep deployer, price consensus, RAG, nansen,
+                  blowfish, dune, arkham
     """
     if tiers is None:
         tiers = ["free"]
@@ -322,7 +381,7 @@ async def scan_token(
 
     tasks = []
 
-    # ── FREE tier (Tier 1) — 7 real modules ──
+    # ── FREE tier (Tier 1) — core checks (no API keys needed) ──
     if "free" in tiers or "pro" in tiers or "elite" in tiers:
         tasks.append(run_module("market_data", fetch_market_data, token_address, chain))
         tasks.append(run_module("honeypot", _check_honeypot_is, token_address, chain))
@@ -331,14 +390,25 @@ async def scan_token(
         tasks.append(run_module("spam", _check_spam, token_address, chain))
         tasks.append(run_module("blockscout", _check_blockscout, token_address, chain))
         tasks.append(run_module("defiscanner", _check_defi_scanner, token_address, chain))
+        # New FREE checks
+        tasks.append(run_module("token_age", _check_token_age, token_address, chain))
+        tasks.append(
+            run_module(
+                "volume_liquidity_ratio", _check_volume_liquidity_ratio, token_address, chain
+            )
+        )
 
-    # ── PRO tier (Tier 2) — 5 more real modules ──
+    # ── PRO tier (Tier 2) — advanced checks ──
     if "pro" in tiers or "elite" in tiers:
         tasks.append(run_module("deployer", _get_deployer_info, token_address, chain))
         tasks.append(run_module("holders", _get_holder_data, token_address, chain))
         tasks.append(run_module("verification", _check_contract_verification, token_address, chain))
         tasks.append(run_module("liquidity", _check_liquidity_lock_multi, token_address, chain))
         tasks.append(run_module("bundle", _check_bundle, token_address, chain))
+        # New PRO checks
+        tasks.append(run_module("lp_concentration", _check_lp_concentration, token_address, chain))
+        tasks.append(run_module("ownership", _check_ownership_renounced, token_address, chain))
+        tasks.append(run_module("social_sentiment", _check_social_sentiment, token_address, chain))
 
     # ── ELITE tier (Tier 3) — deep analysis ──
     if "elite" in tiers:
@@ -362,6 +432,8 @@ async def scan_token(
         if not isinstance(r, dict):
             continue
 
+        module_name = mod_entry.get("module", "")
+
         if r.get("is_honeypot"):
             risk_flags.append("honeypot")
         if r.get("is_spam"):
@@ -370,17 +442,55 @@ async def scan_token(
             risk_flags.append("sanctioned_address")
         if r.get("is_bundled"):
             risk_flags.append("bundled_launch")
-        if r.get("result") == "high_risk" and mod_entry.get("module") == "copycat":
+        if r.get("result") == "high_risk" and module_name == "copycat":
             risk_flags.append("copycat_token")
         if r.get("reputation_label") == "CRITICAL":
             risk_flags.append("malicious_deployer")
+        if r.get("reputation_label") == "HIGH":
+            risk_flags.append("high_risk_deployer")
+
         risk_score = r.get("risk_score", 0)
-        if isinstance(risk_score, (int, float)) and risk_score >= 70:
-            if mod_entry.get("module") in ("goplus", "honeypot"):
-                risk_flags.append("high_risk_score")
-        if r.get("concentration_pct", 0) and isinstance(r.get("concentration_pct"), (int, float)):
-            if r["concentration_pct"] > 80:
-                risk_flags.append("concentrated_holders")
+        if (
+            isinstance(risk_score, (int, float))
+            and risk_score >= 70
+            and module_name in ("goplus", "honeypot")
+        ):
+            risk_flags.append("high_risk_score")
+
+        # Concentration (existing)
+        if isinstance(r.get("concentration_pct"), (int, float)) and r["concentration_pct"] > 80:
+            risk_flags.append("concentrated_holders")
+
+        # ── New check risk flags ──
+        # Token age
+        if r.get("risk_level") == "critical" and module_name == "token_age":
+            risk_flags.append("new_token_under_1h")
+        elif r.get("is_new_token") and module_name == "token_age":
+            risk_flags.append("token_under_24h")
+
+        # LP concentration
+        if module_name == "lp_concentration":
+            if r.get("risk_level") == "critical":
+                risk_flags.append("extreme_lp_concentration")
+            elif r.get("is_concentrated"):
+                risk_flags.append("concentrated_lp")
+
+        # Ownership
+        if module_name == "ownership":
+            if r.get("risk_level") == "active_proxy_owner":
+                risk_flags.append("active_proxy_owner")
+            elif r.get("risk_level") == "active_owner":
+                risk_flags.append("active_owner")
+
+        # Social sentiment
+        if r.get("is_suspicious") and module_name == "social_sentiment":
+            risk_flags.append("suspicious_social_sentiment")
+
+        # Volume/liquidity ratio
+        if r.get("is_wash_trading_suspicious") and module_name == "volume_liquidity_ratio":
+            risk_flags.append("wash_trading_suspected")
+        if module_name == "volume_liquidity_ratio" and r.get("risk_level") == "critical":
+            risk_flags.append("extreme_volume_liquidity_ratio")
 
     result.risk_flags = risk_flags
 
