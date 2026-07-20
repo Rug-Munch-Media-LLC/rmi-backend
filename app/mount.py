@@ -196,6 +196,7 @@ ROUTER_MODULES: Final[list[str]] = [
     # Confirmed no path/method conflicts via OpenAPI spec inspection.
     "app.routers.x402_databus_tools",  # /api/v1/x402-databus/*  (39 routes, DataBus tools)
     "app.routers.status_page",  # /api/v1/status/*  (5 routes, public status page)
+    "app.routers.chain_backup",  # /api/v1/system/*  (2 routes, backup status + config)
     "app.routers.protection",  # /api/v1/protect/*  (5 routes, URL/wallet/token protection)
     "app.routers.dev_portal",  # /api/v1/developer/*  (5 routes, dev key management)
     "app.routers.developer_tier",  # /api/v1/developer/*  (7 routes, tier registration/verify)
