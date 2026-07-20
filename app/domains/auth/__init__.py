@@ -566,7 +566,7 @@ def login_email(req: EmailLoginRequest, request: Request) -> JSONResponse:
 # ── Wallet Auth ──
 @router.post("/wallet/nonce", response_model=NonceResponse)
 @limiter.limit("10/minute")
-async def wallet_nonce(req: WalletNonceRequest) -> dict[str, Any]:
+async def wallet_nonce(request: Request, req: WalletNonceRequest) -> dict[str, Any]:
     """Get a nonce for wallet signature."""
     nonce = generate_nonce()
     timestamp = datetime.now(UTC).isoformat()

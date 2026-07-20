@@ -44,7 +44,7 @@ router = APIRouter(prefix="/api/v1/bulletin-board", tags=["bulletin-board"])
 # ── Public Endpoints ──────────────────────────────────────────
 
 
-@router.get("/api/v1/bulletin/posts")
+@router.get("/posts")
 async def public_list_posts(
     request: Request,
     category: str = "",
@@ -93,7 +93,7 @@ async def public_list_posts(
     }
 
 
-@router.get("/api/v1/bulletin/posts/{slug}")
+@router.get("/posts/{slug}")
 async def public_get_post(request: Request, slug: str):
     """Get a single published post by slug (public)."""
     post = await BulletinBoardManager.get_post_by_slug(slug)
@@ -106,7 +106,7 @@ async def public_get_post(request: Request, slug: str):
     return {"post": post.to_public_dict()}
 
 
-@router.get("/api/v1/bulletin/categories")
+@router.get("/categories")
 async def public_categories():
     """List all categories with counts."""
     stats = await BulletinBoardManager.get_stats()
@@ -122,7 +122,7 @@ async def public_categories():
     return {"categories": categories}
 
 
-@router.get("/api/v1/bulletin/pinned")
+@router.get("/pinned")
 async def public_pinned_posts(limit: int = 5):
     """Get pinned posts (public)."""
     result = await BulletinBoardManager.list_posts(

@@ -6,36 +6,76 @@ across 96 blockchains.
 
 ## Quick Start
 
-1. **Read AGENTS.md first** — it contains the architecture rules and development constraints.
+1. **Read `AGENTS.md` first** — it contains the architecture rules and development constraints.
 2. Clone the repo and set up a virtual environment:
    ```bash
    python3 -m venv .venv && source .venv/bin/activate
    pip install -r requirements.txt -r requirements-dev.txt
    ```
-3. Run the test suite to verify your environment:
+3. Run the quality gate to verify your environment:
    ```bash
-   python3 -m pytest tests/unit/ -x --tb=short
+   make quality
    ```
+4. Read the Architecture Decision Records in `docs/adr/` to understand key design decisions.
 
 ## Code Standards
 
-- **Formatter:** `ruff format app/`
-- **Linter:** `ruff check --fix app/`
-- **Type checker:** `mypy app/core/ app/domain/ --ignore-missing-imports`
-- **No file > 500 lines.** Split god files into domain modules.
-- **No bare `except:`** — always use `except Exception:`.
-- **No `print()` in app code** — use `from app.core.logging import get_logger; log = get_logger(__name__)`.
-- **No sync HTTP calls** — use `httpx.AsyncClient` or `app.core.http.http_client`.
-- **Never add to `main.py`** — it is the entry point only. New code goes in `app/domain/*` or `app/core/*`.
+See **[`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md)** for the full reference.
+Quick summary for contributors:
 
-## PR Process
+- **Format:** `ruff format app/`
+- **Lint:** `ruff check --fix app/`
+- **Types:** `mypy app/core/ app/domains/ --ignore-missing-imports`
+- **Security:** `bandit -r app/ -ll`
+- **No file > 500 lines** — split god files into domain modules.
+- **No `print()` in app code** — use `from app.core.logging import get_logger`
+- **No `time.sleep()`** — use `asyncio.sleep()`
+- **No sync HTTP** — use `httpx.AsyncClient`
+- **Never add to `main.py`** — entry point only. New code goes in `app/domains/` or `app/core/`.
 
-1. Create a feature branch: `git checkout -b feat/your-change`
-2. Make changes following the code standards above.
-3. Add tests for new functionality (target: 80% coverage on new code).
-4. Run the full test suite: `python3 -m pytest tests/ -x`
-5. Commit with a clear message (conventional commits preferred).
-6. Push and open a PR with a description of what changed and why.
+## Architecture Decision Records
+
+Key design decisions are documented in `docs/adr/`:
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| 001 | DataBus as the Single Data Layer | Accepted |
+| 002 | Monolith over Microservices | Accepted |
+| 003 | Redis for Hot Cache, Postgres for Cold Storage | Accepted |
+| 004 | Multi-Source Data Fusion for Risk Scoring | Accepted |
+| 005 | x402 Payment-Gated API Access | Accepted |
+| 006 | CI Quality Gates | Accepted |
+
+When making a significant architecture decision, add a new ADR following the existing format.
+
+## Development Flow
+
+1. **Plan:** Review existing ADRs and understand the architecture before coding.
+2. **Branch:** `git checkout -b feat/your-change` (use `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`).
+3. **Code:** Follow `docs/CODING_STANDARDS.md`. Write tests first (TDD preferred for business logic).
+4. **Verify:** Run `make quality` — this runs lint + typecheck + security + tests.
+5. **Commit:** Use conventional commits (`feat(scope): description`).
+6. **PR:** Push and open a PR. CI runs the full quality gate — all checks must pass.
+
+## Quality Gate
+
+Every push is checked by our CI quality gates (see ADR-006):
+
+```
+┌─────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐
+│ ruff    │  │ mypy     │  │ bandit   │  │ pytest │
+│ lint    │  │ typecheck│  │ security │  │ tests  │
+└─────────┘  └──────────┘  └──────────┘  └────────┘
+     │             │             │             │
+     └─────────────┴──────┬──────┴─────────────┘
+                          ▼
+                 ✅ ALL MUST PASS
+```
+
+Run locally with:
+```bash
+make quality
+```
 
 ## Where to Start
 
@@ -43,8 +83,22 @@ across 96 blockchains.
 - Improve test coverage on domain modules.
 - Add type hints to untyped public functions.
 - Fix lint errors (`ruff check app/`).
+- Review `docs/adr/` — are any decisions outdated?
 - Improve documentation.
+
+## Code Review Checklist
+
+- [ ] Tests pass (all gates green)
+- [ ] Type annotations complete and correct
+- [ ] Error handling covers invalid input, external failure, timeout
+- [ ] No secrets, API keys, or RPC URLs in code
+- [ ] No `print()`, no `time.sleep()`, no f-string logs
+- [ ] Async/await used for all I/O
+- [ ] File is under 500 lines
+- [ ] Docstrings on all public functions
+- [ ] CHANGELOG updated if user-facing change
+- [ ] ADR updated if architecture decision changed
 
 ## Questions
 
-Open a GitHub issue or discussion if you're unsure about something. We're happy to help.
+Open a GitHub/Forgejo issue or discussion if unsure. We're happy to help.

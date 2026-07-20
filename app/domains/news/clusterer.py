@@ -226,7 +226,8 @@ def cluster_items(
             stories.append(
                 StoryCluster(
                     cluster_id=hashlib.sha1(
-                        f"single:{it.id}:{it.published_at.isoformat()}".encode()
+                        f"single:{it.id}:{it.published_at.isoformat()}".encode(),
+                        usedforsecurity=False,
                     ).hexdigest()[:16],
                     representative_title=it.title,
                     source_urls=[it.url] if it.url else [],
@@ -252,9 +253,10 @@ def cluster_items(
             rep = max(members, key=lambda x: len(x.title))
             sentiments = [m.sentiment for m in members if m.sentiment is not None]
             avg_sent = sum(sentiments) / len(sentiments) if sentiments else 0.0
-            cluster_id = hashlib.sha1(":".join(sorted(m.id for m in members)).encode()).hexdigest()[
-                :16
-            ]
+            cluster_id = hashlib.sha1(
+                ":".join(sorted(m.id for m in members)).encode(),
+                usedforsecurity=False,
+            ).hexdigest()[:16]
             stories.append(
                 StoryCluster(
                     cluster_id=cluster_id,

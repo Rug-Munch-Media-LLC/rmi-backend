@@ -48,6 +48,9 @@ docker compose up -d rmi-backend
 - `ARCHITECTURE.md` — components and data flow
 - `ROADMAP.md` — next 90 days
 - `TODO.md` — current tasks
+- `docs/adr/` — Architecture Decision Records (6 ADRs covering DataBus, fusion, x402, CI gates)
+- `docs/CODING_STANDARDS.md` — Python/TS coding standards, testing rules, git conventions
+- `CONTRIBUTING.md` — how to contribute, development flow, quality gate
 
 ## Standards
 This repo follows [Rug Munch Media standards](https://git.rugmunch.io/RugMunchMedia/standards).
