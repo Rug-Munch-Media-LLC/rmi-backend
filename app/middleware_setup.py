@@ -317,10 +317,28 @@ def _try_register_csrf(app: FastAPI) -> None:
         from starlette.middleware.base import BaseHTTPMiddleware
         from starlette.responses import JSONResponse
 
+        # x402 payment API paths — exempt from cookie-based CSRF
+        # These are agent/MCP API endpoints that use X-Payment, X-Api-Key,
+        # or X-Agent-Id headers instead of cookies. CSRF is not applicable.
+        _X402_CSRF_EXEMPT_PREFIXES: tuple[str, ...] = (
+            "/api/v1/x402/",
+            "/api/v1/x402-databus/",
+            "/api/v1/bulletin-board/x402/",
+            "/api/v1/developer/",
+            "/mcp/x402",
+            "/x402/sandbox/",
+            "/.well-known/x402",
+        )
+
         class CSRFMiddleware(BaseHTTPMiddleware):
             async def dispatch(self, request: Request, call_next: Any) -> Response:
                 # Skip safe methods
                 if request.method not in _CSRF_METHODS:
+                    return cast("Response", await call_next(request))
+
+                # Skip x402 payment API endpoints (agent/MCP, no cookies)
+                path = request.url.path
+                if any(path.startswith(p) for p in _X402_CSRF_EXEMPT_PREFIXES):
                     return cast("Response", await call_next(request))
 
                 # Skip if Authorization: Bearer header is present (API clients)
