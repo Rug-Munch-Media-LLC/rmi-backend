@@ -3,16 +3,17 @@ Wallet Clustering API Router - Cluster detection, funding paths, risk analysis.
 Connects to /api/v1/wallet-clusters/*
 """
 
+import datetime
 from datetime import UTC
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
+from app.core.data_fusion import envelope, fusion
 from app.core.errors import (
     ServiceUnavailableError,
     ValidationError,
 )
-from pydantic import BaseModel
-
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/api/v1/wallet-clusters", tags=["wallet-clustering"])
@@ -77,11 +78,39 @@ async def detect_clusters(req: ClusterRequest):
         min_confidence=req.min_confidence,
         include_sleepers=req.include_sleepers,
     )
-    return {
+    cluster_dicts = [c.to_dict() for c in clusters]
+
+    # Generate intelligence brief via DataFusion
+    cluster_data = {
         "total_wallets": len(req.wallets),
         "clusters_found": len(clusters),
-        "clusters": [c.to_dict() for c in clusters],
+        "cluster_count": len(clusters),
+        "data_sources": ["cluster_detection_pro"],
+        "confidence": min(1.0, len(clusters) / max(1, len(req.wallets))),
     }
+    brief = fusion.generate_intelligence_brief(
+        {
+            **cluster_data,
+            "risk_score": min(100, len(clusters) * 15),
+            "key_findings": [
+                {"finding": f"Detected {len(c.wallets)} wallets in cluster", "severity": "MEDIUM"}
+                for c in clusters[:5]
+            ],
+        }
+    )
+
+    return envelope(
+        data={
+            "total_wallets": len(req.wallets),
+            "clusters_found": len(clusters),
+            "clusters": cluster_dicts,
+            "intel_brief": brief,
+        },
+        source="wallet-clustering-engine",
+        freshness=datetime.datetime.now(UTC).isoformat(),
+        cache_ttl=60,
+        confidence=brief.get("confidence", 0.5),
+    )
 
 
 @router.post("/funding-path")
@@ -91,17 +120,63 @@ async def trace_funding_path(req: FundingPathRequest):
     path = await detector.trace_funding_path(
         source=req.source, target=req.target, max_depth=req.max_depth
     )
+    data: dict = {"source": req.source, "target": req.target}
     if path:
-        return {"source": req.source, "target": req.target, "path": path.to_dict()}
-    return {"source": req.source, "target": req.target, "path": None, "note": "No path found"}
+        data["path"] = path.to_dict()
+        data["path_found"] = True
+    else:
+        data["path"] = None
+        data["path_found"] = False
+        data["note"] = "No path found within max_depth"
+
+    return envelope(
+        data=data,
+        source="wallet-clustering-engine",
+        freshness=datetime.datetime.now(UTC).isoformat(),
+        cache_ttl=120,
+        confidence=0.7 if data["path_found"] else 0.3,
+    )
 
 
 @router.post("/scan")
 async def scan_all():
-    """Run all 4 clustering methods and return merged results."""
+    """Run all 4 clustering methods and return merged results with fusion brief."""
     engine = _get_engine()
     clusters = engine.find_all_clusters()
-    return {"clusters": [c.to_dict() for c in clusters], "total_clusters": len(clusters)}
+    cluster_dicts = [c.to_dict() for c in clusters]
+
+    brief_data = {
+        "total_wallets": sum(c.wallet_count for c in clusters)
+        if hasattr(clusters[0], "wallet_count") and clusters
+        else 0,
+        "clusters_found": len(clusters),
+        "data_sources": ["temporal", "pattern", "funding", "counterparty"],
+        "risk_score": min(100, len(clusters) * 10),
+    }
+    if clusters:
+        brief_data["key_findings"] = [
+            {
+                "finding": c.description or f"Cluster of {c.wallet_count} wallets"
+                if hasattr(c, "wallet_count")
+                else f"Cluster with {len(c.wallets)} wallets",
+                "severity": "MEDIUM",
+            }
+            for c in clusters[:5]
+        ]
+
+    brief = fusion.generate_intelligence_brief(brief_data)
+
+    return envelope(
+        data={
+            "clusters": cluster_dicts,
+            "total_clusters": len(clusters),
+            "intel_brief": brief,
+        },
+        source="wallet-clustering-engine",
+        freshness=datetime.datetime.now(UTC).isoformat(),
+        cache_ttl=60,
+        confidence=brief.get("confidence", 0.5),
+    )
 
 
 @router.get("/health")
@@ -149,11 +224,14 @@ async def get_cluster_report(cluster_id: str):
 @router.post("/rugmap-data")
 async def get_rugmap_data(req: RugMapRequest):
     """Generate RugMap data for a wallet.
-    Supports up to 250 wallets deep. Optional AI deep dive for advanced forensics."""
+    Supports up to 250 wallets deep. Optional AI deep dive for advanced forensics.
+
+    Responses are wrapped with DataFusion intelligence brief for
+    cross-referenced risk assessment.
+    """
+    now = datetime.datetime.now(UTC)
     engine = _get_engine()
-    depth = min(
-        req.depth, 10
-    )  # Cap depth at 10 to prevent infinite loops, but max_wallets handles the 250 limit
+    depth = min(req.depth, 10)
     data = engine.generate_rugmap_data(
         center_wallet=req.center_wallet, depth=depth, max_wallets=min(req.max_wallets, 250)
     )
@@ -163,7 +241,6 @@ async def get_rugmap_data(req: RugMapRequest):
         try:
             from app.ai_router import router as ai_router
 
-            # Extract top suspicious wallets for AI context
             suspicious_wallets = [
                 n
                 for n in data["nodes"]
@@ -204,7 +281,39 @@ async def get_rugmap_data(req: RugMapRequest):
             logger.warning(f"AI deep dive failed: {e}")
             data["ai_deep_dive_analysis"] = "AI analysis temporarily unavailable."
 
-    return data
+    # Generate DataFusion brief from rugmap data
+    node_count = len(data.get("nodes", []))
+    edge_count = len(data.get("edges", []))
+    suspicious_count = sum(
+        1 for n in data.get("nodes", []) if n.get("type") in ("scammer", "exchange")
+    )
+
+    brief_data = {
+        "total_wallets": node_count,
+        "total_connections": edge_count,
+        "data_sources": ["wallet_clustering", "funding_graph"],
+        "risk_score": min(100, suspicious_count * 20 + (node_count > 50) * 15),
+        "key_findings": [
+            {
+                "finding": f"RugMap contains {node_count} wallets and {edge_count} connections",
+                "severity": "INFO",
+            },
+            {
+                "finding": f"{suspicious_count} suspicious wallets (scammer/exchange)",
+                "severity": "HIGH" if suspicious_count > 0 else "LOW",
+            },
+        ],
+    }
+    brief = fusion.generate_intelligence_brief(brief_data)
+    data["fusion_brief"] = brief
+
+    return envelope(
+        data=data,
+        source="wallet-clustering-engine",
+        freshness=now.isoformat(),
+        cache_ttl=120,
+        confidence=0.6 if node_count > 0 else 0.2,
+    )
 
 
 @router.post("/ai-forensic-breakdown")
@@ -276,7 +385,26 @@ Be direct and avoid fluff."""
                 "AI LLM analysis temporarily unavailable, but heuristic forensic data is provided."
             )
 
-    return breakdown
+    # Wrap with DataFusion intelligence brief
+    brief_data = {
+        "risk_score": breakdown.get("risk_score", 0.5) * 100,
+        "key_findings": [
+            {"finding": v, "severity": "HIGH" if i == 0 else "MEDIUM"}
+            for i, v in enumerate(breakdown.get("risk_vectors", []))
+        ],
+        "data_sources": ["wallet_clustering", "ai_forensic_analysis"],
+        "confidence": min(1.0, breakdown.get("total_wallets_analyzed", 0) / 100),
+    }
+    brief = fusion.generate_intelligence_brief(brief_data)
+    breakdown["fusion_brief"] = brief
+
+    return envelope(
+        data=breakdown,
+        source="wallet-clustering-engine+ai",
+        freshness=datetime.datetime.now(UTC).isoformat(),
+        cache_ttl=300,
+        confidence=min(1.0, breakdown.get("total_wallets_analyzed", 0) / 200),
+    )
 
 
 @router.post("/contract-scan")
@@ -288,6 +416,7 @@ async def scan_contract_clusters(req: ContractScanRequest):
 
     # Step 1: Get real holders from chain (multi-source fallback)
     holders: list[str] = []
+    excluded_entities: list = []
     try:
         from app.unified_provider import get_unified_provider
 
@@ -296,7 +425,6 @@ async def scan_contract_clusters(req: ContractScanRequest):
         holders = [h.get("address") for h in holder_data if h.get("address")]
 
         # Filter out exchange/DeFi infrastructure
-        excluded_entities = []
         try:
             from app.entity_registry import get_entity_registry
 
@@ -425,4 +553,10 @@ async def scan_contract_clusters(req: ContractScanRequest):
         except Exception as e:
             logger.warning(f"Bundle detection failed: {e}")
 
-    return result
+    return envelope(
+        data=result,
+        source="wallet-clustering-engine+provider",
+        freshness=datetime.datetime.now(UTC).isoformat(),
+        cache_ttl=300,
+        confidence=0.7 if result.get("total_holders", 0) > 0 else 0.3,
+    )

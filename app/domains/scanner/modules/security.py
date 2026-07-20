@@ -1,23 +1,14 @@
 """Scanner module — split from modules.py for maintainability."""
 
-import time
 from typing import Any
 
 import httpx
 
 from app.domains.scanner.modules._core import (
-    logger,
     GOPLUS_CHAIN_IDS,
-    EXPLORER_APIS,
-    BLOCKSCOUT_URLS,
-    DEFILLAMA_API,
-    SOLANA_RPC_URLS,
-    SOLANA_RPC_TIMEOUT,
-    _solana_rpc_call,
-    _fetch_json,
     _fetch_with_fallback,
+    logger,
 )
-
 
 
 async def _check_goplus_security(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -224,7 +215,6 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
 # ── 3. Holder Data ────────────────────────────────────────────────────
 
 
-
 async def _check_spam(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if token is in known spam/sanctions databases."""
     try:
@@ -246,12 +236,3 @@ async def _check_spam(token_address: str, chain: str) -> dict[str, Any] | None:
         logger.warning("spam_check_failed", error=str(e))
 
     return {"check": "spam", "result": "error", "error": "Spam check unavailable"}
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# NEW CRITICAL CHECKS — Social Sentiment, Token Age, LP Concentration,
-# Ownership Renounced, Volume/Liquidity Ratio
-# ════════════════════════════════════════════════════════════════════════════
-
-
-# ── 11. Social Sentiment Check ──────────────────────────────────────────

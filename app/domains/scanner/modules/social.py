@@ -6,18 +6,14 @@ from typing import Any
 import httpx
 
 from app.domains.scanner.modules._core import (
-    logger,
-    GOPLUS_CHAIN_IDS,
     EXPLORER_APIS,
-    BLOCKSCOUT_URLS,
-    DEFILLAMA_API,
-    SOLANA_RPC_URLS,
-    SOLANA_RPC_TIMEOUT,
-    _solana_rpc_call,
+    GOPLUS_CHAIN_IDS,
     _fetch_json,
     _fetch_with_fallback,
+    _solana_rpc_call,
+    logger,
 )
-
+from app.domains.scanner.modules.holders import _get_holder_data
 
 
 def _get_top_symbols() -> set[str]:
@@ -133,7 +129,6 @@ async def _check_copycat(symbol: str, name: str) -> dict[str, Any] | None:
 # ── 7. Bundle Detection ───────────────────────────────────────────────
 
 
-
 async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if token launch was bundled (coordinated buying)."""
     try:
@@ -204,7 +199,6 @@ async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None
 
 
 # ── 8. Contract Verification ──────────────────────────────────────────
-
 
 
 async def _check_contract_verification(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -279,7 +273,6 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
 
 
 # ── 9. Price Impact / Consensus ────────────────────────────────────────
-
 
 
 async def _check_social_sentiment(
@@ -367,7 +360,6 @@ async def _check_social_sentiment(
 
 
 # ── 12. Token Age Check ───────────────────────────────────────────────
-
 
 
 async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -471,7 +463,6 @@ async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | N
 
 
 # ── 13. LP Concentration Check ─────────────────────────────────────────
-
 
 
 async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str, Any] | None:

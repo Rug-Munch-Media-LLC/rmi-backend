@@ -126,7 +126,7 @@ def test_alerts_endpoint_list(app) -> None:
     from fastapi.testclient import TestClient
 
     client = TestClient(app)
-    r = client.get("/alerts")
+    r = client.get("/alerts", headers={"X-API-Key": "test-auth-token-32-chars-long!!"})
     assert r.status_code == 200, f"Got {r.status_code}: {r.text}"
     body = r.json()
     assert body["count"] == 0

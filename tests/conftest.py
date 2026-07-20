@@ -49,3 +49,19 @@ settings.register_profile(
     suppress_health_check=[],
     report_multiple_bugs=False,
 )
+
+
+# ── Shared auth fixtures ──────────────────────────────────────────────
+import pytest
+
+
+@pytest.fixture
+def auth_headers():
+    """Standard API key auth headers for integration tests."""
+    return {"X-API-Key": "test-auth-token-32-chars-long!!"}
+
+
+@pytest.fixture
+def csrf_headers(auth_headers):
+    """Auth headers plus CSRF token."""
+    return {**auth_headers, "X-CSRF-Token": "test-csrf-token"}

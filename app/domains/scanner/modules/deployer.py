@@ -1,23 +1,13 @@
 """Scanner module — split from modules.py for maintainability."""
 
-import time
 from typing import Any
 
-import httpx
-
 from app.domains.scanner.modules._core import (
-    logger,
-    GOPLUS_CHAIN_IDS,
     EXPLORER_APIS,
-    BLOCKSCOUT_URLS,
-    DEFILLAMA_API,
-    SOLANA_RPC_URLS,
-    SOLANA_RPC_TIMEOUT,
-    _solana_rpc_call,
     _fetch_json,
     _fetch_with_fallback,
+    logger,
 )
-
 
 
 async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -170,6 +160,3 @@ async def _deep_deployer_check(deployer_addr: str, chain: str) -> dict[str, Any]
         result["risk_label"] = "ERROR"
 
     return result
-
-
-# ── 5. Liquidity Lock Check ───────────────────────────────────────────

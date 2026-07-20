@@ -3,6 +3,7 @@
 import asyncio
 from typing import Any
 
+from app.core.data_fusion import fusion
 from app.core.logging import get_logger
 from app.domains.scanner.modules import (
     _check_bundle,
@@ -729,6 +730,58 @@ async def scan_token(
     )
     real_count = successful - pending_count
     result.confidence = min(100, base_confidence + real_count * 5)
+
+    # ── Fuse token risk via DataFusion engine ──
+    # Extract module results for the fusion engine to cross-reference
+    goplus_result: dict[str, Any] | None = None
+    dexscreener_result: dict[str, Any] | None = None
+    honeypot_result: dict[str, Any] | None = None
+    sentinel_result: dict[str, Any] | None = None
+
+    for mod_entry in result.modules_run:
+        r = mod_entry.get("result")
+        if not isinstance(r, dict):
+            continue
+        module_name = mod_entry.get("module", "")
+        if module_name == "goplus" and r.get("result") not in ("error", "unavailable"):
+            goplus_result = r
+        elif module_name == "defiscanner" and r.get("result") not in ("error", "unavailable"):
+            dexscreener_result = r
+        elif module_name == "honeypot" and r.get("result") not in ("error", "unavailable"):
+            honeypot_result = r
+        elif module_name == "market_data":
+            sentinel_result = r
+
+    # Run fusion — uses weighted voting, outlier removal, freshness decay
+    try:
+        fused = await fusion.fuse_token_risk(
+            goplus_result=goplus_result,
+            dexscreener_result=dexscreener_result,
+            honeypot_result=honeypot_result,
+            sentinel_result=sentinel_result,
+        )
+        result.fusion_brief = fusion.generate_intelligence_brief(fused)
+        # If fusion confidence is high, adjust safety_score to match
+        if fused.get("confidence", 0) > 0.5 and fused.get("fused_value") is not None:
+            fused_risk = fused["fused_value"]
+            # Convert risk score (0-100, higher=riskier) to safety score (0-100, higher=safer)
+            fused_safety = max(0, min(100, 100 - fused_risk))
+            # Blend: 70% original scoring, 30% fusion (increase fusion weight with more sources)
+            fusion_weight = min(0.5, 0.2 + len(fused.get("sources_used", [])) * 0.05)
+            result.safety_score = int(
+                result.safety_score * (1 - fusion_weight) + fused_safety * fusion_weight
+            )
+            # Also apply high-severity findings as risk flags
+            for finding in fused.get("risk_findings", []):
+                if finding.get("severity") in ("CRITICAL", "HIGH"):
+                    flag_text = finding.get("finding", "")[:60]
+                    if flag_text and flag_text not in result.risk_flags:
+                        result.risk_flags.append(
+                            f"fusion:{finding.get('source', 'unknown')}:{flag_text}"
+                        )
+    except Exception as e:
+        logger.warning("data_fusion_skipped", error=str(e)[:100])
+        result.fusion_brief = {"summary": "Fusion engine unavailable", "risk_score": None}
 
     # Ingest to RAG
     await _ingest_scan_to_rag(result)

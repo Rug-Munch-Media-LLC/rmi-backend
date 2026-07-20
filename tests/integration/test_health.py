@@ -24,6 +24,12 @@ def app():
     return create_app()
 
 
+@pytest.fixture
+def auth_headers():
+    """Standard auth header for protected endpoints."""
+    return {"X-API-Key": "test-auth-token-32-chars-long!!"}
+
+
 class TestLiveness:
     """Tests for /live endpoint — depends on prometheus_client being installed."""
 
