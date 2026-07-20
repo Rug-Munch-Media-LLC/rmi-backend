@@ -9,26 +9,20 @@ Public endpoints (no auth):
   GET /api/v1/bulletin/categories    - List categories
 
 Admin endpoints (require admin session):
-  POST /api/v1/admin/bulletin/posts           - Create post
-  PUT /api/v1/admin/bulletin/posts/{id}       - Update post
-  DELETE /api/v1/admin/bulletin/posts/{id}    - Delete (archive) post
-  GET /api/v1/admin/bulletin/posts            - List all posts (admin view)
-  POST /api/v1/admin/bulletin/posts/{id}/publish   - Publish post
-  POST /api/v1/admin/bulletin/posts/{id}/unpublish - Unpublish post
-  POST /api/v1/admin/bulletin/posts/{id}/pin       - Pin/unpin post
-  GET /api/v1/admin/bulletin/stats           - Board statistics
-  GET /api/v1/admin/bulletin/scheduled       - List scheduled posts
-  POST /api/v1/admin/bulletin/process-scheduled - Process scheduled posts
-  POST /api/v1/admin/bulletin/process-expired - Archive expired posts
+  POST /admin/bulletin/posts           - Create post
+  PUT /admin/bulletin/posts/{id}       - Update post
+  DELETE /admin/bulletin/posts/{id}    - Delete (archive) post
+  GET /admin/bulletin/posts            - List all posts (admin view)
+  POST /admin/bulletin/posts/{id}/publish   - Publish post
+  POST /admin/bulletin/posts/{id}/unpublish - Unpublish post
+  POST /admin/bulletin/posts/{id}/pin       - Pin/unpin post
+  GET /admin/bulletin/stats           - Board statistics
+  GET /admin/bulletin/scheduled       - List scheduled posts
+  POST /admin/bulletin/process-scheduled - Process scheduled posts
+  POST /admin/bulletin/process-expired - Archive expired posts
 """
 
 from fastapi import APIRouter, Body, Request
-
-from app.core.errors import (
-    AuthorizationError,
-    NotFoundError,
-    ValidationError,
-)
 from pydantic import BaseModel, Field
 
 from app.admin_backend import AuditLogger, require_admin
@@ -37,6 +31,11 @@ from app.bulletin_board import (
     PostCategory,
     PostStatus,
     award_badge,
+)
+from app.core.errors import (
+    AuthorizationError,
+    NotFoundError,
+    ValidationError,
 )
 
 router = APIRouter(prefix="/api/v1/bulletin-board", tags=["bulletin-board"])
@@ -198,7 +197,7 @@ class CommentRequest(BaseModel):
 # ── Admin Endpoints ───────────────────────────────────────────
 
 
-@router.get("/api/v1/admin/bulletin/posts")
+@router.get("/admin/bulletin/posts")
 async def admin_list_posts(
     request: Request,
     category: str = "",
@@ -233,7 +232,7 @@ async def admin_list_posts(
     }
 
 
-@router.post("/api/v1/admin/bulletin/posts")
+@router.post("/admin/bulletin/posts")
 async def admin_create_post(request: Request, body: CreatePostRequest):
     """Create a new bulletin board post."""
     auth = await require_admin(request, "content.write")
@@ -286,7 +285,7 @@ async def admin_create_post(request: Request, body: CreatePostRequest):
     return {"success": True, "post": post.to_dict()}
 
 
-@router.get("/api/v1/admin/bulletin/posts/{post_id}")
+@router.get("/admin/bulletin/posts/{post_id}")
 async def admin_get_post(request: Request, post_id: str):
     """Get full post details (admin)."""
     await require_admin(request, "content.read")
@@ -298,7 +297,7 @@ async def admin_get_post(request: Request, post_id: str):
     return {"post": post.to_dict()}
 
 
-@router.put("/api/v1/admin/bulletin/posts/{post_id}")
+@router.put("/admin/bulletin/posts/{post_id}")
 async def admin_update_post(
     request: Request,
     post_id: str,
@@ -344,7 +343,7 @@ async def admin_update_post(
     return {"success": True, "post": updated.to_dict()}
 
 
-@router.delete("/api/v1/admin/bulletin/posts/{post_id}")
+@router.delete("/admin/bulletin/posts/{post_id}")
 async def admin_delete_post(request: Request, post_id: str):
     """Delete (archive) a post."""
     auth = await require_admin(request, "content.write")
@@ -370,7 +369,7 @@ async def admin_delete_post(request: Request, post_id: str):
     return {"success": True, "message": "Post archived"}
 
 
-@router.post("/api/v1/admin/bulletin/posts/{post_id}/publish")
+@router.post("/admin/bulletin/posts/{post_id}/publish")
 async def admin_publish_post(request: Request, post_id: str):
     """Publish a post immediately."""
     auth = await require_admin(request, "content.write")
@@ -402,7 +401,7 @@ async def admin_publish_post(request: Request, post_id: str):
     return {"success": True, "published_at": updated.published_at}
 
 
-@router.post("/api/v1/admin/bulletin/posts/{post_id}/unpublish")
+@router.post("/admin/bulletin/posts/{post_id}/unpublish")
 async def admin_unpublish_post(request: Request, post_id: str):
     """Unpublish a post (move to draft)."""
     auth = await require_admin(request, "content.write")
@@ -434,7 +433,7 @@ async def admin_unpublish_post(request: Request, post_id: str):
     return {"success": True}
 
 
-@router.post("/api/v1/admin/bulletin/posts/{post_id}/pin")
+@router.post("/admin/bulletin/posts/{post_id}/pin")
 async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...)):
     """Pin or unpin a post."""
     auth = await require_admin(request, "content.write")
@@ -469,7 +468,7 @@ async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...))
     return {"success": True, "pinned": pinned}
 
 
-@router.get("/api/v1/admin/bulletin/stats")
+@router.get("/admin/bulletin/stats")
 async def admin_bulletin_stats(request: Request):
     """Get bulletin board statistics."""
     await require_admin(request, "content.read")
@@ -478,7 +477,7 @@ async def admin_bulletin_stats(request: Request):
     return {"stats": stats}
 
 
-@router.get("/api/v1/admin/bulletin/scheduled")
+@router.get("/admin/bulletin/scheduled")
 async def admin_scheduled_posts(request: Request):
     """List scheduled posts waiting to be published."""
     await require_admin(request, "content.read")
@@ -491,7 +490,7 @@ async def admin_scheduled_posts(request: Request):
     return {"posts": result["posts"], "total": result["total"]}
 
 
-@router.post("/api/v1/admin/bulletin/process-scheduled")
+@router.post("/admin/bulletin/process-scheduled")
 async def admin_process_scheduled(request: Request):
     """Process scheduled posts (publish ones that are due)."""
     auth = await require_admin(request, "content.write")
@@ -513,7 +512,7 @@ async def admin_process_scheduled(request: Request):
     return {"success": True, "published": published, "count": len(published)}
 
 
-@router.post("/api/v1/admin/bulletin/process-expired")
+@router.post("/admin/bulletin/process-expired")
 async def admin_process_expired(request: Request):
     """Process expired posts (archive ones past expiry)."""
     auth = await require_admin(request, "content.write")
@@ -538,7 +537,7 @@ async def admin_process_expired(request: Request):
 # ── Comments (Admin Moderation) ─────────────────────────────
 
 
-@router.get("/api/v1/admin/bulletin/posts/{post_id}/comments")
+@router.get("/admin/bulletin/posts/{post_id}/comments")
 async def admin_get_comments(request: Request, post_id: str):
     """Get all comments for a post (admin moderation view)."""
     await require_admin(request, "content.read")
@@ -547,7 +546,7 @@ async def admin_get_comments(request: Request, post_id: str):
     return {"comments": comments, "total": len(comments)}
 
 
-@router.post("/api/v1/admin/bulletin/comments/{comment_id}/moderate")
+@router.post("/admin/bulletin/comments/{comment_id}/moderate")
 async def admin_moderate_comment(
     request: Request,
     comment_id: str,
