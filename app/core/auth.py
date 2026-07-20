@@ -37,6 +37,7 @@ PUBLIC_EXACT_PATHS = frozenset(
         "/live",
         "/ready",
         "/metrics",
+        "/version",
         "/docs",
         "/redoc",
         "/openapi.json",

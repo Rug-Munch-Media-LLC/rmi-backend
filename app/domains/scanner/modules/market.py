@@ -1,23 +1,17 @@
 """Scanner module — split from modules.py for maintainability."""
 
-import time
 from typing import Any
 
 import httpx
 
 from app.domains.scanner.modules._core import (
-    logger,
-    GOPLUS_CHAIN_IDS,
-    EXPLORER_APIS,
     BLOCKSCOUT_URLS,
     DEFILLAMA_API,
-    SOLANA_RPC_URLS,
-    SOLANA_RPC_TIMEOUT,
-    _solana_rpc_call,
+    GOPLUS_CHAIN_IDS,
     _fetch_json,
     _fetch_with_fallback,
+    logger,
 )
-
 
 
 async def _get_price_consensus(

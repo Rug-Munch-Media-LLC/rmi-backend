@@ -90,3 +90,4 @@ data/papers/
 *.hdf5
 main.py.bak
 ruff.toml
+.gitsigners

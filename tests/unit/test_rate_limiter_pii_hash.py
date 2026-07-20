@@ -77,10 +77,10 @@ class TestDailySaltRotation:
 
     def test_salt_changes_with_date(self) -> None:
         """Different dates produce different salts, hence different hashes."""
-        with patch("app.core.rate_limiter.time.strftime", return_value="2026-06-22"):
+        with patch("app.core.rate_limiter._time.strftime", return_value="2026-06-22"):
             h_day1 = _hash_identifier("0xSameWallet")
 
-        with patch("app.core.rate_limiter.time.strftime", return_value="2026-06-23"):
+        with patch("app.core.rate_limiter._time.strftime", return_value="2026-06-23"):
             h_day2 = _hash_identifier("0xSameWallet")
 
         # Same identifier, different days -> different hashes

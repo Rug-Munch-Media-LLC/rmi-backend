@@ -22,6 +22,9 @@ def app():
     return create_app()
 
 
+_AUTH = {"X-API-Key": "test-auth-token-32-chars-long!!"}
+
+
 class TestScannerEndpoint:
     """Tests for the scanner endpoint (currently a stub)."""
 
@@ -34,6 +37,7 @@ class TestScannerEndpoint:
         resp = client.post(
             "/scanner/scan",
             json={"chain": "ethereum", "address": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"},
+            headers=_AUTH,
         )
         assert resp.status_code == 501
         body = resp.json()
@@ -46,7 +50,7 @@ class TestScannerEndpoint:
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        resp = client.post("/scanner/scan", json={"chain": "ethereum"})
+        resp = client.post("/scanner/scan", json={"chain": "ethereum"}, headers=_AUTH)
         assert resp.status_code == 422
 
     @pytest.mark.integration
@@ -55,7 +59,7 @@ class TestScannerEndpoint:
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        resp = client.post("/scanner/scan", json={})
+        resp = client.post("/scanner/scan", json={}, headers=_AUTH)
         assert resp.status_code == 422
 
     @pytest.mark.integration
@@ -64,5 +68,5 @@ class TestScannerEndpoint:
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        resp = client.get("/scanner/result/test-scan-id-123")
+        resp = client.get("/scanner/result/test-scan-id-123", headers=_AUTH)
         assert resp.status_code == 501

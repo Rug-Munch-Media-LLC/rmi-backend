@@ -5,6 +5,7 @@ Real OHLCV candles via GeckoTerminal, volume authenticity, dev reputation,
 and comprehensive token intelligence for the RugCharts page.
 """
 
+import datetime
 import json
 import os
 
@@ -12,6 +13,7 @@ import httpx
 import redis
 from fastapi import APIRouter, Query
 
+from app.core.data_fusion import envelope, fusion
 from app.core.logging import get_logger
 
 logger = get_logger("rugcharts_router")
@@ -184,6 +186,10 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
                     except Exception:
                         pass
 
+    except httpx.TimeoutException:
+        logger.warning("DexScreener trending fetch timed out after 15s")
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"DexScreener trending returned HTTP {e.response.status_code}")
     except Exception as e:
         logger.warning(f"DexScreener trending fetch failed: {e}")
 
@@ -250,8 +256,12 @@ async def _fetch_ohlcv_gecko(
                                 "volume": float(c[5]),
                             }
                         )
+    except httpx.TimeoutException:
+        logger.warning(f"GeckoTerminal OHLCV timed out after 15s for {pair_address}")
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"GeckoTerminal OHLCV HTTP {e.response.status_code} for {pair_address}")
     except Exception as e:
-        logger.warning(f"GeckoTerminal OHLCV fetch failed: {e}")
+        logger.warning(f"GeckoTerminal OHLCV failed for {pair_address}: {str(e)[:120]}")
 
     if candles:
         try:
@@ -321,8 +331,12 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
                     "dex": data.get("dex_id", ""),
                     "pool_created_at": data.get("pool_created_at", ""),
                 }
+    except httpx.TimeoutException:
+        logger.warning(f"GeckoTerminal pair info timed out after 10s for {pair_address}")
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"GeckoTerminal pair info HTTP {e.response.status_code} for {pair_address}")
     except Exception as e:
-        logger.warning(f"GeckoTerminal pair info failed: {e}")
+        logger.warning(f"GeckoTerminal pair info failed for {pair_address}: {str(e)[:120]}")
 
     if info:
         try:
@@ -512,18 +526,41 @@ async def rugcharts_trending(
     chain: str = Query("solana", description="Blockchain to query"),
     limit: int = Query(30, description="Max tokens to return"),
 ):
-    """Get trending tokens sorted by volume for RugCharts."""
-    from datetime import UTC, datetime as dt
+    """Get trending tokens sorted by volume for RugCharts.
 
+    Data sources: DexScreener (boosted tokens + latest profiles).
+    Fused with DataFusion engine for multi-source confidence.
+    """
     tokens, fallback_used = await _fetch_dexscreener_trending(chain, limit)
-    return {
-        "tokens": tokens[:limit],
-        "count": len(tokens),
-        "chain": chain,
-        "source": "dexscreener",
-        "freshness": dt.now(UTC).isoformat(),
-        "fallback_used": fallback_used,
-    }
+
+    # Fuse price data across all returned tokens for consistency
+    now = datetime.datetime.now(datetime.UTC)
+    for token in tokens[:limit]:
+        price_data = {
+            "source": "dexscreener",
+            "price_usd": token.get("price_usd", 0),
+            "freshness": now.isoformat(),
+            "confidence": 0.5 if token.get("volume_24h", 0) > 1000 else 0.3,
+        }
+        fused = await fusion.fuse_price_data(price_data)
+        token["fusion"] = {
+            "price_confidence": fused.get("confidence", 0),
+            "price_sources": fused.get("sources_used", 1),
+        }
+
+    return envelope(
+        data={
+            "tokens": tokens[:limit],
+            "count": len(tokens),
+            "chain": chain,
+            "fallback_used": fallback_used,
+        },
+        source="dexscreener",
+        freshness=now.isoformat(),
+        cache_ttl=120,
+        fallback_used=fallback_used,
+        confidence=0.5 if not fallback_used else 0.25,
+    )
 
 
 @router.get("/ohlcv/{chain}/{pair_address}")
@@ -533,7 +570,12 @@ async def rugcharts_ohlcv(
     timeframe: str = Query("1h", description="Candle timeframe"),
     limit: int = Query(100, description="Number of candles"),
 ):
-    """Get OHLCV candle data for a specific pair."""
+    """Get OHLCV candle data for a specific pair.
+
+    Fuses GeckoTerminal OHLCV data with DexScreener pair info via DataFusion
+    for cross-referenced price confidence and volume authenticity scoring.
+    """
+    now = datetime.datetime.now(datetime.UTC)
     candles = await _fetch_ohlcv_gecko(pair_address, chain, timeframe, limit)
     pair_info = await _fetch_pair_info(pair_address, chain)
     vol_auth = _compute_volume_authenticity(pair_info, candles)
@@ -554,19 +596,58 @@ async def rugcharts_ohlcv(
             "candle_count": len(candles),
         }
 
-    from datetime import UTC, datetime as dt
-
-    return {
-        "candles": candles,
-        "summary": summary,
-        "pair_info": pair_info,
-        "authenticity": vol_auth,
-        "timeframe": timeframe,
-        "chain": chain,
-        "source": "geckoterminal",
-        "freshness": dt.now(UTC).isoformat(),
-        "fallback_used": not bool(candles),
+    # ── Fuse price data from available sources ──
+    gecko_price = {
+        "source": "coingecko",
+        "price_usd": pair_info.get("base_token_price_usd", 0),
+        "freshness": now.isoformat(),
+        "confidence": 0.6 if pair_info.get("base_token_price_usd") else 0.0,
     }
+    # If we have OHLCV close, add it as an additional price data point
+    candle_price = (
+        {
+            "source": "geckoterminal_ohlcv",
+            "price_usd": prices[-1],
+            "freshness": now.isoformat(),
+            "confidence": 0.55,
+        }
+        if candles and summary.get("current_price")
+        else None
+    )
+
+    price_sources = [gecko_price]
+    if candle_price:
+        price_sources.append(candle_price)
+
+    fused_price = await fusion.fuse_price_data(*price_sources)
+
+    # ── Enrich response with fusion metadata ──
+    fusion_result = {
+        "price_confidence": fused_price.get("confidence", 0),
+        "price_usd_fused": fused_price.get("price_usd"),
+        "price_spread_pct": fused_price.get("spread_pct"),
+        "price_sources_used": fused_price.get("sources_used", 0),
+        "outlier_sources": fused_price.get("outlier_sources", []),
+        "summary": fused_price.get("summary", ""),
+    }
+
+    return envelope(
+        data={
+            "candles": candles,
+            "summary": summary,
+            "pair_info": pair_info,
+            "authenticity": vol_auth,
+            "fusion": fusion_result,
+            "timeframe": timeframe,
+            "chain": chain,
+            "fallback_used": not bool(candles),
+        },
+        source="geckoterminal+coingecko",
+        freshness=now.isoformat(),
+        cache_ttl=300,
+        fallback_used=not bool(candles),
+        confidence=fused_price.get("confidence", 0.3),
+    )
 
 
 @router.get("/intel/{chain}/{pair_address}")
@@ -574,7 +655,13 @@ async def rugcharts_intel(
     chain: str,
     pair_address: str,
 ):
-    """Get comprehensive intelligence on a token pair."""
+    """Get comprehensive intelligence on a token pair.
+
+    Fuses GeckoTerminal OHLCV, DexScreener pair info, volume authenticity,
+    and TA predictions through the DataFusion engine for a consolidated
+    intelligence brief with confidence scoring.
+    """
+    now = datetime.datetime.now(datetime.UTC)
     pair_info = await _fetch_pair_info(pair_address, chain)
     candles = await _fetch_ohlcv_gecko(pair_address, chain, "1h", 48)
     vol_auth = _compute_volume_authenticity(pair_info, candles)
@@ -584,11 +671,8 @@ async def rugcharts_intel(
     ta = {}
     if len(candles) >= 20:
         closes = [c["close"] for c in candles]
-        # SMA 20
         sma20 = sum(closes[-20:]) / 20
-        # SMA 7
         sma7 = sum(closes[-7:]) / 7
-        # RSI 14
         gains, losses = [], []
         for i in range(-14, 0):
             diff = closes[i] - closes[i - 1]
@@ -598,12 +682,10 @@ async def rugcharts_intel(
         avg_loss = sum(losses) / 14
         rs = avg_gain / avg_loss if avg_loss > 0 else 100
         rsi = 100 - (100 / (1 + rs))
-        # Bollinger Bands (20-period, 2 std dev)
         bb_mean = sma20
         bb_std = (sum((c - bb_mean) ** 2 for c in closes[-20:]) / 20) ** 0.5
         bb_upper = bb_mean + 2 * bb_std
         bb_lower = bb_mean - 2 * bb_std
-        # Volume trend
         vols = [c["volume"] for c in candles]
         vol_sma = sum(vols[-20:]) / 20
         vol_current = vols[-1] if vols else 0
@@ -684,17 +766,40 @@ async def rugcharts_intel(
                 }
             )
 
-    from datetime import UTC, datetime as dt
+    # ── Fuse into an intelligence brief via DataFusion ──
+    fused_risk = await fusion.fuse_token_risk(
+        additional=[
+            {
+                "source": "rugcharts",
+                "risk_score": rug_score["score"],
+                "risk_factors": [f["factor"] for f in rug_score["factors"]],
+                "confidence": 0.6 if rug_score["score"] > 0 else 0.2,
+            },
+            {
+                "source": "volume_authenticity",
+                "risk_score": 100 - vol_auth["authentic_score"],
+                "risk_factors": vol_auth["risk_flags"],
+                "confidence": 0.7 if vol_auth["authentic_score"] > 0 else 0.2,
+            },
+        ]
+    )
+    intel_brief = fusion.generate_intelligence_brief(fused_risk)
 
-    return {
-        "pair_info": pair_info,
-        "rug_score": rug_score,
-        "volume_authenticity": vol_auth,
-        "technical_analysis": ta,
-        "predictions": predictions,
-        "chain": chain,
-        "pair_address": pair_address,
-        "source": "geckoterminal+dexscreener",
-        "freshness": dt.now(UTC).isoformat(),
-        "fallback_used": not bool(pair_info),
-    }
+    return envelope(
+        data={
+            "pair_info": pair_info,
+            "rug_score": rug_score,
+            "volume_authenticity": vol_auth,
+            "technical_analysis": ta,
+            "predictions": predictions,
+            "intel_brief": intel_brief,
+            "chain": chain,
+            "pair_address": pair_address,
+            "fallback_used": not bool(pair_info),
+        },
+        source="geckoterminal+dexscreener+datafusion",
+        freshness=now.isoformat(),
+        cache_ttl=300,
+        fallback_used=not bool(pair_info),
+        confidence=fused_risk.get("confidence", 0.3),
+    )

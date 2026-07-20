@@ -1,6 +1,5 @@
 """Core scanner module — shared constants and helpers."""
 
-import time
 from typing import Any
 
 import httpx

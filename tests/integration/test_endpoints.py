@@ -18,6 +18,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 
+_AUTH = {"X-API-Key": "test-auth-token-32-chars-long!!"}
+
+
 class TestBulletin:
     """Tests for the bulletin board API."""
 
@@ -38,7 +41,7 @@ class TestBulletin:
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        resp = client.get("/api/v1/bulletin/")
+        resp = client.get("/api/v1/bulletin/", headers=_AUTH)
         assert resp.status_code in (200, 404)
         if resp.status_code == 200:
             body = resp.json()
@@ -65,7 +68,7 @@ class TestRugCharts:
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        resp = client.get("/api/v2/rugcharts/trending")
+        resp = client.get("/api/v2/rugcharts/trending", headers=_AUTH)
         assert resp.status_code in (200, 404)
         if resp.status_code == 200:
             body = resp.json()
@@ -93,7 +96,7 @@ class TestStatusPage:
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        resp = client.get("/status")
+        resp = client.get("/status", headers=_AUTH)
         assert resp.status_code in (200, 404)
         if resp.status_code == 200:
             body = resp.json()
@@ -109,7 +112,7 @@ class TestStatusPage:
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        resp = client.get("/api/v1/status")
+        resp = client.get("/api/v1/status", headers=_AUTH)
         assert resp.status_code in (200, 404)
         if resp.status_code == 200:
             body = resp.json()

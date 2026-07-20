@@ -3,21 +3,13 @@
 import time
 from typing import Any
 
-import httpx
-
 from app.domains.scanner.modules._core import (
-    logger,
     GOPLUS_CHAIN_IDS,
-    EXPLORER_APIS,
-    BLOCKSCOUT_URLS,
-    DEFILLAMA_API,
-    SOLANA_RPC_URLS,
-    SOLANA_RPC_TIMEOUT,
-    _solana_rpc_call,
     _fetch_json,
     _fetch_with_fallback,
+    _solana_rpc_call,
+    logger,
 )
-
 
 
 async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -114,7 +106,6 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
 
 
 # ── 4. Deployer Information ───────────────────────────────────────────
-
 
 
 async def _check_liquidity_lock_multi(
@@ -232,7 +223,6 @@ async def _check_liquidity_lock_multi(
 # ── 6. Copycat Detection ──────────────────────────────────────────────
 
 
-
 async def _check_lp_concentration(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check LP concentration — what % of LP is held by top wallets.
 
@@ -299,6 +289,3 @@ async def _check_lp_concentration(token_address: str, chain: str) -> dict[str, A
         result["error"] = str(e)[:60]
 
     return result
-
-
-# ── 14. Ownership Renounced Check ─────────────────────────────────────
