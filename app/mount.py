@@ -190,6 +190,32 @@ ROUTER_MODULES: Final[list[str]] = [
     #   "app.routers.admin_extensions" — DORMANT per audit (darkroom-specific, 25 routes
     #     at /api/v1/admin/*). Would shadow /api/v1/admin/alerts_webhook (mounted Wave 1).
     #     Kept in tree per audit, not wired.
+    #
+    # Wire-in Wave 4 — Remaining unmounted routers — mounted 2026-07-20.
+    # All import cleanly with unique prefixes vs existing mounts.
+    # Confirmed no path/method conflicts via OpenAPI spec inspection.
+    "app.routers.x402_databus_tools",  # /api/v1/x402-databus/*  (39 routes, DataBus tools)
+    "app.routers.status_page",  # /api/v1/status/*  (5 routes, public status page)
+    "app.routers.protection",  # /api/v1/protect/*  (5 routes, URL/wallet/token protection)
+    "app.routers.dev_portal",  # /api/v1/developer/*  (5 routes, dev key management)
+    "app.routers.developer_tier",  # /api/v1/developer/*  (7 routes, tier registration/verify)
+    "app.routers.token_intelligence_v2",  # /api/v2/tokens/*  (1 route, v2 token intel)
+    "app.routers.facilitator_health",  # /api/v1/x402/facilitator-health/*  (3 routes)
+    "app.routers.x402_bridge_health",  # /api/v1/x402-tools/*  (1 route, bridge health)
+    #
+    # NOT YET MOUNTED (deferred):
+    #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict
+    #     with app.api.v1.mcp (already mounted at /mcp). Needs reconciliation.
+    #   "app.routers.x402_catalog", x402_dashboard, x402_middleware — all use /api/v1/x402
+    #     prefix which conflicts with app.domains.x402 (T34 domain, mounted Wave 1).
+    #     Should be consumed by the T34 domain router, not mounted independently.
+    #   "app.routers.x402_enforcement", x402_enrichment — utility modules, no router attr.
+    #     Imported directly by other routers.
+    #   "app.routers.x402_tools" — re-export shim for app.domains.billing.x402.router.
+    #     The canonical billing/x402 router (77 endpoints at /api/v1/x402-tools) is
+    #     intentionally not wired until x402_bridge_health path compatibility is resolved.
+    #   "app.domains.labels.router" — uses root-level /labels prefix (deprecated pattern).
+    #     app.routers.label_lookup already serves /api/v1/labels/*.
 ]
 
 

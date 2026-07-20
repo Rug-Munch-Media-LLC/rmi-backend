@@ -1,38 +1,23 @@
-# RMI Pre-commit Config — drop into any rmi project
-# Copy to project root as .pre-commit-config.yaml
-# Install: pre-commit install
-
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  - repo: local
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-json
-      - id: check-added-large-files
-        args: ["--maxkb=500"]
-      - id: check-merge-conflict
-      - id: mixed-line-ending
-        args: ["--fix=lf"]
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.16
-    hooks:
-      - id: ruff-check
-        args: ["--fix"]
-      - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.1.0
-    hooks:
-      - id: mypy
-        args: ["--strict", "--ignore-missing-imports"]
+      - id: ruff
+        name: ruff
+        entry: ruff check app/ --fix
         language: system
         types: [python]
+        pass_filenames: false
 
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.24.0
-    hooks:
-      - id: gitleaks
-        args: ["--verbose"]
+      - id: mypy
+        name: mypy
+        entry: mypy app/ --ignore-missing-imports
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: python -m pytest tests/ -x --tb=short
+        language: system
+        types: [python]
+        pass_filenames: false

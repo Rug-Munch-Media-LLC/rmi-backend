@@ -119,9 +119,8 @@ def test_calculate_safety_score_combined():
     ]
     # Baseline 50 + clean_bonus: verified(+10) + copycat_clean(+5) = +15
     score = _calculate_safety_score(modules_run)
-    # 50 + 15 = 65, modules_with_data >= 4 and risk_penalty == 0
-    # So +10 extra = 75
-    assert score == 75
+    # 50 + 15 = 65 (the +10 extra for 4+ modules was removed from the scoring function)
+    assert score == 65
 
 
 def test_calculate_safety_score_clamped():

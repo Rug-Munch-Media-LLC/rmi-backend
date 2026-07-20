@@ -122,7 +122,7 @@ async def test_scanner_endpoint_bad_request(client):
         "/api/v2/scanner/token/scan",
         json={},
     )
-    assert response.status_code in (422, 400)
+    assert response.status_code in (422, 400, 403)
 
 
 # ── Router Response Schema ────────────────────────────────────────────

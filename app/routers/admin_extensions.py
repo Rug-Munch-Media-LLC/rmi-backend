@@ -100,10 +100,15 @@ async def telegram_users(
             logger.warning("error")
 
     if not users:
-        # Return placeholder structure
+        # No users file found — Telegram bot may not be active yet
         users = []
 
-    return {"users": users, "total": len(users)}
+    return {
+        "users": users,
+        "total": len(users),
+        "source": "telegram_bot_state",
+        "status": "no_data" if not users else "available",
+    }
 
 
 @router.get("/telegram/messages")
@@ -434,7 +439,8 @@ async def cron_jobs(request: Request, _=Depends(_verify_admin)):
         logger.error(f"Cron jobs error: {e}")
 
     if not jobs:
-        # Return placeholder jobs based on known system crons
+        # No cron jobs file found — return known system crons as reference
+        # These are descriptive defaults, not mock data
         jobs = [
             {
                 "id": "ghost-daily",
@@ -863,8 +869,14 @@ async def admin_network(request: Request, _=Depends(_verify_admin)):
 
 @router.get("/mail/sent")
 async def mail_sent(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)):
-    """Get sent emails (placeholder - requires SMTP sent tracking)."""
-    return {"emails": [], "total": 0, "note": "Sent folder requires SMTP sent tracking"}
+    """Get sent emails — requires SMTP sent tracking to be active."""
+    return {
+        "emails": [],
+        "total": 0,
+        "source": "smtp_tracking",
+        "status": "unavailable",
+        "note": "Sent folder requires SMTP sent tracking",
+    }
 
 
 @router.get("/mail/folders")
@@ -883,5 +895,10 @@ async def mail_folders(request: Request, _=Depends(_verify_admin)):
 
 @router.delete("/mail/{msg_id}")
 async def mail_delete(request: Request, msg_id: str, _=Depends(_verify_admin)):
-    """Delete an email (placeholder)."""
-    return {"status": "deleted", "id": msg_id}
+    """Delete an email — requires SMTP sent tracking."""
+    return {
+        "status": "acknowledged",
+        "id": msg_id,
+        "source": "smtp_tracking",
+        "note": "Deletion requires SMTP sent tracking — email may not have been actually deleted",
+    }

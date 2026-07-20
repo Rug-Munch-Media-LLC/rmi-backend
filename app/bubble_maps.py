@@ -31,7 +31,7 @@ OUR SOLUTIONS:
 import json
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 import httpx
@@ -39,6 +39,18 @@ import numpy as np
 
 from app.config import settings
 from app.core.logging import get_logger
+
+
+def _format_timestamp(ts: int | float | datetime | None) -> str | None:
+    """Format a timestamp to ISO string, handling both numeric and datetime types."""
+    if ts is None:
+        return None
+    if isinstance(ts, (int, float)):
+        return datetime.fromtimestamp(ts, tz=UTC).isoformat()
+    if isinstance(ts, datetime):
+        return ts.isoformat()
+    return str(ts)
+
 
 logger = get_logger(__name__)
 
@@ -463,10 +475,14 @@ class BubbleMapsPro:
 
         # Factor 3: Time consistency (regular intervals = higher score)
         if len(relevant_txs) >= 3:
-            timestamps = sorted([tx.get("timestamp") for tx in relevant_txs if tx.get("timestamp")])
+            raw_timestamps = [tx.get("timestamp") for tx in relevant_txs if tx.get("timestamp")]
+            # Normalize to numeric seconds (unix timestamps) for interval math
+            numeric_ts = [
+                ts.timestamp() if hasattr(ts, "timestamp") else float(ts) for ts in raw_timestamps
+            ]
+            timestamps = sorted(numeric_ts)
             intervals = [
-                (timestamps[i + 1] - timestamps[i]).total_seconds() / 3600
-                for i in range(len(timestamps) - 1)
+                (timestamps[i + 1] - timestamps[i]) / 3600 for i in range(len(timestamps) - 1)
             ]
             if intervals:
                 avg_interval = sum(intervals) / len(intervals)
@@ -584,9 +600,7 @@ class BubbleMapsPro:
                     "signature": transaction.get("signature"),
                     "amount": transaction.get("amount"),
                     "token": transaction.get("token"),
-                    "timestamp": transaction.get("timestamp").isoformat()
-                    if transaction.get("timestamp")
-                    else None,
+                    "timestamp": _format_timestamp(transaction.get("timestamp")),
                 }
             )
         else:
@@ -605,9 +619,7 @@ class BubbleMapsPro:
                         "signature": transaction.get("signature"),
                         "amount": transaction.get("amount"),
                         "token": transaction.get("token"),
-                        "timestamp": transaction.get("timestamp").isoformat()
-                        if transaction.get("timestamp")
-                        else None,
+                        "timestamp": _format_timestamp(transaction.get("timestamp")),
                     }
                 ],
             )

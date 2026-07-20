@@ -32,7 +32,15 @@ from typing import TYPE_CHECKING, Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.core.metrics import HEALTH_CHECK_DURATION, HEALTH_CHECK_STATUS
+try:
+    from app.core.metrics import HEALTH_CHECK_DURATION, HEALTH_CHECK_STATUS
+except (ImportError, ModuleNotFoundError):
+    # prometheus_client may not be installed — health endpoints must still work
+    _HAS_METRICS = False
+    HEALTH_CHECK_DURATION = None  # type: ignore[assignment]
+    HEALTH_CHECK_STATUS = None  # type: ignore[assignment]
+else:
+    _HAS_METRICS = True
 
 if TYPE_CHECKING:
     import httpx
@@ -175,19 +183,21 @@ _START_TIME = time.monotonic()
 
 
 async def _check_store(name: str, coro) -> dict[str, Any]:
-    """Run a health check and emit Prometheus metrics."""
+    """Run a health check and emit Prometheus metrics (if available)."""
     start = time.perf_counter()
     try:
         result = await asyncio.wait_for(coro, timeout=5.0)
         elapsed = time.perf_counter() - start
         healthy = result.get("healthy", False)
-        HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
-        HEALTH_CHECK_STATUS.labels(store=name).set(1 if healthy else 0)
+        if _HAS_METRICS:
+            HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
+            HEALTH_CHECK_STATUS.labels(store=name).set(1 if healthy else 0)
         return result
     except Exception as e:
         elapsed = time.perf_counter() - start
-        HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
-        HEALTH_CHECK_STATUS.labels(store=name).set(0)
+        if _HAS_METRICS:
+            HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
+            HEALTH_CHECK_STATUS.labels(store=name).set(0)
         return {"healthy": False, "error": str(e)[:200]}
 
 
