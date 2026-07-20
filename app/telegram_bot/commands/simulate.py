@@ -85,7 +85,7 @@ async def cmd_simulate(update, ctx):
                 f"🪙 <b>Tokens:</b> {tokens_received:,.4f}",
                 f"💵 <b>Price:</b> ${price:.8f}",
                 "",
-                f"📊 <b>Market Impact</b>",
+                "📊 <b>Market Impact</b>",
                 f"  📉 Price Impact: <b>{price_impact_pct:.2f}%</b>",
                 f"  ⚡ Est. Slippage: <b>{estimated_slippage:.2f}%</b>",
                 f"  💧 Liquidity Used: <b>${amount_usd:,.0f} / ${liquidity:,.0f}</b>",

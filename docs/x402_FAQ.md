@@ -68,7 +68,7 @@ No. DataBus handles provider selection automatically. You specify WHAT data you 
 | POST /defi-protocols | $0.01 | Protocol tracker |
 | POST /prediction-markets | $0.02 | Prediction market odds |
 | POST /prediction-signals | $0.02 | Trading signals |
-| POST /bubble-map | $0.02 | Holder concentration map |
+| POST /rugmap | $0.02 | Holder concentration map |
 | POST /rugmaps-analysis | $0.02 | Holder distribution |
 | POST /wallet-balance | $0.01 | Multi-chain wallet balance |
 | POST /wallet-labels | $0.02 | Wallet entity identification |

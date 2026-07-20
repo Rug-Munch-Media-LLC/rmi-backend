@@ -312,12 +312,12 @@ async def wallet_pnl(address: str, request: Request):
     return result
 
 
-@router.get("/bubble-map/{address}")
-async def bubble_map(address: str, request: Request, chain: str = "solana", depth: int = 2):
-    """Interactive holder bubble map."""
-    result = await databus.fetch("bubble_map", address=address, chain=chain, depth=depth)
+@router.get("/rugmap/{address}")
+async def rugmap(address: str, request: Request, chain: str = "solana", depth: int = 2):
+    """Interactive holder RugMap."""
+    result = await databus.fetch("rugmap", address=address, chain=chain, depth=depth)
     if result is None:
-        raise HTTPException(502, f"No bubble map data for {address}")
+        raise HTTPException(502, f"No RugMap data for {address}")
     return result
 
 
@@ -817,7 +817,7 @@ async def setup_webhook_endpoint(service: str, request: Request):
 
 @router.get("/premium/bundles/{address}")
 async def premium_bundle_detect(address: str, chain: str = "solana", request: Request = None):
-    """Bubblemaps-style bundle detection. Premium tier."""
+    """Bundle detection (RugMaps cluster analysis). Premium tier."""
     return await databus.fetch("bundle_detect", address=address, chain=chain)
 
 

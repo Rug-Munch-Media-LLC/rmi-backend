@@ -81,7 +81,7 @@ Universal DataBus endpoint. Pass `data_type` + parameters.
 | `/defi-protocols` | defi_protocols | $0.01 | DeFi protocol tracker |
 | `/prediction-markets` | prediction_markets | $0.02 | Prediction market odds |
 | `/prediction-signals` | prediction_signals | $0.02 | Trading signals |
-| `/bubble-map` | bubble_map | $0.02 | Holder concentration map |
+| `/rugmap` | rugmap | $0.02 | Holder concentration map |
 | `/rugmaps-analysis` | rugmaps_analysis | $0.02 | Holder distribution analysis |
 | `/wallet-balance` | wallet_balance | $0.01 | Multi-chain wallet balance |
 | `/wallet-labels` | wallet_labels | $0.02 | Wallet entity identification |

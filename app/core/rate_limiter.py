@@ -19,7 +19,6 @@ import hashlib
 import hmac
 import os
 import time as _time
-from collections import OrderedDict
 from enum import StrEnum
 from typing import Any
 
@@ -461,7 +460,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 # FastAPI Dependency
 # ═══════════════════════════════════════════════════════════════════════════
 
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 
 
 class RateLimitDependency:

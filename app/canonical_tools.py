@@ -89,7 +89,7 @@ CANONICAL_TOOL_PRICES = {
         "trial_free": 0,
         "description": "bridge_security",
     },
-    "bubble_map": {
+    "rugmap": {
         "price_usd": 0.02,
         "price_atoms": "20000",
         "category": "basic",

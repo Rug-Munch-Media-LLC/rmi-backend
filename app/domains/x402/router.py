@@ -12,9 +12,7 @@ Per v4.0 §T34 + AUDIT-2026-Q3 P1.3. Endpoints:
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field

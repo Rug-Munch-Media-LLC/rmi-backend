@@ -129,7 +129,22 @@ async def _fetch_with_fallback(
 
 
 async def _check_goplus_security(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check token security via GoPlus API (free, multi-chain)."""
+    """Check token security via GoPlus Security API (free, 21+ chains).
+
+    Evaluates risk flags: honeypot status, ownership renounced, hidden owner,
+    mintable, proxy, blacklist, buy/sell tax, and 15+ additional signals.
+
+    Args:
+        token_address: The token contract address to check
+        chain: Blockchain network (solana, ethereum, bsc, etc.)
+
+    Returns:
+        Dict with risk_score, is_honeypot, is_mintable, holder_count, buy/sell tax,
+        and other GoPlus fields. Returns error dict on failure.
+
+    Data Sources:
+        - GoPlus Security API (https://api.gopluslabs.io)
+    """
     chain_id = GOPLUS_CHAIN_IDS.get(chain, chain)
     url = f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}"
     try:
@@ -229,7 +244,22 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
 
 
 async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check if token is a honeypot using real on-chain + market analysis."""
+    """Check if token is a honeypot using on-chain bytecode + market analysis.
+
+    Delegates to the HoneypotDetector which analyzes sell restrictions, fee
+    logic, and transaction simulations to identify tokens that prevent selling.
+
+    Args:
+        token_address: The token contract address to check
+        chain: Blockchain network identifier
+
+    Returns:
+        Dict with risk_score (0-100), risk_label, is_honeypot flag, and
+        detailed findings including fee analysis and simulation results.
+
+    Data Sources:
+        - app.smart_contract_honeypot_detector.HoneypotDetector
+    """
     try:
         from app.smart_contract_honeypot_detector import HoneypotDetector
 
@@ -303,7 +333,23 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
 
 
 async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Get real holder data from chain RPC or DexScreener."""
+    """Get holder distribution data from chain RPC or DexScreener.
+
+    For Solana: uses getTokenLargestAccounts RPC for top holder addresses and amounts.
+    For EVM: uses DexScreener + Blockscout for holder counts and concentration.
+
+    Args:
+        token_address: Token contract address
+        chain: Blockchain network identifier
+
+    Returns:
+        Dict with holder_count, top_holders (ranked), concentration_pct,
+        and source identifier. concentration_pct reflects the top holder's share.
+
+    Data Sources:
+        - Solana: getTokenLargestAccounts RPC
+        - EVM: DexScreener API, Blockscout API
+    """
     result: dict[str, Any] = {
         "check": "holders",
         "result": "scanned",
@@ -383,7 +429,25 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
 
 
 async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Get deployer address and basic reputation."""
+    """Get deployer address and basic reputation score.
+
+    Resolves the contract creator via block explorer API (Etherscan, BscScan, etc.)
+    with DexScreener fallback. Scores deployer using behavioral fingerprint matching
+    from deployer_reputation module.
+
+    Args:
+        token_address: Token contract address
+        chain: Blockchain network identifier
+
+    Returns:
+        Dict with deployer_address, reputation_score (0-100), reputation_label,
+        signals found, and mitigations. Returns "unknown" deployer if not resolvable.
+
+    Data Sources:
+        - Block explorer APIs (Etherscan, BscScan, etc.)
+        - DexScreener API (fallback)
+        - app.deployer_reputation (behavioral fingerprint scoring)
+    """
     result: dict[str, Any] = {"check": "deployer", "result": "scanned"}
     deployer_addr = ""
 
@@ -449,7 +513,20 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
 
 
 async def _deep_deployer_check(deployer_addr: str, chain: str) -> dict[str, Any] | None:
-    """Deep check of deployer address using behavioral fingerprint matching."""
+    """Deep deployer analysis using behavioral fingerprint matching.
+
+    ELITE-tier check that performs advanced deployer risk assessment:
+    cross-chain activity, bytecode similarity to known scams, and
+    historical deployment pattern analysis.
+
+    Args:
+        deployer_addr: Deployer wallet address
+        chain: Blockchain network identifier
+
+    Returns:
+        Dict with deployer details, risk signals, and cross-chain findings.
+        Returns error dict if no deployer address is available.
+    """
     if not deployer_addr or deployer_addr == "unknown":
         return {"check": "deployer_deep", "result": "error", "error": "No deployer address"}
 
@@ -509,7 +586,25 @@ async def _deep_deployer_check(deployer_addr: str, chain: str) -> dict[str, Any]
 async def _check_liquidity_lock_multi(
     token_address: str, chain: str, pair_address: str = ""
 ) -> dict[str, Any] | None:
-    """Check liquidity lock status using DexScreener + on-chain data."""
+    """Check liquidity lock status using DexScreener + on-chain data.
+
+    Uses the HoneypotDetector for comprehensive liquidity analysis including
+    lock percentage, LP burn status, and pool age. Falls back to DexScreener
+    direct lookup if the detector is unavailable.
+
+    Args:
+        token_address: Token contract address
+        chain: Blockchain network identifier
+        pair_address: Optional specific DEX pair address
+
+    Returns:
+        Dict with liquidity_locked_pct, liquidity_usd, lp_burned flag,
+        pool_age_hours, and source identifier.
+
+    Data Sources:
+        - HoneypotDetector (primary)
+        - DexScreener API (fallback)
+    """
     result: dict[str, Any] = {
         "check": "liquidity",
         "result": "scanned",

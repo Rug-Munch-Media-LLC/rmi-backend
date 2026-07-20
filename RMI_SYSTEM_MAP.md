@@ -28,7 +28,7 @@
 │    POST /cross-chain → multi-chain correlation           │
 │                                                          │
 │  RUGMAPS ROUTER (8 endpoints)                            │
-│    GET  /analyze/{address} → bubble map generation       │
+│    GET  /analyze/{address} → RugMap generation       │
 │    GET  /health                                           │
 │                                                          │
 │  CROSS-TOKEN ROUTER (8 endpoints)                         │
@@ -264,13 +264,13 @@ Token/Address Input
 ├── cross_chain_correlator.py # Multi-chain entity resolution
 ├── wallet_clustering.py     # 7-method clustering engine
 ├── cluster_detection.py     # Cluster detection orchestrator
-├── bubble_maps.py           # RugMaps visualization engine
+├── rugmaps_engine.py           # RugMaps visualization engine
 ├── token_discovery.py       # New token scanning
 ├── rag_service.py           # RAG query service
 ├── routers/
 │   ├── wallet_clustering_router.py  # 14 endpoints
 │   ├── forensics_router.py          # 12 endpoints
-│   ├── bubble_maps_router.py        # 8 endpoints
+│   ├── rugmaps_router.py        # 8 endpoints
 │   ├── cross_token_router.py        # 8 endpoints
 │   ├── discovery_router.py          # 8 endpoints
 │   └── ... (admin, chat, x402, etc.)

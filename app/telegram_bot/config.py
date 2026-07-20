@@ -71,7 +71,6 @@ COINGECKO = "https://api.coingecko.com/api/v3"
 DEFILLAMA = "https://api.llama.fi"
 GOPLUS = "https://api.gopluslabs.com/api/v1"
 HONEYPOT = "https://api.honeypot.is/v2"
-BUBBLE_MAPS = "https://api.bubblemaps.io"
 DEXTOOLS = "https://public-api.dextools.io/trial/v2"
 
 # ══════════════════════════════════════════════
@@ -236,7 +235,7 @@ SCAN_PACKS = {
         "description": "Complete forensic analysis of ONE token",
         "includes": [
             "Price history",
-            "Holder bubble map",
+            "Holder RugMap",
             "Wallet clusters",
             "Scam indicators",
             "AI prediction",

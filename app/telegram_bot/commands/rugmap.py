@@ -72,7 +72,7 @@ async def cmd_rugmap(update, ctx):
         lines = [
             f"🕸️ <b>RugMap: {name} ({symbol})</b>",
             "",
-            f"<b>Cluster Analysis</b>",
+            "<b>Cluster Analysis</b>",
         ]
 
         if bundle_detected:

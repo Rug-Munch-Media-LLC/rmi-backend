@@ -172,7 +172,7 @@ def _r():
         password=REDIS_PASSWORD,
         decode_responses=True,
         socket_connect_timeout=2,
-    )
+)
 
 
 async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
@@ -206,7 +206,7 @@ async def enrich_with_arkham(address: str) -> dict | None:
             r = await c.get(
                 f"https://api.arkhamintelligence.com/intelligence/address/{address}",
                 headers={"API-Key": arkham_key},
-            )
+)
             if r.status_code == 200:
                 data = r.json()
                 return {
@@ -254,7 +254,7 @@ async def enrich_response(result: dict, address: str, chain: str) -> dict:
             "DANGER",
             "CRITICAL",
             "HIGH",
-        ):
+):
             enriched["risk_band"] = "SAFE"
             enriched["risk_level"] = "LOW"
             enriched["risk_color"] = "#00FF88"
@@ -264,7 +264,7 @@ async def enrich_response(result: dict, address: str, chain: str) -> dict:
         enriched["address_type"] = "wallet"
         enriched["wallet_note"] = (
             "This is a wallet address, not a token contract. Token-specific checks may not apply."
-        )
+)
     else:
         enriched["address_type"] = "token"
 
@@ -349,7 +349,7 @@ TIER_DEFINITIONS = {
             "arkham_labels",
         ],
         "description": "Full RugCharts: fake volume %, security scans, entity intel, rug patterns",
-        "competitor_equivalent": "Nansen Pro ($2,500/mo) + BubbleMaps + GoPlus + Arkham",
+        "competitor_equivalent": "Nansen Pro ($2,500/mo) + GoPlus + Arkham",
     },
     "admin": {
         "name": "Admin",
@@ -593,7 +593,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
                 "CRITICAL",
                 "HIGH",
                 "DANGER",
-            ):
+):
                 base_report["overall_risk"]["level"] = "LOW"
                 base_report["overall_risk"]["color"] = "#88FF00"
 
@@ -622,7 +622,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
     # ── Data Quality Score ──
     sections_with_data = sum(
         1 for s in base_report.get("sections", {}).values() if s and not s.get("error")
-    )
+)
     base_report["data_quality"] = {
         "score": min(100, sections_with_data * 15),
         "level": "EXCELLENT"

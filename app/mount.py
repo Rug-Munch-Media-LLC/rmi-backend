@@ -155,7 +155,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.lp_health",  # /api/v1/lp-health/*  (5 routes, LP monitor)
     "app.routers.ai_stream",  # /api/v1/ai/*  (3 routes, SSE infra)
     "app.routers.rugcharts",  # /api/v1/rugcharts/*  (3 routes, RugCharts backend)
-    "app.routers.bubble_maps_router",  # /api/v1/rugmaps/*  (7 routes, RugMaps viz)
+    "app.routers.rugmaps_router",  # /api/v1/rugmaps/*  (7 routes, RugMaps viz)
     "app.routers.mev_advisory",  # /api/v1/mev-advisory/*  (2 routes, MEV warning)
     "app.routers.impersonation_detector",  # /api/v1/impersonation/*  (1 route, forensics)
     "app.routers.rug_recovery",  # /api/v1/rug-recovery/*  (2 routes, recovery indexer)

@@ -786,7 +786,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         chains["bundle_detect"] = ProviderChain(
             "bundle_detect",
-            description="Coordinated wallet bundle detection (Bubblemaps-style cluster analysis)",
+            description="Coordinated wallet bundle detection (RugMaps-style cluster analysis)",
             providers=[_premium_provider("bundle_scanner", detect_bundles)],
         )
 

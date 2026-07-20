@@ -1,31 +1,18 @@
 """
-Bubble Maps Pro - Next-Generation Wallet Visualization
-=======================================================
-What competitors do wrong and how we fix it:
+RugMaps Engine — interactive wallet visualization for investigation reports.
 
-BUBBLEMAPS.COM PROBLEMS:
-1. Static images - not interactive
-2. Slow to load - server-rendered
-3. Limited depth - only 2 hops
-4. No real-time updates
-5. Can't filter by time/amount
-6. No transaction details on click
-7. Expensive - $250/month
-8. No export options
-9. Can't save/share maps
-10. No API access
+Self-contained D3.js-powered engine for generating interactive wallet
+connection graphs, fund-flow diagrams, and cluster relationship maps.
+Used across scan results and RugMaps product pages.
 
-OUR SOLUTIONS:
-✅ Fully interactive D3.js (pan, zoom, drag)
-✅ Client-side rendering - instant load
-✅ Configurable depth (1-5 hops)
-✅ Real-time WebSocket updates
-✅ Time/amount filters
-✅ Rich tooltips with tx details
-✅ Affordable pricing
-✅ PNG/SVG/JSON export
-✅ Save, share, embed maps
-✅ Full API access
+Features:
+  - Interactive D3.js rendering (pan, zoom, drag)
+  - Client-side rendering for instant load
+  - Configurable depth (1–5 hops)
+  - Real-time WebSocket updates
+  - Time/amount filters with rich tooltips
+  - PNG/SVG/JSON export
+  - Save, share, embed capabilities
 """
 
 import json

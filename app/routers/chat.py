@@ -26,7 +26,7 @@ from typing import Any
 
 import httpx
 import redis.asyncio as redis
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request
 
 from app.core.errors import AuthorizationError, ExternalAPIError
 from fastapi.responses import StreamingResponse

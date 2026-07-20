@@ -10,7 +10,7 @@ But it can power DOZENS of downstream analyses without re-fetching.
 
 Example: User scans token 0xDEAD...BEEF
   → 1 API call fetches: price, liquidity, holders, contract bytecode
-  → Powers: risk scan, holder analysis, bubble map, contract audit,
+  → Powers: risk scan, holder analysis, RugMap, contract audit,
     funding trace, social sentiment, whale tracking, cross-chain check
   → All from one scan input, shared across the DataBus cache
 
@@ -27,7 +27,7 @@ COMPETITIVE ANALYSIS (June 2026)
 | Arkham          | Limited views         | $99/mo             | $999/mo            |
 | Nansen          | Basic dashboard      | $150/mo (Vital)    | $1,000/mo (Onchain)|
 | DexScreener     | Free basic           | —                  | Custom             |
-| Bubblemaps      | Free V2              | $29/mo pro         | B2B custom         |
+| RugMaps      | Free V2              | $29/mo pro         | B2B custom         |
 | TokenSniffer    | Free basic           | $99/mo (SnifferPro)| Custom             |
 | Honeypot.is     | Free basic           | —                  | —                  |
 | Chainalysis KYT | None                 | —                  | $50K+/yr           |
@@ -55,7 +55,7 @@ FREE TIER (Anonymous / Fingerprint)
 SCOUT PACK — $4.99 (25 scan credits)
   - 25 scan credits, each = ONE address scanned
   - Each scan unlocks EVERY tool for that address for 24 hours
-  - Includes: risk scan, holder analysis, bubble map, funding trace,
+  - Includes: risk scan, holder analysis, RugMap, funding trace,
     contract audit, whale tracking, social sentiment, cross-chain
   - Smart money queries: 10 per pack
   - Market overview: unlimited
@@ -171,7 +171,7 @@ x402 Tool Pricing (per-call, no pack):
   - pulse: Free (loss leader)
   - risk_scan: $0.05
   - holder_analysis: $0.08
-  - bubble_map: $0.10
+  - rugmap: $0.10
   - contract_audit: $0.15
   - funding_trace: $0.08
   - whale_watch: $0.12

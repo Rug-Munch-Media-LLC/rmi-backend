@@ -59,7 +59,7 @@ async def cmd_chart(update, ctx):
                 f"📊 <b>{name} ({symbol})</b>",
                 f"💰 <b>Price:</b> ${price:.8f}",
                 "",
-                f"<b>Price Change</b>",
+                "<b>Price Change</b>",
                 f"  {trend_1h} 1h:  <b>{change_1h:+.2f}%</b>",
                 f"  {trend_24h} 24h: <b>{change_24h:+.2f}%</b>",
                 f"  {trend_7d} 7d:  <b>{change_7d:+.2f}%</b>",
