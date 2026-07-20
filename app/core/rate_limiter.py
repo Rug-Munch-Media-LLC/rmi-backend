@@ -656,8 +656,9 @@ def check_rate_limit(user_id: str, endpoint: str) -> bool:
         pipe.expire(day_key, 86400)
         pipe.execute()
         return True
-    except Exception:
-        return True
+    except Exception as e:
+        logger.error("rate_limiter_error: %s — failing closed (rejecting request)", e)
+        return False
 
 
 @router.get("/tiers")

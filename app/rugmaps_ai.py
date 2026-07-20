@@ -79,7 +79,8 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
         for addr in addresses[:50]:
             try:
                 info = await bm._get_entity_info(addr)
-                risk, level = await bm._calculate_risk(addr)
+                txs = await bm._get_transactions(addr)
+                risk, level = bm._calculate_risk(txs, node_count=1)
                 labels[addr] = {
                     "entity": info or {},
                     "risk_score": risk,

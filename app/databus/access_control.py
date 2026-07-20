@@ -643,8 +643,9 @@ class AccessController:
         if x402_tier:
             return ConsumerType.X402_PAID
 
-        # Admin key
-        if admin_key == os.getenv("ADMIN_API_KEY", ""):
+        # Admin key — only match when ADMIN_API_KEY is actually configured
+        configured_admin_key = os.getenv("ADMIN_API_KEY", "")
+        if configured_admin_key and admin_key == configured_admin_key:
             return ConsumerType.ADMIN
 
         # Auth header check

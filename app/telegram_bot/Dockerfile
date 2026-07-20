@@ -9,10 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends     curl ca-cer
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy bot code
-COPY bot.py .
-COPY config.py .
-COPY db.py .
+# Copy all bot code (bot.py, config.py, db.py, commands/, etc.)
+COPY . .
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app

@@ -248,12 +248,17 @@ async def get_revenue(request: Any = None) -> JSONResponse:
     _ensure_pay_addresses()
     if request:
         admin_key = os.getenv("ADMIN_API_KEY", "")
-        if admin_key:
-            auth = request.headers.get("X-API-Key", "") or request.headers.get(
-                "Authorization", ""
-            ).replace("Bearer ", "")
-            if auth != admin_key:
-                return JSONResponse(status_code=403, content={"error": "Admin API key required"})
+        if not admin_key:
+            logger.critical("ADMIN_API_KEY not configured — revenue endpoint disabled")
+            return JSONResponse(
+                status_code=503, content={"error": "Service misconfigured — ADMIN_API_KEY not set"}
+            )
+        auth = request.headers.get("X-API-Key", "") or request.headers.get(
+            "Authorization", ""
+        ).replace("Bearer ", "")
+        if auth != admin_key:
+            logger.warning("admin_auth_failed: invalid key on /revenue")
+            return JSONResponse(status_code=403, content={"error": "Admin API key required"})
     r = get_redis()
     if not r:
         return JSONResponse(

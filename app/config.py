@@ -63,8 +63,34 @@ class Settings(BaseSettings):
     )
     jwt_expire_minutes: int = 60 * 24
 
+    # API key for X-API-Key header authentication
+    rmi_auth_token: str = Field(
+        default="",
+        description=(
+            "Shared secret for X-API-Key header authentication. "
+            "Must be set in production. Generate with: openssl rand -hex 32. "
+            "Set via RMI_AUTH_TOKEN env var or .env file."
+        ),
+    )
+
+    # Dev bypass flag — must be explicitly set to bypass auth in dev
+    dev_bypass_auth: bool = Field(
+        default=False,
+        description=(
+            "Explicitly opt in to bypass authentication in development mode. "
+            "Set DEV_BYPASS_AUTH=true in .env. NEVER set in production."
+        ),
+    )
+
     # ── CORS ────────────────────────────────────────────────────────
-    cors_origins: list[str] = ["*"]
+    cors_origins: list[str] = Field(
+        default=[],
+        description=(
+            "List of allowed CORS origins. Must be set explicitly. "
+            "In production, empty list or ['*'] will raise an error. "
+            "Example: ['https://app.rugmunch.io', 'https://rugmunch.io']"
+        ),
+    )
 
     # ── Rate limiting ───────────────────────────────────────────────
     rate_limit_per_minute: int = 100
@@ -84,6 +110,10 @@ class Settings(BaseSettings):
     etherscan_api_key: str = ""
     birdeye_api_key: str = ""
     goplus_api_key: str = ""
+    helius_api_key: str = Field(
+        default="",
+        description="Helius API key for Solana RPC access. Set via HELIUS_API_KEY env var.",
+    )
 
     # ── RMI-specific ────────────────────────────────────────────────
     rag_collections: list[str] = [
@@ -93,6 +123,25 @@ class Settings(BaseSettings):
         "contract_audit",
         "phishing_db",
     ]
+
+    @field_validator("cors_origins")
+    @classmethod
+    def _cors_origins_must_be_safe(cls, v: list[str]) -> list[str]:
+        """Reject dangerous CORS configurations.
+
+        In production, empty or wildcard origins are not allowed.
+        In dev/staging, warn but allow (for local development convenience).
+        """
+        env = os.getenv("ENVIRONMENT", "dev")
+        if v == ["*"] or not v:
+            if env == "prod":
+                raise ValueError(
+                    "cors_origins must be an explicit non-empty list of origins in production. "
+                    "Set CORS_ORIGINS env var, e.g. "
+                    'CORS_ORIGINS=\'["https://app.rugmunch.io","https://rugmunch.io"]\'. '
+                    "Wildcard '*' and empty list are rejected in production."
+                )
+        return v
 
     @field_validator("jwt_secret")
     @classmethod

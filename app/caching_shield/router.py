@@ -22,7 +22,9 @@ from app.caching_shield.history_depth import get_history_controller
 from app.caching_shield.rate_limiter import get_rate_limiter
 from app.caching_shield.rpc_cache import get_rpc_cache
 from app.caching_shield.ws_broadcaster import get_ws_manager
+from app.core.logging import get_logger
 
+logger = get_logger("caching_shield.router")
 router = APIRouter(prefix="/api/v1/cache", tags=["caching-shield"])
 
 
@@ -30,9 +32,14 @@ def _verify_admin(request: Request) -> bool:
     """Verify admin key for destructive operations."""
     admin_key = os.getenv("ADMIN_API_KEY", "")
     if not admin_key:
-        return True  # No key configured, allow from localhost
+        # CRITICAL: Do NOT fall open. Reject all admin requests.
+        logger.critical("ADMIN_API_KEY not configured — admin endpoints disabled")
+        return False
     provided = request.headers.get("X-Admin-Key", "")
-    return provided == admin_key
+    if provided != admin_key:
+        logger.warning("admin_auth_failed: invalid X-Admin-Key")
+        return False
+    return True
 
 
 @router.get("/health")

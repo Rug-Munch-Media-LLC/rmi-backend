@@ -34,6 +34,7 @@ def register_middleware(app: FastAPI) -> None:
     """Register all middleware. Each registration is isolated."""
     _try_register_request_id(app)
     _try_register_cors(app)
+    _try_register_auth(app)
     _try_register_security_headers(app)
     _try_register_prometheus(app)
     _try_register_cost_tracking(app)
@@ -196,11 +197,13 @@ def _try_register_cors(app: FastAPI) -> None:
         from app.config import settings
 
         # Validate CORS origins in production
-        if settings.environment == "prod" and settings.cors_origins == ["*"]:
-            raise RuntimeError(
-                "CORS_ORIGINS cannot be ['*'] in production. "
-                "Set CORS_ORIGINS to a specific list of allowed origins."
-            )
+        if settings.environment == "prod":
+            if not settings.cors_origins or settings.cors_origins == ["*"]:
+                raise RuntimeError(
+                    "CORS_ORIGINS cannot be empty or ['*'] in production. "
+                    "Set CORS_ORIGINS to a specific list of allowed origins, e.g. "
+                    "CORS_ORIGINS='[\"https://app.rugmunch.io\"]'."
+                )
 
         app.add_middleware(
             CORSMiddleware,
@@ -218,6 +221,17 @@ def _try_register_cors(app: FastAPI) -> None:
         log.info("middleware_registered name=cors")
     except Exception as exc:
         log.warning("middleware_skipped name=cors err=%s", exc)
+
+
+def _try_register_auth(app: FastAPI) -> None:
+    """API key authentication via X-API-Key header."""
+    try:
+        from app.core.auth import AuthMiddleware
+
+        app.add_middleware(AuthMiddleware)
+        log.info("middleware_registered name=auth")
+    except Exception as exc:
+        log.warning("middleware_skipped name=auth err=%s", exc)
 
 
 def _try_register_security_headers(app: FastAPI) -> None:

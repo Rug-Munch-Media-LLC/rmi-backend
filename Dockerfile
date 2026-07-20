@@ -29,7 +29,7 @@ COPY . .
 
 # Health check (uses /live for liveness, not /ready)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD curl -f http://localhost:8000/live || exit 1
+    CMD curl -f http://localhost:8000/ || exit 1
 
 # Security: run as non-root user
 RUN groupadd -r rmi && useradd -r -g rmi -s /bin/false rmi && chown -R rmi:rmi /app

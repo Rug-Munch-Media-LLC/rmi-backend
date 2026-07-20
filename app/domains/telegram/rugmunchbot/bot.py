@@ -77,6 +77,46 @@ from config import (
     threat_indicator,
 )
 
+# ── Command module imports ──
+from commands.chart import cmd_chart
+from commands.portfolio import cmd_portfolio
+from commands.simulate import cmd_simulate
+from commands.smartmoney import cmd_smartmoney
+from commands.rugmap import cmd_rugmap
+
+# ══════════════════════════════════════════════
+# SOL PRICE CACHE
+# ══════════════════════════════════════════════
+_sol_price: float = 150.0  # fallback
+_sol_price_ts: float = 0
+
+
+async def _get_sol_price() -> float:
+    """Fetch current SOL/USD price from Jupiter API (free, no auth needed)."""
+    global _sol_price, _sol_price_ts
+    now = time.time()
+    if now - _sol_price_ts < 300:  # cache for 5 minutes
+        return _sol_price
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(
+                "https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112"
+            )
+            if r.status_code == 200:
+                data = r.json()
+                price_str = (
+                    data.get("data", {})
+                    .get("So11111111111111111111111111111111111111112", {})
+                    .get("price")
+                )
+                if price_str:
+                    _sol_price = float(price_str)
+                    _sol_price_ts = now
+    except Exception:
+        pass
+    return _sol_price
+
+
 # ══════════════════════════════════════════════
 # LOGGING
 # ══════════════════════════════════════════════
@@ -596,7 +636,8 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
                 r = await client.get(f"https://api.solana.fm/v0/accounts/{address}")
                 if r.status_code == 200:
                     data = r.json()
-                    result["balance_usd"] = float(data.get("balance", 0)) / 1e9 * 150
+                    sol_price = await _get_sol_price()
+                    result["balance_usd"] = float(data.get("balance", 0)) / 1e9 * sol_price
                     result["tx_count"] = data.get("transaction_count", 0)
             except Exception as e:
                 result["errors"].append(f"Solana.fm: {e}")
@@ -835,10 +876,15 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"🔍 <b>TOKEN ANALYSIS</b>\n{d}\n"
         f"/scan <code>address</code> - Full security scan\n"
         f"/ta <code>address</code> - Technical analysis & signals\n"
+        f"/chart <code>address</code> - Price chart & trends\n"
+        f"/simulate <code>address</code> [amount] - Buy/sell simulation\n"
         f"/compare <code>addr1</code> <code>addr2</code> - Side-by-side\n"
         f"/quick <code>symbol</code> - Quick price check (same as $TOKEN)\n\n"
         f"👛 <b>WALLET INTELLIGENCE</b>\n{d}\n"
         f"/wallet <code>address</code> - Forensic wallet analysis\n"
+        f"/portfolio <code>address</code> - Wallet portfolio scanner\n"
+        f"/smartmoney <code>address</code> - Smart money detection\n"
+        f"/rugmap <code>address</code> - Wallet cluster visualization\n"
         f"/watch <code>address</code> [chain] - Add to watchlist\n"
         f"/unwatch <code>address</code> - Remove from watchlist\n"
         f"/watchlist - View your watchlist\n"
@@ -2105,6 +2151,11 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("topup", "Buy extra scans (no expiry)"),
             BotCommand("refer", "Invite friends, earn scans"),
             BotCommand("scamschool", "Learn about crypto scams"),
+            BotCommand("chart", "Price chart for any token"),
+            BotCommand("portfolio", "Scan wallet token holdings"),
+            BotCommand("simulate", "Simulate buy/sell trade"),
+            BotCommand("smartmoney", "Detect smart money wallets"),
+            BotCommand("rugmap", "Wallet cluster visualization"),
             BotCommand("news", "Latest crypto news"),
         ]
         await bot.set_my_commands(commands)
@@ -2166,6 +2217,13 @@ def main() -> None:
     app.add_handler(CommandHandler("watch", cmd_watch))
     app.add_handler(CommandHandler("unwatch", cmd_unwatch))
     app.add_handler(CommandHandler("alerts", cmd_alerts))
+
+    # ── Newly Wired Commands ──
+    app.add_handler(CommandHandler("chart", cmd_chart))
+    app.add_handler(CommandHandler("portfolio", cmd_portfolio))
+    app.add_handler(CommandHandler("simulate", cmd_simulate))
+    app.add_handler(CommandHandler("smartmoney", cmd_smartmoney))
+    app.add_handler(CommandHandler("rugmap", cmd_rugmap))
 
     # ── Owner Commands ──
     app.add_handler(CommandHandler("admin_stats", cmd_admin_stats))
@@ -2260,6 +2318,11 @@ _HANDLER_REGISTRY = [
     ("watch", cmd_watch),
     ("unwatch", cmd_unwatch),
     ("alerts", cmd_alerts),
+    ("chart", cmd_chart),
+    ("portfolio", cmd_portfolio),
+    ("simulate", cmd_simulate),
+    ("smartmoney", cmd_smartmoney),
+    ("rugmap", cmd_rugmap),
     ("admin_stats", cmd_admin_stats),
     ("admin_set_tier", cmd_admin_set_tier),
     ("admin_broadcast", cmd_admin_broadcast),
@@ -2278,15 +2341,21 @@ __all__ = [
     "cmd_admin_set_tier",
     "cmd_admin_stats",
     "cmd_alerts",
+    "cmd_chart",
     "cmd_compare",
+    "cmd_help",
+    "cmd_portfolio",
     "cmd_help",
     "cmd_news",
     "cmd_pricing",
     "cmd_quick",
     "cmd_refer",
     "cmd_rugcheck",
+    "cmd_rugmap",
     "cmd_scamschool",
     "cmd_scan",
+    "cmd_simulate",
+    "cmd_smartmoney",
     "cmd_start",
     "cmd_ta",
     "cmd_topup",
