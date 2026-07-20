@@ -14,8 +14,8 @@ dev: ## Start dev server
 build: ## Build Docker image
 	docker build -t rmi-backend .
 
-lint: ## Lint with ruff
-	ruff check app/
+lint: ## Lint with ruff (error/flynt/bug/sim/async rules)
+	ruff check app/ --select=E,F,B,SIM,ASYNC --ignore=S104,S311
 
 format: ## Format with ruff (writes)
 	ruff format app/ tests/
@@ -28,19 +28,19 @@ check: ## Full check: lint + format + typecheck + test
 	ruff check app/ tests/
 	ruff format --check app/ tests/
 	mypy app/ --ignore-missing-imports
-	pytest tests/ -x -q -m "not integration"
+	python3 -m pytest tests/ -x -q -m "not integration"
 
 typecheck: ## MyPy type check
 	mypy app/ --ignore-missing-imports --check-untyped-defs
 
 test: ## Run tests with coverage
-	python -m pytest tests/ -v --tb=short --cov=app --cov-report=term
+	python3 -m pytest tests/ -v --tb=short --cov=app --cov-report=term
 
 test-all: ## Run ALL tests including integration
-	pytest tests/ -q
+	python3 -m pytest tests/ -q
 
 test-ci: ## Tests with coverage (CI gate)
-	python -m pytest tests/ -v --tb=short --cov=app.domains.scanner --cov=app --cov-report=term --cov-fail-under=15
+	python3 -m pytest tests/ -v --tb=short --cov=app.domains.scanner --cov=app --cov-report=term --cov-fail-under=15
 
 security: ## Security audit with bandit
 	bandit -r app/ -ll
@@ -49,7 +49,7 @@ ci: ## Full CI pipeline
 	ruff check app/ tests/
 	ruff format --check app/ tests/
 	mypy app/ --ignore-missing-imports
-	pytest tests/ -x -q -m "not integration"
+	python3 -m pytest tests/ -x -q -m "not integration"
 
 clean: ## Remove build artifacts
 	rm -rf dist build *.egg-info .pytest_cache .mypy_cache .ruff_cache

@@ -1,7 +1,7 @@
-"""Tests for BubbleMapsPro with mocked Helius RPC responses.
+"""Tests for RugMapsEngine with mocked Helius RPC responses.
 
 Covers:
-- BubbleMap and BubbleNode dataclass defaults
+- RugMapData and RugMapNode dataclass defaults
 - Generate map with mocked transactions
 - Connection strength calculation
 - Wallet classification
@@ -18,14 +18,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 
-# ── BubbleNode ─────────────────────────────────────────────────────────
+# ── RugMapNode ─────────────────────────────────────────────────────────
 
 
-def test_bubble_node_defaults():
-    """BubbleNode has correct default values."""
-    from app.bubble_maps import BubbleNode
+def test_rugmap_node_defaults():
+    """RugMapNode has correct default values."""
+    from app.rugmaps_engine import RugMapNode
 
-    node = BubbleNode(id="node1", address="0xabc", type="center")
+    node = RugMapNode(id="node1", address="0xabc", type="center")
 
     assert node.id == "node1"
     assert node.address == "0xabc"
@@ -39,10 +39,10 @@ def test_bubble_node_defaults():
 
 
 def test_bubble_node_to_dict():
-    """BubbleNode.to_dict() returns expected keys."""
-    from app.bubble_maps import BubbleNode
+    """RugMapNode.to_dict() returns expected keys."""
+    from app.rugmaps_engine import RugMapNode
 
-    node = BubbleNode(id="n1", address="0xabc", type="exchange", radius=30.0, color="#4dabf7")
+    node = RugMapNode(id="n1", address="0xabc", type="exchange", radius=30.0, color="#4dabf7")
     d = node.to_dict()
 
     assert d["id"] == "n1"
@@ -53,14 +53,14 @@ def test_bubble_node_to_dict():
     assert "risk_score" in d
 
 
-# ── BubbleLink ─────────────────────────────────────────────────────────
+# ── RugMapLink ─────────────────────────────────────────────────────────
 
 
-def test_bubble_link_defaults():
-    """BubbleLink has correct default values."""
-    from app.bubble_maps import BubbleLink
+def test_rugmap_link_defaults():
+    """RugMapLink has correct default values."""
+    from app.rugmaps_engine import RugMapLink
 
-    link = BubbleLink(source="src", target="tgt")
+    link = RugMapLink(source="src", target="tgt")
 
     assert link.source == "src"
     assert link.target == "tgt"
@@ -72,10 +72,10 @@ def test_bubble_link_defaults():
 
 
 def test_bubble_link_to_dict():
-    """BubbleLink.to_dict() returns expected keys."""
-    from app.bubble_maps import BubbleLink
+    """RugMapLink.to_dict() returns expected keys."""
+    from app.rugmaps_engine import RugMapLink
 
-    link = BubbleLink(source="a", target="b", strength=0.8, width=5.0, total_volume=1000.0)
+    link = RugMapLink(source="a", target="b", strength=0.8, width=5.0, total_volume=1000.0)
     d = link.to_dict()
 
     assert d["source"] == "a"
@@ -85,19 +85,19 @@ def test_bubble_link_to_dict():
     assert d["volume"] == 1000.0
 
 
-# ── BubbleMap ──────────────────────────────────────────────────────────
+# ── RugMapData ──────────────────────────────────────────────────────────
 
 
-def test_bubble_map_to_dict():
-    """BubbleMap.to_dict() returns complete structure."""
+def test_rugmap_to_dict():
+    """RugMapData.to_dict() returns complete structure."""
     from datetime import datetime
 
-    from app.bubble_maps import BubbleLink, BubbleMap, BubbleNode
+    from app.rugmaps_engine import RugMapLink, RugMapData, RugMapNode
 
     now = datetime.now(UTC)
-    bm = BubbleMap(map_id="test_map", center_wallet="0xcenter", created_at=now)
-    bm.nodes.append(BubbleNode(id="n1", address="0xcenter", type="center"))
-    bm.links.append(BubbleLink(source="n1", target="n2", strength=0.5))
+    bm = RugMapData(map_id="test_map", center_wallet="0xcenter", created_at=now)
+    bm.nodes.append(RugMapNode(id="n1", address="0xcenter", type="center"))
+    bm.links.append(RugMapLink(source="n1", target="n2", strength=0.5))
     bm.total_volume = 50000.0
     bm.total_transactions = 100
 
@@ -117,10 +117,10 @@ def test_bubble_map_to_dict():
 
 @pytest.fixture
 def bubble_pro():
-    """Create a BubbleMapsPro instance with clean caches."""
-    from app.bubble_maps import BubbleMapsPro
+    """Create a RugMapsEngine instance with clean caches."""
+    from app.rugmaps_engine import RugMapsEngine
 
-    bp = BubbleMapsPro()
+    bp = RugMapsEngine()
     bp.transaction_cache = {}
     bp.entity_cache = {}
     return bp
@@ -381,13 +381,13 @@ async def test_get_transactions_with_time_range(bubble_pro):
 
 def test_calculate_stats(bubble_pro):
     """Stats are computed correctly from map data."""
-    from app.bubble_maps import BubbleLink, BubbleMap, BubbleNode
+    from app.rugmaps_engine import RugMapLink, RugMapData, RugMapNode
 
     now = datetime.now(UTC)
-    bm = BubbleMap(map_id="test", center_wallet="0xcenter", created_at=now)
-    bm.nodes.append(BubbleNode(id="n1", address="0xa", type="center"))
-    bm.nodes.append(BubbleNode(id="n2", address="0xb", type="wallet"))
-    bm.links.append(BubbleLink(source="n1", target="n2", total_volume=1000.0, transaction_count=5))
+    bm = RugMapData(map_id="test", center_wallet="0xcenter", created_at=now)
+    bm.nodes.append(RugMapNode(id="n1", address="0xa", type="center"))
+    bm.nodes.append(RugMapNode(id="n2", address="0xb", type="wallet"))
+    bm.links.append(RugMapLink(source="n1", target="n2", total_volume=1000.0, transaction_count=5))
 
     bubble_pro._calculate_stats(bm)
 

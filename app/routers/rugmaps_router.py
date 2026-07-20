@@ -1,6 +1,6 @@
 """
 RugMaps API Router - RMI's interactive wallet visualization.
-Self-contained engine, no BubbleMaps.com API dependency.
+Self-contained engine, no RugMaps - no external API dependency.
 Connects to /api/v1/rugmaps/*
 """
 
@@ -22,9 +22,9 @@ class RugMapsRequest(BaseModel):
 
 def _get_rm():
     try:
-        from app.bubble_maps import get_bubble_maps_pro
+        from app.domains.scanner.rugmaps_engine import get_rugmaps_engine
 
-        return get_bubble_maps_pro()
+        return get_rugmaps_engine()
     except ImportError as e:
         raise HTTPException(status_code=503, detail=f"Module unavailable: {e}") from e
 
@@ -108,7 +108,7 @@ async def token_holder_graph(
 
     rm = _get_rm()
 
-    # Get the bubble map concurrently with other data fetches
+    # Get the RugMap concurrently with other data fetches
     try:
         result = await rm.generate_map(center_wallet=token_address, depth=3, min_strength=0.05)
         d = result.to_dict()

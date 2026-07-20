@@ -126,7 +126,7 @@ X402_TOOL_PRICING = {
         "trial_free": 3,
         "description": "Trading signals - sentiment, momentum, and contrarian indicators",
     },
-    "bubble_map": {
+    "rugmap": {
         "price_usd": 0.02,
         "price_atoms": "20000",
         "category": "basic",
@@ -1369,12 +1369,12 @@ async def x402_prediction_signals(request: Request):
     return _clean_response(result) or {"error": "no_data"}
 
 
-@router.post("/bubble-map")
-async def x402_bubble_map(req: AddressDepthRequest, request: Request):
-    """Holder bubble map. $0.02/call."""
-    await verify_x402_payment(request, "bubble_map", 0.02)
+@router.post("/rugmap")
+async def x402_rugmap(req: AddressDepthRequest, request: Request):
+    """Holder RugMap. $0.02/call."""
+    await verify_x402_payment(request, "rugmap", 0.02)
     result = await databus.fetch(
-        "bubble_map",
+        "rugmap",
         address=req.address,
         chain=req.chain,
         depth=req.depth,

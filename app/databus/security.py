@@ -41,7 +41,7 @@ ACCESS_LEVELS = {
     "funding_source": "authenticated",
     "smart_money": "authenticated",
     "rag_search": "authenticated",
-    "bubble_map": "authenticated",
+    "rugmap": "authenticated",
     "rugmaps_analysis": "authenticated",
     "socialfi_resolve": "authenticated",
     "cross_chain": "authenticated",

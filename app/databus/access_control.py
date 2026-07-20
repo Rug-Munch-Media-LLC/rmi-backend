@@ -251,7 +251,7 @@ DATA_ACCESS_MATRIX = {
         ConsumerType.X402_PAID: "full",
     },
     # ── NEW AUTHENTICATED DATA TYPES ──
-    "bubble_map": {
+    "rugmap": {
         ConsumerType.PUBLIC_WEB: "summary",  # basic map only
         ConsumerType.AUTHENTICATED: "full",
         ConsumerType.PREMIUM: "full",
@@ -429,7 +429,7 @@ SUMMARY_ONLY_FIELDS = {
     "market_movers": {"name", "symbol", "price_usd", "change_24h", "source", "cached"},
     "tvl": {"chain", "tvl_usd", "change_24h", "source", "cached"},
     "market_overview": {"total_mcap", "btc_dom", "eth_dom", "fgi", "source", "cached"},
-    "bubble_map": {"cluster_count", "top_holders", "risk_score", "source", "cached"},
+    "rugmap": {"cluster_count", "top_holders", "risk_score", "source", "cached"},
     "rugmaps_analysis": {"risk_score", "verdict", "similar_scams_count", "source", "cached"},
     "socialfi_resolve": {"ens", "farcaster", "source", "cached"},
     "cross_chain": {"linked_chains", "linked_count", "source", "cached"},
@@ -533,7 +533,7 @@ MCP_TOOL_SCOPES = {
         "fields": "all",
     },
     "rugmaps_scan": {
-        "data_types": ["bubble_map", "rugmaps_analysis", "risk_scan", "wallet_labels"],
+        "data_types": ["rugmap", "rugmaps_analysis", "risk_scan", "wallet_labels"],
         "fields": "all",
     },
 }
@@ -565,7 +565,7 @@ X402_ACCESS_TIERS = {
         "wallet_balance",
         "risk_scan",
         "token_detail",
-        "bubble_map",
+        "rugmap",
         "rugmaps_analysis",
         "dex_data",
         "social_feed",
@@ -589,7 +589,7 @@ X402_ACCESS_TIERS = {
         "entity_intel",
         "arkham_entity",
         "arkham_labels",
-        "bubble_map",
+        "rugmap",
         "rugmaps_analysis",
         "token_detail",
         "wallet_tokens",

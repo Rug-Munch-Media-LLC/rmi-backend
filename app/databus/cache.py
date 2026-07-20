@@ -275,7 +275,7 @@ class CacheLayer:
             "smart_money": 300,  # Increased from 120s
             "gmgn_smart_money": 300,  # Increased from 120s
             "launches": 120,  # Increased from 60s
-            "bubble_map": 600,  # Increased from 300s
+            "rugmap": 600,  # Increased from 300s
             "rugmaps_analysis": 1200,  # Increased from 600s (20 mins)
             "contract_scan": 3600,  # Increased from 1800s (1 hour)
             "threat_check": 600,  # Increased from 300s

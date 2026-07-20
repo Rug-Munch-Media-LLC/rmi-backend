@@ -57,12 +57,12 @@ def _cache_key(scan_type: str, address: str, chain: str = "") -> str:
     )
 
 
-# ── 1. BUNDLE DETECTION (like Bubblemaps) ────────────────────────
+# ── 1. BUNDLE DETECTION ────────────────────────
 
 
 async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | None:
     """Detect coordinated wallet bundles - groups that funded from same source
-    within a tight time window. Bubblemaps-style cluster analysis.
+    within a tight time window. RugMaps-style cluster analysis.
 
     Uses: Helius transaction history → Arkham entity labels → local pattern matching.
     """

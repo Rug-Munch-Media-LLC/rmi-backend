@@ -1,12 +1,17 @@
-"""Market data fetchers - DexScreener, GoPlus, Solana RPC."""
+"""Market data fetchers — DexScreener, GoPlus, Solana RPC.
+
+Provides market data and preliminary security checks used by the scanner domain.
+All functions are async and use httpx for HTTP transport with proper timeouts.
+"""
 
 from typing import Any
 
 import httpx
 
+from app.core.logging import get_logger
 from app.domains.scanner.models import SOLANA_RPC_ENDPOINTS
 
-logger = __import__("app.core.logging", fromlist=["get_logger"]).get_logger(__name__)
+logger = get_logger(__name__)
 
 
 async def _solana_get_mint_info(token_address: str) -> dict[str, Any]:

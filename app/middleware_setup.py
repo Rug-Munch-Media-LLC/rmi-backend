@@ -143,8 +143,6 @@ def _try_register_deprecation_header(app: FastAPI) -> None:
 
     try:
         from starlette.middleware.base import BaseHTTPMiddleware
-        from starlette.requests import Request
-        from starlette.responses import Response
 
         _SUNSET_DATE: str = "Sat, 17 Oct 2026 00:00:00 GMT"
 
@@ -162,7 +160,7 @@ def _try_register_deprecation_header(app: FastAPI) -> None:
                     response.headers["Deprecation"] = "true"
                     response.headers["Sunset"] = _SUNSET_DATE
                     response.headers["Link"] = (
-                        f'<https://docs.rugmunch.io/api/versioning>; rel="deprecation"'
+                        '<https://docs.rugmunch.io/api/versioning>; rel="deprecation"'
                     )
 
                 return response

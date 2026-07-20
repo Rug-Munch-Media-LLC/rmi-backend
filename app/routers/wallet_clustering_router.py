@@ -8,7 +8,6 @@ from datetime import UTC
 from fastapi import APIRouter
 
 from app.core.errors import (
-    NotFoundError,
     ServiceUnavailableError,
     ValidationError,
 )
@@ -32,7 +31,7 @@ class FundingPathRequest(BaseModel):
     max_depth: int = 5
 
 
-class BubblemapRequest(BaseModel):
+class RugMapRequest(BaseModel):
     center_wallet: str
     depth: int = 2
     max_wallets: int = 250
@@ -57,7 +56,7 @@ def _get_detector():
 
 def _get_engine():
     try:
-        from app.wallet_clustering import get_clustering_engine
+        from app.domains.wallet.clustering import get_clustering_engine
 
         return get_clustering_engine()
     except ImportError as e:
@@ -147,15 +146,15 @@ async def get_cluster_report(cluster_id: str):
     return report
 
 
-@router.post("/bubble-map-data")
-async def get_bubble_map_data(req: BubblemapRequest):
-    """Generate bubble map data for a wallet.
+@router.post("/rugmap-data")
+async def get_rugmap_data(req: RugMapRequest):
+    """Generate RugMap data for a wallet.
     Supports up to 250 wallets deep. Optional AI deep dive for advanced forensics."""
     engine = _get_engine()
     depth = min(
         req.depth, 10
     )  # Cap depth at 10 to prevent infinite loops, but max_wallets handles the 250 limit
-    data = engine.generate_bubble_map_data(
+    data = engine.generate_rugmap_data(
         center_wallet=req.center_wallet, depth=depth, max_wallets=min(req.max_wallets, 250)
     )
 
@@ -209,7 +208,7 @@ async def get_bubble_map_data(req: BubblemapRequest):
 
 
 @router.post("/ai-forensic-breakdown")
-async def get_ai_forensic_breakdown(req: BubblemapRequest):
+async def get_ai_forensic_breakdown(req: RugMapRequest):
     """
     Premium AI-driven forensic breakdown that dynamically pulls deeper if necessary.
 
@@ -319,7 +318,7 @@ async def scan_contract_clusters(req: ContractScanRequest):
                 txs = await provider.get_wallet_transactions(h, limit=10)
                 from datetime import datetime
 
-                from app.wallet_clustering import Transaction
+                from app.domains.wallet.clustering import Transaction
 
                 for t in txs:
                     ts = t.get("timestamp")
