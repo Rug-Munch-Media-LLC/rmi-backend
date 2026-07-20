@@ -59,6 +59,9 @@ async def scan_token(request: Request, body: TokenScanRequest):
             "scan_duration_ms": result.scan_duration_ms,
             "tier": result.tier,
             "scanned_at": result.scanned_at,
+            "data_source": "databus",
+            "freshness": result.scanned_at,
+            "fallback_used": result.confidence < 50,
         }
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
@@ -96,6 +99,9 @@ async def scan_wallet(request: Request, body: WalletScanRequest):
             "scan_duration_ms": result.scan_duration_ms,
             "tier": result.tier,
             "scanned_at": result.scanned_at,
+            "data_source": "databus",
+            "freshness": result.scanned_at,
+            "fallback_used": result.risk_score is None,
         }
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e

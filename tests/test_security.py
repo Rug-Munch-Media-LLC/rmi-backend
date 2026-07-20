@@ -23,22 +23,22 @@ class TestProviderConfiguration:
 
     def test_configure_providers_without_credits(self):
         """configure_providers works without OpenRouter credits."""
-        from app.rate_limiter import PROVIDERS, configure_providers
+        import app.rate_limiter as rl
 
-        configure_providers(has_openrouter_credits=False)
-        assert len(PROVIDERS) >= 8
+        rl.configure_providers(has_openrouter_credits=False)
+        assert len(rl.PROVIDERS) >= 8
         # OpenRouter should have lower RPD without credits
-        for p in PROVIDERS:
+        for p in rl.PROVIDERS:
             if "openrouter" in p.id:
                 assert p.rpd == 50
 
     def test_configure_providers_with_credits(self):
         """configure_providers with credits sets higher OpenRouter limit."""
-        from app.rate_limiter import PROVIDERS, configure_providers
+        import app.rate_limiter as rl
 
-        configure_providers(has_openrouter_credits=True)
-        assert len(PROVIDERS) >= 8
-        for p in PROVIDERS:
+        rl.configure_providers(has_openrouter_credits=True)
+        assert len(rl.PROVIDERS) >= 8
+        for p in rl.PROVIDERS:
             if "openrouter" in p.id:
                 assert p.rpd == 1000
 
@@ -84,6 +84,8 @@ async def test_rate_tracker_can_call_respects_limits():
     from app.rate_limiter import ProviderLimit, RateTracker
 
     tracker = RateTracker()
+    # Use limits where 90% margin rounds to > 0 so first call passes
+    # rpd=20, rpm=10 → margins: int(20*0.9)=18, int(10*0.9)=9
     limited = ProviderLimit(
         id="test_limited",
         name="Limited",
@@ -91,8 +93,8 @@ async def test_rate_tracker_can_call_respects_limits():
         dims=384,
         base_url="",
         key_env="",
-        rpm=1,
-        rpd=1,
+        rpm=10,
+        rpd=20,
         free=True,
         priority=0,
     )
@@ -104,9 +106,17 @@ async def test_rate_tracker_can_call_respects_limits():
     # Record 1 call
     await tracker.record(limited)
 
-    # RPM should now be at limit
+    # RPM should still be available (1 < 9 margin)
+    can_after_one = await tracker.can_call(limited)
+    assert can_after_one is True
+
+    # Record 9 more calls to hit RPM margin (1 + 9 = 10 >= 9)
+    for _ in range(9):
+        await tracker.record(limited)
+
+    # Now RPM limit should be hit
     can2 = await tracker.can_call(limited)
-    # With 90% safety margin, 1 used of 1 RPM -> 90% threshold -> limited
+    # With 90% safety margin, 10 used of 10 RPM -> 90% threshold -> limited
     assert can2 is False
 
 
@@ -202,10 +212,20 @@ def test_embedding_cache_stats():
 
 def test_internal_api_key():
     """INTERNAL_API_KEY is a non-empty string."""
-    from app.core.internal_key import INTERNAL_API_KEY
+    import os
 
-    assert isinstance(INTERNAL_API_KEY, str)
-    assert len(INTERNAL_API_KEY) > 0
+    with patch.dict(os.environ, {"RMI_INTERNAL_KEY": "test-internal-key-12345"}, clear=False):
+        # Force reload the module to pick up the env var
+        import importlib
+
+        from app.core import internal_key
+
+        importlib.reload(internal_key)
+        key = internal_key.INTERNAL_API_KEY
+
+        assert isinstance(key, str)
+        assert len(key) > 0
+        assert key == "test-internal-key-12345"
 
 
 # ── Slow Rate Limiter (app.core.slowrate) ──────────────────────────────

@@ -703,14 +703,15 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
                 data = r.json()
                 pairs = data.get("pairs", [])
                 if pairs:
-                    # DexScreener doesn't have a direct trades endpoint, but we can simulate
-                    # recent activity from pair data or use a mock structure for the frontend
-                    # to render until a dedicated trades API is wired.
+                    # DexScreener doesn't expose a direct trades endpoint.
+                    # Return available pair data with a clear status message.
                     return {
                         "trades": [],
-                        "message": "Live trades feed requires premium DEX API. Showing pair summary.",
+                        "message": "Live trades feed requires premium DEX API. Returning available pair data.",
                         "pairs": pairs[:5],
                         "source": "dexscreener",
+                        "fallback_used": False,
+                        "freshness": "from_dexscreener_api",
                     }
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
@@ -730,9 +731,11 @@ async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw)
                 if pairs:
                     return {
                         "top_traders": [],
-                        "message": "Top trader analytics require premium on-chain indexer. Showing pair summary.",
+                        "message": "Top trader analytics require premium on-chain indexer. Showing available pair summary.",
                         "pairs": pairs[:3],
                         "source": "dexscreener",
+                        "fallback_used": False,
+                        "freshness": "from_dexscreener_api",
                     }
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
@@ -755,6 +758,10 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
             "base": "api.basescan.org",
         }
         domain = domains.get(network, "api.etherscan.io")
+        # Use env var if set; empty string works for basic proxy queries
+        import os as _os
+
+        api_key = _os.getenv("ETHERSCAN_API_KEY", "")
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
                 f"https://{domain}/api",
@@ -762,7 +769,7 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
                     "module": "proxy",
                     "action": "eth_getTransactionByHash",
                     "txhash": tx_hash,
-                    "apikey": "YourApiKeyToken",
+                    "apikey": api_key,
                 },
             )
             if r.status_code == 200:

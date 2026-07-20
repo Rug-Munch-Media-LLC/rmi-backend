@@ -1640,7 +1640,7 @@ async def get_prediction_signals(
                 )
     except Exception as e:
         logger.warning(f"Prediction signals fetch failed: {e}")
-        # Fallback mock signal if service is unavailable
+        # Service degradation notification — not mock data
         items.append(
             {
                 "signal_type": "ECOSYSTEM_RISK",

@@ -190,6 +190,8 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
     # Sort by volume
     tokens.sort(key=lambda t: t.get("volume_24h", 0), reverse=True)
 
+    fallback_used = len(tokens) < limit  # Fewer results than requested = some API fallback
+
     if tokens:
         try:
             r = _r()
@@ -198,7 +200,7 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
         except Exception:
             pass
 
-    return tokens
+    return tokens, fallback_used
 
 
 async def _fetch_ohlcv_gecko(
@@ -511,8 +513,17 @@ async def rugcharts_trending(
     limit: int = Query(30, description="Max tokens to return"),
 ):
     """Get trending tokens sorted by volume for RugCharts."""
-    tokens = await _fetch_dexscreener_trending(chain, limit)
-    return {"tokens": tokens[:limit], "count": len(tokens), "chain": chain, "source": "dexscreener"}
+    from datetime import UTC, datetime as dt
+
+    tokens, fallback_used = await _fetch_dexscreener_trending(chain, limit)
+    return {
+        "tokens": tokens[:limit],
+        "count": len(tokens),
+        "chain": chain,
+        "source": "dexscreener",
+        "freshness": dt.now(UTC).isoformat(),
+        "fallback_used": fallback_used,
+    }
 
 
 @router.get("/ohlcv/{chain}/{pair_address}")
@@ -543,6 +554,8 @@ async def rugcharts_ohlcv(
             "candle_count": len(candles),
         }
 
+    from datetime import UTC, datetime as dt
+
     return {
         "candles": candles,
         "summary": summary,
@@ -550,6 +563,9 @@ async def rugcharts_ohlcv(
         "authenticity": vol_auth,
         "timeframe": timeframe,
         "chain": chain,
+        "source": "geckoterminal",
+        "freshness": dt.now(UTC).isoformat(),
+        "fallback_used": not bool(candles),
     }
 
 
@@ -668,6 +684,8 @@ async def rugcharts_intel(
                 }
             )
 
+    from datetime import UTC, datetime as dt
+
     return {
         "pair_info": pair_info,
         "rug_score": rug_score,
@@ -676,4 +694,7 @@ async def rugcharts_intel(
         "predictions": predictions,
         "chain": chain,
         "pair_address": pair_address,
+        "source": "geckoterminal+dexscreener",
+        "freshness": dt.now(UTC).isoformat(),
+        "fallback_used": not bool(pair_info),
     }

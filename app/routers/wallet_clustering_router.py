@@ -401,7 +401,7 @@ async def scan_contract_clusters(req: ContractScanRequest):
                 token_address=req.contract_address,
                 chain=req.chain,
                 holders=holder_data,
-                transactions=None,  # TODO: feed real tx data
+                transactions=None,  # FEATURE GAP: Transaction data not yet wired to bundle detector. Bundle detection uses holder distribution & temporal patterns only.
             )
             result["bundle_detection"] = {
                 "is_bundled": bundle.is_bundled,
