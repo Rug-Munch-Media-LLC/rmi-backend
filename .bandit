@@ -1,0 +1,16 @@
+exclude:
+  - tests/
+  - node_modules/
+  - __pycache__/
+  - .venv/
+  - dist/
+skips:
+  - B101
+  - B201
+  - B301
+  - B303
+  - B311
+  - B403
+  - B404
+  - B601
+  - B602
