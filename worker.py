@@ -60,51 +60,77 @@ async def connect_redis():
 
 
 async def process_scan_job(r, job_data):
-    """Process a token scan job from the queue"""
+    """Process a token scan job from the queue using real security scanning."""
     try:
         import json
 
-        import httpx
-
         token_address = job_data.get("token_address")
         chain = job_data.get("chain", "solana")
+        tiers = ["free", "pro"] if job_data.get("deep") else ["free"]
 
-        logger.info(f"Scanning token: {token_address} on {chain}")
+        logger.info(f"Scanning token: {token_address} on {chain} (tiers: {tiers})")
 
-        # Fetch token data from DexScreener
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            try:
-                response = await client.get(
-                    f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-                )
-                if response.status_code == 200:
-                    token_data = response.json()
-                    logger.info(
-                        f"Token data fetched: {token_data.get('baseToken', {}).get('name', 'Unknown')}"
+        # Use the real scanner engine with real modules
+        try:
+            from app.domains.scanner.service import scan_token
+
+            scan_result_obj = await scan_token(
+                token_address=token_address,
+                chain=chain,
+                tiers=tiers,
+                include_market_data=True,
+            )
+
+            scan_result = {
+                "token_address": token_address,
+                "chain": chain,
+                "scanned_at": datetime.now(UTC).isoformat(),
+                "status": "completed",
+                "safety_score": scan_result_obj.safety_score,
+                "risk_score": 100 - scan_result_obj.safety_score,
+                "confidence": scan_result_obj.confidence,
+                "flags": scan_result_obj.risk_flags,
+                "modules_ran": len(scan_result_obj.modules_run),
+                "modules_successful": sum(
+                    1 for m in scan_result_obj.modules_run if m.get("status") == "success"
+                ),
+            }
+
+            logger.info(
+                f"Token {token_address} scanned — "
+                f"safety: {scan_result_obj.safety_score}/100, "
+                f"flags: {scan_result_obj.risk_flags or 'none'}"
+            )
+
+        except ImportError:
+            # Fallback: basic DexScreener fetch
+            logger.warning("scanner module not available, using fallback")
+            import httpx
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                try:
+                    response = await client.get(
+                        f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
                     )
-                else:
-                    logger.warning(f"DexScreener returned {response.status_code}")
+                    token_data = response.json() if response.status_code == 200 else {}
+                except Exception as e:
+                    logger.error(f"Failed to fetch token data: {e}")
                     token_data = {}
-            except Exception as e:
-                logger.error(f"Failed to fetch token data: {e}")
-                token_data = {}
 
-        # Store result in Redis cache
-        scan_result = {
-            "token_address": token_address,
-            "chain": chain,
-            "scanned_at": datetime.now(UTC).isoformat(),
-            "status": "completed",
-            "data": token_data,
-            "risk_score": 0,  # TODO: Implement actual risk scoring
-            "flags": [],  # TODO: Implement flag detection
-        }
+            scan_result = {
+                "token_address": token_address,
+                "chain": chain,
+                "scanned_at": datetime.now(UTC).isoformat(),
+                "status": "completed",
+                "risk_score": 50,
+                "safety_score": 50,
+                "flags": [],
+            }
 
-        await r.set(
-            f"scan_result:{token_address}", json.dumps(scan_result), ex=3600
-        )  # Cache for 1 hour
-        await r.lpush("scan_results", json.dumps(scan_result))  # Add to results list
-        await r.ltrim("scan_results", 0, 99)  # Keep only last 100 results
+        # Store result in Redis cache (1 hour TTL)
+        await r.set(f"scan_result:{token_address}", json.dumps(scan_result), ex=3600)
+        await r.lpush("scan_results", json.dumps(scan_result))
+        await r.ltrim("scan_results", 0, 99)
 
         logger.info(f"Scan completed for {token_address}")
         return True

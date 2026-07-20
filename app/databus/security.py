@@ -99,8 +99,8 @@ class SecurityGate:
                 provided = request.headers.get("X-Admin-Key", "")
                 provided = provided or request.query_params.get("admin_key", "")
             if not ADMIN_KEY:
-                logger.warning("ADMIN_API_KEY not set, allowing admin access")
-                return True
+                logger.critical("ADMIN_API_KEY not configured — admin access denied")
+                return False
             if provided and provided == ADMIN_KEY:
                 return True
             logger.warning(f"Admin access denied for data_type={data_type}")

@@ -34,9 +34,14 @@ router = APIRouter(prefix="/api/v1/databus", tags=["databus"])
 def _verify_admin(request: Request) -> bool:
     admin_key = os.getenv("ADMIN_API_KEY", "")
     if not admin_key:
-        return True
+        # CRITICAL: Do NOT fall open. Reject all admin requests.
+        logger.critical("ADMIN_API_KEY not configured — admin endpoints disabled")
+        return False
     provided = request.headers.get("X-Admin-Key", "")
-    return provided == admin_key
+    if provided != admin_key:
+        logger.warning("admin_auth_failed: invalid X-Admin-Key")
+        return False
+    return True
 
 
 @router.post("/fetch")

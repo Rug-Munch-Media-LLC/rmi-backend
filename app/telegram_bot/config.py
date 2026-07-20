@@ -10,7 +10,12 @@ import os
 # ══════════════════════════════════════════════
 # BOT
 # ══════════════════════════════════════════════
-BOT_TOKEN = os.getenv("RUGMUNCH_BOT_TOKEN", "")
+BOT_TOKEN = (
+    os.getenv("RUGMUNCH_BOT_TOKEN")
+    or os.getenv("TELEGRAM_RUGMUNCH_BOT_TOKEN")
+    or os.getenv("TELEGRAM_BOT_TOKEN")
+    or ""
+)
 OWNER_IDS = {
     int(x.strip())
     for x in os.getenv("TELEGRAM_ALLOWED_USERS", "7075336557").split(",")

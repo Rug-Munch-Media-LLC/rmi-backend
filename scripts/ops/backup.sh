@@ -1,3 +1,4 @@
+# DEPRECATED: Use db-backup.sh instead. Remove after 2026-08-01.
 #!/bin/bash
 # /root/scripts/backup.sh — Daily backup + monthly restore test
 # Per v4.0 §T45. Backs up Postgres + Neo4j + Qdrant + MinIO → /backups/

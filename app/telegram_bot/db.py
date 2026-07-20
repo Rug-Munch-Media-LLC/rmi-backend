@@ -11,7 +11,7 @@ import sqlite3
 import time
 from datetime import UTC, datetime, timedelta
 
-DB_PATH = os.getenv("BOT_DB_PATH", "/root/backend/data/bot_users.db")
+DB_PATH = os.getenv("BOT_DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bot_users.db"))
 
 
 def get_db() -> sqlite3.Connection:

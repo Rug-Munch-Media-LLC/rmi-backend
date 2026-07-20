@@ -68,7 +68,8 @@ async def get_entity_info(address: str):
     """Get entity information for an address."""
     rm = _get_rm()
     info = await rm._get_entity_info(address)
-    risk, level = await rm._calculate_risk(address)
+    txs = await rm._get_transactions(address)
+    risk, level = rm._calculate_risk(txs, node_count=1)
     return {"address": address, "entity": info, "risk_score": risk, "risk_level": level}
 
 

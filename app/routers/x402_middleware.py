@@ -694,13 +694,21 @@ async def store_receipt(request: Request):
     }
     """
     # Auth: require admin API key
+    from app.core.logging import get_logger
+
+    _log = get_logger("x402_middleware")
     admin_key = os.getenv("ADMIN_API_KEY", os.getenv("WP_ADMIN_KEY", ""))
-    if admin_key:
-        auth = request.headers.get("X-API-Key", "") or request.headers.get(
-            "Authorization", ""
-        ).replace("Bearer ", "")
-        if auth != admin_key:
-            return JSONResponse(status_code=403, content={"error": "Admin API key required"})
+    if not admin_key:
+        _log.critical("ADMIN_API_KEY not configured — x402 receipt store disabled")
+        return JSONResponse(
+            status_code=503, content={"error": "Service misconfigured — ADMIN_API_KEY not set"}
+        )
+    auth = request.headers.get("X-API-Key", "") or request.headers.get("Authorization", "").replace(
+        "Bearer ", ""
+    )
+    if auth != admin_key:
+        _log.warning("admin_auth_failed: invalid key on x402 receipt store")
+        return JSONResponse(status_code=403, content={"error": "Admin API key required"})
 
     try:
         body = await request.json()
@@ -796,24 +804,31 @@ async def store_receipt(request: Request):
                 "message": "Receipt stored successfully",
             }
         else:
-            # Redis unavailable - still return success so Worker doesn't retry endlessly
+            # Redis unavailable — the receipt cannot be persisted.
+            # Return 503 so the Worker can retry with backoff.
             logger.warning(f"Redis unavailable, receipt not stored: {receipt_id}")
-            return {
-                "ok": True,
-                "receipt_id": receipt_id,
-                "stored": False,
-                "message": "Receipt received but Redis unavailable",
-            }
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "storage_unavailable",
+                    "receipt_id": receipt_id,
+                    "stored": False,
+                    "message": "Receipt storage unavailable — Redis is down",
+                },
+            )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Receipt store error: {e}")
-        # Return 200 so Worker doesn't retry - receipt storage is best-effort
-        return {
-            "ok": True,
-            "stored": False,
-            "error": str(e)[:200],
-            "message": "Receipt received but storage failed",
-        }
+        # Return 500 so the Worker can retry instead of silently dropping.
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "receipt_storage_failed",
+                "message": str(e)[:200],
+            },
+        )
 
 
 # ── Fallback System Status ────────────────────────────────────

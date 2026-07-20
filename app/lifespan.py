@@ -32,6 +32,21 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Wire cross-cutting at startup. Failures are logged, never fatal."""
     log.info("rmi_backend_starting")
 
+    # 0. Security configuration checks
+    try:
+        admin_key = os.getenv("ADMIN_API_KEY", "")
+        if not admin_key:
+            log.critical("ADMIN_API_KEY not configured — admin endpoints will reject all requests")
+        else:
+            log.info("admin_api_key_configured")
+        rmi_token = os.getenv("RMI_AUTH_TOKEN", "")
+        if not rmi_token:
+            log.critical("RMI_AUTH_TOKEN not configured — API auth is disabled")
+        else:
+            log.info("rmi_auth_token_configured")
+    except Exception as exc:
+        log.warning("security_config_check_failed err=%s", exc)
+
     # 1. Structured logging
     try:
         from app.core.logging import setup_logging

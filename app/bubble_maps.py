@@ -29,11 +29,18 @@ OUR SOLUTIONS:
 """
 
 import json
+import os
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import ClassVar
+from datetime import datetime
+from typing import Any, ClassVar
 
+import httpx
 import numpy as np
+
+from app.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -220,6 +227,11 @@ class BubbleMapsPro:
             time_range=time_range,
         )
 
+        # Fetch center wallet transactions (used for center node and first layer)
+        center_transactions = await self._get_transactions(
+            center_wallet, time_range=time_range, filters=filters
+        )
+
         # Build the map layer by layer
         visited = {center_wallet}
         current_layer = {center_wallet}
@@ -229,27 +241,29 @@ class BubbleMapsPro:
 
             for wallet in current_layer:
                 # Get transactions for this wallet
-                transactions = await self._get_transactions(
-                    wallet, time_range=time_range, filters=filters
-                )
+                wallet_txs = center_transactions if wallet == center_wallet else None
+                if wallet_txs is None:
+                    wallet_txs = await self._get_transactions(
+                        wallet, time_range=time_range, filters=filters
+                    )
 
                 # Process transactions
-                for tx in transactions:
+                for tx in wallet_txs:
                     counterparty = tx.get("to") if tx.get("from") == wallet else tx.get("from")
 
                     if not counterparty or counterparty in visited:
                         continue
 
                     # Check if meets strength threshold
-                    strength = self._calculate_connection_strength(
-                        wallet, counterparty, transactions
-                    )
+                    strength = self._calculate_connection_strength(wallet, counterparty, wallet_txs)
 
                     if strength < min_strength:
                         continue
 
-                    # Add or update node
-                    await self._add_or_update_node(bubble_map, counterparty, layer)
+                    # Add or update node (pass wallet_txs for risk/classification)
+                    await self._add_or_update_node(
+                        bubble_map, counterparty, layer, transactions=wallet_txs
+                    )
 
                     # Add or update link
                     self._add_or_update_link(bubble_map, wallet, counterparty, tx, strength)
@@ -260,8 +274,8 @@ class BubbleMapsPro:
 
             current_layer = next_layer
 
-        # Add center node
-        await self._add_center_node(bubble_map, center_wallet)
+        # Add center node (reuses the already-fetched transactions)
+        await self._add_center_node(bubble_map, center_wallet, transactions=center_transactions)
 
         # Calculate positions using force-directed layout
         self._calculate_positions(bubble_map)
@@ -274,45 +288,153 @@ class BubbleMapsPro:
     async def _get_transactions(
         self,
         wallet: str,
+        chain: str = "solana",
+        limit: int = 50,
         time_range: tuple[datetime, datetime] | None = None,
         filters: dict | None = None,
     ) -> list[dict]:
-        """Get transactions for a wallet."""
-        # Check cache
-        cache_key = f"{wallet}_{time_range}_{filters}"
-        if cache_key in self.transaction_cache:
-            return self.transaction_cache[cache_key]
+        """Fetch real transactions from Helius RPC.
 
-        # In production, query Helius/QuickNode
-        # For demo, return sample data
-        transactions = [
-            {
-                "signature": f"tx_{wallet[:8]}_1",
-                "from": wallet,
-                "to": f"Wallet{hash(wallet) % 1000:03d}",
-                "amount": 1000.0,
-                "token": "SOL",
-                "timestamp": datetime.now() - timedelta(hours=1),
-                "program": "system",
-            },
-            {
-                "signature": f"tx_{wallet[:8]}_2",
-                "from": f"Wallet{hash(wallet) % 1000:03d}",
-                "to": wallet,
-                "amount": 500.0,
-                "token": "USDC",
-                "timestamp": datetime.now() - timedelta(hours=2),
-                "program": "spl-token",
-            },
-        ]
+        For Solana, uses getSignaturesForAddress + getTransaction to fetch
+        parsed transaction data. Results are cached by wallet address.
+        """
+        # Check cache (by wallet only — filters applied post-cache)
+        if wallet in self.transaction_cache:
+            transactions = list(self.transaction_cache[wallet])
+        else:
+            helius_api_key = settings.helius_api_key or os.getenv("HELIUS_API_KEY", "")
+            if not helius_api_key:
+                logger.error("Helius API key not configured — cannot fetch transactions")
+                return []
 
-        # Apply filters
+            url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+
+            # Step 1: get list of recent signatures for this address
+            sig_payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getSignaturesForAddress",
+                "params": [wallet, {"limit": limit}],
+            }
+
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    sig_resp = await client.post(url, json=sig_payload)
+                    sig_data = sig_resp.json()
+            except httpx.RequestError as e:
+                logger.error("Helius RPC request failed for signatures: %s", e)
+                return []
+
+            signatures = sig_data.get("result", [])
+            if not signatures:
+                logger.info("No transactions found for wallet %s", wallet[:12])
+                return []
+
+            # Step 2: fetch detailed transaction info (limit to 20 for performance)
+            transactions = []
+            for sig in signatures[:20]:
+                tx_data = await self._get_transaction_detail(sig["signature"], helius_api_key)
+                if tx_data:
+                    transactions.append(tx_data)
+
+            # Cache the raw result
+            self.transaction_cache[wallet] = list(transactions)
+
+        # Apply time range filter
+        if time_range:
+            start_ts, end_ts = time_range
+            transactions = [
+                t
+                for t in transactions
+                if t.get("timestamp")
+                and start_ts.timestamp() <= t["timestamp"] <= end_ts.timestamp()
+            ]
+
+        # Apply amount filters
         if filters:
             min_amount = filters.get("min_amount", 0)
-            transactions = [t for t in transactions if t["amount"] >= min_amount]
+            max_amount = filters.get("max_amount", float("inf"))
+            transactions = [
+                t for t in transactions if min_amount <= abs(t.get("amount", 0)) <= max_amount
+            ]
 
-        self.transaction_cache[cache_key] = transactions
         return transactions
+
+    async def _get_transaction_detail(self, signature: str, api_key: str) -> dict[str, Any] | None:
+        """Fetch detailed transaction info from Helius RPC.
+
+        Returns a normalized dict with keys: signature, from, to, amount,
+        timestamp, status, token, program.
+        """
+        url = f"https://mainnet.helius-rpc.com/?api-key={api_key}"
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTransaction",
+            "params": [signature, {"maxSupportedTransactionVersion": 0}],
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+        except httpx.RequestError as e:
+            logger.debug("Helius getTransaction failed for %s: %s", signature[:12], e)
+            return None
+
+        tx = data.get("result")
+        if not tx:
+            return None
+
+        meta = tx.get("meta") or {}
+        message = tx.get("transaction", {}).get("message", {})
+        account_keys = message.get("accountKeys", [])
+
+        # Determine sender (first signer)
+        from_addr = account_keys[0] if account_keys else ""
+
+        # Determine receiver (second key, often the program or recipient)
+        to_addr = account_keys[1] if len(account_keys) > 1 else ""
+
+        # Calculate SOL amount change (postBalance - preBalance for first account)
+        pre_balances = meta.get("preBalances", [])
+        post_balances = meta.get("postBalances", [])
+        amount = 0.0
+        if pre_balances and post_balances:
+            amount = (post_balances[0] - pre_balances[0]) / 1e9
+
+        block_time = tx.get("blockTime", 0)
+        status = "success" if meta.get("err") is None else "failed"
+
+        # Detect program from instructions
+        instructions = message.get("instructions", [])
+        program = "unknown"
+        if instructions:
+            prog_id_index = instructions[0].get("programIdIndex", 0)
+            if prog_id_index < len(account_keys):
+                program = account_keys[prog_id_index]
+
+        # Detect asset class from inner instructions (simplified)
+        asset_class = "SOL"
+        inner_ixs = meta.get("innerInstructions", []) or []
+        for iix_group in inner_ixs:
+            for iix in iix_group.get("instructions", []):
+                if iix.get("programIdIndex", 0) < len(account_keys):
+                    prog_id = account_keys[iix["programIdIndex"]]
+                    if "Tokenkeg" in prog_id or "AToken" in prog_id:
+                        asset_class = "SPL"
+                        break
+
+        return {
+            "signature": signature,
+            "from": from_addr,
+            "to": to_addr,
+            "amount": amount,
+            "token": asset_class,
+            "timestamp": block_time,
+            "status": status,
+            "program": program,
+        }
 
     def _calculate_connection_strength(
         self, wallet_a: str, wallet_b: str, transactions: list[dict]
@@ -362,21 +484,32 @@ class BubbleMapsPro:
 
         return count_score + volume_score + consistency_score + reciprocity_score
 
-    async def _add_or_update_node(self, bubble_map: BubbleMap, address: str, layer: int):
+    async def _add_or_update_node(
+        self,
+        bubble_map: BubbleMap,
+        address: str,
+        layer: int,
+        transactions: list | None = None,
+    ):
         """Add or update a node in the map."""
         # Check if node exists
         existing = next((n for n in bubble_map.nodes if n.address == address), None)
         if existing:
             return
 
+        # Get or fetch transactions for this address
+        node_txs = transactions
+        if node_txs is None:
+            node_txs = await self._get_transactions(address)
+
         # Determine node type
-        node_type = await self._classify_wallet(address)
+        node_type = await self._classify_wallet(address, node_txs)
 
         # Get entity info
         entity = await self._get_entity_info(address)
 
         # Calculate risk
-        risk_score, risk_level = await self._calculate_risk(address)
+        risk_score, risk_level = self._calculate_risk(node_txs, len(bubble_map.nodes))
 
         # Calculate radius based on importance
         radius = self._calculate_radius(address, layer)
@@ -395,10 +528,20 @@ class BubbleMapsPro:
 
         bubble_map.nodes.append(node)
 
-    async def _add_center_node(self, bubble_map: BubbleMap, address: str):
+    async def _add_center_node(
+        self,
+        bubble_map: BubbleMap,
+        address: str,
+        transactions: list | None = None,
+    ):
         """Add the center node."""
+        # Get or fetch transactions for the center wallet
+        center_txs = transactions
+        if center_txs is None:
+            center_txs = await self._get_transactions(address)
+
         entity = await self._get_entity_info(address)
-        risk_score, risk_level = await self._calculate_risk(address)
+        risk_score, risk_level = self._calculate_risk(center_txs, len(bubble_map.nodes))
 
         node = BubbleNode(
             id=address,
@@ -470,38 +613,108 @@ class BubbleMapsPro:
             )
             bubble_map.links.append(link)
 
-    async def _classify_wallet(self, address: str) -> str:
-        """Classify wallet type."""
-        # In production, query entity databases
-        # For demo, use heuristics
+    async def _classify_wallet(self, address: str, transactions: list | None = None) -> str:
+        """Classify wallet based on actual transaction patterns."""
+        if transactions is None:
+            transactions = await self._get_transactions(address)
 
-        if address in ["Exchange1", "Exchange2"]:
-            return "exchange"
-
-        # Check transaction patterns
-        txs = await self._get_transactions(address)
-
-        if len(txs) > 1000:
-            return "whale"
-
-        if len(txs) < 10:
+        if not transactions:
             return "unknown"
 
-        return "unknown"
+        tx_count = len(transactions)
+        unique_counterparties = len({t.get("to", "") for t in transactions if t.get("to")})
+
+        # Exchange: many transactions, many counterparties
+        if tx_count > 100 and unique_counterparties > 50:
+            return "exchange"
+
+        # Bot: very fast transactions, consistent amounts
+        timestamps = [t.get("timestamp", 0) for t in transactions if t.get("timestamp")]
+        if len(timestamps) > 5:
+            intervals = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
+            if intervals:
+                avg_interval = sum(intervals) / len(intervals)
+                if avg_interval < 10:  # Less than 10 seconds between txs
+                    return "bot"
+
+        # Whale: few transactions, very large amounts
+        amounts = [abs(t.get("amount", 0)) for t in transactions]
+        if amounts and max(amounts) > 100_000:
+            return "whale"
+
+        return "wallet"
 
     async def _get_entity_info(self, address: str) -> dict:
-        """Get entity information for a wallet."""
-        # In production, query Arkham/entity databases
+        """Get entity information for a wallet.
+
+        Checks the in-memory cache first. In production, this would also
+        query external entity databases (Arkham, etc.).
+        """
         if address in self.entity_cache:
             return self.entity_cache[address]
 
+        # Entity unknown — cache the result for consistency
+        self.entity_cache[address] = {"name": None, "tags": []}
         return {"name": None, "tags": []}
 
-    async def _calculate_risk(self, address: str) -> tuple[float, str]:
-        """Calculate risk score for a wallet."""
-        # In production, query risk databases
-        # For demo, return neutral
-        return 50.0, "medium"
+    def _calculate_risk(self, transactions: list, node_count: int) -> tuple[float, str]:
+        """Calculate real risk score based on transaction patterns.
+
+        Multi-factor scoring:
+        1. Transaction velocity (high volume = higher risk)
+        2. Failed transaction ratio
+        3. Time concentration (all in short period = bot-like)
+        4. Amount consistency (suspiciously uniform amounts)
+        """
+        if not transactions or node_count == 0:
+            return (0.0, "unknown")
+
+        risk = 0.0
+
+        # Factor 1: Transaction velocity
+        tx_count = len(transactions)
+        if tx_count > 100:
+            risk += 20
+        elif tx_count > 50:
+            risk += 10
+
+        # Factor 2: Failed transaction ratio
+        failed = sum(1 for t in transactions if t.get("status") == "failed")
+        if tx_count > 0:
+            fail_ratio = failed / tx_count
+            if fail_ratio > 0.3:
+                risk += 15
+            elif fail_ratio > 0.1:
+                risk += 5
+
+        # Factor 3: Time concentration (all transactions in short period = bot)
+        timestamps = [t.get("timestamp", 0) for t in transactions if t.get("timestamp")]
+        if len(timestamps) > 1:
+            time_range_secs = max(timestamps) - min(timestamps)
+            if time_range_secs < 300:  # All within 5 minutes
+                risk += 20
+            elif time_range_secs < 3600:  # Within an hour
+                risk += 10
+
+        # Factor 4: Amount patterns (suspiciously consistent amounts)
+        amounts = [abs(t.get("amount", 0)) for t in transactions if t.get("amount")]
+        if len(amounts) > 1:
+            unique_amounts = len({round(a, 2) for a in amounts})
+            if unique_amounts == 1:
+                risk += 15  # All identical amounts — very suspicious
+            elif unique_amounts < 3:
+                risk += 10  # Suspiciously consistent amounts
+
+        # Factor 5: Node count (more nodes in map = broader interaction = potentially riskier)
+        if node_count > 50:
+            risk += 5
+
+        risk = min(risk, 100.0)
+
+        level = (
+            "critical" if risk > 70 else "high" if risk > 50 else "medium" if risk > 30 else "low"
+        )
+        return (risk, level)
 
     def _calculate_radius(self, address: str, layer: int) -> float:
         """Calculate node radius based on importance."""

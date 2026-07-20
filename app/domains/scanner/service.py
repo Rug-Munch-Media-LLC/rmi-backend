@@ -5,8 +5,17 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.scanner.modules import (
+    _check_bundle,
+    _check_copycat,
+    _check_goplus_security,
     _get_deployer_info,
     _get_holder_data,
+    _get_price_consensus,
+    _check_honeypot_is,
+    _check_contract_verification,
+    _check_liquidity_lock_multi,
+    _check_spam,
+    _deep_deployer_check,
 )
 
 logger = get_logger(__name__)
@@ -17,7 +26,6 @@ from app.domains.scanner.models import ScanResult  # noqa: E402
 from app.domains.scanner.modules import (  # noqa: E402
     _check_blockscout,
     _check_defi_scanner,
-    _check_honeypot_is,
     _check_token_sniffer,
 )
 
@@ -30,65 +38,10 @@ async def _rag_scam_check(
     return {"check": "rag", "result": "pending"}
 
 
-async def _deep_deployer_check(deployer_addr: str, chain: str) -> dict[str, Any] | None:
-    """Deep check of deployer address."""
-    logger.info("deep_deployer_check", deployer=deployer_addr, chain=chain)
-    return {"check": "deployer_deep", "result": "pending"}
-
-
 async def _check_cross_chain_deployer(deployer_addr: str, chain: str) -> dict[str, Any] | None:
     """Check if deployer has cross-chain activity."""
     logger.info("cross_chain_deployer", deployer=deployer_addr, chain=chain)
     return {"check": "cross_chain", "result": "pending"}
-
-
-async def _check_contract_verification(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check if contract is verified."""
-    logger.info("check_verification", token=token_address, chain=chain)
-    return {"check": "verified", "result": "pending"}
-
-
-async def _check_liquidity_lock_multi(
-    token_address: str, chain: str, pair_address: str = ""
-) -> dict[str, Any] | None:
-    """Check liquidity lock status."""
-    logger.info("check_liquidity", token=token_address, chain=chain)
-    return {"check": "liquidity", "result": "pending"}
-
-
-def _get_top_symbols() -> set[str]:
-    """Get top 1000 symbols from Dune/Coingecko."""
-    return {"ETH", "USDT", "USDC", "BTC", "SOL"}
-
-
-def _levenshtein_distance(s1: str, s2: str) -> int:
-    """Compute Levenshtein distance between two strings."""
-    if len(s1) < len(s2):
-        return _levenshtein_distance(s2, s1)
-    if len(s2) == 0:
-        return len(s1)
-    prev_row: list[int] = list(range(len(s2) + 1))
-    for i, c1 in enumerate(s1):
-        curr_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = curr_row[j] + 1
-            deletions = prev_row[j + 1] + 1
-            substitutions = prev_row[j] + (c1 != c2)
-            curr_row.append(min(insertions, deletions, substitutions))
-        prev_row = curr_row
-    return prev_row[-1]
-
-
-async def _check_copycat(symbol: str, name: str) -> dict[str, Any] | None:
-    """Check if token is a copycat of a top symbol."""
-    top_symbols = _get_top_symbols()
-    # Exact match should be clean, not high_risk
-    if symbol.upper() in top_symbols:
-        return {"check": "copycat", "result": "clean"}
-    for top in top_symbols:
-        if _levenshtein_distance(symbol.upper(), top) <= 2:
-            return {"check": "copycat", "result": "high_risk", "similar_to": top}
-    return {"check": "copycat", "result": "clean"}
 
 
 async def _check_volume_anomaly(
@@ -101,14 +54,6 @@ async def _check_volume_anomaly(
     """Check for volume anomalies."""
     logger.info("check_volume", token=token_address, chain=chain)
     return {"check": "volume", "result": "pending"}
-
-
-async def _get_price_consensus(
-    token_address: str, chain: str, market_price: float = 0
-) -> dict[str, Any] | None:
-    """Get price consensus across multiple sources."""
-    logger.info("price_consensus", token=token_address, chain=chain)
-    return {"check": "price", "result": "pending"}
 
 
 async def _get_birdeye_data(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -238,6 +183,110 @@ async def _check_thegraph(token_address: str, chain: str) -> dict[str, Any] | No
     return {"check": "thegraph", "result": "pending"}
 
 
+# ── Risk scoring engine ───────────────────────────────────────────────
+
+
+def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
+    """Calculate safety score (0-100) from all module results.
+
+    Baseline: 50 (unknown/neutral).
+    Each module contributes risk based on its findings:
+    - Modules returning error/offline: no impact
+    - Clean modules: +5 to score
+    - Risk flags: -risk_score contribution
+    """
+    score = 50  # Neutral baseline
+    clean_bonus = 0
+    risk_penalty = 0
+    modules_with_data = 0
+
+    for mod_result in modules_results:
+        r = mod_result.get("result", {})
+        if not isinstance(r, dict):
+            continue
+        result_status = r.get("result", "")
+        if result_status in ("error", "pending"):
+            continue  # Module didn't return useful data
+
+        modules_with_data += 1
+
+        # Check for risk indicators
+        risk_score = r.get("risk_score", 0)
+        if risk_score:
+            if isinstance(risk_score, (int, float)):
+                risk_penalty += risk_score * 0.4  # penalty proportional to risk
+
+        # Check for explicit risk flags
+        is_honeypot = r.get("is_honeypot", False)
+        if is_honeypot:
+            risk_penalty += 35
+
+        is_spam = r.get("is_spam", False)
+        if is_spam:
+            risk_penalty += 30
+
+        is_sanctioned = r.get("is_sanctioned", False)
+        if is_sanctioned:
+            risk_penalty += 50
+
+        is_bundled = r.get("is_bundled", False)
+        if is_bundled:
+            confidence = r.get("confidence", 0)
+            risk_penalty += confidence * 50
+
+        is_verified = r.get("is_verified", None)
+        if is_verified is True:
+            clean_bonus += 10
+        elif is_verified is False:
+            risk_penalty += 10
+
+        # Check deployer reputation
+        reputation_label = r.get("reputation_label", "")
+        if reputation_label == "CRITICAL":
+            risk_penalty += 30
+        elif reputation_label == "HIGH":
+            risk_penalty += 20
+        elif reputation_label == "LOW":
+            clean_bonus += 10
+
+        # Check copycat
+        copycat_result = r.get("result", "")
+        if copycat_result == "high_risk":
+            risk_penalty += 25
+        elif copycat_result == "medium_risk":
+            risk_penalty += 15
+        elif copycat_result == "clean":
+            clean_bonus += 5
+
+        # LP locked
+        lp_locked = r.get("liquidity_locked_pct", 0)
+        if lp_locked and isinstance(lp_locked, (int, float)):
+            if lp_locked >= 90:
+                clean_bonus += 10
+            elif lp_locked <= 10 and r.get("liquidity_usd", 0) > 0:
+                risk_penalty += 20
+
+        # Ownership renounced
+        ownership_renounced = r.get("ownership_renounced", None)
+        if ownership_renounced is True:
+            clean_bonus += 10
+
+        # High concentration
+        concentration = r.get("concentration_pct", 0)
+        if isinstance(concentration, (int, float)) and concentration > 50:
+            risk_penalty += 15
+
+    # Apply modifiers
+    score = score + clean_bonus - risk_penalty
+
+    # If we have good data, boost confidence can raise score
+    if modules_with_data >= 4 and risk_penalty == 0:
+        score = min(95, score + 10)
+
+    # Clamp to 0-100
+    return max(0, min(100, int(score)))
+
+
 async def scan_token(
     token_address: str,
     chain: str = "ethereum",
@@ -245,55 +294,108 @@ async def scan_token(
     include_market_data: bool = True,
     include_social: bool = True,
 ) -> ScanResult:
-    """Scan a token for security issues across all SENTINEL modules.
+    """Scan a token for security issues across ALL SENTINEL modules.
 
-    FREE tier: SENTINEL Tier 1 (12 core modules) + DexScreener + GoPlus
-    PRO tier: SENTINEL Tier 1+2 (17 modules) + wallet intelligence
-    ELITE tier: SENTINEL Tier 1+2+3+4 (all 21+ modules) + deep analysis
+    FREE tier: SENTINEL Tier 1 (market_data, honeypot, goplus, copycat, spam)
+    PRO tier: Tier 1 + deployer, holders, verification, liquidity, bundle
+    ELITE tier: Tier 1+2 + deep deployer, price consensus, all modules
     """
     if tiers is None:
         tiers = ["free"]
 
     result = ScanResult(token_address=token_address, chain=chain)
 
+    last_error: str | None = None
+
     # Run modules in parallel
     async def run_module(name: str, func: Any, *args: Any, **kwargs: Any) -> Any:
+        nonlocal last_error
         try:
             r = await func(*args, **kwargs)
             result.modules_run.append({"module": name, "status": "success", "result": r})
             return r
         except Exception as e:
             logger.warning("module_failed", module=name, error=str(e))
+            last_error = str(e)
             result.modules_run.append({"module": name, "status": "error", "error": str(e)})
             return None
 
     tasks = []
+
+    # ── FREE tier (Tier 1) — 7 real modules ──
     if "free" in tiers or "pro" in tiers or "elite" in tiers:
         tasks.append(run_module("market_data", fetch_market_data, token_address, chain))
         tasks.append(run_module("honeypot", _check_honeypot_is, token_address, chain))
-        tasks.append(run_module("tokensniffer", _check_token_sniffer, token_address, chain))
+        tasks.append(run_module("goplus", _check_goplus_security, token_address, chain))
+        tasks.append(run_module("copycat", _check_copycat, token_address, ""))
+        tasks.append(run_module("spam", _check_spam, token_address, chain))
         tasks.append(run_module("blockscout", _check_blockscout, token_address, chain))
         tasks.append(run_module("defiscanner", _check_defi_scanner, token_address, chain))
-        tasks.append(run_module("copycat", _check_copycat, token_address[:8], ""))
 
+    # ── PRO tier (Tier 2) — 5 more real modules ──
     if "pro" in tiers or "elite" in tiers:
         tasks.append(run_module("deployer", _get_deployer_info, token_address, chain))
         tasks.append(run_module("holders", _get_holder_data, token_address, chain))
         tasks.append(run_module("verification", _check_contract_verification, token_address, chain))
         tasks.append(run_module("liquidity", _check_liquidity_lock_multi, token_address, chain))
+        tasks.append(run_module("bundle", _check_bundle, token_address, chain))
 
+    # ── ELITE tier (Tier 3) — deep analysis ──
     if "elite" in tiers:
+        tasks.append(run_module("price", _get_price_consensus, token_address, chain))
         tasks.append(run_module("rag", _rag_scam_check, token_address, chain))
         tasks.append(run_module("nansen", _check_nansen, token_address, chain))
         tasks.append(run_module("blowfish", _check_blowfish, token_address, chain))
         tasks.append(run_module("dune", _check_dune, token_address, chain))
         tasks.append(run_module("arkham", _check_arkham, token_address, chain))
 
-    # Run all tasks
+    # ── Run all tasks ──
     await asyncio.gather(*tasks)
 
-    # Calculate safety score
-    result.safety_score = 100 - len(result.modules_run) * 5  # Simplified
+    # ── Calculate real safety score from module results ──
+    result.safety_score = _calculate_safety_score(result.modules_run)
+
+    # ── Generate risk flags ──
+    risk_flags: list[str] = []
+    for mod_entry in result.modules_run:
+        r = mod_entry.get("result")
+        if not isinstance(r, dict):
+            continue
+
+        if r.get("is_honeypot"):
+            risk_flags.append("honeypot")
+        if r.get("is_spam"):
+            risk_flags.append("flagged_spam")
+        if r.get("is_sanctioned"):
+            risk_flags.append("sanctioned_address")
+        if r.get("is_bundled"):
+            risk_flags.append("bundled_launch")
+        if r.get("result") == "high_risk" and mod_entry.get("module") == "copycat":
+            risk_flags.append("copycat_token")
+        if r.get("reputation_label") == "CRITICAL":
+            risk_flags.append("malicious_deployer")
+        risk_score = r.get("risk_score", 0)
+        if isinstance(risk_score, (int, float)) and risk_score >= 70:
+            if mod_entry.get("module") in ("goplus", "honeypot"):
+                risk_flags.append("high_risk_score")
+        if r.get("concentration_pct", 0) and isinstance(r.get("concentration_pct"), (int, float)):
+            if r["concentration_pct"] > 80:
+                risk_flags.append("concentrated_holders")
+
+    result.risk_flags = risk_flags
+
+    # ── Calculate confidence based on how many modules returned data ──
+    successful = sum(1 for m in result.modules_run if m.get("status") == "success")
+    total = len(result.modules_run) if result.modules_run else 1
+    base_confidence = min(100, int((successful / total) * 100))
+    # Add bonus for modules with real data (not pending)
+    pending_count = sum(
+        1
+        for m in result.modules_run
+        if isinstance(m.get("result"), dict) and m["result"].get("result") == "pending"
+    )
+    real_count = successful - pending_count
+    result.confidence = min(100, base_confidence + real_count * 5)
 
     # Ingest to RAG
     await _ingest_scan_to_rag(result)
@@ -303,8 +405,13 @@ async def scan_token(
 
 async def quick_scan_text(token_address: str, chain: str = "solana") -> str:
     """Quick text scan for token."""
-    result = await scan_token(token_address, chain, tiers=["free"])
-    return f"Token {token_address} scanned. Safety score: {result.safety_score}/100"
+    result = await scan_token(token_address, chain, tiers=["free", "pro"])
+    return (
+        f"Token {token_address} scanned on {chain}. "
+        f"Safety score: {result.safety_score}/100. "
+        f"Confidence: {result.confidence}%. "
+        f"Flags: {', '.join(result.risk_flags) if result.risk_flags else 'None'}"
+    )
 
 
 # Backward compatibility: re-export scan_token
