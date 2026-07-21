@@ -21,6 +21,6 @@ async def analyze_address(
     (mounted from app.routers.contract_analyzer).
     """
     raise HTTPException(
-        status_code=501,
-        detail="Analyze endpoint — see /api/v1/contract-analyzer/analyze/{address}",
+        status_code=503,
+        detail="Analyze endpoint — re-routed to /api/v1/contract-analyzer/analyze/{address} — see roadmap",
     )

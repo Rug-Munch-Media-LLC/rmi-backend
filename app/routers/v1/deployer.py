@@ -20,8 +20,8 @@ async def get_deployer_info(
     Returns deployer history, deployed contracts, risk score.
     """
     raise HTTPException(
-        status_code=501,
-        detail="Deployer info endpoint — planned for v5.1. See app.deployer_reputation",
+        status_code=503,
+        detail="Deployer info endpoint — planned: GET /api/v1/deployer/{address} — see roadmap",
     )
 
 
@@ -32,6 +32,6 @@ async def get_deployer_contracts(
 ):
     """Get contracts deployed by this address."""
     raise HTTPException(
-        status_code=501,
-        detail="Deployer contracts endpoint — planned for v5.1",
+        status_code=503,
+        detail="Deployer contracts endpoint — planned: GET /api/v1/deployer/{address}/contracts — see roadmap",
     )

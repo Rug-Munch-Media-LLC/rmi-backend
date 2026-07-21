@@ -41,11 +41,6 @@ from app.routers.v1.analyze import router as analyze_v1_router  # noqa: E402
 
 v1_router.include_router(analyze_v1_router)
 
-# Scan endpoints
-from app.routers.v1.scan import router as scan_v1_router  # noqa: E402
-
-v1_router.include_router(scan_v1_router)
-
 # Token endpoints
 from app.routers.v1.tokens import router as tokens_v1_router  # noqa: E402
 

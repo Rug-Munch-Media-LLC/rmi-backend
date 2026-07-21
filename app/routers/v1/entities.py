@@ -17,8 +17,8 @@ async def resolve_entity(addresses: list[str], chain: str = "ethereum"):
     Uses entity clustering from app.entity_clustering.
     """
     raise HTTPException(
-        status_code=501,
-        detail="Entity resolution — uses app.entity_clustering + app.wallet_clustering. Planned for v5.1",
+        status_code=503,
+        detail="Entity resolution — planned: POST /api/v1/entities/resolve — see roadmap",
     )
 
 
@@ -26,8 +26,8 @@ async def resolve_entity(addresses: list[str], chain: str = "ethereum"):
 async def get_entity(entity_id: str):
     """Get entity details and member wallets."""
     raise HTTPException(
-        status_code=501,
-        detail="Entity details endpoint — planned for v5.1",
+        status_code=503,
+        detail="Entity details endpoint — planned: GET /api/v1/entities/{entity_id} — see roadmap",
     )
 
 
@@ -37,6 +37,6 @@ async def search_entities(
 ):
     """Search for entities by name or associated address."""
     raise HTTPException(
-        status_code=501,
-        detail="Entity search — planned for v5.1",
+        status_code=503,
+        detail="Entity search — planned: GET /api/v1/entities/search — see roadmap",
     )
