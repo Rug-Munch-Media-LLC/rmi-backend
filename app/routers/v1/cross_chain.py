@@ -18,8 +18,8 @@ async def cross_chain_profile(address: str):
     via app.cross_chain and app.cross_chain_correlator.
     """
     raise HTTPException(
-        status_code=501,
-        detail="Cross-chain profile — uses app.cross_chain + app.cross_chain_correlator. Planned for v5.1",
+        status_code=503,
+        detail="Cross-chain profile — planned: GET /api/v1/cross-chain/{address} — see roadmap",
     )
 
 
@@ -27,6 +27,6 @@ async def cross_chain_profile(address: str):
 async def cross_chain_trace(addresses: list[str]):
     """Trace fund flows across chains."""
     raise HTTPException(
-        status_code=501,
-        detail="Cross-chain fund tracing — uses app.cross_chain_trace. Planned for v5.1",
+        status_code=503,
+        detail="Cross-chain fund tracing — planned: POST /api/v1/cross-chain/trace — see roadmap",
     )

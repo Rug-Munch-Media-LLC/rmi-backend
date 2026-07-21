@@ -20,8 +20,8 @@ async def get_contract_info(
     Returns contract type, verification status, risk flags.
     """
     raise HTTPException(
-        status_code=501,
-        detail="Contract info endpoint — uses app.contract_deepscan. Planned for v5.1",
+        status_code=503,
+        detail="Contract info endpoint — planned: GET /api/v1/contract/{address} — see roadmap",
     )
 
 
@@ -29,6 +29,6 @@ async def get_contract_info(
 async def verify_contract(address: str, chain: str = "ethereum"):
     """Verify contract source code."""
     raise HTTPException(
-        status_code=501,
-        detail="Contract verification — uses Sourcify/Etherscan APIs. Planned for v5.1",
+        status_code=503,
+        detail="Contract verification — planned: GET /api/v1/contract/{address}/verify — see roadmap",
     )

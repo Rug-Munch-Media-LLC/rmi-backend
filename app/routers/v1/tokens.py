@@ -29,8 +29,8 @@ async def get_token_info(address: str, chain: str = "ethereum"):
     This stub will be replaced with real handler wiring.
     """
     raise HTTPException(
-        status_code=501,
-        detail="Token info endpoint — implementation delegated to app.api.v1.public.token",
+        status_code=503,
+        detail="Token info endpoint — planned: GET /api/v1/token/{address} — see roadmap",
     )
 
 
@@ -38,6 +38,6 @@ async def get_token_info(address: str, chain: str = "ethereum"):
 async def get_token_risk(address: str, chain: str = "ethereum"):
     """Get token risk assessment."""
     raise HTTPException(
-        status_code=501,
-        detail="Token risk endpoint — see app.api.v1.public.token for implementation",
+        status_code=503,
+        detail="Token risk endpoint — planned: GET /api/v1/token/{address}/risk — see roadmap",
     )
