@@ -3,38 +3,38 @@
 # Order: specific paths first, wildcards last.
 
 # ── Core infrastructure ──
-/main.py                    @cryptorugmuncher
-/Dockerfile                 @cryptorugmuncher
-/Dockerfile.worker          @cryptorugmuncher
-/requirements.txt           @cryptorugmuncher
-/.github/                   @cryptorugmuncher
+/main.py                    @cryptorugmunch
+/Dockerfile                 @cryptorugmunch
+/Dockerfile.worker          @cryptorugmunch
+/requirements.txt           @cryptorugmunch
+/.github/                   @cryptorugmunch
 
 # ── API routes ──
-/app/routers/               @cryptorugmuncher
-/app/main.py                @cryptorugmuncher
+/app/routers/               @cryptorugmunch
+/app/main.py                @cryptorugmunch
 
 # ── Scanner modules ──
-/app/scanners/              @cryptorugmuncher
-/app/token_scanner.py       @cryptorugmuncher
-/app/unified_scanner.py     @cryptorugmuncher
+/app/scanners/              @cryptorugmunch
+/app/token_scanner.py       @cryptorugmunch
+/app/unified_scanner.py     @cryptorugmunch
 
 # ── Data services ──
-/app/services/              @cryptorugmuncher
-/app/news_service.py        @cryptorugmuncher
-/app/rag_service.py         @cryptorugmuncher
+/app/services/              @cryptorugmunch
+/app/news_service.py        @cryptorugmunch
+/app/rag_service.py         @cryptorugmunch
 
 # ── Security & auth ──
-/app/auth.py                @cryptorugmuncher
-/app/payments.py            @cryptorugmuncher
-/app/scan_rate_limiter.py   @cryptorugmuncher
+/app/auth.py                @cryptorugmunch
+/app/payments.py            @cryptorugmunch
+/app/scan_rate_limiter.py   @cryptorugmunch
 
 # ── Frontend (monorepo) ──
-/rmi-frontend/              @cryptorugmuncher
+/rmi-frontend/              @cryptorugmunch
 
 # ── Documentation ──
-/docs/                      @cryptorugmuncher
-/README.md                  @cryptorugmuncher
-/SECURITY.md                @cryptorugmuncher
+/docs/                      @cryptorugmunch
+/README.md                  @cryptorugmunch
+/SECURITY.md                @cryptorugmunch
 
 # ── CI/CD ──
-/.github/workflows/         @cryptorugmuncher
+/.github/workflows/         @cryptorugmunch
