@@ -1,93 +1,110 @@
-# Python
-*.egg
-*.egg-info/
-*.pyc
-*.pyo
-*.sock
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-.venv/
-venv/
-build/
-dist/
+# === RUGMUNCH STANDARD GITIGNORE — 2026-07-22 ===
 
-# Env files — NEVER commit secrets
-.env
+# Secrets & Credentials — NEVER commit
 *.env
-.env.*
-
-# Secrets and keys
 *.key
 *.pem
-
-# Data / cache / temp
-/cache/
-/logs/
-/tmp/
-n8n-data/
-
-# IDE
-*.json
-!*.example.json
-!actor.json
-!package*.jsondata/faiss/
-data/bm25_index.pkl
-data/faiss/
-data/models/
-data/faiss/
-data/bm25_index.pkl
-data/models/
-.env.bak
-.env.backup-*
-# Large data files (excluded from HF mirror — 10+ MB each)
-tools/VarLifter/
-tools/VarLifter/
-data/wallet-labels-backups/
-sdks/python/rugmunch/
-sdks/typescript/node_modules/
-sdks/typescript/dist/
-
-# Training data (kaggle, labels, ML datasets)
-data/kaggle/
-data/wallet-labels/
-data/wallet-labels-clean/
-
-# Large binary data
-data/*.db
-data/*.sqlite
-*.parquet
-*.pkl
-data/papers/
-.envrc
-
-
-# === SECURITY: never commit secrets ===
-.secrets/
-*.pem
-*.key
-*.crt
 *.p12
-.env
+*.pfx
+credentials*
+secrets*
 .env.*
 !.env.example
+!.env.sample
 
-# === DATA: don't commit binary data blobs ===
-*.zip
-*.tar.gz
-*.tar
-*.parquet
-*.duckdb
-*.sqlite
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Node
+node_modules/
+.npm/
+.yarn/
+
+# Build
+dist/
+build/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Security reports — stored in R2, not git
+security-reports/
+*.gitleaks.json
+trivy*.json
+
+# Internal docs — company confidential
+*INTERNAL*
+PRIVATE*
+ADMIN-ACCESS*
+EDGE*
+secret-rotation*
+
+# === REPO-SPECIFIC ENTRIES (preserved) ===
+
+!*.example.json
+!actor.json
+!package*.json
 *.bin
-*.safetensors
-*.pt
-*.pth
-*.onnx
+*.crt
+*.duckdb
 *.gguf
 *.h5
 *.hdf5
-main.py.bak
-ruff.toml
+*.json
+*.onnx
+*.parquet
+*.pkl
+*.pt
+*.pth
+*.pyo
+*.safetensors
+*.sock
+*.sqlite
+*.tar
+*.tar.gz
+*.zip
+.env
+.env.backup-*
+.env.bak
+.envrc
 .gitsigners
+.secrets/
+/cache/
+/logs/
+/tmp/
+data/*.db
+data/*.sqlite
+data/bm25_index.pkl
+data/faiss/
+data/kaggle/
+data/models/
+data/papers/
+data/wallet-labels-backups/
+data/wallet-labels-clean/
+data/wallet-labels/
+main.py.bak
+n8n-data/
+ruff.toml
+sdks/python/rugmunch/
+sdks/typescript/dist/
+sdks/typescript/node_modules/
+tools/VarLifter/
