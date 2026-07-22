@@ -24,13 +24,6 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
-
-# ── Command module imports ──
-from commands.chart import cmd_chart
-from commands.portfolio import cmd_portfolio
-from commands.rugmap import cmd_rugmap
-from commands.simulate import cmd_simulate
-from commands.smartmoney import cmd_smartmoney
 from telegram import (
     BotCommand,
     InlineKeyboardButton,
@@ -53,6 +46,13 @@ from telegram.ext import (
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
+
+# ── Command module imports ──
+from app.domains.telegram.rugmunchbot.commands.chart import cmd_chart
+from app.domains.telegram.rugmunchbot.commands.portfolio import cmd_portfolio
+from app.domains.telegram.rugmunchbot.commands.rugmap import cmd_rugmap
+from app.domains.telegram.rugmunchbot.commands.simulate import cmd_simulate
+from app.domains.telegram.rugmunchbot.commands.smartmoney import cmd_smartmoney
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     BOT_DESCRIPTION,
