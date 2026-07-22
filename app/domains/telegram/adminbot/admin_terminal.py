@@ -35,7 +35,7 @@ def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
     try:
         r = subprocess.run(
             cmd,
-            shell=True,
+            shell=True,  # nosec - admin shell by design
             capture_output=True,
             text=True,
             timeout=15,
@@ -73,7 +73,7 @@ def run_quick(cmd_name: str) -> dict[str, Any]:
     }
     cmd = quick.get(cmd_name, cmd_name)
     try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)  # nosec - admin shell by design
         return {"ok": r.returncode == 0, "output": r.stdout or r.stderr, "error": ""}
     except Exception as e:
         return {"ok": False, "output": "", "error": str(e)}
