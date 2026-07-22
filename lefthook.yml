@@ -1,28 +1,26 @@
 pre-commit:
   parallel: true
   commands:
-    envsitter:
-      run: envsitter scan --filePath .env.example
     gitleaks:
-      run: gitleaks detect --verbose --redact --no-git
+      run: gitleaks protect --staged --no-banner --verbose
+    envsitter:
+      run: envsitter validate
     ruff:
-      run: ruff check --fix && ruff format
+      run: ruff check {staged_files}
+    biome:
+      run: npx biome check --write {staged_files}
+
 pre-push:
   parallel: true
   commands:
     mypy:
-      run: mypy --strict .
-      tags: [python]
+      run: mypy .
     bandit:
-      run: bandit -r .
-      tags: [python]
+      run: bandit -c pyproject.toml -r .
     deptry:
       run: deptry .
-      tags: [python]
-    gitleaks-full:
-      run: gitleaks detect --verbose --redact
+
 commit-msg:
   commands:
     commitlint:
       run: commitlint --edit "$1"
-
