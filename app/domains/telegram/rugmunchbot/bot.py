@@ -7,7 +7,7 @@ Telegram Stars payments, DEX ref revenue, referral system, AI chat,
 inline queries, scheduled tips, trending tokens, spam protection,
 website integration, social links, bot profile setup.
 
-Run: cd /root/backend/app/telegram_bot && python3 bot.py
+Run: cd /root/backend && python3 -m app.domains.telegram.rugmunchbot.bot
 """
 
 import asyncio
@@ -44,11 +44,10 @@ from telegram.ext import (
 from app.core.logging import get_logger
 
 # ── Local imports ──
-sys.path.insert(0, "/srv/work/repos/rmi-backend/app/telegram_bot")
 import contextlib
 
-import db
-from config import (
+from app.domains.telegram.rugmunchbot import db
+from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     BOT_DESCRIPTION,
     BOT_SHORT_DESCRIPTION,

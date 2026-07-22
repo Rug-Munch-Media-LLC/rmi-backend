@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from app.core.logging import get_logger
-from app.telegram_bot.requirements import httpx
+import httpx
 
 # TODO: migrate _fetch_source_code to async httpx.AsyncClient
 # Currently uses sync httpx.get() inside a sync function chain.

@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter
 
-from app.telegram_bot.requirements import httpx
+import httpx
 
 MEMGRAPH_URI = os.getenv("MEMGRAPH_URI", "bolt://localhost:7687")
 MEMGRAPH_USER = os.getenv("MEMGRAPH_USER", "")
