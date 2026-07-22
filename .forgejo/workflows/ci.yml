@@ -7,6 +7,19 @@ on:
     branches: [main]
 
 jobs:
+  shellcheck:
+    runs-on: docker-x64
+    container:
+      image: koalaman/shellcheck-alpine:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: |
+          find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
+      - name: Bash Syntax
+        run: |
+          find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec bash -n {} \;
+
   build:
     runs-on: docker-x64
     container:

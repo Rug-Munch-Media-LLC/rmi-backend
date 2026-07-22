@@ -9,6 +9,9 @@ pre-commit:
       run: ruff check {staged_files}
     biome:
       run: npx biome check --write {staged_files}
+    shellcheck:
+      run: shellcheck {files}
+      glob: "*.sh"
 
 pre-push:
   parallel: true
