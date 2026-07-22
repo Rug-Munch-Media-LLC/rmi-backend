@@ -130,6 +130,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.domains.news.admin_router",  # /api/v1/news/_admin/*
     "app.domains.reports",  # /api/v1/reports/*
     "app.domains.x402",  # /api/v1/x402/*
+    # TODO(mount): app.domains.x402.tools_router  # /api/v1/x402-tools/* (paid tools)
     # x402 MCP + Discovery + Docs
     "app.routers.x402_mcp_handler",  # /mcp/x402, /.well-known/x402
     "app.routers.x402_docs",  # /x402/docs, /x402/sandbox/*
