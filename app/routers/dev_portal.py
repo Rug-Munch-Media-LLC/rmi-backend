@@ -5,9 +5,9 @@ import os
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Header
+from pydantic import BaseModel
 
 from app.core.errors import AuthError
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/developer", tags=["developer-portal"])
 

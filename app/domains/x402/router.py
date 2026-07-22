@@ -20,8 +20,8 @@ from pydantic import BaseModel, Field
 from app.catalog.service import get_catalog
 from app.core.logging import get_logger
 from app.domains.x402.middleware import (
-    PRICING,
     FREE_DAILY_LIMIT,
+    PRICING,
     create_invoice,
     get_tool_metadata,
     get_tool_price_usd,

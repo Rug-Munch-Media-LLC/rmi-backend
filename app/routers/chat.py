@@ -27,10 +27,10 @@ from typing import Any
 import httpx
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Request
-
-from app.core.errors import AuthorizationError, ExternalAPIError
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+
+from app.core.errors import AuthorizationError, ExternalAPIError
 
 # ── AI Security Guard ──
 from app.security.ai_guard import AIGuard

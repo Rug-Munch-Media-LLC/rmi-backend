@@ -4,9 +4,8 @@ Enables agents to remember past interactions across sessions."""
 import os
 from datetime import UTC, datetime
 
-from fastapi import APIRouter
-
 import httpx
+from fastapi import APIRouter
 
 MEMGRAPH_URI = os.getenv("MEMGRAPH_URI", "bolt://localhost:7687")
 MEMGRAPH_USER = os.getenv("MEMGRAPH_USER", "")

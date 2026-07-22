@@ -7,10 +7,9 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
-
-from app.core.errors import ExternalAPIError
 from pydantic import BaseModel
 
+from app.core.errors import ExternalAPIError
 from app.core.internal_key import INTERNAL_API_KEY
 
 router = APIRouter(prefix="/api/v1/token-cv", tags=["token-cv"])

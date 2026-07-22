@@ -133,7 +133,7 @@ def main() -> None:
     print(f"[labels_sync]  {len(rows)} rows parsed")
 
     if dry_run:
-        print(f"[labels_sync]  DRY RUN — no rows written")
+        print("[labels_sync]  DRY RUN — no rows written")
         return
 
     client = get_client()

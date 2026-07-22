@@ -1,3 +1,3 @@
 """Deprecated — use app.domains.wallet.unified_wallet_scanner instead."""
 
-from app.domains.wallet.unified_wallet_scanner import *  # noqa: F401, F403
+from app.domains.wallet.unified_wallet_scanner import *  # noqa: F403

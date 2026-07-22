@@ -58,7 +58,6 @@ def set_cached_analysis(token: str, chain: str, analysis: dict):
 async def get_token_holders(token_address: str, chain: str) -> list[dict]:
     """Get token holders from our data sources."""
     try:
-        from app.domains.scanner.rugmaps_engine import get_bubble_maps_pro
 
         bm = get_rugmaps_engine()
         result = await bm.generate_map(center_wallet=token_address, depth=2, min_strength=0.1)
@@ -73,7 +72,6 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
     """Get wallet labels from our ClickHouse/FAISS database."""
     labels = {}
     try:
-        from app.domains.scanner.rugmaps_engine import get_bubble_maps_pro
 
         bm = get_rugmaps_engine()
         for addr in addresses[:50]:

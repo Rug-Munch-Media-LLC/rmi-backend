@@ -35,10 +35,11 @@ import functools
 import threading
 import time
 from collections import OrderedDict
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from app.core.logging import get_logger
 
@@ -411,7 +412,7 @@ class DegradationChain:
                     stores_tried=[store_name],
                     latency_ms=(time.perf_counter() - start) * 1000,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 err = f"{store_name} timeout ({timeout}s)"
                 errors.append(err)
                 stores_tried.append(store_name)
@@ -441,7 +442,7 @@ class DegradationChain:
                         errors=errors,
                         latency_ms=(time.perf_counter() - start) * 1000,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     err = f"{sec_name} timeout ({sec_timeout}s)"
                     errors.append(err)
                     stores_tried.append(sec_name)
@@ -722,7 +723,6 @@ def cache_on_success(store: str, key: str, ttl: int = 300) -> None:
 
     Called manually in route handlers after a successful query.
     """
-    ...
 
 
 # ══════════════════════════════════════════════════════════════════════

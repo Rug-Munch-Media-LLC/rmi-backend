@@ -19,12 +19,11 @@ Usage:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-
 
 _STATUS_TITLES: dict[int, str] = {
     400: "Bad Request",
@@ -83,7 +82,7 @@ class ProblemDetail(BaseModel):
         description="Correlation ID for tracing this request through the system",
     )
     timestamp: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+        default_factory=lambda: datetime.now(UTC).isoformat(),
         description="ISO 8601 timestamp of when the error occurred",
     )
     errors: list[dict[str, Any]] | None = Field(

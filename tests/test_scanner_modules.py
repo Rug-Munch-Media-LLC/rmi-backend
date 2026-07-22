@@ -6,7 +6,7 @@ Each test mocks external HTTP calls to ensure deterministic, fast execution.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -257,7 +257,6 @@ def test_copycat_exact_symbol():
 
     _pytest  # silence unused import
 
-    from app.domains.scanner.modules import _check_copycat
 
     # Need to call async, but this function is synchronous internally
     # Let's test the underlying helpers directly

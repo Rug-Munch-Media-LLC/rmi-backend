@@ -48,9 +48,9 @@ litellm_settings:
   drop_params: true
   set_verbose: true
   request_timeout: 120
-  success_callback: ["langfuse", "callbacks.clickhouse_logger"]
-  failure_callback: ["langfuse", "callbacks.clickhouse_logger"]
-  callbacks: ["callbacks.clickhouse_logger"]
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  # callbacks disabled - no clickhouse_logger module
 
 router_settings:
   routing_strategy: usage-based-routing
