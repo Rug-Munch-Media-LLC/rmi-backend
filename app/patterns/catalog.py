@@ -15,7 +15,7 @@
 PATTERN_LIBRARY = {
     "fastapi": ["rmi-backend"],
     "scanners": ["rmi-backend/app/scanners"],
-    "telegram": ["rmi-backend/app/telegram_bot"],
+    "telegram": ["rmi-backend/app/domains/telegram"],
     "vue": ["rmi-frontend"],
     "nuxt": ["rmi-frontend"],
 }
