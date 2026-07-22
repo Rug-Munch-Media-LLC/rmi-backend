@@ -7,6 +7,22 @@ on:
     branches: [main]
 
 jobs:
+  bandit:
+    runs-on: docker-x64
+    container:
+      image: python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bandit
+        run: pip install bandit
+      - name: Bandit SAST scan
+        run: bandit -r app/ -ll -f json -o bandit-report.json
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
   shellcheck:
     runs-on: docker-x64
     container:
