@@ -13,10 +13,9 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-
 
 # ── RugMapNode ─────────────────────────────────────────────────────────
 
@@ -92,7 +91,7 @@ def test_rugmap_to_dict():
     """RugMapData.to_dict() returns complete structure."""
     from datetime import datetime
 
-    from app.rugmaps_engine import RugMapLink, RugMapData, RugMapNode
+    from app.rugmaps_engine import RugMapData, RugMapLink, RugMapNode
 
     now = datetime.now(UTC)
     bm = RugMapData(map_id="test_map", center_wallet="0xcenter", created_at=now)
@@ -381,7 +380,7 @@ async def test_get_transactions_with_time_range(bubble_pro):
 
 def test_calculate_stats(bubble_pro):
     """Stats are computed correctly from map data."""
-    from app.rugmaps_engine import RugMapLink, RugMapData, RugMapNode
+    from app.rugmaps_engine import RugMapData, RugMapLink, RugMapNode
 
     now = datetime.now(UTC)
     bm = RugMapData(map_id="test", center_wallet="0xcenter", created_at=now)

@@ -10,7 +10,6 @@ from __future__ import annotations
 from app.domains.scanner.modules import (
     _check_copycat,
     _get_top_symbols,
-    _levenshtein_distance,
 )
 
 

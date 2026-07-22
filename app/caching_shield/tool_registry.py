@@ -13,8 +13,8 @@ Sources:
 Gets called by x402_catalog.py for accurate tool counts.
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 from app.core.logging import get_logger
 

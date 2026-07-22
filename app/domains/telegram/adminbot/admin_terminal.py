@@ -28,7 +28,8 @@ def exit_terminal(user_id: int) -> None:
 def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
     if cmd.strip() == "exit":
         return {"exit": True, "output": "", "error": ""}
-    import subprocess, time
+    import subprocess
+    import time
 
     t0 = time.time()
     try:

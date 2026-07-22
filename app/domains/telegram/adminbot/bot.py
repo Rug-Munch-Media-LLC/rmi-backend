@@ -26,9 +26,8 @@ from telegram.ext import (
     filters,
 )
 
+from app.domains.telegram.adminbot import admin_ops, admin_terminal
 from app.domains.telegram.adminbot.config import ADMIN_BOT_TOKEN, OWNER_IDS
-from app.domains.telegram.adminbot import admin_ops
-from app.domains.telegram.adminbot import admin_terminal
 
 # ── Optional modules ───────────────────────────────────────────────────────
 try:

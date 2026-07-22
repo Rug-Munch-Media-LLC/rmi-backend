@@ -13,8 +13,9 @@ import tempfile
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from app.core.logging import get_logger
 import httpx
+
+from app.core.logging import get_logger
 
 # TODO: migrate _fetch_source_code to async httpx.AsyncClient
 # Currently uses sync httpx.get() inside a sync function chain.

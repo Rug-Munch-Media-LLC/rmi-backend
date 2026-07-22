@@ -11,6 +11,9 @@ Run: cd /root/backend && python3 -m app.domains.telegram.rugmunchbot.bot
 """
 
 import asyncio
+
+# ── Local imports ──
+import contextlib
 import logging
 import random
 import re
@@ -21,6 +24,13 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
+
+# ── Command module imports ──
+from commands.chart import cmd_chart
+from commands.portfolio import cmd_portfolio
+from commands.rugmap import cmd_rugmap
+from commands.simulate import cmd_simulate
+from commands.smartmoney import cmd_smartmoney
 from telegram import (
     BotCommand,
     InlineKeyboardButton,
@@ -42,10 +52,6 @@ from telegram.ext import (
 )
 
 from app.core.logging import get_logger
-
-# ── Local imports ──
-import contextlib
-
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
@@ -75,13 +81,6 @@ from app.domains.telegram.rugmunchbot.config import (
     risk_bar,
     threat_indicator,
 )
-
-# ── Command module imports ──
-from commands.chart import cmd_chart
-from commands.portfolio import cmd_portfolio
-from commands.simulate import cmd_simulate
-from commands.smartmoney import cmd_smartmoney
-from commands.rugmap import cmd_rugmap
 
 # ══════════════════════════════════════════════
 # SOL PRICE CACHE
@@ -2343,9 +2342,9 @@ __all__ = [
     "cmd_chart",
     "cmd_compare",
     "cmd_help",
-    "cmd_portfolio",
     "cmd_help",
     "cmd_news",
+    "cmd_portfolio",
     "cmd_pricing",
     "cmd_quick",
     "cmd_refer",
