@@ -109,3 +109,4 @@ sdks/typescript/dist/
 sdks/typescript/node_modules/
 tools/VarLifter/
 RADICLE.md
+backend.log
