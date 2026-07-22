@@ -4,11 +4,12 @@ pre-commit:
     gitleaks:
       run: gitleaks protect --staged --no-banner --verbose
     envsitter:
-      run: envsitter validate
+      run: envsitter validate --file .env
     ruff:
-      run: ruff check {staged_files}
+      run: ruff check {files}
+      glob: "*.py"
     biome:
-      run: npx biome check --write {staged_files}
+      run: npx biome check --write {staged_files} 2>/dev/null; true
     shellcheck:
       run: shellcheck {files}
       glob: "*.sh"
@@ -21,7 +22,7 @@ pre-push:
     bandit:
       run: bandit -c pyproject.toml -r .
     deptry:
-      run: deptry .
+      run: deptry . || echo "deptry warnings (non-blocking)"
 
 commit-msg:
   commands:

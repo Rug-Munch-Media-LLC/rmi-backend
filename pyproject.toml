@@ -95,6 +95,8 @@ ignore = [
 # Legacy code excluded entirely
 "_legacy_main.py" = ["ALL"]
 "app/legacy/**" = ["ALL"]
+# Telegram bot: pre-existing try/except/pass patterns, non-crypto random
+"app/domains/telegram/rugmunchbot/bot.py" = ["S110", "S311"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
@@ -169,3 +171,9 @@ omit = ["_legacy_main.py", "app/legacy/*", "tests/*"]
 show_missing = true
 skip_covered = true
 fail_under = 60  # raise as migration progresses
+
+[tool.deptry]
+# Ignore noisy DEP003 (transitive dependency imports) and DEP002 (unused deps
+# that are dev tools like ruff/mypy). Only DEP001 (missing dependency) matters.
+ignore_dep003 = true
+ignore_dep002 = true
