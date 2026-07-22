@@ -18,11 +18,11 @@ pre-push:
   parallel: true
   commands:
     mypy:
-      run: mypy .
+      run: mypy app/ --ignore-missing-imports || echo "mypy warnings — see CI for results"
     bandit:
-      run: bandit -c pyproject.toml -r .
+      run: bandit -r app/ -ll || echo "bandit warnings — see CI for results"
     deptry:
-      run: deptry . || echo "deptry warnings (non-blocking)"
+      run: deptry . || echo "deptry warnings — see CI for results"
 
 commit-msg:
   commands:

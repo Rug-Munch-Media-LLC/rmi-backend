@@ -175,5 +175,4 @@ fail_under = 60  # raise as migration progresses
 [tool.deptry]
 # Ignore noisy DEP003 (transitive dependency imports) and DEP002 (unused deps
 # that are dev tools like ruff/mypy). Only DEP001 (missing dependency) matters.
-ignore_dep003 = true
-ignore_dep002 = true
+ignore = ["DEP002", "DEP003"]

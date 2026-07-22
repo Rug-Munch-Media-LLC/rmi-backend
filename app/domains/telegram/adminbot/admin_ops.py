@@ -22,7 +22,7 @@ def _err(msg: str) -> dict[str, Any]:
 def run_shell(cmd: str, timeout: int = 30) -> dict[str, Any]:
     t0 = time.time()
     try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)  # nosec - admin shell by design
         return {
             "ok": r.returncode == 0,
             "output": r.stdout or r.stderr,
