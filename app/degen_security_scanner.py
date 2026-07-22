@@ -1,4 +1,4 @@
-from app.telegram_bot.requirements import httpx
+import httpx
 
 #!/usr/bin/env python3
 """
