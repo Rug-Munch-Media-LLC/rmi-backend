@@ -14,6 +14,7 @@ Gets called by x402_catalog.py for accurate tool counts.
 """
 
 from pathlib import Path
+import os
 
 from app.core.logging import get_logger
 
@@ -48,7 +49,7 @@ def count_all_tools() -> dict:
 def _count_gateway_tools() -> int:
     """Count x402 gateway tools from CF worker static catalog."""
     # The gateway has ~50 static tools defined in index.ts
-    gateway_dir = Path("/srv/x402-gateway-base")
+    gateway_dir = Path(os.environ.get("X402_GATEWAY_DIR", "/srv/work/repos/rmi-mcp-x402"))
     if gateway_dir.exists():
         index_ts = gateway_dir / "index.ts"
         if index_ts.exists():
