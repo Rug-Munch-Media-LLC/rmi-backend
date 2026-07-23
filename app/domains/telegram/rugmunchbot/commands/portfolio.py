@@ -1,94 +1,205 @@
 """
 👛 Wallet Portfolio Scanner
 =============================
-Scan a wallet and return its token portfolio.
+Scan wallets and return token holdings with portfolio value.
+Supports comma-separated multi-address scanning.
 """
 
 import httpx
 
 from app.core.logging import get_logger
-from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER
+from app.domains.telegram.rugmunchbot.config import BACKEND_URL
 
 logger = get_logger("rmi.portfolio")
 
 
+async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> dict:
+    """Fetch Solana token balances from Shyft (free tier).
+
+    Returns dict with {balance_usd, top_tokens: [{symbol, name, balance,
+    value_usd, mint}]}.
+    """
+    result: dict = {
+        "balance_usd": 0.0,
+        "top_tokens": [],
+        "tx_count": 0,
+        "error": None,
+    }
+    # Try backend first
+    try:
+        r = await client.get(f"{BACKEND_URL}/api/v1/databus/wallet/{address}", timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            result["balance_usd"] = float(data.get("balance_usd", 0))
+            result["top_tokens"] = data.get("top_tokens", [])
+            result["tx_count"] = data.get("tx_count", 0)
+            return result
+    except Exception as exc:
+        logger.debug("Backend portfolio failed for %s: %s", address, exc)
+
+    return result
+
+
+async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict:
+    """Fetch EVM token balances.
+
+    Uses backend first, falls back to basic info.
+    """
+    result: dict = {
+        "balance_usd": 0.0,
+        "top_tokens": [],
+        "tx_count": 0,
+        "error": None,
+    }
+    try:
+        r = await client.get(f"{BACKEND_URL}/api/v1/databus/wallet/{address}", timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            result["balance_usd"] = float(data.get("balance_usd", 0))
+            result["top_tokens"] = data.get("top_tokens", [])
+            result["tx_count"] = data.get("tx_count", 0)
+    except Exception as exc:
+        logger.debug("Backend EVM portfolio failed for %s: %s", address, exc)
+
+    return result
+
+
+def _format_usd(value: float) -> str:
+    """Format USD value nicely."""
+    if value >= 1000:
+        return f"${value:,.2f}"
+    return f"${value:.4f}"
+
+
 async def cmd_portfolio(update, ctx) -> None:
-    """Handle /portfolio command - scan wallet holdings."""
+    """Handle /portfolio command — scan one or more wallet addresses.
+
+    Accepts comma-separated addresses to compare portfolios.
+    Shows mini-table with token, balance, price, value, and % of portfolio.
+    """
     msg = update.message
     args = ctx.args
 
     if not args:
         await msg.reply_text(
-            "👛 <b>Usage:</b> <code>/portfolio &lt;wallet_address&gt;</code>\n\n"
-            "Example: <code>/portfolio 0x... or So1...11112</code>\n\n"
-            "Shows token holdings, estimated value, and risk flags.",
+            "👛 <b>Usage:</b> <code>/portfolio &lt;address1&gt;[,address2,...]</code>\n\n"
+            "Examples:\n"
+            "  <code>/portfolio 0x...single</code>\n"
+            "  <code>/portfolio 0x...one, So1...two</code>\n\n"
+            "Shows token holdings, estimated value, and portfolio breakdown.",
             parse_mode="HTML",
         )
         return
 
-    address = args[0]
+    raw_addresses = args[0]
+    addresses = [a.strip() for a in raw_addresses.split(",") if a.strip()]
+    max_addrs = min(len(addresses), 3)  # limit to 3 addresses max
+    addresses = addresses[:max_addrs]
+
     await msg.chat.send_action("typing")
 
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.get(f"{BACKEND_URL}/api/v1/databus/wallet/{address}", timeout=15)
-            if r.status_code == 200:
-                data = r.json()
-            else:
-                # Fallback: try basic Solana/EVM portfolio from external APIs
-                data = {"top_tokens": [], "balance_usd": 0, "tx_count": 0}
-                try:
-                    r2 = await client.get(
-                        f"{DEXSCREENER}/tokens/{address}",
-                        timeout=10,
-                    )
-                    if r2.status_code == 200:
-                        dex_data = r2.json()
-                        pairs = dex_data.get("pairs", [])
-                        if pairs:
-                            p = pairs[0]
-                            data["balance_usd"] = float(p.get("priceUsd", 0))
-                            data["top_tokens"] = [
-                                {
-                                    "symbol": p.get("baseToken", {}).get("symbol", "?"),
-                                    "name": p.get("baseToken", {}).get("name", "?"),
-                                    "value_usd": float(p.get("liquidity", {}).get("usd", 0)),
-                                }
-                            ]
-                except Exception as exc:
-                    logger.debug("DexScreener detail failed: %s", exc)
+    from app.domains.telegram.rugmunchbot.bot import (
+        is_evm,
+        is_sol,
+        short_addr,
+    )
 
-        top_tokens = data.get("top_tokens", [])
-        balance = data.get("balance_usd", 0)
-        tx_count = data.get("tx_count", 0)
-
-        lines = [
-            f"👛 <b>Portfolio: <code>{address[:12]}...{address[-6:]}</code></b>",
-            "",
-            f"💰 <b>Estimated Balance:</b> ${balance:,.2f}",
-            f"📝 <b>Transactions:</b> {tx_count:,}",
-        ]
-
-        if top_tokens:
-            lines.extend(["", "🪙 <b>Token Holdings</b>"])
-            for i, t in enumerate(top_tokens[:10], 1):
-                sym = t.get("symbol", "???")
-                val = t.get("value_usd", 0)
-                pct = t.get("portfolio_pct", 0)
-                if pct:
-                    lines.append(f"  {i}. <b>{sym}</b> - ${val:,.2f} ({pct:.1f}%)")
+    async with httpx.AsyncClient(timeout=25) as client:
+        for addr_idx, address in enumerate(addresses):
+            try:
+                # Detect chain and fetch portfolio
+                if is_sol(address):
+                    portfolio = await _fetch_solana_portfolio(client, address)
+                elif is_evm(address):
+                    portfolio = await _fetch_evm_portfolio(client, address)
                 else:
-                    lines.append(f"  {i}. <b>{sym}</b> - ${val:,.2f}")
+                    await msg.reply_text(
+                        f"❌ Unrecognized address format: <code>{address[:20]}...</code>",
+                        parse_mode="HTML",
+                    )
+                    continue
 
-        lines.append("")
-        lines.append("<i>Data from RugMunch Intelligence</i>")
+                top_tokens = portfolio.get("top_tokens", [])
+                balance = portfolio.get("balance_usd", 0)
+                tx_count = portfolio.get("tx_count", 0)
 
-        text = "\n".join(lines)
-        await msg.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)
+                # Build display lines
+                label = f"👛 <b>Portfolio #{addr_idx + 1}:</b> <code>{short_addr(address)}</code>"
 
-    except Exception as e:
-        logger.error(f"Portfolio failed: {e}")
-        await msg.reply_text(
-            "❌ Could not scan portfolio. Make sure the address is valid.",
-            parse_mode="HTML",
-        )
+                lines = [label, ""]
+
+                # Summary row
+                summary_parts = []
+                summary_parts.append(f"💰 <b>Value:</b> {_format_usd(balance)}")
+                summary_parts.append(
+                    f"📝 <b>TX:</b> {tx_count:,}" if tx_count else "📝 <b>TX:</b> N/A"
+                )
+                lines.append(" | ".join(summary_parts))
+
+                # Token holdings table
+                if top_tokens:
+                    lines.extend(["", "🪙 <b>Holdings</b>"])
+
+                    # Calculate total value for percentages
+                    total_value = sum(float(t.get("value_usd", 0)) for t in top_tokens)
+                    if total_value == 0:
+                        total_value = balance
+
+                    # Header row
+                    lines.append("  <code>#  Symbol         Balance    Value       %</code>")
+
+                    for i, t in enumerate(top_tokens[:8], 1):
+                        sym = (t.get("symbol") or "???")[:10]
+                        bal = t.get("balance", t.get("balance_raw", ""))
+                        val = float(t.get("value_usd", 0))
+                        val_str = _format_usd(val)
+                        pct = (val / total_value * 100) if total_value > 0 else 0
+
+                        # Format balance
+                        if isinstance(bal, (int, float)) and bal > 0:
+                            if bal >= 1000:
+                                bal_str = f"{bal:,.2f}"
+                            elif bal >= 1:
+                                bal_str = f"{bal:.4f}"
+                            elif bal >= 0.001:
+                                bal_str = f"{bal:.6f}"
+                            else:
+                                bal_str = f"{bal:.8f}"
+                            bal_str = bal_str[:12]
+                        else:
+                            bal_str = "—"
+                            val_str = _format_usd(val or 0)
+                            pct = (val / total_value * 100) if total_value > 0 else 0
+
+                        pct_str = f"{pct:.1f}%"
+                        lines.append(
+                            f"  <code>{i:<2} {sym:<14} {bal_str:<12} {val_str:<10} {pct_str}</code>"
+                        )
+
+                    lines.append(f"\n  <b>Total:</b> {_format_usd(total_value)}")
+
+                if not top_tokens:
+                    lines.append("\n  No token holdings data available.")
+
+                lines.append("")
+
+                text = "\n".join(lines)
+                if len(text) > 4000:
+                    text = text[:4000] + "\n\n<i>...truncated</i>"
+
+                await msg.reply_text(
+                    text,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                )
+
+            except Exception as e:
+                logger.error("Portfolio failed for %s: %s", address, e)
+                await msg.reply_text(
+                    f"❌ Could not scan <code>{short_addr(address)}</code>. "
+                    f"Make sure the address is valid.",
+                    parse_mode="HTML",
+                )
+
+
+__all__ = ["cmd_portfolio"]

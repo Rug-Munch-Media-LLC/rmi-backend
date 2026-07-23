@@ -86,6 +86,9 @@ def init_db() -> None:
         conn.execute("ALTER TABLE users ADD COLUMN bonus_scans INTEGER DEFAULT 0")
     with contextlib.suppress(sqlite3.OperationalError):
         conn.execute("ALTER TABLE users ADD COLUMN bonus_ai_msgs INTEGER DEFAULT 0")
+    # Migration: alert_triggered_at for tracking when alerts fire
+    with contextlib.suppress(sqlite3.OperationalError):
+        conn.execute("ALTER TABLE watchlists ADD COLUMN alert_triggered_at TEXT")
     conn.commit()
     conn.close()
 
@@ -184,7 +187,7 @@ def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> b
         user = conn.execute(
             "SELECT bonus_scans FROM users WHERE user_id = ?", (user_id,)
         ).fetchone()
-        from config import TIERS
+        from app.domains.telegram.rugmunchbot.config import TIERS
 
         tier = get_user_tier(user_id)
         limit = TIERS.get(tier, TIERS["free"]).get("scans_per_week", 25)
@@ -218,7 +221,7 @@ def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> b
         user = conn.execute(
             "SELECT bonus_ai_msgs FROM users WHERE user_id = ?", (user_id,)
         ).fetchone()
-        from config import TIERS
+        from app.domains.telegram.rugmunchbot.config import TIERS
 
         tier = get_user_tier(user_id)
         limit = TIERS.get(tier, TIERS["free"]).get("ai_msgs_per_week", 15)
@@ -253,7 +256,7 @@ def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> b
 def check_rate_limit(user_id: int, action: str = "scan") -> tuple[bool, int, int]:
     """Returns (allowed, current_used, max_allowed).
     'allowed' is True if weekly allotment OR bonus balance has room."""
-    from config import TIERS
+    from app.domains.telegram.rugmunchbot.config import TIERS
 
     tier = get_user_tier(user_id)
     tier_config = TIERS.get(tier, TIERS["free"])
@@ -334,14 +337,75 @@ def remove_watchlist(user_id: int, token_address: str) -> bool:
     return result
 
 
+def get_active_alerts() -> list[dict]:
+    """Return all watchlist entries with active price alerts."""
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT * FROM watchlists
+        WHERE alert_price IS NOT NULL
+          AND alert_direction IS NOT NULL
+          AND is_active = 1
+        ORDER BY created_at DESC
+        """,
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_alert_triggered(watch_id: int) -> None:
+    """Mark an alert as fired by setting triggered_at and deactivating."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE watchlists SET is_active = 0, alert_triggered_at = ? WHERE id = ?",
+        (datetime.now(UTC).isoformat(), watch_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_watchlist_for_user(user_id: int, include_triggered: bool = False) -> list[dict]:
+    """Get user watchlist with alert metadata.
+
+    If include_triggered is True, returns both active and triggered entries.
+    """
+    conn = get_db()
+    if include_triggered:
+        rows = conn.execute(
+            "SELECT * FROM watchlists WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM watchlists WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 # ── Scan History ──
 
 
-def log_scan(user_id: int, token_address: str, chain: str, scan_type: str, risk_score: float) -> None:
+def log_scan(
+    user_id: int, token_address: str, chain: str, scan_type: str, risk_score: float
+) -> None:
     conn = get_db()
     conn.execute(
         "INSERT INTO scan_history (user_id, token_address, chain, scan_type, risk_score, created_at) VALUES (?, ?, ?, ?, ?, ?)",
         (user_id, token_address, chain, scan_type, risk_score, int(time.time())),
+    )
+    conn.commit()
+    conn.close()
+
+
+def activate_tier(user_id: int, tier: str, days: int = 30) -> None:
+    """Atomically activate a paid tier for N days (sets tier + tier_expires)."""
+    expires = int(time.time() + timedelta(days=days).total_seconds())
+    conn = get_db()
+    conn.execute(
+        "UPDATE users SET tier = ?, tier_expires = ? WHERE user_id = ?",
+        (tier, expires, user_id),
     )
     conn.commit()
     conn.close()

@@ -57,14 +57,6 @@ TWITTER_URL = "https://x.com/RugMunch"
 TELEGRAM_CHANNEL = "https://t.me/RugMunchAlerts"
 TELEGRAM_GROUP = "https://t.me/RugMunchChat"
 SUPPORT_EMAIL = "biz@rugmunch.io"
-ENTERPRISE_CONTACT = "biz@rugmunch.io"
-
-SOCIAL_LINKS = {
-    "website": {"emoji": "🌐", "name": "RugMunch.io", "url": WEBSITE_URL},
-    "twitter": {"emoji": "𝕏", "name": "Twitter/X", "url": TWITTER_URL},  # noqa: RUF001
-    "channel": {"emoji": "📢", "name": "Alerts Channel", "url": TELEGRAM_CHANNEL},
-    "group": {"emoji": "💬", "name": "Community Chat", "url": TELEGRAM_GROUP},
-}
 
 # Bot profile (set via BotFather API on startup)
 BOT_DESCRIPTION = (
@@ -92,8 +84,6 @@ BOT_SHORT_DESCRIPTION = (
 _IN_DOCKER = os.getenv("DOCKER_CONTAINER") or os.path.exists("/.dockerenv")
 BACKEND_HOST = "rmi-backend:8000" if _IN_DOCKER else "localhost:8000"
 BACKEND_URL = os.getenv("RMI_BACKEND_URL", f"http://{BACKEND_HOST}")
-DATABUS_URL = f"{BACKEND_URL}/api/v1/databus"
-RAG_URL = f"{BACKEND_URL}/api/v1/rag"
 
 
 async def check_backend_health() -> None:
@@ -117,14 +107,14 @@ async def check_backend_health() -> None:
         get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", BACKEND_URL, exc)
 
 
+# Alert engine
+ALERT_CHECK_INTERVAL = 300  # seconds between alert checks (5 min)
+
 # External APIs
 DEXSCREENER = "https://api.dexscreener.com/latest/dex"
-COINGECKO = "https://api.coingecko.com/api/v3"  # used as fallback for SOL price in bot.py
+COINGECKO = "https://api.coingecko.com/api/v3"  # price history & trending
 GOPLUS = "https://api.gopluslabs.com/api/v1"  # EVM token security scanner
 HONEYPOT = "https://api.honeypot.is/v2"  # primary EVM security scanner
-SOURCIFY = "https://sourcify.dev/server"  # contract verification fallback
-# DEFILLAMA — reserved for TVL/defi data (not currently wired)
-# DEXTOOLS — reserved for future DEX analytics (requires API key)
 
 # ══════════════════════════════════════════════
 # SUBSCRIPTION TIERS (Weekly Allotments)
@@ -154,7 +144,7 @@ TIERS = {
         "scans_per_week": 150,
         "ai_msgs_per_week": 75,
         "price_monthly": 29.99,
-        "price_stars": 1500,
+        "price_stars": 2999,
         "features": [
             "150 scans/week",
             "75 AI questions/week",
@@ -174,7 +164,7 @@ TIERS = {
         "scans_per_week": 400,
         "ai_msgs_per_week": 250,
         "price_monthly": 49.99,
-        "price_stars": 2500,
+        "price_stars": 4999,
         "features": [
             "400 scans/week",
             "250 AI questions/week",
@@ -196,7 +186,7 @@ TIERS = {
         "scans_per_week": 1000,
         "ai_msgs_per_week": 500,
         "price_monthly": 99.99,
-        "price_stars": 5000,
+        "price_stars": 9999,
         "features": [
             "1,000 scans/week",
             "500 AI questions/week",
@@ -212,21 +202,6 @@ TIERS = {
             "White-label reports",
         ],
     },
-}
-
-# ══════════════════════════════════════════════
-# USER REFERRAL LINKS (Add your own!)
-# ══════════════════════════════════════════════
-# These are shown in scan reports and on the website.
-USER_REF_LINKS = {
-    # "binance": {"name": "Binance", "url": "https://www.binance.com/en/register?ref=YOUR_CODE", "emoji": "🟡"},
-    # "bybit": {"name": "Bybit", "url": "https://www.bybit.com/invite?ref=YOUR_CODE", "emoji": "🟠"},
-    # "okx": {"name": "OKX", "url": "https://www.okx.com/join/YOUR_CODE", "emoji": "⚫"},
-    # "coinbase": {"name": "Coinbase", "url": "https://coinbase.com/join/YOUR_CODE", "emoji": "🔵"},
-    # "kucoin": {"name": "KuCoin", "url": "https://www.kucoin.com/r/YOUR_CODE", "emoji": "🟢"},
-    # "gate": {"name": "Gate.io", "url": "https://www.gate.io/ref/YOUR_CODE", "emoji": "🔷"},
-    # "mexc": {"name": "MEXC", "url": "https://www.mexc.com/register?inviteCode=YOUR_CODE", "emoji": "🔶"},
-    # "bitget": {"name": "Bitget", "url": "https://www.bitget.com/referral?clacCode=YOUR_CODE", "emoji": "🌊"},
 }
 
 # ══════════════════════════════════════════════
@@ -276,6 +251,39 @@ TOP_UP_PACKS = {
         "type": "ai_msgs",
         "amount": 100,
         "stars": 700,
+    },
+}
+
+# ══════════════════════════════════════════════
+# BUY STARS PACKS (Purchase Stars via Telegram invoice)
+# ══════════════════════════════════════════════
+# Users pay Telegram Stars (XTR) and receive Stars credited
+# to their local balance. ~$0.01 per Star.
+BUY_STARS_PACKS = {
+    "stars_100": {
+        "name": "100 Stars",
+        "emoji": "⭐",
+        "stars": 100,
+    },
+    "stars_500": {
+        "name": "500 Stars",
+        "emoji": "⭐",
+        "stars": 500,
+    },
+    "stars_1000": {
+        "name": "1,000 Stars",
+        "emoji": "⭐",
+        "stars": 1000,
+    },
+    "stars_2500": {
+        "name": "2,500 Stars",
+        "emoji": "⭐",
+        "stars": 2500,
+    },
+    "stars_5000": {
+        "name": "5,000 Stars",
+        "emoji": "⭐",
+        "stars": 5000,
     },
 }
 

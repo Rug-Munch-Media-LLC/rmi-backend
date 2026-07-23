@@ -112,6 +112,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.core.health_route",  # /health, /live, /ready
     "app.core.metrics",  # /metrics
     "app.homepage",  # /, /version
+    "app.routers.jwks",  # /.well-known/jwks.json, /api/v1/auth/jwks
     # API version index (root-level /api listing)
     "app.routers.v1.api_index",  # /api (version index)
     # v1 API aggregator (strangler fig — mounts all /api/v1/* routes)
