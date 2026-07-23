@@ -58,7 +58,8 @@ async def _get_redis_async() -> Any:
 
         r = await get_redis()
         return r
-    except Exception:
+    except (ImportError, Exception) as e:
+        logger.debug(f"Async Redis unavailable, falling back to sync: {e}")
         return _get_redis()
 
 
@@ -194,7 +195,8 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
                         "timestamp": timestamp,
                     }
                 )
-            except Exception:
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                logger.debug(f"Payment stats scan failed for {key}: {e}")
                 continue
         if cursor == 0:
             break
@@ -227,7 +229,8 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
                 # x402-tool entries may not have chain info
                 if chain != "unknown":
                     earnings_by_chain[chain] += amt_atoms
-            except Exception:
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                logger.debug(f"Tool stats scan failed for {key}: {e}")
                 continue
         if cursor == 0:
             break
@@ -257,7 +260,8 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
                     pass  # Don't double-count chain earnings
                 if customer:
                     unique_payers.add(customer)
-            except Exception:
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                logger.debug(f"Receipt stats scan failed for {key}: {e}")
                 continue
         if cursor == 0:
             break
@@ -270,8 +274,8 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
             try:
                 day = datetime.fromtimestamp(p["timestamp"], tz=UTC).strftime("%Y-%m-%d")
                 earnings_by_day[day] += p.get("amount", 0)
-            except Exception:
-                pass
+            except (ValueError, TypeError) as e:
+                logger.debug(f"Earnings by day parse failed: {e}")
 
     # Today's earnings
     today_str = datetime.now(UTC).strftime("%Y-%m-%d")
@@ -333,7 +337,8 @@ def _aggregate_trial_stats(r) -> dict[str, Any]:
                     unique_fingerprints.add(client_id)
                 else:
                     unique_fingerprints.add(client_id)
-            except Exception:
+            except (ValueError, TypeError) as e:
+                logger.debug(f"Trial stats parse failed: {e}")
                 continue
         if cursor == 0:
             break
