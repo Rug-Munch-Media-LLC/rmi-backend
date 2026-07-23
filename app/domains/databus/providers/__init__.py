@@ -3,94 +3,114 @@ DataBus Providers v2 - The Complete Data Source Registry
 ==========================================================
 
 Every data source in the system, organized into fallback chains.
-OUR OWN DATA IS ALWAYS FIRST. External APIs augment, never replace.
 
-Design principles:
-  1. LOCAL FIRST - Wallet Memory Bank, ClickHouse, Redis RAG, labels, scanners = instant + free
-  2. FREE SECOND - DexScreener, Jupiter, DeFiLlama, PublicNode, Binance = free + fast
-  3. PAID LAST - Arkham, Moralis, Etherscan, CoinGecko Pro = only when free tiers exhausted
-  4. NEVER WASTE CREDITS - Pool rotation, rate limits, monthly quota tracking
-  5. INTELLIGENT FALLBACK - Auto-retry with next provider on any failure
+Backward-compat re-export layer. All implementations are in
+app.databus.provider_core and app.databus.provider_implementations.
+All lazy-imported inside build_provider_chains() to avoid circular imports.
+"""
 
-DEDUP RULES:
-  - token_scanner vs degen_security_scanner vs unified_scanner → SENTINEL (unified_scanner) wins
-  - token_scanner.fetch_market_data → DexScreener in DataBus (no duplicate)
-  - coingecko_connector → replaces simple _coingecko_free (richer, key-rotated)
-  - solana_tracker → primary for token detail/trending (replaces simple jupiter for detail)
-  - daily_data aggregates price_action + fear_greed + movers + alerts -> single market_overview chain
-  - social_feed + news_service + market_rundown -> single news chain with local first
-  - helius_das replaces raw consensus_rpc balance for token metadata
-  - free_solscan_client -> Nansen labels already in wallet_labels, skip redundancy
-
-Backward-compat re-export layer. Core classes are in app.databus.provider_core,
-implementations are in app.databus.provider_implementations.
-
-import httpx
+from typing import Any
 
 from app.core.logging import get_logger
 
-from app.databus.provider_core import (
-    Provider,
-    ProviderChain,
-    ProviderTier,
-    _CircuitBreaker,
-    _circuit_breakers,
-    _RateLimiter,
-    _rate_limiters,
-    _quota_usage,
-)
-from app.databus.provider_implementations import (
-    _local_token_price,
-    _dexscreener_price,
-    _coingecko_price,
-    _moralis_price,
-    _alchemy_token_balances,
-    _alchemy_token_metadata,
-    _passthrough_market_overview,
-    _passthrough_trending,
-    _passthrough_news,
-    _passthrough_alerts,
-    _passthrough_scanner,
-    _passthrough_rag,
-    _local_wallet_labels,
-    _moralis_wallet_tokens,
-    _moralis_wallet_nfts,
-    _moralis_wallet_transactions,
-    _moralis_token_price,
-    _moralis_token_metadata,
-    _moralis_wallet_net_worth,
-    _moralis_search_tokens,
-    _mcp_bridge,
-    _arkham_entity,
-    _arkham_counterparties,
-    _arkham_intel_search,
-    _arkham_portfolio,
-    _arkham_transfers,
-    _arkham_labels,
-    _dexscreener_token_metadata,
-    _dexscreener_holders,
-    _dexscreener_trades,
-    _dexscreener_top_traders,
-    _etherscan_tx_trace,
-    _defillama_tvl,
-    _defillama_chains,
-    _blockchair_address,
-    _blockchair_stats,
-    _birdeye_overview,
-    _birdeye_price,
-    _solana_tracker_price,
-    _solana_tracker_token,
-    _solana_tracker_trending,
-    _messari_news,
-    _coindesk_news,
-    _santiment_dev_activity,
-    _virustotal_url_scan,
-    _dune_early_buyers,
-)
-
 logger = get_logger("databus.providers")
-def build_provider_chains() -> dict[str, ProviderChain]:
+
+
+# Module-level re-exports for backward compatibility
+# These are resolved lazily through Python's import system
+_imported_names = {}
+
+
+def __getattr__(name):
+    """Lazy-import everything from canonical modules."""
+    if name in _imported_names:
+        return _imported_names[name]
+    
+    if name in (
+        "Provider", "ProviderChain", "ProviderTier",
+        "_CircuitBreaker", "_circuit_breakers",
+        "_RateLimiter", "_rate_limiters", "_quota_usage",
+    ):
+        import importlib
+        mod = importlib.import_module("app.databus.provider_core")
+        val = getattr(mod, name)
+        _imported_names[name] = val
+        return val
+    
+    if name in (
+        "_local_token_price", "_dexscreener_price", "_coingecko_price",
+        "_moralis_price", "_alchemy_token_balances", "_alchemy_token_metadata",
+        "_passthrough_market_overview", "_passthrough_trending",
+        "_passthrough_news", "_passthrough_alerts", "_passthrough_scanner",
+        "_passthrough_rag", "_local_wallet_labels",
+        "_moralis_wallet_tokens", "_moralis_wallet_nfts",
+        "_moralis_wallet_transactions", "_moralis_token_price",
+        "_moralis_token_metadata", "_moralis_wallet_net_worth",
+        "_moralis_search_tokens", "_mcp_bridge",
+        "_arkham_entity", "_arkham_counterparties", "_arkham_intel_search",
+        "_arkham_portfolio", "_arkham_transfers", "_arkham_labels",
+        "_dexscreener_token_metadata", "_dexscreener_holders",
+        "_dexscreener_trades", "_dexscreener_top_traders",
+        "_etherscan_tx_trace", "_defillama_tvl", "_defillama_chains",
+        "_blockchair_address", "_blockchair_stats",
+        "_birdeye_overview", "_birdeye_price",
+        "_solana_tracker_price", "_solana_tracker_token",
+        "_solana_tracker_trending", "_messari_news", "_coindesk_news",
+        "_santiment_dev_activity", "_virustotal_url_scan", "_dune_early_buyers",
+    ):
+        import importlib
+        mod = importlib.import_module("app.databus.provider_implementations")
+        val = getattr(mod, name)
+        _imported_names[name] = val
+        return val
+    
+    if name == "_spl_metadata_decoder_provider":
+        import importlib
+        mod = importlib.import_module("app.databus.spl_metadata_decoder")
+        val = getattr(mod, name)
+        _imported_names[name] = val
+        return val
+    
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def build_provider_chains() -> dict:
     """Build all fallback chains for every data type."""
+    # All imports are inside the function body below
+    
+def build_provider_chains() -> dict:
+    """Build all fallback chains for every data type."""
+    from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
+    from app.databus.provider_core import Provider, ProviderChain, ProviderTier
+    from app.databus.provider_core import _CircuitBreaker, _circuit_breakers
+    from app.databus.provider_core import _RateLimiter, _rate_limiters, _quota_usage
+    from app.databus.provider_implementations import _local_token_price
+    from app.databus.provider_implementations import _dexscreener_price, _coingecko_price, _moralis_price
+    from app.databus.provider_implementations import _alchemy_token_balances, _alchemy_token_metadata
+    from app.databus.provider_implementations import _passthrough_market_overview, _passthrough_trending
+    from app.databus.provider_implementations import _passthrough_news, _passthrough_alerts
+    from app.databus.provider_implementations import _passthrough_scanner, _passthrough_rag
+    from app.databus.provider_implementations import _local_wallet_labels
+    from app.databus.provider_implementations import _moralis_wallet_tokens, _moralis_wallet_nfts
+    from app.databus.provider_implementations import _moralis_wallet_transactions
+    from app.databus.provider_implementations import _moralis_token_price, _moralis_token_metadata
+    from app.databus.provider_implementations import _moralis_wallet_net_worth, _moralis_search_tokens
+    from app.databus.provider_implementations import _mcp_bridge
+    from app.databus.provider_implementations import _arkham_entity, _arkham_counterparties
+    from app.databus.provider_implementations import _arkham_intel_search, _arkham_portfolio
+    from app.databus.provider_implementations import _arkham_transfers, _arkham_labels
+    from app.databus.provider_implementations import _dexscreener_token_metadata, _dexscreener_holders
+    from app.databus.provider_implementations import _dexscreener_trades, _dexscreener_top_traders
+    from app.databus.provider_implementations import _etherscan_tx_trace
+    from app.databus.provider_implementations import _defillama_tvl, _defillama_chains
+    from app.databus.provider_implementations import _blockchair_address, _blockchair_stats
+    from app.databus.provider_implementations import _birdeye_overview, _birdeye_price
+    from app.databus.provider_implementations import _solana_tracker_price, _solana_tracker_token
+    from app.databus.provider_implementations import _solana_tracker_trending
+    from app.databus.provider_implementations import _messari_news, _coindesk_news
+    from app.databus.provider_implementations import _santiment_dev_activity, _virustotal_url_scan
+    from app.databus.provider_implementations import _dune_early_buyers
+
     from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
     chains = {}
 
@@ -1766,6 +1786,67 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     return chains
 
 # ── Public API ───────────────────────────────────────────────────
+__all__ = [
+    "Provider",
+    "ProviderChain",
+    "ProviderTier",
+    "_CircuitBreaker",
+    "_circuit_breakers",
+    "_RateLimiter",
+    "_rate_limiters",
+    "_quota_usage",
+    "build_provider_chains",
+    "_local_token_price",
+    "_dexscreener_price",
+    "_coingecko_price",
+    "_moralis_price",
+    "_alchemy_token_balances",
+    "_alchemy_token_metadata",
+    "_passthrough_market_overview",
+    "_passthrough_trending",
+    "_passthrough_news",
+    "_passthrough_alerts",
+    "_passthrough_scanner",
+    "_passthrough_rag",
+    "_local_wallet_labels",
+    "_moralis_wallet_tokens",
+    "_moralis_wallet_nfts",
+    "_moralis_wallet_transactions",
+    "_moralis_token_price",
+    "_moralis_token_metadata",
+    "_moralis_wallet_net_worth",
+    "_moralis_search_tokens",
+    "_mcp_bridge",
+    "_arkham_entity",
+    "_arkham_counterparties",
+    "_arkham_intel_search",
+    "_arkham_portfolio",
+    "_arkham_transfers",
+    "_arkham_labels",
+    "_dexscreener_token_metadata",
+    "_dexscreener_holders",
+    "_dexscreener_trades",
+    "_dexscreener_top_traders",
+    "_etherscan_tx_trace",
+    "_defillama_tvl",
+    "_defillama_chains",
+    "_blockchair_address",
+    "_blockchair_stats",
+    "_birdeye_overview",
+    "_birdeye_price",
+    "_solana_tracker_price",
+    "_solana_tracker_token",
+    "_solana_tracker_trending",
+    "_messari_news",
+    "_coindesk_news",
+    "_santiment_dev_activity",
+    "_virustotal_url_scan",
+    "_dune_early_buyers",
+    "_spl_metadata_decoder_provider",
+]
+
+
+# --- Public API --------------------------------------------------
 __all__ = [
     "Provider",
     "ProviderChain",

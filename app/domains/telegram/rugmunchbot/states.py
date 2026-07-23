@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""
+RugMunchBot — State management (spam protection, rate limits, caches).
+
+Keeps all in-memory state in one place for easy visibility.
+"""
+
+import time
+
+from cachetools import TTLCache
+
+from app.core.logging import get_logger
+from app.domains.telegram.rugmunchbot.config import OWNER_IDS
+
+logger = get_logger("rmi_bot")
+
+# ══════════════════════════════════════════════
+# SOL PRICE CACHE
+# ══════════════════════════════════════════════
+_sol_price: float = 150.0  # fallback
+_sol_price_ts: float = 0
+
+
+async def get_sol_price() -> float:
+    """Fetch current SOL/USD price from Jupiter API (free, no auth needed)."""
+    global _sol_price, _sol_price_ts
+    import httpx
+
+    now = time.time()
+    if now - _sol_price_ts < 300:  # cache for 5 minutes
+        return _sol_price
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(
+                "https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112"
+            )
+            if r.status_code == 200:
+                data = r.json()
+                price_str = (
+                    data.get("data", {})
+                    .get("So11111111111111111111111111111111111111112", {})
+                    .get("price")
+                )
+                if price_str:
+                    _sol_price = float(price_str)
+                    _sol_price_ts = now
+    except Exception as e:
+        logger.warning(f"Failed to fetch SOL price: {e}")
+    return _sol_price
+
+
+# ══════════════════════════════════════════════
+# SPAM PROTECTION
+# ══════════════════════════════════════════════
+_user_last_action: TTLCache = TTLCache(maxsize=10000, ttl=60)
+SPAM_COOLDOWN = 3
+
+
+def check_spam(user_id: int) -> bool:
+    """Return True if the user is spamming (rate-limited)."""
+    now = time.time()
+    last = _user_last_action.get(user_id, 0)
+    if now - last < SPAM_COOLDOWN and not is_owner(user_id):
+        return True
+    _user_last_action[user_id] = now
+    return False
+
+
+def is_owner(uid: int) -> bool:
+    """Check if a user ID is a bot owner."""
+    return uid in OWNER_IDS
+
+
+# ── Alert rate limiter (max 1 DM per user per 5 min) ──
+_alert_last_sent: dict[int, float] = {}
+ALERT_RATE_LIMIT_SEC = 300
+
+
+def check_alert_rate_limit(user_id: int) -> bool:
+    """Return True if user can receive another alert (rate-limited to 1 per 5 min)."""
+    now = time.time()
+    last = _alert_last_sent.get(user_id, 0)
+    if now - last < ALERT_RATE_LIMIT_SEC:
+        return False
+    _alert_last_sent[user_id] = now
+    return True
+
+
+# ── Pending deep scan payments (token → details) ──
+_pending_deep_scans: dict[str, dict] = {}
