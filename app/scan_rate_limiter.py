@@ -14,7 +14,7 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import redis
+from redis import asyncio as aioredis
 
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
@@ -167,9 +167,9 @@ PREMIUM_UPSELL = {
 }
 
 
-def _get_redis() -> redis.Redis:
-    """Get Redis connection for usage tracking."""
-    return redis.Redis(
+def _get_redis() -> aioredis.Redis:  # type: ignore[type-arg]
+    """Get async Redis connection for usage tracking."""
+    return aioredis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,
         password=REDIS_PASSWORD,
@@ -188,7 +188,7 @@ def _identity_key(identity_type: str, identity: str) -> str:
     return f"rmi:scan_usage:{_today_key()}:{identity_type}:{identity}"
 
 
-def check_scan_limit(
+async def check_scan_limit(
     identity: str,
     identity_type: str = "ip",
     tier: str = "free",
@@ -228,7 +228,8 @@ def check_scan_limit(
     try:
         r = _get_redis()
         key = _identity_key(identity_type, identity)
-        current = int(r.get(key) or "0")
+        current_val = await r.get(key)
+        current = int(current_val or "0")
 
         if current >= daily_limit:
             upsell = PREMIUM_UPSELL["free_limit_reached"]
@@ -264,7 +265,7 @@ def check_scan_limit(
         }
 
 
-def increment_scan_usage(
+async def increment_scan_usage(
     identity: str,
     identity_type: str = "ip",
     tier: str = "free",
@@ -293,7 +294,7 @@ def increment_scan_usage(
         pipe = r.pipeline()
         pipe.incr(key)
         pipe.expire(key, 86400 * 2)  # Expire after 2 days
-        results = pipe.execute()
+        results = await pipe.execute()
         total = results[0]
         remaining = (daily_limit - total) if daily_limit > 0 else -1
 
@@ -304,12 +305,13 @@ def increment_scan_usage(
         return {"recorded": False, "total_today": 0, "remaining": -1}
 
 
-def get_usage_stats(identity: str, identity_type: str = "ip") -> dict[str, Any]:
+async def get_usage_stats(identity: str, identity_type: str = "ip") -> dict[str, Any]:
     """Get today's usage stats for an identity."""
     try:
         r = _get_redis()
         key = _identity_key(identity_type, identity)
-        current = int(r.get(key) or "0")
+        current_val = await r.get(key)
+        current = int(current_val or "0")
         return {
             "identity": identity,
             "identity_type": identity_type,
