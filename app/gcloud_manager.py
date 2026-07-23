@@ -20,12 +20,13 @@ Available services:
 import json
 import os
 
+from app.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger("gcloud")
 
 SA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "cryptorugmunch-sa.json")
-VAULT_PATH = "/root/.secrets/google-sa-cryptorugmunch.json"
+VAULT_PATH = settings.gcloud_sa_vault_path
 
 
 class GoogleCloudManager:

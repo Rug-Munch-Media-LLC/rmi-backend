@@ -147,8 +147,8 @@ async def reputation_score(req: AddressRequest) -> dict[str, str]:
                                     "detail": f"Possible scam pattern: {m.get('type')} ({sim_score:.0%})",
                                 }
                             )
-        except Exception:
-            pass
+        except (ImportError, Exception) as e:
+            logger.debug(f"RAG similarity search failed: {e}")
 
         # ── 3. Deployer History (DexScreener) ──
         try:
@@ -189,8 +189,8 @@ async def reputation_score(req: AddressRequest) -> dict[str, str]:
                                         "detail": f"Low liquidity: ${total_liq:,.0f}",
                                     }
                                 )
-        except Exception:
-            pass
+        except (aiohttp.ClientError, TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"DexScreener deployer history failed: {e}")
 
         # ── 4. Scam Pattern Detection ──
         try:
@@ -211,8 +211,8 @@ async def reputation_score(req: AddressRequest) -> dict[str, str]:
                             "detail": f"Scam patterns: {', '.join(patterns[:3])}",
                         }
                     )
-        except Exception:
-            pass
+        except (ImportError, RuntimeError, Exception) as e:
+            logger.debug(f"Scam pattern detection failed: {e}")
 
         # ── 5. Recent Intel Context ──
         try:
@@ -224,8 +224,8 @@ async def reputation_score(req: AddressRequest) -> dict[str, str]:
                 positives.append(
                     f"RMI Intel active: {intel.get('tokens_scanned', 0):,} tokens scanned, {intel.get('scanner_alerts', 0)} alerts"
                 )
-        except Exception:
-            pass
+        except (ImportError, Exception) as e:
+            logger.debug(f"Recent intel context failed: {e}")
 
         # Clamp score
         score = max(0, min(100, score))
@@ -435,7 +435,8 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
                         "positive_signals": rep.get("positive_signals", [])[:3],
                     }
                     sources.extend(rep.get("sources_used", []))
-        except Exception:
+        except (aiohttp.ClientError, TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"Reputation service unavailable: {e}")
             sections["reputation"] = {"error": "Reputation service unavailable"}
 
         # ── Section 2: Wallet Labels ──
@@ -477,7 +478,8 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
                         "sources": forensics.get("sources_used", []),
                     }
                     sources.extend(forensics.get("sources_used", []))
-        except Exception:
+        except (aiohttp.ClientError, TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"Forensics service unavailable: {e}")
             sections["on_chain"] = {
                 "error": "Forensics unavailable - continuing with other sources"
             }
@@ -502,7 +504,8 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
                                 if p.get("pairCreatedAt")
                                 else None,
                             }
-        except Exception:
+        except (aiohttp.ClientError, TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"Market context unavailable: {e}")
             sections["market_context"] = {"error": "Market data unavailable"}
 
         # ── Section 5: Intel Context ──
@@ -517,8 +520,8 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
                     "age_hours": intel.get("age_hours", 0),
                 }
                 sources.append("rmi_cron_intel")
-        except Exception:
-            pass
+        except (ImportError, Exception) as e:
+            logger.debug(f"Intel context unavailable: {e}")
 
         # ── Generate recommendation ──
         rep_score = sections.get("reputation", {}).get("score", 50)
@@ -609,12 +612,14 @@ async def _lookup_labels_async(address: str) -> list[dict]:
                 }
                 for r in rows
             ]
-        except Exception:
+        except (ImportError, ConnectionError, TimeoutError, OSError) as e:
+            logger.debug(f"ClickHouse labels query failed, falling back to Redis: {e}")
             # Fall back to Redis cache
             cached = r.get(f"x402:enrich:{address}")
             if cached:
                 data = json.loads(cached)
                 return data.get("labels", [])
             return []
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+        logger.debug(f"Label lookup failed: {e}")
         return []

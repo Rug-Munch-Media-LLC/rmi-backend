@@ -21,6 +21,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.core.logging import get_logger
 from typing import Any
 
@@ -105,7 +106,8 @@ def invalidate_cache(tool: str | None = None) -> bool:
             for key in r.scan_iter("x402:cache:*"):
                 r.delete(key)
         return True
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError) as e:
+        logger.warning(f"Cache clear failed (Redis): {e}")
         return False
 
 
@@ -335,7 +337,7 @@ async def rug_probability(req: AddressRequest) -> Any:
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    "http://localhost:8000/api/v1/x402-tools/honeypot_check",
+                    f"{settings.backend_url}/api/v1/x402-tools/honeypot_check",
                     json={"address": addr, "chain": chain},
                     timeout=aiohttp.ClientTimeout(total=10),
                 ) as resp,
@@ -352,8 +354,8 @@ async def rug_probability(req: AddressRequest) -> Any:
                             }
                         )
                     sources.append("honeypot_check")
-        except Exception:
-            pass
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"Honeypot check failed: {e}")
 
         # ── Signal 2: DexScreener Liquidity & Age ──
         try:
@@ -460,8 +462,8 @@ async def rug_probability(req: AddressRequest) -> Any:
                                         "detail": f"Down {pc:.0f}% in 24h",
                                     }
                                 )
-        except Exception:
-            pass
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"DexScreener price signal failed: {e}")
 
         # ── Signal 3: Holder Concentration ──
         try:
@@ -481,8 +483,8 @@ async def rug_probability(req: AddressRequest) -> Any:
                             if top_pool:
                                 # Pool exists - check if it's the only one
                                 pass
-        except Exception:
-            pass
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"GeckoTerminal holder data failed: {e}")
 
         # ── Signal 4: Deployer History (scam pattern check) ──
         try:
@@ -504,8 +506,8 @@ async def rug_probability(req: AddressRequest) -> Any:
                             "detail": f"Matches known scam patterns: {', '.join(patterns[:3])}",
                         }
                     )
-        except Exception:
-            pass
+        except (ImportError, RuntimeError, Exception) as e:
+            logger.debug(f"Scam pattern detection failed: {e}")
 
         # ── Signal 5: Social Anomaly Check ──
         try:
@@ -531,8 +533,8 @@ async def rug_probability(req: AddressRequest) -> Any:
                                         "detail": f"{len(recent)} social mentions - unusual activity",
                                     }
                                 )
-        except Exception:
-            pass
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"CryptoPanic social check failed: {e}")
 
         # ── Compute final probability ──
         probability = max(0, min(100, probability))
@@ -670,8 +672,8 @@ async def token_history(req: HistoryRequest) -> Any:
                                 "is_current": True,
                             }
                             data_points.append(current)
-        except Exception:
-            pass
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"DexScreener current snapshot failed: {e}")
 
         # Compute trends
         trends = {}
@@ -768,8 +770,8 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
                                         "created": r.get("created_at", ""),
                                     }
                                 )
-        except Exception:
-            pass
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"CryptoPanic narrative fetch failed: {e}")
 
         # ── Reddit ──
         try:
@@ -803,8 +805,8 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
                                         else "",
                                     }
                                 )
-        except Exception:
-            pass
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"Reddit narrative fetch failed: {e}")
 
         # ── Compute narrative ──
         total_posts = len(posts)

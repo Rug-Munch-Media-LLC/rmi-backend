@@ -51,8 +51,8 @@ class CommunityForensicsWorker:
                         data = resp.json()
                         node["verified_name"] = data.get("name", "")
                         node["tx_count"] = data.get("transactions_count", 0)
-                except Exception:
-                    pass
+                except (httpx.HTTPError, TimeoutError) as e:
+                    logger.debug(f"Blockscout address lookup failed for {addr}: {e}")
             enriched_nodes.append(node)
 
         return {
@@ -79,8 +79,8 @@ class CommunityForensicsWorker:
                     resp = await self.blockscout.get(f"/api/v2/addresses/{addr}")
                     if resp.status_code == 200:
                         chain_hits.append(chain)
-                except Exception:
-                    pass
+                except (httpx.HTTPError, TimeoutError) as e:
+                    logger.debug(f"Blockscout chain check failed for {addr} on {chain}: {e}")
 
             results.append(
                 {

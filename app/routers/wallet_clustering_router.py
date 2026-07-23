@@ -189,19 +189,27 @@ async def clustering_health() -> dict[str, str]:
         from app.chain_cache import get_chain_cache
 
         cache_stats = await get_chain_cache().stats()
-    except Exception:
-        pass
+    except ImportError:
+        logger.debug("chain_cache not available")
+    except Exception as e:
+        logger.warning(f"Cache stats failed: {e}")
     try:
         from app.fraud_gnn import get_fraud_gnn
 
         gnn_status = get_fraud_gnn().status()
-    except Exception:
+    except ImportError:
+        gnn_status = {"error": "unavailable"}
+    except Exception as e:
+        logger.warning(f"GNN status failed: {e}")
         gnn_status = {"error": "unavailable"}
     try:
         from app.spam_registry import get_spam_registry
 
         spam_stats = get_spam_registry().stats()
-    except Exception:
+    except ImportError:
+        spam_stats = {"error": "unavailable"}
+    except Exception as e:
+        logger.warning(f"Spam registry stats failed: {e}")
         spam_stats = {"error": "unavailable"}
     return {
         "status": "ok",

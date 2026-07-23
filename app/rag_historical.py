@@ -18,18 +18,18 @@ Runs: weekly (Sunday 2am) for historical sources.
 
 import asyncio
 import json
-import os
 import re
 from datetime import UTC, datetime
 
 import httpx
 
+from app.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger("rag.historical")
 
 # ── Config ──
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = settings.backend_url
 RAG_INGEST_URL = f"{BACKEND_URL}/api/v1/rag/ingest"
 REQUEST_TIMEOUT = 30
 

@@ -8,6 +8,8 @@ from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 
+from app.config import settings as app_settings
+
 
 class LlamaRAGAdapter:
     """Drop-in wrapper for LlamaIndex RAG pipeline.
@@ -21,17 +23,19 @@ class LlamaRAGAdapter:
         llm_model = os.getenv("LLAMA_LLM_MODEL", "deepseek-chat")
 
         # Configure global settings
+        embed_api_base = os.getenv("EMBED_API_BASE", f"{app_settings.ollama_url}/v1")
         Settings.embed_model = OpenAIEmbedding(
             model=embed_model,
-            api_base=os.getenv("EMBED_API_BASE", "http://localhost:11434/v1"),
+            api_base=embed_api_base,
             api_key="ollama",
         )
         _litellm_key = os.getenv("LITELLM_API_KEY")
         if not _litellm_key:
             raise RuntimeError("LITELLM_API_KEY environment variable is required")
+        llm_api_base = os.getenv("LLM_API_BASE", app_settings.litellm_api_base)
         Settings.llm = OpenAI(
             model=llm_model,
-            api_base=os.getenv("LLM_API_BASE", "http://localhost:4000/v1"),
+            api_base=llm_api_base,
             api_key=_litellm_key,
         )
 

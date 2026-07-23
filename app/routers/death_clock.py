@@ -3,7 +3,6 @@
 Lightweight model trained on 153K tokens (criminal+benign). Paid API endpoint."""
 
 import math
-import os
 from typing import Any
 
 import httpx
