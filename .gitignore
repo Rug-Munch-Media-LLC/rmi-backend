@@ -91,8 +91,10 @@ secret-rotation*
 /cache/
 /logs/
 /tmp/
-data/*.db
-data/*.sqlite
+**/data/*.db
+**/data/*.db-shm
+**/data/*.db-wal
+**/data/*.sqlite
 data/bm25_index.pkl
 data/faiss/
 data/kaggle/
