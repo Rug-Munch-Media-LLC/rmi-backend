@@ -8,6 +8,14 @@ unittest.mock.patch.
 
 from __future__ import annotations
 
+import os
+
+# Set required env vars BEFORE any app imports
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-thats-32-chars-long!")
+os.environ.setdefault("ENVIRONMENT", "dev")
+os.environ.setdefault("LOG_LEVEL", "WARNING")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+
 import json
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, mock_open, patch
 

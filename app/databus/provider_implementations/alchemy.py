@@ -1,0 +1,57 @@
+"""Alchemy API providers for DataBus."""
+
+import httpx
+
+from sdks.python.x402_frameworks.autogen_adapter import logger
+
+
+async def _alchemy_token_balances(
+    address: str = "", network: str = "eth-mainnet", **kw
+) -> dict | None:
+    """Alchemy - get all token balances for an address."""
+    api_key = kw.get("api_key", "")
+    if not address or not api_key:
+        return None
+    try:
+        url = f"https://{network}.g.alchemy.com/v2/{api_key}"
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "alchemy_getTokenBalances",
+            "params": [address, "erc20"],
+            "id": 1,
+        }
+        async with httpx.AsyncClient(timeout=15) as c:
+            r = await c.post(url, json=payload)
+            if r.status_code == 200:
+                data = r.json()
+                if "result" in data:
+                    return {"balances": data["result"], "address": address, "network": network}
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
+    return None
+
+
+async def _alchemy_token_metadata(
+    contract: str = "", network: str = "eth-mainnet", **kw
+) -> dict | None:
+    """Alchemy - get token metadata."""
+    api_key = kw.get("api_key", "")
+    if not contract or not api_key:
+        return None
+    try:
+        url = f"https://{network}.g.alchemy.com/v2/{api_key}"
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "alchemy_getTokenMetadata",
+            "params": [contract],
+            "id": 1,
+        }
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.post(url, json=payload)
+            if r.status_code == 200:
+                data = r.json()
+                if "result" in data:
+                    return {"metadata": data["result"], "contract": contract}
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
+    return None

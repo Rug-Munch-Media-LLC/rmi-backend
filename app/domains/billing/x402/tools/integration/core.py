@@ -72,7 +72,8 @@ async def langchain_tools() -> dict[str, Any]:
     raw_tools = await build_tools_from_catalog()
     tools = [format_langchain_tool(t) for t in raw_tools]
     return build_framework_base(
-        tools, "tools",
+        tools,
+        "tools",
         format="langchain",
         usage="pip install langchain && use with create_react_agent or LangGraph",
     )
@@ -84,7 +85,8 @@ async def anthropic_tools() -> dict[str, Any]:
     raw_tools = await build_tools_from_catalog()
     tools = [format_anthropic_tool(t) for t in raw_tools]
     return build_framework_base(
-        tools, "tools",
+        tools,
+        "tools",
         format="anthropic_claude_api",
         usage="pip install anthropic && use with client.messages.create(tools=...)",
     )
@@ -96,7 +98,8 @@ async def gemini_tools() -> dict[str, Any]:
     raw_tools = await build_tools_from_catalog()
     tools = [format_gemini_tool(t) for t in raw_tools]
     return build_framework_base(
-        tools, "function_declarations",
+        tools,
+        "function_declarations",
         format="google_gemini",
         usage="pip install google-genai && use with model.generate_content(tools=...)",
     )
@@ -211,7 +214,10 @@ async def mcp_proxy(req: Any) -> dict[str, Any]:
 
     base_url = MCP_SERVICE_ROUTES.get(svc)
     if not base_url:
-        return {"error": f"Unsupported service: {svc}", "available": list(MCP_SERVICE_ROUTES.keys())}
+        return {
+            "error": f"Unsupported service: {svc}",
+            "available": list(MCP_SERVICE_ROUTES.keys()),
+        }
 
     endpoint_map: dict[str, str] = {
         "getLatestTokenProfiles": "/token-profiles/latest/v1",
@@ -246,7 +252,10 @@ async def mcp_proxy(req: Any) -> dict[str, Any]:
                 headers["X-API-KEY"] = os.getenv("BIRDEYE_API_KEY", "")
 
             async with session.get(
-                url, params=args, headers=headers, timeout=aiohttp.ClientTimeout(total=15),
+                url,
+                params=args,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 data = await resp.json()
                 return {
@@ -444,17 +453,19 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
             from app.routers.x402_enforcement import TOOL_PRICES
 
             pricing_info = TOOL_PRICES.get(tool_id, {})
-        except Exception:
+        except (ImportError, KeyError):
             pass
         if pricing_info:
-            return JSONResponse(content={
-                "tool": tool_id,
-                "description": pricing_info.get("description", ""),
-                "price_usd": pricing_info.get("price_usd", 0),
-                "trial_free": pricing_info.get("trial_free", 3),
-                "usage": "POST with JSON body or GET with query params (address, chain, etc.)",
-                "method": "GET or POST",
-            })
+            return JSONResponse(
+                content={
+                    "tool": tool_id,
+                    "description": pricing_info.get("description", ""),
+                    "price_usd": pricing_info.get("price_usd", 0),
+                    "trial_free": pricing_info.get("trial_free", 3),
+                    "usage": "POST with JSON body or GET with query params (address, chain, etc.)",
+                    "method": "GET or POST",
+                }
+            )
         raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found.")
 
     if not await check_rate_limit(request):
@@ -474,8 +485,12 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
             target_url = f"http://localhost:8000/api/v1/x402-tools/{target}"
             headers = {"Content-Type": "application/json", "User-Agent": "RMI-GET-Proxy/3.1"}
             for h in (
-                "X-RMI-Payment", "X-RMI-Trial", "X-RMI-Trial-Remaining",
-                "X-RMI-Internal", "X-Device-Id", "X-Wallet-Address",
+                "X-RMI-Payment",
+                "X-RMI-Trial",
+                "X-RMI-Trial-Remaining",
+                "X-RMI-Internal",
+                "X-Device-Id",
+                "X-Wallet-Address",
                 "Authorization",
             ):
                 val = request.headers.get(h)
@@ -485,7 +500,7 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
                 resp = await client.post(target_url, json=body, headers=headers)
                 try:
                     result = resp.json()
-                except Exception:
+                except (json.JSONDecodeError, ValueError):
                     result = {"data": resp.text, "status": resp.status_code}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Tool execution failed: {e!s}") from e
@@ -499,7 +514,7 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
 
     try:
         result = await enrich_response(tool_id, result, body, request)
-    except Exception:
+    except (ImportError, Exception):
         pass
 
     return JSONResponse(content=result, status_code=200)
@@ -528,7 +543,7 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
         if request.headers.get("content-type", "").startswith("application/json"):
             try:
                 body = await request.json()
-            except Exception:
+            except (json.JSONDecodeError, ValueError):
                 body = {}
 
         if injected_chain and isinstance(body, dict):
@@ -544,10 +559,10 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
                         result["chain"] = injected_chain
                 try:
                     result = await enrich_response(tool_id, result, body, request)
-                except Exception:
+                except (ImportError, Exception):
                     pass
                 return JSONResponse(content=result, status_code=200)
-        except Exception:
+        except (ImportError, Exception):
             pass
         raise HTTPException(
             status_code=404,
@@ -561,7 +576,7 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
             if request.headers.get("content-type", "").startswith("application/json")
             else {}
         )
-    except Exception:
+    except (json.JSONDecodeError, ValueError):
         body = {}
 
     if injected_chain and isinstance(body, dict):
@@ -569,12 +584,22 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
 
     headers: dict[str, str] = {}
     for h in (
-        "x-pay", "X-Pay", "User-Agent", "Authorization",
-        "x-wallet-address", "X-Wallet-Address",
-        "x-turnstile-token", "X-Turnstile-Token",
-        "X-Forwarded-For", "X-Real-IP", "CF-Connecting-IP",
-        "X-RMI-Internal", "X-RMI-Payment", "X-RMI-Trial",
-        "X-RMI-Trial-Remaining", "X-Device-Id",
+        "x-pay",
+        "X-Pay",
+        "User-Agent",
+        "Authorization",
+        "x-wallet-address",
+        "X-Wallet-Address",
+        "x-turnstile-token",
+        "X-Turnstile-Token",
+        "X-Forwarded-For",
+        "X-Real-IP",
+        "CF-Connecting-IP",
+        "X-RMI-Internal",
+        "X-RMI-Payment",
+        "X-RMI-Trial",
+        "X-RMI-Trial-Remaining",
+        "X-Device-Id",
     ):
         val = request.headers.get(h)
         if val:
@@ -587,7 +612,7 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
         resp = await client.post(target_url, json=body, headers=headers)
         try:
             result = resp.json()
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             result = {"data": resp.text, "status": resp.status_code}
 
     rh = {}
@@ -603,7 +628,7 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
 
     try:
         result = await enrich_response(tool_id, result, body, request)
-    except Exception:
+    except (ImportError, Exception):
         pass
 
     return JSONResponse(content=result, status_code=resp.status_code, headers=rh)
