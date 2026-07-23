@@ -1,0 +1,933 @@
+"""
+x402 DataBus Tools - Pricing catalog and trial tracking.
+"""
+
+import json
+import os
+from typing import Any
+
+from app.core.logging import get_logger
+
+logger = get_logger("x402_databus_pricing")
+
+"""
+RMI x402 DataBus Tools - Pay-per-call APIs wired through DataBus
+================================================================
+Every endpoint routes through app.databus.fetch() with full access control.
+No raw HTTP calls. No backdoors. Consumer type is always x402_paid.
+
+Pricing Tiers:
+  BASIC   ($0.01-0.02) - Quick lookups, public-ish data
+  PREMIUM ($0.05-0.10) - Advanced intelligence, multi-source
+  ELITE   ($0.15-0.40) - Institutional forensics, admin-grade data
+
+Free Trials:
+  Each tool has trial_free calls before payment required.
+  Trials are tracked per-wallet in Redis with 24h reset.
+
+Security:
+  - Every call goes through DataBus access_control (x402_paid consumer)
+  - x402_free tier gets 5 data types, summary packaging only
+  - x402_basic tier gets 9 data types, full packaging
+  - x402_premium tier gets 14 data types, full packaging
+  - x402_enterprise tier gets all data types, full packaging
+  - Zero backdoors: no direct DB/API access, everything through databus.fetch()
+"""
+
+
+
+
+
+
+# ── DataBus Integration ─────────────────────────────────────────
+
+# ── x402 Pricing - matches TOOL_PRICES schema exactly ─────────────
+# price_atoms = price_usd * 1_000_000 (1 atom = $0.000001)
+X402_TOOL_PRICING = {
+    # ═══ BASIC TIER ($0.01-0.02) - Quick Scans & Lookups ═══
+    "token_price": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "Get real-time token price with consensus from multiple sources",
+    },
+    "token_detail": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Full token intelligence - market cap, volume, liquidity, holders, risk flags",
+    },
+    "trending": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "Trending tokens across chains - hottest movers right now",
+    },
+    "market_overview": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "Crypto market landscape - global metrics, BTC dominance, sentiment",
+    },
+    "market_movers": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "Top gainers, losers, and volume movers across all chains",
+    },
+    "tvl": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "DeFi TVL data - protocol-level totals, chain breakdowns, yields",
+    },
+    "news": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "Crypto news feed - aggregated headlines, filtered by topic",
+    },
+    "social_feed": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "Social sentiment feed - what crypto Twitter and Telegram are saying",
+    },
+    "dex_data": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "DEX pool data - liquidity depth, volume, price impact for any token",
+    },
+    "defi_protocols": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 5,
+        "description": "DeFi protocol tracker - TVL, chains, categories, revenue metrics",
+    },
+    "prediction_markets": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Prediction market odds - event probabilities and trading volumes",
+    },
+    "prediction_signals": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Trading signals - sentiment, momentum, and contrarian indicators",
+    },
+    "rugmap": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Holder concentration map - visualize whale clusters and distribution",
+    },
+    "rugmaps_analysis": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Holder distribution analysis - risk scoring, dump patterns, concentration",
+    },
+    "wallet_balance": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Check any wallet's balance across chains - multi-chain support",
+    },
+    "wallet_labels": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Identify who owns a wallet - entity labels, tags, and known affiliations",
+    },
+    "risk_scan": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Quick rug risk scan - honeypot, liquidity lock, ownership, and contract flags",
+    },
+    "threat_check": {
+        "price_usd": 0.02,
+        "price_atoms": "20000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Threat intelligence check - known scams, malicious patterns, risk scoring",
+    },
+    "socialfi_resolve": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 3,
+        "description": "Resolve social identity - ENS names, Farcaster profiles, linked addresses",
+    },
+    # ═══ PREMIUM TIER ($0.05-0.10) - Advanced Intelligence ═══
+    "wallet_profile": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Complete wallet profile - labels, PnL summary, risk score, related wallets",
+    },
+    "smart_money": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Smart money tracker - see what top-performing wallets are buying and selling",
+    },
+    "gmgn_smart_money": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Smart money narratives - trending wallets and their trade patterns",
+    },
+    "funding_source": {
+        "price_usd": 0.08,
+        "price_atoms": "80000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Trace where a wallet's funds came from - multi-hop origin analysis",
+    },
+    "cross_chain": {
+        "price_usd": 0.08,
+        "price_atoms": "80000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Cross-chain activity - find the same entity across multiple blockchains",
+    },
+    "wallet_cluster": {
+        "price_usd": 0.08,
+        "price_atoms": "80000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Syndicate mapper - find related wallets via funding patterns and heuristics",
+    },
+    "bundle_detect": {
+        "price_usd": 0.08,
+        "price_atoms": "80000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Bot detector - same-block bundling, MEV patterns, sniper wallet identification",
+    },
+    "wallet_tokens": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "All tokens held by a wallet - balances, USD values, allocation breakdown",
+    },
+    "wallet_pnl": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Wallet profit & loss - realized/unrealized gains, win rate, ROI",
+    },
+    "contract_scan": {
+        "price_usd": 0.08,
+        "price_atoms": "80000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Deep contract audit - static analysis, honeypot detection, vulnerability scan",
+    },
+    "sentinel_deep": {
+        "price_usd": 0.10,
+        "price_atoms": "100000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Full threat scan - deep contract analysis, risk scoring, threat intelligence",
+    },
+    "entity_intel": {
+        "price_usd": 0.10,
+        "price_atoms": "100000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Entity intelligence - who is this wallet, linked addresses, risk assessment",
+    },
+    "arkham_labels": {
+        "price_usd": 0.10,
+        "price_atoms": "100000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Institutional entity labels - fund names, exchange wallets, known addresses",
+    },
+    "arkham_entity": {
+        "price_usd": 0.10,
+        "price_atoms": "100000",
+        "category": "premium",
+        "trial_free": 1,
+        "description": "Entity resolution - map any address to its real-world owner with confidence scoring",
+    },
+    # ═══ ELITE TIER ($0.15-0.40) - Institutional Forensics ═══
+    "arkham_portfolio": {
+        "price_usd": 0.25,
+        "price_atoms": "250000",
+        "category": "elite",
+        "trial_free": 0,
+        "description": "Institutional portfolio intelligence - complete holdings, historical performance, attribution",
+    },
+    "arkham_transfers": {
+        "price_usd": 0.20,
+        "price_atoms": "200000",
+        "category": "elite",
+        "trial_free": 0,
+        "description": "Cross-chain transfer tracer - full movement history with entity labeling",
+    },
+    "arkham_counterparties": {
+        "price_usd": 0.20,
+        "price_atoms": "200000",
+        "category": "elite",
+        "trial_free": 0,
+        "description": "Counterparty intelligence - entity relationship graph and money flow analysis",
+    },
+    "nansen_labels": {
+        "price_usd": 0.15,
+        "price_atoms": "150000",
+        "category": "elite",
+        "trial_free": 0,
+        "description": "Smart money labels - fund tags, whale classifications, and institutional wallet mapping",
+    },
+    "nansen_smart_money": {
+        "price_usd": 0.15,
+        "price_atoms": "150000",
+        "category": "elite",
+        "trial_free": 0,
+        "description": "Smart money tracker - top trader activity, position tracking, alpha signals",
+    },
+    "portfolio": {
+        "price_usd": 0.15,
+        "price_atoms": "150000",
+        "category": "elite",
+        "trial_free": 0,
+        "description": "Multi-wallet portfolio - consolidated holdings, PnL, and risk across all wallets",
+    },
+    "rag_search": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 2,
+        "description": "Knowledge search - query 17K+ crypto documents for research, analysis, and deep answers",
+    },
+    # ═══ AUTO-GENERATED: 75 DataBus chains ═══
+    "academic_papers": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Academic Papers - DataBus, cached, credit-aware",
+    },
+    "ai_task": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Ai Task - DataBus, cached, credit-aware",
+    },
+    "ai_usage": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Ai Usage - DataBus, cached, credit-aware",
+    },
+    "alerts": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Alerts - DataBus, cached, credit-aware",
+    },
+    "arkham_intel": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Arkham Intel - DataBus, cached, credit-aware",
+    },
+    "arkham_ws": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Arkham Ws - DataBus, cached, credit-aware",
+    },
+    "article_comments": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Article Comments - DataBus, cached, credit-aware",
+    },
+    "article_reactions": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Article Reactions - DataBus, cached, credit-aware",
+    },
+    "bb_post": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Bb Post - DataBus, cached, credit-aware",
+    },
+    "birdeye_overview": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Birdeye Overview - DataBus, cached, credit-aware",
+    },
+    "birdeye_price": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Birdeye Price - DataBus, cached, credit-aware",
+    },
+    "blockchair_address": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Blockchair Address - DataBus, cached, credit-aware",
+    },
+    "blockchair_stats": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Blockchair Stats - DataBus, cached, credit-aware",
+    },
+    "bot_farm_detect": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Bot Farm Detect - DataBus, cached, credit-aware",
+    },
+    "cluster_map": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Cluster Map - DataBus, cached, credit-aware",
+    },
+    "content_review": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Content Review - DataBus, cached, credit-aware",
+    },
+    "copy_trade_detect": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Copy Trade Detect - DataBus, cached, credit-aware",
+    },
+    "cross_chain_entity": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Cross Chain Entity - DataBus, cached, credit-aware",
+    },
+    "ct_accounts": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Ct Accounts - DataBus, cached, credit-aware",
+    },
+    "ct_rundown": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Ct Rundown - DataBus, cached, credit-aware",
+    },
+    "daily_intel": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Daily Intel - DataBus, cached, credit-aware",
+    },
+    "defillama_chains": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Defillama Chains - DataBus, cached, credit-aware",
+    },
+    "defillama_tvl": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Defillama Tvl - DataBus, cached, credit-aware",
+    },
+    "dev_activity": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Dev Activity - DataBus, cached, credit-aware",
+    },
+    "dev_finder": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Dev Finder - DataBus, cached, credit-aware",
+    },
+    "dev_reputation": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Dev Reputation - DataBus, cached, credit-aware",
+    },
+    "dune_early_buyers": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Dune Early Buyers - DataBus, cached, credit-aware",
+    },
+    "fear_greed": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Fear Greed - DataBus, cached, credit-aware",
+    },
+    "fresh_wallet_analysis": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Fresh Wallet Analysis - DataBus, cached, credit-aware",
+    },
+    "full_news": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Full News - DataBus, cached, credit-aware",
+    },
+    "holder_data": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Holder Data - DataBus, cached, credit-aware",
+    },
+    "holder_health": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Holder Health - DataBus, cached, credit-aware",
+    },
+    "hyperliquid": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Hyperliquid - DataBus, cached, credit-aware",
+    },
+    "hyperliquid_action": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Hyperliquid Action - DataBus, cached, credit-aware",
+    },
+    "insider_detect": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Insider Detect - DataBus, cached, credit-aware",
+    },
+    "insider_detection": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Insider Detection - DataBus, cached, credit-aware",
+    },
+    "insider_wallets": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Insider Wallets - DataBus, cached, credit-aware",
+    },
+    "kol_leaderboard": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Kol Leaderboard - DataBus, cached, credit-aware",
+    },
+    "kol_profile": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Kol Profile - DataBus, cached, credit-aware",
+    },
+    "kol_track": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Kol Track - DataBus, cached, credit-aware",
+    },
+    "liquidity_risk": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Liquidity Risk - DataBus, cached, credit-aware",
+    },
+    "live_prices": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Live Prices - DataBus, cached, credit-aware",
+    },
+    "market_brief": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Market Brief - DataBus, cached, credit-aware",
+    },
+    "mcp_bridge": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Mcp Bridge - DataBus, cached, credit-aware",
+    },
+    "mev_detect": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Mev Detect - DataBus, cached, credit-aware",
+    },
+    "news_intel": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "News Intel - DataBus, cached, credit-aware",
+    },
+    "ohlcv": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Ohlcv - DataBus, cached, credit-aware",
+    },
+    "rag_health": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Rag Health - DataBus, cached, credit-aware",
+    },
+    "rag_nightly": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Rag Nightly - DataBus, cached, credit-aware",
+    },
+    "rug_patterns": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Rug Patterns - DataBus, cached, credit-aware",
+    },
+    "scam_monitor": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Scam Monitor - DataBus, cached, credit-aware",
+    },
+    "scanner": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Scanner - DataBus, cached, credit-aware",
+    },
+    "shill_detector": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Shill Detector - DataBus, cached, credit-aware",
+    },
+    "sniper_detect": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Sniper Detect - DataBus, cached, credit-aware",
+    },
+    "social_metrics": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Social Metrics - DataBus, cached, credit-aware",
+    },
+    "spl_token_metadata": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Spl Token Metadata - DataBus, cached, credit-aware",
+    },
+    "tier_comparison": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Tier Comparison - DataBus, cached, credit-aware",
+    },
+    "token_launches": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Token Launches - DataBus, cached, credit-aware",
+    },
+    "token_metadata": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Token Metadata - DataBus, cached, credit-aware",
+    },
+    "token_report": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Token Report - DataBus, cached, credit-aware",
+    },
+    "token_search": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Token Search - DataBus, cached, credit-aware",
+    },
+    "token_security": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Token Security - DataBus, cached, credit-aware",
+    },
+    "token_trades": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Token Trades - DataBus, cached, credit-aware",
+    },
+    "top_traders": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Top Traders - DataBus, cached, credit-aware",
+    },
+    "trending_coins": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Trending Coins - DataBus, cached, credit-aware",
+    },
+    "tx_trace": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Tx Trace - DataBus, cached, credit-aware",
+    },
+    "url_security_scan": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Url Security Scan - DataBus, cached, credit-aware",
+    },
+    "volume_authenticity": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Volume Authenticity - DataBus, cached, credit-aware",
+    },
+    "wallet_net_worth": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Wallet Net Worth - DataBus, cached, credit-aware",
+    },
+    "wallet_nfts": {
+        "price_usd": 0.05,
+        "price_atoms": "50000",
+        "category": "premium",
+        "trial_free": 5,
+        "description": "Wallet Nfts - DataBus, cached, credit-aware",
+    },
+    "wallet_transactions": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Wallet Transactions - DataBus, cached, credit-aware",
+    },
+    "wash_trade_detect": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Wash Trade Detect - DataBus, cached, credit-aware",
+    },
+    "webhook_handler": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Webhook Handler - DataBus, cached, credit-aware",
+    },
+    "weekly_best": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Weekly Best - DataBus, cached, credit-aware",
+    },
+    "whale_alerts": {
+        "price_usd": 0.01,
+        "price_atoms": "10000",
+        "category": "basic",
+        "trial_free": 999,
+        "description": "Whale Alerts - DataBus, cached, credit-aware",
+    },
+}
+
+# ── Trial Tracking ───────────────────────────────────────────────
+# Uses the same fingerprint+wallet gating system as x402_enforcement.
+# Bots get fingerprint-based trials (1 per tool without wallet, full with device ID).
+# Humans connect wallet for full trial allotment.
+
+TRIAL_REDIS_PREFIX = "x402:databus_trials:"
+TRIAL_WINDOW_SECONDS = 86400  # 24 hours
+
+
+async def _get_trial_redis() -> Any | None:
+    try:
+        import redis.asyncio as aioredis
+
+        r = aioredis.Redis(
+            host=os.getenv("REDIS_HOST", "rmi-redis"),
+            port=int(os.getenv("REDIS_PORT", "6379")),
+            password=os.getenv("REDIS_PASSWORD") or None,
+            db=0,
+            decode_responses=True,
+        )
+        await r.ping()
+        return r
+    except Exception:
+        return None
+
+
+async def check_trial(identifier: str, tool_id: str, max_trials: int) -> dict[str, Any]:
+    """Check if a wallet or fingerprint has remaining trial calls for a tool.
+
+    Supports both bot fingerprint IDs and human wallet addresses.
+    Uses the same Redis namespace as enforcement for consistency.
+    """
+    r = await _get_trial_redis()
+    if not r:
+        return {"allowed": True, "remaining": max_trials, "reason": "redis_unavailable"}
+
+    key = f"{TRIAL_REDIS_PREFIX}{identifier}:{tool_id}"
+    try:
+        used = await r.get(key)
+        used_count = int(used) if used else 0
+
+        if used_count >= max_trials:
+            ttl = await r.ttl(key)
+            return {
+                "allowed": False,
+                "remaining": 0,
+                "reason": "trials_exhausted",
+                "resets_in_seconds": ttl if ttl > 0 else TRIAL_WINDOW_SECONDS,
+            }
+
+        return {"allowed": True, "remaining": max_trials - used_count, "reason": "trial_available"}
+    except Exception as e:
+        logger.error(f"Trial check error: {e}")
+        return {"allowed": True, "remaining": max_trials, "reason": "error"}
+    finally:
+        await r.close()
+
+
+async def consume_trial(identifier: str, tool_id: str) -> bool:
+    """Record a trial call. Returns True if recorded."""
+    r = await _get_trial_redis()
+    if not r:
+        return False
+    try:
+        key = f"{TRIAL_REDIS_PREFIX}{identifier}:{tool_id}"
+        pipe = r.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, TRIAL_WINDOW_SECONDS)
+        await pipe.execute()
+        return True
+    except Exception:
+        return False
+    finally:
+        await r.close()
+
+
