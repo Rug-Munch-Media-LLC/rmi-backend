@@ -6,15 +6,38 @@ Tiers, channels, API endpoints, DEX ref links, and constants.
 """
 
 import os
+import subprocess
+
 
 # ══════════════════════════════════════════════
-# BOT
+# BOT TOKEN (gopass → env fallback)
 # ══════════════════════════════════════════════
-BOT_TOKEN = (
-    os.getenv("RUGMUNCH_BOT_TOKEN")
-    or os.getenv("TELEGRAM_RUGMUNCH_BOT_TOKEN")
-    or os.getenv("TELEGRAM_BOT_TOKEN")
-    or ""
+def _get_token(gopass_path: str, env_keys: list[str]) -> str:
+    """Fetch token from gopass at runtime, falling back to env vars."""
+    try:
+        token = (
+            subprocess.check_output(
+                ["gopass", "show", gopass_path],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
+        if token:
+            return token
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass
+    for key in env_keys:
+        token = os.getenv(key)
+        if token:
+            return token
+    return ""
+
+
+BOT_TOKEN = _get_token(
+    "rmi/infra/telegram_rugmunch_bot_token",
+    ["RUGMUNCH_BOT_TOKEN", "TELEGRAM_RUGMUNCH_BOT_TOKEN", "TELEGRAM_BOT_TOKEN"],
 )
 OWNER_IDS = {
     int(x.strip())

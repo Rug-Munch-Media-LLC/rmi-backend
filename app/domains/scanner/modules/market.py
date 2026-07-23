@@ -74,7 +74,6 @@ async def _get_price_consensus(
 # ── 10. Spam/Malicious Token Check ────────────────────────────────────
 
 
-
 async def _check_volume_liquidity_ratio(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check volume-to-liquidity ratio.
 
@@ -236,15 +235,205 @@ async def _check_forta_alerts(token_address: str, chain: str) -> dict[str, Any] 
 
 
 async def _check_defillama_context(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check DeFiLlama context for token."""
+    """Check DeFiLlama context for token — TVL, protocol presence, token price.
+
+    Uses the free DeFiLlama API to check:
+    - Current token price (via /prices/current/)
+    - Protocol/TVL data (via /token/ endpoint)
+    - Yield/farming pools for the token (via /yields/pools)
+
+    Args:
+        token_address: Token contract address
+        chain: Blockchain network identifier
+
+    Returns:
+        Dict with price, defi_presence, protocols, tvl data, or unavailable status
+    """
     logger.info("check_defillama", token=token_address, chain=chain)
-    return {"check": "defillama", "result": "pending"}
+    result: dict[str, Any] = {
+        "check": "defillama",
+        "result": "scanned",
+        "has_defi_presence": False,
+        "protocols_found": 0,
+    }
+
+    # Build DeFiLlama-style chain prefix
+    chain_prefix_map: dict[str, str] = {
+        "ethereum": "ethereum",
+        "eth": "ethereum",
+        "solana": "solana",
+        "bsc": "bsc",
+        "binance": "bsc",
+        "polygon": "polygon",
+        "arbitrum": "arbitrum",
+        "optimism": "optimism",
+        "base": "base",
+        "avalanche": "avalanche",
+        "fantom": "fantom",
+    }
+    prefix = chain_prefix_map.get(chain)
+    if not prefix:
+        return {**result, "result": "unavailable", "reason": f"Chain {chain} not supported"}
+
+    llama_id = f"{prefix}:{token_address}"
+
+    try:
+        # Source 1: Current price from DeFiLlama
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            price_resp = await client.get(f"{DEFILLAMA_API}/prices/current/{llama_id}")
+            if price_resp.status_code == 200:
+                price_data = price_resp.json()
+                coins = price_data.get("coins", {})
+                coin_data = coins.get(llama_id, coins.get(token_address, {}))
+                if coin_data:
+                    result["price_usd"] = coin_data.get("price", 0)
+                    result["symbol"] = coin_data.get("symbol", "")
+                    result["confidence"] = coin_data.get("confidence", 0)
+                    result["source"] = "defillama_price"
+
+        # Source 2: Token info / protocol presence
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            info_resp = await client.get(f"{DEFILLAMA_API}/token/{prefix.upper()}/{token_address}")
+            if info_resp.status_code == 200:
+                info = info_resp.json()
+                if info:
+                    result["has_defi_presence"] = True
+                    if isinstance(info, list):
+                        result["protocols_found"] = len(info)
+                        # Extract protocol names
+                        protocols = []
+                        total_tvl = 0
+                        for p in info[:10]:
+                            protocols.append(
+                                {
+                                    "name": p.get("name", ""),
+                                    "tvl": p.get("tvl", 0) or p.get("totalLiquidity", 0),
+                                }
+                            )
+                            tvl_val = p.get("tvl", 0) or p.get("totalLiquidity", 0) or 0
+                            if isinstance(tvl_val, (int, float)):
+                                total_tvl += tvl_val
+                        result["protocols"] = protocols
+                        result["total_tvl_usd"] = total_tvl
+                    else:
+                        result["protocols_found"] = 1
+                        result["protocol_name"] = info.get("name", "")
+                        result["protocol_tvl"] = info.get("tvl", 0)
+                    if not result.get("source"):
+                        result["source"] = "defillama_token"
+
+        # Source 3: Yield pools (if token is in yield/farming)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                yield_resp = await client.get(
+                    f"{DEFILLAMA_API}/yields/pools",
+                    params={"token": token_address},
+                )
+                if yield_resp.status_code == 200:
+                    yield_data = yield_resp.json()
+                    pools = yield_data.get("data", [])
+                    if pools:
+                        result["yield_pools_found"] = len(pools)
+                        result["max_apy"] = max(
+                            (float(p.get("apy", 0) or 0) for p in pools[:5]), default=0
+                        )
+                        result["source"] = "defillama_yields"
+            except Exception:
+                pass
+
+    except httpx.TimeoutException:
+        logger.debug("defillama_context_timeout", chain=chain)
+        return {**result, "result": "unavailable", "error": "DeFiLlama timeout"}
+    except Exception as e:
+        logger.debug("defillama_context_failed", error=str(e)[:80])
+        return {**result, "result": "unavailable", "error": str(e)[:60]}
+
+    return result
 
 
 async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check CoinGecko price for token."""
+    """Check CoinGecko price for token.
+
+    Uses the free CoinGecko API to get current price, market cap,
+    24h volume, and price change data.
+
+    Args:
+        token_address: Token contract address
+        chain: Blockchain network identifier
+
+    Returns:
+        Dict with price, market_cap, volume_24h, price_change_24h,
+        or unavailable if token not indexed by CoinGecko.
+    """
     logger.info("check_coingecko", token=token_address, chain=chain)
-    return {"check": "coingecko", "result": "pending"}
+
+    # Map chain to CoinGecko platform ID
+    platform_map: dict[str, str] = {
+        "ethereum": "ethereum",
+        "eth": "ethereum",
+        "bsc": "binance-smart-chain",
+        "polygon": "polygon-pos",
+        "arbitrum": "arbitrum-one",
+        "optimism": "optimistic-ethereum",
+        "base": "base",
+        "avalanche": "avalanche",
+        "fantom": "fantom",
+    }
+    platform = platform_map.get(chain)
+    if not platform:
+        return {
+            "check": "coingecko",
+            "result": "unavailable",
+            "reason": f"Chain {chain} not on CoinGecko",
+        }
+
+    try:
+        url = f"https://api.coingecko.com/api/v3/coins/{platform}/contract/{token_address}"
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.get(url)
+            if resp.status_code == 404:
+                return {
+                    "check": "coingecko",
+                    "result": "scanned",
+                    "is_listed": False,
+                    "note": "Token not found on CoinGecko",
+                }
+            if resp.status_code != 200:
+                return {
+                    "check": "coingecko",
+                    "result": "unavailable",
+                    "error": f"HTTP {resp.status_code}",
+                }
+
+            data = resp.json()
+            market_data = data.get("market_data", {})
+
+            return {
+                "check": "coingecko",
+                "result": "scanned",
+                "is_listed": True,
+                "name": data.get("name", ""),
+                "symbol": data.get("symbol", ""),
+                "price_usd": market_data.get("current_price", {}).get("usd"),
+                "market_cap_usd": market_data.get("market_cap", {}).get("usd"),
+                "volume_24h_usd": market_data.get("total_volume", {}).get("usd"),
+                "price_change_24h_pct": market_data.get("price_change_percentage_24h"),
+                "price_change_7d_pct": market_data.get("price_change_percentage_7d"),
+                "fully_diluted_valuation": market_data.get("fully_diluted_valuation", {}).get(
+                    "usd"
+                ),
+                "circulating_supply": market_data.get("circulating_supply"),
+                "total_supply": market_data.get("total_supply"),
+                "ath_usd": market_data.get("ath", {}).get("usd"),
+                "ath_date": market_data.get("ath_date", {}).get("usd"),
+                "source": "coingecko",
+            }
+    except httpx.TimeoutException:
+        logger.debug("coingecko_price_timeout", chain=chain)
+    except Exception as e:
+        logger.debug("coingecko_price_failed", error=str(e)[:80])
+
+    return {"check": "coingecko", "result": "unavailable", "error": "CoinGecko API unavailable"}
 
 
 async def _check_1inch_swap(
@@ -497,6 +686,142 @@ async def _check_volume_anomaly(
     volume_24h: float = 0,
     circulating_supply: float = 0,
 ) -> dict[str, Any] | None:
-    """Check for volume anomalies."""
-    logger.info("check_volume", token=token_address, chain=chain)
-    return {"check": "volume", "result": "pending"}
+    """Detect wash-trading and volume anomalies using DexScreener data.
+
+    Analyzes buy/sell asymmetry, volume/liquidity ratios, and price-volume
+    divergence patterns to flag suspicious trading activity.
+
+    Args:
+        token_address: Token contract address
+        chain: Blockchain network identifier
+        market_price: Pre-fetched market price (optional — fetched from DexScreener if 0)
+        volume_24h: Pre-fetched 24h volume (optional)
+        circulating_supply: Pre-fetched circulating supply (optional)
+
+    Returns:
+        Dict with anomaly_score, anomalies list, is_suspicious flag, and signals
+    """
+    logger.info("check_volume_anomaly", token=token_address, chain=chain)
+    result: dict[str, Any] = {
+        "check": "volume_anomaly",
+        "result": "scanned",
+        "anomaly_score": 0,
+        "anomalies": [],
+        "is_suspicious": False,
+        "signals": {},
+    }
+
+    try:
+        data, _ = await _fetch_with_fallback(
+            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"],
+            json_mode=True,
+        )
+        if not data or not data.get("pairs"):
+            # Use provided params as fallback
+            if volume_24h > 0 and market_price > 0:
+                result["total_volume_24h"] = volume_24h
+                result["market_price"] = market_price
+                result["source"] = "params"
+                return result
+            result["result"] = "unavailable"
+            result["error"] = "No DexScreener data available"
+            return result
+
+        pairs = data["pairs"]
+        total_volume = 0.0
+        total_liquidity = 0.0
+        buy_count = 0
+        sell_count = 0
+        price_changes: list[float] = []
+        prices: list[float] = []
+
+        for pair in pairs:
+            try:
+                vol = float(pair.get("volume", {}).get("h24", 0) or 0)
+                liq = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+                price = float(pair.get("priceUsd", 0) or 0)
+                txns = pair.get("txns", {}).get("h24", {})
+                buys = int(txns.get("buys", 0) or 0)
+                sells = int(txns.get("sells", 0) or 0)
+                price_change = pair.get("priceChange", {}).get("h24", 0) or 0
+
+                total_volume += vol
+                total_liquidity += liq
+                buy_count += buys
+                sell_count += sells
+                if price > 0:
+                    prices.append(price)
+                if price_change != 0:
+                    price_changes.append(price_change)
+            except (ValueError, TypeError):
+                continue
+
+        signals: dict[str, Any] = {}
+        anomaly_score = 0
+        anomalies: list[str] = []
+
+        # Signal 1: Volume/Liquidity Ratio
+        if total_liquidity > 0 and total_volume > 0:
+            vol_liq_ratio = total_volume / total_liquidity
+            signals["volume_liquidity_ratio"] = round(vol_liq_ratio, 2)
+            if vol_liq_ratio > 50:
+                anomalies.append("extreme_volume_liquidity_ratio")
+                anomaly_score += 40
+            elif vol_liq_ratio > 20:
+                anomalies.append("high_volume_liquidity_ratio")
+                anomaly_score += 25
+            elif vol_liq_ratio > 5:
+                anomalies.append("elevated_volume_liquidity_ratio")
+                anomaly_score += 10
+
+        # Signal 2: Buy/Sell Asymmetry
+        total_txns = buy_count + sell_count
+        if total_txns > 0:
+            buy_ratio = buy_count / total_txns
+            signals["buy_ratio"] = round(buy_ratio, 3)
+            if buy_ratio > 0.95:
+                anomalies.append("extreme_buy_dominance")
+                anomaly_score += 35
+            elif buy_ratio > 0.85:
+                anomalies.append("high_buy_dominance")
+                anomaly_score += 20
+            elif buy_ratio < 0.05:
+                anomalies.append("extreme_sell_dominance")
+                anomaly_score += 35
+            elif buy_ratio < 0.15:
+                anomalies.append("high_sell_dominance")
+                anomaly_score += 20
+
+        # Signal 3: Negative price change + high volume = distribution
+        if price_changes and total_volume > 0:
+            avg_price_change = sum(price_changes) / len(price_changes)
+            signals["avg_price_change_24h"] = round(avg_price_change, 2)
+            if avg_price_change < -20 and total_volume > 10000:
+                anomalies.append("price_volume_divergence")
+                anomaly_score += 30
+
+        result["anomaly_score"] = min(100, anomaly_score)
+        result["is_suspicious"] = anomaly_score >= 30
+        result["anomalies"] = anomalies
+        result["signals"] = signals
+        result["risk_level"] = (
+            "critical"
+            if anomaly_score >= 70
+            else "high"
+            if anomaly_score >= 40
+            else "medium"
+            if anomaly_score >= 20
+            else "low"
+        )
+        result["total_volume_24h"] = total_volume
+        result["total_liquidity_usd"] = total_liquidity
+        result["buy_count_24h"] = buy_count
+        result["sell_count_24h"] = sell_count
+        result["source"] = "dexscreener"
+
+    except Exception as e:
+        logger.debug("volume_anomaly_failed", error=str(e)[:80])
+        result["result"] = "error"
+        result["error"] = str(e)[:60]
+
+    return result

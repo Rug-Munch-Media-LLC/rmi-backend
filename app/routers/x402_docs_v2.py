@@ -9,11 +9,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
+import os
 
 router = APIRouter(tags=["API-Docs"])
 
 
 SEO_KEYWORDS = "x402 protocol, crypto intelligence API, blockchain token scanner, rug pull detection, USDC payment gateway, crypto scam detection API, web3 security API, on-chain analysis API, token risk assessment, wallet forensics API, blockchain API pay-per-call, MCP crypto tools, DeFi security API, smart contract scam detector"
+
+DEMO_API_KEY = os.getenv("RMI_FREE_API_KEY", "sk-your-free-api-key")
 
 
 def _page(title: str, body: str) -> str:
@@ -137,7 +140,7 @@ async def quickstart():
     return HTMLResponse(
         content=_page(
             "Quickstart",
-            """
+            f"""
 <h2>Quickstart - Try It in 30 Seconds</h2>
 <p>No crypto wallet needed. No USDC. Just a credit card or free API key.</p>
 
@@ -147,8 +150,8 @@ async def quickstart():
 <p>Send a POST request with your email. We'll send you a key instantly.</p>
 <pre>curl https://api.rugmunch.io/v1/auth/signup \\
   -H "Content-Type: application/json" \\
-  -d '{"email": "you@example.com"}'
-<span class="comment"># Response: {"api_key": "rm_free_abc123...", "free_calls_remaining": 100}</span></pre>
+  -d '{{"email": "you@example.com"}}'
+<span class="comment"># Response: {{"api_key": "{DEMO_API_KEY}...", "free_calls_remaining": 100}}</span></pre>
 </div>
 
 <div class="step">
@@ -156,10 +159,10 @@ async def quickstart():
 <strong>Scan a token (free - 100 calls included)</strong>
 <p>Use your API key to scan any token for rug pull indicators. No payment needed for your first 100 calls.</p>
 <pre>curl https://api.rugmunch.io/v1/token/scan \\
-  -H "X-API-Key: rm_free_abc123" \\
+  -H "X-API-Key: {DEMO_API_KEY}" \\
   -H "Content-Type: application/json" \\
-  -d '{"address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chain": "ethereum"}'
-<span class="comment"># Response: {"risk_score": 12, "risk_level": "low", "flags": [], "liquidity_usd": 50000000}</span></pre>
+  -d '{{"address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chain": "ethereum"}}'
+<span class="comment"># Response: {{"risk_score": 12, "risk_level": "low", "flags": [], "liquidity_usd": 50000000}}</span></pre>
 </div>
 
 <div class="step">
@@ -169,10 +172,10 @@ async def quickstart():
 Starts at $10 for 1,000 calls. The x402 protocol settles payments automatically on
 Base, Solana, Ethereum, BSC, Arbitrum, Polygon, and Optimism.</p>
 <pre>curl https://api.rugmunch.io/v1/credits/buy \\
-  -H "X-API-Key: rm_free_abc123" \\
+  -H "X-API-Key: {DEMO_API_KEY}" \\
   -H "Content-Type: application/json" \\
-  -d '{"amount_usd": 10, "payment_method": "card"}'
-<span class="comment"># Response: {"credits_added": 1000, "total_balance": 1000, "price_per_call": "$0.01"}</span></pre>
+  -d '{{"amount_usd": 10, "payment_method": "card"}}'
+<span class="comment"># Response: {{"credits_added": 1000, "total_balance": 1000, "price_per_call": "$0.01"}}</span></pre>
 </div>
 
 <div class="note">
@@ -191,7 +194,7 @@ async def api_reference():
     return HTMLResponse(
         content=_page(
             "API Reference",
-            """
+            f"""
 <h2>API Reference</h2>
 <p>All endpoints accept JSON and return JSON. Authenticate with <code>X-API-Key</code> header.</p>
 
@@ -215,30 +218,30 @@ async def api_reference():
 <pre><span class="comment"># Python - pip install requests</span>
 import requests
 
-API_KEY = "rm_free_abc123"
+API_KEY = "{DEMO_API_KEY}"
 api = "https://api.rugmunch.io/v1"
 
 <span class="comment"># Scan a token</span>
-resp = requests.post(f"{api}/token/scan",
-    headers={"X-API-Key": API_KEY},
-    json={"address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chain": "ethereum"}
+resp = requests.post(f"{{api}}/token/scan",
+    headers={{"X-API-Key": API_KEY}},
+    json={{"address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chain": "ethereum"}}
 )
 print(resp.json())
 
 <span class="comment"># Check remaining credits</span>
-resp = requests.get(f"{api}/credits/balance",
-    headers={"X-API-Key": API_KEY}
+resp = requests.get(f"{{api}}/credits/balance",
+    headers={{"X-API-Key": API_KEY}}
 )
-print(f"Credits remaining: {resp.json()['balance']}")</pre>
+print(f"Credits remaining: {{resp.json()['balance']}}")</pre>
 
 <pre><span class="comment"># JavaScript - fetch</span>
-const API_KEY = "rm_free_abc123";
+const API_KEY = "{DEMO_API_KEY}";
 
-const resp = await fetch("https://api.rugmunch.io/v1/token/scan", {
+const resp = await fetch("https://api.rugmunch.io/v1/token/scan", {{
   method: "POST",
-  headers: { "X-API-Key": API_KEY, "Content-Type": "application/json" },
-  body: JSON.stringify({ address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", chain: "ethereum" })
-});
+  headers: {{ "X-API-Key": API_KEY, "Content-Type": "application/json" }},
+  body: JSON.stringify({{ address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", chain: "ethereum" }})
+}});
 const data = await resp.json();
 console.log(data);</pre>
 """,
