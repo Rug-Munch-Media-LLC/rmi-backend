@@ -20,12 +20,16 @@ from app.domains.billing.x402.shared import (
     td,
 )
 
+from app.core.logging import get_logger
+
 from .core import sub_router
 from .utils import (
     record_payment,
     run_super_tool_batch,
     verify_onchain_direct,
 )
+
+logger = get_logger(__name__)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -110,15 +114,15 @@ async def human_execute(req: Any) -> dict[str, Any]:
             facilitator_used = result.facilitator
     except ImportError:
         pass
-    except Exception:
-        pass
+    except (aiohttp.ClientError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Payment verification via facilitator failed: {e}")
 
     if not verified:
         try:
             verified = await verify_onchain_direct(req.tx_hash, chain, token_info, expected_pay_to)
             verification_method = "onchain-direct"
-        except Exception:
-            pass
+        except (aiohttp.ClientError, TimeoutError, json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"On-chain direct verification failed: {e}")
 
     if not verified:
         return {
@@ -167,18 +171,20 @@ async def human_execute(req: Any) -> dict[str, Any]:
                         r.setex(
                             f"x402:spent_tx:{req.tx_hash}",
                             86400,
-                            json.dumps({
-                                "chain": chain,
-                                "payer": req.wallet,
-                                "amount": "0",
-                                "tool": tool_name,
-                                "timestamp": _time.time(),
-                                "method": "human-wallet",
-                                "facilitator": facilitator_used,
-                            }),
+                            json.dumps(
+                                {
+                                    "chain": chain,
+                                    "payer": req.wallet,
+                                    "amount": "0",
+                                    "tool": tool_name,
+                                    "timestamp": _time.time(),
+                                    "method": "human-wallet",
+                                    "facilitator": facilitator_used,
+                                }
+                            ),
                         )
-                except Exception:
-                    pass
+                except (ConnectionError, TimeoutError, OSError) as e:
+                    logger.warning(f"Redis spent_tx record failed: {e}")
 
                 return {
                     "success": resp.status < 400,

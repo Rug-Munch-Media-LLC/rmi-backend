@@ -74,8 +74,8 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
-        pass
+    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+        logger.debug(f"Redis cache read failed for {cache_key}: {e}")
 
     chain_map = {
         "solana": "solana",
@@ -184,8 +184,8 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
                                             .get("makers", 0)
                                         )
                                         break
-                    except Exception:
-                        pass
+                    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+                        logger.debug(f"Token pair enrichment failed for {addr}: {e}")
 
     except httpx.TimeoutException:
         logger.warning("DexScreener trending fetch timed out after 15s")
@@ -204,8 +204,8 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
             r = _r()
             r.setex(cache_key, CACHE_TTL, json.dumps(tokens))
             r.close()
-        except Exception:
-            pass
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logger.debug(f"Redis cache write failed for {cache_key}: {e}")
 
     return tokens, fallback_used
 
@@ -233,8 +233,8 @@ async def _fetch_ohlcv_gecko(
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
-        pass
+    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+        logger.debug(f"Redis OHLCV cache read failed: {e}")
 
     candles = []
     try:
@@ -269,8 +269,8 @@ async def _fetch_ohlcv_gecko(
             r = _r()
             r.setex(cache_key, OHLCV_TTL, json.dumps(candles))
             r.close()
-        except Exception:
-            pass
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logger.debug(f"Redis OHLCV cache write failed: {e}")
 
     return candles
 
@@ -286,8 +286,8 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
-        pass
+    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+        logger.debug(f"Redis pair cache read failed: {e}")
 
     info = {}
     try:
@@ -344,8 +344,8 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
             r = _r()
             r.setex(cache_key, CACHE_TTL, json.dumps(info))
             r.close()
-        except Exception:
-            pass
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logger.debug(f"Redis pair cache write failed: {e}")
 
     return info
 
@@ -512,8 +512,8 @@ def _compute_rug_score(pair_info: dict, vol_auth: dict) -> dict:
             elif age_hours < 24:
                 score += 8
                 factors.append("New pool (<24h old)")
-        except Exception:
-            pass
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Pool age parse failed: {e}")
 
     score = max(0, min(100, score))
     level = "SAFE" if score < 30 else "CAUTION" if score < 60 else "DANGER"

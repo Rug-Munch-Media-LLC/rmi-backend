@@ -28,16 +28,18 @@ async def build_tools_from_catalog() -> list[dict[str, Any]]:
         category = pricing.get("category", "analysis")
         chain = pricing.get("chain")
         base_tool = pricing.get("base_tool")
-        tools.append({
-            "id": tool_id,
-            "description": desc,
-            "price_usd": pricing.get("price_usd", 0.01),
-            "category": category,
-            "chain": chain,
-            "base_tool": base_tool,
-            "is_variant": bool(chain),
-            "trial_free": pricing.get("trial_free", 1),
-        })
+        tools.append(
+            {
+                "id": tool_id,
+                "description": desc,
+                "price_usd": pricing.get("price_usd", 0.01),
+                "category": category,
+                "chain": chain,
+                "base_tool": base_tool,
+                "is_variant": bool(chain),
+                "trial_free": pricing.get("trial_free", 1),
+            }
+        )
     return tools
 
 
@@ -184,8 +186,8 @@ async def check_rate_limit(request: Request) -> bool:
         if count5 == 1:
             r.expire(key_5m, 300)
         return not count5 > 300
-    except Exception:
-        return True
+    except (ConnectionError, TimeoutError, OSError):
+        return True  # Fail open — allow request if Redis is down
 
 
 # ── Payment Recording ──────────────────────────────────────────
@@ -200,7 +202,10 @@ async def record_payment(tool_id: str, price_usd: str, payer: str) -> None:
 
 
 async def verify_onchain_direct(
-    tx_hash: str, chain: str, token_info: dict, expected_pay_to: str,
+    tx_hash: str,
+    chain: str,
+    token_info: dict,
+    expected_pay_to: str,
 ) -> bool:
     """Direct on-chain verification fallback for human payments."""
     async with aiohttp.ClientSession() as session:
@@ -224,8 +229,7 @@ async def verify_onchain_direct(
                     return False
                 meta = tx.get("meta", {})
                 return any(
-                    bal.get("owner") == expected_pay_to
-                    for bal in meta.get("postTokenBalances", [])
+                    bal.get("owner") == expected_pay_to for bal in meta.get("postTokenBalances", [])
                 )
 
         elif chain in ("tron", "bitcoin", "sepa"):
@@ -258,16 +262,18 @@ async def verify_onchain_direct(
 
 
 async def run_super_tool_batch(
-    endpoints: dict[str, str], payload: dict,
+    endpoints: dict[str, str],
+    payload: dict,
 ) -> dict[str, Any]:
     """Run multiple tool sub-calls in parallel for super-tool composition.
     Returns dict of {name: response_data_or_None}."""
+
     async def _call(name: str, url: str) -> tuple[str, Any | None]:
         try:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(url, json=payload)
                 return name, r.json() if r.status_code == 200 else None
-        except Exception:
+        except (httpx.HTTPError, TimeoutError, json.JSONDecodeError):
             return name, None
 
     tasks = [_call(name, url) for name, url in endpoints.items()]
@@ -279,7 +285,8 @@ async def run_super_tool_batch(
 
 
 async def execute_bundle_tasks(
-    tasks: dict[str, str], body: dict,
+    tasks: dict[str, str],
+    body: dict,
 ) -> dict[str, Any]:
     """Execute multiple POST calls in parallel for bundle endpoints.
     Returns dict of {name: response_json_or_error_dict}."""
@@ -288,14 +295,14 @@ async def execute_bundle_tasks(
         coros: dict[str, Any] = {}
         for name, url in tasks.items():
             coros[name] = session.post(
-                url, json=body, timeout=aiohttp.ClientTimeout(total=30),
+                url,
+                json=body,
+                timeout=aiohttp.ClientTimeout(total=30),
             )
         for name, coro in coros.items():
             try:
                 resp = await coro
-                results[name] = (
-                    await resp.json() if resp.status == 200 else {"status": resp.status}
-                )
+                results[name] = await resp.json() if resp.status == 200 else {"status": resp.status}
             except Exception as e:
                 results[name] = {"error": str(e)}
     return results
@@ -321,13 +328,13 @@ def resolve_tool_alias(tool_id: str) -> tuple[str | None, str | None]:
             if base_tool:
                 target = base_tool
                 injected_chain = pricing.get("chain")
-        except Exception:
+        except (ImportError, KeyError):
             pass
 
         if target is None:
             last_underscore = tool_id.rfind("_")
             if last_underscore > 0:
-                suffix = tool_id[last_underscore + 1:]
+                suffix = tool_id[last_underscore + 1 :]
                 prefix = tool_id[:last_underscore]
                 if suffix in CHAIN_SUFFIXES:
                     if prefix in TOOL_ALIASES:
@@ -354,5 +361,5 @@ async def enrich_response(
         from app.routers.x402_enrichment import enrich_tool_response
 
         return enrich_tool_response(tool_id, result, request_params=body, opt_out=opt_out)
-    except Exception:
+    except (ImportError, Exception):
         return result
