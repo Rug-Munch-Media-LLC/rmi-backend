@@ -419,7 +419,7 @@ class LocalBGEEmbedder:
     _model = None
 
     @classmethod
-    def _get_model(cls):
+    def _get_model(cls) -> Any:
         if cls._model is None:
             from sentence_transformers import SentenceTransformer
 
@@ -451,7 +451,7 @@ class OllamaBGEEmbedder:
     MODEL = "bge-m3"
     DIMS = 1024
 
-    def __init__(self, ollama_url: str | None = None):
+    def __init__(self, ollama_url: str | None = None) -> None:
         self.url = ollama_url or os.getenv("OLLAMA_URL", self.OLLAMA_URL)
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
@@ -493,7 +493,7 @@ class OpenRouterEmbedder:
     MODEL = OR_PRIMARY_EMBED
     FALLBACK = OR_FALLBACK_EMBED
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or OPENROUTER_KEY
         if not self.api_key:
             raise ValueError("OPENROUTER_API_KEY required")
@@ -536,7 +536,7 @@ class HuggingFaceEmbedder:
     BASE = "https://api-inference.huggingface.co/models"
     MODEL = "BAAI/bge-m3"
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None) -> None:
         self.token = token or HF_TOKEN
         if not self.token:
             raise ValueError("HUGGINGFACE_TOKEN required")
@@ -665,7 +665,7 @@ class CryptoEmbedder:
         results = await embedder.search("honeypot tokens with ownership renounce pattern")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._local: LocalBGEEmbedder | None = None
         self._ollama: OllamaBGEEmbedder | None = None
         self._openrouter: OpenRouterEmbedder | None = None
@@ -675,7 +675,7 @@ class CryptoEmbedder:
         self._cache_hits = 0
         self._cache_misses = 0
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize embedding providers. Ollama qwen3-embedding is PRIMARY."""
         or_key = os.environ.get("OPENROUTER_API_KEY", "") or OPENROUTER_KEY
         hf_token = os.environ.get("HUGGINGFACE_TOKEN", "") or HF_TOKEN
@@ -698,7 +698,7 @@ class CryptoEmbedder:
         self._initialized = True
         logger.info("CryptoEmbedder initialized")
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         import redis.asyncio as redis
 
         if self._redis is None:
@@ -795,7 +795,7 @@ class CryptoEmbedder:
             pass
         return None
 
-    async def _cache_set(self, key: str, vector: list[float], ttl: int = 86400):
+    async def _cache_set(self, key: str, vector: list[float], ttl: int = 86400) -> None:
         try:
             r = await self._get_redis()
             await r.setex(key, ttl, json.dumps(vector))

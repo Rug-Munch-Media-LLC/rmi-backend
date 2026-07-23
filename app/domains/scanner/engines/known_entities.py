@@ -239,7 +239,7 @@ _solana_programs: dict[str, tuple[str, str]] = {}
 _initialized = False
 
 
-def _init():
+def _init() -> None:
     global _initialized, _lookup, _solana_programs
     if _initialized:
         return

@@ -70,7 +70,7 @@ class WhaleProfile:
 class WhaleWatcher:
     """Monitors Solana for whale activity using Helius enhanced APIs."""
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or API_KEY
         self.rpc_url = f"https://mainnet.helius-rpc.com/?api-key={self.api_key}"
         self.session: aiohttp.ClientSession | None = None
@@ -96,7 +96,7 @@ class WhaleWatcher:
             logger.error(f"RPC {method} failed: {e}")
             return {}
 
-    async def close(self):
+    async def close(self) -> None:
         if self.session and not self.session.closed:
             await self.session.close()
 
@@ -315,11 +315,11 @@ class WhaleWatcher:
         )
         return result if result and not isinstance(result, str) else None
 
-    def register_alert_callback(self, callback: Callable[[WhaleAlert], None]):
+    def register_alert_callback(self, callback: Callable[[WhaleAlert], None]) -> None:
         """Register a callback for whale alerts."""
         self.callbacks.append(callback)
 
-    async def monitor_tokens(self, token_addresses: list[str], interval_seconds: int = 60):
+    async def monitor_tokens(self, token_addresses: list[str], interval_seconds: int = 60) -> None:
         """Continuously monitor tokens for whale activity."""
         logger.info(f"Starting whale monitor for {len(token_addresses)} tokens")
         while True:

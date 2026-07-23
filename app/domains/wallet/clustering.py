@@ -56,7 +56,7 @@ class WalletProfile:
     transaction_frequency: float = 0.0  # tx per day
     preferred_hours: list[int] = field(default_factory=list)  # Hours of day most active
 
-    def calculate_metrics(self):
+    def calculate_metrics(self) -> None:
         """Calculate behavioral metrics from transaction data."""
         if self.transaction_times:
             self.transaction_times.sort()
@@ -135,13 +135,13 @@ class WalletClusteringEngine:
     MIN_TRANSACTION_SIMILARITY = 0.7  # Min similarity score for pattern match
     MIN_CONNECTION_STRENGTH = 0.3  # Min strength for bubble map connection
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.wallets: dict[str, WalletProfile] = {}
         self.transactions: list[Transaction] = []
         self.connections: dict[tuple[str, str], Connection] = {}
         self.clusters: dict[str, Cluster] = {}
 
-    def add_transaction(self, tx: Transaction):
+    def add_transaction(self, tx: Transaction) -> None:
         """Add a transaction to the engine."""
         self.transactions.append(tx)
 
@@ -188,7 +188,7 @@ class WalletClusteringEngine:
         if conn.last_connection is None or tx.timestamp > conn.last_connection:
             conn.last_connection = tx.timestamp
 
-    def load_from_helius(self, helius_data: list[dict]):
+    def load_from_helius(self, helius_data: list[dict]) -> None:
         """Load transactions from Helius API format."""
         for item in helius_data:
             tx = Transaction(

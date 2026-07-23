@@ -75,7 +75,7 @@ CHAIN_ID_MAP = {
 class MoralisConnector:
     """Moralis Data + Auth API connector."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Key rotation: spread requests across 2 orgs for 2x rate limit
         self._data_keys = [k for k in [MORALIS_API_KEY, MORALIS_API_KEY_2, MORALIS_API_KEY_3] if k]
         self._auth_keys = [k for k in [MORALIS_API_KEY_2, MORALIS_API_KEY_3] if k]
@@ -96,7 +96,7 @@ class MoralisConnector:
         """Convert chain name to chainId for auth."""
         return CHAIN_ID_MAP.get(chain, "1")
 
-    async def _rate_limit(self):
+    async def _rate_limit(self) -> None:
         now = time.monotonic()
         elapsed = now - self._last_request
         if elapsed < self._min_interval:
@@ -110,7 +110,7 @@ class MoralisConnector:
                 return data
         return None
 
-    def _set_cache(self, key: str, data: Any):
+    def _set_cache(self, key: str, data: Any) -> None:
         self._cache[key] = (data, time.time())
         # Evict old entries
         if len(self._cache) > 500:

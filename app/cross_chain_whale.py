@@ -556,7 +556,7 @@ def get_whale_tracker() -> "CrossChainWhaleTracker":
 class CrossChainWhaleTracker:
     """Track whale wallets across multiple chains."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = asyncio.Lock()
 
     async def track_token(
@@ -827,9 +827,12 @@ async def _quick_test() -> None:
     tracker = get_whale_tracker()
     report = await tracker.track_token(test_token, chains=["solana", "ethereum", "base"])
 
-    print(format_whale_report(report))
-    print(f"\nErrors: {len(report.errors)}")
-    print("Quick test passed ✓" if len(report.errors) < 3 else "Quick test FAILED ✗")
+    logger.info(format_whale_report(report))
+    logger.info("\nErrors: %d", len(report.errors))
+    if len(report.errors) < 3:
+        logger.info("Quick test passed ✓")
+    else:
+        logger.warning("Quick test FAILED ✗")
 
 
 if __name__ == "__main__":

@@ -66,7 +66,7 @@ def _compute_health(ll: dict) -> tuple[int, list[str]]:
 
 
 @router.get("/check/{lp_address}")
-async def check_lp_health(lp_address: str, chain: str = Query("ethereum")):
+async def check_lp_health(lp_address: str, chain: str = Query("ethereum")) -> dict | dict[str, str]:
     """Check health of a specific liquidity pool."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -93,7 +93,7 @@ async def check_lp_health(lp_address: str, chain: str = Query("ethereum")):
 
 
 @router.post("/track")
-async def track_lp(lp_address: str, chain: str = Query("ethereum"), notify_tg: bool = Query(True)):
+async def track_lp(lp_address: str, chain: str = Query("ethereum"), notify_tg: bool = Query(True)) -> dict:
     """Start tracking an LP for health changes."""
     lp_id = f"{chain}:{lp_address}"
     _tracked_lps[lp_id] = {
@@ -106,14 +106,14 @@ async def track_lp(lp_address: str, chain: str = Query("ethereum"), notify_tg: b
 
 
 @router.delete("/track/{lp_id}")
-async def untrack_lp(lp_id: str):
+async def untrack_lp(lp_id: str) -> dict:
     """Stop tracking an LP."""
     _tracked_lps.pop(lp_id, None)
     return {"id": lp_id, "status": "removed"}
 
 
 @router.get("/tracked")
-async def list_tracked():
+async def list_tracked() -> dict[str, list]:
     return {"tracked": list(_tracked_lps.values()), "count": len(_tracked_lps)}
 
 
@@ -121,7 +121,7 @@ async def list_tracked():
 async def find_unhealthy_pools(
     chain: str = Query("ethereum"),
     limit: int = Query(10, le=20),
-):
+) -> dict:
     """Scan for unhealthy pools: low locked LP, LP drain, single-holder dominance."""
     unhealthy: list[dict] = []
     try:

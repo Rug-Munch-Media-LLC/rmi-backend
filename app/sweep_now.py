@@ -5,10 +5,13 @@ Usage: docker exec rmi_backend python3 /app/app/sweep_now.py [--chain sol|eth] [
 
 import argparse
 import asyncio
+import logging
 import os
 import sys
 
 sys.path.insert(0, "/app")
+
+logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--chain", default="")
@@ -71,7 +74,7 @@ for w in mgr._wallets.values():
             }
             signed = w3.eth.account.sign_transaction(tx, acct.key)
             h = w3.eth.send_raw_transaction(signed.rawTransaction).hex()
-            print(f"SWEPT eth {w.address[:12]} -> {owner[:12]} tx={h[:16]}")
+            logger.info("SWEPT eth %s -> %s tx=%s", w.address[:12], owner[:12], h[:16])
             swept += 1
         elif w.chain == "sol":
             from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins
@@ -95,7 +98,7 @@ for w in mgr._wallets.values():
             )
             kp = Keypair.from_bytes(ctx.PrivateKey().Raw().ToBytes())
 
-            async def _do():
+            async def _do() -> str | None:
                 async with AsyncClient(rpc) as c:  # noqa: B023
                     resp = await c.get_balance(kp.pubkey(), commitment=Confirmed)  # noqa: B023
                     if resp.value <= 2_000_000:
@@ -115,11 +118,11 @@ for w in mgr._wallets.values():
 
             sig = asyncio.run(_do())
             if sig:
-                print(f"SWEPT sol {w.address[:12]} -> {owner[:12]} tx={sig[:16]}")
+                logger.info("SWEPT sol %s -> %s tx=%s", w.address[:12], owner[:12], sig[:16])
                 swept += 1
     except Exception as e:
-        print(f"ERR {w.chain}: {str(e)[:80]}")
+        logger.error("ERR %s: %s", w.chain, str(e)[:80])
         errors += 1
 
 mgr._save_vault()
-print("Done: %d swept, %d errors" % (swept, errors))  # noqa: UP031
+logger.info("Done: %d swept, %d errors", swept, errors)

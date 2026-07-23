@@ -60,7 +60,7 @@ class StubCrossChainCorrelator:
     """Stub cross-chain correlation module."""
 
     class ChainFingerprint:
-        def __init__(self, address: str, chain: str):
+        def __init__(self, address: str, chain: str) -> None:
             self.address = address
             self.chain = chain
 
@@ -100,7 +100,7 @@ _stub_crypto_guard = StubCryptoGuard()
 # ─── FALLBACK LOADERS ─────────────────────────────────────────────
 
 
-def get_contract_deepscan():
+def get_contract_deepscan() -> tuple[Any, Any]:
     """Load contract deepscan with fallback to stub."""
     try:
         from app.contract_deepscan import batch_deep_scan, deep_scan_contract
@@ -111,7 +111,7 @@ def get_contract_deepscan():
         return (_stub_deepscan.deep_scan_contract, _stub_deepscan.batch_deep_scan)
 
 
-def get_cross_chain_correlator():
+def get_cross_chain_correlator() -> Any:
     """Load cross-chain correlator with fallback to stub."""
     try:
         from app.cross_chain_correlator import CrossChainCorrelator
@@ -122,7 +122,7 @@ def get_cross_chain_correlator():
         return _stub_correlator_corr
 
 
-def get_crypto_guard():
+def get_crypto_guard() -> tuple[Any, Any]:
     """Load crypto guard with fallback to stub."""
     try:
         from app.crypto_guard import (
@@ -136,7 +136,7 @@ def get_crypto_guard():
         return (_stub_crypto_guard.check_wallet_reputation, _stub_crypto_guard.rate_limit_by_tier)
 
 
-def get_sentinel_manager():
+def get_sentinel_manager() -> Any:
     """Load mempool sentinel with fallback to stub."""
     try:
         from app.mempool_sentinel import SentinelManager
@@ -147,7 +147,7 @@ def get_sentinel_manager():
         return lambda: None
 
 
-def get_wallet_anomaly_detector():
+def get_wallet_anomaly_detector() -> Any:
     """Load wallet anomaly detector with fallback to stub."""
     try:
         from app.ml_anomaly import WalletAnomalyDetector
@@ -158,7 +158,7 @@ def get_wallet_anomaly_detector():
         return lambda: None
 
 
-def get_token_anomaly_detector():
+def get_token_anomaly_detector() -> Any:
     """Load token anomaly detector with fallback to stub."""
     try:
         from app.ml_anomaly import TokenMetricAnomalyDetector

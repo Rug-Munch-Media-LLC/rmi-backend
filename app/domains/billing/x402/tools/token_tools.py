@@ -41,7 +41,7 @@ sub_router = APIRouter(tags=["x402-token-tools"])
 
 
 @sub_router.post("/audit")
-async def deep_contract_audit(req: TokenRequest):
+async def deep_contract_audit(req: TokenRequest) -> dict[str, str]:
     """Full 100-point forensic scan. Returns risk score 0-100 with findings."""
     try:
         # Try primary first
@@ -181,7 +181,7 @@ async def _rug_shield(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/rugshield")
-async def rug_shield(req: TokenRequest):
+async def rug_shield(req: TokenRequest) -> dict[str, str]:
     """Quick pre-buy safety check. Binary safe/unsafe in under 2 seconds."""
     try:
         result = await _rug_shield(req.address, req.chain)
@@ -308,7 +308,7 @@ async def _token_pulse(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/pulse")
-async def token_pulse(req: TokenRequest):
+async def token_pulse(req: TokenRequest) -> dict[str, str]:
     """Token health dashboard - liquidity, volume, momentum, trajectory."""
     try:
         result = await _token_pulse(req.address, req.chain)
@@ -422,7 +422,7 @@ async def _token_forensics(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/forensics")
-async def token_forensics(req: GenericRequest):
+async def token_forensics(req: GenericRequest) -> dict[str, str]:
     """Deep token forensics report."""
     try:
         address = req.address or req.token or ""
@@ -447,7 +447,7 @@ async def token_forensics(req: GenericRequest):
 
 
 @sub_router.post("/token_deep_dive")
-async def token_deep_dive(req: GenericRequest):
+async def token_deep_dive(req: GenericRequest) -> dict[str, str]:
     """Deep token analysis across chains."""
     try:
         query = req.address or req.token or req.query or ""
@@ -530,7 +530,7 @@ async def _honeypot_check(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/honeypot_check")
-async def honeypot_check(req: GenericRequest):
+async def honeypot_check(req: GenericRequest) -> dict[str, str]:
     """Honeypot detection."""
     try:
         address = req.address or req.token or ""
@@ -555,7 +555,7 @@ async def honeypot_check(req: GenericRequest):
 
 
 @sub_router.post("/token_comparison")
-async def token_comparison(req: MultiTokenRequest):
+async def token_comparison(req: MultiTokenRequest) -> dict[str, str]:
     """Side-by-side token comparison."""
     try:
         comparisons = []
@@ -650,7 +650,7 @@ async def _risk_monitor(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/risk_monitor")
-async def risk_monitor(req: GenericRequest):
+async def risk_monitor(req: GenericRequest) -> dict[str, str]:
     """Real-time risk monitoring."""
     try:
         address = req.address or req.token or ""
@@ -720,7 +720,7 @@ async def _liquidity_flow(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/liquidity_flow")
-async def liquidity_flow(req: GenericRequest):
+async def liquidity_flow(req: GenericRequest) -> dict[str, str]:
     """Liquidity flow analysis."""
     try:
         address = req.address or req.token or ""
@@ -841,7 +841,7 @@ async def _rug_pull_predictor(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/rug_pull_predictor")
-async def rug_pull_predictor(req: GenericRequest):
+async def rug_pull_predictor(req: GenericRequest) -> dict[str, str]:
     """Rug pull prediction."""
     try:
         address = req.address or req.token or ""

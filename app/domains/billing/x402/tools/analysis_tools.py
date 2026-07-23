@@ -130,7 +130,7 @@ async def _sentiment_analysis(token: str, chain: str) -> dict:
 
 
 @sub_router.post("/sentiment")
-async def social_sentiment(req: SentimentRequest):
+async def social_sentiment(req: SentimentRequest) -> dict[str, str]:
     """Social signal analysis across Twitter, Telegram, RSS feeds."""
     try:
         result = await _sentiment_analysis(req.token, req.chain)
@@ -258,7 +258,7 @@ def _analyze_url(url: str) -> dict:
 
 
 @sub_router.post("/urlcheck")
-async def url_scam_detector(req: URLRequest):
+async def url_scam_detector(req: URLRequest) -> dict[str, str]:
     """URL scam analysis - structural analysis, no blacklists needed."""
     try:
         result = _analyze_url(req.url)
@@ -314,7 +314,7 @@ async def _twitter_profile(query: str) -> dict:
 
 
 @sub_router.post("/tw_profile")
-async def twitter_profile(req: GenericRequest):
+async def twitter_profile(req: GenericRequest) -> dict[str, str]:
     """Twitter/X profile lookup."""
     try:
         query = req.query or req.address or req.token or ""
@@ -337,7 +337,7 @@ async def twitter_profile(req: GenericRequest):
 
 
 @sub_router.post("/tw_timeline")
-async def twitter_timeline(req: GenericRequest):
+async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
     """Get recent tweets from a user."""
     try:
         query = req.query or req.address or req.token or ""
@@ -375,7 +375,7 @@ async def twitter_timeline(req: GenericRequest):
 
 
 @sub_router.post("/tw_search")
-async def twitter_search(req: GenericRequest):
+async def twitter_search(req: GenericRequest) -> dict[str, str]:
     """Search Twitter/X for tweets."""
     try:
         query = req.query or req.token or ""
@@ -448,7 +448,7 @@ async def _social_signal(query: str) -> dict:
 
 
 @sub_router.post("/social_signal")
-async def social_signal(req: GenericRequest):
+async def social_signal(req: GenericRequest) -> dict[str, str]:
     """Social signal analyzer."""
     try:
         query = req.query or req.token or req.address or ""
@@ -529,7 +529,7 @@ async def _nft_wash_detector(collection: str) -> dict:
 
 
 @sub_router.post("/nft_wash_detector")
-async def nft_wash_detector(req: GenericRequest):
+async def nft_wash_detector(req: GenericRequest) -> dict[str, str]:
     """NFT wash trading detector."""
     try:
         collection = req.query or req.address or ""
@@ -586,7 +586,7 @@ async def _bridge_security() -> dict:
 
 
 @sub_router.post("/bridge_security")
-async def bridge_security(req: GenericRequest):
+async def bridge_security(req: GenericRequest) -> dict[str, str]:
     """Bridge security monitoring."""
     try:
         result = await _bridge_security()

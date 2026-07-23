@@ -99,7 +99,7 @@ class SocialVelocityAnalyzer:
     # seconds (or more), it's likely organic
     ORGANIC_SPREAD_SEC = 300.0  # 5 minutes
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     async def analyze(self, mentions: list) -> SocialVelocityReport:

@@ -115,7 +115,7 @@ class PumpFunAnalyzer:
 
     def __init__(
         self, helius_api_key: str | None = None, dexscreener_client: httpx.AsyncClient | None = None
-    ):
+    ) -> None:
         self.helius_api_key = helius_api_key or os.getenv("HELIUS_API_KEY", "")
         self.client = dexscreener_client or httpx.AsyncClient(timeout=20.0)
         if not self.helius_api_key:

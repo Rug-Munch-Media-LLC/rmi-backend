@@ -58,7 +58,7 @@ async def stream_scan_result(result: dict) -> bool:
     )
 
 
-async def stream_embedding_usage(provider: str, task: str, dims: int, count: int = 1):
+async def stream_embedding_usage(provider: str, task: str, dims: int, count: int = 1) -> None:
     """Log embedding usage for analytics."""
     gcloud = get_gcloud()
     await gcloud.bigquery_insert(

@@ -22,7 +22,7 @@ class LabelLookupRequest(BaseModel):
 
 
 @router.post("/lookup")
-async def lookup_labels(req: LabelLookupRequest):
+async def lookup_labels(req: LabelLookupRequest) -> dict:
     """Batch lookup wallet labels for enrichment.
 
     Called by CF Workers to annotate tool responses with wallet intelligence.

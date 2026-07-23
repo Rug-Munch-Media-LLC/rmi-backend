@@ -14,7 +14,7 @@ RMI_KEY = INTERNAL_API_KEY
 
 
 @router.get("/check/{address}")
-async def check_mev_risk(address: str, chain: str = Query("ethereum")):
+async def check_mev_risk(address: str, chain: str = Query("ethereum")) -> dict:
     """Check MEV risk before trading a token. Returns sandwich attack risk and protection recommendation."""
     async with httpx.AsyncClient(timeout=15) as c:
         # Use existing MEV sandwich detector
@@ -66,7 +66,7 @@ async def check_mev_risk(address: str, chain: str = Query("ethereum")):
 @router.get("/safe-swap")
 async def safe_swap_params(
     address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)
-):
+) -> dict:
     """Get optimal swap parameters to avoid MEV."""
     risk = await check_mev_risk(address, chain)
 

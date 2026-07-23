@@ -51,7 +51,7 @@ HOT_TOKENS: list[str] = [
 class ChainCache:
     """LRU cache with TTL for chain data. Max 500 entries, 5-min default TTL."""
 
-    def __init__(self, max_size: int = 500, default_ttl: int = 300):
+    def __init__(self, max_size: int = 500, default_ttl: int = 300) -> None:
         self.max_size = max_size
         self.default_ttl = default_ttl
         self._cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
@@ -72,7 +72,7 @@ class ChainCache:
                 del self._cache[key]
         return None
 
-    async def set(self, method: str, value: Any, *args, ttl: int | None = None):
+    async def set(self, method: str, value: Any, *args, ttl: int | None = None) -> None:
         key = self._make_key(method, *args)
         async with self._lock:
             if key in self._cache:
@@ -92,7 +92,7 @@ class ChainCache:
                 "utilization_pct": round(len(self._cache) / self.max_size * 100, 1),
             }
 
-    async def warm(self):
+    async def warm(self) -> None:
         """Pre-populate cache with known hot addresses to avoid cold-start misses."""
         if self._warmed:
             return

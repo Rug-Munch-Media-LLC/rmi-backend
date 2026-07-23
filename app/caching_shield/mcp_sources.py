@@ -38,7 +38,7 @@ _cache_misses = 0
 class MCPDataSources:
     """Wraps free MCP servers as cached data sources."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http: httpx.AsyncClient | None = None
 
     async def _get_http(self) -> httpx.AsyncClient:

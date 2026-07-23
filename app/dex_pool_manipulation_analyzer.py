@@ -156,7 +156,7 @@ def is_valid_address(addr: str) -> bool:
 class DEXPoolManipulationAnalyzer:
     """Analyze a DEX pool for manipulation signals."""
 
-    def __init__(self, chain: str = "ethereum", dex: str = "uniswap_v3"):
+    def __init__(self, chain: str = "ethereum", dex: str = "uniswap_v3") -> None:
         self.chain = chain
         self.dex = dex
 

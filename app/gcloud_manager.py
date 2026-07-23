@@ -31,7 +31,7 @@ VAULT_PATH = "/root/.secrets/google-sa-cryptorugmunch.json"
 class GoogleCloudManager:
     """Manages Google Cloud credentials and service access."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._sa: dict | None = None
         self._token: str | None = None
         self._token_expiry: float = 0

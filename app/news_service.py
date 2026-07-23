@@ -446,7 +446,7 @@ CATEGORY_KEYWORDS = {
 class NewsService:
     """Multi-source crypto news aggregator - 200+ sources, real data only."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.cache: dict[str, Any] = {}
         self.cache_ttl = 180  # 3 minutes
         self.last_fetch: datetime | None = None
@@ -991,7 +991,7 @@ class NewsService:
             unique.append(a)
 
         # Sort by recency
-        def parse_ts(a):
+        def parse_ts(a) -> Any:
             try:
                 return datetime.fromisoformat(
                     a.get("published_at", "2020-01-01").replace("Z", "+00:00")

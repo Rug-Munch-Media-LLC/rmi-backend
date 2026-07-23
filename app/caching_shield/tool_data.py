@@ -17,7 +17,7 @@ from app.caching_shield.unified_layer import get_data_layer
 class ToolData:
     """Cached, rate-limited data provider for x402 tool routers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._layer = get_data_layer()
 
     async def token_price(self, mint: str) -> dict:

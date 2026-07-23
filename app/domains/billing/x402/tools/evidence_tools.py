@@ -37,7 +37,7 @@ sub_router = APIRouter(tags=["x402-sentinel-t1"])
 
 
 @sub_router.post("/sentinel_scan")
-async def sentinel_full_scan(req: SentinelScanRequest):
+async def sentinel_full_scan(req: SentinelScanRequest) -> dict[str, str]:
     """Full SENTINEL deep scan - all 9 modules in parallel with graceful degradation.
 
     Pricing: $0.15 - the most comprehensive token security scan available.
@@ -67,7 +67,7 @@ async def sentinel_full_scan(req: SentinelScanRequest):
 
 
 @sub_router.post("/holder_analysis")
-async def holder_analysis_endpoint(req: SentinelModuleRequest):
+async def holder_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Holder Analysis - HHI concentration, fake diversification detection.
 
     Pricing: $0.05
@@ -92,7 +92,7 @@ async def holder_analysis_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/bundle_detect")
-async def bundle_detect_endpoint(req: SentinelModuleRequest):
+async def bundle_detect_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Bundle Detection - enhanced bundle/sniper detection, funding chain analysis.
 
     Pricing: $0.08
@@ -117,7 +117,7 @@ async def bundle_detect_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/exchange_fund_check")
-async def exchange_fund_check_endpoint(req: SentinelModuleRequest):
+async def exchange_fund_check_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Exchange Funder Check - CEX-funded wallet detection for token buyers.
 
     Pricing: $0.05
@@ -142,7 +142,7 @@ async def exchange_fund_check_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/liquidity_verify")
-async def liquidity_verify_endpoint(req: SentinelModuleRequest):
+async def liquidity_verify_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Liquidity Verification - lock verification, fake locker detection, expiry monitoring.
 
     Pricing: $0.05
@@ -167,7 +167,7 @@ async def liquidity_verify_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/dev_reputation")
-async def dev_reputation_endpoint(req: SentinelModuleRequest):
+async def dev_reputation_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Dev Reputation - serial rugg detection, cross-chain dev tracking.
 
     Pricing: $0.08
@@ -194,7 +194,7 @@ async def dev_reputation_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/wash_trading")
-async def wash_trading_endpoint(req: SentinelModuleRequest):
+async def wash_trading_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Wash Trading Detection - circular transfer detection, cross-DEX loop analysis.
 
     Pricing: $0.08
@@ -219,7 +219,7 @@ async def wash_trading_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/social_engineering")
-async def social_engineering_endpoint(req: SentinelModuleRequest):
+async def social_engineering_endpoint(req: SentinelModuleRequest) -> dict:
     """SENTINEL Social Engineering & Identity Fraud Detection.
 
     Detects fake teams, AI-generated profiles, phishing domains,
@@ -249,7 +249,7 @@ async def social_engineering_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/metadata_fingerprint")
-async def metadata_fingerprint_endpoint(req: SentinelModuleRequest):
+async def metadata_fingerprint_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Metadata Fingerprint - HTML structure hashing, description similarity, social overlap detection.
 
     Pricing: $0.05
@@ -274,7 +274,7 @@ async def metadata_fingerprint_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/sentiment_check")
-async def sentiment_check_endpoint(req: SentinelModuleRequest):
+async def sentiment_check_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Sentiment Check - social sentiment scoring, bot campaign detection, pump probability.
 
     Pricing: $0.05
@@ -299,7 +299,7 @@ async def sentiment_check_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/pumpfun_analysis")
-async def pumpfun_analysis_endpoint(req: SentinelModuleRequest):
+async def pumpfun_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL PumpFun Analysis - bonding curve progress, bot detection, graduation probability (Solana only).
 
     Pricing: $0.08

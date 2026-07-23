@@ -407,7 +407,7 @@ class IntelPipeline:
         stats = await pipeline.run_cycle()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._last_run: datetime | None = None
         self._total_ingested = 0
         self._seen_ids: set[str] = set()

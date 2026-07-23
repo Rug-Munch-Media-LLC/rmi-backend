@@ -14,7 +14,7 @@ router = APIRouter(prefix="/analyze", tags=["analyze-v1"])
 async def analyze_address(
     address: str,
     chain: str = Query("ethereum", description="Blockchain to query"),
-):
+) -> None:
     """Analyze a contract or token address.
 
     Full implementation at /api/v1/contract-analyzer/analyze/{address}

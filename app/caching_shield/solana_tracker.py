@@ -66,7 +66,7 @@ class KeyState:
     consecutive_429s: int = 0
     http: httpx.AsyncClient | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.tokens = self.rate_rps
         self.last_refill = time.monotonic()
         self.month_key = time.strftime("%Y-%m")
@@ -80,21 +80,21 @@ class KeyState:
             self.calls_this_month = 0
         return self.calls_this_month < self.monthly_quota
 
-    def refill(self, now: float):
+    def refill(self, now: float) -> None:
         elapsed = now - self.last_refill
         self.tokens = min(self.rate_rps, self.tokens + elapsed * self.rate_rps)
         self.last_refill = now
 
-    def mark_used(self):
+    def mark_used(self) -> None:
         self.tokens -= 1.0
         self.calls_this_month += 1
 
-    def mark_429(self, now: float):
+    def mark_429(self, now: float) -> None:
         self.consecutive_429s += 1
         backoff = min(60, 5 * (2 ** min(self.consecutive_429s, 4)))
         self.rate_limited_until = now + backoff
 
-    def mark_success(self):
+    def mark_success(self) -> None:
         self.consecutive_429s = 0
         self.rate_limited_until = 0.0
 
@@ -106,7 +106,7 @@ class SolanaTrackerClient:
     On 429, falls through to next key with exponential backoff.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._keys = [KeyState(**cfg) for cfg in KEY_CONFIGS]
         self._key_index = 0
         self._key_lock = asyncio.Lock()
@@ -131,7 +131,7 @@ class SolanaTrackerClient:
         self.cache_misses += 1
         return None
 
-    async def _cache_set(self, key: str, data: dict, ttl: int):
+    async def _cache_set(self, key: str, data: dict, ttl: int) -> None:
         async with self._l1_lock:
             self._l1[key] = (time.monotonic() + ttl, data)
             if len(self._l1) > 1024:
@@ -284,7 +284,7 @@ class SolanaTrackerClient:
                 }
             )
 
-        def _get():
+        def _get() -> dict:
             return {
                 "keys": keys_info,
                 "cache_hits": self.cache_hits,

@@ -127,7 +127,7 @@ class ProviderChain:
 class _CircuitBreaker:
     """Circuit breaker to prevent cascading failures."""
 
-    def __init__(self, threshold: int = 5, timeout: float = 60.0):
+    def __init__(self, threshold: int = 5, timeout: float = 60.0) -> None:
         self.threshold = threshold
         self.timeout = timeout
         self.failures = 0
@@ -157,7 +157,7 @@ class _CircuitBreaker:
 class _RateLimiter:
     """Simple rate limiter based on time intervals."""
 
-    def __init__(self, rps: float = 1.0):
+    def __init__(self, rps: float = 1.0) -> None:
         self.rps = rps
         self.min_interval = 1.0 / rps
         self.last_call = 0.0

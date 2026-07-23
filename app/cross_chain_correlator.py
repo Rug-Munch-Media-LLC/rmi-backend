@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -73,7 +74,7 @@ class CrossChainCorrelator:
         "solana": "https://sns-sdk.solana.domain/",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.profiles: dict[str, CrossChainProfile] = {}
         self._fingerprints: dict[str, dict] = {}
 
@@ -204,14 +205,14 @@ class CrossChainCorrelator:
         # Union-find
         parent = {}
 
-        def find(x):
+        def find(x) -> Any:
             if x not in parent:
                 parent[x] = x
             if parent[x] != x:
                 parent[x] = find(parent[x])
             return parent[x]
 
-        def union(a, b):
+        def union(a, b) -> None:
             parent[find(a)] = find(b)
 
         for addr, chain in zip(addresses, chains, strict=False):

@@ -582,7 +582,7 @@ def list_marketing_templates() -> list[dict]:
     ]
 
 
-def create_all_marketing_templates():
+def create_all_marketing_templates() -> None:
     """Create all placeholder marketing templates."""
     for graphic_type, config in MARKETING_TEMPLATES.items():
         try:

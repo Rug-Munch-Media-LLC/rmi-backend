@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 import redis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("ohlcv_engine")
 
@@ -44,7 +45,7 @@ CACHE_TTL = {
 MAX_CANDLES = 500  # Max candles returned per query
 
 
-def _redis():
+def _redis() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,
@@ -81,7 +82,7 @@ class Candle:
         close: float = 0,
         volume: float = 0,
         trades: int = 0,
-    ):
+    ) -> None:
         self.timestamp = ts
         self.open = open_p
         self.high = high
@@ -118,7 +119,7 @@ class Candle:
 class OHLCVEngine:
     """Real-time OHLCV candle builder and query engine."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._active_candles: dict[str, Candle] = {}  # key → current open candle
 
     def _active_key(self, token: str, chain: str, timeframe: str, bucket_ts: int) -> str:
@@ -173,7 +174,7 @@ class OHLCVEngine:
 
         return updated
 
-    def _persist_candle(self, token: str, chain: str, timeframe: str, candle: Candle):
+    def _persist_candle(self, token: str, chain: str, timeframe: str, candle: Candle) -> None:
         """Write candle to Redis sorted set."""
         try:
             r = _redis()
@@ -187,7 +188,7 @@ class OHLCVEngine:
         except Exception as e:
             logger.warning(f"Failed to persist candle: {e}")
 
-    def flush_all(self):
+    def flush_all(self) -> None:
         """Persist all active candles to Redis."""
         for active_key, candle in list(self._active_candles.items()):
             parts = active_key.split(":")

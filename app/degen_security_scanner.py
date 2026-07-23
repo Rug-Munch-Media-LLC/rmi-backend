@@ -293,7 +293,7 @@ class DegenSecurityScanner:
     Analyzes any Solana token for 15+ scam indicators.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.solscan = FreeSolscanClient()
         self.helius_key = HELIUS_API_KEY
         self.birdeye_key = BIRDEYE_API_KEY

@@ -6,7 +6,7 @@ from typing import Any
 class WalletAnomalyDetector:
     """Detect anomalous wallet behavior."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.threshold = 0.8
 
     def analyze_wallet(self, address: str, chain: str = "base") -> dict[str, Any]:
@@ -30,7 +30,7 @@ class WalletAnomalyDetector:
 class TokenMetricAnomalyDetector:
     """Detect anomalous token metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.threshold = 0.9
 
     def analyze_token(self, address: str, chain: str = "base") -> dict[str, Any]:

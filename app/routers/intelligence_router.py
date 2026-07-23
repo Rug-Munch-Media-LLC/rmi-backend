@@ -11,6 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -162,7 +163,7 @@ class IntelligenceQuery(BaseModel):
 
 
 @router.post("/market-update")
-async def receive_market_update(update: MarketUpdate):
+async def receive_market_update(update: MarketUpdate) -> dict[str, str]:
     """Receive market intelligence update from n8n workflow."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -240,7 +241,7 @@ async def receive_market_update(update: MarketUpdate):
 
 
 @router.post("/security-update")
-async def receive_security_update(update: MarketUpdate):
+async def receive_security_update(update: MarketUpdate) -> dict[str, str]:
     """Receive security intelligence update from n8n workflow."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -307,7 +308,7 @@ async def receive_security_update(update: MarketUpdate):
 async def get_trending_tokens(
     chain: str = Query("solana", description="Blockchain"),
     limit: int = Query(50, description="Number of results"),
-):
+) -> dict:
     """Get trending tokens."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -331,7 +332,7 @@ async def get_whale_movements(
     chain: str = Query("solana"),
     min_amount_usd: float = Query(10000),
     limit: int = Query(50),
-):
+) -> dict:
     """Get recent whale movements."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -356,7 +357,7 @@ async def get_volume_spikes(
     chain: str = Query("solana"),
     min_change_pct: float = Query(100),
     limit: int = Query(50),
-):
+) -> dict:
     """Get volume spike alerts."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -384,7 +385,7 @@ async def get_smart_money_activities(
     wallet_category: str | None = None,
     chain: str = Query("solana"),
     limit: int = Query(50),
-):
+) -> dict:
     """Get smart money activities (premium feature)."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -408,7 +409,7 @@ async def get_exchange_flows(
     exchange_name: str | None = None,
     flow_type: str | None = None,
     limit: int = Query(50),
-):
+) -> dict:
     """Get exchange flow analysis (premium feature)."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -436,7 +437,7 @@ async def get_scam_alerts(
     scam_type: str | None = None,
     confirmed_only: bool = Query(False),
     limit: int = Query(50),
-):
+) -> dict:
     """Get scam alerts."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -459,7 +460,7 @@ async def get_scam_alerts(
 @router.get("/security/rugpulls")
 async def get_rugpull_alerts(
     limit: int = Query(50),
-):
+) -> dict:
     """Get rugpull alerts (real-time)."""
     if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -486,7 +487,7 @@ async def get_my_alerts(
     severity: str | None = None,
     limit: int = Query(50),
     authorization: str = Header(None),
-):
+) -> dict:
     """Get my intelligence alerts."""
     user_id = await _get_current_user_id(authorization)
     if not user_id:
@@ -530,7 +531,7 @@ async def get_my_alerts(
 async def dismiss_alert(
     alert_id: str,
     authorization: str = Header(None),
-):
+) -> dict[str, str]:
     """Dismiss an intelligence alert."""
     user_id = await _get_current_user_id(authorization)
     if not user_id:
@@ -556,7 +557,7 @@ async def dismiss_alert(
 
 
 @router.get("/health")
-async def intelligence_health():
+async def intelligence_health() -> dict[str, str]:
     """Intelligence service health check."""
     return {
         "status": "ok",
@@ -581,7 +582,7 @@ async def intelligence_health():
 
 
 @router.post("/cards/generate")
-async def generate_card(card_type: str, data: dict):
+async def generate_card(card_type: str, data: dict) -> Any:
     """Generate shareable card (win, loss, KOL, rug, etc.)."""
     try:
         from app.card_generator import (
@@ -617,7 +618,7 @@ async def generate_card(card_type: str, data: dict):
 
 
 @router.get("/cards/templates")
-async def get_card_templates():
+async def get_card_templates() -> dict[str, list[dict]]:
     """Get available card templates."""
     try:
         from app.card_generator import CARD_TEMPLATES
@@ -641,7 +642,7 @@ async def get_card_templates():
 
 
 @router.get("/marketing/templates")
-async def list_marketing_templates_endpoint():
+async def list_marketing_templates_endpoint() -> dict:
     """List available marketing graphic templates."""
     try:
         from app.marketing_graphics_generator import list_marketing_templates
@@ -652,7 +653,7 @@ async def list_marketing_templates_endpoint():
 
 
 @router.post("/marketing/generate")
-async def generate_marketing_graphic(graphic_type: str, data: dict | None = None):
+async def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> Any:
     """Generate marketing graphic (banner, feature card, stats, etc.)."""
     try:
         from app.marketing_graphics_generator import generate_marketing_graphic
@@ -672,7 +673,7 @@ async def generate_marketing_graphic(graphic_type: str, data: dict | None = None
 
 
 @router.post("/marketing/generate/feature-cards")
-async def generate_all_feature_cards_endpoint():
+async def generate_all_feature_cards_endpoint() -> dict:
     """Generate feature showcase cards for all features."""
     try:
         from app.marketing_graphics_generator import generate_all_feature_cards
@@ -684,7 +685,7 @@ async def generate_all_feature_cards_endpoint():
 
 
 @router.post("/marketing/generate/stats")
-async def generate_stats_graphic(stat_value: str, stat_label: str, context: str = ""):
+async def generate_stats_graphic(stat_value: str, stat_label: str, context: str = "") -> Any:
     """Generate stats/metrics graphic."""
     try:
         from app.marketing_graphics_generator import generate_stats_card
@@ -703,7 +704,7 @@ async def generate_stats_graphic(stat_value: str, stat_label: str, context: str 
 
 
 @router.post("/marketing/generate/pricing")
-async def generate_pricing_graphic(tier_name: str, price: float, features: list[str]):
+async def generate_pricing_graphic(tier_name: str, price: float, features: list[str]) -> Any:
     """Generate pricing tier graphic."""
     try:
         from app.marketing_graphics_generator import generate_pricing_card

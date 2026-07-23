@@ -42,7 +42,7 @@ class FallbackCache:
     Even stale data is better than no data.
     """
 
-    def __init__(self, redis=None):
+    def __init__(self, redis=None) -> None:
         self.redis = redis
 
     async def get(self, key: str, max_age_hours: int = 24) -> dict | None:
@@ -63,7 +63,7 @@ class FallbackCache:
         except Exception:
             return None
 
-    async def set(self, key: str, data: dict, ttl: int = 86400):
+    async def set(self, key: str, data: dict, ttl: int = 86400) -> None:
         """Cache a result."""
         if not self.redis:
             return
@@ -85,24 +85,24 @@ class FallbackCache:
 class SimpleHTMLParser(HTMLParser):
     """Extract text content from HTML pages."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.text = []
         self.in_data = False
 
-    def handle_data(self, data):
+    def handle_data(self, data) -> None:
         stripped = data.strip()
         if stripped:
             self.text.append(stripped)
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag, attrs) -> None:
         dict(attrs)
         if tag in ["script", "style", "noscript"]:
             self.in_data = False
         elif "data-" in str(attrs) or tag in ["meta", "h1", "h2", "h3"]:
             self.in_data = True
 
-    def handle_endtag(self, tag):
+    def handle_endtag(self, tag) -> None:
         if tag in ["script", "style", "noscript"]:
             self.in_data = False
 

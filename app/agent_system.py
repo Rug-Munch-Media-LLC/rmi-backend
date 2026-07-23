@@ -429,7 +429,7 @@ async def check_cache(msg: str, agent_id: str) -> str | None:
     return None
 
 
-async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600):
+async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600) -> None:
     """Store response in Redis cache. TTL defaults to 1 hour."""
     try:
         import redis

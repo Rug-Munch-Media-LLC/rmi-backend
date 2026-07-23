@@ -13,11 +13,12 @@ import json
 import os
 
 import httpx as req
+from typing import Any
 
 OLLAMA = "http://ollama:11434/api/generate"
 
 
-def gredis():
+def gredis() -> Any:
     from dotenv import load_dotenv
 
     load_dotenv("/app/.env", override=True)

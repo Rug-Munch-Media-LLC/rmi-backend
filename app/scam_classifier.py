@@ -217,7 +217,7 @@ def extract_features(scan_result: dict[str, Any]) -> dict[str, float]:
 class ScamClassifier:
     """XGBoost classifier trained on historical scan data."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.model = None
         self.feature_names: list[str] = []
         self.training_samples: int = 0
@@ -225,7 +225,7 @@ class ScamClassifier:
         self.last_trained: str | None = None
         self._load()
 
-    def _load(self):
+    def _load(self) -> None:
         """Load model from disk if available."""
         if os.path.exists(MODEL_PATH):
             try:
@@ -247,7 +247,7 @@ class ScamClassifier:
                 logger.warning(f"Failed to load classifier: {e}")
                 self.model = None
 
-    def _save(self):
+    def _save(self) -> None:
         """Persist model and metadata to disk."""
         os.makedirs(MODEL_DIR, exist_ok=True)
         with open(MODEL_PATH, "wb") as f:

@@ -75,7 +75,7 @@ class EntityAlertRecord(BaseModel):
 class RedisStorage:
     """Redis-backed storage for historical data."""
 
-    def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0):
+    def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0) -> None:
         self.host = host
         self.port = port
         self.db = db
@@ -203,7 +203,7 @@ class RedisStorage:
             logger.error(f"Failed to get alert: {e}")
             return None
 
-    def save_entity_relation(self, from_entity: str, to_entity: str, relation: str):
+    def save_entity_relation(self, from_entity: str, to_entity: str, relation: str) -> None:
         """Save an entity relationship."""
         try:
             key = self.key_prefix("entity_relation", from_entity)
@@ -221,7 +221,7 @@ class RedisStorage:
             logger.error(f"Failed to get entity relations: {e}")
             return []
 
-    def save_wallet_cluster(self, cluster_id: str, members: list[str], labels: list[str]):
+    def save_wallet_cluster(self, cluster_id: str, members: list[str], labels: list[str]) -> None:
         """Save a wallet cluster."""
         try:
             key = self.key_prefix("cluster", cluster_id)
@@ -254,7 +254,7 @@ class RedisStorage:
             history = WalletHistory(wallet_address=wallet_address, chain=chain)
         return history
 
-    def _update_wallet_history(self, wallet_address: str, tx: TransactionRecord):
+    def _update_wallet_history(self, wallet_address: str, tx: TransactionRecord) -> None:
         """Update wallet history metadata."""
         history = self.get_or_create_wallet_history(wallet_address, tx.chain)
 
@@ -278,7 +278,7 @@ class RedisStorage:
 class AnalyticsDatabase:
     """Database wrapper for analytics queries."""
 
-    def __init__(self, redis_host: str = "localhost", redis_port: int = 6379, redis_db: int = 0):
+    def __init__(self, redis_host: str = "localhost", redis_port: int = 6379, redis_db: int = 0) -> None:
         self.redis = RedisStorage(host=redis_host, port=redis_port, db=redis_db)
 
     def store_transaction(self, tx: TransactionRecord) -> bool:
@@ -289,11 +289,11 @@ class AnalyticsDatabase:
         """Store an entity alert."""
         return self.redis.save_alert(alert)
 
-    def store_entity_relation(self, from_entity: str, to_entity: str, relation: str):
+    def store_entity_relation(self, from_entity: str, to_entity: str, relation: str) -> None:
         """Store an entity relationship."""
         self.redis.save_entity_relation(from_entity, to_entity, relation)
 
-    def store_wallet_cluster(self, cluster_id: str, members: list[str], labels: list[str]):
+    def store_wallet_cluster(self, cluster_id: str, members: list[str], labels: list[str]) -> None:
         """Store a wallet cluster."""
         self.redis.save_wallet_cluster(cluster_id, members, labels)
 
@@ -418,7 +418,7 @@ def get_analytics_database(
 # ─── INITIAL DATA IMPORT ──────────────────────────────────────────────
 
 
-def initialize_analytics():
+def initialize_analytics() -> None:
     """Initialize analytics storage with default data."""
     get_analytics_database()
 

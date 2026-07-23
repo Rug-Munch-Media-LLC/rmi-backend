@@ -83,7 +83,7 @@ class PredictionMarketIntel:
         "bitcoin crash",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._svc = get_prediction_market_service()
         # In-memory cache (Redis unavailable in current env)
         self._fear_cache: tuple | None = None  # (timestamp, CryptoFearIndex)

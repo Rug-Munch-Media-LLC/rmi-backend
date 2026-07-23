@@ -43,7 +43,7 @@ class XWebScraper:
     Designed to run as a cron job every 6 hours.
     """
 
-    def __init__(self, cache: CacheLayer = None):
+    def __init__(self, cache: CacheLayer = None) -> None:
         self.cache = cache or get_cache()
 
     async def discover_tweets(
@@ -288,7 +288,7 @@ class XWebScraper:
 
 
 # Convenience function for cron jobs
-async def run_social_scan():
+async def run_social_scan() -> dict[str, int]:
     """Run a full social scan - called by cron every 6 hours."""
     cache = get_cache()
     scraper = XWebScraper(cache)

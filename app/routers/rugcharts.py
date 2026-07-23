@@ -15,6 +15,7 @@ from fastapi import APIRouter, Query
 
 from app.core.data_fusion import envelope, fusion
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("rugcharts_router")
 
@@ -53,7 +54,7 @@ GECKO_TIMEFRAMES = {
 }
 
 
-def _r():
+def _r() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,
@@ -525,7 +526,7 @@ def _compute_rug_score(pair_info: dict, vol_auth: dict) -> dict:
 async def rugcharts_trending(
     chain: str = Query("solana", description="Blockchain to query"),
     limit: int = Query(30, description="Max tokens to return"),
-):
+) -> Any:
     """Get trending tokens sorted by volume for RugCharts.
 
     Data sources: DexScreener (boosted tokens + latest profiles).
@@ -569,7 +570,7 @@ async def rugcharts_ohlcv(
     pair_address: str,
     timeframe: str = Query("1h", description="Candle timeframe"),
     limit: int = Query(100, description="Number of candles"),
-):
+) -> Any:
     """Get OHLCV candle data for a specific pair.
 
     Fuses GeckoTerminal OHLCV data with DexScreener pair info via DataFusion
@@ -654,7 +655,7 @@ async def rugcharts_ohlcv(
 async def rugcharts_intel(
     chain: str,
     pair_address: str,
-):
+) -> Any:
     """Get comprehensive intelligence on a token pair.
 
     Fuses GeckoTerminal OHLCV, DexScreener pair info, volume authenticity,

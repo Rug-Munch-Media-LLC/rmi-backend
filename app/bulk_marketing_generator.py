@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from PIL import Image, ImageDraw, ImageFont
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -371,7 +372,7 @@ GRAPHIC_CONCEPTS = [
 # ── Graphics Generation Functions ────────────────────────────
 
 
-def create_gradient_background(size, color1, color2, direction="vertical"):
+def create_gradient_background(size, color1, color2, direction="vertical") -> Any:
     """Create purple gradient background."""
     img = Image.new("RGB", size, color1)
     draw = ImageDraw.Draw(img)
@@ -390,7 +391,7 @@ def create_gradient_background(size, color1, color2, direction="vertical"):
     return img
 
 
-def add_circular_frame(img, color=BRAND["gold"], width=5):
+def add_circular_frame(img, color=BRAND["gold"], width=5) -> Any:
     """Add gold circular frame."""
     draw = ImageDraw.Draw(img)
     margin = 20
@@ -400,7 +401,7 @@ def add_circular_frame(img, color=BRAND["gold"], width=5):
     return img
 
 
-def add_text_centered(img, text, position, font_size, color, bold=True):
+def add_text_centered(img, text, position, font_size, color, bold=True) -> Any:
     """Add centered text."""
     draw = ImageDraw.Draw(img)
 
@@ -520,8 +521,8 @@ def generate_all_graphics() -> list[dict]:
     """Generate all 50+ marketing graphics."""
     results = []
 
-    print(f"Generating {len(GRAPHIC_CONCEPTS)} marketing graphics...")
-    print("=" * 60)
+    logger.info(f"Generating {len(GRAPHIC_CONCEPTS)} marketing graphics...")
+    logger.info("=" * 60)
 
     for i, concept in enumerate(GRAPHIC_CONCEPTS, 1):
         result = generate_graphic(concept)
@@ -530,18 +531,20 @@ def generate_all_graphics() -> list[dict]:
         # Upload to Dropbox
         if result["status"] == "success":
             upload_to_dropbox(result["path"])
-            print(
+            logger.info(
                 f"[{i:3d}/{len(GRAPHIC_CONCEPTS)}] ✅ {result['type']:15} - {result['name']:25} - {result['size']}"
             )
         else:
-            print(f"[{i:3d}/{len(GRAPHIC_CONCEPTS)}] ❌ {result.get('error', 'Unknown error')}")
+            logger.info(
+                f"[{i:3d}/{len(GRAPHIC_CONCEPTS)}] ❌ {result.get('error', 'Unknown error')}"
+            )
 
-    print("=" * 60)
-    print(
+    logger.info("=" * 60)
+    logger.info(
         f"\n✅ Generated {len([r for r in results if r['status'] == 'success'])}/{len(GRAPHIC_CONCEPTS)} graphics"
     )
-    print(f"📁 Local: {OUTPUT_DIR}")
-    print(f"☁️  Dropbox: {DROPBOX_DIR}")
+    logger.info(f"📁 Local: {OUTPUT_DIR}")
+    logger.info(f"☁️  Dropbox: {DROPBOX_DIR}")
 
     return results
 

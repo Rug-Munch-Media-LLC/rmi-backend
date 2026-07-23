@@ -107,13 +107,13 @@ class BundleDetector:
         "LaunchLab": "LaunchLabzbP1j4R7KzEFmYSF3EXGnZ6tY7AZ8eg3P2qJ",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._chain = ChainClient()
         self._solscan = FreeSolscanClient()
         self._helius_key = os.getenv("HELIUS_API_KEY", "")
 
-    async def close(self):
+    async def close(self) -> None:
         await self._http.aclose()
 
     # ── Direct API fetchers ───────────────────────────────────────────

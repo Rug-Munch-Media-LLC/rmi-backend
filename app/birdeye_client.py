@@ -20,7 +20,7 @@ _birdeye_cb = AsyncCircuitBreaker(
 
 
 class BirdeyeClient:
-    def __init__(self):
+    def __init__(self) -> None:
         self.headers = HEADERS
         self.client = httpx.AsyncClient(timeout=30.0)
         self.last_call = 0
@@ -254,5 +254,5 @@ class BirdeyeClient:
         """Check if wallet is tagged as smart money."""
         return await self._call("/v1/wallet/smart_money", {"wallet": wallet})
 
-    async def close(self):
+    async def close(self) -> None:
         await self.client.aclose()

@@ -34,6 +34,7 @@ from app.services.deep_intelligence import (
     token_lifespan_predictor,
     volume_authenticity,
 )
+from typing import Any
 
 logger = get_logger("deep_intel_router")
 
@@ -46,7 +47,7 @@ SUPPORTED_CHAINS = ["sol", "eth", "bsc", "base", "arb", "polygon", "avax"]
 
 
 @router.get("/health")
-async def health():
+async def health() -> dict[str, str]:
     return {
         "status": "healthy",
         "service": "deep-intelligence",
@@ -75,7 +76,7 @@ async def health():
 async def api_deployer_reputation(
     address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Track EVERY token a deployer wallet has created across ALL chains."""
     try:
         result = await deployer_reputation(address, chain)
@@ -94,7 +95,7 @@ async def api_preflight_simulate(
     wallet: str = Query("0x0000000000000000000000000000000000000000"),
     amount_usd: float = Query(100, ge=1, le=1000000),
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Simulate buy AND sell to show real costs, slippage, taxes, net P&L."""
     try:
         result = await preflight_simulate(token_address, wallet, amount_usd, chain)
@@ -111,7 +112,7 @@ async def api_preflight_simulate(
 async def api_liquidity_lock(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Analyze liquidity lock authenticity - not just 'is it locked?' but meaningful analysis."""
     try:
         result = await liquidity_lock_authenticity(token_address, chain)
@@ -128,7 +129,7 @@ async def api_liquidity_lock(
 async def api_volume_authenticity(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Detect wash trading, fake volume, bot vs organic trading."""
     try:
         result = await volume_authenticity(token_address, chain)
@@ -145,7 +146,7 @@ async def api_volume_authenticity(
 async def api_slow_rug_detector(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Detect gradual LP removal, fee increases, slow ownership transfers."""
     try:
         result = await slow_rug_detector(token_address, chain)
@@ -162,7 +163,7 @@ async def api_slow_rug_detector(
 async def api_funding_source(
     address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Trace where wallets got their initial ETH/SOL. Detect CEX, mixers, fresh wallets."""
     try:
         result = await funding_source_tracer(address, chain)
@@ -179,7 +180,7 @@ async def api_funding_source(
 async def api_ownership_theater(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Detect fake renunciation: hidden admin roles, upgradeable proxies, remaining privileges."""
     try:
         result = await ownership_theater_detector(token_address, chain)
@@ -197,7 +198,7 @@ async def api_exit_liquidity(
     token_address: str,
     position_usd: float = Query(1000, ge=1, le=10000000),
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Can you actually sell? Depth analysis, cascade simulation, recovery rate."""
     try:
         result = await exit_liquidity_calculator(token_address, position_usd, chain)
@@ -214,7 +215,7 @@ async def api_exit_liquidity(
 async def api_lifespan_predictor(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """AI-driven survival analysis. Predict 7d/30d/90d survival probability."""
     try:
         result = await token_lifespan_predictor(token_address, chain)
@@ -231,7 +232,7 @@ async def api_lifespan_predictor(
 async def api_post_purchase_monitor(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Live risk monitoring - detect contract changes, fee increases, liquidity drops."""
     try:
         result = await post_purchase_monitor(token_address, chain)
@@ -248,7 +249,7 @@ async def api_post_purchase_monitor(
 async def api_cross_chain_identity(
     address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Same entity, multiple chains. Detect deployer patterns across chains."""
     try:
         result = await cross_chain_identity(address, chain)
@@ -265,7 +266,7 @@ async def api_cross_chain_identity(
 async def api_social_onchain_correlation(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> Any:
     """Map hype cycle: wallet activity vs social mentions. Coordinated pump detection."""
     try:
         result = await social_onchain_correlation(token_address, chain)
@@ -283,7 +284,7 @@ async def api_full_report(
     token_address: str,
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
     wallet: str | None = Query(None),
-):
+) -> Any:
     """Run ALL 12 intelligence modules and produce a composite deep intel report."""
     try:
         result = await full_deep_intel(token_address, chain, wallet)
@@ -300,7 +301,7 @@ async def api_full_report(
 async def api_batch_report(
     tokens: list[dict],
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-):
+) -> dict:
     """Run deep intel on multiple tokens. Body: [{"address": "0x..."}, ...]"""
     from app.services.deep_intelligence import full_deep_intel
 

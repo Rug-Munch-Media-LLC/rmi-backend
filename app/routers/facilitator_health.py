@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis
+from typing import Any
 
 logger = get_logger("facilitator_health")
 
@@ -130,7 +131,7 @@ FACILITATORS = {
 # ── Redis Helper ─────────────────────────────────────────────────
 
 
-async def get_all_health():
+async def get_all_health() -> Any:
     """Get health status for all facilitators."""
     result = {}
     for name in FACILITATORS:
@@ -159,7 +160,7 @@ async def get_all_health():
 
 
 @router.get("/status/{name}")
-async def get_facilitator_status(name: str):
+async def get_facilitator_status(name: str) -> Any:
     """Get health status for a specific facilitator."""
     if name not in FACILITATORS:
         return JSONResponse(
@@ -174,7 +175,7 @@ async def get_facilitator_status(name: str):
 
 
 @router.get("/chains/{chain}")
-async def get_facilitators_for_chain(chain: str):
+async def get_facilitators_for_chain(chain: str) -> Any:
     """Get healthy facilitators for a specific chain."""
     facilitators = get_healthy_facilitators_for_chain(chain)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     return JSONResponse(
@@ -187,7 +188,7 @@ async def get_facilitators_for_chain(chain: str):
 
 
 @router.post("/check/{name}")
-async def trigger_health_check(name: str):
+async def trigger_health_check(name: str) -> Any:
     """Manually trigger a health check for a facilitator."""
     if name not in FACILITATORS:
         return JSONResponse(
@@ -210,7 +211,7 @@ async def trigger_health_check(name: str):
 # ── Payment Success Tracking ─────────────────────────────────────
 
 
-def record_payment_success(facilitator_name: str, success: bool):
+def record_payment_success(facilitator_name: str, success: bool) -> None:
     """Record whether a payment via this facilitator succeeded or failed.
     Called by the payment verification code after each payment attempt.
     """

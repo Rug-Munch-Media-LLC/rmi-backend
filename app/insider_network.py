@@ -824,7 +824,7 @@ def format_insider_network_report(report: InsiderNetworkReport) -> str:
 _insider_network_instance = None
 
 
-def get_insider_network_analyzer():
+def get_insider_network_analyzer() -> Any:
     """Get or create the singleton InsiderNetworkAnalyzer."""
     global _insider_network_instance
     if _insider_network_instance is None:

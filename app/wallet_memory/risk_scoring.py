@@ -28,7 +28,7 @@ class RiskScorer:
     Composite risk scorer combining label, cluster, and deployer signals.
     """
 
-    def __init__(self, storage=None, labels=None, clustering=None):
+    def __init__(self, storage=None, labels=None, clustering=None) -> None:
         self._storage = storage
         self._labels = labels
         self._clustering = clustering

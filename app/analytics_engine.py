@@ -123,12 +123,12 @@ class AnalyticsEngine:
     Core analytics engine for real-time metrics and trend analysis.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._metrics: dict[str, MetricSeries] = {}
         self._dashboards: dict[str, Dashboard] = {}
         self._ensure_default_dashboards()
 
-    def _ensure_default_dashboards(self):
+    def _ensure_default_dashboards(self) -> None:
         """Create default system dashboards."""
         # System Health Dashboard
         system_widgets = [
@@ -216,7 +216,7 @@ class AnalyticsEngine:
 
     # ── Metric Recording ────────────────────────────────────
 
-    def record_metric(self, name: str, value: float, labels: dict[str, str] | None = None):
+    def record_metric(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         """Record a metric data point."""
         if name not in self._metrics:
             self._metrics[name] = MetricSeries(

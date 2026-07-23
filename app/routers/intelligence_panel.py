@@ -17,6 +17,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -27,7 +28,7 @@ pm_intel = None
 _pm_intel_loaded = False
 
 
-def _get_pm_intel():
+def _get_pm_intel() -> Any:
     global pm_intel, _pm_intel_loaded
     if _pm_intel_loaded:
         return pm_intel
@@ -85,7 +86,7 @@ class IntelligenceFeedResponse(BaseModel):
 
 
 @router.get("/prediction-signals", response_model=list[IntelSignalResponse])
-async def get_prediction_signals(limit: int = Query(10, ge=1, le=20)):
+async def get_prediction_signals(limit: int = Query(10, ge=1, le=20)) -> list:
     """Get actionable intelligence signals from prediction markets.
 
     Signal types:
@@ -116,7 +117,7 @@ async def get_prediction_signals(limit: int = Query(10, ge=1, le=20)):
 
 
 @router.get("/crypto-fear-index", response_model=FearIndexResponse)
-async def get_crypto_fear_index():
+async def get_crypto_fear_index() -> Any:
     """Get the Crypto Fear Index - risk aggregated from prediction markets.
 
     Components:
@@ -155,7 +156,7 @@ async def get_crypto_fear_index():
 
 
 @router.get("/feed", response_model=IntelligenceFeedResponse)
-async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)):
+async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)) -> Any:
     """Get aggregated intelligence feed combining all sources."""
     _get_pm_intel()
     items = []
@@ -243,7 +244,7 @@ async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)):
 
 
 @router.get("/latest")
-async def get_latest_intelligence():
+async def get_latest_intelligence() -> Any:
     """Get latest intelligence snapshot for quick updates."""
     _get_pm_intel()
     latest = {

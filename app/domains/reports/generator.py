@@ -458,7 +458,7 @@ async def generate_wallet_report(
 
     llm = LLMRouter()
 
-    async def _section(name, prompt):
+    async def _section(name, prompt) -> Any:
         try:
             r = await llm.chat(prompt, model=model, max_tokens=400)
             return r if r else _template_fallback(name, sections_ctx[name])

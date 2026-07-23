@@ -22,6 +22,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("x402.advanced")
 
@@ -50,7 +51,7 @@ CACHEABLE_TOOLS = {
 }
 
 
-def _redis_conn():
+def _redis_conn() -> Any:
     import redis as _redis
 
     return _redis.Redis(
@@ -76,7 +77,7 @@ def get_cached(tool: str, params: dict) -> dict | None:
     return None
 
 
-def set_cached(tool: str, params: dict, result: dict, ttl: int = CACHE_TTL):
+def set_cached(tool: str, params: dict, result: dict, ttl: int = CACHE_TTL) -> None:
     """Store tool result in Redis cache."""
     try:
         r = _redis_conn()
@@ -93,7 +94,7 @@ def _cache_key(tool: str, params: dict) -> str:
     return f"x402:cache:{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
 
 
-def invalidate_cache(tool: str | None = None):
+def invalidate_cache(tool: str | None = None) -> bool:
     """Clear cache for a tool or all cached results."""
     try:
         r = _redis_conn()
@@ -200,7 +201,7 @@ async def sse_alert_stream(
         default="rug_pull,whale_move,price_crash", description="Comma-separated event types"
     ),
     chain: str = Query(default="all"),
-):
+) -> Any:
     """Server-Sent Events stream for real-time security alerts.
 
     Connect with: EventSource('/api/v1/x402-tools/stream/alerts?events=rug_pull,whale_move')
@@ -211,7 +212,7 @@ async def sse_alert_stream(
     event_list = [e.strip() for e in events.split(",") if e.strip()]
     chain_filter = chain.strip().lower()
 
-    async def event_generator():
+    async def event_generator() -> Any:
         import redis as _redis
 
         r = _redis.Redis(
@@ -303,7 +304,7 @@ class NarrativeRequest(BaseModel):
 
 
 @router.post("/rug_probability")
-async def rug_probability(req: AddressRequest):
+async def rug_probability(req: AddressRequest) -> Any:
     """Predictive rug pull probability: 0-100 score for "will this token rug in 24h?"
 
     Combines 7 signals:
@@ -583,7 +584,7 @@ async def rug_probability(req: AddressRequest):
 
 
 @router.post("/history")
-async def token_history(req: HistoryRequest):
+async def token_history(req: HistoryRequest) -> Any:
     """Historical risk/liquidity/holder data for any token.
 
     Returns time-series data from the RMI scanner (runs every 10 min).
@@ -727,7 +728,7 @@ async def token_history(req: HistoryRequest):
 
 
 @router.post("/narrative")
-async def narrative_engine(req: NarrativeRequest):
+async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
     """What's the market saying about this token RIGHT NOW?
 
     Aggregates Twitter, Reddit, Telegram, and news sentiment into a
@@ -897,7 +898,7 @@ async def narrative_engine(req: NarrativeRequest):
 
 
 @router.post("/cache/clear")
-async def clear_cache(tool: str = Query(default=None)):
+async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
     """Clear response cache for a specific tool or all tools."""
     ok = invalidate_cache(tool)
     return {
@@ -908,7 +909,7 @@ async def clear_cache(tool: str = Query(default=None)):
 
 
 @router.get("/cache/stats")
-async def cache_stats():
+async def cache_stats() -> dict[str, int] | dict[str, str]:
     """Get cache hit/miss statistics."""
     try:
         r = _redis_conn()

@@ -13,6 +13,7 @@ import httpx
 from fastapi import APIRouter, Query, Request
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/market", tags=["market-intel"])
@@ -26,14 +27,14 @@ DEXSCREENER_BASE = "https://api.dexscreener.com"
 _cache: dict[str, tuple[float, any]] = {}
 
 
-def _cget(key: str, ttl: float):
+def _cget(key: str, ttl: float) -> None | Any:
     entry = _cache.get(key)
     if entry and (time.time() - entry[0]) < ttl:
         return entry[1]
     return None
 
 
-def _cset(key: str, data):
+def _cset(key: str, data) -> None:
     _cache[key] = (time.time(), data)
     # Prevent cache from growing unbounded
     if len(_cache) > 200:
@@ -42,7 +43,7 @@ def _cset(key: str, data):
 
 
 # ── HTTP helpers ───────────────────────────────────────────
-async def _aget(url: str, params=None, headers=None, timeout=10):
+async def _aget(url: str, params=None, headers=None, timeout=10) -> None | Any:
     try:
         async with httpx.AsyncClient(timeout=timeout) as c:
             r = await c.get(url, params=params, headers=headers or {})
@@ -56,7 +57,7 @@ async def _aget(url: str, params=None, headers=None, timeout=10):
 # ── CoinGecko ─────────────────────────────────────────────
 
 
-async def _cg(path: str, params=None, ttl=120):
+async def _cg(path: str, params=None, ttl=120) -> Any:
     key = f"cg:{path}:{json.dumps(params or {}, sort_keys=True)}"
     cached = _cget(key, ttl)
     if cached is not None:
@@ -71,7 +72,7 @@ async def _cg(path: str, params=None, ttl=120):
 
 
 # ── Alternative.me Fear & Greed ───────────────────────────
-async def _fng(ttl=300):
+async def _fng(ttl=300) -> Any:
     cached = _cget("fng", ttl)
     if cached is not None:
         return cached
@@ -82,7 +83,7 @@ async def _fng(ttl=300):
 
 
 # ── Polymarket ────────────────────────────────────────────
-async def _polymarket(limit=6, ttl=300):
+async def _polymarket(limit=6, ttl=300) -> Any:
     cached = _cget("pm", ttl)
     if cached is not None:
         return cached
@@ -98,7 +99,7 @@ async def _polymarket(limit=6, ttl=300):
 # ── DexScreener ───────────────────────────────────────────
 
 
-async def _ds(path: str, params=None, ttl=60):
+async def _ds(path: str, params=None, ttl=60) -> Any:
     key = f"ds_{path}_{params}"
     cached = _cget(key, ttl)
     if cached is not None:
@@ -110,7 +111,7 @@ async def _ds(path: str, params=None, ttl=60):
 
 
 # ── Binance ────────────────────────────────────────────────
-async def _binance_funding(ttl=120):
+async def _binance_funding(ttl=120) -> Any:
     cached = _cget("bn_funding", ttl)
     if cached is not None:
         return cached
@@ -121,7 +122,7 @@ async def _binance_funding(ttl=120):
 
 
 # ── Hyperliquid ────────────────────────────────────────────
-async def _hyperliquid_markets(limit=50, ttl=120):
+async def _hyperliquid_markets(limit=50, ttl=120) -> list | Any:
     """Hyperliquid perp markets with price, change, volume, OI, funding."""
     cached = _cget("hl_markets", ttl)
     if cached is not None:
@@ -167,7 +168,7 @@ async def _hyperliquid_markets(limit=50, ttl=120):
     return []
 
 
-async def _hyperliquid_action(limit=10, ttl=60):
+async def _hyperliquid_action(limit=10, ttl=60) -> Any | dict:
     """Hyperliquid 'Gain/Loss Porn': Biggest movers and funding squeezes."""
     cached = _cget("hl_action", ttl)
     if cached is not None:
@@ -202,7 +203,7 @@ async def _hyperliquid_action(limit=10, ttl=60):
     return action_data
 
 
-async def _hyperliquid_funding(limit=10, ttl=120):
+async def _hyperliquid_funding(limit=10, ttl=120) -> list | Any:
     """Top Hyperliquid funding rates (highest absolute)."""
     cached = _cget("hl_funding", ttl)
     if cached is not None:
@@ -243,11 +244,11 @@ async def _hyperliquid_funding(limit=10, ttl=120):
 
 
 # ── Default timestamp ──────────────────────────────────────
-def _now():
+def _now() -> Any:
     return datetime.now(UTC).isoformat()
 
 
-def _safe_float(v, default=0.0):
+def _safe_float(v, default=0.0) -> Any:
     try:
         return float(v) if v is not None else default
     except (TypeError, ValueError):
@@ -260,7 +261,7 @@ def _safe_float(v, default=0.0):
 
 
 @router.get("/overview")
-async def get_market_overview(request: Request):
+async def get_market_overview(request: Request) -> dict:
     """Global market overview - total cap, dominance, fear & greed."""
     now = _now()
     global_data = await _cg("/global", ttl=120)
@@ -307,7 +308,7 @@ async def get_market_movers(
     request: Request,
     limit: int = Query(10, ge=1, le=100),
     tier: str = Query("free"),
-):
+) -> dict:
     """Top gainers/losers from CoinGecko."""
     now = _now()
     data = await _cg(
@@ -362,7 +363,7 @@ async def get_market_movers(
 async def get_market_launches(
     request: Request,
     limit: int = Query(8, ge=1, le=50),
-):
+) -> dict:
     """New token launches from DexScreener boosts."""
     now = _now()
     boosts = await _ds("/token-boosts/latest/v1", ttl=60)
@@ -445,7 +446,7 @@ async def get_market_launches(
 async def get_market_trending(
     request: Request,
     limit: int = Query(8, ge=1, le=50),
-):
+) -> dict:
     """Trending tokens from CoinGecko + DexScreener."""
     now = _now()
     items = []
@@ -482,7 +483,7 @@ async def get_market_trending(
 
 
 @router.get("/chains")
-async def get_market_chains(request: Request):
+async def get_market_chains(request: Request) -> dict:
     """Chain activity - TPS, gas, active addresses from CoinGecko chain data."""
     now = _now()
     # Base chain data with known approximate values + enrichment
@@ -540,7 +541,7 @@ async def get_market_scams(
     request: Request,
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
-):
+) -> dict:
     """Scam alerts - flagged tokens from DexScreener with suspicious patterns."""
     now = _now()
     items = []
@@ -634,7 +635,7 @@ async def get_market_whales(
     request: Request,
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
-):
+) -> dict:
     """Whale movements - large swaps from DexScreener."""
     now = _now()
     items = []
@@ -697,7 +698,7 @@ async def get_market_whales(
 async def get_fear_greed(
     request: Request,
     days: int = Query(7, ge=1, le=365),
-):
+) -> dict:
     """Fear & Greed index from alternative.me."""
     fng_data = await _fng()
     value = 50
@@ -723,7 +724,7 @@ async def get_market_predictions(
     request: Request,
     limit: int = Query(6, ge=1, le=50),
     tier: str = Query("free"),
-):
+) -> dict:
     """Prediction markets - Polymarket data."""
     now = _now()
     items = []
@@ -764,7 +765,7 @@ async def get_market_insiders(
     request: Request,
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
-):
+) -> dict:
     """Insider trading signals - derived from CoinGecko trending + price anomalies."""
     now = _now()
     items = []
@@ -831,7 +832,7 @@ async def get_market_insiders(
 async def get_market_sentiment(
     request: Request,
     tier: str = Query("free"),
-):
+) -> dict:
     """Social sentiment - aggregated from market data."""
     now = _now()
     items = []
@@ -896,7 +897,7 @@ async def get_market_sentiment(
 async def get_market_onchain(
     request: Request,
     tier: str = Query("free"),
-):
+) -> dict:
     """On-chain metrics - exchange flows, stablecoin inflows."""
     now = _now()
     global_data = await _cg("/global", ttl=120)
@@ -950,7 +951,7 @@ async def get_market_onchain(
 async def get_market_liquidations(
     request: Request,
     tier: str = Query("free"),
-):
+) -> dict:
     """Liquidation levels - estimated from Binance price data."""
     now = _now()
     items = []
@@ -984,7 +985,7 @@ async def get_market_liquidations(
 async def get_market_funding(
     request: Request,
     tier: str = Query("free"),
-):
+) -> dict:
     """Funding rates from Binance."""
     now = _now()
     items = []
@@ -1014,7 +1015,7 @@ async def get_market_funding(
 async def get_market_options(
     request: Request,
     tier: str = Query("free"),
-):
+) -> dict:
     """Options flow - unusual activity proxy from funding rate extremes."""
     now = _now()
     items = []
@@ -1054,7 +1055,7 @@ async def get_market_options(
 async def get_market_airdrops(
     request: Request,
     tier: str = Query("free"),
-):
+) -> dict:
     """Airdrop opportunities - curated list of confirmed and upcoming drops."""
     now = _now()
     # Curated airdrops - these are well-known upcoming/active airdrops
@@ -1133,7 +1134,7 @@ async def get_market_airdrops(
 async def get_market_macro(
     request: Request,
     tier: str = Query("free"),
-):
+) -> dict:
     """Macro correlation - BTC vs traditional assets."""
     now = _now()
     # CoinGecko doesn't provide SPX/DXY/Gold, so we provide BTC data with known correlations
@@ -1189,7 +1190,7 @@ async def get_market_macro(
 async def get_market_likely_rugs(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
-):
+) -> dict:
     """Likely rug pulls - premium data from scanner."""
     now = _now()
     items = []
@@ -1200,7 +1201,7 @@ async def get_market_likely_rugs(
 async def get_market_runners(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
-):
+) -> dict:
     """Potential runners - tokens with early momentum."""
     now = _now()
     items = []
@@ -1238,7 +1239,7 @@ async def get_market_runners(
 async def get_market_alpha(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
-):
+) -> dict:
     """Alpha signals - from trending + whale data."""
     now = _now()
     items = []
@@ -1246,7 +1247,7 @@ async def get_market_alpha(
 
 
 @router.get("/smart-money")
-async def get_market_smart_money(request: Request):
+async def get_market_smart_money(request: Request) -> dict:
     """Smart money flows by sector."""
     now = _now()
     items = []
@@ -1254,7 +1255,7 @@ async def get_market_smart_money(request: Request):
 
 
 @router.get("/bundlers")
-async def get_market_bundlers(request: Request):
+async def get_market_bundlers(request: Request) -> dict:
     """Bundler detection - coordinated buy patterns."""
     now = _now()
     items = []
@@ -1265,7 +1266,7 @@ async def get_market_bundlers(request: Request):
 async def get_market_dex_flows(
     request: Request,
     limit: int = Query(20, ge=1, le=100),
-):
+) -> dict:
     """DEX flow data - buy/sell pressure from top pairs."""
     now = _now()
     items = []
@@ -1303,7 +1304,7 @@ async def get_market_alerts_feed(
     request: Request,
     limit: int = Query(20, ge=1, le=100),
     tier: str = Query("free"),
-):
+) -> dict:
     """Combined alerts feed - scams from DexScreener, system alerts, bad actors."""
     now = _now()
     items = []
@@ -1465,7 +1466,7 @@ async def get_market_alerts_feed(
 async def get_hyperliquid_data(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
-):
+) -> dict:
     """Hyperliquid perp markets and funding rates."""
     now = _now()
     markets = await _hyperliquid_markets(limit=limit)
@@ -1482,7 +1483,7 @@ async def get_hyperliquid_data(
 async def get_hyperliquid_action(
     request: Request,
     limit: int = Query(5, ge=1, le=20),
-):
+) -> dict:
     """
     Hyperliquid 'Gain/Loss Porn': Biggest 24h movers and funding squeezes.
     Shows where the market is ripping, dumping, and who is getting liquidated/squeezed.
@@ -1506,7 +1507,7 @@ async def get_insider_wallets(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
     tier: str = Query("free"),
-):
+) -> dict:
     """
     Likely insider trader wallets to watch.
     Premium feature: Tracks wallets with high win rates, early entries before pumps,
@@ -1594,7 +1595,7 @@ async def get_prediction_signals(
     request: Request,
     limit: int = Query(5, ge=1, le=20),
     tier: str = Query("free"),
-):
+) -> dict:
     """
     Prediction market intelligence signals.
     Detects probability swings, ecosystem risks, and token-specific threats

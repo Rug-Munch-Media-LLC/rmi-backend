@@ -26,6 +26,7 @@ import httpx
 import redis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("rugcharts_intel")
 
@@ -51,7 +52,7 @@ CACHE_TTL = {
 }
 
 
-def _r():
+def _r() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,

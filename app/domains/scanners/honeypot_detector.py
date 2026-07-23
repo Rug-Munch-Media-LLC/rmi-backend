@@ -81,11 +81,11 @@ class HoneypotReport:
 class HoneypotDetector:
     """Detects honeypot tokens through buy/sell simulation and tax analysis."""
 
-    def __init__(self, helius_api_key: str = ""):
+    def __init__(self, helius_api_key: str = "") -> None:
         self.client = httpx.AsyncClient(timeout=15.0)
         self.helius_api_key = helius_api_key
 
-    async def close(self):
+    async def close(self) -> None:
         await self.client.aclose()
 
     async def analyze(

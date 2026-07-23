@@ -165,7 +165,7 @@ class DataFusion:
     sources_total, freshness, and a human-readable summary.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._stats = {
             "fusions": 0,
             "outliers_removed": 0,

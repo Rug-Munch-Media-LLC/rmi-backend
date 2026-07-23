@@ -63,7 +63,7 @@ async def _fetch_eth_labels(address: str) -> list[dict]:
 
 
 @router.get("/profile/{address}")
-async def get_address_profile(address: str, chains: str = Query(None)):
+async def get_address_profile(address: str, chains: str = Query(None)) -> Any:
     """Get cross-chain profile for an address. Use ?chains=ethereum,solana to filter."""
     chain_list = chains.split(",") if chains else list(CHAINS.keys())
 

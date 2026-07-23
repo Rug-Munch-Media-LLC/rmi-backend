@@ -13,7 +13,7 @@ logger = get_logger("rmi.chart")
 DEXSCREENER = "https://api.dexscreener.com/latest/dex"
 
 
-async def cmd_chart(update, ctx):
+async def cmd_chart(update, ctx) -> None:
     """Handle /chart command - show price chart for a token."""
     msg = update.message
     args = ctx.args

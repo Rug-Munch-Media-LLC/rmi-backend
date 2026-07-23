@@ -41,13 +41,13 @@ _ROLODETH_TTL = 3600  # 1 hour
 class LabelService:
     """Unified label resolution across static + live + built-in sources."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._etherscan_key = os.getenv("ETHERSCAN_API_KEY", "")
         self._builtin_cex: dict[str, str] = {}
         self._load_builtin_cex()
 
-    def _load_builtin_cex(self):
+    def _load_builtin_cex(self) -> None:
         """Load CEX hot wallet labels from chain_registry."""
         try:
             from app.chain_registry import CEX_HOT_WALLETS

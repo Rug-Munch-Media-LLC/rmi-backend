@@ -134,7 +134,7 @@ class WhaleMovement:
 class ExchangeFlowAnalyzer:
     """Analyzer for exchange flows and liquidity pools."""
 
-    def __init__(self, web3_client=None):
+    def __init__(self, web3_client=None) -> None:
         self.web3 = web3_client
         self.pools: dict[str, LiquidityPool] = {}
         self.flows: list[ExchangeFlow] = []

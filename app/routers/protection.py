@@ -208,7 +208,7 @@ async def scan_url_content(url: str) -> dict[str, Any] | None:
     return None
 
 
-async def feed_url_to_rag(url: str, is_safe: bool):
+async def feed_url_to_rag(url: str, is_safe: bool) -> None:
     """Feed URL scan result back to RAG for learning (best effort)."""
     try:
         from app.rag_service import ingest_document
@@ -224,7 +224,7 @@ async def feed_url_to_rag(url: str, is_safe: bool):
 
 # Endpoint implementations
 @router.post("/check-url", response_model=ProtectionResponse)
-async def check_url(request: URLCheckRequest, http_request: Request):
+async def check_url(request: URLCheckRequest, http_request: Request) -> Any:
     """
     Check a URL for phishing/scam content.
     Returns: {safe: bool, risk: low|medium|high|critical, reason: str, source: rag|scanner|blocklist}
@@ -275,7 +275,7 @@ async def check_url(request: URLCheckRequest, http_request: Request):
 
 
 @router.post("/check-wallet", response_model=ProtectionResponse)
-async def check_wallet(request: WalletCheckRequest, http_request: Request):
+async def check_wallet(request: WalletCheckRequest, http_request: Request) -> Any:
     """
     Check a wallet address for risk.
     Returns: {safe: bool, risk_score: 0-100, flags: [list], reason: str, source: ...}
@@ -358,7 +358,7 @@ async def check_wallet(request: WalletCheckRequest, http_request: Request):
 
 
 @router.post("/check-token", response_model=ProtectionResponse)
-async def check_token(request: TokenCheckRequest, http_request: Request):
+async def check_token(request: TokenCheckRequest, http_request: Request) -> Any:
     """
     Check a token address for safety.
     Returns: full safety report from scanner with protection-focused summary.
@@ -432,7 +432,7 @@ async def check_token(request: TokenCheckRequest, http_request: Request):
 
 
 @router.get("/domains")
-async def get_domains():
+async def get_domains() -> dict | dict[str, list]:
     """
     Return the blocklist JSON for extension download.
     Reads from /root/browser-extension/blocklist.json, /app/blocklist.json, and RAG known scams.
@@ -520,7 +520,7 @@ async def get_domains():
 
 
 @router.get("/health")
-async def protection_health():
+async def protection_health() -> Any:
     """
     Health check for protection modules.
     Returns status of RAG, blocklist, scanners, etc.

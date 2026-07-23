@@ -71,13 +71,13 @@ class UnifiedDataEngine:
         source = await engine.query(DataQueryType.SOLANA_FUNDING, address="7EcD...")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._chains: dict[DataQueryType, list[DataSource]] = {}
         self._setup_chains()
         self._l1: dict[str, tuple] = {}
         self.stats = {"hits": 0, "misses": 0, "fallbacks": 0}
 
-    def _setup_chains(self):
+    def _setup_chains(self) -> None:
         """Build fallback chains. Order = priority (first is best)."""
 
         # TOKEN PRICE: Jupiter (free, fast) → Tracker → DexScreener → Binance → CoinGecko

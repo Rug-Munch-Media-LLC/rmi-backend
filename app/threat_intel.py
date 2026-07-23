@@ -68,7 +68,7 @@ class SanctionsMatch:
 class BlocklistManager:
     """Manages local and external threat blocklists."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ofac_sdn: set[str] = set()
         self.local_blocklist: set[str] = set()
         self.local_whitelist: set[str] = set()
@@ -97,7 +97,7 @@ class BlocklistManager:
             logger.error(f"Failed to load blocklists: {e}")
             return False
 
-    def _load_ofac_sdn(self):
+    def _load_ofac_sdn(self) -> None:
         """Load OFAC SDN dataset (cached)."""
         self.ofac_sdn = self._get_ofac_sdn()
 
@@ -122,7 +122,7 @@ class BlocklistManager:
         # Return stub if fetch fails
         return set()
 
-    def _load_local_list(self, path: str):
+    def _load_local_list(self, path: str) -> None:
         """Load local blocklist from file."""
         if not os.path.exists(path):
             return
@@ -171,7 +171,7 @@ class BlocklistManager:
 class ThreatAggregator:
     """Aggregates threat intelligence from multiple sources."""
 
-    def __init__(self, blocklist: BlocklistManager = None):
+    def __init__(self, blocklist: BlocklistManager = None) -> None:
         self.blocklist = blocklist or BlocklistManager()
         self._loaded = False
 

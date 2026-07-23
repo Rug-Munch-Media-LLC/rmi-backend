@@ -15,7 +15,7 @@ class KeyAffinitySelector:
     When a key is exhausted, remaining traffic redistributes to healthy keys.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._assignments: dict[str, str] = {}  # entity_hash -> key_id
 
     def select_key(self, pool_name: str, available_keys: list, **kwargs) -> object | None:

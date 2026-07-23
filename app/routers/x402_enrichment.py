@@ -196,7 +196,7 @@ class EnrichmentResult:
     rag_ms: float = 0
 
 
-def _redis(enrich_cache: dict | None = None):
+def _redis(enrich_cache: dict | None = None) -> Any:
     """Lazy Redis connection (sync client)."""
     import os
 
@@ -214,7 +214,7 @@ def _redis(enrich_cache: dict | None = None):
     )
 
 
-def _ch():
+def _ch() -> None:
     """Lazy ClickHouse connection."""
     import os
 
@@ -682,7 +682,7 @@ def _synthesize_enrichment(risk_summary: str, scam_flags: list, tool_name: str) 
 # ── Alert Hooks ──────────────────────────────────────────────
 
 
-def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None):
+def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None) -> None:
     """Fire alert when enrichment finds high-risk addresses."""
     try:
         if not r:
@@ -705,7 +705,7 @@ def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None):
 # ── Cross-Chain Label Propagation ────────────────────────────
 
 
-def propagate_labels_cross_chain():
+def propagate_labels_cross_chain() -> Any | int:
     """
     One-shot cross-chain propagation: copy phishing/scam/sanctioned labels
     to all chains where the same address exists. Runs on startup + cron.
@@ -832,7 +832,7 @@ def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict
     return results
 
 
-def preload_enrichment_cache(addresses: list[str]):
+def preload_enrichment_cache(addresses: list[str]) -> None:
     """
     Background preload: fetch and cache enrichment for hot addresses.
     Intended for high-traffic addresses (top wallets, trending tokens).

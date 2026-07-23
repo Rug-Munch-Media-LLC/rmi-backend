@@ -128,12 +128,12 @@ CREATE INDEX IF NOT EXISTS idx_trenches_posts_created ON trenches_posts(created_
 # ═══════════════════════════════════════════════════════════
 
 
-def _async_retry(max_retries: int = 3, delay: float = 0.5, backoff: float = 2.0):
+def _async_retry(max_retries: int = 3, delay: float = 0.5, backoff: float = 2.0) -> Any:
     """Simple async retry decorator for Supabase operations."""
 
-    def decorator(func: Callable):
+    def decorator(func: Callable) -> Any:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs) -> Any:
             last_exc = None
             wait = delay
             for attempt in range(max_retries + 1):
@@ -243,7 +243,7 @@ class GamificationProfile(BaseModel):
 class SupabaseClient:
     """Wrapped Supabase client with connection pooling, retries, and helpers."""
 
-    def __init__(self, url: str | None = None, key: str | None = None):
+    def __init__(self, url: str | None = None, key: str | None = None) -> None:
         self.url = url or os.getenv("SUPABASE_URL", "")
         # Fall back through env var variants
         # SERVICE KEY: Required for full CRUD access to all Supabase tables.
@@ -327,7 +327,7 @@ class SupabaseClient:
 
 
 class _BaseRepo:
-    def __init__(self, db: SupabaseClient):
+    def __init__(self, db: SupabaseClient) -> None:
         self.db = db
 
     def _now(self) -> str:
@@ -633,7 +633,7 @@ class GamificationProfileRepository(_BaseRepo):
 class RmiDatabase:
     """Unified interface: Supabase persistence + Redis cache."""
 
-    def __init__(self, supabase_url: str | None = None, supabase_key: str | None = None):
+    def __init__(self, supabase_url: str | None = None, supabase_key: str | None = None) -> None:
         self.db = SupabaseClient(url=supabase_url, key=supabase_key)
         self.users = UserRepository(self.db)
         self.cases = InvestigationCaseRepository(self.db)

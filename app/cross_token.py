@@ -67,7 +67,7 @@ class CrossTokenAffiliationTracker:
     Critical for proving the criminal enterprise spanned multiple tokens.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.wallet_db = get_wallet_database() if get_wallet_database else None
         self.project_tokens = PROJECT_TOKENS
         self.affiliations: dict[str, list[TokenAffiliation]] = {}
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     # Test the tracker
     import asyncio
 
-    async def test():
+    async def test() -> None:
         logger.info("=" * 70)
         logger.info("OMEGA FORENSIC V5 - CROSS-TOKEN AFFILIATION TRACKER")
         logger.info("=" * 70)

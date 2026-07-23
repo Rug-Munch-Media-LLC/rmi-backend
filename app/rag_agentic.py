@@ -84,7 +84,7 @@ For each document, output a JSON object with:
 
 Return a JSON list sorted by score descending. Only return the JSON, nothing else."""
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or LLM_API_KEY
 
     async def rerank(
@@ -236,7 +236,7 @@ Create a comprehensive assessment with:
 
 Return as JSON. Be precise and evidence-based."""
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or LLM_API_KEY
         self.reranker = LLMReranker(api_key)
 
@@ -557,7 +557,7 @@ class RealTimeTokenMonitor:
       5. Alert if scam detected
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.processed = set()
         self._processed_order = []  # FIFO order for eviction
         self._max_processed = 10000

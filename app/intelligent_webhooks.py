@@ -65,7 +65,7 @@ class IntelligentWebhookProcessor:
         "permit2_phishing": {"method": "permit", "risk": "critical"},
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._recent_events: dict[str, list[dict]] = defaultdict(list)  # wallet -> events
         self._cluster_cache: dict[str, str] = {}  # wallet -> cluster_id
         self._scam_registry: set[str] = set()  # known scam addresses

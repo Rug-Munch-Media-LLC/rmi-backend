@@ -46,7 +46,7 @@ async def check_circuit(service: str) -> bool:
         return False  # Fail open if Redis is down
 
 
-async def record_success(service: str):
+async def record_success(service: str) -> None:
     try:
         r = _get_redis()
         r.set(f"circuit:{service}:state", "CLOSED")
@@ -55,7 +55,7 @@ async def record_success(service: str):
         logger.error(f"Circuit breaker success record failed for {service}: {e}")
 
 
-async def record_failure(service: str):
+async def record_failure(service: str) -> None:
     try:
         r = _get_redis()
         failures = r.incr(f"circuit:{service}:failures")

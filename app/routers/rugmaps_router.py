@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -20,7 +21,7 @@ class RugMapsRequest(BaseModel):
     min_strength: float = 0.1
 
 
-def _get_rm():
+def _get_rm() -> Any:
     try:
         from app.domains.scanner.rugmaps_engine import get_rugmaps_engine
 
@@ -30,7 +31,7 @@ def _get_rm():
 
 
 @router.post("/map")
-async def generate_rug_map(req: RugMapsRequest):
+async def generate_rug_map(req: RugMapsRequest) -> dict:
     """Generate interactive RugMap for a wallet (2-hop default)."""
     rm = _get_rm()
     try:
@@ -45,7 +46,7 @@ async def generate_rug_map(req: RugMapsRequest):
 
 
 @router.get("/analyze/{address}")
-async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)):
+async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)) -> dict:
     """Quick wallet analysis with RugMaps data."""
     rm = _get_rm()
     result = await rm.generate_map(center_wallet=address, depth=depth)
@@ -64,7 +65,7 @@ async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)):
 
 
 @router.get("/entity/{address}")
-async def get_entity_info(address: str):
+async def get_entity_info(address: str) -> dict:
     """Get entity information for an address."""
     rm = _get_rm()
     info = await rm._get_entity_info(address)
@@ -74,7 +75,7 @@ async def get_entity_info(address: str):
 
 
 @router.get("/health")
-async def rugmaps_health():
+async def rugmaps_health() -> dict[str, str]:
     return {"status": "ok", "service": "rugmaps-engine"}
 
 
@@ -84,7 +85,7 @@ async def token_holder_graph(
     chain: str = Query("solana"),
     limit: int = Query(50, ge=5, le=200),
     skip_cache: bool = Query(False),
-):
+) -> Any | dict:
     """Generate a token holder graph with AI analysis and RAG caching.
     Uses DeepSeek Flash + our FAISS indexes + wallet labels + semantic cache."""
     import asyncio
@@ -231,7 +232,7 @@ def _get_explorer_url(chain: str, address: str) -> str:
 
 
 @router.post("/auto-label")
-async def auto_label_wallet(request: dict):
+async def auto_label_wallet(request: dict) -> dict[str, str]:
     """Submit wallet observations for automatic labeling."""
     try:
         from app.auto_labeler import get_auto_labeler
@@ -258,7 +259,7 @@ async def auto_label_wallet(request: dict):
 
 
 @router.get("/auto-label/stats")
-async def auto_label_stats():
+async def auto_label_stats() -> dict[str, str]:
     """Get auto-labeler statistics."""
     try:
         from app.auto_labeler import get_auto_labeler

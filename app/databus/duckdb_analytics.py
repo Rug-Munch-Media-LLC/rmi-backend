@@ -250,7 +250,7 @@ def _load_mbal(con, base_dir: str) -> dict:
     return stats
 
 
-def _build_index(con):
+def _build_index(con) -> None:
     """Build unified address_index from all loaded data."""
     con.execute("DELETE FROM address_index")
 
@@ -319,12 +319,12 @@ def _build_index(con):
 class DuckDBAnalytics:
     """Offline analytics engine using DuckDB on cinnabox."""
 
-    def __init__(self, db_path: str = DB_PATH):
+    def __init__(self, db_path: str = DB_PATH) -> None:
         self.db_path = db_path
         self._con = None
         self._loaded = False
 
-    def connect(self):
+    def connect(self) -> Any:
         if self._con is None:
             os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
             self._con = duckdb.connect(self.db_path)
@@ -579,7 +579,7 @@ class DuckDBAnalytics:
             return con.execute(sql, params).fetchall()
         return con.execute(sql).fetchall()
 
-    def close(self):
+    def close(self) -> None:
         if self._con:
             self._con.close()
             self._con = None
@@ -664,7 +664,7 @@ if __name__ == "__main__":
     import asyncio
     import json
 
-    async def test():
+    async def test() -> None:
         logger.info("Initializing DuckDB analytics...")
         engine = DuckDBAnalytics()
         stats = engine.initialize()

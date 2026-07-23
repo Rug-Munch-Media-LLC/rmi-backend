@@ -39,7 +39,7 @@ QUICKNODE_KEY = os.getenv("QUICKNODE_KEY", "")
 
 
 class TokenBucket:
-    def __init__(self, rate: float = 5.0, burst: int = 10):
+    def __init__(self, rate: float = 5.0, burst: int = 10) -> None:
         self.rate = rate
         self.burst = burst
         self.tokens = float(burst)
@@ -63,11 +63,11 @@ class TokenBucket:
 class ChainClient:
     """Rate-limited Solana RPC with Helius primary + QuickNode fallback."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.bucket = TokenBucket(rate=5.0, burst=10)
         self._helius_idx = 0
 
-    async def _rate_limit(self):
+    async def _rate_limit(self) -> None:
         wait = await self.bucket.acquire()
         if wait > 0:
             await asyncio.sleep(wait)

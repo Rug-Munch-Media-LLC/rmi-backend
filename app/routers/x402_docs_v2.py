@@ -75,7 +75,7 @@ a:hover{{text-decoration:underline}}
 
 @router.get("/docs")
 @router.get("/docs/v2/landing")
-async def landing_page():
+async def landing_page() -> Any:
     """Landing page - the product is token intelligence, not x402."""
     return HTMLResponse(
         content=_page(
@@ -136,7 +136,7 @@ Your API key is all you need. We handle the blockchain.
 
 
 @router.get("/docs/v2/quickstart")
-async def quickstart():
+async def quickstart() -> Any:
     return HTMLResponse(
         content=_page(
             "Quickstart",
@@ -190,7 +190,7 @@ no seed phrases to lose.
 
 
 @router.get("/docs/v2/api-reference")
-async def api_reference():
+async def api_reference() -> Any:
     return HTMLResponse(
         content=_page(
             "API Reference",
@@ -217,6 +217,7 @@ async def api_reference():
 <h3>Examples</h3>
 <pre><span class="comment"># Python - pip install requests</span>
 import requests
+from typing import Any
 
 API_KEY = "{DEMO_API_KEY}"
 api = "https://api.rugmunch.io/v1"
@@ -250,7 +251,7 @@ console.log(data);</pre>
 
 
 @router.get("/old-docs")
-async def redirect_old_docs():
+async def redirect_old_docs() -> Any:
     """Redirect old x402 docs to the new developer-friendly docs."""
     from fastapi.responses import RedirectResponse
 

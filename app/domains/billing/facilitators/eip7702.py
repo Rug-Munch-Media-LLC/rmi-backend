@@ -56,7 +56,7 @@ class EIP7702Facilitator(Facilitator):
     5. For native coins: verify value in tx receipt
     """
 
-    def __init__(self, config: FacilitatorConfig | None = None):
+    def __init__(self, config: FacilitatorConfig | None = None) -> None:
         self._config = config or get_config()
         # RPC URLs for all supported chains
         self._rpc_urls = self._config.eip7702_default_rpcs.copy()

@@ -310,12 +310,12 @@ def name_similarity_score(name: str, target_name: str) -> float:
 class CloneScanner:
     """Main scanner for token clone detection."""
 
-    def __init__(self, http_timeout: float = 15.0):
+    def __init__(self, http_timeout: float = 15.0) -> None:
         self.http = httpx.AsyncClient(timeout=http_timeout)
         self._jupiter_tokens: list[dict[str, Any]] | None = None
         self._birdeye_api_key = os.environ.get("BIRDEYE_API_KEY", "")
 
-    async def close(self):
+    async def close(self) -> None:
         await self.http.aclose()
 
     # ── Public API ──────────────────────────────────────────────

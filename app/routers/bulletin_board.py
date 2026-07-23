@@ -51,7 +51,7 @@ async def public_list_posts(
     tag: str = "",
     limit: int = 20,
     offset: int = 0,
-):
+) -> dict:
     """List published posts (public)."""
     tags = [tag] if tag else None
     result = await BulletinBoardManager.list_posts(
@@ -93,7 +93,7 @@ async def public_list_posts(
 
 
 @router.get("/posts/{slug}")
-async def public_get_post(request: Request, slug: str):
+async def public_get_post(request: Request, slug: str) -> dict:
     """Get a single published post by slug (public)."""
     post = await BulletinBoardManager.get_post_by_slug(slug)
     if not post or post.status != PostStatus.PUBLISHED.value:
@@ -106,7 +106,7 @@ async def public_get_post(request: Request, slug: str):
 
 
 @router.get("/categories")
-async def public_categories():
+async def public_categories() -> dict:
     """List all categories with counts."""
     stats = await BulletinBoardManager.get_stats()
     categories = []
@@ -122,7 +122,7 @@ async def public_categories():
 
 
 @router.get("/pinned")
-async def public_pinned_posts(limit: int = 5):
+async def public_pinned_posts(limit: int = 5) -> dict:
     """Get pinned posts (public)."""
     result = await BulletinBoardManager.list_posts(
         pinned_only=True,
@@ -208,7 +208,7 @@ async def admin_list_posts(
     offset: int = 0,
     sort_by: str = "created_at",
     sort_order: str = "desc",
-):
+) -> dict:
     """List all posts (admin view with full data)."""
     auth = await require_admin(request, "content.read")
     auth["admin"]
@@ -233,7 +233,7 @@ async def admin_list_posts(
 
 
 @router.post("/admin/bulletin/posts")
-async def admin_create_post(request: Request, body: CreatePostRequest):
+async def admin_create_post(request: Request, body: CreatePostRequest) -> dict[str, bool]:
     """Create a new bulletin board post."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -286,7 +286,7 @@ async def admin_create_post(request: Request, body: CreatePostRequest):
 
 
 @router.get("/admin/bulletin/posts/{post_id}")
-async def admin_get_post(request: Request, post_id: str):
+async def admin_get_post(request: Request, post_id: str) -> dict[str, dict]:
     """Get full post details (admin)."""
     await require_admin(request, "content.read")
 
@@ -302,7 +302,7 @@ async def admin_update_post(
     request: Request,
     post_id: str,
     body: UpdatePostRequest,
-):
+) -> dict[str, bool]:
     """Update a post."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -344,7 +344,7 @@ async def admin_update_post(
 
 
 @router.delete("/admin/bulletin/posts/{post_id}")
-async def admin_delete_post(request: Request, post_id: str):
+async def admin_delete_post(request: Request, post_id: str) -> dict[str, bool]:
     """Delete (archive) a post."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -370,7 +370,7 @@ async def admin_delete_post(request: Request, post_id: str):
 
 
 @router.post("/admin/bulletin/posts/{post_id}/publish")
-async def admin_publish_post(request: Request, post_id: str):
+async def admin_publish_post(request: Request, post_id: str) -> dict[str, bool]:
     """Publish a post immediately."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -402,7 +402,7 @@ async def admin_publish_post(request: Request, post_id: str):
 
 
 @router.post("/admin/bulletin/posts/{post_id}/unpublish")
-async def admin_unpublish_post(request: Request, post_id: str):
+async def admin_unpublish_post(request: Request, post_id: str) -> dict[str, bool]:
     """Unpublish a post (move to draft)."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -434,7 +434,7 @@ async def admin_unpublish_post(request: Request, post_id: str):
 
 
 @router.post("/admin/bulletin/posts/{post_id}/pin")
-async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...)):
+async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...)) -> dict[str, bool]:
     """Pin or unpin a post."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -469,7 +469,7 @@ async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...))
 
 
 @router.get("/admin/bulletin/stats")
-async def admin_bulletin_stats(request: Request):
+async def admin_bulletin_stats(request: Request) -> dict:
     """Get bulletin board statistics."""
     await require_admin(request, "content.read")
 
@@ -478,7 +478,7 @@ async def admin_bulletin_stats(request: Request):
 
 
 @router.get("/admin/bulletin/scheduled")
-async def admin_scheduled_posts(request: Request):
+async def admin_scheduled_posts(request: Request) -> dict:
     """List scheduled posts waiting to be published."""
     await require_admin(request, "content.read")
 
@@ -491,7 +491,7 @@ async def admin_scheduled_posts(request: Request):
 
 
 @router.post("/admin/bulletin/process-scheduled")
-async def admin_process_scheduled(request: Request):
+async def admin_process_scheduled(request: Request) -> dict[str, bool]:
     """Process scheduled posts (publish ones that are due)."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -513,7 +513,7 @@ async def admin_process_scheduled(request: Request):
 
 
 @router.post("/admin/bulletin/process-expired")
-async def admin_process_expired(request: Request):
+async def admin_process_expired(request: Request) -> dict[str, bool]:
     """Process expired posts (archive ones past expiry)."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -538,7 +538,7 @@ async def admin_process_expired(request: Request):
 
 
 @router.get("/admin/bulletin/posts/{post_id}/comments")
-async def admin_get_comments(request: Request, post_id: str):
+async def admin_get_comments(request: Request, post_id: str) -> dict:
     """Get all comments for a post (admin moderation view)."""
     await require_admin(request, "content.read")
 
@@ -551,7 +551,7 @@ async def admin_moderate_comment(
     request: Request,
     comment_id: str,
     body: dict = Body(...),
-):
+) -> dict[str, bool]:
     """Moderate a comment (approve/reject)."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -579,7 +579,7 @@ async def admin_moderate_comment(
 
 
 @router.get("/badges/{user_id}")
-async def get_badges(user_id: str):
+async def get_badges(user_id: str) -> dict:
     """Get user badges."""
     from app.bulletin_board import get_user_badges, get_user_reputation
 
@@ -589,7 +589,7 @@ async def get_badges(user_id: str):
 
 
 @router.get("/leaderboard")
-async def get_leaderboard(limit: int = 20):
+async def get_leaderboard(limit: int = 20) -> dict:
     """Top users by reputation."""
     r = await BulletinBoardManager._get_redis()
     try:
@@ -613,7 +613,7 @@ async def get_leaderboard(limit: int = 20):
 
 
 @router.post("/x402/bot-post")
-async def x402_bot_post(request: Request, data: dict):
+async def x402_bot_post(request: Request, data: dict) -> dict[str, bool]:
     """
     Bot posting via x402 - $1 TO JOIN (one-time, 30-day membership).
     Pay $1 once, post unlimited for 30 days. Includes badges.
@@ -660,7 +660,7 @@ async def x402_bot_post(request: Request, data: dict):
 
 
 @router.get("/x402/info")
-async def x402_bot_info():
+async def x402_bot_info() -> dict[str, str]:
     """Info for bots wanting to join the Bulletin Board."""
     return {
         "service": "RMI Bulletin Board - x402 Bot Membership",

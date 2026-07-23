@@ -57,7 +57,7 @@ def _generate_summary(cv: dict) -> str:
 
 
 @router.get("/{chain}/{address}")
-async def get_token_cv(chain: str, address: str):
+async def get_token_cv(chain: str, address: str) -> Any:
     """Generate a complete on-chain CV for a token."""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -120,11 +120,11 @@ async def compare_tokens(
     chain_a: str = Query("solana"),
     token_b: str = Query(...),
     chain_b: str = Query("solana"),
-):
+) -> dict[str, dict] | dict[str, str] | Any:
     """Compare two tokens side by side."""
     async with httpx.AsyncClient(timeout=20) as client:
 
-        async def fetch(addr, chain):
+        async def fetch(addr, chain) -> dict[str, str] | Any:
             try:
                 resp = await client.post(
                     f"{BACKEND}/api/v1/token/scan",

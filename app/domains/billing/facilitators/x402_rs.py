@@ -37,7 +37,7 @@ class X402RsFacilitator(Facilitator):
     - /health - Health check
     """
 
-    def __init__(self, config: FacilitatorConfig | None = None):
+    def __init__(self, config: FacilitatorConfig | None = None) -> None:
         self._config = config or get_config()
 
     @property

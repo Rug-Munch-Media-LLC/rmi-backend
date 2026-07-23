@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from app.core.logging import get_logger
 from app.core.secrets import get_secret_or_none
+from typing import Any
 
 load_dotenv("/app/.env", override=True)
 
@@ -23,11 +24,11 @@ HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_API = "https://api-inference.huggingface.co/models"
 
 
-def _get_url():
+def _get_url() -> Any:
     return os.getenv("SUPABASE_URL", "")
 
 
-def _get_key():
+def _get_key() -> Any:
     """Get Supabase service key for full CRUD access to intel tables."""
     return (
         get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
@@ -36,7 +37,7 @@ def _get_key():
     )
 
 
-def _get_headers():
+def _get_headers() -> dict:
     key = _get_key()
     return {
         "apikey": key,

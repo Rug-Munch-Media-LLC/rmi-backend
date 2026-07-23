@@ -154,7 +154,7 @@ class ConsensusRpcClient:
     MAX_CONSECUTIVE_FAILURES = 3
     DISABLE_DURATION = 60.0
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._endpoints: dict[str, RpcEndpoint] = {}
         self._lock = asyncio.Lock()
         self._setup_solana_endpoints()
@@ -169,7 +169,7 @@ class ConsensusRpcClient:
                 keys.append(k)
         return keys
 
-    def _setup_solana_endpoints(self):
+    def _setup_solana_endpoints(self) -> None:
         """Build Solana RPC endpoint roster with ALL keys where available.
 
         Each Helius key becomes its own endpoint (helius, helius_2, helius_3)
@@ -240,7 +240,7 @@ class ConsensusRpcClient:
 
     # ── Health Management ────────────────────────────────────────────────
 
-    async def _record_success(self, name: str, latency: float):
+    async def _record_success(self, name: str, latency: float) -> None:
         async with self._lock:
             ep = self._endpoints.get(name)
             if ep:
@@ -249,7 +249,7 @@ class ConsensusRpcClient:
                 ep.last_latency = latency
                 ep.last_error = ""
 
-    async def _record_failure(self, name: str, error: str):
+    async def _record_failure(self, name: str, error: str) -> None:
         async with self._lock:
             ep = self._endpoints.get(name)
             if ep:
@@ -267,7 +267,7 @@ class ConsensusRpcClient:
                             f"(failures={ep.failure_calls}, rate={ep.success_rate:.0%})"
                         )
 
-    async def _maybe_reenable(self, name: str):
+    async def _maybe_reenable(self, name: str) -> None:
         """Re-enable an endpoint after its disable duration expires."""
         until = self._disabled_until.get(name, 0)
         if until and time.monotonic() > until:

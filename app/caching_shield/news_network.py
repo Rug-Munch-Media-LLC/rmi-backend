@@ -284,7 +284,7 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
     """Fetch from all 30 sources in parallel."""
     new_articles = []
 
-    async def fetch_source(source):
+    async def fetch_source(source) -> None:
         try:
             async with httpx.AsyncClient(timeout=8) as c:
                 r = await c.get(source["url"], follow_redirects=True)

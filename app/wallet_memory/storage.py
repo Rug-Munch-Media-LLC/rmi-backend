@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("wallet_memory.storage")
 
@@ -25,7 +26,7 @@ logger = get_logger("wallet_memory.storage")
 _ch_client = None
 
 
-async def _get_clickhouse():
+async def _get_clickhouse() -> Any | None:
     """Lazy-init ClickHouse client. Returns None if unavailable.
 
     Win #14: Degradation-aware — if ClickHouse is down, the degradation
@@ -214,7 +215,7 @@ ORDER BY (source_address, source_chain);
 """
 
 
-async def ensure_schema():
+async def ensure_schema() -> bool:
     """Create ClickHouse tables if they don't exist. Safe to call on startup."""
     ch = await _get_clickhouse()
     if not ch:
@@ -247,11 +248,11 @@ class WalletStorage:
     RISK_TTL = 300  # 5 minutes for risk scores
     ENTITY_TTL = 600  # 10 minutes for entity lookups
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._ch = None
         self._redis = None
 
-    async def _ensure_connections(self):
+    async def _ensure_connections(self) -> None:
         """Lazy connect on first use."""
         if self._ch is None:
             self._ch = await _get_clickhouse()

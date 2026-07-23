@@ -105,7 +105,7 @@ class ProxyDetector:
     and whether the implementation matches known rug patterns.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._chain = ChainClient()
         self._helius_key = os.getenv("HELIUS_API_KEY", "")

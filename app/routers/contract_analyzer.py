@@ -169,7 +169,7 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
 
 
 @router.get("/analyze/{address}")
-async def analyze_contract(address: str, chain: str = Query("ethereum")):
+async def analyze_contract(address: str, chain: str = Query("ethereum")) -> dict:
     """Analyze a smart contract's functions and risk profile."""
     info = await _get_contract_bytecode(address, chain)
     analysis = _analyze_bytecode(info.get("bytecode", ""), info.get("source", ""))
@@ -204,7 +204,7 @@ async def analyze_contract(address: str, chain: str = Query("ethereum")):
 
 
 @router.get("/detect-mint/{address}")
-async def detect_mint_function(address: str, chain: str = Query("ethereum")):
+async def detect_mint_function(address: str, chain: str = Query("ethereum")) -> dict:
     """Quick check: does this contract have a mint function?"""
     info = await _get_contract_bytecode(address, chain)
     bytecode = info.get("bytecode", "")

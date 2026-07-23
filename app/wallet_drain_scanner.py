@@ -147,7 +147,7 @@ def _generate_recommendation(score: float, dangerous_approval_ratio: float) -> s
 class WalletDrainScanner:
     """Scans a wallet address for dangerous approvals and drain vulnerabilities."""
 
-    def __init__(self, address: str, chain: str = "ethereum"):
+    def __init__(self, address: str, chain: str = "ethereum") -> None:
         if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(
             r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address
         ):

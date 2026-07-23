@@ -131,7 +131,7 @@ async def _profile_wallet(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/wallet")
-async def wallet_profiler(req: WalletRequest):
+async def wallet_profiler(req: WalletRequest) -> dict[str, str]:
     """Full wallet analysis - persona, activity, holdings, patterns."""
     try:
         result = await _profile_wallet(req.address, req.chain)
@@ -232,7 +232,7 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
 
 
 @sub_router.get("/smartmoney")
-async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0, limit: int = 20):
+async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0, limit: int = 20) -> dict[str, str]:
     """Real-time whale/insider tracking across chains."""
     try:
         result = await _get_smart_money(chain, threshold, limit)
@@ -324,7 +324,7 @@ async def _cluster_analysis(address: str, chain: str, depth: int) -> dict:
 
 
 @sub_router.post("/cluster")
-async def cluster_detection(req: ClusterRequest):
+async def cluster_detection(req: ClusterRequest) -> dict[str, str]:
     """Wallet cluster mapping - sybil detection, hidden networks."""
     try:
         result = await _cluster_analysis(req.address, req.chain, req.depth)
@@ -435,7 +435,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
 
 
 @sub_router.post("/whale")
-async def whale_decoder(req: GenericRequest):
+async def whale_decoder(req: GenericRequest) -> dict[str, str]:
     """Whale wallet decoder and analysis."""
     try:
         address = req.address or req.query or ""
@@ -491,7 +491,7 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
 
 
 @sub_router.post("/portfolio_tracker")
-async def portfolio_tracker(req: WalletListRequest):
+async def portfolio_tracker(req: WalletListRequest) -> dict[str, str]:
     """Multi-wallet portfolio tracker."""
     try:
         result = await _portfolio_tracker(req.addresses, req.chain)
@@ -543,7 +543,7 @@ async def _copy_trade_finder(chain: str) -> dict:
 
 
 @sub_router.post("/copy_trade_finder")
-async def copy_trade_finder(req: GenericRequest):
+async def copy_trade_finder(req: GenericRequest) -> dict[str, str]:
     """Copy trade intelligence."""
     try:
         result = await _copy_trade_finder(req.chain)

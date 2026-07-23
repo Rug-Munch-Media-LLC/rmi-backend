@@ -266,7 +266,7 @@ class AsyncCircuitBreaker:
 
     # ── Usage pattern 2: wrap() decorator ──────────────────────────────────
 
-    def wrap(self, stale_ok: bool = True):
+    def wrap(self, stale_ok: bool = True) -> Any:
         """Decorator that wraps an async method with circuit-breaker protection.
 
         .. caution::

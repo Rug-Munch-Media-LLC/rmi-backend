@@ -222,7 +222,7 @@ class UsageRequest(BaseModel):
 
 
 @router.post("/register")
-async def register_developer(req: RegisterRequest):
+async def register_developer(req: RegisterRequest) -> Any:
     """Register for a free developer API key. 100 calls/day, no payment needed."""
     # Validate tier
     if req.tier not in TIERS:
@@ -282,7 +282,7 @@ result = rmi.scan("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
 
 
 @router.post("/verify")
-async def verify_key(req: VerifyRequest):
+async def verify_key(req: VerifyRequest) -> Any:
     """Verify an API key and get usage stats."""
     if not req.api_key:
         return JSONResponse(status_code=400, content={"error": "api_key required"})
@@ -297,7 +297,7 @@ async def verify_key(req: VerifyRequest):
 
 
 @router.post("/usage")
-async def get_usage(req: UsageRequest):
+async def get_usage(req: UsageRequest) -> Any:
     """Get detailed usage for an API key."""
     if not req.api_key:
         return JSONResponse(status_code=400, content={"error": "api_key required"})
@@ -339,7 +339,7 @@ async def get_usage(req: UsageRequest):
 
 
 @router.get("/tiers")
-async def list_tiers():
+async def list_tiers() -> Any:
     """List available developer tiers."""
     return JSONResponse(
         content={
@@ -370,7 +370,7 @@ class WalletVerifyRequest(BaseModel):
 
 
 @router.post("/wallet/verify")
-async def verify_wallet_identity(req: WalletVerifyRequest):
+async def verify_wallet_identity(req: WalletVerifyRequest) -> Any:
     """Verify wallet ownership via signature.
 
     Grants a persistent wallet-based identity for trials that survives IP changes.
@@ -430,7 +430,7 @@ async def verify_wallet_identity(req: WalletVerifyRequest):
 
 
 @router.post("/wallet/get_challenge")
-async def get_wallet_challenge(req: VerifyRequest):
+async def get_wallet_challenge(req: VerifyRequest) -> Any:
     """Get a challenge message to sign with your wallet."""
     # If they have an API key, generate a challenge for that key
     if req.api_key:
@@ -460,7 +460,7 @@ async def get_wallet_challenge(req: VerifyRequest):
 
 
 @router.get("/wallet/status/{chain}/{address}")
-async def wallet_status(chain: str, address: str):
+async def wallet_status(chain: str, address: str) -> Any:
     """Check wallet verification status and benefits."""
     r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     if not r:

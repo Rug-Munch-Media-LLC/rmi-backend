@@ -546,7 +546,7 @@ def list_templates() -> list[dict]:
     ]
 
 
-def create_all_templates():
+def create_all_templates() -> None:
     """Create all placeholder templates."""
     for card_type, _config in CARD_TEMPLATES.items():
         try:

@@ -161,7 +161,7 @@ async def _cache_get(key: str) -> dict | None:
     return None
 
 
-async def _cache_set(key: str, data: dict, ttl: int = 3600):
+async def _cache_set(key: str, data: dict, ttl: int = 3600) -> None:
     """Cache wallet scan result for 1 hour."""
     try:
         import json
@@ -803,7 +803,7 @@ async def _calculate_basic_pnl(
         }
 
 
-async def _close_data_flywheel(deployers: list):
+async def _close_data_flywheel(deployers: list) -> None:
     """Feed scam findings back to Wallet Memory Bank."""
     if not deployers:
         return

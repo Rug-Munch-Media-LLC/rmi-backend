@@ -10,7 +10,7 @@ logger = get_logger("x402_ai_guard")
 class AIGuardWrapper:
     """AI Guard that works standalone or with app.security."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.active = False
         self.blocked_patterns = [
             "drop table",
@@ -35,7 +35,7 @@ class AIGuardWrapper:
         ]
         self._load_external_guard()
 
-    def _load_external_guard(self):
+    def _load_external_guard(self) -> None:
         """Try to load RugMunch's actual AI Guard if available."""
         try:
             import sys

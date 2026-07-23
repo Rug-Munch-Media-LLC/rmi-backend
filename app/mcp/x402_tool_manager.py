@@ -13,7 +13,7 @@ logger = get_logger("x402_tool_manager")
 class X402ToolManager:
     """Manages all x402 tool bundles including free/trial/premium."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._bundles = self._load_all_bundles()
         self._index = {b.bundle_id: b for b in self._bundles}
         self._index.update({b.name.lower(): b for b in self._bundles})

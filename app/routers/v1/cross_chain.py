@@ -11,7 +11,7 @@ router = APIRouter(prefix="/cross-chain", tags=["cross-chain-v1"])
 
 
 @router.get("/{address}")
-async def cross_chain_profile(address: str):
+async def cross_chain_profile(address: str) -> None:
     """Get cross-chain profile for a wallet address.
 
     Aggregates balances, activity, and labels across all supported chains
@@ -24,7 +24,7 @@ async def cross_chain_profile(address: str):
 
 
 @router.post("/trace")
-async def cross_chain_trace(addresses: list[str]):
+async def cross_chain_trace(addresses: list[str]) -> None:
     """Trace fund flows across chains."""
     raise HTTPException(
         status_code=503,

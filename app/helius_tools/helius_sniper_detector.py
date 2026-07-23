@@ -77,7 +77,7 @@ class SniperReport:
 class SniperDetector:
     """Detects coordinated sniping on Solana token launches."""
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or API_KEY
         self.rpc_url = f"https://mainnet.helius-rpc.com/?api-key={self.api_key}"
         self.session: aiohttp.ClientSession | None = None
@@ -98,7 +98,7 @@ class SniperDetector:
             logger.error(f"RPC {method} failed: {e}")
             return {}
 
-    async def close(self):
+    async def close(self) -> None:
         if self.session and not self.session.closed:
             await self.session.close()
 

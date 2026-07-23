@@ -149,7 +149,7 @@ AUTO_LABELS = {
 class AutoLabeler:
     """Auto-labeling engine that watches wallets and assigns labels based on behavior."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.labels_applied = Counter()
         self.pending_observations = defaultdict(list)
         self.last_run = None
@@ -158,7 +158,7 @@ class AutoLabeler:
         self._known_exchanges = set()
         self._initialize_known_sets()
 
-    def _initialize_known_sets(self):
+    def _initialize_known_sets(self) -> None:
         """Load known scam wallets and mixers from our label database."""
         clean_dir = os.path.join(os.environ.get("RMI_DATA_DIR", "/app/data"), "wallet-labels-clean")
 

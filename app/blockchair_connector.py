@@ -80,7 +80,7 @@ ENDPOINTS = {
 class BlockchairClient:
     """Client for Blockchair API."""
 
-    def __init__(self, api_key: str | None = None, timeout: int = 30):
+    def __init__(self, api_key: str | None = None, timeout: int = 30) -> None:
         self.api_key = api_key or ""
         self.timeout = timeout
         self._available = self._check_availability()

@@ -90,7 +90,7 @@ class GovernanceAttackDetector:
     LOW_QUORUM_PCT = 1.0  # <1% quorum = suspicious
     MIN_TIMELOCK_HOURS = 24  # Timelock should be ≥24h
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._chain = ChainClient()
         self._helius_key = os.getenv("HELIUS_API_KEY", "")

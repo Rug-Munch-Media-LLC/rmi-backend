@@ -32,7 +32,7 @@ def hash_address(address: str) -> str:
 class WalletCluster:
     """Represents a cluster of related wallets."""
 
-    def __init__(self, cluster_id: str):
+    def __init__(self, cluster_id: str) -> None:
         self.cluster_id = cluster_id
         self.addresses: set[str] = set()
         self.chains: set[str] = set()
@@ -42,7 +42,7 @@ class WalletCluster:
 
     def add_address(
         self, address: str, chain: str = "unknown", confidence: float = 0.5, label: str = ""
-    ):
+    ) -> None:
         """Add an address to the cluster."""
         self.addresses.add(address.lower())
         self.chains.add(chain)
@@ -74,12 +74,12 @@ class WalletCluster:
 class EntityGraph:
     """Graph-based wallet entity mapping."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.nodes: dict[str, WalletCluster] = {}
         self.edges: list[dict[str, str]] = []
         self.entity_types: dict[str, set[str]] = defaultdict(set)
 
-    def add_wallet(self, address: str, chain: str, label: str = "", confidence: float = 0.5):
+    def add_wallet(self, address: str, chain: str, label: str = "", confidence: float = 0.5) -> None:
         """Add a wallet to the graph."""
         cluster_id = f"cluster_{hash_address(address)}"
 
@@ -93,7 +93,7 @@ class EntityGraph:
         if label:
             cluster.labels.add(label)
 
-    def link_wallets(self, address1: str, address2: str, relationship: str = "related"):
+    def link_wallets(self, address1: str, address2: str, relationship: str = "related") -> None:
         """Create an edge between two wallets."""
         cluster1 = f"cluster_{hash_address(address1)}"
         cluster2 = f"cluster_{hash_address(address2)}"
@@ -196,16 +196,16 @@ class EntityClusteringEngine:
 
     def __init__(
         self, evm_client: EVMClient | None = None, solana_client: SolanaClient | None = None
-    ):
+    ) -> None:
         self.graph = EntityGraph()
         self.evm_client = evm_client or EVMClient()
         self.solana_client = solana_client or SolanaClient()
 
-    def add_wallet(self, address: str, chain: str = "ethereum", label: str = ""):
+    def add_wallet(self, address: str, chain: str = "ethereum", label: str = "") -> None:
         """Add a wallet to the entity graph."""
         self.graph.add_wallet(address, chain, label)
 
-    def batch_add_wallets(self, wallets: list[dict[str, str]]):
+    def batch_add_wallets(self, wallets: list[dict[str, str]]) -> None:
         """Add multiple wallets at once."""
         for wallet in wallets:
             address = wallet.get("address", "")

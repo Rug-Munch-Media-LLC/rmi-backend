@@ -219,7 +219,7 @@ async def trigger_n8n_workflow(workflow_name: str, data: dict | None = None) -> 
         return False
 
 
-async def execute_market_intelligence_pull(workflow_name: str):
+async def execute_market_intelligence_pull(workflow_name: str) -> None:
     """Execute a market intelligence data pull."""
     workflow = MARKET_INTEL_WORKFLOWS.get(workflow_name)
     if not workflow:
@@ -285,7 +285,7 @@ async def execute_market_intelligence_pull(workflow_name: str):
     await _process_intelligence_alerts(workflow_name, collected_data)
 
 
-async def _store_intelligence_data(table_name: str, data: dict):
+async def _store_intelligence_data(table_name: str, data: dict) -> None:
     """Store intelligence data in Supabase."""
     try:
         import os
@@ -309,7 +309,7 @@ async def _store_intelligence_data(table_name: str, data: dict):
         logger.error(f"Failed to store intelligence data: {e}")
 
 
-async def _process_intelligence_alerts(workflow_name: str, data: dict):
+async def _process_intelligence_alerts(workflow_name: str, data: dict) -> None:
     """Process intelligence data and trigger alerts."""
     # Check for significant findings
     if "whale" in workflow_name.lower():
@@ -332,7 +332,7 @@ async def _process_intelligence_alerts(workflow_name: str, data: dict):
                 await _create_alert("volume_spike", spike)
 
 
-async def _create_alert(alert_type: str, data: dict):
+async def _create_alert(alert_type: str, data: dict) -> None:
     """Create an intelligence alert."""
     try:
         import os

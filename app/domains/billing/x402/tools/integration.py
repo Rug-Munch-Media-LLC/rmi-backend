@@ -58,7 +58,7 @@ sub_router = APIRouter(tags=["x402-integration"])
 # ── OpenAI-Compatible Tools Endpoint ───────────────────────────
 
 
-async def _build_tools_from_catalog():
+async def _build_tools_from_catalog() -> Any:
     """Build tool list from TOOL_PRICES (source of truth for all 201+ tools)."""
     from app.routers.x402_enforcement import TOOL_PRICES
 
@@ -85,7 +85,7 @@ async def _build_tools_from_catalog():
 
 
 @sub_router.get("/discovery")
-async def tools_discovery():
+async def tools_discovery() -> Any:
     """Human-friendly tool discovery - organized by category with SEO descriptions.
 
     Returns all 71 RMI tools with pricing, descriptions, and categories.
@@ -98,7 +98,7 @@ async def tools_discovery():
 
 
 @sub_router.get("/catalog")
-async def tools_catalog_bot():
+async def tools_catalog_bot() -> Any:
     """Bot-optimized tool catalog - flat list with IDs, pricing, chain support.
 
     Designed for AI agents to quickly discover and call tools.
@@ -110,7 +110,7 @@ async def tools_catalog_bot():
 
 
 @sub_router.get("/openai-tools")
-async def openai_tools():
+async def openai_tools() -> dict[str, str]:
     """Returns ALL 201+ tool definitions in OpenAI function calling format.
     Use this with OpenAI Agents SDK or GPT-4o function calling.
     Each tool maps to POST /api/v1/x402-tools/{tool_name} with x402 payment."""
@@ -172,7 +172,7 @@ async def openai_tools():
 
 
 @sub_router.get("/langchain-tools")
-async def langchain_tools():
+async def langchain_tools() -> dict[str, str]:
     """Returns ALL 201+ tool definitions in LangChain format.
     Use with LangChain agents, LangGraph, or any LangChain-based system."""
     raw_tools = await _build_tools_from_catalog()
@@ -230,7 +230,7 @@ async def langchain_tools():
 
 
 @sub_router.get("/anthropic-tools")
-async def anthropic_tools():
+async def anthropic_tools() -> dict[str, str]:
     """Returns ALL 201+ tool definitions in Anthropic Claude API format.
     Use with Claude API (messages API) for native tool use."""
     raw_tools = await _build_tools_from_catalog()
@@ -289,7 +289,7 @@ async def anthropic_tools():
 
 
 @sub_router.get("/gemini-tools")
-async def gemini_tools():
+async def gemini_tools() -> dict[str, str]:
     """Returns ALL 201+ tool definitions in Google Gemini function calling format.
     Use with Google AI SDK or Vertex AI for Gemini models."""
     raw_tools = await _build_tools_from_catalog()
@@ -348,7 +348,7 @@ async def gemini_tools():
 
 
 @sub_router.get("/frameworks")
-async def framework_discovery():
+async def framework_discovery() -> dict[str, str]:
     """Returns all available framework integrations with endpoints.
     This is the master discovery endpoint for AI frameworks."""
     base = "https://mcp.rugmunch.io/api/v1/x402-tools"
@@ -415,14 +415,14 @@ async def framework_discovery():
 
 
 @sub_router.post("/comprehensive_audit")
-async def comprehensive_audit(req: AuditRequest):
+async def comprehensive_audit(req: AuditRequest) -> Any:
     """One-call deep audit combining rug check, forensics, social, and whale analysis."""
     import httpx
 
     try:
         BASE_URL = "http://localhost:8000"
 
-        async def get_rug():
+        async def get_rug() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/rugshield",
@@ -430,7 +430,7 @@ async def comprehensive_audit(req: AuditRequest):
                 )
                 return r.json() if r.status_code == 200 else None
 
-        async def get_forensics():
+        async def get_forensics() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/forensics",
@@ -438,7 +438,7 @@ async def comprehensive_audit(req: AuditRequest):
                 )
                 return r.json() if r.status_code == 200 else None
 
-        async def get_social():
+        async def get_social() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/sentiment",
@@ -446,7 +446,7 @@ async def comprehensive_audit(req: AuditRequest):
                 )
                 return r.json() if r.status_code == 200 else None
 
-        async def get_whale():
+        async def get_whale() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/whale",
@@ -541,14 +541,14 @@ async def comprehensive_audit(req: AuditRequest):
 
 
 @sub_router.post("/smart_money_alpha")
-async def smart_money_alpha(req: SmartMoneyAlphaRequest):
+async def smart_money_alpha(req: SmartMoneyAlphaRequest) -> Any:
     """One-call smart money signal combining wallet analysis, smart money tracking, and cluster/sybil detection."""
     import httpx
 
     try:
         BASE_URL = "http://localhost:8000"
 
-        async def get_wallet():
+        async def get_wallet() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/wallet",
@@ -556,12 +556,12 @@ async def smart_money_alpha(req: SmartMoneyAlphaRequest):
                 )
                 return r.json() if r.status_code == 200 else None
 
-        async def get_smartmoney():
+        async def get_smartmoney() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.get(f"{BASE_URL}/api/v1/x402-tools/smartmoney")
                 return r.json() if r.status_code == 200 else None
 
-        async def get_cluster():
+        async def get_cluster() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/cluster",
@@ -569,7 +569,7 @@ async def smart_money_alpha(req: SmartMoneyAlphaRequest):
                 )
                 return r.json() if r.status_code == 200 else None
 
-        async def get_insider():
+        async def get_insider() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/insider",
@@ -654,14 +654,14 @@ async def smart_money_alpha(req: SmartMoneyAlphaRequest):
 
 
 @sub_router.post("/meme_vibe_score")
-async def meme_vibe_score(req: MemeVibeRequest):
+async def meme_vibe_score(req: MemeVibeRequest) -> Any:
     """One-call meme token vibe check combining sentiment, social signals, and launch analysis."""
     import httpx
 
     try:
         BASE_URL = "http://localhost:8000"
 
-        async def get_sentiment():
+        async def get_sentiment() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/sentiment",
@@ -669,7 +669,7 @@ async def meme_vibe_score(req: MemeVibeRequest):
                 )
                 return r.json() if r.status_code == 200 else None
 
-        async def get_social_signal():
+        async def get_social_signal() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(
                     f"{BASE_URL}/api/v1/x402-tools/social_signal",
@@ -677,7 +677,7 @@ async def meme_vibe_score(req: MemeVibeRequest):
                 )
                 return r.json() if r.status_code == 200 else None
 
-        async def get_launch():
+        async def get_launch() -> Any:
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.get(
                     f"{BASE_URL}/api/v1/x402-tools/launch?address={req.token}&chain={req.chain}"
@@ -773,7 +773,7 @@ from app.domains.billing.x402.shared import BUNDLES as _BUNDLES  # noqa: E402
 
 
 @sub_router.get("/bundles")
-async def list_bundles():
+async def list_bundles() -> dict[str, dict]:
     """List all available tool bundles with pricing and savings."""
     return {
         "bundles": {
@@ -792,7 +792,7 @@ async def list_bundles():
 
 
 @sub_router.post("/bundles/security_pack")
-async def bundle_security_pack(req: BundleRequest):
+async def bundle_security_pack(req: BundleRequest) -> dict[str, str]:
     """Security Pack: rugshield + audit + urlcheck + honeypot_check at 23% discount."""
     target = req.address or req.token or req.url
     if not target:
@@ -853,7 +853,7 @@ async def bundle_security_pack(req: BundleRequest):
 
 
 @sub_router.post("/bundles/intelligence_pack")
-async def bundle_intelligence_pack(req: BundleRequest):
+async def bundle_intelligence_pack(req: BundleRequest) -> dict[str, str]:
     """Intelligence Pack: whale + smartmoney + cluster + insider at 29% discount."""
     wallet = req.wallet or req.address
     if not wallet:
@@ -893,7 +893,7 @@ async def bundle_intelligence_pack(req: BundleRequest):
 
 
 @sub_router.post("/bundles/all_in_one")
-async def bundle_all_in_one(req: BundleRequest):
+async def bundle_all_in_one(req: BundleRequest) -> dict[str, str]:
     """All-in-One: comprehensive_audit + smart_money_alpha + meme_vibe_score at 30% discount."""
     target = req.address or req.token or req.wallet
     if not target:
@@ -932,7 +932,7 @@ async def bundle_all_in_one(req: BundleRequest):
 
 
 @sub_router.post("/forensic_pack")
-async def bundle_forensic_pack(req: BundleRequest):
+async def bundle_forensic_pack(req: BundleRequest) -> dict[str, str]:
     """Forensic Investigation Pack - valuation + OSINT + report at 33% discount."""
     target = req.address or req.token or req.wallet
     if not target:
@@ -976,7 +976,7 @@ async def bundle_forensic_pack(req: BundleRequest):
 
 
 @sub_router.post("/mcp-proxy")
-async def mcp_proxy(req: MCPProxyRequest):
+async def mcp_proxy(req: MCPProxyRequest) -> dict[str, str] | dict:
     """Proxy MCP tool calls from Cloudflare Workers to external APIs.
     Maps service_tool to the appropriate external API and executes."""
     svc = req.service.lower()
@@ -1092,7 +1092,7 @@ async def _record_payment(tool_id: str, price_usd: str, payer: str) -> None:
 
 
 @sub_router.get("/payment-methods")
-async def get_payment_methods():
+async def get_payment_methods() -> dict[str, list[dict]]:
     """List all payment methods available for human wallet payments.
 
     Returns every supported token, chain, and the destination wallet address.
@@ -1119,7 +1119,7 @@ async def get_payment_methods():
 
 
 @sub_router.post("/human-execute")
-async def human_execute(req: Any):
+async def human_execute(req: Any) -> dict[str, bool]:
     """Execute a tool after human wallet payment verification.
 
     Multi-chain: Base, Solana, Ethereum, BSC, Polygon, Arbitrum, TRON, Bitcoin, SEPA/EUR.
@@ -1372,7 +1372,7 @@ async def _check_rate_limit(request: Request) -> bool:
 
 
 @sub_router.get("/{tool_id}")
-async def tool_alias_dispatcher_get(tool_id: str, request: Request):
+async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
     """GET catch-all for paid tools - converts query params to JSON body and dispatches.
 
     Handles x402 discovery agents and browser-based clients that use GET + query params
@@ -1508,7 +1508,7 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request):
 
 
 @sub_router.post("/{tool_id}")
-async def tool_alias_dispatcher(tool_id: str, request: Request):
+async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
     """Catch-all dispatcher for tool aliases and per-chain variants.
 
     Handles three cases:

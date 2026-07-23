@@ -20,6 +20,7 @@ import numpy as np
 import redis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("volume_authenticity")
 
@@ -37,13 +38,13 @@ class DetectionSignal:
 
     __slots__ = ("confidence", "detail", "score", "source")
 
-    def __init__(self, source: str, score: float, confidence: float, detail: str = ""):
+    def __init__(self, source: str, score: float, confidence: float, detail: str = "") -> None:
         self.source = source
         self.score = score  # 0.0 (organic) to 1.0 (artificial)
         self.confidence = confidence  # 0.0 to 1.0
         self.detail = detail
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "source": self.source,
             "score": round(self.score, 3),
@@ -70,10 +71,10 @@ class AuthenticityResult:
         "source",
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.source = "volume_authenticity_scorer"
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "fake_volume_pct": self.fake_volume_pct,
             "authentic_score": self.authentic_score,
@@ -287,7 +288,7 @@ class VolumeAuthenticityScorer:
         "buy_sell": 0.15,
     }
 
-    def __init__(self, weights: dict[str, float] | None = None):
+    def __init__(self, weights: dict[str, float] | None = None) -> None:
         self.weights = weights or self.DEFAULT_WEIGHTS.copy()
 
     def compute(self, signals: list[DetectionSignal], tx_count: int) -> AuthenticityResult:
@@ -433,7 +434,7 @@ class VolumeAuthenticityScorer:
 # ── DataBus Provider ────────────────────────────────────────────────
 
 
-def _redis_connect():
+def _redis_connect() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,

@@ -171,7 +171,7 @@ class RpcCache:
         self,
         l1_max_size: int = 10000,
         redis_url: str | None = None,
-    ):
+    ) -> None:
         """Initialize the cache.
 
         Args:
@@ -473,7 +473,7 @@ class RpcCache:
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
-    async def close(self):
+    async def close(self) -> None:
         """Close Redis connection if open."""
         if self._redis:
             try:
@@ -507,7 +507,7 @@ class RpcCache:
             logger.warning(f"Deserialization error: {e}")
             return None
 
-    def _evict_l1_if_needed(self):
+    def _evict_l1_if_needed(self) -> None:
         """Evict oldest entries from L1 if over capacity (LRU eviction)."""
         # Called within self._lock
         while len(self._l1) > self._l1_max:

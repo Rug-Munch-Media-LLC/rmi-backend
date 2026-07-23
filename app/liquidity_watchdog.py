@@ -30,7 +30,7 @@ EXPIRY_WINDOW_HOURS = 24
 _redis_pool = None
 
 
-def _get_redis():
+def _get_redis() -> Any:
     """Get a Redis client from the shared connection pool.
 
     Uses a module-level connection pool so connections are reused

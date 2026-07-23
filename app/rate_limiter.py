@@ -56,7 +56,7 @@ class ProviderLimit:
 PROVIDERS: list[ProviderLimit] = []
 
 
-def configure_providers(has_openrouter_credits: bool = True):
+def configure_providers(has_openrouter_credits: bool = True) -> None:
     """Configure provider limits based on credit status."""
     global PROVIDERS
 
@@ -209,12 +209,12 @@ configure_providers(has_openrouter_credits=True)
 class RateTracker:
     """Tracks per-provider usage in Redis + memory. Survives restarts."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._redis = None
         self._memory: dict[str, dict[str, int]] = {}  # provider_id → {minute, day, total}
         self._last_flush: dict[str, float] = {}
 
-    async def _connect(self):
+    async def _connect(self) -> None:
         if self._redis:
             return
         try:
@@ -254,7 +254,7 @@ class RateTracker:
         # Fallback to memory
         return self._memory.get(provider_id, {"day": 0, "minute": 0, "total": 0})
 
-    async def _incr(self, provider_id: str):
+    async def _incr(self, provider_id: str) -> None:
         """Increment usage counters."""
         today = time.strftime("%Y-%m-%d")
         minute_key = f"rmi:rate:{provider_id}:{today}:{int(time.time() // 60)}"
@@ -299,7 +299,7 @@ class RateTracker:
 
         return True
 
-    async def record(self, provider: ProviderLimit):
+    async def record(self, provider: ProviderLimit) -> None:
         """Record a successful call."""
         await self._incr(provider.id)
 
@@ -346,7 +346,7 @@ class EmbeddingCache:
     same embedding from the same provider. Zero API cost for repeats.
     """
 
-    def __init__(self, max_size: int = 10000):
+    def __init__(self, max_size: int = 10000) -> None:
         self._cache: dict[str, tuple[list[float], str]] = {}  # hash → (vector, provider)
         self._max = max_size
         self._hits = 0
@@ -363,7 +363,7 @@ class EmbeddingCache:
         self._misses += 1
         return None
 
-    def set(self, text: str, vector: list[float], provider: str):
+    def set(self, text: str, vector: list[float], provider: str) -> None:
         if len(self._cache) >= self._max:
             # Evict oldest 10%
             keys = list(self._cache.keys())[: self._max // 10]
@@ -373,7 +373,7 @@ class EmbeddingCache:
         # Persist to Redis asynchronously (best-effort)
         self._save_to_redis()
 
-    def _save_to_redis(self):
+    def _save_to_redis(self) -> None:
         """Persist cache to Redis so it survives restarts."""
         try:
             import json
@@ -394,7 +394,7 @@ class EmbeddingCache:
         except Exception:
             pass
 
-    def load_from_redis(self):
+    def load_from_redis(self) -> None:
         """Restore cache from Redis on startup."""
         try:
             import json
@@ -436,13 +436,13 @@ class EmbeddingCache:
 class EmbeddingDispatcher:
     """Routes embedding requests to the best provider with available capacity."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tracker = RateTracker()
         self.cache = EmbeddingCache()
         self._local_model = None
         self._providers = PROVIDERS
 
-    async def init(self):
+    async def init(self) -> None:
         await self.tracker._connect()
         # Restore cache from Redis if available
         self.cache.load_from_redis()
@@ -582,7 +582,7 @@ class EmbeddingDispatcher:
 
         return result, provider_name
 
-    async def _log_to_bigquery(self, provider: str, task: str, count: int):
+    async def _log_to_bigquery(self, provider: str, task: str, count: int) -> None:
         """Log embedding usage to BigQuery (best-effort, fire-and-forget)."""
         try:
             from app.bigquery_pipeline import stream_embedding_usage

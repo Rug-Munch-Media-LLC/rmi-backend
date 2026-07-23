@@ -16,16 +16,17 @@ Architecture:
 """
 
 from app.domains.scanner.models import ScanResult
+from typing import Any
 
 
-def quick_scan_text(*args, **kwargs):
+def quick_scan_text(*args, **kwargs) -> Any:
     """Lazy import to avoid circular dependency with modules package."""
     from app.domains.scanner.service import quick_scan_text as _f
 
     return _f(*args, **kwargs)
 
 
-def scan_token(*args, **kwargs):
+def scan_token(*args, **kwargs) -> Any:
     """Lazy import to avoid circular dependency with modules package."""
     from app.domains.scanner.service import scan_token as _f
 

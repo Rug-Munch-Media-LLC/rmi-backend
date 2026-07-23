@@ -18,6 +18,7 @@ import httpx
 import redis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("premium_scanner")
 
@@ -39,7 +40,7 @@ CACHE_TTL = {
 }
 
 
-def _redis_connect():
+def _redis_connect() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,

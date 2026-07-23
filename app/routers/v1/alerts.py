@@ -47,7 +47,7 @@ VALID_ALERT_TYPES = [
 # ── Redis helper ─────────────────────────────────────────────────────
 
 
-async def _get_redis():
+async def _get_redis() -> Any | None:
     """Get async Redis connection."""
     try:
         import redis.asyncio as aioredis

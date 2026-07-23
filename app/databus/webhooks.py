@@ -19,6 +19,7 @@ import httpx
 import redis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("webhooks")
 
@@ -55,7 +56,7 @@ WEBHOOK_CONFIGS = {
 }
 
 
-def _redis():
+def _redis() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,

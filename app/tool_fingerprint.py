@@ -235,7 +235,7 @@ class ToolFingerprinter:
     and temporal signatures to identify specific tools.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._seen_txs: set[str] = set()
         self._known_scammers: set[str] = set()
         self._cex_wallets: set[str] = set()

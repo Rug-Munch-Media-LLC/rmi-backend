@@ -71,7 +71,7 @@ NETWORKS = {
 class EtherscanConnector:
     """Etherscan family API connector with intelligent key rotation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._cache: dict[str, tuple] = {}
         self._cache_ttl = 300  # 5 min
         self._last_request: dict[str, float] = {}  # per-network rate limiting
@@ -86,7 +86,7 @@ class EtherscanConnector:
         net = self._get_network(network)
         return net.get("key", ETHERSCAN_API_KEY)
 
-    async def _rate_limit(self, network: str):
+    async def _rate_limit(self, network: str) -> None:
         now = time.monotonic()
         last = self._last_request.get(network, 0)
         elapsed = now - last
@@ -101,7 +101,7 @@ class EtherscanConnector:
                 return data
         return None
 
-    def _set_cache(self, key: str, data: Any):
+    def _set_cache(self, key: str, data: Any) -> None:
         self._cache[key] = (data, time.time())
         if len(self._cache) > 500:
             oldest = min(self._cache, key=lambda k: self._cache[k][1])

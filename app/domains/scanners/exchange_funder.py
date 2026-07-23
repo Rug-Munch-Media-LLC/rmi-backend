@@ -88,7 +88,7 @@ class ExchangeFunderDetector:
         ],
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._chain = ChainClient()
         self._solscan = FreeSolscanClient()

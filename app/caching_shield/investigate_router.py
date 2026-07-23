@@ -8,6 +8,7 @@ import time
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+from typing import Any
 
 router = APIRouter(prefix="/api/v1/investigate", tags=["investigate"])
 
@@ -46,7 +47,7 @@ CHAIN_NAMES = {
 
 
 @router.get("/chains")
-async def list_chains():
+async def list_chains() -> dict[str, list[dict[str, str]]]:
     return {
         "chains": [
             {"name": "Solana", "id": 0},
@@ -65,7 +66,7 @@ async def list_chains():
 
 
 @router.post("/trace")
-async def trace_wallet_funding(req: TraceRequest):
+async def trace_wallet_funding(req: TraceRequest) -> Any:
     """Trace funding source for any wallet (Solana or EVM)."""
     chain = req.chain.lower()
     chain_id = req.chain_id or CHAIN_NAMES.get(chain, 1)
@@ -77,7 +78,7 @@ async def trace_wallet_funding(req: TraceRequest):
 
 
 @router.post("/scan")
-async def full_investigation(req: ScanRequest):
+async def full_investigation(req: ScanRequest) -> dict:
     """Full investigation: trace + risk + labels."""
     chain = req.chain.lower()
     chain_id = req.chain_id or CHAIN_NAMES.get(chain, 1)
@@ -116,7 +117,7 @@ async def full_investigation(req: ScanRequest):
 
 
 @router.get("/health")
-async def fallback_health():
+async def fallback_health() -> Any:
     """Check fallback engine status."""
     from app.caching_shield.data_fallback import get_data_engine
 
@@ -124,7 +125,7 @@ async def fallback_health():
 
 
 @router.post("/graph")
-async def investigation_graph(req: GraphRequest):
+async def investigation_graph(req: GraphRequest) -> dict[str, Any | None]:
     """
     Return knowledge graph subgraph as cytoscape.js-compatible JSON.
     Centers on the given address, explores outward up to `depth` hops.
@@ -236,7 +237,7 @@ async def investigation_graph(req: GraphRequest):
 
 
 @router.post("/fund-flow")
-async def fund_flow_sankey(req: GraphRequest):
+async def fund_flow_sankey(req: GraphRequest) -> dict:
     """
     Return fund flow data formatted for D3 Sankey diagram.
     Shows creator → funders → LPs → sellers flow with amounts.

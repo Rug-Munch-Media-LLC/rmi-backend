@@ -11,6 +11,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/email", tags=["email"])
@@ -47,7 +48,7 @@ async def _get_token() -> str:
 # SUBSCRIBERS
 # ═══════════════════════════════════════════════════════════
 @router.get("/subscribers")
-async def list_subscribers():
+async def list_subscribers() -> Any:
     token = await _get_token()
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(f"{LISTMONK_URL}/subscribers", headers={"Authorization": f"Bearer {token}"})
@@ -55,7 +56,7 @@ async def list_subscribers():
 
 
 @router.post("/subscribers")
-async def add_subscriber(data: dict):
+async def add_subscriber(data: dict) -> Any:
     email = data.get("email", "")
     name = data.get("name", "")
     if not email:
@@ -74,7 +75,7 @@ async def add_subscriber(data: dict):
 # NEWSLETTER CAMPAIGNS
 # ═══════════════════════════════════════════════════════════
 @router.post("/campaign")
-async def create_campaign(data: dict):
+async def create_campaign(data: dict) -> Any:
     subject = data.get("subject", "RMI Intelligence Update")
     body = data.get("body", "")
     list_ids = data.get("list_ids", [1])
@@ -98,7 +99,7 @@ async def create_campaign(data: dict):
 
 
 @router.get("/campaigns")
-async def list_campaigns():
+async def list_campaigns() -> Any:
     token = await _get_token()
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(f"{LISTMONK_URL}/campaigns", headers={"Authorization": f"Bearer {token}"})
@@ -109,7 +110,7 @@ async def list_campaigns():
 # TRANSACTIONAL - Direct Gmail SMTP
 # ═══════════════════════════════════════════════════════════
 @router.post("/send")
-async def send_transactional(data: dict):
+async def send_transactional(data: dict) -> dict[str, str]:
     """Send a single transactional email via Gmail SMTP."""
     to = data.get("to", "")
     subject = data.get("subject", "RMI Alert")
@@ -150,7 +151,7 @@ async def send_transactional(data: dict):
 
 
 @router.get("/status")
-async def email_status():
+async def email_status() -> dict[str, str]:
     return {
         "provider": "listmonk + gmail",
         "smtp": "smtp.gmail.com:587",

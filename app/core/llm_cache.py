@@ -26,7 +26,7 @@ def get_cached(prompt: str, model: str) -> dict | None:
     return None
 
 
-def set_cached(prompt: str, model: str, result: dict, ttl: int = CACHE_TTL):
+def set_cached(prompt: str, model: str, result: dict, ttl: int = CACHE_TTL) -> None:
     """Cache a prompt result."""
     import redis
 

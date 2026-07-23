@@ -65,7 +65,7 @@ class CoinGeckoConnector:
 
     BASE_URL = "https://api.coingecko.com/api/v3"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._cache: dict[str, tuple] = {}  # key -> (expiry, value)
         self._last_request = 0.0
         self._min_interval = 2.0  # 30 req/min on Demo tier

@@ -17,7 +17,7 @@ async def token_intelligence(
     """Return composite token intelligence — all DataBus layers in one call."""
     start = time.perf_counter()
 
-    async def _fetch(name: str, coro):
+    async def _fetch(name: str, coro) -> Any | dict:
         try:
             return await asyncio.wait_for(coro, timeout=15.0)
         except Exception as e:

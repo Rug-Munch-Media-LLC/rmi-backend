@@ -337,7 +337,7 @@ class ScamIngestionPipeline:
         stats = await pipeline.run_full_ingestion()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._last_run: datetime | None = None
         self._total_ingested = 0
         # Primary: RSS feeds (always work)

@@ -549,7 +549,7 @@ class HoneypotSystem:
         return fake_responses.get(path, {"status": "ok", "data": "sensitive_data_here"})
 
     @staticmethod
-    async def _log_security_event(event: SecurityEvent):
+    async def _log_security_event(event: SecurityEvent) -> None:
         """Log security event to Redis and file."""
         try:
             import redis.asyncio as redis_lib
@@ -655,7 +655,7 @@ class DDoSProtector:
             return {"allowed": True}  # Fail open
 
     @staticmethod
-    async def close_circuit(endpoint: str):
+    async def close_circuit(endpoint: str) -> None:
         """Manually close a circuit breaker."""
         try:
             import redis.asyncio as redis_lib

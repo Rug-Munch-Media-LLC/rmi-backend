@@ -135,7 +135,7 @@ async def _fetch_solana_balance(address: str) -> dict:
     return {"balance": 0, "balance_usd": 0}
 
 
-def log_revenue(tool_id: str, amount_usd: float, chain: str, facilitator: str):
+def log_revenue(tool_id: str, amount_usd: float, chain: str, facilitator: str) -> None:
     """Log a revenue event for tracking by source."""
     _revenue_log.append(
         {

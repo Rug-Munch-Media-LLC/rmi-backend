@@ -688,7 +688,7 @@ All labels: {json.dumps(labels["all_labels"])}"""
 # ══════════════════════════════════════════════════════════════════════
 
 
-async def backfill_label_templates():
+async def backfill_label_templates() -> Any:
     """Index all cluster label templates into pgvector for auto-labeling."""
     from app.crypto_embeddings import get_embedder
     from app.supabase_vector import get_vector_store

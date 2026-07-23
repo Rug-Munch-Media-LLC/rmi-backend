@@ -22,7 +22,7 @@ class TokenSummary(BaseModel):
 
 
 @router.get("/{address}", response_model=TokenSummary)
-async def get_token_info(address: str, chain: str = "ethereum"):
+async def get_token_info(address: str, chain: str = "ethereum") -> None:
     """Get token summary by address.
 
     NOTE: Full implementation delegates to app.api.v1.public.token.
@@ -35,7 +35,7 @@ async def get_token_info(address: str, chain: str = "ethereum"):
 
 
 @router.get("/{address}/risk")
-async def get_token_risk(address: str, chain: str = "ethereum"):
+async def get_token_risk(address: str, chain: str = "ethereum") -> None:
     """Get token risk assessment."""
     raise HTTPException(
         status_code=503,

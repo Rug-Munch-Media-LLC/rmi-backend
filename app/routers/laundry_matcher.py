@@ -26,7 +26,7 @@ class LaundryMatch(BaseModel):
 def _name_similarity(a: str, b: str) -> float:
     """Simple trigram similarity for token names."""
 
-    def trigrams(s):
+    def trigrams(s) -> set:
         s = s.lower().replace(" ", "")
         return {s[i : i + 3] for i in range(len(s) - 2)} if len(s) >= 3 else {s}
 
@@ -55,7 +55,7 @@ async def find_matches(
     chain: str = Query("solana"),
     min_similarity: float = Query(0.3, ge=0, le=1),
     limit: int = Query(10, le=25),
-):
+) -> dict[str, dict]:
     """Find tokens similar to the given address. Returns top-N copycat matches."""
     # Get reference token data
     try:
@@ -125,7 +125,7 @@ async def find_matches(
 
 
 @router.get("/scan-similar/{address}")
-async def scan_and_match(address: str, chain: str = Query("solana")):
+async def scan_and_match(address: str, chain: str = Query("solana")) -> dict:
     """Scan the address AND find its matches in a single call."""
     async with httpx.AsyncClient(timeout=20) as client:
         scan_task = client.post(

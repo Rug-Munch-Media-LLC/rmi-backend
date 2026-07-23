@@ -114,7 +114,7 @@ class EntityMatch:
 class EntityRegistry:
     """Known entity recognition - excludes infrastructure from analysis."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._exchange_addrs: set[str] = set()
         self._defi_addrs: set[str] = set()
         self._mixer_addrs: set[str] = set()
@@ -122,7 +122,7 @@ class EntityRegistry:
         self._all_known: dict[str, EntityMatch] = {}
         self._build_index()
 
-    def _build_index(self):
+    def _build_index(self) -> None:
         """Build unified lookup index from all known sources."""
         # CEX wallets
         for exchange, addrs in KNOWN_CEX_WALLETS.items():
@@ -169,7 +169,7 @@ class EntityRegistry:
             f"{len(self._scam_addrs)} scams, {len(self._all_known)} total"
         )
 
-    def _load_local_labels(self):
+    def _load_local_labels(self) -> None:
         """Load address labels from local wallet_labels.json."""
         label_paths = [
             "/root/data/wallet_labels.json",

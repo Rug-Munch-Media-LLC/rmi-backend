@@ -110,7 +110,7 @@ class Severity(Enum):
     def score(self) -> float:
         return {"critical": 1.0, "high": 0.75, "medium": 0.5, "low": 0.25, "info": 0.0}[self.value]
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         return self.score < other.score if isinstance(other, Severity) else NotImplemented
 
 
@@ -513,7 +513,7 @@ class OracleManipulationDetector:
         chain: str = "ethereum",
         rpc_url: str | None = None,
         enable_network: bool = False,
-    ):
+    ) -> None:
         self.chain = chain
         self.rpc_url = rpc_url or SUPPORTED_CHAINS.get(chain, {}).get("rpc", "")
         self.enable_network = enable_network
@@ -1212,7 +1212,7 @@ def _calculate_twap_from_samples(samples: list[PriceSnapshot]) -> TWAPWindow | N
 # ═══════════════════════════════════════════════════════════════════
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Oracle Manipulation Detector - detect price oracle attacks across EVM chains"
     )

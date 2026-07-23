@@ -50,7 +50,7 @@ NETWORKS = {
 class AlchemyConnector:
     """Alchemy API connector for NFTs, enhanced APIs, and transactions."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_key = ALCHEMY_API_KEY
         self._cache: dict[str, tuple] = {}
         self._cache_ttl = 300  # 5 min
@@ -61,7 +61,7 @@ class AlchemyConnector:
         """Get base URL for network."""
         return NETWORKS.get(network, NETWORKS["eth"])
 
-    async def _rate_limit(self):
+    async def _rate_limit(self) -> None:
         now = time.monotonic()
         elapsed = now - self._last_request
         if elapsed < self._min_interval:
@@ -75,7 +75,7 @@ class AlchemyConnector:
                 return data
         return None
 
-    def _set_cache(self, key: str, data: Any):
+    def _set_cache(self, key: str, data: Any) -> None:
         self._cache[key] = (data, time.time())
         if len(self._cache) > 500:
             oldest = min(self._cache, key=lambda k: self._cache[k][1])

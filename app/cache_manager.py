@@ -206,7 +206,7 @@ FREE_PROVIDERS = {
 class RMICache:
     """Centralized cache with Redis primary + dict fallback + credit tracking."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._redis = None
         self._redis_available = False
         self._memory: dict[str, tuple[Any, float]] = {}
@@ -215,7 +215,7 @@ class RMICache:
         self._lock = asyncio.Lock()
         self._init_redis()
 
-    def _init_redis(self):
+    def _init_redis(self) -> None:
         try:
             import redis.asyncio as redis
 
@@ -252,7 +252,7 @@ class RMICache:
             pass
         return None
 
-    async def _redis_set(self, key: str, value: Any, ttl: int):
+    async def _redis_set(self, key: str, value: Any, ttl: int) -> None:
         try:
             if await self._redis_ping():
                 await self._redis.setex(f"rmi:cache:{key}", ttl, json.dumps(value, default=str))
@@ -265,7 +265,7 @@ class RMICache:
             return entry[0]
         return None
 
-    def _mem_set(self, key: str, value: Any, ttl: int):
+    def _mem_set(self, key: str, value: Any, ttl: int) -> None:
         self._memory[key] = (value, time.time() + ttl)
 
     def _get_stats(self, source: str) -> dict[str, Any]:
@@ -403,14 +403,14 @@ class RMICache:
             "sources": sources,
         }
 
-    def warm_cache(self, key: str, data: Any, ttl: int | None = None, source: str = "manual"):
+    def warm_cache(self, key: str, data: Any, ttl: int | None = None, source: str = "manual") -> None:
         """Pre-warm cache with data (e.g., from cron jobs)."""
         if ttl is None:
             ttl = PROVIDER_CONFIG.get(source, {}).get("ttl", 60)
         asyncio.ensure_future(self._redis_set(key, data, ttl))
         self._mem_set(key, data, ttl)
 
-    async def invalidate(self, key: str):
+    async def invalidate(self, key: str) -> None:
         """Force-invalidate a cache key."""
         try:
             if self._redis and self._redis_available:

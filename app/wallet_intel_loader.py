@@ -10,6 +10,7 @@ import json
 import os
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -17,7 +18,7 @@ WALLET_DB_PATH = "/app/data/wallet_database.json"
 CRM_SOSANA_PATH = "/app/data/SOSANA-CRM-2024.json"
 
 
-def load_all_wallet_intel(redis_client):
+def load_all_wallet_intel(redis_client) -> Any:
     """Load all investigation data into Redis. Call at startup."""
     loaded = {"wallets": 0, "entities": 0, "cases": 0}
 

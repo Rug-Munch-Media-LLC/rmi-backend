@@ -143,7 +143,7 @@ class GasTraceAnalyzer:
     FRESH_WALLET_DAYS = 7
     CEX_TX_THRESHOLD = 1000
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=20.0)
 
     async def analyze(self, deployer_address: str, chain: str) -> GasTraceReport:

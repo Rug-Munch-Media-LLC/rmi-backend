@@ -406,7 +406,7 @@ class RateLimitTracker:
       - Peak headroom:          ~950 calls/day remaining for bursts
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._minute: dict[str, int] = defaultdict(int)  # provider → calls this minute
         self._hour: dict[str, int] = defaultdict(int)
         self._day: dict[str, int] = defaultdict(int)
@@ -416,7 +416,7 @@ class RateLimitTracker:
         self._total_calls = 0
         self._throttled = 0
 
-    def _reset_windows(self):
+    def _reset_windows(self) -> None:
         now = time.time()
         if now - self._minute_start > 60:
             self._minute.clear()
@@ -459,7 +459,7 @@ class RateLimitTracker:
 
         return True, ""
 
-    def record_call(self, provider: str, tokens: int = 0):
+    def record_call(self, provider: str, tokens: int = 0) -> None:
         """Record a successful API call."""
         self._reset_windows()
         self._minute[provider] += 1
@@ -467,7 +467,7 @@ class RateLimitTracker:
         self._day[provider] += 1
         self._total_calls += 1
 
-    def record_throttle(self, provider: str):
+    def record_throttle(self, provider: str) -> None:
         """Record a throttled/blocked call."""
         self._throttled += 1
 
@@ -526,7 +526,7 @@ def _can_use(model_config: dict) -> bool:
     return True
 
 
-def _track_usage(model_id: str, tokens: int = 0):
+def _track_usage(model_id: str, tokens: int = 0) -> None:
     """Track model usage through the rate tracker."""
     for _provider, _limits in PROVIDER_LIMITS.items():
         # Match model to provider

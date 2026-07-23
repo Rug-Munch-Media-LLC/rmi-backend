@@ -12,6 +12,7 @@ import httpx
 from defusedxml import ElementTree as SafeET
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("rmi.global")
 
@@ -112,7 +113,7 @@ MAJOR_NEWS = [
 ]
 
 
-def fetch_rss(source, url, limit=30):
+def fetch_rss(source, url, limit=30) -> Any:
     """Fetch RSS and return articles."""
     results = []
     try:
@@ -201,7 +202,7 @@ def fetch_rss(source, url, limit=30):
     return results
 
 
-def fetch_all_global():
+def fetch_all_global() -> dict[str, int] | dict[str, str]:
     """Fetch all global news sources."""
     all_articles = []
 

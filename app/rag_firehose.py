@@ -156,7 +156,7 @@ class FirehoseStats:
 class IngestionPipeline:
     """Filters, deduplicates, and enriches documents before RAG storage."""
 
-    def __init__(self, client: httpx.AsyncClient):
+    def __init__(self, client: httpx.AsyncClient) -> None:
         self.client = client
         self._rate_trackers: dict[str, list[float]] = {}  # collection → recent ingest timestamps
 
@@ -169,7 +169,7 @@ class IngestionPipeline:
         times[:] = [t for t in times if now - t < 60]
         return len(times) < limit
 
-    def _record_ingest(self, collection: str):
+    def _record_ingest(self, collection: str) -> None:
         """Record an ingestion for rate limiting."""
         self._rate_trackers.setdefault(collection, []).append(time.monotonic())
 
@@ -360,7 +360,7 @@ class IngestionPipeline:
         except Exception as e:
             return {"status": "error", "detail": str(e)[:200]}
 
-    async def _mark_ingested(self, content_hash: str, collection: str):
+    async def _mark_ingested(self, content_hash: str, collection: str) -> None:
         """Mark content hash in Redis dedup set."""
         try:
             ttl = HASH_TTL.get(collection, HASH_TTL["default"])
@@ -407,7 +407,7 @@ class IngestionPipeline:
 class FeedSources:
     """All data sources the firehose can pull from."""
 
-    def __init__(self, client: httpx.AsyncClient):
+    def __init__(self, client: httpx.AsyncClient) -> None:
         self.client = client
 
     # ── Hourly: News ──
@@ -681,7 +681,7 @@ class FeedSources:
 class FirehoseEngine:
     """The central continuous ingestion engine."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._running = False
         self._task: asyncio.Task | None = None
         self._client: httpx.AsyncClient | None = None
@@ -692,7 +692,7 @@ class FirehoseEngine:
         self.stats = FirehoseStats()
         self._lock = asyncio.Lock()
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the firehose engine."""
         if self._running:
             logger.info("Firehose already running")
@@ -773,7 +773,7 @@ class FirehoseEngine:
         self._task = asyncio.create_task(self._run_loop())
         logger.info(f"Firehose started with {len(self._sources)} sources")
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the firehose engine."""
         self._running = False
         if self._task:
@@ -784,7 +784,7 @@ class FirehoseEngine:
             await self._client.aclose()
         logger.info("Firehose stopped")
 
-    async def _run_loop(self):
+    async def _run_loop(self) -> None:
         """Main firehose loop - checks sources and runs those due."""
         logger.info("Firehose loop started")
 

@@ -122,12 +122,12 @@ class TokenWatchService:
         "sol": "solana",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._redis = None
         self._running = False
         self._check_task: asyncio.Task | None = None
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         """Get async Redis client."""
         if self._redis is None:
             try:
@@ -425,7 +425,7 @@ class TokenWatchService:
 
     # ── Background Monitor Loop ───────────────────────────────────
 
-    async def start_monitor(self, interval: int = 60):
+    async def start_monitor(self, interval: int = 60) -> None:
         """Start the background monitoring loop."""
         if self._running:
             return
@@ -433,14 +433,14 @@ class TokenWatchService:
         self._check_task = asyncio.create_task(self._monitor_loop(interval))
         logger.info(f"Token watch monitor started (interval={interval}s)")
 
-    async def stop_monitor(self):
+    async def stop_monitor(self) -> None:
         """Stop the monitoring loop."""
         self._running = False
         if self._check_task:
             self._check_task.cancel()
         logger.info("Token watch monitor stopped")
 
-    async def _monitor_loop(self, interval: int):
+    async def _monitor_loop(self, interval: int) -> None:
         """Periodically check all active watches."""
         while self._running:
             try:

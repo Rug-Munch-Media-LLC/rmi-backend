@@ -48,7 +48,7 @@ class FacilitatorRouter:
         6. Recent success rate (prefer proven facilitators)
     """
 
-    def __init__(self, registry: FacilitatorRegistry | None = None):
+    def __init__(self, registry: FacilitatorRegistry | None = None) -> None:
         self._registry = registry or get_registry()
         self._health_cache: dict[str, tuple[bool, float]] = {}  # name → (healthy, timestamp)
         self._success_counts: dict[str, int] = defaultdict(int)

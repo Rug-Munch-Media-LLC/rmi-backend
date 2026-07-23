@@ -722,7 +722,7 @@ async def get_x402_earnings_summary() -> dict:
         }
 
 
-async def ensure_x402_payments_table():
+async def ensure_x402_payments_table() -> bool:
     """Create x402_payments table in Supabase if it doesn't exist."""
     sql = """
     DO $$ BEGIN

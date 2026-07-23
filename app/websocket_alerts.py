@@ -58,7 +58,7 @@ class RealTimeAlert:
         chain: str = "ethereum",
         wallet_address: str = "",
         related_entities: list[str] | None = None,
-    ):
+    ) -> None:
         self.alert_type = alert_type
         self.message = message
         self.severity = severity
@@ -94,13 +94,13 @@ class RealTimeAlert:
 class AlertBroadcaster:
     """Broadcasts alerts to connected WebSocket clients."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.clients: dict[str, WebSocket] = {}
         self.subscriptions: dict[str, set[str]] = defaultdict(set)  # wallet -> client_id
         self.alert_queue: list[RealTimeAlert] = []
         self.max_queue_size = 1000
 
-    async def connect(self, websocket: WebSocket, client_id: str | None = None):
+    async def connect(self, websocket: WebSocket, client_id: str | None = None) -> Any:
         """Accept a WebSocket connection."""
         await websocket.accept()
         if not client_id:
@@ -109,7 +109,7 @@ class AlertBroadcaster:
         logger.info(f"WebSocket client connected: {client_id}")
         return client_id
 
-    async def disconnect(self, client_id: str):
+    async def disconnect(self, client_id: str) -> None:
         """Remove a client."""
         if client_id in self.clients:
             del self.clients[client_id]
@@ -118,15 +118,15 @@ class AlertBroadcaster:
                 self.subscriptions[wallet].discard(client_id)
             logger.info(f"WebSocket client disconnected: {client_id}")
 
-    def subscribe(self, client_id: str, wallet_address: str):
+    def subscribe(self, client_id: str, wallet_address: str) -> None:
         """Subscribe a client to wallet alerts."""
         self.subscriptions[wallet_address].add(client_id)
 
-    def unsubscribe(self, client_id: str, wallet_address: str):
+    def unsubscribe(self, client_id: str, wallet_address: str) -> None:
         """Unsubscribe a client from wallet alerts."""
         self.subscriptions[wallet_address].discard(client_id)
 
-    async def broadcast(self, alert: RealTimeAlert):
+    async def broadcast(self, alert: RealTimeAlert) -> None:
         """Broadcast an alert to relevant clients."""
         self.alert_queue.append(alert)
 
@@ -155,7 +155,7 @@ class AlertBroadcaster:
                     logger.error(f"Failed to send alert to {client_id}: {e}")
                     await self.disconnect(client_id)
 
-    async def broadcast_system_status(self, status: str, details: dict[str, Any] | None = None):
+    async def broadcast_system_status(self, status: str, details: dict[str, Any] | None = None) -> None:
         """Broadcast system status update."""
         alert = RealTimeAlert(
             alert_type=AlertType.SYSTEM_STATUS,
@@ -167,7 +167,7 @@ class AlertBroadcaster:
 
     async def broadcast_security_alert(
         self, wallet: str, severity: str, message: str, chain: str = "ethereum"
-    ):
+    ) -> None:
         """Broadcast a security alert."""
         alert = RealTimeAlert(
             alert_type=AlertType.SECURITY_ALERT,
@@ -179,7 +179,7 @@ class AlertBroadcaster:
         )
         await self.broadcast(alert)
 
-    async def broadcast_transaction(self, wallet: str, tx_hash: str, chain: str = "ethereum"):
+    async def broadcast_transaction(self, wallet: str, tx_hash: str, chain: str = "ethereum") -> None:
         """Broadcast a new transaction."""
         alert = RealTimeAlert(
             alert_type=AlertType.NEW_TRANSACTION,
@@ -191,7 +191,7 @@ class AlertBroadcaster:
         )
         await self.broadcast(alert)
 
-    async def broadcast_cross_chain(self, from_chain: str, to_chain: str, wallet: str):
+    async def broadcast_cross_chain(self, from_chain: str, to_chain: str, wallet: str) -> None:
         """Broadcast cross-chain movement."""
         alert = RealTimeAlert(
             alert_type=AlertType.CROSS_CHAIN,
@@ -218,26 +218,26 @@ class AlertBroadcaster:
 class WebSocketManager:
     """Manages WebSocket connections and events."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.broadcaster = AlertBroadcaster()
         self.active_connections: dict[str, WebSocket] = {}
         self.connection_lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket, client_id: str | None = None):
+    async def connect(self, websocket: WebSocket, client_id: str | None = None) -> None:
         """Connect a new WebSocket client."""
         async with self.connection_lock:
             client_id = await self.broadcaster.connect(websocket, client_id)
             self.active_connections[client_id] = websocket
             await websocket.send_json({"type": "connected", "client_id": client_id})
 
-    async def disconnect(self, client_id: str):
+    async def disconnect(self, client_id: str) -> None:
         """Disconnect a WebSocket client."""
         async with self.connection_lock:
             await self.broadcaster.disconnect(client_id)
             if client_id in self.active_connections:
                 del self.active_connections[client_id]
 
-    async def receive_message(self, client_id: str, message: str):
+    async def receive_message(self, client_id: str, message: str) -> None:
         """Handle incoming message from client."""
         try:
             data = json.loads(message)
@@ -267,21 +267,21 @@ class WebSocketManager:
         except json.JSONDecodeError:
             logger.error(f"Invalid JSON from {client_id}")
 
-    async def broadcast(self, alert: RealTimeAlert):
+    async def broadcast(self, alert: RealTimeAlert) -> None:
         """Broadcast an alert to all connected clients."""
         await self.broadcaster.broadcast(alert)
 
     async def broadcast_security_alert(
         self, wallet: str, severity: str, message: str, chain: str = "ethereum"
-    ):
+    ) -> None:
         """Broadcast a security alert."""
         await self.broadcaster.broadcast_security_alert(wallet, severity, message, chain)
 
-    async def broadcast_transaction(self, wallet: str, tx_hash: str, chain: str = "ethereum"):
+    async def broadcast_transaction(self, wallet: str, tx_hash: str, chain: str = "ethereum") -> None:
         """Broadcast a new transaction."""
         await self.broadcaster.broadcast_transaction(wallet, tx_hash, chain)
 
-    async def broadcast_cross_chain(self, from_chain: str, to_chain: str, wallet: str):
+    async def broadcast_cross_chain(self, from_chain: str, to_chain: str, wallet: str) -> None:
         """Broadcast cross-chain movement."""
         await self.broadcaster.broadcast_cross_chain(from_chain, to_chain, wallet)
 
@@ -292,7 +292,7 @@ class WebSocketManager:
 ws_manager = WebSocketManager()
 
 
-async def start_websocket_handler():
+async def start_websocket_handler() -> Any:
     """Start the WebSocket manager."""
     logger.info("WebSocket manager started")
     return ws_manager
@@ -303,7 +303,7 @@ def get_websocket_manager() -> WebSocketManager:
     return ws_manager
 
 
-async def websocket_alert_endpoint(websocket: WebSocket, client_id: str = "default"):
+async def websocket_alert_endpoint(websocket: WebSocket, client_id: str = "default") -> None:
     """WebSocket endpoint for real-time alerts."""
     await ws_manager.connect(websocket, client_id)
 
@@ -321,11 +321,11 @@ async def websocket_alert_endpoint(websocket: WebSocket, client_id: str = "defau
 # ─── TEST HELPER ──────────────────────────────────────────────────────
 
 
-async def test_websocket_alerts():
+async def test_websocket_alerts() -> None:
     """Test the WebSocket alert system."""
     import asyncio
 
-    async def mock_client():
+    async def mock_client() -> None:
         """Simulate a WebSocket client."""
         import websockets
 

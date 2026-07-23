@@ -88,7 +88,7 @@ def extract_boundaries(
     source.split("\n")
     _compute_line_offsets(source)
 
-    def _walk(node, depth=0):
+    def _walk(node, depth=0) -> None:
         if not isinstance(node, dict):
             return
 

@@ -128,7 +128,7 @@ class StaticAnalysisReport:
 class StaticAnalyzer:
     """Run Slither static analysis + Forta alerts + SmartCheck for EVM contracts."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=20.0)
         self._etherscan_key = os.getenv("ETHERSCAN_API_KEY", "")
         self._slither_available = shutil.which(SLITHER_BIN) is not None

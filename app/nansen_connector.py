@@ -71,7 +71,7 @@ class NansenClient:
         base_url: str = NANSEN_BASE,
         api_key: str | None = None,
         timeout: int = 30,
-    ):
+    ) -> None:
         self.base = base_url.rstrip("/")
         self.api_key = api_key or _load_api_key()
         self.timeout = timeout

@@ -32,7 +32,7 @@ MCP_HOME = Path("/root/.hermes/mcp-servers")
 class LocalMCPClient:
     """Pulls MCP servers from GitHub, runs them locally via stdio, caches results."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         MCP_HOME.mkdir(parents=True, exist_ok=True)
         self._servers: dict[str, dict] = {}  # name -> {repo, process, tools}
         self._l1: dict[str, tuple] = {}

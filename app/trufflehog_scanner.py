@@ -46,7 +46,7 @@ class SecretFinding:
 class TruffleHogScanner:
     """Scanner using TruffleHog CLI."""
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False) -> None:
         self._available = self._check_available()
         self.verbose = verbose
 

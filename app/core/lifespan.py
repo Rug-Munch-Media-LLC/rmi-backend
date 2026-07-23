@@ -8,13 +8,14 @@ from fastapi import FastAPI
 
 from app.core.logging import get_logger
 from app.core.secrets import get_secret_or_none
+from typing import Any
 
 logger = get_logger(__name__)
 
 # Background task imports (lazy, at startup time)
 
 
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> Any:
     """Application lifespan: startup checks, background tasks, graceful shutdown."""
     vault_pw = os.getenv("WALLET_VAULT_PASSWORD", "").strip()
     if not vault_pw:

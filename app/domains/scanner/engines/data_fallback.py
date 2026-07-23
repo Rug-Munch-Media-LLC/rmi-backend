@@ -393,7 +393,7 @@ class DataFallbackChain:
         # → tries sources in order, returns first success with source tracing
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.sources = DATA_SOURCES.copy()
         self.query_map = QUERY_FALLBACK_MAP.copy()
         self._cache: dict[str, tuple[float, Any]] = {}  # simple in-memory cache
@@ -419,7 +419,7 @@ class DataFallbackChain:
 
         return available
 
-    def record_success(self, source_name: str, latency_ms: float):
+    def record_success(self, source_name: str, latency_ms: float) -> None:
         """Record a successful query from a source."""
         src = self.sources.get(source_name)
         if not src:
@@ -437,7 +437,7 @@ class DataFallbackChain:
 
         self._stats[source_name]["success"] += 1
 
-    def record_failure(self, source_name: str, error: str = ""):
+    def record_failure(self, source_name: str, error: str = "") -> None:
         """Record a failed query from a source."""
         src = self.sources.get(source_name)
         if not src:
@@ -461,7 +461,7 @@ class DataFallbackChain:
             src.rate_limit_reset_at = time.time() + 60  # Assume 60s reset
             logger.warning(f"Source rate limited: {source_name}, reset in 60s")
 
-    def record_rate_limit(self, source_name: str, retry_after_seconds: float = 60):
+    def record_rate_limit(self, source_name: str, retry_after_seconds: float = 60) -> None:
         """Record a rate limit hit with known retry time."""
         src = self.sources.get(source_name)
         if not src:
@@ -479,7 +479,7 @@ class DataFallbackChain:
             del self._cache[cache_key]
         return None
 
-    def set_cache(self, cache_key: str, data: Any):
+    def set_cache(self, cache_key: str, data: Any) -> None:
         """Store in local cache."""
         self._cache[cache_key] = (time.time(), data)
 

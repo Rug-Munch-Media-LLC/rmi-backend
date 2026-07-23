@@ -36,7 +36,7 @@ DEFAULT_LIMITS = {"rph": 10, "rpd": 100, "burst": 2}
 class RateLimiter:
     """Rate limiter with Redis backend."""
 
-    def __init__(self, redis_client: aioredis.Redis | None = None):  # type: ignore[type-arg]
+    def __init__(self, redis_client: aioredis.Redis | None = None) -> None:  # type: ignore[type-arg]
         self.redis = redis_client
         self.enabled = redis_client is not None
 

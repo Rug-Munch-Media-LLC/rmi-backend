@@ -31,7 +31,7 @@ class HoneypotEdge(BaseModel):
 
 
 @router.get("/deployer/{deployer_address}")
-async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ethereum")):
+async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ethereum")) -> dict:
     """Map all honeypot contracts deployed by a single address."""
     nodes: list[dict] = []
     edges: list[dict] = []
@@ -94,7 +94,7 @@ async def get_honeypot_network(
     chain: str = Query("ethereum"),
     limit: int = Query(50, le=100),
     min_risk: int = Query(50, le=100),
-):
+) -> dict:
     """Get the current honeypot network map for a chain. Clusters by deployer groups."""
     nodes: list[dict] = []
     edges: list[dict] = []
@@ -156,7 +156,7 @@ async def get_honeypot_network(
 
 
 @router.get("/stats")
-async def get_honeypot_stats():
+async def get_honeypot_stats() -> dict[str, str]:
     """Global honeypot statistics."""
     return {
         "description": "Honeypot contract network intelligence from eth-labels + SENTINEL + Real-CATS",

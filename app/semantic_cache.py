@@ -47,7 +47,7 @@ class SemanticCache:
 
     _instance: Optional["SemanticCache"] = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._redis = None
         self._hits = 0
         self._misses = 0
@@ -58,7 +58,7 @@ class SemanticCache:
             cls._instance = cls()
         return cls._instance
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         import redis.asyncio as aioredis
 
         if self._redis is None:

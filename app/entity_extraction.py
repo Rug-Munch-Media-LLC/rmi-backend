@@ -330,7 +330,7 @@ class EntityLookup:
         redis_port: int = REDIS_PORT,
         redis_password: str = REDIS_PASSWORD,
         redis_db: int = 0,
-    ):
+    ) -> None:
         self._redis_host = redis_host
         self._redis_port = redis_port
         self._redis_password = redis_password
@@ -357,7 +357,7 @@ class EntityLookup:
 
     # ── Redis connection ────────────────────────────────────────────
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         """Lazily create and return the async Redis client."""
         if self._redis is None:
             import redis.asyncio as aioredis

@@ -25,6 +25,7 @@ from app.databus.social import (
     X_DAILY_READ_BUDGET,
     X_FREE_MONTHLY_READ_LIMIT,
 )
+from typing import Any
 
 logger = get_logger("databus.router")
 
@@ -45,7 +46,7 @@ def _verify_admin(request: Request) -> bool:
 
 
 @router.post("/fetch")
-async def databus_fetch(request: Request):
+async def databus_fetch(request: Request) -> Any:
     """
     Universal data fetch endpoint.
     Every response is packaged based on who's asking.
@@ -98,7 +99,7 @@ async def databus_fetch_get(
     request: Request,
     admin_key: str = Query(default=""),
     force_fresh: bool = Query(default=False),
-):
+) -> Any:
     """GET convenience for simple queries. Params passed as query args."""
     # Collect all query params except the known ones
     kwargs = {}
@@ -115,13 +116,13 @@ async def databus_fetch_get(
 
 
 @router.get("/health")
-async def databus_health():
+async def databus_health() -> Any:
     """Full system health: cache, vault, chains, stats."""
     return await databus.health()
 
 
 @router.get("/capacity")
-async def databus_capacity():
+async def databus_capacity() -> Any:
     """Credit report and recommendations for free tier expansion."""
     if not databus._initialized:
         await databus.initialize()
@@ -129,7 +130,7 @@ async def databus_capacity():
 
 
 @router.get("/chains")
-async def databus_chains():
+async def databus_chains() -> Any:
     """List all available data types and their provider fallback chains."""
     if not databus._initialized:
         await databus.initialize()
@@ -137,7 +138,7 @@ async def databus_chains():
 
 
 @router.get("/access-matrix")
-async def databus_access_matrix(request: Request):
+async def databus_access_matrix(request: Request) -> Any | dict[str, str]:
     """View the full access control matrix. Admin key required."""
     if not _verify_admin(request):
         from app.databus.access_control import access_controller
@@ -152,7 +153,7 @@ async def databus_access_matrix(request: Request):
 
 
 @router.get("/mcp-scope/{tool_id}")
-async def databus_mcp_scope(tool_id: str):
+async def databus_mcp_scope(tool_id: str) -> dict:
     """Get the data types an MCP tool is authorized to access."""
     from app.databus.access_control import access_controller
 
@@ -163,7 +164,7 @@ async def databus_mcp_scope(tool_id: str):
 
 
 @router.get("/x402-scope/{tier}")
-async def databus_x402_scope(tier: str):
+async def databus_x402_scope(tier: str) -> dict:
     """Get the data types an x402 pricing tier can access."""
     from app.databus.access_control import access_controller
 
@@ -172,7 +173,7 @@ async def databus_x402_scope(tier: str):
 
 
 @router.post("/invalidate")
-async def databus_invalidate(request: Request):
+async def databus_invalidate(request: Request) -> dict[str, str]:
     """Clear cache. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -189,7 +190,7 @@ async def databus_invalidate(request: Request):
 
 
 @router.get("/vault/status")
-async def databus_vault_status(request: Request):
+async def databus_vault_status(request: Request) -> Any:
     """Key pool status. NEVER exposes key values. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -200,7 +201,7 @@ async def databus_vault_status(request: Request):
 
 
 @router.get("/vault/capacity")
-async def databus_vault_capacity(request: Request):
+async def databus_vault_capacity(request: Request) -> Any:
     """Detailed capacity report with free tier recommendations. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -211,7 +212,7 @@ async def databus_vault_capacity(request: Request):
 
 
 @router.post("/vault/reload")
-async def databus_vault_reload(request: Request):
+async def databus_vault_reload(request: Request) -> dict[str, str]:
     """Reload keys from vault without restart. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -221,7 +222,7 @@ async def databus_vault_reload(request: Request):
 
 
 @router.post("/vault/add-key")
-async def databus_vault_add_key(request: Request):
+async def databus_vault_add_key(request: Request) -> dict[str, str]:
     """Hot-add an API key to a provider pool. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -239,7 +240,7 @@ async def databus_vault_add_key(request: Request):
 
 
 @router.post("/vault/reset-monthly")
-async def databus_vault_reset_monthly(request: Request):
+async def databus_vault_reset_monthly(request: Request) -> dict[str, str]:
     """Reset monthly call counters. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -252,7 +253,7 @@ async def databus_vault_reset_monthly(request: Request):
 
 
 @router.get("/arkham/entity/{address}")
-async def arkham_entity(address: str, request: Request):
+async def arkham_entity(address: str, request: Request) -> Any:
     """Resolve a wallet address to an Arkham entity. Admin key required."""
     admin_key = request.headers.get("X-Admin-Key", "")
     result = await databus.fetch("entity_intel", address=address, admin_key=admin_key)
@@ -262,7 +263,7 @@ async def arkham_entity(address: str, request: Request):
 
 
 @router.get("/arkham/labels")
-async def arkham_labels(request: Request):
+async def arkham_labels(request: Request) -> Any:
     """Look up labels for addresses. Admin key required for Arkham, public for local."""
     admin_key = request.headers.get("X-Admin-Key", "")
     address = request.query_params.get("address", "")
@@ -273,7 +274,7 @@ async def arkham_labels(request: Request):
 
 
 @router.get("/arkham/portfolio/{address}")
-async def arkham_portfolio(address: str, request: Request):
+async def arkham_portfolio(address: str, request: Request) -> Any:
     """Get portfolio for an entity. Admin key required."""
     admin_key = request.headers.get("X-Admin-Key", "")
     result = await databus.fetch("arkham_portfolio", address=address, admin_key=admin_key)
@@ -286,7 +287,7 @@ async def arkham_portfolio(address: str, request: Request):
 
 
 @router.get("/token/{mint}")
-async def token_detail(mint: str, request: Request):
+async def token_detail(mint: str, request: Request) -> Any:
     """Rich token detail (metadata + price + security)."""
     result = await databus.fetch("token_detail", mint=mint)
     if result is None:
@@ -295,7 +296,7 @@ async def token_detail(mint: str, request: Request):
 
 
 @router.get("/wallet/{address}/tokens")
-async def wallet_tokens(address: str, request: Request):
+async def wallet_tokens(address: str, request: Request) -> Any:
     """Wallet token holdings."""
     result = await databus.fetch("wallet_tokens", address=address)
     if result is None:
@@ -304,7 +305,7 @@ async def wallet_tokens(address: str, request: Request):
 
 
 @router.get("/wallet/{address}/pnl")
-async def wallet_pnl(address: str, request: Request):
+async def wallet_pnl(address: str, request: Request) -> Any:
     """Wallet profit/loss."""
     result = await databus.fetch("wallet_pnl", address=address)
     if result is None:
@@ -313,7 +314,7 @@ async def wallet_pnl(address: str, request: Request):
 
 
 @router.get("/rugmap/{address}")
-async def rugmap(address: str, request: Request, chain: str = "solana", depth: int = 2):
+async def rugmap(address: str, request: Request, chain: str = "solana", depth: int = 2) -> Any:
     """Interactive holder RugMap."""
     result = await databus.fetch("rugmap", address=address, chain=chain, depth=depth)
     if result is None:
@@ -322,7 +323,7 @@ async def rugmap(address: str, request: Request, chain: str = "solana", depth: i
 
 
 @router.get("/rugmaps/{address}")
-async def rugmaps_analysis(address: str, request: Request, chain: str = "solana"):
+async def rugmaps_analysis(address: str, request: Request, chain: str = "solana") -> Any:
     """RugMaps AI analysis + similar scam search."""
     result = await databus.fetch("rugmaps_analysis", address=address, chain=chain)
     if result is None:
@@ -331,7 +332,7 @@ async def rugmaps_analysis(address: str, request: Request, chain: str = "solana"
 
 
 @router.get("/threat/{address}")
-async def threat_check(address: str, request: Request, chain_id: str = "1"):
+async def threat_check(address: str, request: Request, chain_id: str = "1") -> Any:
     """Threat intelligence check (CryptoScamDB + GoPlus + Januus)."""
     result = await databus.fetch("threat_check", address=address, chain_id=chain_id)
     if result is None:
@@ -340,7 +341,7 @@ async def threat_check(address: str, request: Request, chain_id: str = "1"):
 
 
 @router.get("/contract-scan/{address}")
-async def contract_scan(address: str, request: Request, chain: str = "base"):
+async def contract_scan(address: str, request: Request, chain: str = "base") -> Any:
     """Smart contract deep scan (Slither + Mythril)."""
     result = await databus.fetch("contract_scan", address=address, chain=chain)
     if result is None:
@@ -349,7 +350,7 @@ async def contract_scan(address: str, request: Request, chain: str = "base"):
 
 
 @router.get("/sentinel-deep/{address}")
-async def sentinel_deep(address: str, request: Request, chain: str = "solana"):
+async def sentinel_deep(address: str, request: Request, chain: str = "solana") -> Any:
     """Deep SENTINEL scan + threat feeds + contract analysis."""
     admin_key = request.headers.get("X-Admin-Key", "")
     result = await databus.fetch("sentinel_deep", address=address, chain=chain, admin_key=admin_key)
@@ -359,7 +360,7 @@ async def sentinel_deep(address: str, request: Request, chain: str = "solana"):
 
 
 @router.get("/prediction-markets")
-async def prediction_markets(request: Request, query: str = "", category: str = ""):
+async def prediction_markets(request: Request, query: str = "", category: str = "") -> Any:
     """Prediction market intel (Polymarket + Kalshi)."""
     result = await databus.fetch("prediction_markets", query=query, category=category)
     if result is None:
@@ -368,7 +369,7 @@ async def prediction_markets(request: Request, query: str = "", category: str = 
 
 
 @router.get("/prediction-signals")
-async def prediction_signals(request: Request):
+async def prediction_signals(request: Request) -> Any:
     """Auto-detected trading signals from prediction markets."""
     result = await databus.fetch("prediction_signals")
     if result is None:
@@ -382,7 +383,7 @@ async def prediction_signals(request: Request):
 
 
 @router.post("/batch")
-async def databus_batch(request: Request):
+async def databus_batch(request: Request) -> dict:
     """#7 Batch DataBus - fetch multiple data types in one call.
 
     Body: {
@@ -419,7 +420,7 @@ async def databus_batch(request: Request):
 
 
 @router.post("/warm/start")
-async def databus_warm_start(request: Request):
+async def databus_warm_start(request: Request) -> dict[str, str]:
     """Start cache warm background task. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -430,7 +431,7 @@ async def databus_warm_start(request: Request):
 
 
 @router.post("/warm/stop")
-async def databus_warm_stop(request: Request):
+async def databus_warm_stop(request: Request) -> dict[str, str]:
     """Stop cache warm background task. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -439,7 +440,7 @@ async def databus_warm_stop(request: Request):
 
 
 @router.get("/providers/health")
-async def databus_providers_health(request: Request):
+async def databus_providers_health(request: Request) -> dict:
     """#5 Provider Health Dashboard - per-provider success/failure/latency/circuit status."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -452,7 +453,7 @@ async def databus_providers_health(request: Request):
 
 
 @router.get("/cache/stats")
-async def databus_cache_stats(request: Request):
+async def databus_cache_stats(request: Request) -> dict:
     """#10 Per-type cache stats with TTL tuning suggestions."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -467,7 +468,7 @@ async def databus_cache_stats(request: Request):
 
 
 @router.post("/schema/validate")
-async def databus_schema_validate(request: Request):
+async def databus_schema_validate(request: Request) -> dict:
     """#15 Validate a DataBus response against expected schema.
 
     Body: {"data_type": "token_price", "data": {"price_usd": 1.23, ...}}
@@ -486,7 +487,7 @@ async def databus_schema_validate(request: Request):
 
 
 @router.get("/social/x/profile/{username}")
-async def social_x_profile(username: str):
+async def social_x_profile(username: str) -> dict[str, str]:
     """Get X/Twitter user profile - cached 24h."""
     from app.databus.social import SocialDataAggregator
 
@@ -498,7 +499,7 @@ async def social_x_profile(username: str):
 
 
 @router.get("/social/x/tweets/{username}")
-async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)):
+async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)) -> dict[str, str]:
     """Get recent tweets from user - cached 15min."""
     from app.databus.social import SocialDataAggregator
 
@@ -515,7 +516,7 @@ async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)):
 
 
 @router.get("/social/x/mentions")
-async def social_x_mentions(count: int = Query(20, ge=1, le=100)):
+async def social_x_mentions(count: int = Query(20, ge=1, le=100)) -> dict[str, str]:
     """Get mentions of @CryptoRugMunch - cached 15min."""
     from app.databus.social import SocialDataAggregator
 
@@ -527,7 +528,7 @@ async def social_x_mentions(count: int = Query(20, ge=1, le=100)):
 
 
 @router.get("/social/x/engagement")
-async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-separated tweet IDs")):
+async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-separated tweet IDs")) -> dict[str, str]:
     """Get engagement metrics for tweets - cached 1h."""
     from app.databus.social import SocialDataAggregator
 
@@ -540,7 +541,7 @@ async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-sep
 @router.get("/social/x/search")
 async def social_x_search(
     q: str = Query(..., description="Search query"), count: int = Query(10, ge=1, le=100)
-):
+) -> dict[str, str]:
     """Search X/Twitter - VERY expensive, cached 24h. Use sparingly."""
     from app.databus.social import SocialDataAggregator
 
@@ -554,7 +555,7 @@ async def social_x_search(
 
 
 @router.get("/social/kol/{username}")
-async def social_kol_reputation(username: str):
+async def social_kol_reputation(username: str) -> Any:
     """KOL reputation score - cached 24h."""
     from app.databus.social import SocialDataAggregator
 
@@ -563,7 +564,7 @@ async def social_kol_reputation(username: str):
 
 
 @router.get("/social/sentiment")
-async def social_sentiment(username: str = Query("CryptoRugMunch")):
+async def social_sentiment(username: str = Query("CryptoRugMunch")) -> Any:
     """Brand sentiment analysis - cached 1h."""
     from app.databus.social import SocialDataAggregator
 
@@ -572,7 +573,7 @@ async def social_sentiment(username: str = Query("CryptoRugMunch")):
 
 
 @router.get("/social/x/budget")
-async def social_x_budget():
+async def social_x_budget() -> dict:
     """Current X API read budget status."""
     from app.databus.social import XTwitterProvider
 
@@ -590,7 +591,7 @@ X_HANDLE = "CryptoRugMunch"
 
 
 @router.get("/social/x/discover")
-async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50, ge=1, le=100)):
+async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50, ge=1, le=100)) -> dict[str, str]:
     """Discover tweets via web search - no API needed, works for free."""
     from app.databus.social_scraper import XWebScraper
 
@@ -600,7 +601,7 @@ async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50
 
 
 @router.get("/social/x/engagement-report")
-async def social_x_engagement_report(handle: str = Query(X_HANDLE)):
+async def social_x_engagement_report(handle: str = Query(X_HANDLE)) -> Any:
     """Get engagement report for a handle - avg likes, best tweets, posting frequency."""
     from app.databus.social_scraper import XWebScraper
 
@@ -612,7 +613,7 @@ async def social_x_engagement_report(handle: str = Query(X_HANDLE)):
 @router.get("/social/x/mentions-discover")
 async def social_x_mentions_discover(
     handle: str = Query(X_HANDLE), limit: int = Query(20, ge=1, le=50)
-):
+) -> dict[str, str]:
     """Find tweets mentioning a handle - via web search."""
     from app.databus.social_scraper import XWebScraper
 
@@ -622,7 +623,7 @@ async def social_x_mentions_discover(
 
 
 @router.get("/social/x/trending")
-async def social_x_trending():
+async def social_x_trending() -> dict[str, str]:
     """Get current crypto trending topics from web search."""
     from app.databus.social_scraper import XWebScraper
 
@@ -635,7 +636,7 @@ async def social_x_trending():
 
 
 @router.get("/bitquery/health")
-async def bitquery_health():
+async def bitquery_health() -> Any:
     """Check Bitquery provider health and billing status."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -644,7 +645,7 @@ async def bitquery_health():
 
 
 @router.get("/bitquery/token-price/{network}/{token_address}")
-async def bitquery_token_price(network: str, token_address: str):
+async def bitquery_token_price(network: str, token_address: str) -> dict[str, str]:
     """Get DEX token price from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -656,7 +657,7 @@ async def bitquery_token_price(network: str, token_address: str):
 
 
 @router.get("/bitquery/holders/{network}/{token_address}")
-async def bitquery_holders(network: str, token_address: str, limit: int = Query(100, ge=1, le=500)):
+async def bitquery_holders(network: str, token_address: str, limit: int = Query(100, ge=1, le=500)) -> dict[str, str]:
     """Get token holder distribution from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -668,7 +669,7 @@ async def bitquery_holders(network: str, token_address: str, limit: int = Query(
 
 
 @router.get("/bitquery/tx-trace/{network}/{tx_hash}")
-async def bitquery_tx_trace(network: str, tx_hash: str):
+async def bitquery_tx_trace(network: str, tx_hash: str) -> dict[str, str]:
     """Get full transaction trace from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -680,7 +681,7 @@ async def bitquery_tx_trace(network: str, tx_hash: str):
 
 
 @router.get("/bitquery/dex-volume/{network}")
-async def bitquery_dex_volume(network: str, pool: str = Query(None), timeframe: str = Query("24h")):
+async def bitquery_dex_volume(network: str, pool: str = Query(None), timeframe: str = Query("24h")) -> dict[str, str]:
     """Get DEX trading volume from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -698,7 +699,7 @@ async def bitquery_dex_volume(network: str, pool: str = Query(None), timeframe: 
 
 
 @router.get("/bitquery/balance/{network}/{address}")
-async def bitquery_balance(network: str, address: str):
+async def bitquery_balance(network: str, address: str) -> dict[str, str]:
     """Get address token balances from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -710,7 +711,7 @@ async def bitquery_balance(network: str, address: str):
 
 
 @router.get("/bitquery/cross-chain/{address}")
-async def bitquery_cross_chain(address: str, networks: str = Query("ethereum,bsc,solana")):
+async def bitquery_cross_chain(address: str, networks: str = Query("ethereum,bsc,solana")) -> dict[str, str]:
     """Track token transfers across chains from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -725,7 +726,7 @@ async def bitquery_cross_chain(address: str, networks: str = Query("ethereum,bsc
 @router.get("/bitquery/contract-events/{network}/{contract}")
 async def bitquery_contract_events(
     network: str, contract: str, event: str = Query(None), limit: int = Query(50, ge=1, le=200)
-):
+) -> dict[str, str]:
     """Get smart contract events from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -742,7 +743,7 @@ async def bitquery_contract_events(
 
 
 @router.post("/webhooks/{service}")
-async def receive_webhook(service: str, request: Request):
+async def receive_webhook(service: str, request: Request) -> Any:
     """Universal webhook receiver. Routes to correct handler based on service.
 
     Supported: arkham, helius, moralis, alchemy, custom
@@ -772,7 +773,7 @@ async def receive_webhook(service: str, request: Request):
 
 
 @router.get("/webhooks")
-async def list_webhooks_endpoint():
+async def list_webhooks_endpoint() -> Any:
     """List all recent webhook events."""
     try:
         from app.databus.webhooks import list_webhooks
@@ -783,7 +784,7 @@ async def list_webhooks_endpoint():
 
 
 @router.post("/webhooks/setup/{service}")
-async def setup_webhook_endpoint(service: str, request: Request):
+async def setup_webhook_endpoint(service: str, request: Request) -> Any:
     """Programmatically register a webhook with a service.
 
     Body: {
@@ -816,7 +817,7 @@ async def setup_webhook_endpoint(service: str, request: Request):
 
 
 @router.get("/premium/bundles/{address}")
-async def premium_bundle_detect(address: str, chain: str = "solana", request: Request = None):
+async def premium_bundle_detect(address: str, chain: str = "solana", request: Request = None) -> Any:
     """Bundle detection (RugMaps cluster analysis). Premium tier."""
     return await databus.fetch("bundle_detect", address=address, chain=chain)
 
@@ -824,55 +825,55 @@ async def premium_bundle_detect(address: str, chain: str = "solana", request: Re
 @router.get("/premium/clusters/{address}")
 async def premium_cluster_map(
     address: str, chain: str = "solana", depth: int = 3, request: Request = None
-):
+) -> Any:
     """Full wallet cluster mapping with graph-ready nodes/edges. Premium tier."""
     return await databus.fetch("cluster_map", address=address, chain=chain, depth=depth)
 
 
 @router.get("/premium/dev-finder/{token}")
-async def premium_dev_finder(token: str, chain: str = "solana", request: Request = None):
+async def premium_dev_finder(token: str, chain: str = "solana", request: Request = None) -> Any:
     """Find developer/creator wallets behind a token. Premium tier."""
     return await databus.fetch("dev_finder", token_address=token, chain=chain)
 
 
 @router.get("/premium/snipers/{address}")
-async def premium_sniper_detect(address: str, chain: str = "solana", request: Request = None):
+async def premium_sniper_detect(address: str, chain: str = "solana", request: Request = None) -> Any:
     """Detect snipers - first-block buyers with fast dumps. Premium tier."""
     return await databus.fetch("sniper_detect", address=address, chain=chain)
 
 
 @router.get("/premium/bot-farms/{address}")
-async def premium_bot_farms(address: str, chain: str = "solana", request: Request = None):
+async def premium_bot_farms(address: str, chain: str = "solana", request: Request = None) -> Any:
     """Detect bot farms - identical behavior patterns. Premium tier."""
     return await databus.fetch("bot_farm_detect", address=address, chain=chain)
 
 
 @router.get("/premium/copy-trading/{address}")
-async def premium_copy_trading(address: str, chain: str = "solana", request: Request = None):
+async def premium_copy_trading(address: str, chain: str = "solana", request: Request = None) -> Any:
     """Detect copy trading patterns. Premium tier."""
     return await databus.fetch("copy_trade_detect", address=address, chain=chain)
 
 
 @router.get("/premium/insider-signals/{address}")
-async def premium_insider(address: str, chain: str = "solana", request: Request = None):
+async def premium_insider(address: str, chain: str = "solana", request: Request = None) -> Any:
     """Detect insider trading signals. Premium tier."""
     return await databus.fetch("insider_detect", address=address, chain=chain)
 
 
 @router.get("/premium/wash-trading/{address}")
-async def premium_wash_trading(address: str, chain: str = "solana", request: Request = None):
+async def premium_wash_trading(address: str, chain: str = "solana", request: Request = None) -> Any:
     """Detect wash trading patterns. Premium tier."""
     return await databus.fetch("wash_trade_detect", address=address, chain=chain)
 
 
 @router.get("/premium/mev/{address}")
-async def premium_mev(address: str, chain: str = "solana", request: Request = None):
+async def premium_mev(address: str, chain: str = "solana", request: Request = None) -> Any:
     """Detect MEV sandwich attacks. Premium tier."""
     return await databus.fetch("mev_detect", address=address, chain=chain)
 
 
 @router.get("/premium/fresh-wallets/{address}")
-async def premium_fresh_wallets(address: str, chain: str = "solana", request: Request = None):
+async def premium_fresh_wallets(address: str, chain: str = "solana", request: Request = None) -> Any:
     """Analyze fresh wallet concentration - high new-wallet % = rug risk. Premium tier."""
     return await databus.fetch("fresh_wallet_analysis", address=address, chain=chain)
 
@@ -883,7 +884,7 @@ async def premium_fresh_wallets(address: str, chain: str = "solana", request: Re
 
 
 @router.get("/premium/volume-authenticity/{address}")
-async def premium_volume_auth(address: str, chain: str = "ethereum", request: Request = None):
+async def premium_volume_auth(address: str, chain: str = "ethereum", request: Request = None) -> Any:
     """Fake volume % with bootstrap CI. The RugCharts moat - no one else does this."""
     return await databus.fetch(
         "volume_authenticity",
@@ -905,7 +906,7 @@ async def ohlcv_candles(
     timeframe: str = "1h",
     limit: int = 100,
     request: Request = None,
-):
+) -> Any:
     """OHLCV candlestick data with authenticity scoring baked in."""
     return await databus.fetch(
         "ohlcv", token=address, chain=chain, timeframe=timeframe, limit=limit
@@ -913,13 +914,13 @@ async def ohlcv_candles(
 
 
 @router.get("/premium/security-scan/{address}")
-async def premium_security_scan(address: str, chain: str = "ethereum", request: Request = None):
+async def premium_security_scan(address: str, chain: str = "ethereum", request: Request = None) -> Any:
     """37+ security checks - GoPlus, honeypot, contract, liquidity, holders, rug pull indicators."""
     return await databus.fetch("token_security", address=address, chain=chain)
 
 
 @router.get("/security-checks")
-async def security_check_matrix():
+async def security_check_matrix() -> Any:
     """Full list of all 37+ security checks with weights and descriptions."""
     return await databus.fetch("token_security", action="matrix")
 
@@ -930,13 +931,13 @@ async def security_check_matrix():
 
 
 @router.get("/premium/smart-money")
-async def smart_money_endpoint(chain: str = "solana", limit: int = 20):
+async def smart_money_endpoint(chain: str = "solana", limit: int = 20) -> Any:
     """What profitable wallets are buying right now - with entity labels."""
     return await databus.fetch("smart_money", chain=chain, limit=limit)
 
 
 @router.get("/premium/whale-alerts/{address}")
-async def whale_alerts_endpoint(address: str, chain: str = "solana", min_value: float = 100000):
+async def whale_alerts_endpoint(address: str, chain: str = "solana", min_value: float = 100000) -> Any:
     """Real-time large transaction detection for a token or wallet."""
     return await databus.fetch(
         "whale_alerts", address=address, chain=chain, min_value_usd=min_value
@@ -944,56 +945,56 @@ async def whale_alerts_endpoint(address: str, chain: str = "solana", min_value: 
 
 
 @router.get("/premium/token-launches")
-async def token_launches_endpoint(chain: str = "solana", limit: int = 50):
+async def token_launches_endpoint(chain: str = "solana", limit: int = 50) -> Any:
     """Newly launched tokens with instant risk scoring by age."""
     return await databus.fetch("token_launches", chain=chain, limit=limit)
 
 
 @router.get("/premium/insider-detection/{address}")
-async def insider_detection_endpoint(address: str, chain: str = "solana"):
+async def insider_detection_endpoint(address: str, chain: str = "solana") -> Any:
     """Detect pre-pump accumulation - volume spikes before major price moves."""
     return await databus.fetch("insider_detection", address=address, chain=chain)
 
 
 @router.get("/premium/liquidity-risk/{address}")
-async def liquidity_risk_endpoint(address: str, chain: str = "solana"):
+async def liquidity_risk_endpoint(address: str, chain: str = "solana") -> Any:
     """LP health: concentration risk, lock status, holder entities via Arkham."""
     return await databus.fetch("liquidity_risk", address=address, chain=chain)
 
 
 @router.get("/premium/holder-health/{address}")
-async def holder_health_endpoint(address: str, chain: str = "solana"):
+async def holder_health_endpoint(address: str, chain: str = "solana") -> Any:
     """Holder distribution: Gini coefficient, top concentration, decentralization score."""
     return await databus.fetch("holder_health", address=address, chain=chain)
 
 
 @router.get("/premium/cross-chain/{address}")
-async def cross_chain_endpoint(address: str):
+async def cross_chain_endpoint(address: str) -> Any:
     """Trace entity across all chains via Arkham. Discover all related addresses."""
     return await databus.fetch("cross_chain_entity", address=address)
 
 
 @router.get("/premium/rug-patterns/{address}")
-async def rug_patterns_endpoint(address: str, chain: str = "solana"):
+async def rug_patterns_endpoint(address: str, chain: str = "solana") -> Any:
     """Match token against 10 known rug pull patterns. Similarity scoring."""
     return await databus.fetch("rug_patterns", address=address, chain=chain)
 
 
 @router.get("/premium/dev-reputation/{address}")
-async def dev_reputation_endpoint(address: str, chain: str = "solana"):
+async def dev_reputation_endpoint(address: str, chain: str = "solana") -> Any:
     """Deployer wallet history: token count, lifespan, entity resolution."""
     return await databus.fetch("dev_reputation", address=address, chain=chain)
 
 
 @router.get("/premium/token-report/{address}")
-async def token_report_endpoint(address: str, chain: str = "solana"):
+async def token_report_endpoint(address: str, chain: str = "solana") -> Any:
     """ONE-CALL enhanced token report. Smart verdicts, entity enrichment,
     trust adjustments, tier-aware. THE endpoint powering RugCharts."""
     return await databus.fetch("token_report", address=address, chain=chain)
 
 
 @router.get("/tiers")
-async def tier_comparison_endpoint():
+async def tier_comparison_endpoint() -> Any:
     """Competitive tier comparison: RugCharts vs DexScreener vs Nansen vs GMGN."""
     return await databus.fetch("tier_comparison")
 
@@ -1004,37 +1005,37 @@ async def tier_comparison_endpoint():
 
 
 @router.get("/market/prices")
-async def market_prices(coins: str = "bitcoin,ethereum,solana"):
+async def market_prices(coins: str = "bitcoin,ethereum,solana") -> Any:
     """Live prices from CoinGecko. Free, no key needed."""
     return await databus.fetch("live_prices", coins=coins)
 
 
 @router.get("/market/fear-greed")
-async def fear_greed():
+async def fear_greed() -> Any:
     """Crypto Fear & Greed Index. Free, no key needed."""
     return await databus.fetch("fear_greed")
 
 
 @router.get("/market/trending")
-async def market_trending():
+async def market_trending() -> Any:
     """Trending coins from CoinGecko."""
     return await databus.fetch("trending_coins")
 
 
 @router.get("/market/prediction-markets")
-async def prediction_markets():  # noqa: F811
+async def prediction_markets() -> Any:  # noqa: F811
     """Prediction markets from Polymarket. Free, no key needed."""
     return await databus.fetch("prediction_markets")
 
 
 @router.get("/market/brief")
-async def market_brief():
+async def market_brief() -> Any:
     """One-call market overview: prices + fear/greed + trending + predictions."""
     return await databus.fetch("market_brief")
 
 
 @router.get("/news/full")
-async def full_news(limit: int = 15):
+async def full_news(limit: int = 15) -> Any:
     """Complete news feed: headlines + market data + fear/greed + polymarket."""
     return await databus.fetch("full_news", limit=limit)
 
@@ -1045,31 +1046,31 @@ async def full_news(limit: int = 15):
 
 
 @router.get("/news/intel")
-async def news_intel(limit: int = 30):
+async def news_intel(limit: int = 30) -> Any:
     """Complete news intelligence - 10+ sources, quality-scored, deduped, sentiment-tagged."""
     return await databus.fetch("news_intel", limit=limit)
 
 
 @router.get("/news/weekly-best")
-async def weekly_best(limit: int = 20):
+async def weekly_best(limit: int = 20) -> Any:
     """Curated weekly best - highest quality crypto journalism."""
     return await databus.fetch("weekly_best", limit=limit)
 
 
 @router.get("/news/academic")
-async def academic_papers(limit: int = 10):
+async def academic_papers(limit: int = 10) -> Any:
     """Academic crypto/blockchain research papers from arXiv."""
     return await databus.fetch("academic_papers", limit=limit)
 
 
 @router.get("/news/social")
-async def social_feed(limit: int = 30):
+async def social_feed(limit: int = 30) -> Any:
     """Crypto social feed - X/Twitter + CryptoPanic sentiment."""
     return await databus.fetch("social_feed", limit=limit)
 
 
 @router.post("/news/react/{content_hash}")
-async def react_article(content_hash: str, request: Request):
+async def react_article(content_hash: str, request: Request) -> Any:
     """React to article: 🔥🐂🐻💎🧠🤡🚀💀"""
     body = await request.json()
     return await databus.fetch(
@@ -1081,13 +1082,13 @@ async def react_article(content_hash: str, request: Request):
 
 
 @router.get("/news/reactions/{content_hash}")
-async def get_article_reactions(content_hash: str):
+async def get_article_reactions(content_hash: str) -> Any:
     """Get reactions and comments for an article."""
     return await databus.fetch("article_reactions", content_hash=content_hash)
 
 
 @router.post("/news/comment/{content_hash}")
-async def comment_article(content_hash: str, request: Request):
+async def comment_article(content_hash: str, request: Request) -> Any:
     """Comment on an article."""
     body = await request.json()
     return await databus.fetch(
@@ -1099,7 +1100,7 @@ async def comment_article(content_hash: str, request: Request):
 
 
 @router.post("/news/bb-post/{content_hash}")
-async def create_bb_from_article(content_hash: str, request: Request):
+async def create_bb_from_article(content_hash: str, request: Request) -> Any:
     """Turn article into Bulletin Board post."""
     body = await request.json() if request.headers.get("content-type") == "application/json" else {}
     return await databus.fetch(
@@ -1113,13 +1114,13 @@ async def create_bb_from_article(content_hash: str, request: Request):
 
 
 @router.get("/news/ct-rundown")
-async def ct_rundown(limit: int = 20):
+async def ct_rundown(limit: int = 20) -> Any:
     """CT Rundown - top 20 Crypto Twitter stories, AI-summarized, category-diverse."""
     return await databus.fetch("ct_rundown", limit=limit)
 
 
 @router.get("/news/ct-accounts")
-async def ct_accounts():
+async def ct_accounts() -> Any:
     """Curated CT account list - 150+ top accounts across 6 tiers."""
     return await databus.fetch("ct_accounts")
 
@@ -1130,36 +1131,36 @@ async def ct_accounts():
 
 
 @router.get("/social/kol/{handle}")
-async def kol_profile(handle: str):
+async def kol_profile(handle: str) -> Any:
     """KOL performance profile - trust score, call history, win rate."""
     return await databus.fetch("kol_profile", handle=handle)
 
 
 @router.get("/social/kol-leaderboard")
-async def kol_leaderboard(limit: int = 20):
+async def kol_leaderboard(limit: int = 20) -> Any:
     """KOL leaderboard - ranked by trust score and accuracy."""
     return await databus.fetch("kol_leaderboard", limit=limit)
 
 
 @router.get("/social/shill-alerts")
-async def shill_alerts():
+async def shill_alerts() -> Any:
     """Active shill campaigns - coordinated promotion, pump-and-dump patterns."""
     return await databus.fetch("shill_detector")
 
 
 @router.get("/social/scam-monitor")
-async def scam_monitor():
+async def scam_monitor() -> Any:
     """Scam channel monitoring - Telegram/Discord scam pattern detection."""
     return await databus.fetch("scam_monitor")
 
 
 @router.get("/social/metrics")
-async def social_metrics():
+async def social_metrics() -> Any:
     """Social metrics - trending topics, sentiment, KOL activity."""
     return await databus.fetch("social_metrics")
 
 
 @router.get("/intel/daily")
-async def daily_intel():
+async def daily_intel() -> Any:
     """Daily Intelligence Report - Groq AI-powered market briefing with all data sources."""
     return await databus.fetch("daily_intel")

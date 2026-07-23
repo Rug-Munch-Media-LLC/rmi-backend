@@ -94,7 +94,7 @@ async def predict_death_clock(
     chain: str,
     address: str,
     x_x402_sig: str | None = Query(None),
-):
+) -> Any:
     """Predict days until rug/death for a token. Free: basic, Paid (x402): full model."""
 
     # Fetch token data from SENTINEL scanner

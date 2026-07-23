@@ -163,10 +163,10 @@ try:
 except Exception:
     # Prometheus not available - use no-op counter stubs
     class _Stub:
-        def labels(self, **kw):
+        def labels(self, **kw) -> None:
             return self
 
-        def inc(self, n: float = 1.0):
+        def inc(self, n: float = 1.0) -> None:
             pass
 
     _X402_REPLAY_COUNTER = _Stub()

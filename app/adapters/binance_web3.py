@@ -4,6 +4,7 @@ All endpoints are free and require no authentication.
 """
 
 import httpx
+from typing import Any
 
 BASE_URL = "https://web3.binance.com"
 
@@ -31,7 +32,7 @@ _HEADERS = {
 }
 
 
-def _get(url, params=None, timeout=10):
+def _get(url, params=None, timeout=10) -> Any | None:
     resp = httpx.get(url, params=params, headers=_HEADERS, timeout=timeout)
     resp.raise_for_status()
     data = resp.json()

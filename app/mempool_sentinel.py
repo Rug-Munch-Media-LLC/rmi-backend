@@ -6,7 +6,7 @@ from typing import Any
 class SentinelManager:
     """Manages mempool sentinels for real-time monitoring."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.monitors: dict[str, Any] = {}
 
     def start_monitor(self, contract: str, chain: str = "base") -> dict[str, Any]:

@@ -36,19 +36,19 @@ router = APIRouter(prefix="/health", tags=["health-v1"])
 
 
 @router.get("/live")
-async def live_v1():
+async def live_v1() -> Any:
     """Liveness check (redirect to root /live)."""
     return RedirectResponse(url="/live", status_code=307)
 
 
 @router.get("/ready")
-async def ready_v1():
+async def ready_v1() -> Any:
     """Readiness check (redirect to root /ready)."""
     return RedirectResponse(url="/ready", status_code=307)
 
 
 @router.get("")
-async def health_v1():
+async def health_v1() -> Any:
     """Full health check (redirect to root /health)."""
     return RedirectResponse(url="/health", status_code=307)
 

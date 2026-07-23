@@ -463,7 +463,7 @@ class WalletFactory:
     Supports encrypted key storage with AES-256-GCM + Argon2.
     """
 
-    def __init__(self, encrypt_keys: bool = True, master_password: str | None = None):
+    def __init__(self, encrypt_keys: bool = True, master_password: str | None = None) -> None:
         self._encrypt = encrypt_keys
         self._password = master_password or os.getenv("RMI_WALLET_MASTER_PASSWORD", "")
         self._key_store: dict[str, WalletResult] = {}
@@ -873,7 +873,7 @@ class WalletFactory:
 
     def save_to_vault(
         self, wallet: WalletResult, vault_path: str = "/root/.rmi/wallets/vault.json"
-    ):
+    ) -> None:
         """Save wallet to encrypted vault."""
         os.makedirs(os.path.dirname(vault_path), exist_ok=True, mode=0o700)
 

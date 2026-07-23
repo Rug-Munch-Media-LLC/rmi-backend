@@ -234,7 +234,7 @@ class SmartMoneyTracker:
     Periodic scan → detect position changes → score impact → report.
     """
 
-    def __init__(self, data_dir: str | None = None):
+    def __init__(self, data_dir: str | None = None) -> None:
         if data_dir is None:
             base = (
                 os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else os.getcwd()
@@ -832,7 +832,7 @@ class SmartMoneyTracker:
 
         return report
 
-    async def _scan_single_wallet(self, wallet: SmartWallet, lookback_minutes: int):
+    async def _scan_single_wallet(self, wallet: SmartWallet, lookback_minutes: int) -> tuple[Any, Any, Any] | None:
         """Scan a single wallet for recent moves."""
         txs = await self._fetch_recent_tx(wallet, lookback_minutes)
         if not txs:
@@ -889,7 +889,7 @@ if __name__ == "__main__":
     """CLI entry point for testing."""
     logging.basicConfig(level=logging.INFO)
 
-    async def main():
+    async def main() -> None:
         tracker = SmartMoneyTracker()
         print(f"Tracked wallets: {tracker.get_wallet_count()}")
         print("Categories:")

@@ -81,7 +81,7 @@ class KnowledgeGraph:
     Auto-built from RAG document metadata during ingestion.
     """
 
-    def __init__(self, redis: aioredis.Redis = None):
+    def __init__(self, redis: aioredis.Redis = None) -> None:
         self._redis = redis
         self._node_cache: dict[str, dict] = {}
 

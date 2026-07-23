@@ -6,7 +6,7 @@ from typing import Any
 class SecurityDashboard:
     """Security dashboard for monitoring alerts."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.alerts: list[dict[str, Any]] = []
 
     def add_alert(self, alert: dict[str, Any]) -> None:

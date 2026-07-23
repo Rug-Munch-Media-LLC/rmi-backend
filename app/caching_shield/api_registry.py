@@ -233,7 +233,7 @@ class ApiKey:
     consecutive_429s: int = 0
     disabled: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         cfg = PROVIDER_REGISTRY.get(self.provider)
         burst = cfg.burst if cfg else 15
         self.tokens = float(burst)
@@ -331,7 +331,7 @@ def discover_keys() -> dict[str, list[ApiKey]]:
 class KeyPool:
     """Round-robin key pool with health tracking and rate limiting."""
 
-    def __init__(self, provider: str, keys: list[ApiKey], config: ProviderConfig):
+    def __init__(self, provider: str, keys: list[ApiKey], config: ProviderConfig) -> None:
         self.provider = provider
         self.keys = keys
         self.config = config
@@ -377,18 +377,18 @@ class KeyPool:
 
             return None
 
-    def mark_success(self, key: ApiKey):
+    def mark_success(self, key: ApiKey) -> None:
         key.consecutive_429s = 0
         key.rate_limited_until = 0.0
 
-    def mark_rate_limited(self, key: ApiKey):
+    def mark_rate_limited(self, key: ApiKey) -> None:
         now = time.monotonic()
         key.consecutive_429s += 1
         key.rate_limited += 1
         backoff = min(120, 5 * (2 ** min(key.consecutive_429s, 5)))
         key.rate_limited_until = now + backoff
 
-    def mark_error(self, key: ApiKey, error: str):
+    def mark_error(self, key: ApiKey, error: str) -> None:
         key.errors += 1
         key.last_error = error[:100]
 
@@ -443,18 +443,18 @@ class UnifiedApiManager:
             mgr.mark_rate_limited("helius", key)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.pools: dict[str, KeyPool] = {}
         self._load()
 
-    def _load(self):
+    def _load(self) -> None:
         pools = discover_keys()
         for provider, keys in pools.items():
             config = PROVIDER_REGISTRY.get(provider)
             if config:
                 self.pools[provider] = KeyPool(provider, keys, config)
 
-    def reload(self):
+    def reload(self) -> None:
         """Rescan environment for new keys."""
         self._load()
 
@@ -464,17 +464,17 @@ class UnifiedApiManager:
             return await pool.acquire()
         return None
 
-    def mark_success(self, provider: str, key: ApiKey):
+    def mark_success(self, provider: str, key: ApiKey) -> None:
         pool = self.pools.get(provider)
         if pool:
             pool.mark_success(key)
 
-    def mark_rate_limited(self, provider: str, key: ApiKey):
+    def mark_rate_limited(self, provider: str, key: ApiKey) -> None:
         pool = self.pools.get(provider)
         if pool:
             pool.mark_rate_limited(key)
 
-    def mark_error(self, provider: str, key: ApiKey, error: str):
+    def mark_error(self, provider: str, key: ApiKey, error: str) -> None:
         pool = self.pools.get(provider)
         if pool:
             pool.mark_error(key, error)

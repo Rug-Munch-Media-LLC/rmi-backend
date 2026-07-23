@@ -32,7 +32,7 @@ class SpamRegistry:
     - CryptoScamDB: community-maintained scam database
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._spam_tokens: dict[str, set[str]] = {}  # chain -> {addresses}
         self._spam_nfts: dict[str, set[str]] = {}  # chain -> {addresses}
         self._phishing_domains: set[str] = set()
@@ -41,7 +41,7 @@ class SpamRegistry:
         self._loaded = False
         self._stats = {"tokens": 0, "nfts": 0, "phishing": 0, "sanctioned": 0, "scam": 0}
 
-    def _ensure_loaded(self):
+    def _ensure_loaded(self) -> None:
         if self._loaded:
             return
         self._load_goldrush()
@@ -52,7 +52,7 @@ class SpamRegistry:
         self._loaded = True
         self._compute_stats()
 
-    def _compute_stats(self):
+    def _compute_stats(self) -> None:
         self._stats["tokens"] = sum(len(s) for s in self._spam_tokens.values())
         self._stats["nfts"] = sum(len(s) for s in self._spam_nfts.values())
         self._stats["phishing"] = len(self._phishing_domains)
@@ -61,7 +61,7 @@ class SpamRegistry:
 
     # ── GoldRush Spam Token Lists (8M+ contracts, 6 chains) ─
 
-    def _load_goldrush(self):
+    def _load_goldrush(self) -> None:
         """Load GoldRush enhanced spam token lists (npm: @goldrush/spam-tokens)."""
         # GoldRush publishes JSON lists via their API (free tier)
         # Fallback: load cached copies if API unavailable
@@ -104,7 +104,7 @@ class SpamRegistry:
 
     # ── Scam Sniffer Blacklists (GPL-3.0, 245+ stars) ─────
 
-    def _load_scamsniffer(self):
+    def _load_scamsniffer(self) -> None:
         """Load Scam Sniffer web3 blacklists."""
         cache_file = SPAM_DATA_DIR / "scamsniffer_blacklist.json"
         if cache_file.exists():
@@ -122,7 +122,7 @@ class SpamRegistry:
 
     # ── OpenSanctions (OFAC sanctioned wallets) ───────────
 
-    def _load_opensanctions(self):
+    def _load_opensanctions(self) -> None:
         """Load OpenSanctions sanctioned crypto wallets."""
         cache_file = SPAM_DATA_DIR / "opensanctions_crypto.json"
         if cache_file.exists():
@@ -141,7 +141,7 @@ class SpamRegistry:
 
     # ── Guardian Phishing Blocklist (JSON + bloom) ─────────
 
-    def _load_guardian(self):
+    def _load_guardian(self) -> None:
         """Load Guardian phishing domain blocklists."""
         cache_file = SPAM_DATA_DIR / "guardian_phishing.json"
         if cache_file.exists():
@@ -159,7 +159,7 @@ class SpamRegistry:
 
     # ── CryptoScamDB ──────────────────────────────────────
 
-    def _load_cryptoscamdb(self):
+    def _load_cryptoscamdb(self) -> None:
         """Load CryptoScamDB local cache."""
         cache_file = SPAM_DATA_DIR / "cryptoscamdb.json"
         if cache_file.exists():
@@ -252,13 +252,13 @@ class SpamRegistry:
 # ── Seed data loader ──────────────────────────────────────
 
 
-def seed_spam_data():
+def seed_spam_data() -> None:
     """Download and cache initial spam data from free sources."""
     import asyncio
 
     import httpx
 
-    async def _fetch():
+    async def _fetch() -> None:
         # Try to fetch GoldRush lists
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

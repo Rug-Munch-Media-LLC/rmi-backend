@@ -84,7 +84,7 @@ async def get_watch_updates(watch_id: str, since_index: int = 0) -> dict[str, An
     }
 
 
-async def _run_watch_scans(watch_id: str):
+async def _run_watch_scans(watch_id: str) -> None:
     """Run scanner checks for a watch and push results."""
     watch = _watches.get(watch_id)
     if not watch:
@@ -177,7 +177,7 @@ async def _run_watch_scans(watch_id: str):
         await _publish_to_redis(watch_id, watch)
 
 
-def _push_update(watch_id: str, update: dict[str, Any]):
+def _push_update(watch_id: str, update: dict[str, Any]) -> None:
     """Push an update to the in-memory queue."""
     if watch_id not in _updates:
         _updates[watch_id] = []
@@ -186,7 +186,7 @@ def _push_update(watch_id: str, update: dict[str, Any]):
         _watches[watch_id]["total_updates"] = len(_updates[watch_id])
 
 
-async def _publish_to_redis(watch_id: str, watch: dict[str, Any]):
+async def _publish_to_redis(watch_id: str, watch: dict[str, Any]) -> None:
     """Publish watch completion to Redis for WebSocket delivery."""
     try:
         import redis.asyncio as aioredis

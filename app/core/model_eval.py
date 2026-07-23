@@ -103,7 +103,7 @@ async def evaluate_model(model: str, task_name: str) -> dict[str, Any]:
     }
 
 
-async def compare_models(models: list[str], task: str = "scam_detection"):
+async def compare_models(models: list[str], task: str = "scam_detection") -> dict:
     """Compare multiple models on a benchmark task."""
     scores = []
     for model in models:
@@ -124,7 +124,7 @@ async def compare_models(models: list[str], task: str = "scam_detection"):
 
 if __name__ == "__main__":
 
-    async def main():
+    async def main() -> None:
         logger.info("Model Evaluation Harness")
         logger.info("=" * 40)
         models = ["qwen2.5-coder:7b", "mistral:7b"]

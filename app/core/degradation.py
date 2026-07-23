@@ -124,7 +124,7 @@ class InProcessLRU:
     remains available.
     """
 
-    def __init__(self, maxsize: int = 1024, ttl_seconds: int = 300):
+    def __init__(self, maxsize: int = 1024, ttl_seconds: int = 300) -> None:
         self._cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
         self._maxsize = maxsize
         self._ttl_seconds = ttl_seconds
@@ -199,7 +199,7 @@ class DegradationRegistry:
       - Cooldown degraded stores (auto-recover after N seconds)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._stores: dict[str, StoreConfig] = {}
         self._cooldown_seconds: float = 30.0  # auto-recheck after 30s
         self._in_process_lru = InProcessLRU(maxsize=2048, ttl_seconds=300)
@@ -367,7 +367,7 @@ class DegradationChain:
         )
     """
 
-    def __init__(self, store_name: str):
+    def __init__(self, store_name: str) -> None:
         self._store_name = store_name
         self._registry = get_registry()
         self._store = self._registry.get(store_name)
@@ -562,7 +562,7 @@ def degradable(
     stores: list[str],
     fallback: Any | None = None,
     stale_cache_key_fn: Callable[..., str] | None = None,
-):
+) -> Any:
     """Decorator that wraps an async function with a degradation chain.
 
     Args:
@@ -631,7 +631,7 @@ async def degradation_context(
     primary: Callable[[], Any],
     secondary: Callable[[], Any] | None = None,
     fallback: Any | None = None,
-):
+) -> Any:
     """Context manager for degradation chain execution.
 
     Usage:
@@ -659,7 +659,7 @@ async def degradation_context(
 # ══════════════════════════════════════════════════════════════════════
 
 
-async def add_degradation_header(response, _request):
+async def add_degradation_header(response, _request) -> None:
     """FastAPI middleware to inject X-Degraded-Stores header."""
     registry = get_registry()
     header = registry.degraded_header

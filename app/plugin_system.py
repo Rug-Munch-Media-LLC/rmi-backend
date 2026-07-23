@@ -72,7 +72,7 @@ class PluginStatus(StrEnum):
 class Plugin(ABC):
     """Base class for all plugins."""
 
-    def __init__(self, config: dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config = config or {}
         self.status = PluginStatus.LOADING.value
         self.last_error = ""
@@ -112,7 +112,7 @@ class Plugin(ABC):
             logger.error(f"Plugin {self.name} initialization failed: {e}")
             return False
 
-    def _setup(self):  # noqa: B027
+    def _setup(self) -> None:  # noqa: B027
         """Override for setup logic."""
 
     def health_check(self) -> dict[str, Any]:
@@ -126,7 +126,7 @@ class Plugin(ABC):
             "uptime_seconds": int(time.time() - datetime.fromisoformat(self.load_time).timestamp()),
         }
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Cleanup on shutdown."""
         self.status = PluginStatus.INACTIVE.value
 
@@ -153,12 +153,12 @@ class PluginRegistry:
 
     PLUGIN_DIR = "/root/backend/plugins"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._plugins: dict[str, Plugin] = {}
         self._hooks: dict[str, list[Callable]] = {}
         self._ensure_plugin_dir()
 
-    def _ensure_plugin_dir(self):
+    def _ensure_plugin_dir(self) -> None:
         """Ensure plugin directory exists."""
         os.makedirs(self.PLUGIN_DIR, exist_ok=True)
         for ptype in PluginType:
@@ -260,7 +260,7 @@ class PluginRegistry:
 
     # ── Hook System ────────────────────────────────────────
 
-    def register_hook(self, event: str, callback: Callable):
+    def register_hook(self, event: str, callback: Callable) -> None:
         """Register a hook for an event."""
         if event not in self._hooks:
             self._hooks[event] = []
@@ -330,7 +330,7 @@ class WebhookNotifierPlugin(Plugin):
     def description(self) -> str:
         return "Send notifications to configured webhooks"
 
-    def _setup(self):
+    def _setup(self) -> None:
         self.webhook_url = self.config.get("webhook_url", "")
         self.headers = self.config.get("headers", {})
 
@@ -380,7 +380,7 @@ class RedisCachePlugin(Plugin):
     def description(self) -> str:
         return "Redis caching and pub/sub connector"
 
-    def _setup(self):
+    def _setup(self) -> None:
         import redis.asyncio as redis_lib
 
         self.redis = redis_lib.Redis(
@@ -393,10 +393,10 @@ class RedisCachePlugin(Plugin):
     async def get(self, key: str) -> str | None:
         return await self.redis.get(key)
 
-    async def set(self, key: str, value: str, ttl: int = 3600):
+    async def set(self, key: str, value: str, ttl: int = 3600) -> None:
         await self.redis.setex(key, ttl, value)
 
-    async def publish(self, channel: str, message: str):
+    async def publish(self, channel: str, message: str) -> None:
         await self.redis.publish(channel, message)
 
 

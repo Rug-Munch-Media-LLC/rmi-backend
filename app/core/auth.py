@@ -11,6 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.core.logging import get_logger
+from typing import Any
 
 log = get_logger(__name__)
 
@@ -69,7 +70,7 @@ def is_public_path(path: str, method: str) -> bool:
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next) -> Any:
         path = request.url.path
         method = request.method
 

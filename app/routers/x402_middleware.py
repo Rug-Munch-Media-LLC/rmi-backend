@@ -97,7 +97,7 @@ class PaymentVerifier:
     Fallback: PayAI facilitator via HTTP
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._facilitators: dict[str, Any] = {}
 
     def _verify_eip712_local(self, payload_data: dict) -> dict[str, Any]:
@@ -341,7 +341,7 @@ _verifier = PaymentVerifier()
 
 
 @router.get("/receipt/{receipt_id}/verify")
-async def verify_receipt_public(receipt_id: str):
+async def verify_receipt_public(receipt_id: str) -> dict:
     """
     Public endpoint to verify any x402 receipt.
     Anyone can check if a payment was fulfilled - no auth needed.
@@ -410,7 +410,7 @@ async def payment_ledger(
     tool: str | None = None,
     network: str | None = None,
     status: str | None = None,
-):
+) -> dict:
     """
     Public anonymized payment ledger for transparency.
     Shows: tool used, amount, network, timestamp, status.
@@ -478,7 +478,7 @@ async def payment_ledger(
 
 
 @router.get("/transparency")
-async def transparency_dashboard(hours: int = 24):
+async def transparency_dashboard(hours: int = 24) -> dict:
     """
     Public transparency dashboard showing system trust metrics.
     No sensitive data - all aggregated and anonymized.
@@ -596,7 +596,7 @@ async def transparency_dashboard(hours: int = 24):
 @router.post("/verify")
 async def verify_payment_endpoint(
     request: Request,
-):
+) -> Any:
     """
     Verify an x402 payment payload.
     Used by the gateway worker to verify payments before executing tools.
@@ -671,7 +671,7 @@ async def verify_payment_endpoint(
 
 
 @router.post("/receipt")
-async def store_receipt(request: Request):
+async def store_receipt(request: Request) -> Any | dict[str, bool]:
     """
     Store a payment receipt from an x402 Worker after successful payment verification.
 
@@ -835,7 +835,7 @@ async def store_receipt(request: Request):
 
 
 @router.get("/fallback/status")
-async def fallback_status():
+async def fallback_status() -> dict[str, str]:
     """
     Check fallback system health, cache stats, and fallback success rate.
     Shows which fallback layers are working and which are failing.

@@ -116,7 +116,7 @@ class GCloudAccount:
 class MultiCloudManager:
     """Manages multiple Google Cloud accounts from service account JSONs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._accounts: dict[str, GCloudAccount] = {}
         self._discovered = False
 

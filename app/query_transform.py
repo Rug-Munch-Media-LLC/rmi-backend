@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 import httpx
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -58,7 +59,7 @@ class TransformedQuery:
 # ======================================================================
 
 
-async def _get_redis():
+async def _get_redis() -> Any:
     import redis.asyncio as ai_redis
 
     return ai_redis.Redis(

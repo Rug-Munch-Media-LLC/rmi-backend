@@ -5,6 +5,7 @@ import os
 from langfuse import Langfuse
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -22,7 +23,7 @@ def get_langfuse() -> Langfuse:
     return _langfuse_client
 
 
-def trace_agent_call(agent_name: str, input_data: dict, output_data: dict, **kwargs):
+def trace_agent_call(agent_name: str, input_data: dict, output_data: dict, **kwargs) -> Any | None:
     """Trace an agent call in Langfuse."""
     try:
         lf = get_langfuse()

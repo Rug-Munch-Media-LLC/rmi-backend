@@ -273,7 +273,7 @@ class BulletinBoardManager:
     """
 
     @staticmethod
-    async def _get_redis():
+    async def _get_redis() -> Any:
         import redis.asyncio as redis_lib
 
         return redis_lib.Redis(

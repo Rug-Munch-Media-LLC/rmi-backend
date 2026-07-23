@@ -143,7 +143,7 @@ def compare_image_hashes(hash1: str, hash2: str) -> float:
 class TokenLogoDB:
     """In-memory database of known token logos for stolen artwork detection."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._logos: dict[str, dict[str, Any]] = {}
 
     def add_logo(

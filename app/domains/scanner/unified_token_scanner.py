@@ -231,7 +231,7 @@ class UnifiedTokenScanner:
 
     # ── MERGE METHODS ──
 
-    def _merge_core(self, r: ScanResult, data: dict):
+    def _merge_core(self, r: ScanResult, data: dict) -> None:
         """Extract core identity from price, metadata, and security checks."""
         r.modules_run.extend(data.keys())
 
@@ -260,7 +260,7 @@ class UnifiedTokenScanner:
             r.modules_run.append(f"security_checks:{len(checks)}")
             r.enrichment_sources.append(f"security:{security.get('source', 'goplus')}")
 
-    def _merge_deep(self, r: ScanResult, data: dict):
+    def _merge_deep(self, r: ScanResult, data: dict) -> None:
         """Merge deep analysis results."""
         r.modules_run.extend(data.keys())
 
@@ -271,12 +271,12 @@ class UnifiedTokenScanner:
         r.rug_patterns = data.get("rug_patterns")
         r.volume_auth = data.get("volume_authenticity")
 
-    def _merge_premium(self, r: ScanResult, data: dict):
+    def _merge_premium(self, r: ScanResult, data: dict) -> None:
         """Merge premium-tier results."""
         r.modules_run.extend(data.keys())
         r.premium = {k: v for k, v in data.items() if k in self.PREMIUM_CHAINS and v is not None}
 
-    def _merge_intel(self, r: ScanResult, data: dict):
+    def _merge_intel(self, r: ScanResult, data: dict) -> None:
         """Merge intelligence enrichment results."""
         r.modules_run.extend(data.keys())
         r.smart_money = data.get("smart_money")
@@ -284,7 +284,7 @@ class UnifiedTokenScanner:
         r.cross_chain = data.get("cross_chain_entity")
         r.launches = data.get("token_launches")
 
-    def _compute_score(self, r: ScanResult):
+    def _compute_score(self, r: ScanResult) -> None:
         """
         Compute safety score (100 = safest, 0 = scam).
 

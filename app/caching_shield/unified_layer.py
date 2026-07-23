@@ -32,13 +32,13 @@ logger = get_logger("unified_data")
 class TieredCache:
     """L1 in-memory cache."""
 
-    def __init__(self, max_l1=2048):
+    def __init__(self, max_l1=2048) -> None:
         self._l1 = {}
         self._max = max_l1
         self.hits = 0
         self.misses = 0
 
-    async def get(self, key):
+    async def get(self, key) -> None | Any:
         entry = self._l1.get(key)
         if entry:
             expiry, data = entry
@@ -49,7 +49,7 @@ class TieredCache:
         self.misses += 1
         return None
 
-    async def set(self, key, data, ttl):
+    async def set(self, key, data, ttl) -> None:
         self._l1[key] = (time.monotonic() + ttl, data)
         if len(self._l1) > self._max:
             oldest = min(self._l1.keys(), key=lambda k: self._l1[k][0])
@@ -85,11 +85,11 @@ class ToolResult:
 class ProviderChain:
     """Ordered list of data providers with fallback."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
         self._providers: list[tuple] = []  # (name, fn, rate_rps)
 
-    def add(self, name: str, fn: Callable, rate_rps: float = 10):
+    def add(self, name: str, fn: Callable, rate_rps: float = 10) -> None:
         self._providers.append((name, fn, rate_rps))
         return self
 
@@ -132,14 +132,14 @@ class UnifiedDataLayer:
         result = await layer.fetch("risk_scan", address="0x...", chain="ethereum")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._cache = TieredCache()
         self._providers: dict[str, ProviderChain] = {}
         self._setup_providers()
         self._token_buckets: dict[str, tuple] = {}  # provider -> (tokens, last_refill)
         self._bucket_lock = asyncio.Lock()
 
-    def _setup_providers(self):
+    def _setup_providers(self) -> None:
         """Define fallback chains for every data type."""
 
         # ── PRICE ──
@@ -259,7 +259,7 @@ class UnifiedDataLayer:
     # PROVIDER IMPLEMENTATIONS (same as data_fallback.py but simplified)
     # ═══════════════════════════════════════════════════════════════════════
 
-    async def _jupiter_price(self, mint: str, **kw):
+    async def _jupiter_price(self, mint: str, **kw) -> dict[str, int | float]:
         async with httpx.AsyncClient(timeout=8) as c:
             r = await c.get(
                 f"https://quote-api.jup.ag/v6/quote?inputMint={mint}&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=1000000000"
@@ -267,13 +267,13 @@ class UnifiedDataLayer:
             if r.status_code == 200:
                 return {"price_usd": float(r.json().get("outAmount", 0)) / 1e6}
 
-    async def _st_price(self, mint: str, **kw):
+    async def _st_price(self, mint: str, **kw) -> Any:
         from app.caching_shield.solana_tracker import get_solana_tracker
 
         r = await get_solana_tracker().get_price(mint)
         return {"price_usd": r.get("price")} if r else None
 
-    async def _dexscreener_price(self, mint: str, **kw):
+    async def _dexscreener_price(self, mint: str, **kw) -> dict[str, float]:
         async with httpx.AsyncClient(timeout=8) as c:
             r = await c.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
             if r.status_code == 200:
@@ -281,13 +281,13 @@ class UnifiedDataLayer:
                 if pairs:
                     return {"price_usd": float(pairs[0].get("priceUsd", 0))}
 
-    async def _binance_price(self, mint: str, **kw):
+    async def _binance_price(self, mint: str, **kw) -> dict[str, float]:
         async with httpx.AsyncClient(timeout=5) as c:
             r = await c.get("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT")
             if r.status_code == 200:
                 return {"price_usd": float(r.json().get("price", 0))}
 
-    async def _helius_das(self, mint: str, **kw):
+    async def _helius_das(self, mint: str, **kw) -> dict[str, Any | None]:
         from app.caching_shield.helius_das import get_helius_das
 
         r = await get_helius_das().get_token_metadata(mint)
@@ -296,13 +296,13 @@ class UnifiedDataLayer:
             t = r.get("token_info", {})
             return {"name": c.get("name"), "symbol": c.get("symbol"), "decimals": t.get("decimals")}
 
-    async def _st_token(self, mint: str, **kw):
+    async def _st_token(self, mint: str, **kw) -> Any:
         from app.caching_shield.solana_tracker import get_solana_tracker
 
         r = await get_solana_tracker().get_token(mint)
         return {"name": r.get("token", {}).get("name")} if r else None
 
-    async def _jupiter_list(self, mint: str, **kw):
+    async def _jupiter_list(self, mint: str, **kw) -> dict[str, Any | None]:
         async with httpx.AsyncClient(timeout=8) as c:
             r = await c.get("https://token.jup.ag/strict")
             if r.status_code == 200:
@@ -310,7 +310,7 @@ class UnifiedDataLayer:
                     if t.get("address") == mint:
                         return {"name": t.get("name"), "symbol": t.get("symbol")}
 
-    async def _helius_balance(self, address: str, **kw):
+    async def _helius_balance(self, address: str, **kw) -> dict:
         from app.consensus_rpc import get_consensus_rpc
 
         r = await get_consensus_rpc().get_balance(address)
@@ -318,13 +318,13 @@ class UnifiedDataLayer:
             v = r.value if isinstance(r.value, (int, float)) else r.value.get("value", 0)
             return {"balance_lamports": v}
 
-    async def _quicknode_balance(self, address: str, **kw):
+    async def _quicknode_balance(self, address: str, **kw) -> Any:
         return await self._helius_balance(address)
 
-    async def _alchemy_balance(self, address: str, **kw):
+    async def _alchemy_balance(self, address: str, **kw) -> Any:
         return await self._helius_balance(address)
 
-    async def _publicnode_balance(self, address: str, **kw):
+    async def _publicnode_balance(self, address: str, **kw) -> dict[str, Any | None]:
         async with httpx.AsyncClient(timeout=8) as c:
             r = await c.post(
                 "https://solana-rpc.publicnode.com",
@@ -333,7 +333,7 @@ class UnifiedDataLayer:
             if r.status_code == 200:
                 return {"balance_lamports": r.json().get("result", {}).get("value", 0)}
 
-    async def _goplus(self, address: str, chain: str = "solana", **kw):
+    async def _goplus(self, address: str, chain: str = "solana", **kw) -> dict[str, bool]:
         key = os.getenv("GOPLUS_API_KEY", "")
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
@@ -348,7 +348,7 @@ class UnifiedDataLayer:
                     "risk_score": 100 - int(d.get("trust_score", 50)),
                 }
 
-    async def _rugcheck(self, address: str, **kw):
+    async def _rugcheck(self, address: str, **kw) -> dict[str, Any | None]:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(f"https://api.rugcheck.xyz/v1/tokens/{address}/report")
             if r.status_code == 200:
@@ -360,13 +360,13 @@ class UnifiedDataLayer:
                     ],
                 }
 
-    async def _honeypot(self, address: str, **kw):
+    async def _honeypot(self, address: str, **kw) -> dict[str, Any | None]:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(f"https://api.honeypot.is/v2/IsHoneypot?address={address}&chainID=1")
             if r.status_code == 200:
                 return {"is_honeypot": r.json().get("honeypotResult", {}).get("isHoneypot", False)}
 
-    async def _local_labels(self, address: str, **kw):
+    async def _local_labels(self, address: str, **kw) -> Any | None:
         try:
             from app.wallet_label_loader import lookup_wallet_label
 
@@ -375,7 +375,7 @@ class UnifiedDataLayer:
         except Exception:
             return None
 
-    async def _helius_txs(self, address: str, **kw):
+    async def _helius_txs(self, address: str, **kw) -> dict[str, Any | None]:
         key = os.getenv("HELIUS_API_KEY", "")
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.post(
@@ -390,23 +390,23 @@ class UnifiedDataLayer:
             if r.status_code == 200:
                 return {"signatures": r.json().get("result", [])}
 
-    async def _st_wallet(self, address: str, **kw):
+    async def _st_wallet(self, address: str, **kw) -> Any:
         from app.caching_shield.solana_tracker import get_solana_tracker
 
         r = await get_solana_tracker().get_wallet(address)
         return {"total_value": r.get("total")} if r else None
 
-    async def _publicnode_txs(self, address: str, **kw):
+    async def _publicnode_txs(self, address: str, **kw) -> Any:
         return await self._helius_txs(address)
 
-    async def _blockscout(self, address: str, chain_id: int = 1, **kw):
+    async def _blockscout(self, address: str, chain_id: int = 1, **kw) -> dict:
         from app.caching_shield.funding_tracer import trace_funding_source
 
         r = await trace_funding_source(address, chain_id)
         if r and r.source_address:
             return {"source": r.source_address, "type": r.source_type, "confidence": r.confidence}
 
-    async def _etherscan(self, address: str, chain_id: int = 1, **kw):
+    async def _etherscan(self, address: str, chain_id: int = 1, **kw) -> dict[str, int]:
         key = os.getenv("ETHERSCAN_API_KEY", "")
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
@@ -423,7 +423,7 @@ class UnifiedDataLayer:
             if r.status_code == 200 and r.json().get("status") == "1":
                 return {"txs": len(r.json().get("result", []))}
 
-    async def _evm_rpc(self, address: str, chain_id: int = 1, **kw):
+    async def _evm_rpc(self, address: str, chain_id: int = 1, **kw) -> dict:
         from app.consensus_rpc import get_consensus_rpc
 
         r = await get_consensus_rpc().evm_query_with_consensus(
@@ -458,7 +458,7 @@ def get_data_layer() -> UnifiedDataLayer:
         _layer = UnifiedDataLayer()
     return _layer
 
-    async def _cmc_price(self, mint: str, **kw):
+    async def _cmc_price(self, mint: str, **kw) -> None | dict:
         import os
 
         key = os.getenv("COINMARKETCAP_API_KEY", "")

@@ -10,6 +10,7 @@ import time
 import httpx
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("rmi.news.social")
 
@@ -53,7 +54,7 @@ TWITTER_ACCOUNTS = [
 ]
 
 
-def fetch_reddit(db_r=None):
+def fetch_reddit(db_r=None) -> Any:
     """Fetch Reddit RSS feeds. Returns list of articles."""
     results = []
     for source, url in REDDIT_FEEDS:
@@ -96,7 +97,7 @@ def fetch_reddit(db_r=None):
     return results
 
 
-def fetch_nitter(db_r=None):
+def fetch_nitter(db_r=None) -> Any:
     """Fetch Twitter via Nitter RSS. Returns list of articles."""
     results = []
     for nitter_url in NITTER_INSTANCES:
@@ -138,7 +139,7 @@ def fetch_nitter(db_r=None):
     return results
 
 
-def merge_into_redis(articles, prefix="rmi:news"):
+def merge_into_redis(articles, prefix="rmi:news") -> Any | int:
     """Merge social articles into existing Redis news index."""
     try:
         from dotenv import load_dotenv

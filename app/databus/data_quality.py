@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 import redis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("data_quality")
 
@@ -165,7 +166,7 @@ def get_trust_bonus(address: str, chain: str = "") -> tuple[int, str]:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _r():
+def _r() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,

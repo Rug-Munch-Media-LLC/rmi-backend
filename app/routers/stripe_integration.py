@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("stripe")
 
@@ -76,14 +77,14 @@ class CheckoutRequest(BaseModel):
 class CreditEntry:
     """In-memory credit store - replace with Redis/Postgres in production."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._credits: dict[str, dict] = {}
 
     def get_balance(self, api_key: str) -> int:
         entry = self._credits.get(api_key, {"balance": 100})  # 100 free credits
         return entry.get("balance", 0)
 
-    def add_credits(self, api_key: str, amount: int, source: str = "stripe"):
+    def add_credits(self, api_key: str, amount: int, source: str = "stripe") -> None:
         if api_key not in self._credits:
             self._credits[api_key] = {
                 "balance": 100,
@@ -114,7 +115,7 @@ _credit_store = CreditEntry()
 
 
 @router.post("/stripe/checkout")
-async def create_checkout(req: CheckoutRequest):
+async def create_checkout(req: CheckoutRequest) -> Any | dict:
     """Create a Stripe checkout session for credit purchase."""
     if not STRIPE_ENABLED:
         return JSONResponse(
@@ -191,7 +192,7 @@ async def create_checkout(req: CheckoutRequest):
 
 
 @router.post("/stripe/webhook")
-async def stripe_webhook(request: Request):
+async def stripe_webhook(request: Request) -> dict[str, bool] | Any:
     """Stripe webhook - called when payment succeeds."""
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
@@ -236,7 +237,7 @@ async def stripe_webhook(request: Request):
 
 
 @router.get("/stripe/packages")
-async def list_packages():
+async def list_packages() -> dict[str, dict]:
     """List available credit packages and subscription tiers."""
     return {
         "packages": {
@@ -258,7 +259,7 @@ async def list_packages():
 
 
 @router.get("/credits/balance")
-async def check_balance(api_key: str = ""):
+async def check_balance(api_key: str = "") -> dict[str, int | float] | dict[str, str]:
     """Check remaining credit balance for an API key."""
     if not api_key:
         return {"error": "api_key parameter required"}
@@ -272,7 +273,7 @@ async def check_balance(api_key: str = ""):
 
 
 @router.post("/credits/buy")
-async def buy_credits(api_key: str = "", amount_usd: int = 1000):
+async def buy_credits(api_key: str = "", amount_usd: int = 1000) -> dict:
     """Buy credits directly via API (wraps Stripe checkout).
 
     In production, this creates a Stripe checkout session.
@@ -317,7 +318,7 @@ async def buy_credits(api_key: str = "", amount_usd: int = 1000):
 
 
 @router.get("/stripe/portal")
-async def customer_portal(customer_id: str = ""):
+async def customer_portal(customer_id: str = "") -> dict | Any:
     """Stripe customer portal for managing subscriptions."""
     if not STRIPE_ENABLED or not customer_id:
         return {

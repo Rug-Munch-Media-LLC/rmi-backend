@@ -114,12 +114,12 @@ RUG_BYTECODE_PATTERNS = [
 class ContractDiffAnalyzer:
     """Compare contract bytecode against known rug patterns and clone databases."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._initialized = False
         self._rug_hashes: dict[str, dict[str, Any]] = {}
         self._selector_map: dict[str, list[str]] = {}  # selector -> contract addresses
 
-    async def _ensure_init(self):
+    async def _ensure_init(self) -> None:
         """Load known rug patterns from RAG on first use."""
         if self._initialized:
             return

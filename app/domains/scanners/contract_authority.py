@@ -154,11 +154,11 @@ class ContractAuthorityScanner:
     EVM path: Etherscan API → bytecode, storage, ABI → proxy / admin detection
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._chain = ChainClient()
         self._http = httpx.AsyncClient(timeout=15.0)
 
-    async def close(self):
+    async def close(self) -> None:
         await self._http.aclose()
 
     async def analyze(self, token_address: str, chain: str) -> ContractAuthorityReport:
@@ -336,7 +336,7 @@ class ContractAuthorityScanner:
             is_token_itself=is_token_itself,
         )
 
-    def _add_solana_warnings(self, report: ContractAuthorityReport):
+    def _add_solana_warnings(self, report: ContractAuthorityReport) -> None:
         """Add risk warnings based on Solana authority configuration."""
         auths = report.solana_authorities
         if not auths:
@@ -452,7 +452,7 @@ class ContractAuthorityScanner:
 
     def _analyze_evm_abi(
         self, abi: list, proxy_info: EVMProxyInfo, report: ContractAuthorityReport
-    ):
+    ) -> None:
         """Scan ABI for admin / ownership functions."""
         admin_sigs = [
             "transferOwnership",
@@ -521,7 +521,7 @@ class ContractAuthorityScanner:
         }
         return admin_address.lower() in BURNED_ADDRESSES
 
-    def _add_evm_warnings(self, report: ContractAuthorityReport):
+    def _add_evm_warnings(self, report: ContractAuthorityReport) -> None:
         """Add risk warnings based on EVM proxy configuration."""
         proxy = report.evm_proxy
         if not proxy:
@@ -618,7 +618,7 @@ class ContractAuthorityScanner:
 
     # ── Risk Scoring ────────────────────────────────────────
 
-    def _compute_risk(self, report: ContractAuthorityReport):
+    def _compute_risk(self, report: ContractAuthorityReport) -> None:
         """Compute risk_score (0-100) and risk_level from collected data."""
         score = 0
 

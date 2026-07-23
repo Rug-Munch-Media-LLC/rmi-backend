@@ -132,7 +132,7 @@ class DevReputationEngine:
       - Moralis for cross-chain wallet data
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = httpx.AsyncClient(timeout=15.0)
 
     # ── DexScreener helpers ────────────────────────────────────

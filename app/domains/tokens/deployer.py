@@ -135,7 +135,7 @@ class DeployParams:
 class ChainDeployer(ABC):
     """Abstract base for all chain deployers."""
 
-    def __init__(self, chain: str, private_key: str, rpc_url: str):
+    def __init__(self, chain: str, private_key: str, rpc_url: str) -> None:
         self.chain = chain
         self.private_key = private_key
         self.rpc_url = rpc_url
@@ -222,7 +222,7 @@ class EVMDeployer(ChainDeployer):
         "909101519092909150565b610cc5806100b86000396000f3fe"
     )
 
-    def __init__(self, chain: str, private_key: str, rpc_url: str):
+    def __init__(self, chain: str, private_key: str, rpc_url: str) -> None:
         from eth_account import Account
         from web3 import Web3
 
@@ -699,7 +699,7 @@ class SolanaDeployer(ChainDeployer):
     Uses solana-py for token creation and management.
     """
 
-    def __init__(self, private_key: str, rpc_url: str):
+    def __init__(self, private_key: str, rpc_url: str) -> None:
         from solana.rpc.api import Client
         from solders.keypair import Keypair
 
@@ -1031,7 +1031,7 @@ class TronDeployer(ChainDeployer):
     Uses tronpy for contract deployment and interaction.
     """
 
-    def __init__(self, private_key: str, rpc_url: str = "https://api.trongrid.io"):
+    def __init__(self, private_key: str, rpc_url: str = "https://api.trongrid.io") -> None:
         from tronpy import Tron
         from tronpy.keys import PrivateKey
 
@@ -1281,12 +1281,12 @@ class DeploymentStorage:
     Uses Redis as primary, Supabase as backup.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.redis = None
         self.supabase = None
         self._init_stores()
 
-    def _init_stores(self):
+    def _init_stores(self) -> None:
         """Initialize storage backends."""
         try:
             import redis.asyncio as redis_lib

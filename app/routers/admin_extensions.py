@@ -21,13 +21,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-extensions"])
 
 
 # ── Auth helper ──
-async def _verify_admin(request: Request):
+async def _verify_admin(request: Request) -> bool:
     """Verify admin access with API key."""
     admin_key = os.getenv("ADMIN_API_KEY")
     if not admin_key:
@@ -44,7 +45,7 @@ async def _verify_admin(request: Request):
 
 
 @router.get("/telegram/stats")
-async def telegram_stats(request: Request, _=Depends(_verify_admin)):
+async def telegram_stats(request: Request, _=Depends(_verify_admin)) -> Any:
     """Get Telegram bot statistics."""
     # Try to read from bot state if available
     bot_state_file = "/tmp/telegram_bot_state.json"
@@ -87,7 +88,7 @@ async def telegram_stats(request: Request, _=Depends(_verify_admin)):
 @router.get("/telegram/users")
 async def telegram_users(
     request: Request, _=Depends(_verify_admin), limit: int = Query(50, le=200)
-):
+) -> dict:
     """Get Telegram bot users."""
     users_file = "/tmp/telegram_users.json"
     users = []
@@ -114,7 +115,7 @@ async def telegram_users(
 @router.get("/telegram/messages")
 async def telegram_messages(
     request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)
-):
+) -> dict:
     """Get recent Telegram messages."""
     messages_file = "/tmp/telegram_messages.json"
     messages = []
@@ -135,7 +136,7 @@ class TelegramSendRequest(BaseModel):
 
 
 @router.post("/telegram/send")
-async def telegram_send(request: Request, req: TelegramSendRequest, _=Depends(_verify_admin)):
+async def telegram_send(request: Request, req: TelegramSendRequest, _=Depends(_verify_admin)) -> dict[str, str]:
     """Send a message via Telegram bot."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not bot_token:
@@ -165,7 +166,7 @@ class TelegramBroadcastRequest(BaseModel):
 @router.post("/telegram/broadcast")
 async def telegram_broadcast(
     request: Request, req: TelegramBroadcastRequest, _=Depends(_verify_admin)
-):
+) -> dict[str, str]:
     """Broadcast a message to all Telegram bot users."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not bot_token:
@@ -221,7 +222,7 @@ async def telegram_broadcast(
 
 
 @router.get("/content/drafts")
-async def ghost_drafts(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)):
+async def ghost_drafts(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)) -> dict[str, list] | dict:
     """Get Ghost drafts."""
     try:
         import httpx
@@ -267,7 +268,7 @@ async def ghost_drafts(request: Request, _=Depends(_verify_admin), limit: int = 
 
 
 @router.get("/content/tags")
-async def ghost_tags(request: Request, _=Depends(_verify_admin)):
+async def ghost_tags(request: Request, _=Depends(_verify_admin)) -> dict[str, list] | dict:
     """Get Ghost tags."""
     try:
         import httpx
@@ -307,7 +308,7 @@ async def ghost_tags(request: Request, _=Depends(_verify_admin)):
 
 
 @router.get("/content/analytics")
-async def ghost_analytics(request: Request, _=Depends(_verify_admin)):
+async def ghost_analytics(request: Request, _=Depends(_verify_admin)) -> dict | dict[str, str]:
     """Get Ghost analytics computed from local data - no Ghost Pro required."""
     try:
         import httpx
@@ -367,7 +368,7 @@ async def ghost_analytics(request: Request, _=Depends(_verify_admin)):
 
 
 @router.post("/content/post/{post_id}/publish")
-async def ghost_publish(request: Request, post_id: str, _=Depends(_verify_admin)):
+async def ghost_publish(request: Request, post_id: str, _=Depends(_verify_admin)) -> dict[str, str] | dict[str, bool]:
     """Publish a Ghost draft post."""
     try:
         import httpx
@@ -407,7 +408,7 @@ async def ghost_publish(request: Request, post_id: str, _=Depends(_verify_admin)
 
 
 @router.get("/cron/jobs")
-async def cron_jobs(request: Request, _=Depends(_verify_admin)):
+async def cron_jobs(request: Request, _=Depends(_verify_admin)) -> dict:
     """List all Hermes cron jobs."""
     jobs = []
     try:
@@ -476,7 +477,7 @@ async def cron_jobs(request: Request, _=Depends(_verify_admin)):
 
 
 @router.get("/cron/logs")
-async def cron_logs(request: Request, _=Depends(_verify_admin), limit: int = Query(50, le=200)):
+async def cron_logs(request: Request, _=Depends(_verify_admin), limit: int = Query(50, le=200)) -> dict:
     """Get cron execution logs."""
     logs = []
     log_file = os.path.expanduser("~/.hermes/cron.log")
@@ -497,19 +498,19 @@ async def cron_logs(request: Request, _=Depends(_verify_admin), limit: int = Que
 
 
 @router.post("/cron/{job_id}/run")
-async def cron_run(request: Request, job_id: str, _=Depends(_verify_admin)):
+async def cron_run(request: Request, job_id: str, _=Depends(_verify_admin)) -> dict[str, str]:
     """Trigger a cron job manually."""
     return {"status": "queued", "job_id": job_id, "message": "Job execution queued"}
 
 
 @router.post("/cron/{job_id}/pause")
-async def cron_pause(request: Request, job_id: str, _=Depends(_verify_admin)):
+async def cron_pause(request: Request, job_id: str, _=Depends(_verify_admin)) -> dict[str, str]:
     """Pause a cron job."""
     return {"status": "paused", "job_id": job_id}
 
 
 @router.post("/cron/{job_id}/resume")
-async def cron_resume(request: Request, job_id: str, _=Depends(_verify_admin)):
+async def cron_resume(request: Request, job_id: str, _=Depends(_verify_admin)) -> dict[str, str]:
     """Resume a cron job."""
     return {"status": "resumed", "job_id": job_id}
 
@@ -519,7 +520,7 @@ async def cron_resume(request: Request, job_id: str, _=Depends(_verify_admin)):
 # ═══════════════════════════════════════════════════════════════
 
 
-def _get_brightdata_proxy():
+def _get_brightdata_proxy() -> dict:
     """Return Bright Data residential proxy config for Dify access."""
     proxy_url = os.getenv("BRIGHTDATA_PROXY_URL")
     if not proxy_url:
@@ -532,7 +533,7 @@ def _get_brightdata_proxy():
     }
 
 
-def _brightdata_client(timeout: int = 30):
+def _brightdata_client(timeout: int = 30) -> Any:
     """Create an httpx client routed through Bright Data residential proxy."""
     import httpx
 
@@ -552,7 +553,7 @@ def _brightdata_client(timeout: int = 30):
 
 
 @router.get("/dify/status")
-async def dify_status(request: Request, _=Depends(_verify_admin)):
+async def dify_status(request: Request, _=Depends(_verify_admin)) -> dict[str, str] | Any:
     """Check Dify connection status."""
     # Hardcoded - Docker DNS resolves unreliably in gunicorn workers
     dify_url = "http://172.23.0.4:5001"
@@ -567,7 +568,7 @@ async def dify_status(request: Request, _=Depends(_verify_admin)):
             {"inputs": {}, "query": "ping", "response_mode": "blocking", "user": "health-check"}
         ).encode()
 
-        def _check():
+        def _check() -> Any:
             import urllib.request as ur
 
             req = ur.Request(
@@ -609,7 +610,7 @@ async def dify_conversations(
     _=Depends(_verify_admin),
     limit: int = Query(20, le=100),
     use_proxy: bool = False,
-):
+) -> dict[str, list] | dict[str, Any | None] | Any:
     """Get Dify conversations. Auto-fallback to Bright Data proxy on failure."""
     dify_url = os.getenv("DIFY_API_URL", "http://127.0.0.1:8899")
     dify_key = os.getenv("DIFY_APP_KEY", "")
@@ -647,7 +648,7 @@ async def dify_conversations(
 
 
 @router.get("/dify/apps")
-async def dify_apps(request: Request, _=Depends(_verify_admin), use_proxy: bool = False):
+async def dify_apps(request: Request, _=Depends(_verify_admin), use_proxy: bool = False) -> dict[str, list] | dict[str, Any | None] | Any:
     """Get Dify apps. Auto-fallback to Bright Data proxy."""
     dify_url = os.getenv("DIFY_API_URL", "http://127.0.0.1:8899")
     dify_key = os.getenv("DIFY_APP_KEY", "")
@@ -681,7 +682,7 @@ async def dify_apps(request: Request, _=Depends(_verify_admin), use_proxy: bool 
 @router.get("/dify/conversations/{conversation_id}/messages")
 async def dify_messages(
     request: Request, conversation_id: str, _=Depends(_verify_admin), use_proxy: bool = False
-):
+) -> dict[str, list] | dict[str, Any | None] | Any:
     """Get messages for a Dify conversation. Auto-fallback to Bright Data proxy."""
     dify_url = os.getenv("DIFY_API_URL", "http://127.0.0.1:8899")
     dify_key = os.getenv("DIFY_APP_KEY", "")
@@ -721,7 +722,7 @@ class DifyChatRequest(BaseModel):
 
 
 @router.post("/dify/chat")
-async def dify_chat(request: Request, req: DifyChatRequest, _=Depends(_verify_admin)):
+async def dify_chat(request: Request, req: DifyChatRequest, _=Depends(_verify_admin)) -> dict[str, str] | dict[str, Any | None] | Any | dict:
     """Send a message to Dify advisor."""
     # Hardcoded - Docker DNS resolves unreliably in gunicorn workers
     dify_url = "http://172.23.0.4:5001"
@@ -745,7 +746,7 @@ async def dify_chat(request: Request, req: DifyChatRequest, _=Depends(_verify_ad
         ).encode()
 
         # Run blocking urllib in thread pool to avoid blocking event loop
-        def _call_dify():
+        def _call_dify() -> Any:
             import urllib.request as ur
 
             http_req = ur.Request(
@@ -774,7 +775,7 @@ async def dify_chat(request: Request, req: DifyChatRequest, _=Depends(_verify_ad
 
 
 @router.get("/processes")
-async def admin_processes(request: Request, _=Depends(_verify_admin)):
+async def admin_processes(request: Request, _=Depends(_verify_admin)) -> dict | dict[str, str]:
     """Get running processes."""
     processes = []
     try:
@@ -808,7 +809,7 @@ async def admin_processes(request: Request, _=Depends(_verify_admin)):
 
 
 @router.get("/disk")
-async def admin_disk(request: Request, _=Depends(_verify_admin)):
+async def admin_disk(request: Request, _=Depends(_verify_admin)) -> dict | dict[str, str]:
     """Get detailed disk usage."""
     disks = []
     try:
@@ -836,7 +837,7 @@ async def admin_disk(request: Request, _=Depends(_verify_admin)):
 
 
 @router.get("/network")
-async def admin_network(request: Request, _=Depends(_verify_admin)):
+async def admin_network(request: Request, _=Depends(_verify_admin)) -> dict | dict[str, str]:
     """Get network interface stats."""
     interfaces = []
     try:
@@ -868,7 +869,7 @@ async def admin_network(request: Request, _=Depends(_verify_admin)):
 
 
 @router.get("/mail/sent")
-async def mail_sent(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)):
+async def mail_sent(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)) -> dict[str, list]:
     """Get sent emails — requires SMTP sent tracking to be active."""
     return {
         "emails": [],
@@ -880,7 +881,7 @@ async def mail_sent(request: Request, _=Depends(_verify_admin), limit: int = Que
 
 
 @router.get("/mail/folders")
-async def mail_folders(request: Request, _=Depends(_verify_admin)):
+async def mail_folders(request: Request, _=Depends(_verify_admin)) -> dict[str, list[dict[str, str]]]:
     """Get email folders."""
     return {
         "folders": [
@@ -894,7 +895,7 @@ async def mail_folders(request: Request, _=Depends(_verify_admin)):
 
 
 @router.delete("/mail/{msg_id}")
-async def mail_delete(request: Request, msg_id: str, _=Depends(_verify_admin)):
+async def mail_delete(request: Request, msg_id: str, _=Depends(_verify_admin)) -> dict[str, str]:
     """Delete an email — requires SMTP sent tracking."""
     return {
         "status": "acknowledged",

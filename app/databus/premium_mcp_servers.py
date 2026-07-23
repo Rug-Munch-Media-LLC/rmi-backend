@@ -10,9 +10,10 @@ import json
 import os
 
 import httpx as req
+from typing import Any
 
 
-def gredis():
+def gredis() -> Any:
     from dotenv import load_dotenv
 
     load_dotenv("/app/.env", override=True)

@@ -49,7 +49,7 @@ class RequestDeduplicator:
     instead of firing a duplicate API call.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._in_flight: dict[str, asyncio.Future] = {}
         self._dedup_hits = 0
         self._dedup_saved_calls = 0
@@ -69,13 +69,13 @@ class RequestDeduplicator:
         self._in_flight[key] = future
         return future, False  # (future, is_new)
 
-    def resolve(self, key: str, result: Any):
+    def resolve(self, key: str, result: Any) -> None:
         """Resolve an in-flight future and clean up."""
         future = self._in_flight.pop(key, None)
         if future and not future.done():
             future.set_result(result)
 
-    def fail(self, key: str, exc: Exception):
+    def fail(self, key: str, exc: Exception) -> None:
         """Fail an in-flight future and clean up."""
         future = self._in_flight.pop(key, None)
         if future and not future.done():
@@ -92,7 +92,7 @@ class RequestDeduplicator:
 class ProviderHealthTracker:
     """Track per-provider health: success/failure rates, latency, availability."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._providers: dict[str, dict] = defaultdict(
             lambda: {
                 "total_calls": 0,
@@ -107,7 +107,7 @@ class ProviderHealthTracker:
             }
         )
 
-    def record_success(self, provider_name: str, latency_ms: float):
+    def record_success(self, provider_name: str, latency_ms: float) -> None:
         p = self._providers[provider_name]
         p["total_calls"] += 1
         p["successes"] += 1
@@ -120,7 +120,7 @@ class ProviderHealthTracker:
         else:
             p["avg_latency_ms"] = p["avg_latency_ms"] * 0.8 + latency_ms * 0.2
 
-    def record_failure(self, provider_name: str, error: str = ""):
+    def record_failure(self, provider_name: str, error: str = "") -> None:
         p = self._providers[provider_name]
         p["total_calls"] += 1
         p["failures"] += 1
@@ -176,7 +176,7 @@ class DataBus:
       8. Cache warm (background prefetch for hot data)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.cache: CacheLayer = get_cache()
         self.vault: DataBusVault = None  # loaded async
         self.chains: dict[str, ProviderChain] = {}
@@ -210,7 +210,7 @@ class DataBus:
         # SWR refresh callback: wired to self._swr_refresh
         self.cache.stale_refresh_callback = self._swr_refresh
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Async init - load vault keys and build provider chains."""
         if self._initialized:
             return
@@ -241,7 +241,7 @@ class DataBus:
 
     # ── Stale-While-Revalidate Background Refresh ──────────────────
 
-    async def _swr_refresh(self, cache_key: str):
+    async def _swr_refresh(self, cache_key: str) -> None:
         """Background refresh callback for SWR cache entries.
         Called when a cache.get() returns stale data.
         Re-fetches from provider chain, updates cache, broadcasts.
@@ -272,7 +272,7 @@ class DataBus:
 
     # ── Cache Warm Prefetch ────────────────────────────────────────
 
-    async def start_cache_warm(self, interval_seconds: int = 60):
+    async def start_cache_warm(self, interval_seconds: int = 60) -> None:
         """Start background cache warm task.
         Pre-fetches hot data types so users always get cache hits.
         OPTIMIZED FOR FREE TIER: Only warms LOCAL and FREE_API endpoints
@@ -301,14 +301,14 @@ class DataBus:
             f"Cache warm started (interval={interval_seconds}s, {len(self._warm_types)} FREE types)"
         )
 
-    async def stop_cache_warm(self):
+    async def stop_cache_warm(self) -> None:
         """Stop the cache warm task."""
         self._warm_running = False
         if self._warm_task:
             self._warm_task.cancel()
             self._warm_task = None
 
-    async def _warm_loop(self, interval: int):
+    async def _warm_loop(self, interval: int) -> None:
         """Background loop that pre-fetches hot data types."""
         while self._warm_running:
             try:
@@ -766,12 +766,12 @@ class DataBus:
             }
         return result
 
-    async def invalidate(self, data_type: str, **kwargs):
+    async def invalidate(self, data_type: str, **kwargs) -> None:
         """Invalidate cache for a specific data type."""
         cache_key = self.cache.make_key(data_type, data_type, **kwargs)
         await self.cache.delete(cache_key)
 
-    async def invalidate_all(self):
+    async def invalidate_all(self) -> None:
         """Clear the entire cache."""
         await self.cache.clear()
 

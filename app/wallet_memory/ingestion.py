@@ -42,11 +42,11 @@ class TokenBucketRateLimiter:
     Blocks until a token is available (unlike the non-blocking acquire).
     """
 
-    def __init__(self, rate: float, capacity: int):
+    def __init__(self, rate: float, capacity: int) -> None:
         self.rate = rate
         self.capacity = capacity
 
-    async def acquire(self):
+    async def acquire(self) -> None:
         """Wait until a token is available, then consume it."""
         from app.core.rate_limiter import get_rate_limiter
 
@@ -69,7 +69,7 @@ class IngestionCooldown:
 
     COOLDOWN_SECONDS = 300  # 5 minutes
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._last_fetch: dict[str, float] = {}  # key = "chain:address"
 
     def is_cooled(self, address: str, chain: str) -> bool:
@@ -78,7 +78,7 @@ class IngestionCooldown:
         last = self._last_fetch.get(key, 0)
         return (time.monotonic() - last) < self.COOLDOWN_SECONDS
 
-    def mark_fetched(self, address: str, chain: str):
+    def mark_fetched(self, address: str, chain: str) -> None:
         """Mark that an address was just fetched."""
         key = f"{chain.lower()}:{address.lower()}"
         self._last_fetch[key] = time.monotonic()
@@ -135,7 +135,7 @@ class NormalizedTransaction:
         transfer_type: str = "native",
         block_number: int = 0,
         is_contract_creation: bool = False,
-    ):
+    ) -> None:
         self.address = address
         self.counterparty = counterparty
         self.timestamp = timestamp
@@ -217,7 +217,7 @@ class WalletIngestionPipeline:
     ETHERSCAN_PAGE_SIZE = 200
     ETHERSCAN_MAX_PAGES = 5
 
-    def __init__(self, engine=None, storage=None):
+    def __init__(self, engine=None, storage=None) -> None:
         """
         Args:
             engine: WalletMemoryEngine instance (for feed_transactions + deployer events)
@@ -235,7 +235,7 @@ class WalletIngestionPipeline:
             self._http_client = httpx.AsyncClient(timeout=20.0)
         return self._http_client
 
-    async def close(self):
+    async def close(self) -> None:
         """Gracefully close the HTTP client."""
         if self._http_client and not self._http_client.is_closed:
             await self._http_client.aclose()
@@ -759,7 +759,7 @@ class WalletIngestionPipeline:
 
     # ── Storage: token transfers ────────────────────────────────────
 
-    async def _store_token_transfers(self, txs: list[NormalizedTransaction]):
+    async def _store_token_transfers(self, txs: list[NormalizedTransaction]) -> None:
         """Store token transfers in ClickHouse token_transfers table."""
         if not self.storage:
             logger.debug("No storage available - skipping token transfer persistence")
@@ -811,7 +811,7 @@ class WalletIngestionPipeline:
 
     # ── Storage: deployer events ────────────────────────────────────
 
-    async def _record_deployer_events(self, deploy_txs: list[NormalizedTransaction]):
+    async def _record_deployer_events(self, deploy_txs: list[NormalizedTransaction]) -> None:
         """Record detected contract deployment events for deployer tracking."""
         if not self.storage:
             return
@@ -842,10 +842,10 @@ class WalletIngestionPipeline:
 
     # ── Cleanup ─────────────────────────────────────────────────────
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> None:
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.close()
 
 

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Header
 from pydantic import BaseModel
 
 from app.core.errors import AuthError
+from typing import Any
 
 router = APIRouter(prefix="/api/v1/developer", tags=["developer-portal"])
 
@@ -35,7 +36,7 @@ def _generate_key() -> str:
 
 
 @router.post("/keys")
-async def create_api_key(req: CreateKeyRequest):
+async def create_api_key(req: CreateKeyRequest) -> Any:
     """Generate a new API key. Free tier: 100 requests/day."""
     key = _generate_key()
     _api_keys[key] = {
@@ -50,7 +51,7 @@ async def create_api_key(req: CreateKeyRequest):
 
 
 @router.get("/keys")
-async def list_keys(x_api_key: str = Header(...)):
+async def list_keys(x_api_key: str = Header(...)) -> dict[str, list]:
     """List your API keys."""
     if x_api_key not in _api_keys:
         raise AuthError(message="Invalid API key")
@@ -58,14 +59,14 @@ async def list_keys(x_api_key: str = Header(...)):
 
 
 @router.delete("/keys/{key}")
-async def revoke_key(key: str):
+async def revoke_key(key: str) -> dict:
     """Revoke an API key."""
     _api_keys.pop(key, None)
     return {"revoked": key}
 
 
 @router.get("/usage")
-async def get_usage(x_api_key: str = Header(...)):
+async def get_usage(x_api_key: str = Header(...)) -> dict:
     """Get your API usage stats."""
     if x_api_key not in _api_keys:
         raise HTTPException(401, "Invalid API key")
@@ -78,7 +79,7 @@ async def get_usage(x_api_key: str = Header(...)):
 
 
 @router.get("/docs")
-async def api_docs():
+async def api_docs() -> dict[str, str]:
     """API documentation - available endpoints."""
     return {
         "base_url": "https://rugmunch.io/api/v1",
