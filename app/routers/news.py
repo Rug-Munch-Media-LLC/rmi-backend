@@ -101,7 +101,7 @@ async def _refresh_cache(include_rss: bool, include_reddit: bool, include_intern
     """Background cache refresh task."""
     global _NEWS_CACHE, _CACHE_TS
     try:
-        from app.news_service import get_news_service
+        from app.domains.news.news_service import get_news_service
 
         svc = get_news_service()
         result = await svc.fetch_all(
@@ -152,7 +152,7 @@ async def get_news_feed(
         else:
             # First load or forced refresh - fetch inline but with limits
             try:
-                from app.news_service import get_news_service
+                from app.domains.news.news_service import get_news_service
 
                 svc = get_news_service()
                 result = await svc.fetch_all(

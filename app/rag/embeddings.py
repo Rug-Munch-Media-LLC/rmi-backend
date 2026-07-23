@@ -53,7 +53,7 @@ def _ollama_reachable() -> bool:
         with httpx.Client(timeout=2.0) as c:
             r = c.get(f"{OLLAMA_URL}/api/tags")
             ok = r.status_code == 200
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         ok = False
     os.environ["_OLLAMA_PROBED"] = "1"
     os.environ["_OLLAMA_OK"] = "1" if ok else "0"

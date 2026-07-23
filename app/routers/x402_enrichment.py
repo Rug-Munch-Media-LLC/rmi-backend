@@ -25,6 +25,7 @@ Storage impact: ~500 Redis keys at steady state, 0 ClickHouse writes.
 import datetime
 import json
 import time
+import urllib.error
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -331,7 +332,7 @@ def lookup_labels(addresses: list[str]) -> tuple[dict[str, list[WalletLabel]], f
             )
             results[addr].append(label)
 
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError) as e:
         logger.warning(f"CH label lookup failed: {e}")
         return {}, (time.time() - t0) * 1000
 
@@ -394,11 +395,11 @@ def search_similar_patterns(
                     patterns.append(pattern)
                     if r:
                         r.setex(cache_key, ENRICH_CACHE_TTL, json.dumps(pattern))
-            except Exception as e:
+            except (ConnectionError, TimeoutError, OSError) as e:
                 logger.debug(f"RAG search failed for {addr[:10]}: {e}")
                 continue
 
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError) as e:
         logger.debug(f"RAG enrichment unavailable: {e}")
 
     return patterns, (time.time() - t0) * 1000
@@ -458,7 +459,7 @@ def enrich_tool_response(
 
     try:
         r = _redis()
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError):
         r = None
 
     # Determine enrichment type
@@ -514,10 +515,10 @@ def enrich_tool_response(
                             "patterns": result.get("patterns", [])[:3],
                         }
                     )
-            except Exception:
-                pass
-    except Exception:
-        pass
+                    except (RuntimeError, ConnectionError, TimeoutError):
+                        pass
+        except (ImportError, RuntimeError):
+            pass
 
     # 5c. LLM-synthesized summary (DeepSeek Flash, $0.0003/call)
     llm_summary = ""
@@ -534,7 +535,7 @@ def enrich_tool_response(
         from app.routers.x402_advanced_tools import compute_confidence
 
         raw_result["_confidence"] = compute_confidence(raw_result)
-    except Exception:
+    except (ImportError, TypeError, ValueError):
         pass
 
     # 6. Merge into response
@@ -599,7 +600,7 @@ def enrich_tool_response(
                     ),
                 )
             r.ltrim("x402:recent:addresses", 0, 999)
-        except Exception:
+        except (ConnectionError, TimeoutError, OSError):
             pass
 
     return raw_result
@@ -632,7 +633,7 @@ def _load_recent_intel(r=None) -> dict | None:
             "tokens_scanned": intel.get("tokens_scanned", 0),
             "timestamp": intel.get("timestamp", 0),
         }
-    except Exception:
+    except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError):
         return None
 
 
@@ -675,7 +676,7 @@ def _synthesize_enrichment(risk_summary: str, scam_flags: list, tool_name: str) 
         r = urllib.request.urlopen(req, timeout=5)
         d = json.loads(r.read())
         return d["choices"][0]["message"]["content"].strip().strip('"')
-    except Exception:
+    except (urllib.error.URLError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
         return ""  # Best-effort - never block enrichment on LLM failure
 
 
@@ -698,7 +699,7 @@ def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None) 
         r.lpush("x402:alerts:high_risk", alert)
         r.ltrim("x402:alerts:high_risk", 0, 999)  # Keep last 1000
         logger.warning(f"ENRICHMENT ALERT: {alert_type} in {tool_name}: {data}")
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError):
         pass
 
 
@@ -736,7 +737,7 @@ def propagate_labels_cross_chain() -> Any | int:
         """)
         logger.info(f"Cross-chain propagation: {count} labels propagated")
         return count
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError) as e:
         logger.warning(f"Cross-chain propagation failed: {e}")
         return 0
 
@@ -748,10 +749,10 @@ def get_cached_enrichment(address: str) -> dict | None:
     """Check if an address has cached enrichment data."""
     try:
         r = _redis()
-        cached = r.get(f"x402:enrich:{address}")
+            cached = r.get(f"x402:enrich:{address}")
         if cached:
             return json.loads(cached)
-    except Exception:
+    except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError):
         pass
     return None
 
@@ -768,7 +769,7 @@ def _get_etherscan_key() -> str:
 
         load_dotenv("/app/.env", override=True)
         return os.getenv("ETHERSCAN_API_KEY", "")
-    except Exception:
+    except (ImportError, OSError):
         return ""
 
 
@@ -825,7 +826,7 @@ def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict
                 name = contract.get("ContractName", "")
                 if name and name != addr:
                     results[addr] = name
-        except Exception:
+        except (urllib.error.URLError, ConnectionError, TimeoutError, json.JSONDecodeError, KeyError):
             pass
         time.sleep(0.25)  # Respect 5/sec rate limit
 
@@ -857,5 +858,5 @@ def preload_enrichment_cache(addresses: list[str]) -> None:
                         }
                     ),
                 )
-        except Exception:
+        except (ConnectionError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
             continue

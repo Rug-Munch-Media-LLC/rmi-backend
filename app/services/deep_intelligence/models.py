@@ -1,0 +1,21 @@
+"""
+Deep Intelligence Engine — Shared Data Models
+===============================================
+Type aliases and result model hints for the deep intelligence system.
+"""
+
+from typing import Any, TypedDict
+
+# ── Type aliases ───────────────────────────────────────────────────────────
+
+JsonDict = dict[str, Any]
+RiskFlags = list[str]
+RiskLevel = str  # "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "MINIMAL" | "UNKNOWN"
+
+# ── Result structure hints (not enforced at runtime, but useful for docs) ──
+
+__all__ = [
+    "JsonDict",
+    "RiskFlags",
+    "RiskLevel",
+]

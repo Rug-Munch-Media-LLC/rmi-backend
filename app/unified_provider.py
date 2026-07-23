@@ -132,7 +132,7 @@ class UnifiedProvider:
                             }
                         )
             return holders
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
             logger.debug(f"Helius holders failed: {e}")
             return []
 
@@ -148,7 +148,7 @@ class UnifiedProvider:
                 {"address": i.get("owner", ""), "amount": i.get("uiAmount", 0), "source": "birdeye"}
                 for i in items
             ]
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
             logger.debug(f"Birdeye holders failed: {e}")
             return []
 
@@ -171,7 +171,7 @@ class UnifiedProvider:
                     for h in holders[:limit]
                 ]
             return []
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
             logger.debug(f"Solscan holders failed: {e}")
             return []
 
@@ -191,7 +191,7 @@ class UnifiedProvider:
                                 "liquidity": pairs[0].get("liquidity", {}).get("usd", 0),
                             }
                         ]
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.debug(f"DexScreener holders failed: {e}")
         return []
 
@@ -238,7 +238,7 @@ class UnifiedProvider:
                 if sigs
                 else []
             )
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
             logger.debug(f"Helius txs failed: {e}")
             return []
 
@@ -257,7 +257,7 @@ class UnifiedProvider:
                     for t in txs[:limit]
                 ]
             return []
-        except Exception as e:
+        except (ConnectionError, TimeoutError, OSError) as e:
             logger.debug(f"Solscan txs failed: {e}")
             return []
 
@@ -278,7 +278,7 @@ class UnifiedProvider:
                 if price:
                     await cache.set("price", price, mint, ttl=60)
                     return price
-        except Exception:
+        except (ConnectionError, TimeoutError, OSError):
             pass
 
         # 2. DexScreener
@@ -293,7 +293,7 @@ class UnifiedProvider:
                         price = float(pairs[0].get("priceUsd", 0))
                         await cache.set("price", price, mint, ttl=60)
                         return price
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             pass
 
         await cache.set("price", None, mint, ttl=60)
@@ -322,7 +322,7 @@ class UnifiedProvider:
                 }
                 await cache.set("meta", result, mint, ttl=600)
                 return result
-        except Exception:
+        except (ConnectionError, TimeoutError, OSError):
             pass
 
         # 2. DexScreener
@@ -342,7 +342,7 @@ class UnifiedProvider:
                         }
                         await cache.set("meta", result, mint, ttl=600)
                         return result
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             pass
 
         result = {"name": mint[:8], "symbol": "???", "source": "fallback"}

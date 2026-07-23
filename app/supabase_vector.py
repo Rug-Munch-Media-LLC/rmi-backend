@@ -202,7 +202,7 @@ class SupabaseVectorStore:
                 logger.info(f"pgvector: search_embeddings RPC available (dim={probe_dim})")
                 rpc_probed = True
                 break
-            except Exception:
+            except (httpx.HTTPError, ConnectionError, TimeoutError):
                 continue
         if not rpc_probed:
             logger.warning("pgvector: search_embeddings RPC not available")
@@ -232,7 +232,7 @@ class SupabaseVectorStore:
                 """
                 await self._rpc("exec_sql", {"sql": create_sql})
                 self._table_ready = True
-            except Exception:
+            except (httpx.HTTPError, ConnectionError, TimeoutError):
                 pass
 
         # Try direct insert to check if table exists
@@ -261,7 +261,7 @@ class SupabaseVectorStore:
                             f"{_get_url()}/rest/v1/rag_vectors?id=eq._pgvector_health_check",
                             headers=_get_headers(),
                         )
-            except Exception as e:
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
                 logger.warning(
                     "pgvector table not found. Run: /root/backend/supabase_pgvector_setup.sql in Supabase SQL Editor"
                 )
@@ -304,7 +304,7 @@ class SupabaseVectorStore:
                 await r.setex(f"rag:{collection}:{doc_id}", 86400 * 30, json.dumps(doc))
                 await r.sadd(f"rag:idx:{collection}", doc_id)
                 return True
-            except Exception as e:
+            except (ConnectionError, TimeoutError, OSError) as e:
                 logger.error(f"Redis fallback insert failed: {e}")
                 return False
 
@@ -322,7 +322,7 @@ class SupabaseVectorStore:
             }
             await self._upsert(VECTOR_TABLE, [row])
             return True
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.error(f"pgvector insert failed: {e}")
             return False
 
@@ -349,7 +349,7 @@ class SupabaseVectorStore:
             try:
                 await self._upsert(VECTOR_TABLE, rows)
                 count += len(rows)
-            except Exception as e:
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
                 logger.error(f"Batch insert failed at batch {i}: {e}")
         return count
 
@@ -387,7 +387,7 @@ class SupabaseVectorStore:
                         continue
                     try:
                         doc = json.loads(data)
-                    except Exception:
+                    except (json.JSONDecodeError, TypeError, ValueError):
                         continue
                     dv = doc.get("vector", [])
                     if not dv:
@@ -409,7 +409,7 @@ class SupabaseVectorStore:
                         )
                 scored.sort(key=lambda x: x["similarity"], reverse=True)
                 return scored[:limit]
-            except Exception as e:
+            except (ConnectionError, TimeoutError, OSError) as e:
                 logger.error(f"Redis search fallback failed: {e}")
                 return []
 
@@ -439,7 +439,7 @@ class SupabaseVectorStore:
                     }
                     for r in (results or [])
                 ]
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.warning(f"search_embeddings RPC failed: {e}")
 
         # Fallback: direct SQL query via REST
@@ -488,7 +488,7 @@ class SupabaseVectorStore:
                     }
                     for r in results
                 ]
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.warning(f"Direct SQL vector search failed: {e}")
 
         return []
@@ -542,7 +542,7 @@ class SupabaseVectorStore:
                     }
                     for r in text_results_raw
                 ]
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.warning(f"Text search failed: {e}")
 
         # Merge with weighted Reciprocal Rank Fusion
@@ -585,7 +585,7 @@ class SupabaseVectorStore:
             """
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return {r["collection"]: r["count"] for r in (rows or [])}
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             return {}
 
     async def delete_collection(self, collection: str) -> int:
@@ -597,7 +597,7 @@ class SupabaseVectorStore:
             if isinstance(result, list) and result:
                 return result[0].get("count", 1) if isinstance(result[0], dict) else 1
             return 1
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             return 0
 
     async def delete_by_id(self, doc_id: str) -> bool:
@@ -607,7 +607,7 @@ class SupabaseVectorStore:
             sql = f"DELETE FROM {VECTOR_TABLE} WHERE id = '{safe_id}'"
             await self._rpc("exec_sql", {"sql": sql})
             return True
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             return False
 
     async def total_docs(self) -> int:
@@ -616,7 +616,7 @@ class SupabaseVectorStore:
             sql = f"SELECT COUNT(*) as count FROM {VECTOR_TABLE}"
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return rows[0]["count"] if rows else 0
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             return 0
 
     async def build_hnsw_index(
@@ -638,7 +638,7 @@ class SupabaseVectorStore:
             try:
                 drop_sql = "DROP INDEX IF EXISTS idx_rag_embedding_hnsw;"
                 await self._rpc("exec_sql", {"sql": drop_sql})
-            except Exception:
+            except (httpx.HTTPError, ConnectionError, TimeoutError):
                 pass
 
             sql = f"""
@@ -649,7 +649,7 @@ class SupabaseVectorStore:
             await self._rpc("exec_sql", {"sql": sql})
             logger.info(f"HNSW index built (m={m}, ef_construction={ef_construction})")
             return True
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.warning(f"HNSW index build failed: {e}")
             return False
 
@@ -674,7 +674,7 @@ class SupabaseVectorStore:
             await self._rpc("exec_sql", {"sql": sql})
             logger.info("IVFFlat index built (HNSW fallback)")
             return True
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.warning(f"Index build failed (both HNSW and IVFFlat): {e}")
             return False
 
@@ -693,7 +693,7 @@ class SupabaseVectorStore:
             )
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return [r[safe_column] for r in (rows or [])]
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             return []
 
 

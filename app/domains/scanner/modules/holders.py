@@ -141,7 +141,7 @@ async def _check_liquidity_lock_multi(
 
     try:
         # Use the HoneypotDetector which does thorough liquidity analysis
-        from app.smart_contract_honeypot_detector import HoneypotDetector
+        from app.domains.detectors.smart_contract_honeypot_detector import HoneypotDetector
 
         detector = HoneypotDetector()
         hp_result = await detector.analyze_token(token_address, chain=chain)

@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.config import settings
 from app.core.model_router import TaskType, route_task
 from typing import Any
 
@@ -26,7 +27,7 @@ async def _stream_ollama(prompt: str, model: str) -> Any:
     async with (
         httpx.AsyncClient(timeout=120) as c,
         c.stream(
-            "POST", "http://localhost:11434/api/generate", json={"model": model, "prompt": prompt}
+            "POST", f"{settings.ollama_url}/api/generate", json={"model": model, "prompt": prompt}
         ) as r,
     ):
         async for line in r.aiter_lines():

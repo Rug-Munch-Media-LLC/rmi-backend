@@ -114,7 +114,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
     for doc_id, blob in raw.items():
         try:
             entry = json.loads(blob)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             continue
         text = entry.get("text", "")
         if not text:
@@ -260,7 +260,7 @@ def get_collection_stats(collection: str) -> dict:
         from app.core.redis import get_redis
 
         hashes = get_redis().scard(f"rag:hashes:{collection}")
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError):
         hashes = 0
     return {
         "collection": collection,

@@ -257,9 +257,9 @@ async def verify_auth_token(token: str) -> dict[str, Any] | None:
         if user:
             # Return user info in expected format
             return {
-                "id": user.get("user_id"),
+                "id": user.get("id"),
                 "email": user.get("email"),
-                "address": user.get("wallet_address"),
+                "address": user.get("wallet"),
                 "tier": user.get("tier", "FREE"),
                 "role": user.get("role", "USER"),
             }

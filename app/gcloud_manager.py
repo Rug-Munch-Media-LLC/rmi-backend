@@ -113,7 +113,7 @@ class GoogleCloudManager:
                 )
                 if r.status_code == 200:
                     return [b.get("name", "") for b in r.json().get("items", [])]
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             pass
         return []
 
@@ -131,7 +131,7 @@ class GoogleCloudManager:
                     content=data,
                 )
                 return r.status_code in (200, 201)
-        except Exception:
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
             return False
 
     # ── BigQuery ────────────────────────────────────────────

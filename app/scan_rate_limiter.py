@@ -365,7 +365,7 @@ def get_identity(request) -> tuple[str, str]:
             payload = _verify_jwt(auth[7:])
             if payload:
                 return payload.get("id", auth[7:][:32]), "user"
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     # Fall back to IP

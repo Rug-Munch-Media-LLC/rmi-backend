@@ -254,7 +254,7 @@ async def get_market_brief(**kw) -> dict | None:
 async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict | None:
     """Pull news from our existing news_service.py aggregator."""
     try:
-        from app.news_service import fetch_all_news
+        from app.domains.news.news_service import fetch_all_news
 
         articles = await fetch_all_news()
         if articles:

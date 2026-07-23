@@ -36,7 +36,7 @@ def _get_admin_key(request) -> Any | None:
 
 
 @router.post("/token/scan")
-async def scan_token(request: Request, body: TokenScanRequest) -> dict[str, str]:
+async def scan_token(request: Request, body: TokenScanRequest) -> dict[str, Any]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
     try:
@@ -69,7 +69,7 @@ async def scan_token(request: Request, body: TokenScanRequest) -> dict[str, str]
 
 
 @router.post("/wallet/scan")
-async def scan_wallet(request: Request, body: WalletScanRequest) -> dict[str, str]:
+async def scan_wallet(request: Request, body: WalletScanRequest) -> dict[str, Any]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
     try:

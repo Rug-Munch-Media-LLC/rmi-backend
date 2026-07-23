@@ -327,7 +327,7 @@ class PaymentVerifier:
                     }
                 ],
             }
-        except Exception:
+        except (TypeError, ValueError, KeyError):
             pass
 
         return await self._verify_via_payai(payload_data, requirements_data)

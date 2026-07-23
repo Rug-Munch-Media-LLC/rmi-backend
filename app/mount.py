@@ -205,6 +205,9 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.facilitator_health",  # /api/v1/x402/facilitator-health/*  (3 routes)
     "app.routers.x402_bridge_health",  # /api/v1/x402-tools/*  (1 route, bridge health)
     #
+    # Pryscraper integration — mounted 2026-07-23
+    "app.routers.pryscraper_bridge",  # /api/v1/scrape, /api/v1/extract, /api/v1/news/search, /api/v1/pryscraper/*
+    #
     # NOT YET MOUNTED (deferred):
     #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict
     #     with app.api.v1.mcp (already mounted at /mcp). Needs reconciliation.

@@ -10,11 +10,12 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 
 router = APIRouter(prefix="/api/v1/death-clock", tags=["death-clock"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 
 # Heuristic model weights (trained on Real-CATS 153K labeled tokens)
 WEIGHTS = {

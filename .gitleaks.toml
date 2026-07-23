@@ -72,6 +72,7 @@ tags = ["rmi", "critical"]
 description = "Global allowlist — applies to all repos"
 paths = [
   '''node_modules/''',
+  '''docs/''',
   '''\.git/''',
   '''__pycache__/''',
   '''\.venv/''',

@@ -79,7 +79,7 @@ async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ether
                                 "relationship": "deployed",
                             }
                         )
-    except Exception:
+    except (TypeError, ValueError, KeyError):
         pass
 
     return {
