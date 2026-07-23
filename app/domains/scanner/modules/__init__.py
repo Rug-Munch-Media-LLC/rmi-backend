@@ -26,6 +26,7 @@ from app.domains.scanner.modules.holders import (
 # Market data
 from app.domains.scanner.modules.market import (
     _check_blockscout,
+    _check_coingecko_price,
     _check_defi_scanner,
     _check_defillama_context,
     _check_token_sniffer,
@@ -60,6 +61,7 @@ __all__ = [
     "GOPLUS_CHAIN_IDS",
     "_check_blockscout",
     "_check_bundle",
+    "_check_coingecko_price",
     "_check_contract_verification",
     "_check_copycat",
     "_check_defi_scanner",

@@ -2,9 +2,30 @@
 """Admin Bot configuration — loaded from environment with a strict startup guard."""
 
 import os
+import subprocess
 import sys
 
-ADMIN_BOT_TOKEN: str = os.environ.get("ADMIN_BOT_TOKEN", "")
+
+def _get_admin_token() -> str:
+    """Fetch admin bot token from gopass at runtime, falling back to env var."""
+    try:
+        token = (
+            subprocess.check_output(
+                ["gopass", "show", "rmi/infra/telegram_admin_bot_token"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
+        if token:
+            return token
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass
+    return os.environ.get("ADMIN_BOT_TOKEN", "")
+
+
+ADMIN_BOT_TOKEN: str = _get_admin_token()
 ADMIN_CHAT_ID: int = int(os.environ.get("ADMIN_CHAT_ID", "0"))
 RMI_BACKEND_URL: str = os.environ.get("RMI_BACKEND_URL", "http://localhost:8000")
 
