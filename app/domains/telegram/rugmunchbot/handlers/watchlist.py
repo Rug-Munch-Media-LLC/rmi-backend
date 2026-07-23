@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""
+RugMunchBot -- Watchlist command handlers.
+
+Commands: watchlist, watch, unwatch
+"""
+
+from telegram import Update
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
+
+from app.domains.telegram.rugmunchbot import db
+from app.domains.telegram.rugmunchbot.config import TIERS
+from app.domains.telegram.rugmunchbot.formatters import (
+    detect_chain,
+    fmt_number,
+    footer_links,
+    sep,
+    short_addr,
+)
+from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
+
+
+async def cmd_watchlist(update: Update, ctx) -> None:
+    user = update.effective_user
+    if user is None:
+        return
+    items = db.get_watchlist(user.id)
+    if not items:
+        await update.message.reply_text(
+            "\U0001f440 <b>Watchlist Empty</b>\n\n"
+            "Add tokens to track:\n"
+            "  /watch <code>address</code> [chain]\n\n"
+            "<i>Scout: 10 slots | Hunter: 50 | Pro: unlimited</i>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+        return
+    tier = db.get_user_tier(user.id)
+    text = f"\U0001f440 <b>Watchlist</b> ({TIERS[tier]['emoji']} {TIERS[tier]['name']})\n{sep()}\n\n"
+    for i, w in enumerate(items, 1):
+        alert = ""
+        if w.get("alert_price"):
+            arrow = "\u2191" if w.get("alert_direction") == "above" else "\u2193"
+            alert = f" \U0001f514{arrow}{fmt_number(w['alert_price'])}"
+        text += f"{i}. <b>{w.get('symbol') or '???'}</b> <code>{short_addr(w['token_address'])}</code> ({w['chain']}){alert}\n"
+    text += f"\n{footer_links()}"
+    await update.message.reply_text(
+        text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
+    )
+
+
+async def cmd_watch(update: Update, ctx) -> None:
+    user = update.effective_user
+    if user is None:
+        return
+    if not ctx.args:
+        await update.message.reply_text(
+            "\U0001f440 Usage: /watch <code>address</code> [chain]", parse_mode=ParseMode.HTML
+        )
+        return
+    addr = ctx.args[0]
+    chain = ctx.args[1] if len(ctx.args) > 1 else detect_chain(addr)
+    symbol = ctx.args[2] if len(ctx.args) > 2 else None
+    ok = db.add_watchlist(user.id, addr, chain, symbol)
+    if ok:
+        await update.message.reply_text(
+            f"\u2705 Added <code>{short_addr(addr)}</code> to watchlist.\n/watchlist to view all.",
+            parse_mode=ParseMode.HTML,
+        )
+    else:
+        tier = db.get_user_tier(user.id)
+        if tier == "free":
+            await update.message.reply_text(
+                "\u274c Watchlists require <b>Scout tier</b> or higher.\n\n"
+                "\U0001f50d <b>Scout ($29.99/mo)</b> - 10 watchlist slots\n"
+                "\U0001f3af <b>Hunter ($49.99/mo)</b> - 50 slots + alerts\n"
+                "\U0001f451 <b>Pro ($99.99/mo)</b> - unlimited",
+                parse_mode=ParseMode.HTML,
+                reply_markup=pricing_kb(),
+            )
+        else:
+            await update.message.reply_text(
+                "\u274c Could not add. Limit reached or already added.", parse_mode=ParseMode.HTML
+            )
+
+
+async def cmd_unwatch(update: Update, ctx) -> None:
+    user = update.effective_user
+    if user is None:
+        return
+    if not ctx.args:
+        await update.message.reply_text(
+            "Usage: /unwatch <code>address</code>", parse_mode=ParseMode.HTML
+        )
+        return
+    addr = ctx.args[0]
+    ok = db.remove_watchlist(user.id, addr)
+    if ok:
+        await update.message.reply_text(
+            f"\u2705 Removed <code>{short_addr(addr)}</code> from watchlist.", parse_mode=ParseMode.HTML
+        )
+    else:
+        await update.message.reply_text(
+            "\u274c Token not found in your watchlist.", parse_mode=ParseMode.HTML
+        )

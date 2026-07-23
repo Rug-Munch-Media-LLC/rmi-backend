@@ -98,7 +98,7 @@ async def cmd_portfolio(update, ctx) -> None:
 
     await msg.chat.send_action("typing")
 
-    from app.domains.telegram.rugmunchbot.bot import (
+    from app.domains.telegram.rugmunchbot.formatters import (
         is_evm,
         is_sol,
         short_addr,
