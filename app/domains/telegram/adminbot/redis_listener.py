@@ -36,13 +36,22 @@ async def start_redis_listener(bot_app) -> None:
         logger.error("Redis connection failed: %s", exc)
         return
 
+    _empty_logged = False
+
     try:
         while True:
             try:
                 result = await client.blpop(REDIS_QUEUE_KEY, timeout=POLL_TIMEOUT)
                 if result is None:
+                    if not _empty_logged:
+                        logger.info(
+                            "Redis queue '%s' is empty — waiting for messages",
+                            REDIS_QUEUE_KEY,
+                        )
+                        _empty_logged = True
                     continue  # timeout, loop again
 
+                _empty_logged = False
                 _key, raw = result
                 payload = json.loads(raw)
                 text = _format_payload(payload)

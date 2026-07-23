@@ -7,10 +7,9 @@ Scan a wallet and return its token portfolio.
 import httpx
 
 from app.core.logging import get_logger
+from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER
 
 logger = get_logger("rmi.portfolio")
-
-BACKEND_URL = "http://rmi-backend:8000"
 
 
 async def cmd_portfolio(update, ctx) -> None:
@@ -40,7 +39,7 @@ async def cmd_portfolio(update, ctx) -> None:
                 data = {"top_tokens": [], "balance_usd": 0, "tx_count": 0}
                 try:
                     r2 = await client.get(
-                        f"https://api.dexscreener.com/latest/dex/tokens/{address}",
+                        f"{DEXSCREENER}/tokens/{address}",
                         timeout=10,
                     )
                     if r2.status_code == 200:

@@ -8,6 +8,8 @@ Tiers, channels, API endpoints, DEX ref links, and constants.
 import os
 import subprocess
 
+import httpx
+
 
 # ══════════════════════════════════════════════
 # BOT TOKEN (gopass → env fallback)
@@ -84,17 +86,45 @@ BOT_SHORT_DESCRIPTION = (
 # ══════════════════════════════════════════════
 # API ENDPOINTS
 # ══════════════════════════════════════════════
-BACKEND_URL = os.getenv("RMI_BACKEND_URL", "http://localhost:8000")
+# Bot runs on HOST (not in Docker). Backend runs in Docker.
+#   - Host → backend: http://localhost:8000
+#   - Inside Docker → backend: http://rmi-backend:8000
+_IN_DOCKER = os.getenv("DOCKER_CONTAINER") or os.path.exists("/.dockerenv")
+BACKEND_HOST = "rmi-backend:8000" if _IN_DOCKER else "localhost:8000"
+BACKEND_URL = os.getenv("RMI_BACKEND_URL", f"http://{BACKEND_HOST}")
 DATABUS_URL = f"{BACKEND_URL}/api/v1/databus"
 RAG_URL = f"{BACKEND_URL}/api/v1/rag"
 
+
+async def check_backend_health() -> None:
+    """Ping backend /health on startup. Logs WARNING if unreachable."""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{BACKEND_URL}/health")
+            if r.status_code == 200:
+                from app.core.logging import get_logger
+
+                get_logger("rmi.config").info("Backend reachable at %s", BACKEND_URL)
+            else:
+                from app.core.logging import get_logger
+
+                get_logger("rmi.config").warning(
+                    "Backend at %s returned status %d", BACKEND_URL, r.status_code
+                )
+    except Exception as exc:
+        from app.core.logging import get_logger
+
+        get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", BACKEND_URL, exc)
+
+
 # External APIs
 DEXSCREENER = "https://api.dexscreener.com/latest/dex"
-COINGECKO = "https://api.coingecko.com/api/v3"
-DEFILLAMA = "https://api.llama.fi"
-GOPLUS = "https://api.gopluslabs.com/api/v1"
-HONEYPOT = "https://api.honeypot.is/v2"
-DEXTOOLS = "https://public-api.dextools.io/trial/v2"
+COINGECKO = "https://api.coingecko.com/api/v3"  # used as fallback for SOL price in bot.py
+GOPLUS = "https://api.gopluslabs.com/api/v1"  # EVM token security scanner
+HONEYPOT = "https://api.honeypot.is/v2"  # primary EVM security scanner
+SOURCIFY = "https://sourcify.dev/server"  # contract verification fallback
+# DEFILLAMA — reserved for TVL/defi data (not currently wired)
+# DEXTOOLS — reserved for future DEX analytics (requires API key)
 
 # ══════════════════════════════════════════════
 # SUBSCRIPTION TIERS (Weekly Allotments)
