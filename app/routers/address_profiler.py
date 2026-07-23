@@ -10,6 +10,8 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.config import settings
+
 router = APIRouter(prefix="/api/v1/address-profiler", tags=["address-profiler"])
 
 CHAINS = {
@@ -25,8 +27,8 @@ CHAINS = {
     "linea": "59144",
 }
 
-DATABUS_BASE = os.environ.get("DATABUS_URL", "http://localhost:8000/api/v1/databus")
-ETH_LABELS_URL = os.environ.get("ETH_LABELS_URL", "http://localhost:8000/api/v1/eth-labels")
+DATABUS_BASE = os.environ.get("DATABUS_URL", f"{settings.backend_url}/api/v1/databus")
+ETH_LABELS_URL = os.environ.get("ETH_LABELS_URL", f"{settings.backend_url}/api/v1/eth-labels")
 
 
 class AddressProfile(BaseModel):

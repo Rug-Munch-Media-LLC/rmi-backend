@@ -2,6 +2,7 @@
 """#1 - MEV Sniper Dashboard. Real-time new pair signals + SENTINEL risk scoring.
 Surfaces snipeable launches across all chains with safety filtering."""
 
+import json
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -11,6 +12,9 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/mev-sniper", tags=["mev-sniper"])
 
@@ -43,8 +47,8 @@ async def _get_new_pairs(chain: str, max_age_min: int = 30) -> list[dict]:
             all_pairs = resp.json().get("pairs", [])
             cutoff = (datetime.now(UTC) - timedelta(minutes=max_age_min)).timestamp() * 1000
             pairs = [p for p in all_pairs if p.get("pairCreatedAt", 0) > cutoff]
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"DexScreener new pairs fetch failed: {e}")
     return pairs
 
 
@@ -101,8 +105,8 @@ async def get_snipe_signals(
                     data = resp.json()
                     safety = data.get("safety_score", 50)
                     flags = data.get("risk_flags", [])
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+            logger.debug(f"Safety check failed for {addr}: {e}")
 
         if safety < min_safety:
             continue

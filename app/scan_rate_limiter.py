@@ -16,6 +16,7 @@ from typing import Any
 
 from redis import asyncio as aioredis
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 
@@ -95,7 +96,7 @@ TRIAL_CONFIG = {
 PREMIUM_UPSELL = {
     "free_limit_reached": {
         "message": f"You've used your {FREE_DAILY_LIMIT} free scans for today. Unlock Starter (50/day), Pro (200/day), or Elite (1000/day + API). $CRM/$CRYPTORUGMUNCH holders get 50% off for 3 months.",
-        "upgrade_url": "https://rugmunch.io/pricing",
+        "upgrade_url": settings.pricing_url,
         "tiers": {
             "free": {
                 "daily_limit": FREE_DAILY_LIMIT,

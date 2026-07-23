@@ -2,6 +2,7 @@
 """#18 - Rug Recovery Indexer. When a rug is detected by SENTINEL, tracks all outbound
 txs from deployer. Builds trace graph of stolen funds. Premium: notify affected addresses."""
 
+import json
 import os
 from typing import Any
 
@@ -10,6 +11,9 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/rug-recovery", tags=["rug-recovery"])
 
@@ -42,8 +46,8 @@ async def _trace_outbound_txs(address: str, chain: str, max_hops: int = 3) -> li
             if resp.status_code == 200:
                 data = resp.json().get("data", {})
                 txs = data.get("transactions", [])[:50]
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Outbound txs failed for {address}: {e}")
     return txs
 
 
@@ -68,8 +72,8 @@ async def _check_cex_deposit(address: str, chain: str) -> dict | None:
                         ]
                     ):
                         return {"address": address, "cex": label.get("label"), "chain": chain}
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"CEX deposit check failed for {address}: {e}")
     return None
 
 
@@ -83,8 +87,8 @@ async def _check_mixer(address: str, chain: str) -> dict | None:
                     lbl = (label.get("label", "") or "").lower()
                     if any(w in lbl for w in ["mixer", "tornado", "tumbler"]):
                         return {"address": address, "mixer": label.get("label"), "chain": chain}
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Mixer check failed for {address}: {e}")
     return None
 
 
@@ -107,8 +111,8 @@ async def trace_rug(
                 scan = resp.json()
                 deployer = scan.get("pro", {}).get("deployer_address", "")
                 total_stolen = scan.get("free", {}).get("liquidity_usd", 0) or 0
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Deployer lookup failed for {token_address}: {e}")
 
     if not deployer:
         return {
@@ -196,8 +200,8 @@ async def get_affected_victims(token_address: str, chain: str = Query("ethereum"
                                 "tokens_held": h.get("balance", 0),
                             }
                         )
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Victims lookup failed for {token_address}: {e}")
 
     victims.sort(key=lambda v: v["loss_usd"], reverse=True)
     return {

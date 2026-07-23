@@ -25,6 +25,7 @@ from typing import Final
 import httpx
 import numpy as np
 
+from app.config import settings
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -33,7 +34,7 @@ EMBEDDING_DIM: Final = 1024
 
 # Backends
 _BACKEND = os.getenv("RAG_EMBED_BACKEND", "auto").lower()
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434").rstrip("/")
+OLLAMA_URL = (os.getenv("OLLAMA_URL") or settings.ollama_url).rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/embeddings"
 OPENROUTER_MODEL = "nvidia/llama-nemotron-embed-vl-1b-v2:free"

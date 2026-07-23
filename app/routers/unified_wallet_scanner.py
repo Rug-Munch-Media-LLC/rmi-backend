@@ -155,7 +155,9 @@ class UnifiedWalletScanner:
         r.scan_duration_ms = (time.monotonic() - start) * 1000
         return r
 
-    async def _fetch_batch(self, chains, params, admin_key, timeout=30) -> dict | tuple[Any, Any] | tuple[Any, None]:
+    async def _fetch_batch(
+        self, chains, params, admin_key, timeout=30
+    ) -> dict | tuple[Any, Any] | tuple[Any, None]:
         from app.databus import databus
 
         async def _one(c) -> tuple[Any, Any] | tuple[Any, None]:
@@ -163,7 +165,8 @@ class UnifiedWalletScanner:
                 return c, await asyncio.wait_for(
                     databus.fetch(c, admin_key=admin_key, **params), timeout
                 )
-            except Exception:
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.debug(f"DataBus fetch failed for {c}: {e}")
                 return c, None
 
         results = await asyncio.gather(*[_one(c) for c in chains])
@@ -374,7 +377,8 @@ class UnifiedWalletScanner:
             resp = urlopen(req, timeout=5)
             r.risk_forecast = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
             r.modules_run.append("ai_forecast")
-        except Exception:
+        except (json.JSONDecodeError, KeyError, OSError, Exception) as e:
+            logger.warning(f"AI risk forecast failed: {e}")
             r.risk_forecast = "Unable to forecast"
 
     def _compute_risk(self, r) -> None:

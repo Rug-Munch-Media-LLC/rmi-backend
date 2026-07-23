@@ -14,6 +14,7 @@ from typing import Any
 
 import cloudscraper
 
+from app.config import settings
 from app.core.circuit_breaker import CircuitBreakerOpenError, SimpleCircuitBreaker
 from app.core.logging import get_logger
 
@@ -44,7 +45,7 @@ _scraper = cloudscraper.create_scraper(
     browser={"browser": "chrome", "platform": "windows", "desktop": True}
 )
 
-BASE_URL = "https://api-v2.solscan.io/v2"
+BASE_URL = settings.solscan_url
 
 
 def _headers() -> dict[str, str]:
