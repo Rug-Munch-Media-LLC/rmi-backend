@@ -7,11 +7,9 @@ Visualize wallet connections and fund flow clusters for a token.
 import httpx
 
 from app.core.logging import get_logger
+from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER
 
 logger = get_logger("rmi.rugmap")
-
-BACKEND_URL = "http://rmi-backend:8000"
-DEXSCREENER = "https://api.dexscreener.com/latest/dex"
 
 
 async def cmd_rugmap(update, ctx) -> None:

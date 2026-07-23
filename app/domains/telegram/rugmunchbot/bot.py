@@ -75,6 +75,7 @@ from app.domains.telegram.rugmunchbot.config import (
     TWITTER_URL,
     WEB_APP_URL,
     WEBSITE_URL,
+    check_backend_health,
     fmt_chain,
     fmt_number,
     fmt_pct,
@@ -1263,37 +1264,65 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "🔥 <b>Fetching trending tokens...</b>", parse_mode=ParseMode.HTML
     )
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{DEXSCREENER}/search/?q=trending")
-            if r.status_code == 200:
-                pairs = r.json().get("pairs", [])[:8]
-                if not pairs:
-                    await msg.edit_text("❌ No trending data available.", parse_mode=ParseMode.HTML)
-                    return
-                lines = ["🔥 <b>Trending Tokens</b>", sep(), thin_sep()]
-                for i, p in enumerate(pairs, 1):
-                    name = p.get("baseToken", {}).get("name", "???")[:15]
-                    symbol = p.get("baseToken", {}).get("symbol", "???")
-                    price = float(p.get("priceUsd", 0))
-                    h24 = p.get("priceChange", {}).get("h24") or 0
-                    vol = float(p.get("volume", {}).get("h24") or 0)
-                    chain = p.get("chainId", "?")
-                    addr = p.get("baseToken", {}).get("address", "")
+        async with httpx.AsyncClient(timeout=15) as client:
+            boosts_r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
+            if boosts_r.status_code != 200:
+                await msg.edit_text("❌ Could not fetch trending data.", parse_mode=ParseMode.HTML)
+                return
+            boost_list = boosts_r.json()
+            if not isinstance(boost_list, list) or not boost_list:
+                await msg.edit_text("❌ No trending data available.", parse_mode=ParseMode.HTML)
+                return
+            boost_list = boost_list[:8]
+
+            # Enrich with DexScreener token data for price/volume
+            enriched = {}
+            addresses = {b.get("tokenAddress", "") for b in boost_list if b.get("tokenAddress")}
+            for addr in addresses:
+                try:
+                    tr = await client.get(f"{DEXSCREENER}/tokens/{addr}", timeout=5)
+                    if tr.status_code == 200:
+                        pairs = tr.json().get("pairs", [])
+                        if pairs:
+                            enriched[addr] = pairs[0]
+                except Exception:
+                    pass
+
+            lines = ["🔥 <b>Trending Tokens</b>", sep(), thin_sep()]
+            for i, b in enumerate(boost_list, 1):
+                addr = b.get("tokenAddress", "")
+                name = b.get("name") or b.get("description", "???")[:15]
+                symbol = b.get("symbol", "???")
+                chain = b.get("chainId", "?")
+                boost_count = b.get("boostCount", 0)
+                boost_str = f" 🔥{boost_count}" if boost_count else ""
+
+                pair = enriched.get(addr)
+                if pair:
+                    price = float(pair.get("priceUsd", 0))
+                    h24 = pair.get("priceChange", {}).get("h24") or 0
+                    vol = float(pair.get("volume", {}).get("h24") or 0)
                     emoji = "🟢" if h24 >= 0 else "🔴"
                     lines.append(
-                        f"{i}. {emoji} <b>{name}</b> ({symbol}) {chain}\n   {fmt_number(price)} | {fmt_pct(h24)} | Vol: {fmt_number(vol)}\n   <code>{short_addr(addr)}</code>"
+                        f"{i}. {emoji} <b>{name}</b> ({symbol}) {chain}\n"
+                        f"   {fmt_number(price)} | {fmt_pct(h24)} | Vol: {fmt_number(vol)}{boost_str}\n"
+                        f"   <code>{short_addr(addr)}</code>"
                     )
-                lines.append(
-                    f'\n{thin_sep()}\nTap address to /scan | <a href="{WEB_APP_URL}">View all on rugmunch.io</a>'
-                )
-                await msg.edit_text(
-                    "\n".join(lines),
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=back_kb(),
-                    disable_web_page_preview=True,
-                )
-            else:
-                await msg.edit_text("❌ Could not fetch trending data.", parse_mode=ParseMode.HTML)
+                else:
+                    lines.append(
+                        f"{i}. 🔥 <b>{name}</b> ({symbol}) {chain}{boost_str}\n"
+                        f"   <code>{short_addr(addr)}</code>"
+                    )
+
+            lines.append(
+                f'\n{thin_sep()}\nTap address to /scan | <a href="{WEB_APP_URL}">View all on rugmunch.io</a>'
+            )
+            await msg.edit_text(
+                "\n".join(lines),
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+                disable_web_page_preview=True,
+            )
     except Exception as e:
         await msg.edit_text(f"❌ Error: {str(e)[:200]}", parse_mode=ParseMode.HTML)
 
@@ -1301,15 +1330,18 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{BACKEND_URL}/api/v1/news/latest?limit=5")
+            r = await client.get(f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5")
             if r.status_code == 200:
-                articles = r.json()
+                body = r.json()
+                articles = body.get("items", [])
                 if articles:
                     lines = ["📰 <b>Crypto News</b>", sep(), thin_sep()]
                     for a in articles[:5]:
-                        title = a.get("title", "Untitled")[:60]
+                        title = (a.get("title") or "Untitled")[:80]
                         source = a.get("source", "News")
-                        lines.append(f"• <b>{title}</b>\n  <i>{source}</i>")
+                        score = a.get("score")
+                        score_str = f" 🔥{score:.1f}" if score else ""
+                        lines.append(f"• <b>{title}</b>\n  <i>{source}</i>{score_str}")
                     lines.append(
                         f'\n{thin_sep()}\n🌐 <a href="{WEBSITE_URL}/news">More on rugmunch.io</a>'
                     )
@@ -1791,22 +1823,30 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
 
     await update.message.chat.send_action("typing")
 
-    # Try RMI RAG backend
+    # Try RMI RAG backend (POST /api/v1/rag/v2/search)
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
-                f"{BACKEND_URL}/api/v1/rag/query",
-                json={"query": text, "user_id": user.id, "context": "telegram_bot"},
+                f"{BACKEND_URL}/api/v1/rag/v2/search",
+                json={
+                    "query": text,
+                    "collection": "scam_intel",
+                    "top_k": 5,
+                    "min_similarity": 0.0,
+                    "filters": {},
+                },
             )
             if r.status_code == 200:
                 data = r.json()
-                answer = data.get("answer", "")
-                if answer:
-                    db.increment_usage(user.id, ai_msg=True)
-                    await update.message.reply_text(
-                        answer, parse_mode=ParseMode.HTML, reply_markup=back_kb()
-                    )
-                    return
+                hits = data.get("hits", [])
+                if hits:
+                    answer = hits[0].get("content", "")
+                    if answer:
+                        db.increment_usage(user.id, ai_msg=True)
+                        await update.message.reply_text(
+                            answer[:4000], parse_mode=ParseMode.HTML, reply_markup=back_kb()
+                        )
+                        return
     except Exception:
         pass
 
@@ -1968,18 +2008,20 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text("🔥 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML)
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(f"{DEXSCREENER}/search/?q=trending")
+                r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
                 if r.status_code == 200:
-                    pairs = r.json().get("pairs", [])[:6]
+                    boost_list = r.json()
+                    if not isinstance(boost_list, list):
+                        boost_list = []
                     lines = ["🔥 <b>Trending</b>", thin_sep()]
-                    for _i, p in enumerate(pairs, 1):
-                        name = p.get("baseToken", {}).get("name", "???")[:12]
-                        sym = p.get("baseToken", {}).get("symbol", "???")
-                        h24 = p.get("priceChange", {}).get("h24") or 0
-                        addr = p.get("baseToken", {}).get("address", "")
-                        emoji = "🟢" if h24 >= 0 else "🔴"
+                    for b in boost_list[:6]:
+                        name = (b.get("name") or b.get("description", "???"))[:12]
+                        sym = b.get("symbol", "???")
+                        addr = b.get("tokenAddress", "")
+                        boost_count = b.get("boostCount", 0)
+                        boost_str = f" 🔥{boost_count}" if boost_count else ""
                         lines.append(
-                            f"{emoji} <b>{name}</b> ({sym}) {fmt_pct(h24)}\n   <code>{short_addr(addr)}</code>"
+                            f"🔥 <b>{name}</b> ({sym}){boost_str}\n   <code>{short_addr(addr)}</code>"
                         )
                     await query.edit_message_text(
                         "\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=back_kb()
@@ -2247,8 +2289,12 @@ def main() -> None:
     job_queue = app.job_queue
     job_queue.run_daily(daily_scam_tip, dtime(hour=14, minute=0, tzinfo=UTC))
 
-    # ── Startup: set bot profile ──
-    app.post_init = setup_bot_profile
+    # ── Startup: health check + bot profile ──
+    async def startup(app: Application) -> None:
+        await check_backend_health()
+        await setup_bot_profile(app)
+
+    app.post_init = startup
 
     logger.info("🛡️ CryptoRugMunch Bot v6 starting...")
     app.run_polling(drop_pending_updates=True)
@@ -2293,7 +2339,12 @@ class RugMunchBot:
         application.add_error_handler(error_handler)
         job_queue = application.job_queue
         job_queue.run_daily(daily_scam_tip, dtime(hour=14, minute=0, tzinfo=UTC))
-        application.post_init = setup_bot_profile
+
+        async def _startup(app) -> None:
+            await check_backend_health()
+            await setup_bot_profile(app)
+
+        application.post_init = _startup
 
 
 _HANDLER_REGISTRY = [

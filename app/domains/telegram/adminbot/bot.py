@@ -11,7 +11,6 @@ preserved verbatim from source.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
@@ -958,9 +957,16 @@ async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+async def _post_init(app: Application) -> None:
+    """Start the Redis listener inside the application's event loop."""
+    from app.domains.telegram.adminbot.redis_listener import start_redis_listener
+
+    app.create_task(start_redis_listener(app.bot))
+
+
 def main() -> None:
     """Build the Application, register handlers, start Redis listener, poll."""
-    app = Application.builder().token(ADMIN_BOT_TOKEN).build()
+    app = Application.builder().token(ADMIN_BOT_TOKEN).post_init(_post_init).build()
 
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
@@ -988,13 +994,6 @@ def main() -> None:
 
     # Error handler
     app.add_error_handler(error_handler)
-
-    # ── Redis alert consumer (async task) ──
-    from app.domains.telegram.adminbot.redis_listener import start_redis_listener
-
-    bot_app = app.bot  # grab before polling starts
-    loop = asyncio.get_event_loop()
-    loop.create_task(start_redis_listener(bot_app))
 
     logger.info("🛡️ RMI Admin Bot v2 starting (@rmi_admin_bot)...")
     app.run_polling(drop_pending_updates=True)
