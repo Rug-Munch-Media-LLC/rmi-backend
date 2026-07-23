@@ -5,21 +5,16 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=ops
-Group=ops
 WorkingDirectory=/srv/work/repos/rmi-backend
 ExecStart=/srv/work/repos/rmi-backend/.venv/bin/python -m app.domains.telegram.secure_launcher adminbot
 Restart=on-failure
 RestartSec=5
-# --- SECURITY HARDENING ---
+Environment=HOME=/root
+Environment=ADMIN_CHAT_ID=7075336557
 PrivateTmp=yes
 NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=yes
-ReadWritePaths=/srv/work/repos/rmi-backend
-ReadOnlyPaths=/srv/work/repos/rmi-backend
+ReadWritePaths=/srv/work/repos/rmi-backend /root/.local/share/gopass /root/.gnupg
 ProtectProc=invisible
-# --- END SECURITY ---
 
 [Install]
 WantedBy=multi-user.target

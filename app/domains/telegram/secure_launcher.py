@@ -21,6 +21,13 @@ import os
 import subprocess
 import sys
 
+# Install token redaction filter BEFORE any logging happens
+from app.domains.telegram.log_filter import install as install_token_filter
+from app.domains.telegram.log_filter import suppress_httpx_urls
+
+install_token_filter()
+suppress_httpx_urls()
+
 
 GOPASS_PATHS = {
     "rugmunchbot": "rmi/infra/telegram_rugmunch_bot_token",
