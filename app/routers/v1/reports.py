@@ -60,7 +60,8 @@ async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[
                 c = Chain(chain)
                 catalog = get_catalog()
                 return await catalog.get_token_risk(c, subject_id)
-            except Exception:
+            except ImportError:
+                logger.debug("Catalog service not available, trying token service fallback")
                 # Fallback: try the domain token service
                 try:
                     from app.domains.token.service import TokenService
@@ -76,8 +77,16 @@ async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[
                         if hasattr(risk, "flags")
                         else [],
                     }
-                except Exception:
+                except ImportError:
+                    logger.debug("TokenService not available")
                     return {"error": "unavailable", "note": "No risk service available"}
+                except Exception as e:
+                    logger.debug(f"TokenService risk failed: {e}")
+                    return {"error": "unavailable", "note": "No risk service available"}
+
+            except Exception as e:
+                logger.debug(f"Catalog service risk failed: {e}")
+                return {"error": "unavailable", "note": "No risk service available"}
 
         elif subject_type == "wallet":
             # Wallet risk via RiskScorer
@@ -92,7 +101,11 @@ async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[
                     "components": result.get("components", {}),
                     "warnings": result.get("warnings", []),
                 }
-            except Exception:
+            except ImportError:
+                logger.debug("RiskScorer not available")
+                return {"error": "unavailable", "note": "Wallet risk service unavailable"}
+            except Exception as e:
+                logger.debug(f"RiskScorer failed: {e}")
                 return {"error": "unavailable", "note": "Wallet risk service unavailable"}
 
         return {"error": "unavailable", "note": f"Risk not supported for {subject_type}"}
@@ -121,7 +134,8 @@ async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
                     for h in holders[:10]
                 ],
             }
-        except Exception:
+        except ImportError:
+            logger.debug("TokenService not available for holders, trying chain_feeder")
             # Fallback: try chain_feeder
             try:
                 from app.chain_feeder import get_holders_for_token
@@ -131,7 +145,11 @@ async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
                     "holder_count": len(holders),
                     "top_holders": [{"address": h} for h in holders[:10]],
                 }
-            except Exception:
+            except ImportError:
+                logger.debug("ChainFeeder not available for holders")
+                return {"error": "unavailable", "note": "No holder data available"}
+            except Exception as e:
+                logger.debug(f"ChainFeeder holders failed: {e}")
                 return {"error": "unavailable", "note": "No holder data available"}
     except Exception as exc:
         logger.debug("section_holders_fail: %s", exc)
@@ -178,8 +196,10 @@ async def _section_transactions(subject_id: str, chain: str) -> dict[str, Any]:
                     for t in txs[:10]
                 ],
             }
-        except Exception:
-            logger.debug("tx_supabase_failed")
+        except ImportError:
+            logger.debug("Supabase service not available")
+        except Exception as e:
+            logger.debug(f"Supabase transactions failed: {e}")
 
         return {"error": "unavailable", "note": "Transaction history unavailable"}
     except Exception as exc:
@@ -208,8 +228,10 @@ async def _section_news(subject_id: str) -> dict[str, Any]:
                 "sentiment": "neutral",
                 "news": news_items[:5],
             }
-        except Exception:
-            logger.debug("news_service_fallback_failed")
+        except ImportError:
+            logger.debug("NewsService not available")
+        except Exception as e:
+            logger.debug(f"NewsService fallback failed: {e}")
 
         # Return minimal response instead of error
         return {
@@ -233,8 +255,10 @@ async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
             result = await analyze_contract(subject_id, chain)
             if result:
                 return {"contract_analysis": result}
-        except Exception:
-            logger.debug("technical_contract_deepscan_failed")
+        except ImportError:
+            logger.debug("Contract deepscan not available")
+        except Exception as e:
+            logger.debug(f"Contract deepscan failed: {e}")
 
         # Try GoPlus security
         try:
@@ -244,8 +268,10 @@ async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
             security = await mcp.goplus_token_security(chain, subject_id)
             if security:
                 return {"contract_analysis": security}
-        except Exception:
-            logger.debug("technical_goplus_failed")
+        except ImportError:
+            logger.debug("ServiceMCP not available")
+        except Exception as e:
+            logger.debug(f"GoPlus security failed: {e}")
 
         return {"error": "unavailable", "note": "Technical analysis unavailable"}
     except Exception as exc:
