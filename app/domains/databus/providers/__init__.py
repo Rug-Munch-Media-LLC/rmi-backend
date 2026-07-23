@@ -158,14 +158,14 @@ class ProviderChain:
 
 
 class _CircuitBreaker:
-    def __init__(self, threshold=5, timeout=60.0):
+    def __init__(self, threshold=5, timeout=60.0) -> None:
         self.threshold = threshold
         self.timeout = timeout
         self.failures = 0
         self.last_failure = 0
         self.open = False
 
-    def can_call(self):
+    def can_call(self) -> bool:
         if self.open:
             if time.time() - self.last_failure > self.timeout:
                 self.open = False
@@ -174,27 +174,27 @@ class _CircuitBreaker:
             return False
         return True
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         self.failures += 1
         self.last_failure = time.time()
         if self.failures >= self.threshold:
             self.open = True
 
-    def record_success(self):
+    def record_success(self) -> None:
         self.failures = 0
         self.open = False
 
 
 class _RateLimiter:
-    def __init__(self, rps=1.0):
+    def __init__(self, rps=1.0) -> None:
         self.rps = rps
         self.min_interval = 1.0 / rps
         self.last_call = 0
 
-    def can_call(self):
+    def can_call(self) -> bool:
         return time.time() - self.last_call >= self.min_interval
 
-    def record_call(self):
+    def record_call(self) -> None:
         self.last_call = time.time()
 
 
@@ -1597,28 +1597,28 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         _bq = BitqueryProvider()
 
-        async def _bq_token_price(**kw):
+        async def _bq_token_price(**kw) -> Any:
             return await _bq.get_token_price(kw.get("network", "ethereum"), kw.get("token", ""))
 
-        async def _bq_holder_data(**kw):
+        async def _bq_holder_data(**kw) -> Any:
             return await _bq.get_holder_distribution(
                 kw.get("network", "ethereum"), kw.get("token", "")
             )
 
-        async def _bq_tx_trace(**kw):
+        async def _bq_tx_trace(**kw) -> Any:
             return await _bq.get_transaction_trace(
                 kw.get("network", "ethereum"), kw.get("tx_hash", "")
             )
 
-        async def _bq_dex_volume(**kw):
+        async def _bq_dex_volume(**kw) -> Any:
             return await _bq.get_dex_volume(kw.get("network", "ethereum"))
 
-        async def _bq_address_balance(**kw):
+        async def _bq_address_balance(**kw) -> Any:
             return await _bq.get_address_balance(
                 kw.get("network", "ethereum"), kw.get("address", "")
             )
 
-        async def _bq_cross_chain(**kw):
+        async def _bq_cross_chain(**kw) -> Any:
             return await _bq.get_cross_chain_transfers(kw.get("address", ""))
 
         chains["holder_data"] = ProviderChain(
@@ -2102,7 +2102,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
             map_clusters,
         )
 
-        def _premium_provider(name, fn, rps=3.0):
+        def _premium_provider(name, fn, rps=3.0) -> Any:
             return Provider(name, ProviderTier.LOCAL, fn, weight=10.0, rate_limit_rps=rps)
 
         chains["bundle_detect"] = ProviderChain(

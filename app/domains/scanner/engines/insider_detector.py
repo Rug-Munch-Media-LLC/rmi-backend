@@ -131,7 +131,7 @@ class InsiderReport:
     total_frontrun_value: float = 0.0
     insights: list[str] = field(default_factory=list)
 
-    def add(self, evidence: InsiderEvidence):
+    def add(self, evidence: InsiderEvidence) -> None:
         self.insiders.append(evidence)
         self.total_frontrun_value += evidence.pnl_estimate
 
@@ -413,7 +413,7 @@ async def _collect_token_meta(
     deployer_addr: str | None = deployer
     created_at: float | None = None
 
-    async def _from_dexscreener():
+    async def _from_dexscreener() -> None:
         nonlocal symbol, created_at
         try:
             async with httpx.AsyncClient(timeout=10) as c:
@@ -429,7 +429,7 @@ async def _collect_token_meta(
         except Exception as e:
             logger.debug("DexScreener meta fetch failed: %s", e)
 
-    async def _from_gmgn():
+    async def _from_gmgn() -> None:
         nonlocal symbol
         try:
             info = gmgn.get_token_info(token_address, chain)
@@ -438,7 +438,7 @@ async def _collect_token_meta(
         except Exception as e:
             logger.debug("GMGN meta fetch failed: %s", e)
 
-    async def _from_deployer():
+    async def _from_deployer() -> None:
         nonlocal deployer_addr
         try:
             if not deployer_addr:
@@ -476,7 +476,7 @@ async def _get_token_traders(
     seen_hashes: set = set()
     traders_map: dict[str, dict] = {}
 
-    def _add_trade(trade: dict):
+    def _add_trade(trade: dict) -> None:
         tx_hash = trade.get("tx_hash") or trade.get("transaction_hash", "")
         if tx_hash in seen_hashes:
             return
@@ -602,7 +602,7 @@ async def _gather_events(
         "volume_spikes": [],
     }
 
-    async def _dex_profiles():
+    async def _dex_profiles() -> None:
         """Check when token first appeared on DexScreener profiles."""
         try:
             async with httpx.AsyncClient(timeout=10) as c:
@@ -625,7 +625,7 @@ async def _gather_events(
         except Exception as e:
             logger.debug("DexScreener profiles check failed: %s", e)
 
-    async def _dex_boosts():
+    async def _dex_boosts() -> None:
         """Check when token was boosted on DexScreener."""
         try:
             async with httpx.AsyncClient(timeout=10) as c:
@@ -651,7 +651,7 @@ async def _gather_events(
         except Exception as e:
             logger.debug("DexScreener boosts check failed: %s", e)
 
-    async def _gmgn_trending():
+    async def _gmgn_trending() -> None:
         """Check when token appeared in GMGN trending data."""
         try:
             for interval in ("1h", "6h", "24h"):
@@ -672,7 +672,7 @@ async def _gather_events(
         except Exception as e:
             logger.debug("GMGN trending check failed: %s", e)
 
-    async def _kol_trades():
+    async def _kol_trades() -> None:
         """Check KOL trades for this token to find first KOL mention."""
         try:
             for limit in (50, 100):
@@ -696,7 +696,7 @@ async def _gather_events(
         except Exception as e:
             logger.debug("KOL trades check failed: %s", e)
 
-    async def _gmgn_trenches():
+    async def _gmgn_trenches() -> None:
         """Check if this was a pump.fun token that graduated."""
         try:
             trenches = gmgn.get_trenches(chain, "completed", limit=50)
@@ -711,7 +711,7 @@ async def _gather_events(
         except Exception as e:
             logger.debug("GMGN trenches check failed: %s", e)
 
-    async def _cex_listings():
+    async def _cex_listings() -> None:
         """Detect exchange listings via known exchange data."""
         try:
             pairs_data = None

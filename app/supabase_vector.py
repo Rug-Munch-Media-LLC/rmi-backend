@@ -30,12 +30,12 @@ load_dotenv("/app/.env", override=True)
 logger = get_logger(__name__)
 
 
-def _get_url():
+def _get_url() -> Any | None:
     """Get Supabase URL from env dynamically."""
     return os.environ.get("SUPABASE_URL", "")
 
 
-def _get_headers():
+def _get_headers() -> dict:
     """Build headers dynamically to pick up env changes without module reload.
 
     SERVICE KEY REQUIRED: This module performs CRUD operations on the rag_vectors
@@ -124,7 +124,7 @@ class SupabaseVectorStore:
       - Collection management
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._table_ready = False
         self._resolved_dim = EMBEDDING_DIM  # may be 0 = auto-detect
 

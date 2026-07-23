@@ -37,7 +37,7 @@ class WalletMemoryEngine:
     Coordinates storage, clustering, labels, risk scoring, and entity resolution.
     """
 
-    def __init__(self, storage: WalletStorage | None = None):
+    def __init__(self, storage: WalletStorage | None = None) -> None:
         self.storage = storage or get_storage()
         self.clustering = WalletClusteringEngine()
         self.labels = get_label_service()
@@ -369,7 +369,7 @@ class WalletMemoryEngine:
 
     # ── Feed transactions into clustering engine ─────────────────
 
-    def feed_transactions(self, transactions: list[dict], chain_id: str = ""):
+    def feed_transactions(self, transactions: list[dict], chain_id: str = "") -> None:
         """
         Feed transaction data into the in-memory clustering engine.
         Call this when pulling data from Helius/Etherscan for a wallet.
@@ -425,7 +425,7 @@ class WalletMemoryEngine:
 
     # ── Internal ─────────────────────────────────────────────────
 
-    async def _persist_profile(self, profile: dict):
+    async def _persist_profile(self, profile: dict) -> None:
         """Save a wallet profile to storage."""
         await self.storage.save_wallet_profile(
             {

@@ -24,6 +24,7 @@ import redis.asyncio as aioredis
 
 from app.consensus_rpc import ConsensusResult, get_consensus_rpc
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("rpc_cache")
 
@@ -107,7 +108,7 @@ class RpcCacheClient:
 
     L1_MAX_SIZE = 1024
 
-    def __init__(self, redis_url=None, redis_password=None, rpc_client=None):
+    def __init__(self, redis_url=None, redis_password=None, rpc_client=None) -> None:
         self._redis = None
         self._redis_url = redis_url
         self._redis_password = redis_password
@@ -122,7 +123,7 @@ class RpcCacheClient:
 
     # ── Redis Connection ─────────────────────────────────────────────────
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any | None:
         """Lazy Redis init. Returns None if unavailable."""
         if self._redis is not None:
             return self._redis
@@ -150,7 +151,7 @@ class RpcCacheClient:
                 self._redis = None
                 return None
 
-    async def _get_rpc(self):
+    async def _get_rpc(self) -> Any:
         """Get or create underlying ConsensusRpcClient."""
         if self._rpc is None:
             self._rpc = get_consensus_rpc()
@@ -159,13 +160,13 @@ class RpcCacheClient:
     # ── Key Generation ──────────────────────────────────────────────────
 
     @staticmethod
-    def make_key(method, params, chain="solana"):
+    def make_key(method, params, chain="solana") -> str:
         raw = f"{chain}:{method}:{json.dumps(params, sort_keys=True, default=str)}"
         digest = hashlib.sha256(raw.encode()).hexdigest()[:24]
         return f"{CACHE_PREFIX}{chain}:{method}:{digest}"
 
     @staticmethod
-    def get_ttl(method):
+    def get_ttl(method) -> int | float:
         base = TTL_TABLE.get(method, TTL_TABLE["_default"])
         base = max(MIN_TTL, min(MAX_TTL, base))
         jitter = base * TTL_JITTER_PCT * (random.random() * 2 - 1)
@@ -174,7 +175,7 @@ class RpcCacheClient:
     # ── Serialization ───────────────────────────────────────────────────
 
     @staticmethod
-    def serialize(value, confidence, sources):
+    def serialize(value, confidence, sources) -> Any:
         payload = json.dumps(
             {"v": value, "c": confidence, "s": sources, "t": time.time()},
             default=str,
@@ -186,7 +187,7 @@ class RpcCacheClient:
         return data
 
     @staticmethod
-    def deserialize(data):
+    def deserialize(data) -> Any | None:
         try:
             if data and data[:1] == b"Z":
                 data = zlib.decompress(data[1:])
@@ -196,7 +197,7 @@ class RpcCacheClient:
 
     # ── L1 In-Memory Cache ──────────────────────────────────────────────
 
-    async def _l1_get(self, key):
+    async def _l1_get(self, key) -> Any | None:
         async with self._l1_lock:
             entry = self._l1.get(key)
             if entry is None:
@@ -208,7 +209,7 @@ class RpcCacheClient:
             self.stats.mem_hits += 1
             return self.deserialize(data)
 
-    async def _l1_set(self, key, data, ttl):
+    async def _l1_set(self, key, data, ttl) -> None:
         async with self._l1_lock:
             if len(self._l1) >= self.L1_MAX_SIZE:
                 oldest = min(self._l1.keys(), key=lambda k: self._l1[k][0])
@@ -217,7 +218,7 @@ class RpcCacheClient:
 
     # ── Core Operations ─────────────────────────────────────────────────
 
-    async def get(self, method, params, chain="solana", bypass_cache=False):
+    async def get(self, method, params, chain="solana", bypass_cache=False) -> None | Any:
         """Check L1 then L2 cache. Returns ConsensusResult or None."""
         if bypass_cache:
             return None
@@ -243,7 +244,7 @@ class RpcCacheClient:
         self.stats.misses += 1
         return None
 
-    async def set(self, method, params, chain, result):
+    async def set(self, method, params, chain, result) -> None:
         """Store result in L1+L2 cache."""
         key = self.make_key(method, params, chain)
         ttl = self.get_ttl(method)
@@ -260,7 +261,7 @@ class RpcCacheClient:
 
     async def query_with_cache(
         self, method, params, chain="solana", min_agreement=2, bypass_cache=False
-    ):
+    ) -> Any:
         """Main entry: cache hit -> return; miss -> query RPC -> cache -> return."""
         key = self.make_key(method, params, chain)
         cached = await self.get(method, params, chain, bypass_cache=bypass_cache)
@@ -301,7 +302,7 @@ class RpcCacheClient:
 
     # ── Convenience Methods ─────────────────────────────────────────────
 
-    async def get_account_info(self, address, chain="solana", bypass_cache=False):
+    async def get_account_info(self, address, chain="solana", bypass_cache=False) -> Any:
         return await self.query_with_cache(
             "getAccountInfo",
             [address, {"encoding": "jsonParsed"}],
@@ -309,19 +310,19 @@ class RpcCacheClient:
             bypass_cache=bypass_cache,
         )
 
-    async def get_balance(self, address, chain="solana", bypass_cache=False):
+    async def get_balance(self, address, chain="solana", bypass_cache=False) -> Any:
         return await self.query_with_cache(
             "getBalance", [address], chain=chain, bypass_cache=bypass_cache
         )
 
-    async def get_token_supply(self, mint, chain="solana", bypass_cache=False):
+    async def get_token_supply(self, mint, chain="solana", bypass_cache=False) -> Any:
         return await self.query_with_cache(
             "getTokenSupply", [mint], chain=chain, bypass_cache=bypass_cache
         )
 
     async def get_signatures_for_address(
         self, address, limit=20, chain="solana", bypass_cache=False
-    ):
+    ) -> Any:
         return await self.query_with_cache(
             "getSignaturesForAddress",
             [address, {"limit": limit}],
@@ -329,14 +330,14 @@ class RpcCacheClient:
             bypass_cache=bypass_cache,
         )
 
-    async def get_token_account_balance(self, token_account, chain="solana", bypass_cache=False):
+    async def get_token_account_balance(self, token_account, chain="solana", bypass_cache=False) -> Any:
         return await self.query_with_cache(
             "getTokenAccountBalance", [token_account], chain=chain, bypass_cache=bypass_cache
         )
 
     # ── Invalidation ────────────────────────────────────────────────────
 
-    async def invalidate_address(self, address, chain="solana"):
+    async def invalidate_address(self, address, chain="solana") -> None:
         """Invalidate all cached data for a specific address."""
         pattern = f"{CACHE_PREFIX}{chain}:*"
         async with self._l1_lock:
@@ -374,7 +375,7 @@ class RpcCacheClient:
 
     # ── Health ──────────────────────────────────────────────────────────
 
-    async def health(self):
+    async def health(self) -> dict:
         redis_ok = False
         redis = await self._get_redis()
         if redis:
@@ -392,7 +393,7 @@ class RpcCacheClient:
             **self.stats.to_dict(),
         }
 
-    async def clear_l1(self):
+    async def clear_l1(self) -> None:
         async with self._l1_lock:
             self._l1.clear()
             logger.info("RpcCache: L1 cache cleared")
@@ -401,7 +402,7 @@ class RpcCacheClient:
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 
-def _dict_to_result(d):
+def _dict_to_result(d) -> Any:
     return ConsensusResult(
         value=d.get("v"),
         confidence=d.get("c", 0.0),
@@ -416,7 +417,7 @@ def _dict_to_result(d):
 _cache_client = None
 
 
-def get_rpc_cache():
+def get_rpc_cache() -> Any:
     global _cache_client
     if _cache_client is None:
         _cache_client = RpcCacheClient()

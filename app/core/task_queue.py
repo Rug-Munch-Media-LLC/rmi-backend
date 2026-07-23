@@ -14,12 +14,12 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")
 TASKS = {}
 
 
-def register_task(name: str, fn: Callable):
+def register_task(name: str, fn: Callable) -> None:
     """Register a background task handler."""
     TASKS[name] = fn
 
 
-async def enqueue(name: str, payload: dict, delay: int = 0, max_retries: int = 3):
+async def enqueue(name: str, payload: dict, delay: int = 0, max_retries: int = 3) -> None:
     """Enqueue a background task."""
     import redis
 

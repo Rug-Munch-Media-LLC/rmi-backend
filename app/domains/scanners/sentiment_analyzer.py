@@ -215,7 +215,7 @@ class SentimentAnalyzer:
 
     def __init__(
         self, dexscreener_client: httpx.AsyncClient | None = None, birdeye_api_key: str = ""
-    ):
+    ) -> None:
         self.client = dexscreener_client or httpx.AsyncClient(timeout=15.0)
         self.birdeye_key = birdeye_api_key
 

@@ -7,6 +7,7 @@ Hits /api/v1/wallet/* endpoints directly via fetch().
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
+from typing import Any
 
 router = APIRouter(tags=["walletsafe"])
 
@@ -355,12 +356,12 @@ async function loadDashboard() {
 
 
 @router.get("/walletsafe/")
-async def walletsafe_root():
+async def walletsafe_root() -> Any:
     """Serve the WalletSafe frontend."""
     return HTMLResponse(content=WALLETSAFE_HTML)
 
 
 @router.get("/walletsafe")
-async def walletsafe_no_slash():
+async def walletsafe_no_slash() -> Any:
     """Redirect to /walletsafe/."""
     return HTMLResponse(content=WALLETSAFE_HTML)

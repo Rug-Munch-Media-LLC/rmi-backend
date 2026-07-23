@@ -20,6 +20,7 @@ import re
 from dataclasses import dataclass
 
 from app.core.logging import get_logger
+from typing import Any
 
 log = get_logger(__name__)
 
@@ -30,7 +31,7 @@ DEFAULT_MIN_CHARS = 32
 _redis = None
 
 
-def _get_redis():
+def _get_redis() -> Any:
     global _redis
     if _redis is None:
         from app.core.redis import get_redis

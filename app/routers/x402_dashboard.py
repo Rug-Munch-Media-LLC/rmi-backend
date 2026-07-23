@@ -32,7 +32,7 @@ router = APIRouter(prefix="/api/v1/x402", tags=["x402 Analytics Dashboard"])
 # ── Redis helper (reuse existing pattern from enforcement) ─────────────
 
 
-def _get_redis():
+def _get_redis() -> Any | None:
     """Synchronous Redis client for dashboard queries."""
     try:
         import redis
@@ -51,7 +51,7 @@ def _get_redis():
         return None
 
 
-async def _get_redis_async():
+async def _get_redis_async() -> Any:
     """Async Redis client for dashboard queries."""
     try:
         from app.auth import get_redis
@@ -67,7 +67,7 @@ async def _get_redis_async():
 
 async def _persist_payment_to_supabase(
     tool: str, amount_atoms: str, chain: str, payer: str, tx_hash: str, status: str = "fulfilled"
-):
+) -> None:
     """Insert a payment record into Supabase x402_payments table."""
     try:
         from app.services.supabase_service import _post
@@ -91,7 +91,7 @@ async def _persist_payment_to_supabase(
         logger.warning(f"Supabase payment persist failed: {e}")
 
 
-async def _sync_spent_tx_to_supabase():
+async def _sync_spent_tx_to_supabase() -> Any | int:
     """Sync Redis x402:spent_tx:* entries to Supabase (run periodically).
 
     Reads all x402:spent_tx:* keys from Redis and upserts them into x402_payments.
@@ -368,7 +368,7 @@ def _aggregate_trial_stats(r) -> dict[str, Any]:
 
 
 @router.get("/dashboard")
-async def x402_dashboard():
+async def x402_dashboard() -> dict:
     """
     Public analytics dashboard for x402 payment and trial stats.
 
@@ -458,7 +458,7 @@ async def x402_dashboard():
 # ── Supabase table creation helper ──────────────────────────────────
 
 
-async def ensure_x402_payments_table():
+async def ensure_x402_payments_table() -> Any | bool:
     """Ensure x402_payments table exists in Supabase.
 
     Delegates to supabase_service.ensure_x402_payments_table()
@@ -531,6 +531,6 @@ async def ensure_x402_payments_table():
 # ── Register on app startup ─────────────────────────────────────────
 
 
-async def on_startup():
+async def on_startup() -> None:
     """Call this on app startup to ensure the table exists."""
     await ensure_x402_payments_table()

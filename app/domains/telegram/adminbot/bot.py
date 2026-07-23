@@ -63,10 +63,10 @@ def is_owner(update: Update) -> bool:
     return update.effective_user.id in OWNER_IDS
 
 
-def owner_only(func):
+def owner_only(func) -> Any | None:
     """Decorator: reject non-owners immediately."""
 
-    async def wrapper(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    async def wrapper(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Any | None:
         if not is_owner(update):
             await update.message.reply_text("⛔ Unauthorized. This bot is for RMI admins only.")
             return
@@ -81,7 +81,7 @@ async def edit_or_reply(
     text: str,
     keyboard: Any = None,
     parse_mode: str = ParseMode.MARKDOWN,
-):
+) -> None:
     """Edit the callback message or send new reply."""
     if update.callback_query:
         try:
@@ -96,7 +96,7 @@ async def edit_or_reply(
         await update.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
 
 
-def main_menu_keyboard():
+def main_menu_keyboard() -> Any:
     return InlineKeyboardMarkup(
         [
             [
@@ -120,7 +120,7 @@ def main_menu_keyboard():
     )
 
 
-def back_button(data: str = "main"):
+def back_button(data: str = "main") -> Any:
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data=data)]])
 
 
@@ -130,7 +130,7 @@ def back_button(data: str = "main"):
 
 
 @owner_only
-async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "🛡️ *RMI Admin Bot v2*\n\n"
         "Server management for the Rug Munch fleet.\n"
@@ -152,7 +152,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 @owner_only
-async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await cmd_start(update, ctx)
 
 
@@ -160,7 +160,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 @owner_only
-async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("⏳ Gathering fleet status...")
     s = admin_ops.system_status()
     text = admin_ops.format_status(s)
@@ -183,7 +183,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 @owner_only
-async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "🐳 *Docker Management*",
         reply_markup=docker_menu(),
@@ -191,7 +191,7 @@ async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
 
 
-def docker_menu():
+def docker_menu() -> Any:
     return InlineKeyboardMarkup(
         [
             [
@@ -219,7 +219,7 @@ def docker_menu():
 
 
 @owner_only
-async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     args = ctx.args
     if not args:
         await update.message.reply_text(
@@ -251,7 +251,7 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 @owner_only
-async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     args = ctx.args
     if not args:
         text = admin_ops.service_list()
@@ -279,7 +279,7 @@ async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
 
 
-def service_action_keyboard(svc: str = ""):
+def service_action_keyboard(svc: str = "") -> Any:
     buttons = []
     if svc:
         buttons.append(
@@ -297,7 +297,7 @@ def service_action_keyboard(svc: str = ""):
 
 
 @owner_only
-async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     args = ctx.args
     action = args[0] if args else ""
 
@@ -338,7 +338,7 @@ async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 @owner_only
-async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     args = ctx.args
     if not args:
         await update.message.reply_text(
@@ -374,7 +374,7 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 @owner_only
-async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     args = ctx.args
     if not args:
         await update.message.reply_text(
@@ -406,7 +406,7 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
 
 
-def logs_menu():
+def logs_menu() -> Any:
     buttons = []
     row = []
     for i, svc in enumerate(
@@ -435,7 +435,7 @@ def logs_menu():
 
 
 @owner_only
-async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("⏳ Running health checks...")
     checks = admin_ops.health_check()
     text = admin_ops.format_health(checks)
@@ -458,7 +458,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 @owner_only
-async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "⚡ *Quick Operations*",
         reply_markup=InlineKeyboardMarkup(
@@ -491,7 +491,7 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     data = query.data
     await query.answer()
@@ -810,7 +810,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE):
+async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     logger.error(f"Exception: {ctx.error}", exc_info=ctx.error)
     if isinstance(update, Update) and update.effective_message:
         try:
@@ -825,7 +825,7 @@ async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 @owner_only
-async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Enter terminal mode — every message becomes a shell command."""
     user_id = update.effective_user.id
     admin_terminal.enter_terminal(user_id)
@@ -848,7 +848,7 @@ async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle messages in terminal mode."""
     user_id = update.effective_user.id
     if not admin_terminal.in_terminal(user_id):
@@ -891,7 +891,7 @@ async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE
 
 
 @owner_only
-async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """AI Gateway — query our AI models."""
     if admin_ai is None:
         await update.message.reply_text("⚠️ AI module not available (missing admin_ai.py)")
@@ -958,7 +958,7 @@ async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def main():
+def main() -> None:
     """Build the Application, register handlers, start Redis listener, poll."""
     app = Application.builder().token(ADMIN_BOT_TOKEN).build()
 

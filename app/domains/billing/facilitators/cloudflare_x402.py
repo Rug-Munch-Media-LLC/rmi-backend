@@ -31,7 +31,7 @@ class CloudflareX402Facilitator(Facilitator):
     Supports Base Sepolia and Ethereum mainnet. Deferred settlement.
     """
 
-    def __init__(self, config: FacilitatorConfig | None = None):
+    def __init__(self, config: FacilitatorConfig | None = None) -> None:
         self._config = config or get_config()
 
     # ── Identity ───────────────────────────────────────────────

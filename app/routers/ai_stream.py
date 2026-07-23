@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.core.model_router import TaskType, route_task
+from typing import Any
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai-streaming"])
 
@@ -18,7 +19,7 @@ class StreamRequest(BaseModel):
     prefer: str = "fast"  # fast|cheap
 
 
-async def _stream_ollama(prompt: str, model: str):
+async def _stream_ollama(prompt: str, model: str) -> Any:
     """Stream from Ollama."""
     import httpx
 
@@ -41,7 +42,7 @@ async def _stream_ollama(prompt: str, model: str):
 
 
 @router.post("/stream")
-async def stream_ai(req: StreamRequest):
+async def stream_ai(req: StreamRequest) -> Any:
     """Stream AI response in real-time. Tokens appear as generated."""
     decision = route_task(TaskType(req.task), req.prefer)
 
@@ -57,7 +58,7 @@ async def stream_ai(req: StreamRequest):
         )
 
     # For non-Ollama providers, fall back to blocking + stream result
-    async def _blocking_stream():
+    async def _blocking_stream() -> Any:
         from app.core.model_router import smart_route
 
         result = await smart_route(req.prompt, req.task, req.prefer)
@@ -76,7 +77,7 @@ async def stream_ai(req: StreamRequest):
 
 
 @router.post("/route")
-async def ai_route(req: StreamRequest):
+async def ai_route(req: StreamRequest) -> Any:
     """Non-streaming: auto-route to best model, return complete response."""
     from app.core.model_router import smart_route
 
@@ -85,7 +86,7 @@ async def ai_route(req: StreamRequest):
 
 
 @router.get("/providers")
-async def list_providers():
+async def list_providers() -> dict[str, dict]:
     """List all available AI providers with capabilities."""
     from app.core.model_router import ROUTING_TABLE
 

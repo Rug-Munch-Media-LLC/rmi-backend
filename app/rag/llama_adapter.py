@@ -16,7 +16,7 @@ class LlamaRAGAdapter:
     via `LLAMA_RAG_ENABLED=true` env var.
     """
 
-    def __init__(self, collection_name: str = "rmi_documents"):
+    def __init__(self, collection_name: str = "rmi_documents") -> None:
         embed_model = os.getenv("LLAMA_EMBED_MODEL", "bge-m3")
         llm_model = os.getenv("LLAMA_LLM_MODEL", "deepseek-chat")
 

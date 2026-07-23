@@ -12,6 +12,7 @@ import httpx
 from defusedxml import ElementTree as SafeET
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("rmi.scraper")
 
@@ -110,7 +111,7 @@ RESEARCH_FEEDS = [
 ]
 
 
-def fetch_generic_feeds(feed_list, prefix="", label="generic"):
+def fetch_generic_feeds(feed_list, prefix="", label="generic") -> Any:
     """Fetch any list of RSS feeds. Returns articles."""
     results = []
     for source, url in feed_list:
@@ -152,7 +153,7 @@ def fetch_generic_feeds(feed_list, prefix="", label="generic"):
     return results
 
 
-def store_all():
+def store_all() -> dict[str, int] | dict[str, str]:
     """Fetch all sources and store in Redis + Postgres."""
     all_articles = []
     all_articles.extend(fetch_generic_feeds(SUBSTACK_FEEDS, "[Substack] ", "substack"))

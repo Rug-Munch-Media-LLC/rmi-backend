@@ -30,7 +30,7 @@ class PrimevFacilitator(Facilitator):
     Sub-200ms settlement. ERC-8004 Agent #23175.
     """
 
-    def __init__(self, config: FacilitatorConfig | None = None):
+    def __init__(self, config: FacilitatorConfig | None = None) -> None:
         self._config = config or get_config()
 
     @property

@@ -37,7 +37,7 @@ DAS_BASE = "https://mainnet.helius-rpc.com"
 class HeliusDasClient:
     """Indexed Solana token data via Helius DAS API. Uses existing RPC keys."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._keys = []
         for suffix in ("", "_2"):
             k = os.getenv(f"HELIUS_API_KEY{suffix}", "")

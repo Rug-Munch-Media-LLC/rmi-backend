@@ -79,7 +79,7 @@ def run_quick(cmd_name: str) -> dict[str, Any]:
         return {"ok": False, "output": "", "error": str(e)}
 
 
-def quick_commands_keyboard():
+def quick_commands_keyboard() -> Any:
     return InlineKeyboardMarkup(
         [
             [

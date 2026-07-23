@@ -51,7 +51,7 @@ class BundleDetection:
 class BundleDetector:
     """Multi-signal bundle detection for Solana tokens."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.min_holders_for_analysis = 5
 
     async def detect(
@@ -97,7 +97,7 @@ class BundleDetector:
 
         return result
 
-    def _atomic_block_signal(self, result: BundleDetection, txs: list[dict]):
+    def _atomic_block_signal(self, result: BundleDetection, txs: list[dict]) -> None:
         """Check if many holders acquired tokens in the same block (atomic bundle)."""
         block_wallets = defaultdict(set)
         for tx in txs:
@@ -125,7 +125,7 @@ class BundleDetector:
         else:
             result.atomic_block_score = 0.1
 
-    def _common_funder_signal(self, result: BundleDetection, txs: list[dict]):
+    def _common_funder_signal(self, result: BundleDetection, txs: list[dict]) -> None:
         """Detect if multiple buyers were funded from the same source wallet."""
         funder_counts = defaultdict(int)
         for tx in txs:
@@ -152,7 +152,7 @@ class BundleDetector:
         elif top_count >= 3:
             result.common_funder_score = 0.3
 
-    def _temporal_signal(self, result: BundleDetection, txs: list[dict]):
+    def _temporal_signal(self, result: BundleDetection, txs: list[dict]) -> None:
         """Check if wallets appeared within a narrow time window."""
         timestamps = []
         for tx in txs:
@@ -176,7 +176,7 @@ class BundleDetector:
         elif window <= 3600:  # 1 hour
             result.temporal_score = 0.3
 
-    def _distribution_anomaly_signal(self, result: BundleDetection, holders: list[dict]):
+    def _distribution_anomaly_signal(self, result: BundleDetection, holders: list[dict]) -> None:
         """Check for flat/rounded amounts - hallmark of bundled distribution."""
         amounts = []
         for h in holders:
@@ -214,7 +214,7 @@ class BundleDetector:
         elif anomaly_pct > 0.05:
             result.distribution_anomaly_score = 0.3
 
-    def _concentration_signal(self, result: BundleDetection, holders: list[dict]):
+    def _concentration_signal(self, result: BundleDetection, holders: list[dict]) -> None:
         """Check top-10 and top-3 holder concentration."""
         amounts = []
         for h in holders:

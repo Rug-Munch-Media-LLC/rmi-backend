@@ -14,12 +14,15 @@ Usage:
 """
 
 import json
+import logging
 import sys
 import time
 from pathlib import Path
 from typing import Any
 
 import clickhouse_connect
+
+logger = logging.getLogger(__name__)
 
 # ── config ──────────────────────────────────────────────────────────────
 CLICKHOUSE_HOST = "127.0.0.1"
@@ -118,22 +121,22 @@ def upsert_batch(client: Any, batch: list[dict]) -> int:
 def main() -> None:
     args = sys.argv[1:]
     if not args:
-        print("Usage: python -m app.db.labels_sync <file> [--dry-run]")
+        logger.error("Usage: python -m app.db.labels_sync <file> [--dry-run]")
         sys.exit(1)
 
     file_path = Path(args[0])
     dry_run = "--dry-run" in args
 
     if not file_path.exists():
-        print(f"File not found: {file_path}")
+        logger.error("File not found: %s", file_path)
         sys.exit(1)
 
-    print(f"[labels_sync] Parsing {file_path} …")
+    logger.info("[labels_sync] Parsing %s …", file_path)
     rows = parse_file(file_path)
-    print(f"[labels_sync]  {len(rows)} rows parsed")
+    logger.info("[labels_sync]  %d rows parsed", len(rows))
 
     if dry_run:
-        print("[labels_sync]  DRY RUN — no rows written")
+        logger.warning("[labels_sync]  DRY RUN — no rows written")
         return
 
     client = get_client()
@@ -144,10 +147,12 @@ def main() -> None:
         batch = rows[i : i + BATCH_SIZE]
         n = upsert_batch(client, batch)
         total += n
-        print(f"[labels_sync]  inserted {total}/{len(rows)}  ({n} this batch)")
+        logger.info("[labels_sync]  inserted %d/%d  (%d this batch)", total, len(rows), n)
 
     elapsed = time.time() - t0
-    print(f"[labels_sync]  DONE — {total} rows in {elapsed:.1f}s ({total / elapsed:.0f} rows/s)")
+    logger.info(
+        "[labels_sync]  DONE — %d rows in %.1fs (%.0f rows/s)", total, elapsed, total / elapsed
+    )
 
 
 if __name__ == "__main__":

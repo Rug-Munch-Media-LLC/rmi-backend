@@ -112,11 +112,11 @@ class BlockZeroSniperAnalyzer:
     SPLIT_BLOCK_WINDOW = 10  # within 10 blocks of the buy
     MAX_FIRST_WALLETS = 5  # track first 5 unique buyers
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._helius_key = HELIUS_API_KEY
 
-    async def close(self):
+    async def close(self) -> None:
         """Clean up the HTTP client."""
         await self._http.aclose()
 

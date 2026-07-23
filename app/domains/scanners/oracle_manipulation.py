@@ -100,7 +100,7 @@ class OracleManipulationDetector:
     PRICE_DEVIATION_THRESHOLD = 5.0  # >5% deviation = suspicious
     PRICE_DEVIATION_CRITICAL = 20.0  # >20% = likely attack in progress
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._chain = ChainClient()
         self._etherscan_key = os.getenv("ETHERSCAN_API_KEY", "")

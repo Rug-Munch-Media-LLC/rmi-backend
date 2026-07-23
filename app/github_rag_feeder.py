@@ -19,11 +19,15 @@ Config format (add to SOURCES list):
 import asyncio
 import glob
 import json
+import logging
 import os
 import re
 import subprocess
 
 import httpx
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 BACKEND = "http://localhost:8000"
 INGEST_URL = f"{BACKEND}/api/v1/rag/ingest"
@@ -113,7 +117,7 @@ def extract_from_repo(source: dict) -> list[dict]:
     """Extract documents from a cloned GitHub repo."""
     path = ensure_cloned(source["repo"])
     if not path:
-        print(f"  {source['repo']}: clone failed")
+        logger.warning("  %s: clone failed", source["repo"])
         return []
 
     docs = []
@@ -175,11 +179,11 @@ def extract_from_repo(source: dict) -> list[dict]:
         except Exception:
             pass
 
-    print(f"  {source['repo']}: {len(docs)} docs from {len(files[:max_files])} files")
+    logger.info("  %s: %d docs from %d files", source["repo"], len(docs), len(files[:max_files]))
     return docs
 
 
-async def ingest_repo(source: dict):
+async def ingest_repo(source: dict) -> Any | int:
     """Clone, extract, and ingest a single repo."""
     docs = extract_from_repo(source)
     if not docs:
@@ -207,22 +211,22 @@ async def ingest_repo(source: dict):
     return total
 
 
-async def ingest_all():
+async def ingest_all() -> Any:
     """Run all enabled sources."""
-    print("=== RAG GitHub Feeder v2 ===\n")
+    logger.info("=== RAG GitHub Feeder v2 ===\n")
     results = {}
     total = 0
 
     for src in SOURCES:
         if not src.get("enabled", True):
             continue
-        print(f"Ingesting: {src['repo']} → {src['collection']}")
+        logger.info("Ingesting: %s → %s", src["repo"], src["collection"])
         n = await ingest_repo(src)
         results[src["repo"]] = n
         total += n
-        print(f"  ingested: {n}\n")
+        logger.info("  ingested: %d\n", n)
 
-    print(f"Total: {total} docs across {len(results)} sources")
+    logger.info("Total: %d docs across %d sources", total, len(results))
     return results
 
 

@@ -29,7 +29,7 @@ PYTH_HERMES_BASE_URL = "https://hermes.pyth.network"
 class PythPriceFeedProvider:
     """Pyth Network price feed provider"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def get_price_feeds_list(self) -> dict[str, Any]:
@@ -149,7 +149,7 @@ class PythPriceFeedProvider:
             logger.error(f"Error parsing price data for {price_feed_id}: {e}")
             return None
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP client"""
         await self.client.aclose()
 
@@ -220,7 +220,7 @@ async def get_ethereum_price_feed() -> dict[str, Any]:
 
 if __name__ == "__main__":
     # Test the provider
-    async def test_provider():
+    async def test_provider() -> None:
         provider = PythPriceFeedProvider()
         try:
             # Test getting price feeds list

@@ -14,6 +14,7 @@ from pathlib import Path
 import httpx
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -32,7 +33,7 @@ EMBEDDING_VERSION = os.getenv("EMBEDDING_MODEL_VERSION", "v1")
 LOCAL_CACHE.mkdir(parents=True, exist_ok=True)
 
 
-def _headers():
+def _headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {R2_API_TOKEN}", "Content-Type": "application/json"}
 
 
@@ -113,7 +114,7 @@ async def _r2_delete(key: str) -> bool:
 # ═══════════════════════════════════════════════════════════════
 # RAG PERSISTENCE OPERATIONS
 # ═══════════════════════════════════════════════════════════════
-async def snapshot_all():
+async def snapshot_all() -> Any:
     """Snapshot all RAG collections to R2. Returns per-collection status."""
     results = {}
     ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
@@ -238,7 +239,7 @@ async def snapshot_all():
     return results
 
 
-async def restore_all():
+async def restore_all() -> Any | dict[str, str]:
     """Restore all RAG collections from latest R2 snapshots."""
     # Get collections and Redis connection
     try:
@@ -308,7 +309,7 @@ async def restore_all():
     return results
 
 
-async def nightly_cycle():
+async def nightly_cycle() -> dict[str, dict]:
     """Full nightly cycle: snapshot to R2, clean local cache."""
     snap = await snapshot_all()
     ok = sum(1 for v in snap.values() if v.get("status") in ("uploaded", "empty"))
@@ -333,7 +334,7 @@ async def nightly_cycle():
     }
 
 
-async def r2_stats():
+async def r2_stats() -> dict[str, dict]:
     """Get R2 usage + local cache stats."""
     # Get collections and Redis connection
     try:

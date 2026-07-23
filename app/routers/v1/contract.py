@@ -14,7 +14,7 @@ router = APIRouter(prefix="/contract", tags=["contract-v1"])
 async def get_contract_info(
     address: str,
     chain: str = Query("ethereum", description="Blockchain to query"),
-):
+) -> None:
     """Get contract information and analysis.
 
     Returns contract type, verification status, risk flags.
@@ -26,7 +26,7 @@ async def get_contract_info(
 
 
 @router.get("/{address}/verify")
-async def verify_contract(address: str, chain: str = "ethereum"):
+async def verify_contract(address: str, chain: str = "ethereum") -> None:
     """Verify contract source code."""
     raise HTTPException(
         status_code=503,

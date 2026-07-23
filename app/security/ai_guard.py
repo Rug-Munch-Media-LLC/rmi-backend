@@ -3,7 +3,7 @@
 
 
 class SecurityResult:
-    def __init__(self, safe: bool, reason: str = "", details: dict | None = None):
+    def __init__(self, safe: bool, reason: str = "", details: dict | None = None) -> None:
         self.safe = safe
         self.reason = reason
         self.details = details or {}
@@ -12,7 +12,7 @@ class SecurityResult:
 class AIGuard:
     """AI content moderation guard for user inputs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.enabled = True
 
     def check_prompt(self, prompt: str) -> SecurityResult:

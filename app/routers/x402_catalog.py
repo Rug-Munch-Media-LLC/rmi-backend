@@ -8,6 +8,7 @@ import re
 from fastapi import APIRouter
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -332,7 +333,7 @@ def discover_route_tools() -> list[dict]:
     return tools
 
 
-def get_catalog():
+def get_catalog() -> Any:
     """Build full tool catalog from TOOL_PRICES + X402_TOOL_PRICING (databus) = single source of truth.
 
     Combined enforcement + databus-only tools = 170 total.
@@ -552,13 +553,13 @@ def get_catalog():
 
 
 @router.get("/tools-catalog")
-async def list_tools_catalog():
+async def list_tools_catalog() -> Any:
     """Get all available MCP tools across all chains and external services"""
     return get_catalog()
 
 
 @router.get("/tools-catalog/{chain}")
-async def list_chain_tools(chain: str):
+async def list_chain_tools(chain: str) -> dict:
     """Get tools for a specific chain (includes native + external)"""
     catalog = get_catalog()
     chain_upper = chain.upper()
@@ -567,7 +568,7 @@ async def list_chain_tools(chain: str):
 
 
 @router.get("/tools-catalog/category/{category}")
-async def list_category_tools(category: str):
+async def list_category_tools(category: str) -> dict:
     """Get tools in a specific category across all chains"""
     catalog = get_catalog()
     filtered = [t for t in catalog["tools"] if t.get("category", "") == category.lower()]
@@ -575,7 +576,7 @@ async def list_category_tools(category: str):
 
 
 @router.get("/tools-catalog/service/{service}")
-async def list_service_tools(service: str):
+async def list_service_tools(service: str) -> dict:
     """Get tools from a specific external MCP service"""
     catalog = get_catalog()
     filtered = [t for t in catalog["tools"] if t.get("service", "") == service.lower()]

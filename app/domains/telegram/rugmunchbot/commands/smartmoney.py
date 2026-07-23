@@ -14,7 +14,7 @@ BACKEND_URL = "http://rmi-backend:8000"
 DEXSCREENER = "https://api.dexscreener.com/latest/dex"
 
 
-async def cmd_smartmoney(update, ctx):
+async def cmd_smartmoney(update, ctx) -> None:
     """Handle /smartmoney command - detect smart money wallets."""
     msg = update.message
     args = ctx.args

@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis
+from typing import Any
 
 logger = get_logger("scam_school")
 router = APIRouter(tags=["scam-school"])
@@ -1138,7 +1139,7 @@ def _get_progress(user_id: str) -> UserProgress:
     return UserProgress(user_id=user_id, started_at=datetime.now(UTC).isoformat())
 
 
-def _save_progress(progress: UserProgress):
+def _save_progress(progress: UserProgress) -> None:
     """Save user progress to Redis."""
     r = get_redis()
     r.hset("rmi:scam_school:progress", progress.user_id, progress.model_dump_json())
@@ -1248,7 +1249,7 @@ def _check_achievements(progress: UserProgress) -> list[dict]:
     return new_achievements
 
 
-def _update_streak(progress: UserProgress):
+def _update_streak(progress: UserProgress) -> None:
     """Update learning streak."""
     now = datetime.now(UTC)
     if progress.last_activity:
@@ -1286,7 +1287,7 @@ def _generate_certificate(user_id: str, course_id: str, score: int) -> dict:
 
 
 @router.get("/scam-school/courses")
-async def list_courses():
+async def list_courses() -> dict[str, list[dict]]:
     """List all available courses with metadata."""
     return {
         "courses": [
@@ -1319,7 +1320,7 @@ async def list_courses():
 
 
 @router.get("/scam-school/courses/{course_id}")
-async def get_course(course_id: str):
+async def get_course(course_id: str) -> Any:
     """Get full course content including all lesson slides."""
     course = next((c for c in COURSES if c["id"] == course_id), None)
     if not course:
@@ -1328,7 +1329,7 @@ async def get_course(course_id: str):
 
 
 @router.get("/scam-school/courses/{course_id}/modules/{module_id}")
-async def get_module(course_id: str, module_id: str):
+async def get_module(course_id: str, module_id: str) -> Any:
     """Get a specific module's content."""
     course = next((c for c in COURSES if c["id"] == course_id), None)
     if not course:
@@ -1340,7 +1341,7 @@ async def get_module(course_id: str, module_id: str):
 
 
 @router.get("/scam-school/progress")
-async def get_progress(request: Request):
+async def get_progress(request: Request) -> dict:
     """Get current user's full progress."""
     user = await get_current_user(request)
     if not user:
@@ -1366,7 +1367,7 @@ async def get_progress(request: Request):
 
 
 @router.post("/scam-school/lessons/{course_id}/{lesson_id}/complete")
-async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, request: Request):
+async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, request: Request) -> dict[str, str]:
     """Mark a lesson as complete and award XP."""
     user = await get_current_user(request)
     if not user:
@@ -1458,7 +1459,7 @@ async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, r
 
 
 @router.post("/scam-school/exams/{course_id}/{exam_id}")
-async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Request):
+async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Request) -> dict:
     """Submit an exam and get results."""
     user = await get_current_user(request)
     if not user:
@@ -1577,7 +1578,7 @@ async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Re
 
 
 @router.get("/scam-school/leaderboard")
-async def get_leaderboard(limit: int = Query(50, ge=1, le=100)):
+async def get_leaderboard(limit: int = Query(50, ge=1, le=100)) -> dict:
     """Get global leaderboard by XP."""
     r = get_redis()
     all_progress = r.hgetall("rmi:scam_school:progress")
@@ -1612,25 +1613,25 @@ async def get_leaderboard(limit: int = Query(50, ge=1, le=100)):
 
 
 @router.get("/scam-school/badges")
-async def list_badges():
+async def list_badges() -> dict:
     """List all available badges."""
     return {"badges": BADGES}
 
 
 @router.get("/scam-school/achievements")
-async def list_achievements():
+async def list_achievements() -> dict:
     """List all achievements."""
     return {"achievements": ACHIEVEMENTS}
 
 
 @router.get("/scam-school/levels")
-async def list_levels():
+async def list_levels() -> dict:
     """List level progression."""
     return {"levels": LEVELS}
 
 
 @router.get("/scam-school/verify-cert/{cert_id}")
-async def verify_certificate(cert_id: str):
+async def verify_certificate(cert_id: str) -> dict[str, bool]:
     """Verify a certificate's authenticity."""
     r = get_redis()
     all_progress = r.hgetall("rmi:scam_school:progress")

@@ -20,7 +20,7 @@ GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
 class GMGNClient:
     """GMGN AI Agent API Client - query-only (no trading without private key)"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_key = GMGN_API_KEY
         self.headers = {
             "Authorization": f"Bearer {GMGN_API_KEY}",
@@ -628,6 +628,6 @@ class GMGNClient:
         except Exception:
             return False
 
-    async def close(self):
+    async def close(self) -> None:
         await self.birdeye.close()
         await self.client.aclose()

@@ -179,7 +179,7 @@ class ClusterDetectionPro:
         "social_connections": 0.05,
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.wallet_profiles: dict[str, dict] = {}
         self.transactions: list[dict] = []
         self.clusters: dict[str, WalletCluster] = {}
@@ -242,7 +242,7 @@ class ClusterDetectionPro:
 
         return sorted(detected_clusters, key=lambda c: c.confidence, reverse=True)
 
-    async def _load_wallet_profiles(self, wallets: list[str]):
+    async def _load_wallet_profiles(self, wallets: list[str]) -> None:
         """Load profiles for all wallets."""
         for wallet in wallets:
             if wallet not in self.wallet_profiles:

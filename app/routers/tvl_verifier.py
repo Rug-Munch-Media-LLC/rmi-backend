@@ -89,7 +89,7 @@ def _compute_discrepancy(defl_tvl: float, onchain_tvl: float) -> dict:
 
 
 @router.get("/protocol/{slug}")
-async def verify_protocol_tvl(slug: str):
+async def verify_protocol_tvl(slug: str) -> dict[str, Any | None]:
     """Verify a DeFiLlama protocol's TVL against on-chain data."""
     defl = await _get_defillama_tvl(slug)
 
@@ -118,7 +118,7 @@ async def verify_protocol_tvl(slug: str):
 
 
 @router.get("/top-mismatches")
-async def find_top_mismatches(limit: int = Query(10, le=20)):
+async def find_top_mismatches(limit: int = Query(10, le=20)) -> dict:
     """Scan top DeFiLlama protocols for TVL mismatches."""
     # Fetch top protocols from DeFiLlama
     top_protocols: list[str] = []

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Admin Bot configuration — loaded from environment with a strict startup guard."""
 
+import logging
 import os
 import subprocess
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 def _get_admin_token() -> str:
@@ -37,12 +40,9 @@ OWNER_IDS: set[int] = {
 
 # ── Startup guard ──────────────────────────────────────────────────────────
 if not ADMIN_BOT_TOKEN:
-    print("FATAL: ADMIN_BOT_TOKEN environment variable is not set.", file=sys.stderr)
+    logger.error("FATAL: ADMIN_BOT_TOKEN environment variable is not set.")
     sys.exit(1)
 
 if ADMIN_CHAT_ID <= 0:
-    print(
-        "FATAL: ADMIN_CHAT_ID environment variable must be set to a positive integer.",
-        file=sys.stderr,
-    )
+    logger.error("FATAL: ADMIN_CHAT_ID environment variable must be set to a positive integer.")
     sys.exit(1)

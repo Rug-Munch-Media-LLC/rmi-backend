@@ -40,12 +40,12 @@ TABLE_CHANNELS = {
 
 
 class SupabaseRealtimeBridge:
-    def __init__(self):
+    def __init__(self) -> None:
         self.redis = None
         self._running = False
         self._reconnect_delay = 1
 
-    async def start(self):
+    async def start(self) -> None:
         if not SUPABASE_URL or not SUPABASE_KEY:
             logger.warning("Supabase Realtime: no URL/key")
             return
@@ -61,12 +61,12 @@ class SupabaseRealtimeBridge:
         asyncio.create_task(self._realtime_loop())
         logger.info("Supabase Realtime bridge started - %d tables → Redis", len(TABLE_CHANNELS))
 
-    async def stop(self):
+    async def stop(self) -> None:
         self._running = False
         if self.redis:
             await self.redis.close()
 
-    async def _realtime_loop(self):
+    async def _realtime_loop(self) -> None:
         ws_url = SUPABASE_URL.replace("https://", "wss://") + "/realtime/v1/websocket"
         params = f"?apikey={SUPABASE_KEY}"
 
@@ -115,7 +115,7 @@ class SupabaseRealtimeBridge:
                 await asyncio.sleep(self._reconnect_delay)
                 self._reconnect_delay = min(self._reconnect_delay * 2, 60)
 
-    async def _handle_message(self, raw: str):
+    async def _handle_message(self, raw: str) -> None:
         try:
             msg = json.loads(raw)
         except json.JSONDecodeError:
@@ -158,7 +158,7 @@ class SupabaseRealtimeBridge:
 
 
 # ── HTTP polling fallback ──
-async def poll_realtime_changes():
+async def poll_realtime_changes() -> None:
     """Poll Supabase REST API for recent changes (falls back when WebSocket unavailable)."""
     import httpx
 

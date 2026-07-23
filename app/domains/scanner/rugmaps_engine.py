@@ -193,7 +193,7 @@ class BubbleMapsPro:
         "critical": "#ff0000",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.transaction_cache: dict[str, list[dict]] = {}
         self.entity_cache: dict[str, dict] = {}
 
@@ -493,7 +493,7 @@ class BubbleMapsPro:
         address: str,
         layer: int,
         transactions: list | None = None,
-    ):
+    ) -> None:
         """Add or update a node in the map."""
         # Check if node exists
         existing = next((n for n in bubble_map.nodes if n.address == address), None)
@@ -536,7 +536,7 @@ class BubbleMapsPro:
         bubble_map: BubbleMap,
         address: str,
         transactions: list | None = None,
-    ):
+    ) -> None:
         """Add the center node."""
         # Get or fetch transactions for the center wallet
         center_txs = transactions
@@ -563,7 +563,7 @@ class BubbleMapsPro:
 
     def _add_or_update_link(
         self, bubble_map: BubbleMap, source: str, target: str, transaction: dict, strength: float
-    ):
+    ) -> None:
         """Add or update a link."""
         # Check if link exists
         existing = next(
@@ -725,7 +725,7 @@ class BubbleMapsPro:
 
         return base * depth_factor
 
-    def _calculate_positions(self, bubble_map: BubbleMap):
+    def _calculate_positions(self, bubble_map: BubbleMap) -> None:
         """
         Calculate node positions using force-directed layout.
         Uses a modified Fruchterman-Reingold algorithm.
@@ -792,7 +792,7 @@ class BubbleMapsPro:
                     node_b.x -= fx
                     node_b.y -= fy
 
-    def _calculate_stats(self, bubble_map: BubbleMap):
+    def _calculate_stats(self, bubble_map: BubbleMap) -> None:
         """Calculate map statistics."""
         bubble_map.total_volume = sum(line_list.total_volume for line_list in bubble_map.links)
         bubble_map.total_transactions = sum(
@@ -800,7 +800,7 @@ class BubbleMapsPro:
         )
         bubble_map.unique_wallets = len(bubble_map.nodes)
 
-    def export_html(self, bubble_map: BubbleMap, output_path: str):
+    def export_html(self, bubble_map: BubbleMap, output_path: str) -> Any:
         """Export as interactive HTML."""
         html = self._generate_interactive_html(bubble_map)
 

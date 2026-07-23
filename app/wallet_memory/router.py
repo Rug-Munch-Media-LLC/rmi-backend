@@ -66,7 +66,7 @@ class BridgeLinkRequest(BaseModel):
 # ── Engine helper ────────────────────────────────────────────────
 
 
-def _get_engine():
+def _get_engine() -> Any:
     from .engine import get_wallet_engine
 
     return get_wallet_engine()
@@ -80,7 +80,7 @@ async def get_wallet_profile(
     address: str,
     chain: str = Query(default="solana"),
     depth: int = Query(default=1, ge=1, le=5),
-):
+) -> Any:
     """
     Get full wallet profile with entity info, risk, labels, and cluster.
     This is the primary WalletSafe product endpoint.
@@ -91,7 +91,7 @@ async def get_wallet_profile(
 
 
 @router.post("/deployer-intel")
-async def get_deployer_intelligence(req: DeployerIntelRequest):
+async def get_deployer_intelligence(req: DeployerIntelRequest) -> Any:
     """
     Get deployer intelligence for SENTINEL token scans.
     Returns entity, labels, risk, and deployer history in one shot.
@@ -102,7 +102,7 @@ async def get_deployer_intelligence(req: DeployerIntelRequest):
 
 
 @router.post("/flag-deployer")
-async def flag_deployer(req: FlagDeployerRequest):
+async def flag_deployer(req: FlagDeployerRequest) -> dict:
     """
     Feed scan results back into the Wallet Memory Bank.
     This is the data flywheel: scans produce intelligence for future scans.
@@ -113,7 +113,7 @@ async def flag_deployer(req: FlagDeployerRequest):
 
 
 @router.post("/search")
-async def search_wallets(req: SearchRequest):
+async def search_wallets(req: SearchRequest) -> dict:
     """Search wallets by address prefix, label, or entity name."""
     engine = _get_engine()
     results = await engine.search_wallets(req.query, req.chain, req.limit)
@@ -121,7 +121,7 @@ async def search_wallets(req: SearchRequest):
 
 
 @router.get("/{address}/entity")
-async def get_entity(address: str, chain: str = Query(default="solana")):
+async def get_entity(address: str, chain: str = Query(default="solana")) -> Any:
     """
     Get cross-chain entity resolution for a wallet.
     Returns linked addresses across all chains.
@@ -134,7 +134,7 @@ async def get_entity(address: str, chain: str = Query(default="solana")):
 
 
 @router.post("/bridge-link")
-async def create_bridge_link(req: BridgeLinkRequest):
+async def create_bridge_link(req: BridgeLinkRequest) -> dict:
     """
     Explicitly link two wallets across chains via a bridge transaction.
     """
@@ -154,7 +154,7 @@ async def create_bridge_link(req: BridgeLinkRequest):
 
 
 @router.post("/feed-transactions")
-async def feed_transactions(req: FeedTransactionsRequest):
+async def feed_transactions(req: FeedTransactionsRequest) -> dict[str, int]:
     """
     Feed transactions into the clustering engine.
     Used by data ingestion pipelines to build entity clusters.
@@ -166,7 +166,7 @@ async def feed_transactions(req: FeedTransactionsRequest):
 
 
 @router.post("/persist-clusters")
-async def persist_clusters():
+async def persist_clusters() -> dict:
     """Run all clustering heuristics and persist results to storage."""
     engine = _get_engine()
     persisted = await engine.persist_clusters()
@@ -177,7 +177,7 @@ async def persist_clusters():
 async def get_wallet_risk(
     address: str,
     chain: str = Query(default="solana"),
-):
+) -> dict:
     """
     Get just the risk score for a wallet (fast path).
     """
@@ -194,7 +194,7 @@ async def get_wallet_risk(
 
 
 @router.get("/stats")
-async def wallet_memory_stats():
+async def wallet_memory_stats() -> dict[str, str]:
     """Get Wallet Memory Bank statistics."""
     engine = _get_engine()
     cluster_stats = engine.clustering.get_stats()
@@ -206,7 +206,7 @@ async def wallet_memory_stats():
 
 
 @router.get("/health")
-async def wallet_memory_health():
+async def wallet_memory_health() -> dict[str, str]:
     """Health check for Wallet Memory Bank."""
     engine = _get_engine()
     # Force lazy connection to actually test
@@ -227,7 +227,7 @@ async def wallet_memory_health():
 
 
 @router.post("/labels/reload")
-async def reload_static_labels():
+async def reload_static_labels() -> dict[str, str]:
     """
     Trigger a full reload of all static wallet labels.
     Re-downloads Solana CSVs if missing, reloads all etherscan CSVs and OFAC data.
@@ -245,7 +245,7 @@ async def reload_static_labels():
 
 
 @router.get("/labels/stats")
-async def label_stats():
+async def label_stats() -> dict:
     """
     Get current label load counts and status.
     """
@@ -264,7 +264,7 @@ async def label_stats():
 async def get_wallet_labels(
     address: str,
     chain: str = Query(default=""),
-):
+) -> dict:
     """Fast label lookup - returns all labels for an address instantly."""
     engine = _get_engine()
 
@@ -303,7 +303,7 @@ async def get_wallet_labels(
 
 
 @router.post("/labels/batch")
-async def batch_label_lookup(request: dict):
+async def batch_label_lookup(request: dict) -> dict[str, int]:
     """Bulk lookup - query up to 100 addresses at once."""
     addresses = request.get("addresses", [])
     chain = request.get("chain", "")
@@ -332,7 +332,7 @@ async def batch_label_lookup(request: dict):
 
 
 @router.get("/labels/freshness")
-async def label_freshness_stats():
+async def label_freshness_stats() -> Any:
     """Check how fresh our labels are - when were they last verified."""
     import os
 

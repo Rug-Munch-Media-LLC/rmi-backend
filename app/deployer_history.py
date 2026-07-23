@@ -476,7 +476,7 @@ def _detect_chain_from_address(address: str) -> list[str]:
 class DeployerHistoryAnalyzer:
     """Analyzes the complete deployment history of a token creator address."""
 
-    def __init__(self, address: str):
+    def __init__(self, address: str) -> None:
         if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(
             r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address
         ):

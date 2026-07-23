@@ -34,7 +34,7 @@ class ClusterEdge(BaseModel):
 
 
 @router.get("/deployer/{deployer_address}")
-async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethereum")):
+async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethereum")) -> dict:
     """Get all tokens deployed by this address. Shows full rug adjacency."""
     tokens: list[dict] = []
     try:
@@ -69,7 +69,7 @@ async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethere
 
 
 @router.get("/token/{token_address}")
-async def get_token_cluster(token_address: str, chain: str = Query("ethereum")):
+async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) -> dict:
     """Get all related tokens for a given token - same deployer, same funder, code clones."""
     nodes: list[dict] = []
     edges: list[dict] = []
@@ -143,7 +143,7 @@ async def get_token_cluster(token_address: str, chain: str = Query("ethereum")):
 
 
 @router.get("/search")
-async def search_clusters(q: str = Query(..., min_length=2), limit: int = Query(20, le=50)):
+async def search_clusters(q: str = Query(..., min_length=2), limit: int = Query(20, le=50)) -> dict:
     """Search for deployers/tokens in the cluster database."""
     results: list[dict] = []
     try:

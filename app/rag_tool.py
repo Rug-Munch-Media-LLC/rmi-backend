@@ -19,7 +19,7 @@ from rag_system_v2 import RMIRAGSystem
 class RagToolInterface:
     """2026 Agentic RAG tool wrapper."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.rag = RMIRAGSystem()
         self.max_iterations = 3  # Prevent infinite loops
 

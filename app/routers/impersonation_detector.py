@@ -97,7 +97,7 @@ def _assess_risk(delegates: list, approvals: list, contracts: list) -> tuple[str
 
 
 @router.get("/audit/{address}")
-async def audit_address(address: str, chain: str = Query("ethereum")):
+async def audit_address(address: str, chain: str = Query("ethereum")) -> dict:
     """Full impersonation audit for an address."""
     delegates = await _find_delegates(address, chain)
     approvals = await _find_approvals(address, chain)

@@ -442,7 +442,7 @@ async def _flush_batch(
     redis_ops: list[tuple[str, str, str]],
     ch_rows: list[tuple],
     chain: str,
-):
+) -> None:
     """Flush a batch of Redis writes and ClickHouse inserts."""
     # Batch Redis writes
     if storage._redis and redis_ops:
@@ -1080,7 +1080,7 @@ def _normalize_chain(chain: str) -> str:
 # ── ClickHouse schema ───────────────────────────────────────────────────
 
 
-async def _ensure_wallet_labels_table(storage):
+async def _ensure_wallet_labels_table(storage) -> None:
     """Create the wallet_labels table in ClickHouse if it doesn't exist."""
     if not storage._ch:
         return

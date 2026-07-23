@@ -148,7 +148,7 @@ class WashTradingDetector:
         },
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = httpx.AsyncClient(timeout=15.0)
 
     # ── Helius helpers ────────────────────────────────────────

@@ -74,10 +74,10 @@ cfg = DeepIntelConfig()
 class MultiChainClient:
     """Unified client for on-chain data across all chains"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.http = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
 
-    async def close(self):
+    async def close(self) -> None:
         await self.http.aclose()
 
     # ── GMGN ──

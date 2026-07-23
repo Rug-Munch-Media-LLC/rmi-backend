@@ -194,7 +194,7 @@ class ChainMeta:
 CHAIN_REGISTRY: dict[str, ChainMeta] = {}
 
 
-def _build_registry():
+def _build_registry() -> Any:
     """Build the comprehensive chain registry."""
     reg = {}
 
@@ -964,7 +964,7 @@ class WalletManagerV2:
     PAYMENTS_PATH = "/app/data/wallets/payments_v2.jsonl"
     SHARES_PATH = "/app/data/wallets/shamir_shares/"
 
-    def __init__(self, encryption_password: str = ""):
+    def __init__(self, encryption_password: str = "") -> None:
         self.encryption_password = encryption_password or os.getenv("WALLET_VAULT_PASSWORD", "")
         self._ensure_dirs()
         self._wallets: dict[str, WalletRecord] = {}
@@ -972,12 +972,12 @@ class WalletManagerV2:
         self._load_vault()
         self._load_payments()
 
-    def _ensure_dirs(self):
+    def _ensure_dirs(self) -> None:
         """Ensure wallet directories exist with secure permissions."""
         for p in [os.path.dirname(self.VAULT_PATH), self.SHARES_PATH]:
             os.makedirs(p, mode=0o700, exist_ok=True)
 
-    def _load_vault(self):
+    def _load_vault(self) -> None:
         """Load wallet vault from disk."""
         if os.path.exists(self.VAULT_PATH):
             try:
@@ -992,7 +992,7 @@ class WalletManagerV2:
         else:
             logger.info("No vault found - starting fresh")
 
-    def _save_vault(self):
+    def _save_vault(self) -> None:
         """Save wallet vault to disk."""
         data = {
             "version": "3.0",
@@ -1008,7 +1008,7 @@ class WalletManagerV2:
         except Exception as e:
             logger.error(f"Vault save error: {e}")
 
-    def _load_payments(self):
+    def _load_payments(self) -> None:
         """Load payment records from disk."""
         if os.path.exists(self.PAYMENTS_PATH):
             try:
@@ -1344,7 +1344,7 @@ class WalletManagerV2:
 
     # ── Key Storage ───────────────────────────────────────────
 
-    def _store_mnemonic(self, wallet_id: str, mnemonic: str):
+    def _store_mnemonic(self, wallet_id: str, mnemonic: str) -> None:
         """Store encrypted mnemonic in keystore."""
         if not self.encryption_password:
             logger.warning("No encryption password - mnemonic not stored securely")
@@ -2390,7 +2390,7 @@ class WalletManagerFacade:
         self._manager = None
 
     @property
-    def manager(self):
+    def manager(self) -> Any:
         if self._manager is None:
             self._manager = get_wallet_manager_v2(self._password)
         return self._manager

@@ -28,6 +28,7 @@ from urllib.request import Request, urlopen
 
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -154,10 +155,10 @@ class UnifiedWalletScanner:
         r.scan_duration_ms = (time.monotonic() - start) * 1000
         return r
 
-    async def _fetch_batch(self, chains, params, admin_key, timeout=30):
+    async def _fetch_batch(self, chains, params, admin_key, timeout=30) -> dict | tuple[Any, Any] | tuple[Any, None]:
         from app.databus import databus
 
-        async def _one(c):
+        async def _one(c) -> tuple[Any, Any] | tuple[Any, None]:
             try:
                 return c, await asyncio.wait_for(
                     databus.fetch(c, admin_key=admin_key, **params), timeout
@@ -168,7 +169,7 @@ class UnifiedWalletScanner:
         results = await asyncio.gather(*[_one(c) for c in chains])
         return {n: d for n, d in results if d is not None}
 
-    def _merge_core(self, r, d):
+    def _merge_core(self, r, d) -> None:
         r.modules_run.extend(d.keys())
         labels = d.get("wallet_labels", {})
         if isinstance(labels, dict):
@@ -184,12 +185,12 @@ class UnifiedWalletScanner:
         if isinstance(net, dict):
             r.total_value_usd = r.total_value_usd or float(net.get("total_usd", 0) or 0)
 
-    def _merge_deep(self, r, d):
+    def _merge_deep(self, r, d) -> None:
         r.modules_run.extend(d.keys())
         r.transactions = d.get("wallet_transactions")
         r.cross_chain_activity = d.get("cross_chain_entity")
 
-    def _merge_premium(self, r, d):
+    def _merge_premium(self, r, d) -> None:
         r.modules_run.extend(d.keys())
         r.counterparties = d.get("arkham_counterparties")
         r.social_graph = d.get("arkham_portfolio")
@@ -197,7 +198,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 1: RAG-Powered Entity Resolution
     # ═══════════════════════════════════════════════════════════════
-    async def _rag_enrich(self, r):
+    async def _rag_enrich(self, r) -> None:
         try:
             rag_url = _validate_https_url(
                 f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5"
@@ -223,7 +224,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 2: AI Wallet Persona (Ollama Cloud)
     # ═══════════════════════════════════════════════════════════════
-    async def _ai_persona(self, r):
+    async def _ai_persona(self, r) -> None:
         try:
             from app.ai_pipeline_v3 import profile_wallet
 
@@ -244,7 +245,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 3: Cross-Chain Activity Detection
     # ═══════════════════════════════════════════════════════════════
-    async def _cross_chain_check(self, r):
+    async def _cross_chain_check(self, r) -> None:
         if r.cross_chain_activity and isinstance(r.cross_chain_activity, dict):
             chains = r.cross_chain_activity.get("chains", [])
             if len(chains) > 1:
@@ -255,7 +256,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 4: Scam Token Exposure Scoring
     # ═══════════════════════════════════════════════════════════════
-    async def _scam_exposure(self, r):
+    async def _scam_exposure(self, r) -> None:
         scam_count = 0
         scam_value = 0.0
         for token in r.holdings:
@@ -276,7 +277,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 5: Behavioral Pattern Matching
     # ═══════════════════════════════════════════════════════════════
-    async def _behavior_match(self, r):
+    async def _behavior_match(self, r) -> None:
         patterns = []
         if r.holdings:
             # Too many tokens in short time = bot/farm behavior
@@ -294,7 +295,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 6: Smart Money Overlap
     # ═══════════════════════════════════════════════════════════════
-    async def _smart_money_check(self, r):
+    async def _smart_money_check(self, r) -> None:
         if r.holdings:
             overlap = []
             for token in r.holdings[:5]:
@@ -306,7 +307,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 7: Flow Visualization Data
     # ═══════════════════════════════════════════════════════════════
-    async def _build_flow_data(self, r):
+    async def _build_flow_data(self, r) -> None:
         if r.transactions and isinstance(r.transactions, dict):
             txs = r.transactions.get("transactions", [])[:20]
             nodes = [{"id": r.address, "type": "wallet", "label": r.entity_name or r.address[:8]}]
@@ -324,7 +325,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 8: Anomaly Detection
     # ═══════════════════════════════════════════════════════════════
-    async def _anomaly_detect(self, r):
+    async def _anomaly_detect(self, r) -> None:
         anomalies = []
         if r.holdings:
             # All tokens under 24h old = fresh wallet dumping
@@ -343,7 +344,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     # 🆕 IMPROVEMENT 10: AI Risk Forecast (7-day prediction)
     # ═══════════════════════════════════════════════════════════════
-    async def _risk_forecast(self, r):
+    async def _risk_forecast(self, r) -> None:
         try:
             body = json.dumps(
                 {
@@ -376,7 +377,7 @@ class UnifiedWalletScanner:
         except Exception:
             r.risk_forecast = "Unable to forecast"
 
-    def _compute_risk(self, r):
+    def _compute_risk(self, r) -> None:
         s = r.risk_score
         if r.scam_tokens_held:
             s += r.scam_tokens_held * 8

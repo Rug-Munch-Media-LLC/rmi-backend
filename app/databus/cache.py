@@ -53,7 +53,7 @@ class L1Cache:
     Stale entries are returned instantly; the caller triggers background refresh.
     """
 
-    def __init__(self, max_keys: int = 4096, stale_multiplier: float = 2.5):
+    def __init__(self, max_keys: int = 4096, stale_multiplier: float = 2.5) -> None:
         self._max = max_keys
         self._stale_mult = stale_multiplier
         self._store: OrderedDict[str, tuple[Any, float, float]] = OrderedDict()
@@ -87,7 +87,7 @@ class L1Cache:
             self.hits += 1
             return value, False
 
-    async def set(self, key: str, value: Any, ttl: int):
+    async def set(self, key: str, value: Any, ttl: int) -> None:
         async with self._lock:
             now = time.monotonic()
             fresh = now + ttl
@@ -97,11 +97,11 @@ class L1Cache:
             while len(self._store) > self._max:
                 self._store.popitem(last=False)
 
-    async def delete(self, key: str):
+    async def delete(self, key: str) -> None:
         async with self._lock:
             self._store.pop(key, None)
 
-    async def clear(self):
+    async def clear(self) -> None:
         async with self._lock:
             self._store.clear()
 
@@ -121,14 +121,14 @@ class L1Cache:
 class L2RedisCache:
     """Redis cache. Shared across processes. TTL-managed automatically."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._redis = None
         self._available = False
         self._prefix = "databus:"
         self.hits = 0
         self.misses = 0
 
-    async def _connect(self):
+    async def _connect(self) -> bool:
         if self._redis and self._available:
             return True
         try:
@@ -171,7 +171,7 @@ class L2RedisCache:
             self.misses += 1
             return None
 
-    async def set(self, key: str, value: Any, ttl: int):
+    async def set(self, key: str, value: Any, ttl: int) -> None:
         if not self._available and not await self._connect():
             return
         try:
@@ -179,13 +179,13 @@ class L2RedisCache:
         except Exception:
             self._available = False
 
-    async def delete(self, key: str):
+    async def delete(self, key: str) -> None:
         if not self._available:
             return
         with contextlib.suppress(Exception):
             await self._redis.delete(f"{self._prefix}{key}")
 
-    async def clear(self):
+    async def clear(self) -> None:
         if not self._available:
             return
         try:
@@ -217,7 +217,7 @@ class CacheLayer:
     so the caller can schedule background re-fetch without blocking the user.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.l1 = L1Cache(max_keys=4096)
         self.l2 = L2RedisCache()
         self._l3_enabled = True
@@ -340,18 +340,18 @@ class CacheLayer:
         self._type_stats[dtype]["misses"] += 1
         return None, False
 
-    async def set(self, key: str, value: Any, ttl: int | None = None, data_type: str = "default"):
+    async def set(self, key: str, value: Any, ttl: int | None = None, data_type: str = "default") -> None:
         """Set in cache. Writes to L1 + L2."""
         if ttl is None:
             ttl = self.ttl_config.get(data_type, 60)
         await self.l1.set(key, value, ttl)
         await self.l2.set(key, value, ttl)
 
-    async def delete(self, key: str):
+    async def delete(self, key: str) -> None:
         await self.l1.delete(key)
         await self.l2.delete(key)
 
-    async def clear(self):
+    async def clear(self) -> None:
         await self.l1.clear()
         await self.l2.clear()
 

@@ -199,7 +199,7 @@ def get_incidents(limit: int = 20) -> list[dict[str, Any]]:
     return [json.loads(i) for i in incidents]
 
 
-def report_incident(service: str, severity: str, message: str, resolved: bool = False):
+def report_incident(service: str, severity: str, message: str, resolved: bool = False) -> None:
     """Report an incident."""
     r = get_redis()
     if not r:
@@ -262,7 +262,7 @@ def get_uptime_history(days: int = 30) -> dict[str, Any]:
 # ── Background Monitor ───────────────────────────────────────────
 
 
-async def run_all_checks():
+async def run_all_checks() -> None:
     """Run all health checks and store results."""
     r = get_redis()
     if not r:
@@ -302,7 +302,7 @@ async def run_all_checks():
     r.set("rmi:status:overall", json.dumps(overall), ex=120)
 
 
-async def status_monitor_loop():
+async def status_monitor_loop() -> None:
     """Run status checks every 30 seconds."""
     while True:
         try:
@@ -318,7 +318,7 @@ async def status_monitor_loop():
 
 
 @router.get("")
-async def get_status():
+async def get_status() -> Any:
     """Get full status for all services."""
     r = get_redis()
     if not r:
@@ -360,7 +360,7 @@ async def get_status():
 
 
 @router.get("/summary")
-async def status_summary():
+async def status_summary() -> Any:
     """Get one-line summary for status badges."""
     r = get_redis()
     if not r:
@@ -388,14 +388,14 @@ async def status_summary():
 
 
 @router.get("/history")
-async def status_history(days: int = 7):
+async def status_history(days: int = 7) -> Any:
     """Get uptime history."""
     days = min(days, 90)  # Cap at 90 days
     return JSONResponse(content=get_uptime_history(days))
 
 
 @router.post("/incident")
-async def create_incident(incident: IncidentReport, request: Request):
+async def create_incident(incident: IncidentReport, request: Request) -> Any:
     """Report an incident (admin only)."""
     # Simple admin check
     auth = request.headers.get("Authorization", "")
@@ -418,7 +418,7 @@ async def create_incident(incident: IncidentReport, request: Request):
 
 
 @router.get("/services")
-async def list_services():
+async def list_services() -> Any:
     """List all monitored services."""
     return JSONResponse(
         content={

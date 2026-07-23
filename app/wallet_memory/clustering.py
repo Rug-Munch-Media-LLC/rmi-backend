@@ -29,7 +29,7 @@ logger = get_logger("wallet_memory.clustering")
 class UnionFind:
     """Weighted Union-Find with path compression. O(alpha(n)) per op."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._parent: dict[str, str] = {}
         self._rank: dict[str, int] = {}
         self._size: dict[str, int] = {}
@@ -102,7 +102,7 @@ class WalletProfile:
         "unique_counterparties",
     )
 
-    def __init__(self, address: str, chain_id: str = ""):
+    def __init__(self, address: str, chain_id: str = "") -> None:
         self.address = address
         self.chain_id = chain_id
         self.first_seen: datetime | None = None
@@ -118,7 +118,7 @@ class WalletProfile:
 
     def add_tx(
         self, timestamp: datetime, counterparty: str, amount: float = 0.0, program: str = ""
-    ):
+    ) -> None:
         self.total_transactions += 1
         self.total_volume += amount
         self.unique_counterparties.add(counterparty)
@@ -126,7 +126,7 @@ class WalletProfile:
         if program:
             self.programs_used.add(program)
 
-    def calculate_metrics(self):
+    def calculate_metrics(self) -> None:
         if not self.transaction_times:
             return
         self.transaction_times.sort()
@@ -148,7 +148,7 @@ class WalletProfile:
 class Cluster:
     """A detected wallet cluster (entity)."""
 
-    def __init__(self, cluster_id: str):
+    def __init__(self, cluster_id: str) -> None:
         self.cluster_id = cluster_id
         self.wallets: set[str] = set()
         self.confidence: float = 0.0
@@ -190,7 +190,7 @@ class WalletClusteringEngine:
     MIN_FINGERPRINT_SIMILARITY = 0.7
     MIN_GAS_PAYER_RECIPIENTS = 3
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.wallets: dict[str, WalletProfile] = {}
         self.uf = UnionFind()
         self._heuristic_links: dict[str, set[str]] = defaultdict(set)
@@ -205,7 +205,7 @@ class WalletClusteringEngine:
         amount: float = 0.0,
         chain_id: str = "",
         program: str = "",
-    ):
+    ) -> None:
         """Feed a transaction into the engine."""
         addr = address.lower()
         cp = counterparty.lower()

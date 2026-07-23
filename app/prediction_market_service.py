@@ -46,6 +46,7 @@ from datetime import UTC, datetime
 import httpx
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("prediction_market")
 
@@ -161,7 +162,7 @@ class PredictionMarket:
     ends_at: str | None = None
     updated_at: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Auto-classify relevance based on keywords in question."""
         q_lower = self.question.lower()
         self.is_security_relevant = any(kw in q_lower for kw in SECURITY_KEYWORDS)
@@ -188,11 +189,11 @@ class PredictionDigest:
 class PredictionMarketService:
     """Multi-source prediction market data with parallel fetching + caching."""
 
-    def __init__(self, http_client: httpx.AsyncClient | None = None):
+    def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self._http = http_client or httpx.AsyncClient(timeout=15.0)
         self._redis = None  # Lazy init via get_redis()
 
-    def _get_redis(self):
+    def _get_redis(self) -> Any:
         """Lazy Redis connection for caching. Returns None if unavailable."""
         if self._redis is not None:
             return self._redis
@@ -910,7 +911,7 @@ class PredictionMarketService:
     # ── Helpers ─────────────────────────────────────────────
 
     @staticmethod
-    def _parse_json_field(val):
+    def _parse_json_field(val) -> Any:
         """Parse double-encoded JSON fields (Polymarket Gamma API)."""
         if isinstance(val, str):
             try:

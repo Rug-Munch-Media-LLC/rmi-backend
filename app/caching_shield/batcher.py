@@ -76,7 +76,7 @@ class RpcBatcher:
         # Internally: accumulates -> after 50ms or 20 requests -> dispatches batch
     """
 
-    def __init__(self, rpc_query_fn: Callable[..., Awaitable]):
+    def __init__(self, rpc_query_fn: Callable[..., Awaitable]) -> None:
         """
         Args:
             rpc_query_fn: async function(provider, method, params) -> result
@@ -142,7 +142,7 @@ class RpcBatcher:
 
             return req_id
 
-    async def _dispatch_after_delay(self, provider: str):
+    async def _dispatch_after_delay(self, provider: str) -> None:
         """Wait BATCH_WINDOW_MS then dispatch."""
         try:
             await asyncio.sleep(BATCH_WINDOW_MS / 1000.0)
@@ -150,7 +150,7 @@ class RpcBatcher:
         except asyncio.CancelledError:
             pass
 
-    async def _dispatch(self, provider: str):
+    async def _dispatch(self, provider: str) -> None:
         """Send accumulated requests as a single JSON-RPC batch."""
         async with self._lock:
             requests = self._pending.pop(provider, [])

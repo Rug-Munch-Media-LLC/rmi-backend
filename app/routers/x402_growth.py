@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("x402.growth")
 
@@ -28,7 +29,7 @@ _webhook_events: list[dict] = []
 
 
 @router.post("/webhooks/register")
-async def register_webhook(url: str = Query(...), events: str = Query("payment.confirmed")):
+async def register_webhook(url: str = Query(...), events: str = Query("payment.confirmed")) -> dict:
     """Register a webhook URL for payment notifications.
 
     Events: payment.confirmed (when payment is verified), payment.failed,
@@ -55,27 +56,27 @@ async def register_webhook(url: str = Query(...), events: str = Query("payment.c
 
 
 @router.get("/webhooks")
-async def list_webhooks():
+async def list_webhooks() -> dict[str, list]:
     """List registered webhooks."""
     return {"webhooks": list(_webhooks.values()), "total": len(_webhooks)}
 
 
 @router.delete("/webhooks/{hook_id}")
-async def delete_webhook(hook_id: str):
+async def delete_webhook(hook_id: str) -> dict[str, bool]:
     """Delete a webhook."""
     _webhooks.pop(hook_id, None)
     return {"deleted": True}
 
 
 @router.get("/webhooks/events")
-async def webhook_events(limit: int = 100):
+async def webhook_events(limit: int = 100) -> dict:
     """View recent webhook delivery events."""
     return {"events": list(reversed(_webhooks))[:limit], "total": len(_webhook_events)}
 
 
 async def fire_payment_webhook(
     tx_hash: str, tool: str, amount_usd: float, chain: str, status: str = "confirmed"
-):
+) -> None:
     """Fire webhook notifications for payment events."""
     import httpx
 
@@ -103,7 +104,7 @@ async def fire_payment_webhook(
 
 
 @router.get("/usage")
-async def get_usage(agent_id: str = Query(""), days: int = Query(7)):
+async def get_usage(agent_id: str = Query(""), days: int = Query(7)) -> dict:
     """Get usage analytics - calls, spend, breakdown.
 
     Returns per-tool call counts, total spend, and daily breakdown.
@@ -153,7 +154,7 @@ async def get_usage(agent_id: str = Query(""), days: int = Query(7)):
 
 
 @router.get("/pay/{invoice_id}")
-async def payment_page(invoice_id: str):
+async def payment_page(invoice_id: str) -> Any:
     """Hosted payment page for x402 invoices.
 
     Users connect their wallet and pay USDC with one click.
@@ -209,7 +210,7 @@ loadInvoice();
 
 
 @router.get("/invoice/{invoice_id}")
-async def get_invoice(invoice_id: str):
+async def get_invoice(invoice_id: str) -> dict:
     """Get invoice details (for hosted payment page)."""
     # Parse tool from invoice_id (format: uuid - lookup in pending)
     return {
@@ -267,7 +268,7 @@ ADDITIONAL_CHAINS = {
 
 
 @router.post("/chains/add")
-async def add_chains():
+async def add_chains() -> dict:
     """Register Polygon, Arbitrum, Optimism, Avalanche into CHAIN_USDC.
 
     This extends payment coverage from 7 to 11 chains.
@@ -284,7 +285,7 @@ async def add_chains():
 
 
 @router.get("/chains")
-async def list_chains():
+async def list_chains() -> dict[str, dict]:
     """List all payment chains with USDC addresses."""
     from app.routers.x402_enforcement import CHAIN_USDC
 
@@ -312,7 +313,7 @@ _AFFILIATE_COMMISSION = 0.10  # 10%
 
 
 @router.post("/affiliates/register")
-async def register_affiliate(name: str = Query(...), email: str = Query("")):
+async def register_affiliate(name: str = Query(...), email: str = Query("")) -> dict:
     """Register an affiliate account.
 
     Affiliates earn 10% of all x402 fees paid by users they refer.
@@ -331,7 +332,7 @@ async def register_affiliate(name: str = Query(...), email: str = Query("")):
 
 
 @router.get("/affiliates/{code}")
-async def affiliate_stats(code: str):
+async def affiliate_stats(code: str) -> Any:
     """Get affiliate stats - earnings, referrals, payouts."""
     aff = _affiliates.get(code)
     if not aff:
@@ -340,12 +341,12 @@ async def affiliate_stats(code: str):
 
 
 @router.get("/affiliates")
-async def list_affiliates():
+async def list_affiliates() -> dict[str, list]:
     """List all affiliates."""
     return {"affiliates": list(_affiliates.values()), "total": len(_affiliates)}
 
 
-def record_affiliate_commission(affiliate_code: str, amount_usd: float):
+def record_affiliate_commission(affiliate_code: str, amount_usd: float) -> None:
     """Record affiliate commission for a payment."""
     aff = _affiliates.get(affiliate_code)
     if aff:

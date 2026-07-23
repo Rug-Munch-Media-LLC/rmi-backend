@@ -4,7 +4,7 @@ Priority: Helius → Birdeye → Solscan → GMGN → DexScreener → QuickNode 
 Rate-limited to ~5 req/sec total. Heavy caching. Never blocks on a single API.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from app.core.logging import get_logger
 
@@ -25,7 +25,7 @@ def get_unified_provider() -> "UnifiedProvider":
 class UnifiedProvider:
     """Multi-source chain data with fallback cascade."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._birdeye = None
         self._solscan = None
         self._gmgn = None
@@ -33,7 +33,7 @@ class UnifiedProvider:
     # ── Lazy Connectors ────────────────────────────────────
 
     @property
-    def birdeye(self):
+    def birdeye(self) -> Any:
         if self._birdeye is None:
             try:
                 from app.birdeye_client import BirdeyeClient
@@ -44,7 +44,7 @@ class UnifiedProvider:
         return self._birdeye if self._birdeye is not False else None
 
     @property
-    def solscan(self):
+    def solscan(self) -> Any:
         if self._solscan is None:
             try:
                 from app.free_solscan_client import FreeSolscanClient
@@ -55,7 +55,7 @@ class UnifiedProvider:
         return self._solscan if self._solscan is not False else None
 
     @property
-    def gmgn(self):
+    def gmgn(self) -> Any:
         if self._gmgn is None:
             try:
                 from app.gmgn_client import GMGNClient
@@ -351,7 +351,7 @@ class UnifiedProvider:
 
     # ── Cache Helper ───────────────────────────────────────
 
-    def _get_cache(self):
+    def _get_cache(self) -> Any:
         from app.chain_cache import get_chain_cache
 
         return get_chain_cache()

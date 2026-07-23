@@ -292,11 +292,11 @@ def _label_risk(score: float) -> str:
 class BundlerDetector:
     """Main detector for bundled/supply-manipulated token launches."""
 
-    def __init__(self, http_timeout: float = 15.0):
+    def __init__(self, http_timeout: float = 15.0) -> None:
         self.http = httpx.AsyncClient(timeout=http_timeout)
         self._birdeye_api_key = os.environ.get("BIRDEYE_API_KEY", "")
 
-    async def close(self):
+    async def close(self) -> None:
         await self.http.aclose()
 
     # ── Public API ──────────────────────────────────────────────

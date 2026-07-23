@@ -91,7 +91,7 @@ def _detect_suspicious(listings: list[dict]) -> list[dict]:
 
 
 @router.get("/token/{symbol}")
-async def compare_token_chains(symbol: str):
+async def compare_token_chains(symbol: str) -> dict:
     """Compare a token's listings across all chains. Flags suspicious activity."""
     listings = await _get_token_chain_listings(symbol)
     listings = _detect_suspicious(listings)
@@ -116,7 +116,7 @@ async def compare_token_chains(symbol: str):
 async def find_arbitrage_opportunities(
     min_discrepancy: float = Query(2.0, ge=0.5, description="Minimum % price difference"),
     limit: int = Query(10, le=25),
-):
+) -> dict:
     """Find tokens with large price discrepancies across chains (arbitrage signals)."""
     # Scan top tokens for price discrepancies
     opportunities: list[dict] = []

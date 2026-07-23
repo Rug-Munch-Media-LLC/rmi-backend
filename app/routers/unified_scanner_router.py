@@ -7,6 +7,7 @@ from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 from app.unified_token_scanner import get_token_scanner
 from app.unified_wallet_scanner import get_wallet_scanner
+from typing import Any
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v2/scanner", tags=["scanner-v2"])
@@ -22,7 +23,7 @@ class WalletScanRequest(BaseModel):
     chain: str = "solana"
 
 
-def _get_tier(request):
+def _get_tier(request) -> str:
     if request.headers.get("X-RMI-Key") == INTERNAL_API_KEY:
         return "admin"
     if request.headers.get("X-Payment-Verified") == "true":
@@ -30,12 +31,12 @@ def _get_tier(request):
     return "free"
 
 
-def _get_admin_key(request):
+def _get_admin_key(request) -> Any | None:
     return request.headers.get("X-Admin-Key") or request.headers.get("X-RMI-Key")
 
 
 @router.post("/token/scan")
-async def scan_token(request: Request, body: TokenScanRequest):
+async def scan_token(request: Request, body: TokenScanRequest) -> dict[str, str]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
     try:
@@ -68,7 +69,7 @@ async def scan_token(request: Request, body: TokenScanRequest):
 
 
 @router.post("/wallet/scan")
-async def scan_wallet(request: Request, body: WalletScanRequest):
+async def scan_wallet(request: Request, body: WalletScanRequest) -> dict[str, str]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
     try:

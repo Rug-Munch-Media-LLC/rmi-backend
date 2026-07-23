@@ -134,7 +134,7 @@ class EVMClient:
     Can read contracts, fetch events, estimate gas.
     """
 
-    def __init__(self, chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False):
+    def __init__(self, chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False) -> None:
         self.chain = chain.lower()
         self.config = CHAIN_CONFIGS.get(self.chain, CHAIN_CONFIGS["base"])
         self._w3: Web3 | None = None
@@ -310,7 +310,7 @@ class EVMClient:
 class ClientManager:
     """Manages multiple EVM clients (one per chain)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.clients: dict[str, EVMClient] = {}
 
     def get_client(
@@ -322,7 +322,7 @@ class ClientManager:
             self.clients[key] = EVMClient(chain=chain, rpc_url=rpc_url, use_moralis=use_moralis)
         return self.clients[key]
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all cached clients."""
         self.clients.clear()
 

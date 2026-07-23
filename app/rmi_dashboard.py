@@ -38,22 +38,22 @@ class Colors:
 # ─── UI UTILITIES ──────────────────────────────────────────────────
 
 
-def clear_screen():
+def clear_screen() -> None:
     """Clear terminal screen."""
     os.system("clear" if os.name == "posix" else "cls")  # nosec B605
 
 
-def print_header(title: str):
+def print_header(title: str) -> None:
     """Print centered header."""
     width = 60
     logger.info(f"\n{Colors.BLUE}{'=' * width}{Colors.RESET}")
-    print(
+    logger.info(
         f"{Colors.BLUE}║{Colors.RESET}{Colors.BOLD}{title.center(width - 2)}{Colors.RESET}{Colors.BLUE}║{Colors.RESET}"
     )
     logger.info(f"{Colors.BLUE}{'=' * width}{Colors.RESET}\n")
 
 
-def print_box(title: str, content: str, color=Colors.WHITE):
+def print_box(title: str, content: str, color=Colors.WHITE) -> None:
     """Print content in a box."""
     lines = content.split("\n")
     max_len = max(len(l) for l in lines) if lines else 0  # noqa: E741
@@ -108,11 +108,11 @@ def get_redis_status() -> dict[str, Any]:
 class Dashboard:
     """Interactive TUI Dashboard."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.running = True
         self.current_view = "main"
 
-    def display_main(self):
+    def display_main(self) -> None:
         """Display main menu."""
         clear_screen()
 
@@ -166,7 +166,7 @@ class Dashboard:
             )
         logger.info(f"\n{Colors.PURPLE}Use 'help' for more information{Colors.RESET}\n")
 
-    def display_server_control(self):
+    def display_server_control(self) -> None:
         """Display server control menu."""
         print_header("Server Control")
 
@@ -204,7 +204,7 @@ class Dashboard:
             pass
         return None
 
-    def _start_backend(self):
+    def _start_backend(self) -> None:
         """Start backend server."""
         logger.info("\n{Colors.YELLOW}Starting backend...{Colors.RESET}")
         try:
@@ -219,7 +219,7 @@ class Dashboard:
         except Exception as e:
             logger.warning(f"{Colors.RED}Error starting backend: {e}{Colors.RESET}")
 
-    def _stop_backend(self):
+    def _stop_backend(self) -> None:
         """Stop backend server."""
         pid = self._get_backend_pid()
         if pid:
@@ -229,13 +229,13 @@ class Dashboard:
             except Exception as e:
                 logger.warning(f"{Colors.RED}Error stopping backend: {e}{Colors.RESET}")
 
-    def _restart_backend(self):
+    def _restart_backend(self) -> None:
         """Restart backend server."""
         self._stop_backend()
         time.sleep(1)
         self._start_backend()
 
-    def display_auth_system(self):
+    def display_auth_system(self) -> None:
         """Display auth system info."""
         print_header("Authentication System")
 
@@ -255,7 +255,7 @@ class Dashboard:
         logger.info("    GET  /api/v1/auth/status     - Get current session")
         input(f"\n{Colors.PURPLE}Press Enter to return...{Colors.RESET}")
 
-    def display_security_intel(self):
+    def display_security_intel(self) -> None:
         """Display security intel info."""
         print_header("Security Intelligence")
 
@@ -271,7 +271,7 @@ class Dashboard:
         logger.info("    • DAO patterns")
         input(f"\n{Colors.PURPLE}Press Enter to return...{Colors.RESET}")
 
-    def display_x402_menu(self):
+    def display_x402_menu(self) -> None:
         """Display x402 micropayments info."""
         print_header("x402 Micropayments")
 
@@ -286,14 +286,14 @@ class Dashboard:
         logger.info("    POST /api/v1/x402/enforce    - Enforce micropayment")
         input(f"\n{Colors.PURPLE}Press Enter to return...{Colors.RESET}")
 
-    def display_chat(self):
+    def display_chat(self) -> None:
         """Launch chat interface."""
         print_header("Chat Interface")
         logger.info("\n{Colors.YELLOW}Direct chat with RMI assistant{Colors.RESET}")
         logger.info("\n{Colors.RED}Note:{Colors.RESET} This launches the system shell")
         input(f"\n{Colors.PURPLE}Press Enter to return...{Colors.RESET}")
 
-    def display_network_status(self):
+    def display_network_status(self) -> None:
         """Display network connectivity status."""
         print_header("Network Status")
 
@@ -316,7 +316,7 @@ class Dashboard:
         logger.info()
         input(f"{Colors.PURPLE}Press Enter to return...{Colors.RESET}")
 
-    def run(self):
+    def run(self) -> None:
         """Main dashboard loop."""
         while self.running:
             self.display_main()
@@ -355,7 +355,7 @@ class Dashboard:
 # ─── SINGLETON LAUNCHER ────────────────────────────────────────────
 
 
-def launch_dashboard():
+def launch_dashboard() -> None:
     """Launch the interactive dashboard."""
     try:
         dashboard = Dashboard()

@@ -440,7 +440,7 @@ class BridgeHealthReport:
 class BridgeHealthMonitor:
     """Cross-chain bridge health & exploit monitor."""
 
-    def __init__(self, defillama_api: str = "https://coins.llama.fi"):
+    def __init__(self, defillama_api: str = "https://coins.llama.fi") -> None:
         self.defillama_api = defillama_api
         self.session: aiohttp.ClientSession | None = None
         self._cache: dict[str, Any] = {}
@@ -870,7 +870,7 @@ class BridgeHealthMonitor:
             return report
         return None
 
-    async def close(self):
+    async def close(self) -> None:
         """Clean up resources."""
         if self.session and not self.session.closed:
             await self.session.close()
@@ -881,7 +881,7 @@ class BridgeHealthMonitor:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def main():
+async def main() -> None:
     """CLI entry point."""
     import argparse
 
@@ -909,15 +909,15 @@ async def main():
         if args.alert:
             report = await monitor.alert_if_exploit(args.bridge)
             if report is None:
-                print("[SILENT]")
+                logger.debug("[SILENT]")
                 return
         else:
             report = await monitor.scan(args.bridge)
 
         if args.json:
-            print(report.to_json())
+            logger.info(report.to_json())
         else:
-            print(report.summary())
+            logger.info(report.summary())
     finally:
         await monitor.close()
 

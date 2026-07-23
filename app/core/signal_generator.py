@@ -11,6 +11,7 @@ import httpx
 
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -102,7 +103,7 @@ async def scan_and_signal(token: dict) -> dict | None:
     return None
 
 
-async def publish_signal(signal: dict):
+async def publish_signal(signal: dict) -> None:
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             await c.post(
@@ -114,7 +115,7 @@ async def publish_signal(signal: dict):
         pass
 
 
-async def main():
+async def main() -> Any:
     logger.info(f"Signal Generator - {datetime.now(UTC).isoformat()}")
     signals = []
     for chain in CHAINS:

@@ -22,6 +22,7 @@ from collections import defaultdict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("databus.ws_stream")
 
@@ -33,23 +34,23 @@ router = APIRouter(tags=["databus-websocket"])
 class WSConnectionManager:
     """Manages WebSocket connections by channel."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # channel → set of (websocket, tier)
         self._connections: dict[str, set[tuple]] = defaultdict(set)
         self._total_messages = 0
         self._total_connections = 0
 
-    async def connect(self, ws: WebSocket, channel: str, tier: str = "free"):
+    async def connect(self, ws: WebSocket, channel: str, tier: str = "free") -> None:
         await ws.accept()
         self._connections[channel].add((ws, tier))
         self._total_connections += 1
         logger.info(f"WS connected: channel={channel}, tier={tier}")
 
-    def disconnect(self, ws: WebSocket, channel: str):
+    def disconnect(self, ws: WebSocket, channel: str) -> None:
         self._connections[channel].discard((ws, _tier_for_ws(ws, channel)))
         logger.info(f"WS disconnected: channel={channel}")
 
-    async def broadcast(self, channel: str, data: dict, min_tier: str = "free"):
+    async def broadcast(self, channel: str, data: dict, min_tier: str = "free") -> None:
         """Broadcast data to all connections on a channel.
         Only sends to connections with tier >= min_tier.
         """
@@ -67,7 +68,7 @@ class WSConnectionManager:
         for ws, tier in dead:
             self._connections[channel].discard((ws, tier))
 
-    async def broadcast_all(self, data: dict, channel: str = ""):
+    async def broadcast_all(self, data: dict, channel: str = "") -> None:
         """Broadcast to 'all' channel (receives everything)."""
         await self.broadcast("all", data)
         if channel:
@@ -107,7 +108,7 @@ CHANNEL_MAP = {
 }
 
 
-async def databus_ws_broadcast(data_type: str, result: dict):
+async def databus_ws_broadcast(data_type: str, result: dict) -> None:
     """Hook called by DataBus core to push real-time updates to WS clients."""
     channel = CHANNEL_MAP.get(data_type)
     if channel:
@@ -124,7 +125,7 @@ async def databus_ws_broadcast(data_type: str, result: dict):
 
 
 @router.websocket("/api/v1/databus/ws/{channel}")
-async def databus_websocket(ws: WebSocket, channel: str):
+async def databus_websocket(ws: WebSocket, channel: str) -> None:
     """
     Connect to a real-time data stream.
 
@@ -192,6 +193,6 @@ async def databus_websocket(ws: WebSocket, channel: str):
 
 
 @router.get("/api/v1/databus/ws/stats")
-async def ws_stats():
+async def ws_stats() -> Any:
     """WebSocket connection stats."""
     return ws_manager.stats()

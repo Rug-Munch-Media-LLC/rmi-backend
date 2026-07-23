@@ -42,6 +42,7 @@ from app.domains.x402.tools.wallet_tools import (
     get_wallet_analysis,
     get_wallet_history,
 )
+from typing import Any
 
 router = APIRouter(prefix="/api/v1/x402-tools", tags=["x402-tools"])
 log = logging.getLogger("x402_tools")
@@ -53,7 +54,7 @@ async def paid_get_token_risk(
     request: Request,
     token: str = Query(..., description="Token contract address"),
     chain: str = Query("ethereum", description="Chain name"),
-):
+) -> Any:
     return await get_token_risk(token, chain)
 
 
@@ -62,7 +63,7 @@ async def paid_get_token_info(
     request: Request,
     token: str = Query(...),
     chain: str = Query("ethereum"),
-):
+) -> Any:
     return await get_token_info(token, chain)
 
 
@@ -71,7 +72,7 @@ async def paid_deep_contract_audit(
     request: Request,
     token: str = Query(...),
     chain: str = Query("ethereum"),
-):
+) -> Any:
     return await deep_contract_audit(token, chain)
 
 
@@ -81,7 +82,7 @@ async def paid_get_wallet_analysis(
     request: Request,
     wallet: str = Query(...),
     chain: str = Query("ethereum"),
-):
+) -> Any:
     return await get_wallet_analysis(wallet, chain)
 
 
@@ -90,7 +91,7 @@ async def paid_get_wallet_history(
     request: Request,
     wallet: str = Query(...),
     chain: str = Query("ethereum"),
-):
+) -> Any:
     return await get_wallet_history(wallet, chain)
 
 
@@ -100,7 +101,7 @@ async def paid_get_news(
     request: Request,
     topic: str = Query("crypto"),
     limit: int = Query(10, le=50),
-):
+) -> Any:
     return await get_news(topic=topic, limit=limit)
 
 
@@ -109,7 +110,7 @@ async def paid_get_news_sentiment(
     request: Request,
     topic: str = Query("crypto"),
     limit: int = Query(10, le=50),
-):
+) -> Any:
     return await get_news_sentiment(topic=topic, limit=limit)
 
 
@@ -119,7 +120,7 @@ async def paid_get_scan_result(
     request: Request,
     token: str = Query(...),
     chain: str = Query("ethereum"),
-):
+) -> Any:
     return await get_scan_result(token, chain)
 
 
@@ -128,13 +129,13 @@ async def paid_run_scan(
     request: Request,
     token: str = Query(...),
     chain: str = Query("ethereum"),
-):
+) -> Any:
     return await run_scan(token, chain)
 
 
 # ── Market tools ────────────────────────────────────────────
 @router.get("/get_market_overview")
-async def paid_get_market_overview(request: Request):
+async def paid_get_market_overview(request: Request) -> Any:
     return await get_market_overview()
 
 
@@ -142,7 +143,7 @@ async def paid_get_market_overview(request: Request):
 async def paid_get_trending(
     request: Request,
     timeframe: str = Query("24h"),
-):
+) -> Any:
     return await get_trending(timeframe)
 
 
@@ -151,7 +152,7 @@ async def paid_get_trending(
 async def paid_get_entity_labels(
     request: Request,
     entity: str = Query(...),
-):
+) -> Any:
     return await get_entity_labels(entity)
 
 
@@ -159,7 +160,7 @@ async def paid_get_entity_labels(
 async def paid_get_wallet_labels(
     request: Request,
     wallet: str = Query(...),
-):
+) -> Any:
     return await get_wallet_labels(wallet)
 
 
@@ -170,7 +171,7 @@ async def paid_generate_report(
     token: str = Query(...),
     chain: str = Query("ethereum"),
     depth: str = Query("standard"),
-):
+) -> Any:
     return await generate_report(token, chain, depth)
 
 
@@ -178,5 +179,5 @@ async def paid_generate_report(
 async def paid_get_report(
     request: Request,
     report_id: str = Query(...),
-):
+) -> Any:
     return await get_report(report_id)

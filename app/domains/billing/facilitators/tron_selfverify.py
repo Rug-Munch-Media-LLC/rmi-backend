@@ -56,7 +56,7 @@ class TronSelfVerifyFacilitator(Facilitator):
     Verifies TRC20 transfers directly on TRON via TronGrid API.
     """
 
-    def __init__(self, config: FacilitatorConfig | None = None):
+    def __init__(self, config: FacilitatorConfig | None = None) -> None:
         self._config = config or get_config()
         self._tron_pay_to = self._config.tron_pay_to
         self._api_base = "https://api.trongrid.io"

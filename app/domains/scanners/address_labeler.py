@@ -92,7 +92,7 @@ class AddressLabelReport:
 class AddressLabeler:
     """Resolve addresses to known labels from multiple sources in parallel."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._etherscan_key = os.getenv("ETHERSCAN_API_KEY", "")
 

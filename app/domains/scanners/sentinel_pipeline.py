@@ -586,14 +586,14 @@ async def run_sentinel_scan(
     coros["bundle_detection"] = _bundle_detector.detect_bundles(token_address, chain)
     coros["exchange_funding"] = _exchange_funder.analyze(token_address, chain)
 
-    async def _liquidity():
+    async def _liquidity() -> Any:
         return await _liquidity_verifier.verify_lock(token_address, chain)
 
     coros["liquidity_verification"] = _liquidity()
 
     if dev_address:
 
-        async def _dev():
+        async def _dev() -> Any:
             return await _dev_reputation.analyze(dev_address, chains=[chain])
 
         coros["dev_reputation"] = _dev()
@@ -626,7 +626,7 @@ async def run_sentinel_scan(
     # ── Wallet Memory Bank (replaces scattered wallet lookups) ───
     if _WALLET_MEMORY_AVAILABLE and dev_address:
 
-        async def _wallet_intel():
+        async def _wallet_intel() -> Any:
             engine = get_wallet_engine()
             return await engine.get_deployer_intelligence(dev_address, chain)
 
@@ -641,7 +641,7 @@ async def run_sentinel_scan(
     # Guilt by Association (requires deployer address)
     if dev_address:
 
-        async def _guilt():
+        async def _guilt() -> Any:
             return await _guilt_association.analyze(dev_address, chain)
 
         coros["guilt_association"] = _guilt()
@@ -652,7 +652,7 @@ async def run_sentinel_scan(
     # Sleep Cycle (requires deployer deployment timestamps)
     if dev_address:
 
-        async def _sleep():
+        async def _sleep() -> Any:
             # This module needs deployment timestamps, pass empty for now
             return await _sleep_cycle.analyze([])
 
@@ -661,19 +661,19 @@ async def run_sentinel_scan(
         coros["sleep_cycle"] = None
 
     # Social Velocity (runs on social mention data, pass empty)
-    async def _social():
+    async def _social() -> Any:
         return await _social_velocity.analyze([])
 
     coros["social_velocity"] = _social()
 
     # Bytecode Similarity (needs on-chain bytecode)
-    async def _bytecode():
+    async def _bytecode() -> Any:
         return await _bytecode_similarity.analyze(token_address, chain)
 
     coros["bytecode_similarity"] = _bytecode()
 
     # Block Zero Sniper
-    async def _blockzero():
+    async def _blockzero() -> Any:
         return await _block_zero_sniper.analyze(token_address, chain)
 
     coros["block_zero_sniper"] = _blockzero()
@@ -681,7 +681,7 @@ async def run_sentinel_scan(
     # Gas Trace (requires deployer address)
     if dev_address:
 
-        async def _gas():
+        async def _gas() -> Any:
             return await _gas_trace.analyze(dev_address, chain)
 
         coros["gas_trace"] = _gas()

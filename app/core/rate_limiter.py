@@ -202,7 +202,7 @@ class UnifiedRateLimiter:
     BURST_PREFIX = "rmi:unified_burst:"
     TTL_SECONDS = 120
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._redis: Any = None
         self._redis_failed = False
         self._init_lock = asyncio.Lock()
@@ -210,7 +210,7 @@ class UnifiedRateLimiter:
         self._mem_lock = asyncio.Lock()
         self._lua_sha: str | None = None
 
-    async def _ensure_redis(self):
+    async def _ensure_redis(self) -> Any | None:
         if self._redis is not None:
             return self._redis
         if self._redis_failed:
@@ -437,7 +437,7 @@ from starlette.responses import Response as StarletteResponse
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """FastAPI middleware that applies rate limits from PATH_CATEGORIES."""
 
-    def __init__(self, app, limiter: UnifiedRateLimiter | None = None):
+    def __init__(self, app, limiter: UnifiedRateLimiter | None = None) -> None:
         super().__init__(app)
         self.limiter = limiter or get_rate_limiter()
 
@@ -471,7 +471,7 @@ class RateLimitDependency:
         limit_key: str = "default",
         rate: float | None = None,
         burst: float | None = None,
-    ):
+    ) -> None:
         self.limit_key = limit_key
         self._rate = rate
         self._burst = burst

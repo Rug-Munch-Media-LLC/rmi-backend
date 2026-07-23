@@ -133,7 +133,7 @@ class BytecodeSimilarityAnalyzer:
         analyzer.add_to_db(hash, {"type": "rug", "address": "0x...", ...})
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._db: dict[str, dict[str, Any]] = {}
         self._loaded = False
 
@@ -159,7 +159,7 @@ class BytecodeSimilarityAnalyzer:
             self._db = {}
         return self._db
 
-    def _save_db(self):
+    def _save_db(self) -> None:
         """Persist the in-memory DB to disk."""
         try:
             with open(DB_PATH, "w") as f:
@@ -168,7 +168,7 @@ class BytecodeSimilarityAnalyzer:
         except OSError as e:
             logger.error(f"Failed to save scam bytecode DB: {e}")
 
-    def add_to_db(self, bytecode_hash: str, metadata: dict[str, Any]):
+    def add_to_db(self, bytecode_hash: str, metadata: dict[str, Any]) -> None:
         """Add (or update) a bytecode hash entry in the scam DB.
 
         Args:
@@ -475,5 +475,5 @@ class BytecodeSimilarityAnalyzer:
 
     # ── Resource Cleanup ─────────────────────────────────────────────
 
-    async def close(self):
+    async def close(self) -> None:
         """No-op for interface compatibility with other SENTINEL scanners."""

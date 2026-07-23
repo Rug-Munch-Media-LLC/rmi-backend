@@ -22,7 +22,7 @@ def get_db() -> sqlite3.Connection:
     return conn
 
 
-def init_db():
+def init_db() -> None:
     conn = get_db()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS users (
@@ -140,7 +140,7 @@ def get_user_tier(user_id: int) -> str:
     return row["tier"]
 
 
-def set_user_tier(user_id: int, tier: str, days: int = 30):
+def set_user_tier(user_id: int, tier: str, days: int = 30) -> None:
     expires = int(time.time() + timedelta(days=days).total_seconds()) if tier != "free" else 0
     conn = get_db()
     conn.execute(
@@ -171,7 +171,7 @@ def get_weekly_usage(user_id: int) -> tuple[int, int]:
     return (row["scans"], row["ai_msgs"]) if row else (0, 0)
 
 
-def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False):
+def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> bool:
     """Consume 1 scan or AI msg. Tries weekly allotment first, then bonus balance."""
     week = _current_week_start()
     conn = get_db()
@@ -337,7 +337,7 @@ def remove_watchlist(user_id: int, token_address: str) -> bool:
 # ── Scan History ──
 
 
-def log_scan(user_id: int, token_address: str, chain: str, scan_type: str, risk_score: float):
+def log_scan(user_id: int, token_address: str, chain: str, scan_type: str, risk_score: float) -> None:
     conn = get_db()
     conn.execute(
         "INSERT INTO scan_history (user_id, token_address, chain, scan_type, risk_score, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -350,7 +350,7 @@ def log_scan(user_id: int, token_address: str, chain: str, scan_type: str, risk_
 # ── Stars Balance ──
 
 
-def add_stars(user_id: int, amount: int, action: str, payment_id: str | None = None):
+def add_stars(user_id: int, amount: int, action: str, payment_id: str | None = None) -> None:
     conn = get_db()
     conn.execute(
         "UPDATE users SET stars_balance = stars_balance + ? WHERE user_id = ?", (amount, user_id)

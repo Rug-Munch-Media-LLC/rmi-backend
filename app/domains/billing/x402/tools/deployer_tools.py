@@ -112,7 +112,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
 
 
 @sub_router.post("/insider")
-async def insider_tracker(req: InsiderRequest):
+async def insider_tracker(req: InsiderRequest) -> dict[str, str]:
     """Dev/team wallet tracking across all their tokens."""
     try:
         result = await _insider_tracking(req.creator_address, req.chain)
@@ -134,7 +134,7 @@ async def insider_tracker(req: InsiderRequest):
 
 
 @sub_router.post("/whale_accumulation")
-async def whale_accumulation(req: GenericRequest):
+async def whale_accumulation(req: GenericRequest) -> dict[str, str]:
     """Detect stealth accumulation by large holders before price impact.
     Identifies quiet buying patterns, OTC accumulation signals, and wallet
     funding sequences that precede major positions.

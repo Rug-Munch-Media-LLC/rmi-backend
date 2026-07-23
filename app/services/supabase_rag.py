@@ -17,11 +17,11 @@ from app.core.secrets import get_secret_or_none
 load_dotenv("/app/.env", override=True)
 
 
-def _get_url():
+def _get_url() -> Any | None:
     return os.environ.get("SUPABASE_URL", "")
 
 
-def _get_key():
+def _get_key() -> Any:
     return (
         get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
         or get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
@@ -29,7 +29,7 @@ def _get_key():
     )
 
 
-def _get_headers():
+def _get_headers() -> dict:
     key = _get_key()
     return {
         "apikey": key,

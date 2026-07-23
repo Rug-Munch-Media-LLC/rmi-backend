@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from typing import Any
 
 # ═══════════════════════════════════════════════════════════════
 # Rate-limit config
@@ -18,7 +19,7 @@ CACHEABLE_TOOLS = {"token_price", "token_metadata", "wallet_tokens", "entity_int
 MAX_PAYLOAD_SIZE = 1_048_576  # 1MB for standard JSON APIs
 
 
-async def cache_middleware(request: Request, call_next):
+async def cache_middleware(request: Request, call_next) -> Any:
     """Check Redis cache before executing tool. Store result after."""
     path = request.url.path
     if not path.startswith("/api/v1/x402-tools/"):
@@ -63,7 +64,7 @@ async def cache_middleware(request: Request, call_next):
     return response
 
 
-async def emergency_lockdown_middleware(request: Request, call_next):
+async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
     """Check for emergency lockdown status. Block non-admin routes if active."""
     if request.url.path in [
         "/health",
@@ -98,14 +99,14 @@ async def emergency_lockdown_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-async def hsts_middleware(request: Request, call_next):
+async def hsts_middleware(request: Request, call_next) -> Any:
     """Force HTTPS and prevent protocol downgrade attacks."""
     response = await call_next(request)
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
 
 
-async def request_id_middleware(request: Request, call_next):
+async def request_id_middleware(request: Request, call_next) -> Any:
     """Generate unique request ID for log correlation."""
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     response = await call_next(request)
@@ -113,7 +114,7 @@ async def request_id_middleware(request: Request, call_next):
     return response
 
 
-async def payload_size_limit_middleware(request: Request, call_next):
+async def payload_size_limit_middleware(request: Request, call_next) -> Any:
     """Enforce 1MB payload limit on non-upload routes."""
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > MAX_PAYLOAD_SIZE:
@@ -125,7 +126,7 @@ async def payload_size_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-async def secure_cookie_middleware(request: Request, call_next):
+async def secure_cookie_middleware(request: Request, call_next) -> Any:
     """Enforce secure cookie flags for admin sessions."""
     response = await call_next(request)
     if "set-cookie" in response.headers:

@@ -92,12 +92,12 @@ class PriceConsensusEngine:
     # If a source fails this many times consecutively, lower its effective weight
     MAX_CONSECUTIVE_ERRORS = 5
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._sources: dict[str, PriceSource] = {}
         self._lock = asyncio.Lock()
         self._setup_sources()
 
-    def _setup_sources(self):
+    def _setup_sources(self) -> None:
         """Register all price sources with their fetcher callables."""
         sources = [
             ("dexscreener", self._fetch_dexscreener, DEFAULT_SOURCE_WEIGHTS["dexscreener"]),

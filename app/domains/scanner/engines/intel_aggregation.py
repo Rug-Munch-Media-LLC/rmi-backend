@@ -245,7 +245,7 @@ class IntelligenceAggregationLayer:
     tokens, and market activity.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._label_cache: dict[str, AggregatedLabel] = {}
         self._launch_cache: dict[str, TokenLaunch] = {}
         self._source_health: dict[str, bool] = {}

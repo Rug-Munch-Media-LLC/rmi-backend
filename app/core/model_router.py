@@ -3,6 +3,7 @@ Priority: real-time → Cerebras (9ms), cheap → Ollama ($0), complex → DeepS
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class TaskType(Enum):
@@ -79,7 +80,7 @@ def route_task(task_type: TaskType, prefer: str = "fast") -> RoutingDecision:
     )
 
 
-async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast", **kwargs):
+async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast", **kwargs) -> dict[str, str] | dict:
     """Auto-route a prompt to the best model. Returns response or falls back."""
     decision = route_task(TaskType(task_type), prefer)
 
@@ -99,7 +100,7 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
     return {"error": "All providers failed", "routing": vars(decision)}
 
 
-async def _call_provider(provider: str, model: str, prompt: str, **kwargs):
+async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> None | Any | dict:
     """Call a specific provider. Returns dict or None."""
     try:
         if provider == "cerebras":

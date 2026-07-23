@@ -285,7 +285,7 @@ class BM25Index:
         epsilon: Floor for IDF to avoid negative scores
     """
 
-    def __init__(self, k1: float = 1.2, b: float = 0.75, epsilon: float = 0.25):
+    def __init__(self, k1: float = 1.2, b: float = 0.75, epsilon: float = 0.25) -> None:
         self.k1 = k1
         self.b = b
         self.epsilon = epsilon
@@ -296,7 +296,7 @@ class BM25Index:
         self.df: Counter = Counter()  # token -> document frequency
         self._built = False
 
-    def add_document(self, doc_id: str, content: str, metadata: dict | None = None):
+    def add_document(self, doc_id: str, content: str, metadata: dict | None = None) -> None:
         """Add a document to the index."""
         tokens = tokenize(content, remove_stopwords=True, stem=True)
         tf = Counter(tokens)
@@ -322,7 +322,7 @@ class BM25Index:
         # Store a truncated version to limit memory usage
         self._raw_content[doc_id] = content[:2000].lower()
 
-    def build(self):
+    def build(self) -> None:
         """Finalize the index (compute avg doc length, IDF values)."""
         if self.doc_count == 0:
             self.avg_dl = 1.0
@@ -331,7 +331,7 @@ class BM25Index:
             self.avg_dl = total_len / self.doc_count if self.doc_count else 1.0
         self._built = True
 
-    def save(self, path: str):
+    def save(self, path: str) -> None:
         """Persist BM25 index to disk via pickle."""
         import os
         import pickle
@@ -663,7 +663,7 @@ async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
         return _bm25_index
 
 
-async def _save_bm25_async(path: str):
+async def _save_bm25_async(path: str) -> None:
     """Save BM25 index to disk in executor thread."""
     try:
         loop = asyncio.get_running_loop()

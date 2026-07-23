@@ -253,14 +253,14 @@ SCORE_THRESHOLDS = {
 class RugImminencePredictor:
     """Predicts imminent rug pulls by fusing 7 signal categories."""
 
-    def __init__(self, weights: dict[str, float] | None = None):
+    def __init__(self, weights: dict[str, float] | None = None) -> None:
         self.weights = weights or dict(DEFAULT_WEIGHTS)
         self._verify_weights()
         self._cache: dict[str, RIPResult] = {}
         self._cache_ttl = 300  # 5 minutes
         logger.info(f"RugImminencePredictor initialized with {len(self.weights)} signals")
 
-    def _verify_weights(self):
+    def _verify_weights(self) -> None:
         """Ensure weights sum to ~1.0."""
         total = sum(self.weights.values())
         if abs(total - 1.0) > 0.01:
@@ -286,7 +286,7 @@ class RugImminencePredictor:
             del self._cache[key]
         return None
 
-    def _set_cache(self, result: RIPResult):
+    def _set_cache(self, result: RIPResult) -> None:
         """Cache result with TTL as absolute expiry timestamp."""
         key = self._cache_key(result.token_address, result.chain)
         result.last_updated = (datetime.now(UTC) + timedelta(seconds=self._cache_ttl)).isoformat()

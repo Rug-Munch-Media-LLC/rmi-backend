@@ -200,7 +200,7 @@ def analyze_contract_type(bytecode: str, source_code: str | None = None) -> dict
 class EntityLabeler:
     """Main entity labeler engine."""
 
-    def __init__(self, clustering_engine: EntityClusteringEngine | None = None):
+    def __init__(self, clustering_engine: EntityClusteringEngine | None = None) -> None:
         self.clustering = clustering_engine or EntityClusteringEngine()
         self.labels: dict[str, dict[str, Any]] = {}
         self.risk_scores: dict[str, float] = {}

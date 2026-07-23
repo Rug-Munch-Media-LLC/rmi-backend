@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("rpc_rate_limiter")
 
@@ -89,7 +90,7 @@ class RpcRateLimiter:
             raise RateLimitExceeded(f"Try again in {wait_time:.1f}s")
     """
 
-    def __init__(self, redis_url=None, redis_password=None):
+    def __init__(self, redis_url=None, redis_password=None) -> None:
         self._redis = None
         self._redis_url = redis_url
         self._redis_password = redis_password
@@ -99,7 +100,7 @@ class RpcRateLimiter:
         self._mem_buckets: dict[str, tuple[float, float, int]] = {}
         self._mem_lock = asyncio.Lock()
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any | None:
         if self._redis is not None:
             return self._redis
         if self._redis_failed:
@@ -142,7 +143,7 @@ class RpcRateLimiter:
         else:
             return await self._acquire_memory(provider, method, rate, burst, tokens)
 
-    async def _acquire_redis(self, redis, provider, method, rate, burst, tokens):
+    async def _acquire_redis(self, redis, provider, method, rate, burst, tokens) -> tuple[Any, Any] | Any:
         """Redis-based token bucket using Lua script for atomicity."""
         bucket_key = f"{BUCKET_PREFIX}{provider}"
         burst_key = f"{BURST_PREFIX}{provider}"
@@ -193,7 +194,7 @@ class RpcRateLimiter:
             logger.debug(f"Redis rate limiter error: {e}, falling back to memory")
             return await self._acquire_memory(provider, method, rate, burst, tokens)
 
-    async def _acquire_memory(self, provider, method, rate, burst, tokens):
+    async def _acquire_memory(self, provider, method, rate, burst, tokens) -> tuple[bool, float] | tuple[bool, Any]:
         """In-memory fallback token bucket."""
         async with self._mem_lock:
             now = time.monotonic()

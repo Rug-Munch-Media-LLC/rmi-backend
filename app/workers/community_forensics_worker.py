@@ -30,7 +30,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 class CommunityForensicsWorker:
     """Background worker for community forensics tasks."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.blockscout = httpx.AsyncClient(base_url=BLOCKSCOUT_URL, timeout=30.0)
         self.running = True
 
@@ -101,7 +101,7 @@ class CommunityForensicsWorker:
             "top_sleuths": [],
         }
 
-    async def run(self):
+    async def run(self) -> None:
         """Main worker loop."""
         logger.info("[OK] Community Forensics Worker started")
         while self.running:
@@ -123,14 +123,14 @@ class CommunityForensicsWorker:
                 logger.warning(f"[ERROR] Worker loop: {e}")
                 await asyncio.sleep(5)
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Graceful shutdown."""
         self.running = False
         await self.blockscout.aclose()
         logger.info("[OK] Community Forensics Worker stopped")
 
 
-async def main():
+async def main() -> None:
     worker = CommunityForensicsWorker()
 
     try:

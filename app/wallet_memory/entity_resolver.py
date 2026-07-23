@@ -34,7 +34,7 @@ class EntityResolver:
     Cross-chain entity linking. Resolves wallets to entities.
     """
 
-    def __init__(self, storage: WalletStorage | None = None):
+    def __init__(self, storage: WalletStorage | None = None) -> None:
         self.storage = storage or get_storage()
         self._entity_cache: dict[str, str] = {}  # addr:chain -> entity_id
 

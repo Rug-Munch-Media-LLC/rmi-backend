@@ -14,7 +14,7 @@ BACKEND_URL = "http://rmi-backend:8000"
 DEXSCREENER = "https://api.dexscreener.com/latest/dex"
 
 
-async def cmd_rugmap(update, ctx):
+async def cmd_rugmap(update, ctx) -> None:
     """Handle /rugmap command - visualize wallet clusters."""
     msg = update.message
     args = ctx.args

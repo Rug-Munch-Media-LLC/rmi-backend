@@ -11,7 +11,7 @@ router = APIRouter(prefix="/entities", tags=["entities-v1"])
 
 
 @router.post("/resolve")
-async def resolve_entity(addresses: list[str], chain: str = "ethereum"):
+async def resolve_entity(addresses: list[str], chain: str = "ethereum") -> None:
     """Resolve wallet addresses to entities (clusters of related wallets).
 
     Uses entity clustering from app.entity_clustering.
@@ -23,7 +23,7 @@ async def resolve_entity(addresses: list[str], chain: str = "ethereum"):
 
 
 @router.get("/{entity_id}")
-async def get_entity(entity_id: str):
+async def get_entity(entity_id: str) -> None:
     """Get entity details and member wallets."""
     raise HTTPException(
         status_code=503,
@@ -34,7 +34,7 @@ async def get_entity(entity_id: str):
 @router.get("/search")
 async def search_entities(
     query: str = Query(..., description="Search term for entity name or address"),
-):
+) -> None:
     """Search for entities by name or associated address."""
     raise HTTPException(
         status_code=503,

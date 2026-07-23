@@ -46,13 +46,13 @@ FRAUD_FEATURES = [
 class FraudGNNDetector:
     """CPU-only GNN fraud detector using pre-trained sklearn models."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.model = None
         self.scaler = None
         self.model_type = None
         self._loaded = False
 
-    def _ensure_loaded(self):
+    def _ensure_loaded(self) -> None:
         """Lazy-load model on first use."""
         if self._loaded:
             return
@@ -66,7 +66,7 @@ class FraudGNNDetector:
 
         self._loaded = True
 
-    def _load_hf_model(self):
+    def _load_hf_model(self) -> None:
         """Load sklearn model from HuggingFace (uyen1109/eth-fraud-gnn)."""
         from huggingface_hub import hf_hub_download
 
@@ -104,7 +104,7 @@ class FraudGNNDetector:
         except ImportError:
             raise ImportError("huggingface_hub not installed") from None
 
-    def _load_fallback_model(self):
+    def _load_fallback_model(self) -> None:
         """Fallback: simple sklearn Random Forest trained on common heuristics."""
         from sklearn.ensemble import RandomForestClassifier
         from sklearn.preprocessing import StandardScaler

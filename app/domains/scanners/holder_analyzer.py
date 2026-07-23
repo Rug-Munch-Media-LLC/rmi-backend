@@ -24,6 +24,7 @@ from app.birdeye_client import BirdeyeClient
 from app.chain_registry import is_solana
 from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient
+from typing import Any
 
 logger = get_logger("holder_analyzer")
 
@@ -82,13 +83,13 @@ class HolderAnalyzer:
         ],
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._birdeye = BirdeyeClient()
         self._solscan = FreeSolscanClient()
         self._helius_key = os.getenv("HELIUS_API_KEY", "")
 
-    async def close(self):
+    async def close(self) -> None:
         await self._http.aclose()
         await self._birdeye.close()
 
@@ -380,13 +381,13 @@ class HolderAnalyzer:
         # Union-Find to merge connected clusters
         parent = list(range(len(clusters)))
 
-        def find(x):
+        def find(x) -> Any:
             while parent[x] != x:
                 parent[x] = parent[parent[x]]
                 x = parent[x]
             return x
 
-        def union(x, y):
+        def union(x, y) -> None:
             px, py = find(x), find(y)
             if px != py:
                 parent[px] = py

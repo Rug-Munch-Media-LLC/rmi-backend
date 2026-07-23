@@ -147,7 +147,7 @@ class ManagedKey:
     rate_rps: float = 10.0
     burst: int = 15
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.tokens = float(self.burst)
         self.last_refill = time.monotonic()
 
@@ -156,7 +156,7 @@ class ManagedKey:
         """Deobfuscate and return the key. Use acquire()/release() for safety."""
         return self._obfuscated.decode("utf-8", errors="replace")[::-1]
 
-    def _set_value(self, val: str):
+    def _set_value(self, val: str) -> None:
         """Obfuscate a key value for in-memory storage."""
         self._obfuscated = val[::-1].encode("utf-8")
 
@@ -167,20 +167,20 @@ class ManagedKey:
         self.last_used = time.monotonic()
         return self.value
 
-    def release_success(self):
+    def release_success(self) -> None:
         """Mark the key call as successful."""
         self.consecutive_429s = 0
         self.rate_limited_until = 0.0
         self.state = KeyState.ACTIVE
 
-    def release_rate_limited(self, backoff_base: float = 5.0):
+    def release_rate_limited(self, backoff_base: float = 5.0) -> None:
         """Mark the key as rate limited with exponential backoff."""
         self.consecutive_429s += 1
         backoff = min(300, backoff_base * (2 ** min(self.consecutive_429s, 6)))
         self.rate_limited_until = time.monotonic() + backoff
         self.state = KeyState.RATE_LIMITED
 
-    def release_error(self, error: str):
+    def release_error(self, error: str) -> None:
         """Mark the key as errored."""
         self.errors += 1
         self.last_error = error[:200]
@@ -201,7 +201,7 @@ class ManagedKey:
             return False
         return not (self.monthly_quota > 0 and self.calls_this_month >= self.monthly_quota)
 
-    def refill_tokens(self, now: float):
+    def refill_tokens(self, now: float) -> None:
         """Refill token bucket."""
         elapsed = now - self.last_refill
         self.tokens = min(float(self.burst), self.tokens + elapsed * self.rate_rps)
@@ -237,7 +237,7 @@ class VaultKeyPool:
 
     def __init__(
         self, provider: str, rate_rps: float = 10.0, burst: int = 15, monthly_quota: int = 0
-    ):
+    ) -> None:
         self.provider = provider
         self.rate_rps = rate_rps
         self.burst = burst
@@ -247,7 +247,7 @@ class VaultKeyPool:
         self._lock = asyncio.Lock()
         self.total_calls = 0
 
-    def add_key(self, key_name: str, value: str, source: str = "vault"):
+    def add_key(self, key_name: str, value: str, source: str = "vault") -> None:
         """Add a key to the pool. Value is immediately obfuscated."""
         mk = ManagedKey(
             provider=self.provider,
@@ -308,7 +308,7 @@ class DataBusVault:
     (for Docker container runtime). But vault is always preferred.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.pools: dict[str, VaultKeyPool] = {}
         self._loaded = False
         self._vault_available = False
@@ -338,7 +338,7 @@ class DataBusVault:
             "apify": {"rps": 5.0, "burst": 5, "quota": 0},
         }
 
-    async def load(self):
+    async def load(self) -> None:
         """Load all keys from vault (preferred) or env (fallback)."""
         if self._loaded:
             return
@@ -374,7 +374,7 @@ class DataBusVault:
             f"DataBus Vault loaded: {sum(len(p.keys) for p in self.pools.values())} keys across {len(self.pools)} providers"
         )
 
-    async def _load_arkham_extra_keys(self):
+    async def _load_arkham_extra_keys(self) -> None:
         """Load Arkham API key + WebSocket key."""
         if "arkham" not in self.pools:
             pool = VaultKeyPool("arkham", rate_rps=5.0, burst=5, monthly_quota=100000)
@@ -500,13 +500,13 @@ class DataBusVault:
             "free_tier_opportunities": list(free_tier_accounts.keys()),
         }
 
-    async def reload(self):
+    async def reload(self) -> None:
         """Force reload all keys from vault. Useful after adding new keys."""
         self._loaded = False
         self.pools.clear()
         await self.load()
 
-    async def add_key(self, provider: str, key_name: str, value: str):
+    async def add_key(self, provider: str, key_name: str, value: str) -> None:
         """Hot-add a key to a provider pool without restart."""
         if provider not in self.pools:
             cfg = self.provider_config.get(provider, {"rps": 10.0, "burst": 15, "quota": 0})
@@ -519,7 +519,7 @@ class DataBusVault:
         self.pools[provider].add_key(key_name, value, source="manual")
         logger.info(f"Vault: Hot-added {key_name} to {provider} pool")
 
-    def reset_monthly_counters(self):
+    def reset_monthly_counters(self) -> None:
         """Reset monthly call counters. Call from cron on the 1st of each month."""
         for pool in self.pools.values():
             for key in pool.keys:

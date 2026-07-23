@@ -3,7 +3,7 @@
 from typing import Any
 
 
-def get_w3(chain: str = "ethereum"):
+def get_w3(chain: str = "ethereum") -> None:
     """Get web3 instance for a chain (stub - returns None for testing)."""
     return None
 

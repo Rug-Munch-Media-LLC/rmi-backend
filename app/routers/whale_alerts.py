@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
+from typing import Any
 
 router = APIRouter(prefix="/api/v1/whale-alerts", tags=["whale-alerts"])
 
@@ -37,7 +38,7 @@ class WhaleAlertResponse(BaseModel):
 
 
 @router.post("/subscribe")
-async def subscribe(alert: WhaleAlert):
+async def subscribe(alert: WhaleAlert) -> dict:
     """Subscribe to whale alerts for an address."""
     sub_id = f"{alert.user_id}:{alert.address}:{alert.chain}"
     entry = {
@@ -56,7 +57,7 @@ async def subscribe(alert: WhaleAlert):
 
 
 @router.delete("/subscribe/{alert_id}")
-async def unsubscribe(alert_id: str):
+async def unsubscribe(alert_id: str) -> dict:
     """Remove a whale alert subscription."""
     for _uid, subs in _subscriptions.items():
         for s in subs[:]:
@@ -67,7 +68,7 @@ async def unsubscribe(alert_id: str):
 
 
 @router.get("/subscriptions/{user_id}")
-async def list_subscriptions(user_id: str):
+async def list_subscriptions(user_id: str) -> dict[str, Any | None]:
     """List all whale alert subscriptions for a user."""
     return {"subscriptions": _subscriptions.get(user_id, [])}
 
@@ -75,7 +76,7 @@ async def list_subscriptions(user_id: str):
 @router.get("/check/{address}")
 async def check_transfer(
     address: str, chain: str = Query("ethereum"), min_usd: float = Query(50000)
-):
+) -> dict:
     """Check recent large transfers for an address (on-demand scan)."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -94,7 +95,7 @@ async def check_transfer(
         return {"address": address, "chain": chain, "transfers": [], "error": str(e)}
 
 
-async def _send_telegram_alert(chat_id: str, text: str):
+async def _send_telegram_alert(chat_id: str, text: str) -> None:
     """Send whale alert to Telegram."""
     if not TG_BOT:
         return
@@ -109,7 +110,7 @@ async def _send_telegram_alert(chat_id: str, text: str):
 
 
 @router.post("/scan")
-async def scan_whale_activity(background_tasks: BackgroundTasks):
+async def scan_whale_activity(background_tasks: BackgroundTasks) -> dict:
     """Trigger a scan of all subscribed addresses. Cron-friendly."""
     alerts_fired = 0
     for uid, subs in _subscriptions.items():

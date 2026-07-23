@@ -687,7 +687,7 @@ def _resolve_asset_symbol(address: str, chain: str) -> str:
 class LiquidationCascadeAnalyzer:
     """Main analyzer class for liquidation cascade risk."""
 
-    def __init__(self, rpc_overrides: dict[str, str] | None = None):
+    def __init__(self, rpc_overrides: dict[str, str] | None = None) -> None:
         self.rpc_overrides = rpc_overrides or {}
         self.web3_module = _try_import_web3()
         self._web3_instances: dict[str, Any] = {}
@@ -990,7 +990,7 @@ class LiquidationCascadeAnalyzer:
 # ── CLI Entry Point ────────────────────────────────────────────────────────
 
 
-async def main_async():
+async def main_async() -> None:
     """CLI entry point."""
     import argparse
 
@@ -1034,12 +1034,12 @@ Examples:
     )
 
     if args.format == "json":
-        print(result.report(format="json"))
+        logger.info(result.report(format="json"))
     else:
-        print(result.report())
+        logger.info(result.report())
 
 
-def main():
+def main() -> None:
     """CLI entry point (synchronous wrapper)."""
     asyncio.run(main_async())
 

@@ -49,7 +49,7 @@ MODEL_COSTS = {
 _usage_log: list[dict] = []
 
 
-def log_usage(model: str, input_tokens: int, output_tokens: int, latency_ms: float):
+def log_usage(model: str, input_tokens: int, output_tokens: int, latency_ms: float) -> None:
     """Log model usage for cost tracking."""
     costs = MODEL_COSTS.get(model, {"input": 0, "output": 0, "provider": "unknown"})
     input_cost = (input_tokens / 1_000_000) * costs["input"]

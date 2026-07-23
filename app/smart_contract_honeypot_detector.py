@@ -520,7 +520,7 @@ class HoneypotDetector:
         self,
         api_keys: dict[str, str] | None = None,
         enable_deep_scan: bool = False,
-    ):
+    ) -> None:
         self.api_keys = api_keys or {}
         self.enable_deep_scan = enable_deep_scan
         self._explorer_keys: dict[str, str] = self._load_explorer_keys()
@@ -1200,9 +1200,9 @@ Examples:
     )
 
     if args.format == "json":
-        print(result.report(fmt="json"))
+        logger.info(result.report(fmt="json"))
     else:
-        print(result.report())
+        logger.info(result.report())
 
 
 def main() -> None:

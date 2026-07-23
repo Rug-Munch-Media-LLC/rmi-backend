@@ -309,7 +309,7 @@ def compute_fingerprint(wallet_data: dict[str, Any]) -> WalletFingerprint:
     return fp
 
 
-def classify_persona(fp: WalletFingerprint):
+def classify_persona(fp: WalletFingerprint) -> Any:
     """Assign persona based on behavioral fingerprint."""
     scores = {}
 

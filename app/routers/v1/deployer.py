@@ -14,7 +14,7 @@ router = APIRouter(prefix="/deployer", tags=["deployer-v1"])
 async def get_deployer_info(
     address: str,
     chain: str = Query("ethereum", description="Blockchain to query"),
-):
+) -> None:
     """Get deployer information and reputation.
 
     Returns deployer history, deployed contracts, risk score.
@@ -29,7 +29,7 @@ async def get_deployer_info(
 async def get_deployer_contracts(
     address: str,
     chain: str = Query("ethereum", description="Blockchain to query"),
-):
+) -> None:
     """Get contracts deployed by this address."""
     raise HTTPException(
         status_code=503,

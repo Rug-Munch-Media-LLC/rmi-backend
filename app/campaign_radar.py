@@ -40,7 +40,7 @@ class CampaignCluster:
     description: str = ""
 
 
-def record_scan(chain: str, address: str, metadata: dict[str, Any]):
+def record_scan(chain: str, address: str, metadata: dict[str, Any]) -> None:
     """Record a scan for campaign correlation."""
     key = f"{chain}:{address.lower()}"
     metadata["_recorded_at"] = (
@@ -195,7 +195,7 @@ def _cluster_similar(pairs: list[tuple]) -> list[list]:
     """Union-find clustering of similar contract pairs."""
     parent = {}
 
-    def find(x):
+    def find(x) -> Any:
         addr = x.get("address", id(x))
         if addr not in parent:
             parent[addr] = addr
@@ -203,7 +203,7 @@ def _cluster_similar(pairs: list[tuple]) -> list[list]:
             parent[addr] = find({"address": parent[addr]})
         return parent[addr]
 
-    def union(a, b):
+    def union(a, b) -> None:
         ra, rb = find(a), find(b)
         if ra != rb:
             parent[ra] = rb

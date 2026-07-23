@@ -73,7 +73,7 @@ class FlashLoanDetector:
     MAX_BLOCKS_APART = 3  # buy-sell within 3 blocks → suspicious
     MIN_TRADE_USD = 5000.0  # ignore dust trades
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._chain = ChainClient()
         self._helius_key = os.getenv("HELIUS_API_KEY", "")

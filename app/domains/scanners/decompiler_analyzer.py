@@ -263,7 +263,7 @@ def _scan_decompiled_source(source: str) -> list[str]:
 class DecompilerAnalyzer:
     """Decompile and analyze unverified contracts for dangerous patterns."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=20.0)
         self._chain = ChainClient()
         self._etherscan_key = os.getenv("ETHERSCAN_API_KEY", "")

@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 class MBALService:
     """MBAL API Integration for multi-blockchain wallet labels"""
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None) -> None:
         """
         Initialize MBAL service.
 

@@ -93,6 +93,7 @@ curl https://mcp.rugmunch.io/mcp/x402 \\
 pip install x402-sdk
 
 from x402_sdk import x402
+from typing import Any
 client = x402()
 tools = client.list_tools(category="intelligence")
 invoice = client.create_invoice(tool="token_scan")
@@ -136,13 +137,13 @@ x402 - Rug Munch Media LLC · Wyoming, USA · MIT License
 
 
 @router.get("/x402/docs")
-async def x402_docs_page():
+async def x402_docs_page() -> Any:
     """HTML documentation for the x402 payment system."""
     return HTMLResponse(content=DOCS_PAGE)
 
 
 @router.post("/x402/sandbox/create-invoice")
-async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test")):
+async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test")) -> Any:
     """Sandbox mode - create a test invoice without real payment.
 
     Use ?mode=test to get a fake invoice for integration testing.
@@ -161,7 +162,7 @@ async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test
 
 
 @router.post("/x402/sandbox/verify")
-async def sandbox_verify_payment(tx_hash: str = Query(...), tool: str = Query(...)):
+async def sandbox_verify_payment(tx_hash: str = Query(...), tool: str = Query(...)) -> dict[str, bool]:
     """Sandbox mode - verify a test payment.
 
     Accepts any tx_hash starting with '0xSANDBOX_' as valid.

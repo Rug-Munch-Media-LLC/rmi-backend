@@ -433,7 +433,7 @@ class ChainConnector:
 class EVMConnector(ChainConnector):
     """EVM chain connector using web3.py."""
 
-    def __init__(self, chain_name: str, config: dict[str, Any]):
+    def __init__(self, chain_name: str, config: dict[str, Any]) -> None:
         self.chain_name = chain_name
         self.config = config
         self._w3: Any = None
@@ -571,7 +571,7 @@ class EVMConnector(ChainConnector):
 class SolanaConnector(ChainConnector):
     """Solana chain connector using solana-py."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._client: Any = None
 
     @property
@@ -656,12 +656,12 @@ class TokenRiskScorer:
     it applies heuristic checks based on token metadata and chain data.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._scanner_available = False
         self._import_error: str | None = None
         self._try_import_scanner()
 
-    def _try_import_scanner(self):
+    def _try_import_scanner(self) -> None:
         """Try to import the unified scanner for real risk scoring."""
         try:
             import importlib
@@ -737,7 +737,7 @@ class PriceOracle:
     Caches prices in-memory to avoid rate limits.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._cache: dict[str, float] = {
             "ETH": 2800.0,
             "BTC": 68000.0,
@@ -799,7 +799,7 @@ class PriceOracle:
 class PortfolioRiskAggregator:
     """Main portfolio risk analysis engine."""
 
-    def __init__(self, chains: list[str] | None = None):
+    def __init__(self, chains: list[str] | None = None) -> None:
         self.chains = chains or [
             "ethereum",
             "base",
@@ -1084,7 +1084,7 @@ class PortfolioRiskAggregator:
 # ═══════════════════════════════════════════════════════════════════
 
 
-async def main():
+async def main() -> None:
     """CLI entry point."""
     import argparse
 

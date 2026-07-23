@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("rag.observability")
 
@@ -50,7 +51,7 @@ class RAGMetrics:
 _metrics = RAGMetrics()
 
 
-async def _save_local_metrics():
+async def _save_local_metrics() -> None:
     """Persist metrics to Redis for dashboard."""
     try:
         import redis.asyncio as aioredis
@@ -84,7 +85,7 @@ async def _save_local_metrics():
         pass
 
 
-def trace_embedding(duration_ms: float, dims: int = 1024, model: str = "bge-m3"):
+def trace_embedding(duration_ms: float, dims: int = 1024, model: str = "bge-m3") -> None:
     """Record an embedding operation."""
     _metrics.embedding_calls += 1
     _metrics.embedding_total_ms += duration_ms
@@ -96,7 +97,7 @@ def trace_embedding(duration_ms: float, dims: int = 1024, model: str = "bge-m3")
             )
 
 
-def trace_retrieval(duration_ms: float, collection: str, results: int, cache_hit: bool = False):
+def trace_retrieval(duration_ms: float, collection: str, results: int, cache_hit: bool = False) -> None:
     """Record a retrieval operation."""
     _metrics.retrieval_calls += 1
     _metrics.retrieval_total_ms += duration_ms
@@ -117,7 +118,7 @@ def trace_retrieval(duration_ms: float, collection: str, results: int, cache_hit
             )
 
 
-def trace_ingest(docs: int, collection: str):
+def trace_ingest(docs: int, collection: str) -> None:
     """Record an ingestion operation."""
     _metrics.ingest_docs += docs
     if LANGFUSE_AVAILABLE:
@@ -128,14 +129,14 @@ def trace_ingest(docs: int, collection: str):
             )
 
 
-def trace_error(error_type: str, detail: str = ""):
+def trace_error(error_type: str, detail: str = "") -> None:
     """Record an error."""
     _metrics.errors += 1
     logger.warning(f"RAG error [{error_type}]: {detail[:200]}")
 
 
 @asynccontextmanager
-async def timed_embedding(dims: int = 1024, model: str = "bge-m3"):
+async def timed_embedding(dims: int = 1024, model: str = "bge-m3") -> Any:
     """Context manager for timing embedding operations."""
     t0 = time.time()
     try:
@@ -145,7 +146,7 @@ async def timed_embedding(dims: int = 1024, model: str = "bge-m3"):
 
 
 @asynccontextmanager
-async def timed_retrieval(collection: str, cache_hit: bool = False):
+async def timed_retrieval(collection: str, cache_hit: bool = False) -> Any:
     """Context manager for timing retrieval operations."""
     t0 = time.time()
     result_count = 0

@@ -68,7 +68,7 @@ class SolanaTransaction:
 class SolanaClient:
     """High-level Solana client wrapper."""
 
-    def __init__(self, network: str = "mainnet", rpc_url: str | None = None):
+    def __init__(self, network: str = "mainnet", rpc_url: str | None = None) -> None:
         self.network = network.lower()
         self.rpc_url = rpc_url or SOLANA_RPC_URLS.get(self.network, SOLANA_RPC_URLS["mainnet"])
         self._client: Any = None

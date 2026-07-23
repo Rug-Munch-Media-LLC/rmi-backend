@@ -43,7 +43,7 @@ BASE_URL = "https://api.arkhamintelligence.com"
 class _TTLCache:
     """In-memory cache with per-key TTL for rate-limited API responses."""
 
-    def __init__(self, default_ttl: int = 120):
+    def __init__(self, default_ttl: int = 120) -> None:
         self._store: dict[str, tuple[Any, float]] = {}
         self._ttl = default_ttl
 
@@ -57,11 +57,11 @@ class _TTLCache:
             return None
         return value
 
-    def set(self, key: str, value: Any, ttl: int | None = None):
+    def set(self, key: str, value: Any, ttl: int | None = None) -> None:
         ttl = ttl if ttl is not None else self._ttl
         self._store[key] = (value, time.monotonic() + ttl)
 
-    def clear(self):
+    def clear(self) -> None:
         self._store.clear()
 
 
@@ -72,7 +72,7 @@ class ArkhamClient:
     Provides entity resolution, label lookup, portfolio history,
     with rate limiting and in-memory caching."""
 
-    def __init__(self, cache_ttl: int = 120):
+    def __init__(self, cache_ttl: int = 120) -> None:
         if not ARKHAM_API_KEY:
             logger.warning("ARKHAM_API_KEY not set - ArkhamClient will return auth errors")
         self.headers = {
@@ -200,6 +200,6 @@ class ArkhamClient:
             cache_ttl=120,  # portfolio data changes faster
         )
 
-    async def close(self):
+    async def close(self) -> None:
         """Clean up the underlying HTTP client."""
         await self.client.aclose()

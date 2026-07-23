@@ -110,7 +110,7 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
 
 
 @sub_router.get("/launch")
-async def launch_radar(chain: str = "solana", window_minutes: int = 5):
+async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[str, str]:
     """New token launch detection with risk scoring."""
     try:
         result = await _detect_launches(chain, window_minutes)
@@ -189,7 +189,7 @@ async def _launch_intel(chain: str, hours: int) -> dict:
 
 
 @sub_router.post("/launch_intel")
-async def launch_intel(req: GenericRequest):
+async def launch_intel(req: GenericRequest) -> dict[str, str]:
     """Token launch intelligence."""
     try:
         result = await _launch_intel(req.chain, req.hours)
@@ -267,7 +267,7 @@ async def _anomaly_detector(chain: str) -> dict:
 
 
 @sub_router.post("/anomaly")
-async def anomaly_detector(req: GenericRequest):
+async def anomaly_detector(req: GenericRequest) -> dict[str, str]:
     """Market anomaly detector."""
     try:
         chain = req.chain or "all"
@@ -346,7 +346,7 @@ async def _market_overview(chain: str) -> dict:
 
 
 @sub_router.post("/market_overview")
-async def market_overview(req: GenericRequest):
+async def market_overview(req: GenericRequest) -> dict[str, str]:
     """Comprehensive market overview."""
     try:
         result = await _market_overview(req.chain)
@@ -424,7 +424,7 @@ async def _chain_health(chain: str) -> dict:
 
 
 @sub_router.post("/chain_health")
-async def chain_health(req: GenericRequest):
+async def chain_health(req: GenericRequest) -> dict[str, str]:
     """Chain health metrics."""
     try:
         result = await _chain_health(req.chain)
@@ -480,7 +480,7 @@ async def _defi_yield_scanner(chain: str) -> dict:
 
 
 @sub_router.post("/defi_yield_scanner")
-async def defi_yield_scanner(req: GenericRequest):
+async def defi_yield_scanner(req: GenericRequest) -> dict[str, str]:
     """DeFi yield scanner."""
     try:
         result = await _defi_yield_scanner(req.chain)
@@ -544,7 +544,7 @@ async def _gas_forecast(chain: str) -> dict:
 
 
 @sub_router.post("/gas_forecast")
-async def gas_forecast(req: GenericRequest):
+async def gas_forecast(req: GenericRequest) -> dict[str, str]:
     """Gas price forecast."""
     try:
         result = await _gas_forecast(req.chain)
@@ -623,7 +623,7 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
 
 
 @sub_router.post("/sniper_alert")
-async def sniper_alert(req: GenericRequest):
+async def sniper_alert(req: GenericRequest) -> dict[str, str]:
     """Sniper bot detection."""
     try:
         result = await _sniper_alert(req.chain, req.hours)
@@ -676,7 +676,7 @@ async def _airdrop_finder(chain: str) -> dict:
 
 
 @sub_router.post("/airdrop_finder")
-async def airdrop_finder(req: GenericRequest):
+async def airdrop_finder(req: GenericRequest) -> dict[str, str]:
     """Airdrop opportunity finder."""
     try:
         result = await _airdrop_finder(req.chain)
@@ -762,7 +762,7 @@ async def _mev_protection(chain: str) -> dict:
 
 
 @sub_router.post("/mev_protection")
-async def mev_protection(req: GenericRequest):
+async def mev_protection(req: GenericRequest) -> dict[str, str]:
     """MEV protection analysis."""
     try:
         result = await _mev_protection(req.chain)

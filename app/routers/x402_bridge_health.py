@@ -50,7 +50,7 @@ VALID_BRIDGES = {
 # ── Redis Helpers ────────────────────────────────────────────────
 
 
-def _redis():
+def _redis() -> Any:
     import redis as _r
 
     return _r.Redis(
@@ -78,7 +78,7 @@ def _cache_get(key: str) -> dict | None:
         return None
 
 
-def _cache_set(key: str, result: dict, ttl: int = 60):
+def _cache_set(key: str, result: dict, ttl: int = 60) -> None:
     try:
         r = _redis()
         r.setex(f"x402:cache:bridge_health:{key}", ttl, json.dumps(result, default=str))
@@ -124,7 +124,7 @@ def _use_trial(wallet: str) -> int:
         return 0
 
 
-def _record_payment(tool: str, amount: str, customer: str, tx: str = ""):
+def _record_payment(tool: str, amount: str, customer: str, tx: str = "") -> None:
     """Log payment for audit trail."""
     try:
         payload = {
@@ -205,7 +205,7 @@ class BridgeHealthResponse(BaseModel):
 
 
 @router.post("/bridge_health")
-async def bridge_health_scan(req: BridgeHealthRequest):
+async def bridge_health_scan(req: BridgeHealthRequest) -> Any:
     """Cross-Chain Bridge Health & Exploit Monitor.
 
     Real-time security intelligence across 12 major bridges:

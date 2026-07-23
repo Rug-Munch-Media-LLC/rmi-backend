@@ -38,7 +38,7 @@ class GhostunnelConfig:
 class GhostunnelManager:
     """Manages Ghostunnel processes."""
 
-    def __init__(self, ghostunnel_bin: str = "ghostunnel"):
+    def __init__(self, ghostunnel_bin: str = "ghostunnel") -> None:
         self.ghostunnel_bin = ghostunnel_bin
         self._available = self._check_available()
         self.processes: dict[str, subprocess.Popen] = {}

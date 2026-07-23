@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 class ThreatIntelFeeds:
     """Aggregates free threat intelligence from multiple open sources."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._scamdb_cache: dict[str, dict] = {}
         self._goplus_cache: dict[str, dict] = {}
 

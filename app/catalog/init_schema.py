@@ -147,7 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_x402_agent ON x402_receipts(agent_id);
 """
 
 
-async def main():
+async def main() -> None:
     """Run the schema migration."""
     cfg = {
         "host": os.getenv("POSTGRES_HOST", "rmi-postgres"),

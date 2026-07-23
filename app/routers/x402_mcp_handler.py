@@ -18,7 +18,7 @@ router = APIRouter(tags=["x402-MCP"])
 
 
 @router.post("/mcp/x402")
-async def mcp_x402_handler(request: Request):
+async def mcp_x402_handler(request: Request) -> dict[str, dict] | dict:
     """MCP protocol handler for x402 payment tools.
 
     Accepts MCP-standard requests: {"method": "tools/list"} or
@@ -56,7 +56,7 @@ async def mcp_x402_handler(request: Request):
 
 
 @router.get("/.well-known/x402")
-async def well_known_x402():
+async def well_known_x402() -> dict[str, str]:
     """x402 service discovery document (RFC-like).
 
     Standard endpoint that x402-compatible clients check to discover

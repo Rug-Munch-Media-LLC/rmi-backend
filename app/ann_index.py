@@ -61,7 +61,7 @@ class ANNIndex:
 
     _instance: Optional["ANNIndex"] = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._indexes: dict[str, Any] = {}  # collection -> faiss index
         self._id_maps: dict[str, list[str]] = {}  # collection -> [doc_id, ...]
         self._meta: dict[str, dict] = {}  # collection -> build metadata
@@ -73,7 +73,7 @@ class ANNIndex:
             cls._instance = cls()
         return cls._instance
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         import redis.asyncio as aioredis
 
         if self._redis is None:

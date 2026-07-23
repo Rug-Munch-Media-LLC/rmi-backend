@@ -62,6 +62,7 @@ from app.databus.provider_implementations import (
     _virustotal_url_scan,
 )
 from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
+from typing import Any
 
 logger = get_logger("databus.providers.chains")
 
@@ -277,28 +278,28 @@ def build_provider_chains() -> dict[str, ProviderChain]:
 
         _bq = BitqueryProvider()
 
-        async def _bq_token_price(**kw):
+        async def _bq_token_price(**kw) -> Any:
             return await _bq.get_token_price(kw.get("network", "ethereum"), kw.get("token", ""))
 
-        async def _bq_holder_data(**kw):
+        async def _bq_holder_data(**kw) -> Any:
             return await _bq.get_holder_distribution(
                 kw.get("network", "ethereum"), kw.get("token", "")
             )
 
-        async def _bq_tx_trace(**kw):
+        async def _bq_tx_trace(**kw) -> Any:
             return await _bq.get_transaction_trace(
                 kw.get("network", "ethereum"), kw.get("tx_hash", "")
             )
 
-        async def _bq_dex_volume(**kw):
+        async def _bq_dex_volume(**kw) -> Any:
             return await _bq.get_dex_volume(kw.get("network", "ethereum"))
 
-        async def _bq_address_balance(**kw):
+        async def _bq_address_balance(**kw) -> Any:
             return await _bq.get_address_balance(
                 kw.get("network", "ethereum"), kw.get("address", "")
             )
 
-        async def _bq_cross_chain(**kw):
+        async def _bq_cross_chain(**kw) -> Any:
             return await _bq.get_cross_chain_transfers(kw.get("address", ""))
 
         chains["holder_data"] = ProviderChain(
@@ -781,7 +782,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
             map_clusters,
         )
 
-        def _premium_provider(name, fn, rps=3.0):
+        def _premium_provider(name, fn, rps=3.0) -> Any:
             return Provider(name, ProviderTier.LOCAL, fn, weight=10.0, rate_limit_rps=rps)
 
         chains["bundle_detect"] = ProviderChain(

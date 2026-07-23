@@ -5,7 +5,7 @@ stale data. Callers check get_redis_degraded() to detect degraded mode.
 """
 
 import os
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from app.core.logging import get_logger
 
@@ -131,7 +131,7 @@ def is_redis_degraded() -> bool:
     return _degraded
 
 
-def get_lru_cache():
+def get_lru_cache() -> Any | None:
     """Get the in-process LRU cache for degraded operation."""
     try:
         from app.core.degradation import get_registry

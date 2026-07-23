@@ -16,7 +16,7 @@ CRM_PATH = "/app/data/SOSANA-CRM-2024.json"
 class SOSANACRM:
     """Loads and serves the SOSANA criminal investigation data."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._data = None
         self._loaded = False
 

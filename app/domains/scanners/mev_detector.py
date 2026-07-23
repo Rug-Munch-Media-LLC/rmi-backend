@@ -130,7 +130,7 @@ class MEVDetector:
 
     def __init__(
         self, helius_api_key: str = "", chain_client=None, http_client: httpx.AsyncClient = None
-    ):
+    ) -> None:
         self.helius_key = helius_api_key or os.getenv("HELIUS_API_KEY", "")
         self.chain = chain_client
         self._http = http_client or httpx.AsyncClient(timeout=20.0)

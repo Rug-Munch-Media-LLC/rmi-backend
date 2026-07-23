@@ -52,7 +52,7 @@ class XTwitterProvider:
     - Reserve 100 reads/day for posting/engagement
     """
 
-    def __init__(self, cache: CacheLayer):
+    def __init__(self, cache: CacheLayer) -> None:
         self.cache = cache
         self._client: httpx.AsyncClient | None = None
         self._oauth2_token: str | None = None
@@ -65,7 +65,7 @@ class XTwitterProvider:
         self._oauth2_refresh: str | None = None
         self._loaded = False
 
-    async def _load_creds(self):
+    async def _load_creds(self) -> None:
         """Load X credentials from vault - NEVER read from .env or plaintext."""
         if self._loaded:
             return
@@ -123,7 +123,7 @@ class XTwitterProvider:
             self._daily_resets = now
         return self._daily_reads < X_DAILY_READ_BUDGET
 
-    def _budget_used(self):
+    def _budget_used(self) -> None:
         self._daily_reads += 1
 
     async def _api_call(
@@ -334,7 +334,7 @@ class SocialDataAggregator:
     - social/sentiment - basic sentiment from recent mentions
     """
 
-    def __init__(self, cache: CacheLayer):
+    def __init__(self, cache: CacheLayer) -> None:
         self.cache = cache
         self.x = XTwitterProvider(cache)
         self._our_user_id: str | None = None

@@ -13,7 +13,7 @@ logger = get_logger("rmi.portfolio")
 BACKEND_URL = "http://rmi-backend:8000"
 
 
-async def cmd_portfolio(update, ctx):
+async def cmd_portfolio(update, ctx) -> None:
     """Handle /portfolio command - scan wallet holdings."""
     msg = update.message
     args = ctx.args

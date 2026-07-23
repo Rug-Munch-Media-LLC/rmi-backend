@@ -87,7 +87,7 @@ def _get_db() -> sqlite3.Connection:
     return conn
 
 
-def _ensure_tables():
+def _ensure_tables() -> None:
     conn = _get_db()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS chat_messages (
@@ -234,7 +234,7 @@ async def _build_messages(
 
 
 # ── Helper to save message ──
-def _save_message(user_id: str, role: str, content: str, metadata: dict | None = None):
+def _save_message(user_id: str, role: str, content: str, metadata: dict | None = None) -> Any:
     msg_id = f"msg-{uuid.uuid4().hex[:10]}"
     conn = _get_db()
     conn.execute(
@@ -254,7 +254,7 @@ async def chat(
     req: ChatRequest,
     request: Request,
     user: dict | None = Depends(get_current_user),
-):
+) -> dict[str, str]:
     """Send a message and get an AI response (non-streaming)."""
     user_id = user.get("id", "anon") if user else "anon"
 
@@ -323,7 +323,7 @@ async def chat_stream(
     req: StreamRequest,
     request: Request,
     user: dict | None = Depends(get_current_user),
-):
+) -> Any | None:
     """Streaming chat endpoint using Server-Sent Events (SSE)."""
     user_id = user.get("id", "anon") if user else "anon"
 
@@ -407,7 +407,7 @@ async def chat_history(
     limit: int = 50,
     offset: int = 0,
     user: dict = Depends(require_auth),
-):
+) -> dict[str, int]:
     """Get user's chat history."""
     user_id = user.get("id")
 
@@ -438,7 +438,7 @@ async def chat_history(
 
 
 @router.get("/stats")
-async def chat_stats(user: dict = Depends(require_auth)):
+async def chat_stats(user: dict = Depends(require_auth)) -> dict:
     """Get user's chat statistics."""
     user_id = user.get("id")
 
@@ -456,7 +456,7 @@ async def chat_stats(user: dict = Depends(require_auth)):
 
 
 @router.delete("/history")
-async def clear_chat_history(user: dict = Depends(require_auth)):
+async def clear_chat_history(user: dict = Depends(require_auth)) -> dict[str, str]:
     """Clear user's chat history."""
     user_id = user.get("id")
 

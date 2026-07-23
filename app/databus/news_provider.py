@@ -42,7 +42,7 @@ def _cached(key: str, ttl: int = 60) -> dict | None:
     return None
 
 
-def _cache_set(key: str, data: dict):
+def _cache_set(key: str, data: dict) -> None:
     CACHE[key] = (data, time.time())
 
 

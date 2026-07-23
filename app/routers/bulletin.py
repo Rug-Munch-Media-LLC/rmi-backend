@@ -31,10 +31,11 @@ from app.services.supabase_service import (  # noqa: E402
     get_user_badges,
     vote_post,
 )
+from typing import Any
 
 
 # Lazy auth dependency - avoids importing jose+bcrypt at module load
-async def _require_public_profile(request: Request):
+async def _require_public_profile(request: Request) -> Any:
     from app.auth import require_public_profile
 
     return await require_public_profile(request)
@@ -45,7 +46,7 @@ router = APIRouter(prefix="/api/v1/bulletin")
 # ── Supabase REST helpers ──────────────────────────────────────
 
 
-def _sb():
+def _sb() -> tuple[Any, dict]:
     """Return (url, headers) for direct Supabase REST API.
 
     Uses service_role key for full CRUD access to profiles, bulletin_posts,
@@ -134,7 +135,7 @@ async def latest_posts(
     sort: str = Query("created_at.desc"),
     limit: int = Query(20, ge=1, le=100),
     include_bots: bool = Query(True),
-):
+) -> dict:
     posts = await get_bulletin_posts(category=category, sort=sort, limit=limit)
     for post in posts:
         if not include_bots and post.get("is_bot"):
@@ -155,7 +156,7 @@ async def latest_posts(
 
 
 @router.post("/posts")
-async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public_profile)):
+async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public_profile)) -> Any:
     result = await create_bulletin_post(
         title=post.title,
         content=post.content,
@@ -177,7 +178,7 @@ async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public
 
 
 @router.post("/posts/{post_id}/vote")
-async def vote(post_id: int, vote_type: str = Query(..., pattern="^(up|down)$")):
+async def vote(post_id: int, vote_type: str = Query(..., pattern="^(up|down)$")) -> dict[str, str]:
     ok = await vote_post(post_id, vote_type)
     if not ok:
         raise HTTPException(status_code=404, detail="Post not found or vote failed")
@@ -191,7 +192,7 @@ class CommentIn(BaseModel):
 @router.post("/posts/{post_id}/comments")
 async def create_comment(
     post_id: int, comment: CommentIn, user: dict = Depends(_require_public_profile)
-):
+) -> dict[str, str]:
     """Create a comment on a bulletin post. Requires public profile."""
     # Store comment in Supabase or Redis (using simple dict for now if not in supabase_service)
     # For now, we'll just return success and let the frontend handle local state,
@@ -226,7 +227,7 @@ async def create_comment(
 
 
 @router.get("/posts/{post_id}/comments")
-async def get_comments(post_id: int):
+async def get_comments(post_id: int) -> dict | dict[str, list]:
     """Get comments for a bulletin post."""
     try:
         comments = _sb_get(
@@ -243,7 +244,7 @@ BOT_FEE_USD = 1.00  # $1 fee for bots to participate
 
 
 @router.post("/bots/register")
-async def register_bot(bot: BotRegistrationIn):
+async def register_bot(bot: BotRegistrationIn) -> dict:
     """Register a new bot account. Bot must pay a fee to participate."""
     # Create the bot profile
     try:
@@ -310,7 +311,7 @@ async def register_bot(bot: BotRegistrationIn):
 
 
 @router.get("/bots")
-async def list_bots(status: str = Query(None), limit: int = Query(50)):
+async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict:
     """List all registered bots."""
     params: dict = {
         "select": "*,profiles:bot_user_id(username,is_bot,level,reputation_score)",
@@ -324,7 +325,7 @@ async def list_bots(status: str = Query(None), limit: int = Query(50)):
 
 
 @router.get("/bots/{bot_id}/fee-status")
-async def bot_fee_status(bot_id: str):
+async def bot_fee_status(bot_id: str) -> dict:
     """Check a bot's fee payment status."""
     reg = _sb_get("bot_registrations", {"bot_user_id": f"eq.{bot_id}", "limit": "1"})
     if not reg:
@@ -346,7 +347,7 @@ async def bot_fee_status(bot_id: str):
 @router.post("/bots/{bot_id}/pay-fee")
 async def pay_bot_fee(
     bot_id: str, amount: float, tx_hash: str | None = None, currency: str = "usdc"
-):
+) -> dict:
     """Record a bot fee payment."""
     try:
         _sb_post(
@@ -377,7 +378,7 @@ async def pay_bot_fee(
 
 
 @router.post("/bots/{bot_id}/post")
-async def bot_create_post(bot_id: str, post: BulletinPostIn):
+async def bot_create_post(bot_id: str, post: BulletinPostIn) -> Any:
     """Bot creates a post - must be registered and fee-paid."""
     reg = _sb_get(
         "bot_registrations", {"bot_user_id": f"eq.{bot_id}", "status": "eq.active", "limit": "1"}
@@ -436,7 +437,7 @@ class ModerationActionIn(BaseModel):
 
 
 @router.post("/reports")
-async def create_report(report: ReportIn):
+async def create_report(report: ReportIn) -> Any:
     """Submit a report on a post."""
     result = _sb_post(
         "bulletin_reports",
@@ -455,7 +456,7 @@ async def create_report(report: ReportIn):
 
 
 @router.get("/reports")
-async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, le=200)):
+async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
     """List reports (admin view)."""
     params: dict = {"order": "created_at.desc", "limit": str(limit)}
     if status:
@@ -465,7 +466,7 @@ async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, l
 
 
 @router.post("/moderate")
-async def moderate(moderation: ModerationActionIn):
+async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
     """Take a moderation action."""
     # Log the action
     _sb_post(
@@ -511,7 +512,7 @@ async def moderate(moderation: ModerationActionIn):
 
 
 @router.get("/moderation/log")
-async def moderation_log(limit: int = Query(50)):
+async def moderation_log(limit: int = Query(50)) -> dict:
     """View moderation log."""
     result = _sb_get("bulletin_moderation_log", {"order": "created_at.desc", "limit": str(limit)})
     return {"log": result, "total": len(result)}
@@ -521,18 +522,18 @@ async def moderation_log(limit: int = Query(50)):
 
 
 @router.get("/badges")
-async def list_badges(rarity: str = Query(None)):
+async def list_badges(rarity: str = Query(None)) -> Any:
     return await get_badges(rarity=rarity)
 
 
 @router.get("/badges/{user_id}")
-async def user_badges(user_id: str):
+async def user_badges(user_id: str) -> Any:
     badges = await get_user_badges(user_id)
     return badges
 
 
 @router.post("/badges/award")
-async def award(badge_id: str, user_id: str, earned_via: str = "auto"):
+async def award(badge_id: str, user_id: str, earned_via: str = "auto") -> Any:
     result = await award_badge(user_id, badge_id, earned_via)
     if not result:
         raise HTTPException(status_code=500, detail="Failed to award badge")
@@ -543,13 +544,13 @@ async def award(badge_id: str, user_id: str, earned_via: str = "auto"):
 
 
 @router.get("/alerts")
-async def list_alerts(severity: str = Query(None), limit: int = Query(50, ge=1, le=200)):
+async def list_alerts(severity: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
     alerts = await get_alerts(severity=severity, limit=limit)
     return {"alerts": alerts, "total": len(alerts)}
 
 
 @router.post("/alerts")
-async def submit_alert(alert: AlertIn):
+async def submit_alert(alert: AlertIn) -> Any:
     result = await create_alert(
         title=alert.title,
         description=alert.description,
@@ -570,7 +571,7 @@ async def submit_alert(alert: AlertIn):
 
 
 @router.get("/stats")
-async def community_stats():
+async def community_stats() -> dict:
     """Get aggregate community stats from Supabase."""
     total_posts = 0
     total_users = 0
@@ -614,7 +615,7 @@ async def community_stats():
 
 
 @router.get("/health")
-async def health():
+async def health() -> Any:
     from app.services.supabase_service import check_health
 
     return await check_health()

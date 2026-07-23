@@ -2,6 +2,7 @@
 
 import instructor
 from openai import OpenAI
+from typing import Any
 
 
 class BaseAgent:
@@ -18,12 +19,12 @@ class BaseAgent:
         model: str = "deepseek-chat",
         api_base: str = "http://localhost:4000/v1",
         api_key: str | None = None,
-    ):
+    ) -> None:
         self.name = name
         self.model = model
         self.client = instructor.from_openai(OpenAI(base_url=api_base, api_key=api_key))
 
-    def ask(self, prompt: str, response_model=None, **kwargs):
+    def ask(self, prompt: str, response_model=None, **kwargs) -> Any:
         """Ask the agent — returns structured output if response_model provided."""
         if response_model:
             return self.client.chat.completions.create(

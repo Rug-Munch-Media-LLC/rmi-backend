@@ -92,7 +92,7 @@ class _StaleResultAvailable(Exception):
 class DeFiLlamaClient:
     """Client for DeFiLlama API."""
 
-    def __init__(self, base_url: str = DEFI_LLAMA_BASE, timeout: int = 30):
+    def __init__(self, base_url: str = DEFI_LLAMA_BASE, timeout: int = 30) -> None:
         self.base = base_url.rstrip("/")
         self.timeout = timeout
         self._available = self._check_availability()

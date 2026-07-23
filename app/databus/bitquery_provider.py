@@ -68,7 +68,7 @@ class BitqueryProvider:
     - Error handling for billing/auth issues
     """
 
-    def __init__(self, cache: CacheLayer = None):
+    def __init__(self, cache: CacheLayer = None) -> None:
         self.cache = cache or get_cache()
         self._client: httpx.AsyncClient | None = None
         self._api_key: str | None = None
@@ -77,7 +77,7 @@ class BitqueryProvider:
         self._monthly_reset = time.time()
         self._loaded = False
 
-    async def _load_creds(self):
+    async def _load_creds(self) -> None:
         """Load Bitquery credentials - env vars first, vault as fallback."""
         if self._loaded:
             return
@@ -213,7 +213,7 @@ class BitqueryProvider:
 
         return None
 
-    async def _cache_response(self, query_hash: str, query_text: str, data: dict):
+    async def _cache_response(self, query_hash: str, query_text: str, data: dict) -> None:
         """Cache successful response with metadata."""
         cache_key = f"bitquery:{query_hash}"
 

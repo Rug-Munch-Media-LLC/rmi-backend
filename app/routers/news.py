@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from app.auth import require_public_profile
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -96,7 +97,7 @@ def _make_comment_id(article_id: str, content: str) -> str:
     return f"comment-{h[:12]}"
 
 
-async def _refresh_cache(include_rss: bool, include_reddit: bool, include_internal: bool):
+async def _refresh_cache(include_rss: bool, include_reddit: bool, include_internal: bool) -> None:
     """Background cache refresh task."""
     global _NEWS_CACHE, _CACHE_TS
     try:
@@ -135,7 +136,7 @@ async def get_news_feed(
     include_reddit: bool = Query(True),
     include_internal: bool = Query(True),
     refresh: bool = Query(False, description="Force refresh, bypass cache"),
-):
+) -> Any:
     """Full aggregated news feed from all sources."""
     global _NEWS_CACHE, _CACHE_TS
 
@@ -212,7 +213,7 @@ async def get_news_feed(
 async def get_headlines(
     count: int = Query(10, ge=1, le=50),
     category: str | None = Query(None),
-):
+) -> dict[str, list[dict]]:
     """Top headlines only - fast, lightweight."""
     feed = await get_news_feed(limit=count, category=category, include_reddit=False)
     return {
@@ -236,7 +237,7 @@ async def get_headlines(
 
 
 @router.get("/sources")
-async def get_news_sources():
+async def get_news_sources() -> dict[str, list[dict]]:
     """Get all active news sources."""
     feed = await get_news_feed(limit=200, refresh=False)
     sources = {}
@@ -262,7 +263,7 @@ async def get_news_sources():
 
 
 @router.get("/sentiment")
-async def get_sentiment():
+async def get_sentiment() -> dict:
     """Real-time sentiment overview from current news feed."""
     feed = await get_news_feed(limit=200, refresh=False)
     return {
@@ -277,7 +278,7 @@ async def get_sentiment():
 
 
 @router.get("/categories")
-async def get_categories():
+async def get_categories() -> dict[str, list[dict]]:
     """Get all news categories with counts."""
     feed = await get_news_feed(limit=200, refresh=False)
     cats = {}
@@ -295,7 +296,7 @@ async def get_categories():
 
 
 @router.get("/stats")
-async def get_stats():
+async def get_stats() -> dict:
     """Aggregate statistics about the news pipeline."""
     feed = await get_news_feed(limit=200, refresh=False)
     source_counts = {}
@@ -320,7 +321,7 @@ async def get_stats():
 
 
 @router.post("/comment", response_model=CommentResponse)
-async def post_comment(req: CommentRequest, user: dict = Depends(require_public_profile)):
+async def post_comment(req: CommentRequest, user: dict = Depends(require_public_profile)) -> Any:
     """Post a comment on any news article. Requires public profile."""
     if not req.article_id or not req.content.strip():
         raise HTTPException(status_code=400, detail="article_id and content required")
@@ -343,7 +344,7 @@ async def post_comment(req: CommentRequest, user: dict = Depends(require_public_
 
 
 @router.get("/comments/{article_id}", response_model=list[CommentResponse])
-async def get_comments(article_id: str):
+async def get_comments(article_id: str) -> list:
     """Get comments for a specific article."""
     comments = _COMMENTS.get(article_id, [])
     return [CommentResponse(**c) for c in sorted(comments, key=lambda x: x["created_at"])]
@@ -355,7 +356,7 @@ async def get_comments(article_id: str):
 @router.post("/internal/scanner-alert")
 async def post_scanner_alert(
     token_name: str, chain: str, risk_score: float, address: str, flags: str = ""
-):
+) -> dict[str, str]:
     """Internal endpoint for cron jobs to inject scanner findings into news feed."""
     global _NEWS_CACHE
     content_hash = hashlib.sha256(f"internal:{address}:{chain}".encode()).hexdigest()

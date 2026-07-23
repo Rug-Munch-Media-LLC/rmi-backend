@@ -91,7 +91,7 @@ async def _check_mixer(address: str, chain: str) -> dict | None:
 @router.get("/trace/{token_address}")
 async def trace_rug(
     token_address: str, chain: str = Query("ethereum"), max_hops: int = Query(3, le=5)
-):
+) -> dict | dict[str, str]:
     """Trace stolen funds from a rugged token."""
     # Step 1: Get deployer from SENTINEL
     deployer = ""
@@ -178,7 +178,7 @@ async def trace_rug(
 
 
 @router.get("/victims/{token_address}")
-async def get_affected_victims(token_address: str, chain: str = Query("ethereum")):
+async def get_affected_victims(token_address: str, chain: str = Query("ethereum")) -> dict:
     """Get list of addresses that interacted with (lost money to) a rug token."""
     victims: list[dict] = []
     try:

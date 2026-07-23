@@ -48,7 +48,7 @@ _redis_pool = None
 
 
 # Singleton accessor for dependency injectiondef get_rag_service():    import sys    return sys.modules[__name__]
-async def _get_redis():
+async def _get_redis() -> Any:
     """Get or create a shared Redis connection (singleton pattern to prevent leaks)."""
     global _redis_pool
     import redis.asyncio as redis
@@ -69,7 +69,7 @@ async def _get_redis():
     return _redis_pool
 
 
-async def _preembed_scam_patterns():
+async def _preembed_scam_patterns() -> None:
     """
     Pre-embed all KNOWN_SCAM_PATTERNS and cache results.
     Loads from Redis first (persistent cache), then embeds any missing ones.

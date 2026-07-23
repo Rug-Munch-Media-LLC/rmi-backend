@@ -46,7 +46,7 @@ def _cache_get(key: str) -> str | None:
     return None
 
 
-def _cache_set(key: str, value: str, ttl: int = 300):
+def _cache_set(key: str, value: str, ttl: int = 300) -> None:
     if REDIS_AVAILABLE:
         with contextlib.suppress(BaseException):
             _redis.setex(f"rmi:ai:{key}", ttl, value)
@@ -56,7 +56,7 @@ def _cache_set(key: str, value: str, ttl: int = 300):
 _usage = {"total_calls": 0, "total_tokens": 0, "total_cost": 0.0}
 
 
-def _track(prompt_tokens: int, completion_tokens: int, cost: float):
+def _track(prompt_tokens: int, completion_tokens: int, cost: float) -> None:
     _usage["total_calls"] += 1
     _usage["total_tokens"] += prompt_tokens + completion_tokens
     _usage["total_cost"] += cost

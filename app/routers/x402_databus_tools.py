@@ -861,7 +861,7 @@ TRIAL_REDIS_PREFIX = "x402:databus_trials:"
 TRIAL_WINDOW_SECONDS = 86400  # 24 hours
 
 
-async def _get_trial_redis():
+async def _get_trial_redis() -> Any | None:
     try:
         import redis.asyncio as aioredis
 
@@ -1124,7 +1124,7 @@ class GenericDataRequest(BaseModel):
 
 
 @router.get("/catalog")
-async def x402_catalog(request: Request):
+async def x402_catalog(request: Request) -> dict[str, str]:
     """Full catalog of available x402 DataBus tools with pricing."""
     catalog = []
     for tool_id, info in sorted(
@@ -1200,7 +1200,7 @@ async def x402_catalog(request: Request):
 
 
 @router.get("/access-matrix")
-async def x402_access_matrix():
+async def x402_access_matrix() -> dict:
     """Show which data types each x402 tier can access."""
     from app.databus.access_control import access_controller
 
@@ -1213,7 +1213,7 @@ async def x402_access_matrix():
 
 
 @router.get("/trials/{identifier}")
-async def x402_trial_status(identifier: str):
+async def x402_trial_status(identifier: str) -> dict:
     """Check remaining free trials for a wallet or fingerprint.
 
     For humans: pass wallet address → see full allotment.
@@ -1243,7 +1243,7 @@ async def x402_trial_status(identifier: str):
 
 
 @router.post("/token-price")
-async def x402_token_price(req: MintRequest, request: Request):
+async def x402_token_price(req: MintRequest, request: Request) -> Any:
     """Token price from multi-source consensus. $0.01/call."""
     payment = await verify_x402_payment(request, "token_price", 0.01)
     result = await databus.fetch(
@@ -1260,7 +1260,7 @@ async def x402_token_price(req: MintRequest, request: Request):
 
 
 @router.post("/token-detail")
-async def x402_token_detail(req: MintRequest, request: Request):
+async def x402_token_detail(req: MintRequest, request: Request) -> Any:
     """Rich token intelligence report. $0.02/call."""
     payment = await verify_x402_payment(request, "token_detail", 0.02)
     result = await databus.fetch(
@@ -1275,7 +1275,7 @@ async def x402_token_detail(req: MintRequest, request: Request):
 
 
 @router.post("/trending")
-async def x402_trending(req: QueryRequest, request: Request):
+async def x402_trending(req: QueryRequest, request: Request) -> Any:
     """Trending tokens feed. $0.01/call."""
     await verify_x402_payment(request, "trending", 0.01)
     result = await databus.fetch("trending", consumer_type="x402_paid", x402_tier="basic")
@@ -1283,7 +1283,7 @@ async def x402_trending(req: QueryRequest, request: Request):
 
 
 @router.post("/market-overview")
-async def x402_market_overview(request: Request):
+async def x402_market_overview(request: Request) -> Any:
     """Market landscape overview. $0.02/call."""
     await verify_x402_payment(request, "market_overview", 0.02)
     result = await databus.fetch("market_overview", consumer_type="x402_paid", x402_tier="basic")
@@ -1291,7 +1291,7 @@ async def x402_market_overview(request: Request):
 
 
 @router.post("/market-movers")
-async def x402_market_movers(request: Request):
+async def x402_market_movers(request: Request) -> Any:
     """Top market movers. $0.01/call."""
     await verify_x402_payment(request, "market_movers", 0.01)
     result = await databus.fetch("market_movers", consumer_type="x402_paid", x402_tier="basic")
@@ -1299,7 +1299,7 @@ async def x402_market_movers(request: Request):
 
 
 @router.post("/tvl")
-async def x402_tvl(req: QueryRequest, request: Request):
+async def x402_tvl(req: QueryRequest, request: Request) -> Any:
     """DeFi TVL tracker. $0.01/call."""
     await verify_x402_payment(request, "tvl", 0.01)
     result = await databus.fetch(
@@ -1312,7 +1312,7 @@ async def x402_tvl(req: QueryRequest, request: Request):
 
 
 @router.post("/news")
-async def x402_news(req: QueryRequest, request: Request):
+async def x402_news(req: QueryRequest, request: Request) -> Any:
     """Crypto news feed. $0.01/call."""
     await verify_x402_payment(request, "news", 0.01)
     result = await databus.fetch(
@@ -1322,7 +1322,7 @@ async def x402_news(req: QueryRequest, request: Request):
 
 
 @router.post("/social-feed")
-async def x402_social_feed(request: Request):
+async def x402_social_feed(request: Request) -> Any:
     """Social intelligence feed. $0.01/call."""
     await verify_x402_payment(request, "social_feed", 0.01)
     result = await databus.fetch("social_feed", consumer_type="x402_paid", x402_tier="basic")
@@ -1330,7 +1330,7 @@ async def x402_social_feed(request: Request):
 
 
 @router.post("/dex-data")
-async def x402_dex_data(req: MintRequest, request: Request):
+async def x402_dex_data(req: MintRequest, request: Request) -> Any:
     """DEX liquidity data. $0.01/call."""
     await verify_x402_payment(request, "dex_data", 0.01)
     result = await databus.fetch(
@@ -1340,7 +1340,7 @@ async def x402_dex_data(req: MintRequest, request: Request):
 
 
 @router.post("/defi-protocols")
-async def x402_defi_protocols(request: Request):
+async def x402_defi_protocols(request: Request) -> Any:
     """DeFi protocol tracker. $0.01/call."""
     await verify_x402_payment(request, "defi_protocols", 0.01)
     result = await databus.fetch("defi_protocols", consumer_type="x402_paid", x402_tier="basic")
@@ -1348,7 +1348,7 @@ async def x402_defi_protocols(request: Request):
 
 
 @router.post("/prediction-markets")
-async def x402_prediction_markets(req: QueryRequest, request: Request):
+async def x402_prediction_markets(req: QueryRequest, request: Request) -> Any:
     """Prediction market intel. $0.02/call."""
     await verify_x402_payment(request, "prediction_markets", 0.02)
     result = await databus.fetch(
@@ -1362,7 +1362,7 @@ async def x402_prediction_markets(req: QueryRequest, request: Request):
 
 
 @router.post("/prediction-signals")
-async def x402_prediction_signals(request: Request):
+async def x402_prediction_signals(request: Request) -> Any:
     """Automated trading signals. $0.02/call."""
     await verify_x402_payment(request, "prediction_signals", 0.02)
     result = await databus.fetch("prediction_signals", consumer_type="x402_paid", x402_tier="basic")
@@ -1370,7 +1370,7 @@ async def x402_prediction_signals(request: Request):
 
 
 @router.post("/rugmap")
-async def x402_rugmap(req: AddressDepthRequest, request: Request):
+async def x402_rugmap(req: AddressDepthRequest, request: Request) -> Any:
     """Holder RugMap. $0.02/call."""
     await verify_x402_payment(request, "rugmap", 0.02)
     result = await databus.fetch(
@@ -1385,7 +1385,7 @@ async def x402_rugmap(req: AddressDepthRequest, request: Request):
 
 
 @router.post("/rugmaps-analysis")
-async def x402_rugmaps_analysis(req: AddressRequest, request: Request):
+async def x402_rugmaps_analysis(req: AddressRequest, request: Request) -> Any:
     """RugMaps AI holder analysis. $0.02/call."""
     await verify_x402_payment(request, "rugmaps_analysis", 0.02)
     result = await databus.fetch(
@@ -1399,7 +1399,7 @@ async def x402_rugmaps_analysis(req: AddressRequest, request: Request):
 
 
 @router.post("/wallet-balance")
-async def x402_wallet_balance(req: AddressRequest, request: Request):
+async def x402_wallet_balance(req: AddressRequest, request: Request) -> Any:
     """Wallet balance check. $0.01/call."""
     await verify_x402_payment(request, "wallet_balance", 0.01)
     result = await databus.fetch(
@@ -1409,7 +1409,7 @@ async def x402_wallet_balance(req: AddressRequest, request: Request):
 
 
 @router.post("/wallet-labels")
-async def x402_wallet_labels(req: AddressRequest, request: Request):
+async def x402_wallet_labels(req: AddressRequest, request: Request) -> Any:
     """Wallet entity lookup. $0.02/call."""
     await verify_x402_payment(request, "wallet_labels", 0.02)
     result = await databus.fetch(
@@ -1423,7 +1423,7 @@ async def x402_wallet_labels(req: AddressRequest, request: Request):
 
 
 @router.post("/risk-scan")
-async def x402_risk_scan(req: AddressRequest, request: Request):
+async def x402_risk_scan(req: AddressRequest, request: Request) -> Any:
     """RugShield quick scan. $0.02/call."""
     await verify_x402_payment(request, "risk_scan", 0.02)
     result = await databus.fetch(
@@ -1437,7 +1437,7 @@ async def x402_risk_scan(req: AddressRequest, request: Request):
 
 
 @router.post("/threat-check")
-async def x402_threat_check(req: AddressRequest, request: Request):
+async def x402_threat_check(req: AddressRequest, request: Request) -> Any:
     """Threat intel check. $0.02/call."""
     await verify_x402_payment(request, "threat_check", 0.02)
     result = await databus.fetch(
@@ -1451,7 +1451,7 @@ async def x402_threat_check(req: AddressRequest, request: Request):
 
 
 @router.post("/socialfi-resolve")
-async def x402_socialfi_resolve(req: AddressRequest, request: Request):
+async def x402_socialfi_resolve(req: AddressRequest, request: Request) -> Any:
     """Social identity resolver. $0.01/call."""
     await verify_x402_payment(request, "socialfi_resolve", 0.01)
     result = await databus.fetch(
@@ -1464,7 +1464,7 @@ async def x402_socialfi_resolve(req: AddressRequest, request: Request):
 
 
 @router.post("/wallet-profile")
-async def x402_wallet_profile(req: AddressRequest, request: Request):
+async def x402_wallet_profile(req: AddressRequest, request: Request) -> Any:
     """Wallet intelligence profiler. $0.05/call."""
     payment = await verify_x402_payment(request, "wallet_profile", 0.05)
     result = await databus.fetch(
@@ -1479,7 +1479,7 @@ async def x402_wallet_profile(req: AddressRequest, request: Request):
 
 
 @router.post("/smart-money")
-async def x402_smart_money(req: QueryRequest, request: Request):
+async def x402_smart_money(req: QueryRequest, request: Request) -> Any:
     """Smart money tracker. $0.05/call."""
     payment = await verify_x402_payment(request, "smart_money", 0.05)
     result = await databus.fetch(
@@ -1489,7 +1489,7 @@ async def x402_smart_money(req: QueryRequest, request: Request):
 
 
 @router.post("/funding-source")
-async def x402_funding_source(req: AddressRequest, request: Request):
+async def x402_funding_source(req: AddressRequest, request: Request) -> Any:
     """Funding source tracer. $0.08/call."""
     payment = await verify_x402_payment(request, "funding_source", 0.08)
     chain_id = {
@@ -1513,7 +1513,7 @@ async def x402_funding_source(req: AddressRequest, request: Request):
 
 
 @router.post("/cross-chain")
-async def x402_cross_chain(req: AddressRequest, request: Request):
+async def x402_cross_chain(req: AddressRequest, request: Request) -> Any:
     """Cross-chain correlator. $0.08/call."""
     payment = await verify_x402_payment(request, "cross_chain", 0.08)
     result = await databus.fetch(
@@ -1528,7 +1528,7 @@ async def x402_cross_chain(req: AddressRequest, request: Request):
 
 
 @router.post("/wallet-cluster")
-async def x402_wallet_cluster(req: AddressRequest, request: Request):
+async def x402_wallet_cluster(req: AddressRequest, request: Request) -> Any:
     """Syndicate network mapper. $0.08/call."""
     payment = await verify_x402_payment(request, "wallet_cluster", 0.08)
     result = await databus.fetch(
@@ -1542,7 +1542,7 @@ async def x402_wallet_cluster(req: AddressRequest, request: Request):
 
 
 @router.post("/bundle-detect")
-async def x402_bundle_detect(req: AddressRequest, request: Request):
+async def x402_bundle_detect(req: AddressRequest, request: Request) -> Any:
     """Bot activity detector. $0.08/call."""
     payment = await verify_x402_payment(request, "bundle_detect", 0.08)
     result = await databus.fetch(
@@ -1557,7 +1557,7 @@ async def x402_bundle_detect(req: AddressRequest, request: Request):
 
 
 @router.post("/wallet-tokens")
-async def x402_wallet_tokens(req: AddressRequest, request: Request):
+async def x402_wallet_tokens(req: AddressRequest, request: Request) -> Any:
     """Wallet token holdings. $0.05/call."""
     payment = await verify_x402_payment(request, "wallet_tokens", 0.05)
     result = await databus.fetch(
@@ -1571,7 +1571,7 @@ async def x402_wallet_tokens(req: AddressRequest, request: Request):
 
 
 @router.post("/wallet-pnl")
-async def x402_wallet_pnl(req: AddressRequest, request: Request):
+async def x402_wallet_pnl(req: AddressRequest, request: Request) -> Any:
     """Wallet PnL tracker. $0.05/call."""
     payment = await verify_x402_payment(request, "wallet_pnl", 0.05)
     result = await databus.fetch(
@@ -1581,7 +1581,7 @@ async def x402_wallet_pnl(req: AddressRequest, request: Request):
 
 
 @router.post("/contract-scan")
-async def x402_contract_scan(req: AddressRequest, request: Request):
+async def x402_contract_scan(req: AddressRequest, request: Request) -> Any:
     """Deep contract auditor. $0.08/call."""
     payment = await verify_x402_payment(request, "contract_scan", 0.08)
     result = await databus.fetch(
@@ -1596,7 +1596,7 @@ async def x402_contract_scan(req: AddressRequest, request: Request):
 
 
 @router.post("/sentinel-deep")
-async def x402_sentinel_deep(req: AddressRequest, request: Request):
+async def x402_sentinel_deep(req: AddressRequest, request: Request) -> Any:
     """SENTINEL deep scan. $0.10/call."""
     payment = await verify_x402_payment(request, "sentinel_deep", 0.10)
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -1613,7 +1613,7 @@ async def x402_sentinel_deep(req: AddressRequest, request: Request):
 
 
 @router.post("/entity-intel")
-async def x402_entity_intel(req: AddressRequest, request: Request):
+async def x402_entity_intel(req: AddressRequest, request: Request) -> Any:
     """Entity intelligence lookup. $0.10/call."""
     payment = await verify_x402_payment(request, "entity_intel", 0.10)
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -1629,7 +1629,7 @@ async def x402_entity_intel(req: AddressRequest, request: Request):
 
 
 @router.post("/rag-search")
-async def x402_rag_search(req: QueryRequest, request: Request):
+async def x402_rag_search(req: QueryRequest, request: Request) -> Any:
     """Knowledge search engine. $0.05/call."""
     payment = await verify_x402_payment(request, "rag_search", 0.05)
     result = await databus.fetch(
@@ -1642,7 +1642,7 @@ async def x402_rag_search(req: QueryRequest, request: Request):
 
 
 @router.post("/arkham-portfolio")
-async def x402_arkham_portfolio(req: AddressRequest, request: Request):
+async def x402_arkham_portfolio(req: AddressRequest, request: Request) -> Any:
     """Arkham portfolio intel. $0.25/call. Requires admin key."""
     payment = await verify_x402_payment(request, "arkham_portfolio", 0.25)
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -1658,7 +1658,7 @@ async def x402_arkham_portfolio(req: AddressRequest, request: Request):
 
 
 @router.post("/arkham-transfers")
-async def x402_arkham_transfers(req: AddressRequest, request: Request):
+async def x402_arkham_transfers(req: AddressRequest, request: Request) -> Any:
     """Arkham transfer tracer. $0.20/call."""
     payment = await verify_x402_payment(request, "arkham_transfers", 0.20)
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -1675,7 +1675,7 @@ async def x402_arkham_transfers(req: AddressRequest, request: Request):
 
 
 @router.post("/nansen-labels")
-async def x402_nansen_labels(req: AddressRequest, request: Request):
+async def x402_nansen_labels(req: AddressRequest, request: Request) -> Any:
     """Nansen label intelligence. $0.15/call."""
     payment = await verify_x402_payment(request, "nansen_labels", 0.15)
     result = await databus.fetch(
@@ -1689,7 +1689,7 @@ async def x402_nansen_labels(req: AddressRequest, request: Request):
 
 
 @router.post("/portfolio")
-async def x402_portfolio(req: AddressRequest, request: Request):
+async def x402_portfolio(req: AddressRequest, request: Request) -> Any:
     """Multi-wallet portfolio tracker. $0.15/call."""
     payment = await verify_x402_payment(request, "portfolio", 0.15)
     result = await databus.fetch(
@@ -1708,7 +1708,7 @@ async def x402_portfolio(req: AddressRequest, request: Request):
 
 
 @router.post("/fetch")
-async def x402_universal_fetch(req: GenericDataRequest, request: Request):
+async def x402_universal_fetch(req: GenericDataRequest, request: Request) -> Any:
     """
     Universal DataBus fetch through x402 paywall.
     Accepts any data_type. Pricing is automatic based on X402_TOOL_PRICING.

@@ -165,7 +165,7 @@ def _cache_get(key: str) -> dict | None:
     return None
 
 
-def _cache_set(key: str, data: dict, ttl: int):
+def _cache_set(key: str, data: dict, ttl: int) -> None:
     _cache[key] = (time.monotonic() + ttl, data)
 
 

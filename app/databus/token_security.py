@@ -55,7 +55,7 @@ class SecurityCheck:
         tier: int = 1,
         description: str = "",
         auto_fail: bool = False,
-    ):
+    ) -> None:
         self.id = id
         self.name = name
         self.category = category

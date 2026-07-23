@@ -23,6 +23,7 @@ from app.caching_shield.rate_limiter import get_rate_limiter
 from app.caching_shield.rpc_cache import get_rpc_cache
 from app.caching_shield.ws_broadcaster import get_ws_manager
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("caching_shield.router")
 router = APIRouter(prefix="/api/v1/cache", tags=["caching-shield"])
@@ -43,7 +44,7 @@ def _verify_admin(request: Request) -> bool:
 
 
 @router.get("/health")
-async def cache_health():
+async def cache_health() -> dict[str, str]:
     """Aggregate health check for all caching shield components."""
     cache = get_rpc_cache()
     limiter = get_rate_limiter()
@@ -73,14 +74,14 @@ async def cache_health():
 
 
 @router.get("/stats")
-async def cache_stats():
+async def cache_stats() -> Any:
     """Detailed cache statistics."""
     cache = get_rpc_cache()
     return await cache.health()
 
 
 @router.post("/clear")
-async def cache_clear(request: Request):
+async def cache_clear(request: Request) -> dict[str, str]:
     """Clear L1 in-memory cache. Requires admin key."""
     if not _verify_admin(request):
         raise HTTPException(status_code=401, detail="Invalid admin key")
@@ -95,7 +96,7 @@ async def cache_clear(request: Request):
 
 
 @router.get("/rate-limits")
-async def rate_limits_status():
+async def rate_limits_status() -> dict:
     """Get current token bucket states for all providers."""
     limiter = get_rate_limiter()
     limits = limiter.get_all_limits()
@@ -119,7 +120,7 @@ async def rate_limits_status():
 
 
 @router.get("/solana-tracker")
-async def solana_tracker_stats():
+async def solana_tracker_stats() -> dict:
     """Get Solana Tracker multi-key load balancing stats."""
     from app.caching_shield.solana_tracker import get_solana_tracker
 
@@ -131,7 +132,7 @@ async def solana_tracker_stats():
 
 
 @router.get("/capacity")
-async def capacity_report():
+async def capacity_report() -> dict:
     """Full API capacity analysis - all providers, keys, free APIs, and backend sources."""
     from app.caching_shield.api_registry import list_all_sources
 

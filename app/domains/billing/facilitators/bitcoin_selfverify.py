@@ -53,7 +53,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
     Verifies BTC transfers directly on Bitcoin via Mempool.space API.
     """
 
-    def __init__(self, config: FacilitatorConfig | None = None):
+    def __init__(self, config: FacilitatorConfig | None = None) -> None:
         self._config = config or get_config()
         self._btc_pay_to = self._config.btc_pay_to
         self._api_base = MEMPOOL_API

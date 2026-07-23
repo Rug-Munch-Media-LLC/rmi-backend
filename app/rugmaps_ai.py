@@ -42,7 +42,7 @@ async def get_cached_analysis(token: str, chain: str) -> dict | None:
     return None
 
 
-def set_cached_analysis(token: str, chain: str, analysis: dict):
+def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
     """Cache analysis result."""
     key = _cache_key(token, chain)
     analysis["_ts"] = time.time()

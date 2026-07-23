@@ -15,6 +15,7 @@ from app.core.errors import (
     ValidationError,
 )
 from app.core.logging import get_logger
+from typing import Any
 
 router = APIRouter(prefix="/api/v1/wallet-clusters", tags=["wallet-clustering"])
 logger = get_logger(__name__)
@@ -46,7 +47,7 @@ class ContractScanRequest(BaseModel):
     detect_bundles: bool = True
 
 
-def _get_detector():
+def _get_detector() -> Any:
     try:
         from app.cluster_detection import ClusterDetectionPro
 
@@ -55,7 +56,7 @@ def _get_detector():
         raise ServiceUnavailableError(message=f"Module unavailable: {e}") from e
 
 
-def _get_engine():
+def _get_engine() -> Any:
     try:
         from app.domains.wallet.clustering import get_clustering_engine
 
@@ -65,7 +66,7 @@ def _get_engine():
 
 
 @router.post("/detect")
-async def detect_clusters(req: ClusterRequest):
+async def detect_clusters(req: ClusterRequest) -> Any:
     """Detect wallet clusters from a list of addresses (7 methods)."""
     if len(req.wallets) < 2:
         raise ValidationError(message="Need at least 2 wallets")
@@ -114,7 +115,7 @@ async def detect_clusters(req: ClusterRequest):
 
 
 @router.post("/funding-path")
-async def trace_funding_path(req: FundingPathRequest):
+async def trace_funding_path(req: FundingPathRequest) -> Any:
     """Trace the funding path between two wallets (BFS)."""
     detector = _get_detector()
     path = await detector.trace_funding_path(
@@ -139,7 +140,7 @@ async def trace_funding_path(req: FundingPathRequest):
 
 
 @router.post("/scan")
-async def scan_all():
+async def scan_all() -> Any:
     """Run all 4 clustering methods and return merged results with fusion brief."""
     engine = _get_engine()
     clusters = engine.find_all_clusters()
@@ -180,7 +181,7 @@ async def scan_all():
 
 
 @router.get("/health")
-async def clustering_health():
+async def clustering_health() -> dict[str, str]:
     cache_stats = {}
     gnn_status = {}
     spam_stats = {}
@@ -212,7 +213,7 @@ async def clustering_health():
 
 
 @router.get("/report/{cluster_id}")
-async def get_cluster_report(cluster_id: str):
+async def get_cluster_report(cluster_id: str) -> Any:
     """Get detailed report for a specific cluster."""
     engine = _get_engine()
     report = engine.get_cluster_report(cluster_id)
@@ -222,7 +223,7 @@ async def get_cluster_report(cluster_id: str):
 
 
 @router.post("/rugmap-data")
-async def get_rugmap_data(req: RugMapRequest):
+async def get_rugmap_data(req: RugMapRequest) -> Any:
     """Generate RugMap data for a wallet.
     Supports up to 250 wallets deep. Optional AI deep dive for advanced forensics.
 
@@ -317,7 +318,7 @@ async def get_rugmap_data(req: RugMapRequest):
 
 
 @router.post("/ai-forensic-breakdown")
-async def get_ai_forensic_breakdown(req: RugMapRequest):
+async def get_ai_forensic_breakdown(req: RugMapRequest) -> Any:
     """
     Premium AI-driven forensic breakdown that dynamically pulls deeper if necessary.
 
@@ -408,7 +409,7 @@ Be direct and avoid fluff."""
 
 
 @router.post("/contract-scan")
-async def scan_contract_clusters(req: ContractScanRequest):
+async def scan_contract_clusters(req: ContractScanRequest) -> Any:
     """Scan a contract for wallet clusters among its holders.
     Finds real holder wallets via Helius, then detects clusters."""
     engine = _get_engine()

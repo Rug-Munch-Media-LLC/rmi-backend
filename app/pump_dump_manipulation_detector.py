@@ -323,7 +323,7 @@ class PumpDumpDetector:
     Analyzes on-chain data to identify manipulation patterns across all 13 chains.
     """
 
-    def __init__(self, timeout: float = 30.0):
+    def __init__(self, timeout: float = 30.0) -> None:
         self._client = httpx.AsyncClient(timeout=timeout)
         self._chain_client = ChainClient()
 

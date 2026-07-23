@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from PIL import Image, ImageDraw, ImageFont
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -114,7 +115,7 @@ MARKETING_COPY = {
 # ── Graphics Generation Functions ────────────────────────────
 
 
-def create_gradient_background(size, color1, color2):
+def create_gradient_background(size, color1, color2) -> Any:
     """Create purple gradient background."""
     img = Image.new("RGB", size, color1)
     draw = ImageDraw.Draw(img)
@@ -129,7 +130,7 @@ def create_gradient_background(size, color1, color2):
     return img
 
 
-def add_circular_frame(img, color=BRAND["gold"], width=5):
+def add_circular_frame(img, color=BRAND["gold"], width=5) -> Any:
     """Add gold circular frame."""
     draw = ImageDraw.Draw(img)
     margin = 20
@@ -139,7 +140,7 @@ def add_circular_frame(img, color=BRAND["gold"], width=5):
     return img
 
 
-def add_text_centered(img, text, position, font_size, color, font_path=None):
+def add_text_centered(img, text, position, font_size, color, font_path=None) -> Any:
     """Add centered text."""
     draw = ImageDraw.Draw(img)
 

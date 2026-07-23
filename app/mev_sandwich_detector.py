@@ -491,7 +491,7 @@ class MEVSandwichDetector:
         self,
         chains: list[str] | None = None,
         data_dir: str | None = None,
-    ):
+    ) -> None:
         self.chains = chains or [
             "ethereum",
             "bsc",

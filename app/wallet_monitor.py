@@ -103,7 +103,7 @@ LABEL_PATTERNS = {
 _redis: Any = None
 
 
-async def _get_redis():
+async def _get_redis() -> Any:
     global _redis
     if _redis is None and redis_async is not None:
         try:
@@ -305,7 +305,7 @@ class AlertEngine:
     a wallet's history and external threat intel.
     """
 
-    def __init__(self, chain: str = "ethereum"):
+    def __init__(self, chain: str = "ethereum") -> None:
         self.chain = chain
         self.rules: list[Callable[[WalletTx, list[WalletTx]], WalletAlert | None]] = [
             self._rule_large_transfer,
@@ -586,7 +586,7 @@ class WalletMonitor:
     runs alert engine, burst detection, and label suggestions.
     """
 
-    def __init__(self, chain: str = "ethereum"):
+    def __init__(self, chain: str = "ethereum") -> None:
         self.chain = chain
         self.ws_url = WS_URLS.get(chain, "")
         self.rpc_url = RPC_URLS.get(chain, "")
@@ -597,7 +597,7 @@ class WalletMonitor:
         self._watched: set[str] = set()
         self._watch_refresh_interval = 30  # seconds
 
-    def on_alert(self, callback: Callable):
+    def on_alert(self, callback: Callable) -> None:
         self._callbacks.append(callback)
 
     async def _refresh_watchlist(self) -> None:
@@ -974,7 +974,7 @@ class WalletMonitorManager:
     Provides unified watchlist API and dispatches to all active monitors.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.monitors: dict[str, WalletMonitor] = {}
         self._webhooks: list[str] = []
 

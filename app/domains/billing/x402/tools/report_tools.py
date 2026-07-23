@@ -34,7 +34,7 @@ sub_router = APIRouter(tags=["x402-sentinel-t2-t3"])
 
 
 @sub_router.post("/flash_loan_detect")
-async def flash_loan_detect_endpoint(req: SentinelModuleRequest):
+async def flash_loan_detect_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Flash Loan Detection - borrow-then-dump patterns, single-block exploits.
 
     Pricing: $0.08
@@ -62,7 +62,7 @@ async def flash_loan_detect_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/pump_dump_detect")
-async def pump_dump_detect_endpoint(req: SentinelModuleRequest):
+async def pump_dump_detect_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Pump-and-Dump Detection - volume spikes, coordinated buys, lifecycle stage.
 
     Pricing: $0.08
@@ -90,7 +90,7 @@ async def pump_dump_detect_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/oracle_manipulation")
-async def oracle_manipulation_endpoint(req: SentinelModuleRequest):
+async def oracle_manipulation_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Oracle Manipulation - oracle source analysis, price manipulation vulnerability.
 
     Pricing: $0.08
@@ -118,7 +118,7 @@ async def oracle_manipulation_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/governance_attack")
-async def governance_attack_endpoint(req: SentinelModuleRequest):
+async def governance_attack_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """x402 Governance Attack - governance concentration, timelock/quorum risk detection.
 
     Pricing: $0.08 (x402 tool #44)
@@ -149,7 +149,7 @@ async def governance_attack_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/proxy_detect")
-async def proxy_detect_endpoint(req: SentinelModuleRequest):
+async def proxy_detect_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Proxy Detection - proxy resolution, implementation fingerprinting, upgrade risk.
 
     Pricing: $0.08
@@ -177,7 +177,7 @@ async def proxy_detect_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/static_analysis")
-async def static_analysis_endpoint(req: SentinelModuleRequest):
+async def static_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Static Analysis - Slither vulnerability detection + Forta alert integration.
 
     Pricing: $0.12
@@ -205,7 +205,7 @@ async def static_analysis_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/decompiler_analysis")
-async def decompiler_analysis_endpoint(req: SentinelModuleRequest):
+async def decompiler_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Decompiler Analysis - Heimdall decompilation + whatsABI function extraction.
 
     Pricing: $0.10
@@ -233,7 +233,7 @@ async def decompiler_analysis_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/fund_flow")
-async def fund_flow_endpoint(req: SentinelModuleRequest):
+async def fund_flow_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Fund Flow Visualization - SVG fund flow graph for token analysis.
     Pricing: $0.10
     """
@@ -256,7 +256,7 @@ async def fund_flow_endpoint(req: SentinelModuleRequest):
 
 
 @sub_router.post("/contract_diff")
-async def contract_diff_endpoint(req: SentinelModuleRequest):
+async def contract_diff_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Contract Diff - bytecode hash comparison against known rug contracts.
 
     Pricing: $0.10

@@ -9,6 +9,7 @@ import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger(__name__)
 
@@ -32,11 +33,11 @@ IMAGE_GENERATION_ENDPOINT = f"{DASHSCOPE_BASE_URL}/services/aigc/text-generation
 class AlibabaConnector:
     """Alibaba Cloud AI services connector."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_key = DASHSCOPE_API_KEY
         self._session = None
 
-    def _get_session(self):
+    def _get_session(self) -> Any:
         if self._session is None:
             self._session = httpx.AsyncClient(
                 timeout=60.0,

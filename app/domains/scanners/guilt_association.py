@@ -263,7 +263,7 @@ class GuiltAssociationAnalyzer:
     SOLANA_TX_PAGES = 3  # 3 pages x 40 txs = 120 transactions
     SOLANA_TRANSFER_PAGES = 3  # 3 pages x 100 transfers = 300 transfers
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
 
         # Try to load FreeSolscanClient for Solana - gracefully degrade if unavailable

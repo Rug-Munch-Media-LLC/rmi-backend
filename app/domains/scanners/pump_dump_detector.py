@@ -75,7 +75,7 @@ class PumpDumpDetector:
     COORDINATED_BUY_WINDOW_SEC = 60  # wallets buying within 60s
     MIN_COORDINATED_WALLETS = 3  # need ≥3 fresh wallets in window
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)
         self._chain = ChainClient()
         self._helius_key = os.getenv("HELIUS_API_KEY", "")

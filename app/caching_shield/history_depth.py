@@ -55,7 +55,7 @@ class HistoryDepthController:
             raise DeepScanThrottled(f"Deep scan cooldown: {wait:.0f}s remaining")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Per-address deep scan cooldown: address -> last_deep_scan_ts
         self._deep_cooldowns: OrderedDict = OrderedDict()
 
@@ -100,7 +100,7 @@ class HistoryDepthController:
 
         return (True, 0.0)
 
-    def record_deep_scan(self, address: str):
+    def record_deep_scan(self, address: str) -> None:
         """Record that a deep scan was performed for this address."""
         self._deep_cooldowns[address] = time.monotonic()
         # Evict oldest if over capacity

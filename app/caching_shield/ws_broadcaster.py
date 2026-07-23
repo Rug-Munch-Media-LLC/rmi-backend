@@ -29,6 +29,7 @@ import time
 import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("ws_broadcaster")
 
@@ -49,7 +50,7 @@ class WsClientManager:
     This manages the Redis pub/sub bridge and client metadata.
     """
 
-    def __init__(self, redis_url=None, redis_password=None):
+    def __init__(self, redis_url=None, redis_password=None) -> None:
         self._redis: aioredis.Redis | None = None
         self._redis_url = redis_url
         self._redis_password = redis_password
@@ -69,7 +70,7 @@ class WsClientManager:
         self.broadcasts_sent = 0
         self.broadcasts_failed = 0
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any | None:
         """Get or create persistent Redis connection for publishing."""
         if self._redis is not None:
             return self._redis
@@ -96,20 +97,20 @@ class WsClientManager:
                 self._redis_failed = True
                 return None
 
-    async def register(self, channel: str, client_id: str):
+    async def register(self, channel: str, client_id: str) -> None:
         """Register a connected client for a channel."""
         async with self._lock:
             if channel not in self._clients:
                 self._clients[channel] = set()
             self._clients[channel].add(client_id)
 
-    async def unregister(self, channel: str, client_id: str):
+    async def unregister(self, channel: str, client_id: str) -> None:
         """Remove a disconnected client."""
         async with self._lock:
             if channel in self._clients:
                 self._clients[channel].discard(client_id)
 
-    async def broadcast(self, channel: str, data: dict):
+    async def broadcast(self, channel: str, data: dict) -> None:
         """Publish data to a Redis channel for WebSocket subscribers.
 
         Uses persistent Redis connection - no new connection per broadcast.
@@ -145,11 +146,11 @@ class WsClientManager:
             self.broadcasts_failed += 1
             logger.debug(f"WsClientManager broadcast error: {e}")
 
-    async def broadcast_scan(self, scan_data: dict):
+    async def broadcast_scan(self, scan_data: dict) -> None:
         """Convenience: broadcast a token scan result."""
         await self.broadcast("scans", scan_data)
 
-    async def broadcast_alert(self, alert_data: dict):
+    async def broadcast_alert(self, alert_data: dict) -> None:
         """Convenience: broadcast a security alert."""
         # Also persist to alert history (sorted set)
         redis = await self._get_redis()
@@ -171,7 +172,7 @@ class WsClientManager:
             except Exception:
                 self.broadcasts_failed += 1
 
-    async def broadcast_price(self, token: str, price: float, chain: str = "solana"):
+    async def broadcast_price(self, token: str, price: float, chain: str = "solana") -> None:
         """Convenience: broadcast a price update."""
         await self.broadcast("prices", {"token": token, "price": price, "chain": chain})
 

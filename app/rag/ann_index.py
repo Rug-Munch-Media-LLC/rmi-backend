@@ -29,7 +29,7 @@ log = get_logger(__name__)
 _redis_client = None
 
 
-def _get_redis():
+def _get_redis() -> Any:
     global _redis_client
     if _redis_client is None:
         from app.core.redis import get_redis
@@ -57,7 +57,7 @@ class ANNIndex:
         hits = idx.search(query_vec, top_k=5)
     """
 
-    def __init__(self, collection: str, dim: int = EMBEDDING_DIM):
+    def __init__(self, collection: str, dim: int = EMBEDDING_DIM) -> None:
         self.collection = collection
         self.dim = dim
         self._ids: list[str] = []

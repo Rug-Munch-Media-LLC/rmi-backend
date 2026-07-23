@@ -35,6 +35,7 @@ parser.add_argument("--force", action="store_true", help="Skip threshold (sweeps
 args = parser.parse_args()
 
 from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402
+from typing import Any
 
 mgr = get_wallet_manager_v2(os.environ.get("WALLET_VAULT_PASSWORD", ""))
 
@@ -206,7 +207,7 @@ for w in sweepable:
             if str(keypair.pubkey()) != w.address:
                 raise RuntimeError("Address mismatch")
 
-            async def _sweep_sol():
+            async def _sweep_sol() -> tuple[str, Any]:
                 async with AsyncClient(rpc) as client:  # noqa: B023
                     resp = await client.get_balance(keypair.pubkey(), commitment=Confirmed)  # noqa: B023
                     lamports = resp.value

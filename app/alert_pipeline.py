@@ -23,6 +23,7 @@ import time
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
+from typing import Any
 
 logger = get_logger("alert_pipeline")
 
@@ -35,7 +36,7 @@ ALERT_COUNT_KEY = "rmi:alerts:count:active"
 ALERT_MAX = 500  # Keep last 500 alerts
 
 
-async def _get_redis():
+async def _get_redis() -> Any:
     """Get async Redis connection."""
     import redis.asyncio as aioredis
 
@@ -298,7 +299,7 @@ async def run_alert_scan() -> dict[str, int]:
 # ── Seed some initial alerts if Redis is empty ────────────────────
 
 
-async def seed_initial_alerts():
+async def seed_initial_alerts() -> None:
     """Seed baseline alerts so the system isn't empty on first run."""
     r = await _get_redis()
     existing = await r.zcard(ALERT_KEY)

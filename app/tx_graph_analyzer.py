@@ -6,7 +6,7 @@ from typing import Any
 class TransactionGraph:
     """Graph representation of transaction flows."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.nodes: dict[str, Any] = {}
         self.edges: list[dict[str, Any]] = []
 

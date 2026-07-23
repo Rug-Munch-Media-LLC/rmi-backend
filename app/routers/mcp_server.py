@@ -251,7 +251,7 @@ def _input_schema(tool_id: str) -> dict:
 # ================================================================
 
 
-def _build_discovery():
+def _build_discovery() -> dict:
     """Build the MCP server discovery document."""
     data = _get_tools()
     tools = data["prices"]
@@ -387,12 +387,12 @@ def _build_discovery():
 
 @router.get("/.well-known/mcp")
 @router.get("/.well-known/mcp.json")
-async def mcp_discovery():
+async def mcp_discovery() -> Any:
     return _build_discovery()
 
 
 @router.get("/.well-known/ai-plugin.json")
-async def ai_plugin_manifest():
+async def ai_plugin_manifest() -> dict[str, str]:
     data = _get_tools()
     count = len(data["prices"])
     return {
@@ -410,7 +410,7 @@ async def ai_plugin_manifest():
 
 
 @router.get("/llms.txt")
-async def llms_txt():
+async def llms_txt() -> Any:
     data = _get_tools()
     prices = data["prices"]
     chains = data["chains"]
@@ -464,7 +464,7 @@ curl https://mcp.rugmunch.io/mcp/tools
 # ================================================================
 
 
-def _build_tools_list():
+def _build_tools_list() -> tuple[Any, Any, Any, Any]:
     """Build the full MCP-compatible tools list."""
     data = _get_tools()
     prices = data["prices"]
@@ -527,7 +527,7 @@ def _build_tools_list():
 
 
 @router.get("/mcp/tools")
-async def mcp_tools_list(request: Request):
+async def mcp_tools_list(request: Request) -> dict[str, str]:
     """Every tool in the RMI platform -- full catalog with MCP-compliant schemas."""
     tools, cats, chains_data, fac_count = _build_tools_list()
 
@@ -578,7 +578,7 @@ async def mcp_tools_list(request: Request):
 
 
 @router.get("/tools")
-async def mcp_tools_mcp_router_format(request: Request):
+async def mcp_tools_mcp_router_format(request: Request) -> dict:
     """Serve tools in mcp-router compatible format: {tools: {service: [tools]}}.
 
     This endpoint is consumed by the x402 Cloudflare Workers (BACKEND_MCP + '/tools').
@@ -611,7 +611,7 @@ async def mcp_tools_mcp_router_format(request: Request):
 
 
 @router.get("/mcp/capabilities")
-async def mcp_capabilities():
+async def mcp_capabilities() -> dict[str, str]:
     data = _get_tools()
     fac_count = _get_facilitator_count()
     return {
@@ -637,7 +637,7 @@ async def mcp_capabilities():
 
 
 @router.post("/mcp")
-async def mcp_jsonrpc(request: Request):
+async def mcp_jsonrpc(request: Request) -> Any:
     """MCP Streamable HTTP transport - handle JSON-RPC requests.
 
     Methods: initialize, tools/list, tools/call, resources/list, prompts/list, ping
@@ -895,7 +895,7 @@ async def mcp_jsonrpc(request: Request):
 
 
 @router.options("/mcp")
-async def mcp_options():
+async def mcp_options() -> Any:
     """CORS preflight for MCP endpoint."""
     return JSONResponse(
         content={},
@@ -914,7 +914,7 @@ async def mcp_options():
 
 
 @router.post("/mcp/call/{tool_id}")
-async def mcp_call_tool(tool_id: str, request: Request):
+async def mcp_call_tool(tool_id: str, request: Request) -> Any:
     """Execute any tool. Requires x402 payment or free trial."""
     data = _get_tools()
     if tool_id not in data["prices"] and tool_id not in ("list", "tools", "catalog"):
@@ -997,7 +997,7 @@ async def mcp_call_tool(tool_id: str, request: Request):
 
 
 @router.get("/mcp/manifest")
-async def platform_manifest():
+async def platform_manifest() -> Any:
     """Complete platform manifest - auto-generated from live tool counts."""
     from app.caching_shield.platform_manifest import get_platform_manifest
 
@@ -1005,7 +1005,7 @@ async def platform_manifest():
 
 
 @router.get("/mcp/skills")
-async def agent_skills():
+async def agent_skills() -> Any:
     """Agent skills, workflows, anti-abuse rules, and starter prompts."""
     from app.caching_shield.agent_skills import get_agent_skills
 
@@ -1013,7 +1013,7 @@ async def agent_skills():
 
 
 @router.get("/mcp/membership")
-async def membership_plans():
+async def membership_plans() -> Any:
     """Membership tiers, scan packs, streams, research, batch processing."""
     from app.caching_shield.membership_plans import get_membership_catalog
 
@@ -1026,7 +1026,7 @@ async def membership_plans():
 
 
 @router.get("/mcp/earnings")
-async def earnings_dashboard():
+async def earnings_dashboard() -> dict:
     """Live earnings dashboard - wallet balances, revenue by source."""
     from app.caching_shield.earnings_tracker import fetch_wallet_earnings, get_earnings_report
 
@@ -1036,7 +1036,7 @@ async def earnings_dashboard():
 
 
 @router.get("/mcp/earnings/wallets")
-async def earnings_wallets():
+async def earnings_wallets() -> Any:
     """Current payment wallet balances."""
     from app.caching_shield.earnings_tracker import fetch_wallet_earnings
 
@@ -1044,7 +1044,7 @@ async def earnings_wallets():
 
 
 @router.get("/mcp/earnings/sources")
-async def earnings_by_source():
+async def earnings_by_source() -> Any:
     """Revenue broken down by tool, chain, and facilitator."""
     from app.caching_shield.earnings_tracker import get_revenue_by_source
 
@@ -1063,7 +1063,7 @@ async def mcp_news_feed(
     source: str | None = None,
     limit: int = 50,
     offset: int = 0,
-):
+) -> Any:
     """Aggregated crypto news with sentiment analysis."""
     from app.caching_shield.market_rundown import get_articles
 
@@ -1077,7 +1077,7 @@ async def mcp_news_feed(
 
 
 @router.get("/mcp/news/summary")
-async def market_summary(force: bool = False):
+async def market_summary(force: bool = False) -> Any:
     """AI-generated daily market rundown (DeepSeek V4 Pro, cached 24h)."""
     from app.caching_shield.market_rundown import generate_market_summary
 
@@ -1085,7 +1085,7 @@ async def market_summary(force: bool = False):
 
 
 @router.get("/mcp/news/categories")
-async def mcp_news_categories():
+async def mcp_news_categories() -> dict:
     """Available news categories."""
     from app.caching_shield.market_rundown import get_categories
 
@@ -1093,7 +1093,7 @@ async def mcp_news_categories():
 
 
 @router.get("/mcp/news/sources")
-async def news_sources():
+async def news_sources() -> dict:
     """Available news sources."""
     from app.caching_shield.market_rundown import get_sources
 
@@ -1101,7 +1101,7 @@ async def news_sources():
 
 
 @router.post("/mcp/news/vote")
-async def mcp_news_vote(data: dict):
+async def mcp_news_vote(data: dict) -> Any:
     """Vote up/down on an article."""
     from app.caching_shield.market_rundown import vote
 
@@ -1109,7 +1109,7 @@ async def mcp_news_vote(data: dict):
 
 
 @router.post("/mcp/news/comment")
-async def mcp_news_comment(data: dict):
+async def mcp_news_comment(data: dict) -> Any:
     """Add a comment to an article."""
     from app.caching_shield.market_rundown import comment
 
@@ -1117,7 +1117,7 @@ async def mcp_news_comment(data: dict):
 
 
 @router.get("/mcp/news/comments/{article_id}")
-async def mcp_news_comments(article_id: str):
+async def mcp_news_comments(article_id: str) -> Any:
     """Get comments for an article."""
     from app.caching_shield.market_rundown import get_comments
 
@@ -1125,7 +1125,7 @@ async def mcp_news_comments(article_id: str):
 
 
 @router.get("/mcp/daily-data")
-async def daily_market_data():
+async def daily_market_data() -> Any:
     """Enhanced daily data - price action, sentiment, security, whales, prediction markets."""
     from app.caching_shield.daily_data import get_daily_rundown_data
 
@@ -1147,7 +1147,7 @@ async def news_feed(
     offset: int = 0,
     impact: str | None = None,
     source: str | None = None,
-):
+) -> Any:
     """Main news feed with all filters."""
     from app.caching_shield.news_network import fetch_all, get_feed
 
@@ -1165,7 +1165,7 @@ async def news_feed(
 
 
 @router.get("/news/categories")
-async def news_categories():
+async def news_categories() -> dict:
     from app.caching_shield.news_network import fetch_all, get_categories
 
     await fetch_all(max_per_source=3)
@@ -1173,42 +1173,42 @@ async def news_categories():
 
 
 @router.post("/news/vote")
-async def news_vote(data: dict):
+async def news_vote(data: dict) -> Any:
     from app.caching_shield.news_network import vote_article
 
     return vote_article(data.get("article_id", ""), data.get("direction", "up"))
 
 
 @router.post("/news/comment")
-async def news_comment(data: dict):
+async def news_comment(data: dict) -> Any:
     from app.caching_shield.news_network import add_comment
 
     return add_comment(data.get("article_id", ""), data.get("user", "anon"), data.get("text", ""))
 
 
 @router.get("/news/comments/{article_id}")
-async def news_comments(article_id: str):
+async def news_comments(article_id: str) -> dict:
     from app.caching_shield.news_network import get_comments
 
     return {"comments": get_comments(article_id)}
 
 
 @router.post("/news/bookmark")
-async def news_bookmark(data: dict):
+async def news_bookmark(data: dict) -> Any:
     from app.caching_shield.news_network import bookmark
 
     return bookmark(data.get("article_id", ""))
 
 
 @router.get("/news/search")
-async def news_search(q: str = "", limit: int = 20):
+async def news_search(q: str = "", limit: int = 20) -> dict:
     from app.caching_shield.news_network import search_articles
 
     return {"results": search_articles(q, limit)}
 
 
 @router.get("/news/daily-data")
-async def daily_data():
+async def daily_data() -> Any:
     from app.caching_shield.daily_data import get_daily_rundown_data
 
     return await get_daily_rundown_data()
@@ -1220,7 +1220,7 @@ async def daily_data():
 
 
 @router.get("/news/social")
-async def social_feed(limit_twitter: int = 30, limit_reddit: int = 20):
+async def social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> Any:
     """Combined X/Twitter + Reddit crypto feed - cached, Nitter fallback."""
     from app.caching_shield.social_feed import get_social_feed
 
@@ -1228,7 +1228,7 @@ async def social_feed(limit_twitter: int = 30, limit_reddit: int = 20):
 
 
 @router.get("/news/social/twitter")
-async def twitter_feed(limit: int = 30):
+async def twitter_feed(limit: int = 30) -> Any:
     """Top 50 crypto X/Twitter accounts - via Nitter (free, cached)."""
     from app.caching_shield.social_feed import get_twitter_feed
 
@@ -1236,7 +1236,7 @@ async def twitter_feed(limit: int = 30):
 
 
 @router.get("/news/social/reddit")
-async def reddit_feed(limit: int = 20):
+async def reddit_feed(limit: int = 20) -> Any:
     """Top crypto subreddits - free, no auth."""
     from app.caching_shield.social_feed import get_reddit_feed
 
@@ -1244,7 +1244,7 @@ async def reddit_feed(limit: int = 20):
 
 
 @router.get("/news/social/accounts")
-async def social_accounts():
+async def social_accounts() -> dict:
     """List of monitored X accounts with profile pics."""
     from app.caching_shield.social_feed import get_top_accounts
 

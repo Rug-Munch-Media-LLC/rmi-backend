@@ -83,7 +83,7 @@ class ScanResult:
 class SlitherScanner:
     """Slither static analysis scanner."""
 
-    def __init__(self, solc_version: str = "0.8.0"):
+    def __init__(self, solc_version: str = "0.8.0") -> None:
         self.solc_version = solc_version
         self._available = self._check_available()
 
@@ -229,7 +229,7 @@ class SlitherScanner:
 class MythrilScanner:
     """Mythril symbolic execution scanner."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._available = self._check_available()
 
     def _check_available(self) -> bool:
@@ -314,7 +314,7 @@ class MythrilScanner:
 class ContractScanner:
     """Combined Slither + Mythril scanner."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.slither = SlitherScanner()
         self.mythril = MythrilScanner()
 
