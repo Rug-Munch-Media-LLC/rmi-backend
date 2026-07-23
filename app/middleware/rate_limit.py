@@ -12,8 +12,8 @@ Supports:
 - Automatic key expiration
 """
 
-import redis
 from fastapi import Request
+from redis import asyncio as aioredis
 
 from app.core.logging import get_logger
 
@@ -36,11 +36,11 @@ DEFAULT_LIMITS = {"rph": 10, "rpd": 100, "burst": 2}
 class RateLimiter:
     """Rate limiter with Redis backend."""
 
-    def __init__(self, redis_client: redis.Redis | None = None):
+    def __init__(self, redis_client: aioredis.Redis | None = None):  # type: ignore[type-arg]
         self.redis = redis_client
         self.enabled = redis_client is not None
 
-    def check(self, key: str, limit: int, window: int = 3600) -> tuple[bool, int]:
+    async def check(self, key: str, limit: int, window: int = 3600) -> tuple[bool, int]:
         """
         Check if request is within rate limit.
 
@@ -57,10 +57,11 @@ class RateLimiter:
 
         try:
             # Use Redis pipeline for atomic operations
+            assert self.redis is not None  # guarded by self.enabled check above
             pipe = self.redis.pipeline()
             pipe.incr(key)
             pipe.expire(key, window)
-            results = pipe.execute()
+            results = await pipe.execute()
 
             current_count = results[0]
             remaining = max(0, limit - current_count)
@@ -71,7 +72,7 @@ class RateLimiter:
 
             return True, remaining
 
-        except redis.RedisError as e:
+        except aioredis.RedisError as e:
             logger.error(f"Redis error in rate limiter: {e}")
             return True, limit  # Fail open if Redis down
 

@@ -3,8 +3,10 @@ Intelligence Router - Market, Premium, and Security Intelligence.
 Receives data from n8n workflows, provides query endpoints for users.
 """
 
+import os
 from datetime import UTC, datetime
 
+import httpx
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
@@ -13,6 +15,127 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/intelligence", tags=["intelligence"])
+
+
+# ── Supabase Async Helpers ────────────────────────────────────
+# Replaces sync supabase-py client with async httpx calls to Supabase REST API.
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+
+def _supabase_is_configured() -> bool:
+    """Check if Supabase credentials are configured."""
+    return bool(SUPABASE_URL and SUPABASE_KEY)
+
+
+async def _supabase_request(
+    method: str,
+    table: str,
+    data: dict[str, object] | list[dict[str, object]] | None = None,
+    params: dict[str, str] | None = None,
+    jwt_token: str | None = None,
+) -> list[dict[str, object]]:
+    """Make an async request to the Supabase REST API (PostgREST).
+
+    Args:
+        method: HTTP method (GET, POST, PATCH)
+        table: Supabase table name
+        data: JSON body for POST/PATCH
+        params: Query parameters for PostgREST filtering (e.g. ``{"id": "eq.123"}``)
+        jwt_token: Optional user JWT for user-scoped requests
+
+    Returns:
+        List of result rows (empty on error or no results).
+    """
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return []
+
+    headers: dict[str, str] = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {jwt_token or SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.request(
+                method,
+                f"{SUPABASE_URL}/rest/v1/{table}",
+                json=data,
+                params=params,
+                headers=headers,
+            )
+            if resp.status_code >= 400:
+                logger.error(
+                    "Supabase API error %d on %s %s: %s",
+                    resp.status_code,
+                    method,
+                    table,
+                    resp.text[:300],
+                )
+                return []
+            if resp.status_code == 204:
+                return []
+            result: list[dict[str, object]] = resp.json()
+            return result
+        except httpx.RequestError as e:
+            logger.error("Supabase request failed (%s %s): %s", method, table, e)
+            return []
+
+
+async def _supabase_get_user(jwt_token: str) -> dict[str, object] | None:
+    """Get the authenticated user from Supabase Auth via REST API.
+
+    Args:
+        jwt_token: The user's JWT (without ``Bearer `` prefix).
+
+    Returns:
+        User dict with ``id``, ``email`` etc., or ``None`` on failure.
+    """
+    if not SUPABASE_URL or not SUPABASE_KEY or not jwt_token:
+        return None
+
+    headers: dict[str, str] = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {jwt_token}",
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(
+                f"{SUPABASE_URL}/auth/v1/user",
+                headers=headers,
+            )
+            if resp.status_code == 200:
+                user_result: dict[str, object] = resp.json()
+                return user_result
+            return None
+        except httpx.RequestError as e:
+            logger.error("Supabase auth request failed: %s", e)
+            return None
+
+
+async def _get_current_user_id(authorization: str | None = None) -> str | None:
+    """Extract the current user ID from a JWT via Supabase Auth.
+
+    Args:
+        authorization: Full ``Authorization`` header value (e.g. ``Bearer <token>``).
+
+    Returns:
+        User ID string or ``None``.
+    """
+    if not authorization:
+        return None
+    try:
+        user_data = await _supabase_get_user(authorization.replace("Bearer ", ""))
+        if user_data and isinstance(user_data, dict):
+            user_id = user_data.get("id")
+            return str(user_id) if user_id else None
+        return None
+    except Exception:
+        return None
 
 
 # ── Models ───────────────────────────────────────────────────
@@ -35,52 +158,13 @@ class IntelligenceQuery(BaseModel):
     offset: int = 0
 
 
-# ── Helpers ──────────────────────────────────────────────────
-
-
-def _get_supabase():
-    """Get Supabase client."""
-    try:
-        import os
-
-        from supabase import create_client
-
-        url = os.getenv("SUPABASE_URL", "")
-        key = os.getenv("SUPABASE_KEY", "")
-
-        if not url or not key:
-            return None
-
-        return create_client(url, key)
-    except ImportError:
-        return None
-
-
-async def _get_current_user_id(authorization: str = Header(None)) -> str | None:
-    """Get current user ID from JWT."""
-    if not authorization:
-        return None
-
-    try:
-        import os
-
-        from supabase import create_client
-
-        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-        user = supabase.auth.get_user(authorization.replace("Bearer ", ""))
-        return user.user.id if user and user.user else None
-    except Exception:
-        return None
-
-
 # ── n8n Webhook Receivers ────────────────────────────────────
 
 
 @router.post("/market-update")
 async def receive_market_update(update: MarketUpdate):
     """Receive market intelligence update from n8n workflow."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
     try:
@@ -95,8 +179,10 @@ async def receive_market_update(update: MarketUpdate):
             ).get("pairs", [])
 
             for token in tokens[:20]:  # Top 20
-                supabase.table("market_trending_tokens").insert(
-                    {
+                await _supabase_request(
+                    "POST",
+                    "market_trending_tokens",
+                    data={
                         "token_address": token.get("address")
                         or token.get("baseToken", {}).get("address"),
                         "token_name": token.get("name") or token.get("baseToken", {}).get("name"),
@@ -107,8 +193,8 @@ async def receive_market_update(update: MarketUpdate):
                         "volume_24h": token.get("volume", {}).get("h24"),
                         "trend_score": token.get("score", 0),
                         "source": "coingecko_dexscreener",
-                    }
-                ).execute()
+                    },
+                )
 
         elif workflow == "whales":
             # Process whale movements
@@ -116,44 +202,47 @@ async def receive_market_update(update: MarketUpdate):
             for whale in whales:
                 amount_usd = whale.get("amount", 0) * 150  # SOL price approx
                 if amount_usd > 10000:  # Only store >$10k
-                    supabase.table("whale_movements").insert(
-                        {
+                    await _supabase_request(
+                        "POST",
+                        "whale_movements",
+                        data={
                             "wallet_address": whale.get("wallet"),
                             "chain": "solana",
                             "token_symbol": "SOL",
                             "amount_usd": amount_usd,
                             "transaction_hash": whale.get("signature"),
                             "source": "helius",
-                        }
-                    ).execute()
+                        },
+                    )
 
         elif workflow == "volume-spikes":
             # Process volume spikes
             spikes = data.get("dexscreener_spikes", [])
             for spike in spikes:
                 if spike.get("volume_change_pct", 0) > 100:  # >100% increase
-                    supabase.table("volume_spikes").insert(
-                        {
+                    await _supabase_request(
+                        "POST",
+                        "volume_spikes",
+                        data={
                             "token_address": spike.get("address"),
                             "token_symbol": spike.get("symbol"),
                             "chain": spike.get("chainId"),
                             "volume_change_pct": spike.get("volume_change_pct"),
                             "spike_score": spike.get("spike_score", 0),
-                        }
-                    ).execute()
+                        },
+                    )
 
         return {"status": "ok", "workflow": workflow, "processed": True}
 
     except Exception as e:
-        logger.error(f"Market update error: {e}")
+        logger.error("Market update error: %s", e)
         return {"status": "error", "message": str(e)[:200]}
 
 
 @router.post("/security-update")
 async def receive_security_update(update: MarketUpdate):
     """Receive security intelligence update from n8n workflow."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
     try:
@@ -163,49 +252,55 @@ async def receive_security_update(update: MarketUpdate):
         if workflow == "scams":
             scams = data.get("scam_alerts", [])
             for scam in scams:
-                supabase.table("scam_alerts").insert(
-                    {
+                await _supabase_request(
+                    "POST",
+                    "scam_alerts",
+                    data={
                         "scam_type": scam.get("type"),
                         "token_address": scam.get("token"),
                         "chain": scam.get("chain"),
                         "confidence_score": scam.get("confidence", 0),
                         "is_confirmed": scam.get("confirmed", False),
-                    }
-                ).execute()
+                    },
+                )
 
         elif workflow == "rugpulls":
             rugpulls = data.get("rugpull_alerts", [])
             for rug in rugpulls:
-                supabase.table("rugpull_alerts").insert(
-                    {
+                await _supabase_request(
+                    "POST",
+                    "rugpull_alerts",
+                    data={
                         "token_address": rug.get("token"),
                         "deployer_address": rug.get("deployer"),
                         "liquidity_removed_usd": rug.get("liquidity_removed"),
                         "rug_type": rug.get("type"),
                         "confidence_score": rug.get("confidence", 0),
-                    }
-                ).execute()
+                    },
+                )
 
                 # Create immediate alert for premium users
-                supabase.table("intelligence_alerts").insert(
-                    {
+                await _supabase_request(
+                    "POST",
+                    "intelligence_alerts",
+                    data={
                         "alert_type": "rugpull_detected",
                         "severity": "critical",
                         "title": f"Rugpull Detected: {rug.get('symbol', 'Unknown')}",
                         "message": f"Liquidity removed: ${rug.get('liquidity_removed', 0):,.0f}",
                         "data": rug,
                         "is_read": False,
-                    }
-                ).execute()
+                    },
+                )
 
         return {"status": "ok", "workflow": workflow, "processed": True}
 
     except Exception as e:
-        logger.error(f"Security update error: {e}")
+        logger.error("Security update error: %s", e)
         return {"status": "error", "message": str(e)[:200]}
 
 
-# ── Market Intelligence Endpoints ────────────────────────────
+# ── Market Intelligence Endpoints ─────────────────────────────
 
 
 @router.get("/market/trending")
@@ -214,21 +309,21 @@ async def get_trending_tokens(
     limit: int = Query(50, description="Number of results"),
 ):
     """Get trending tokens."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    result = (
-        supabase.table("market_trending_tokens")
-        .select("*")
-        .eq("chain", chain)
-        .order("trend_score", desc=True)
-        .order("collected_at", desc=True)
-        .limit(limit)
-        .execute()
+    result = await _supabase_request(
+        "GET",
+        "market_trending_tokens",
+        params={
+            "select": "*",
+            "chain": f"eq.{chain}",
+            "order": "trend_score.desc,collected_at.desc",
+            "limit": str(limit),
+        },
     )
 
-    return {"tokens": result.data or []}
+    return {"tokens": result or []}
 
 
 @router.get("/market/whales")
@@ -238,21 +333,22 @@ async def get_whale_movements(
     limit: int = Query(50),
 ):
     """Get recent whale movements."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    result = (
-        supabase.table("whale_movements")
-        .select("*")
-        .eq("chain", chain)
-        .gte("amount_usd", min_amount_usd)
-        .order("collected_at", desc=True)
-        .limit(limit)
-        .execute()
+    result = await _supabase_request(
+        "GET",
+        "whale_movements",
+        params={
+            "select": "*",
+            "chain": f"eq.{chain}",
+            "amount_usd": f"gte.{min_amount_usd}",
+            "order": "collected_at.desc",
+            "limit": str(limit),
+        },
     )
 
-    return {"movements": result.data or []}
+    return {"movements": result or []}
 
 
 @router.get("/market/volume-spikes")
@@ -262,22 +358,22 @@ async def get_volume_spikes(
     limit: int = Query(50),
 ):
     """Get volume spike alerts."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    result = (
-        supabase.table("volume_spikes")
-        .select("*")
-        .eq("chain", chain)
-        .gte("volume_change_pct", min_change_pct)
-        .order("spike_score", desc=True)
-        .order("collected_at", desc=True)
-        .limit(limit)
-        .execute()
+    result = await _supabase_request(
+        "GET",
+        "volume_spikes",
+        params={
+            "select": "*",
+            "chain": f"eq.{chain}",
+            "volume_change_pct": f"gte.{min_change_pct}",
+            "order": "spike_score.desc,collected_at.desc",
+            "limit": str(limit),
+        },
     )
 
-    return {"spikes": result.data or []}
+    return {"spikes": result or []}
 
 
 # ── Premium Intelligence Endpoints ───────────────────────────
@@ -290,24 +386,21 @@ async def get_smart_money_activities(
     limit: int = Query(50),
 ):
     """Get smart money activities (premium feature)."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    query = (
-        supabase.table("smart_money_activities")
-        .select("*")
-        .eq("chain", chain)
-        .order("collected_at", desc=True)
-        .limit(limit)
-    )
-
+    params: dict[str, str] = {
+        "select": "*",
+        "chain": f"eq.{chain}",
+        "order": "collected_at.desc",
+        "limit": str(limit),
+    }
     if wallet_category:
-        query = query.eq("wallet_category", wallet_category)
+        params["wallet_category"] = f"eq.{wallet_category}"
 
-    result = query.execute()
+    result = await _supabase_request("GET", "smart_money_activities", params=params)
 
-    return {"activities": result.data or []}
+    return {"activities": result or []}
 
 
 @router.get("/premium/exchange-flows")
@@ -317,22 +410,22 @@ async def get_exchange_flows(
     limit: int = Query(50),
 ):
     """Get exchange flow analysis (premium feature)."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    query = (
-        supabase.table("exchange_flows").select("*").order("collected_at", desc=True).limit(limit)
-    )
-
+    params: dict[str, str] = {
+        "select": "*",
+        "order": "collected_at.desc",
+        "limit": str(limit),
+    }
     if exchange_name:
-        query = query.eq("exchange_name", exchange_name)
+        params["exchange_name"] = f"eq.{exchange_name}"
     if flow_type:
-        query = query.eq("flow_type", flow_type)
+        params["flow_type"] = f"eq.{flow_type}"
 
-    result = query.execute()
+    result = await _supabase_request("GET", "exchange_flows", params=params)
 
-    return {"flows": result.data or []}
+    return {"flows": result or []}
 
 
 # ── Security Intelligence Endpoints ──────────────────────────
@@ -345,26 +438,22 @@ async def get_scam_alerts(
     limit: int = Query(50),
 ):
     """Get scam alerts."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    query = (
-        supabase.table("scam_alerts")
-        .select("*")
-        .order("confidence_score", desc=True)
-        .order("collected_at", desc=True)
-        .limit(limit)
-    )
-
+    params: dict[str, str] = {
+        "select": "*",
+        "order": "confidence_score.desc,collected_at.desc",
+        "limit": str(limit),
+    }
     if scam_type:
-        query = query.eq("scam_type", scam_type)
+        params["scam_type"] = f"eq.{scam_type}"
     if confirmed_only:
-        query = query.eq("is_confirmed", True)
+        params["is_confirmed"] = "eq.true"
 
-    result = query.execute()
+    result = await _supabase_request("GET", "scam_alerts", params=params)
 
-    return {"scams": result.data or []}
+    return {"scams": result or []}
 
 
 @router.get("/security/rugpulls")
@@ -372,20 +461,20 @@ async def get_rugpull_alerts(
     limit: int = Query(50),
 ):
     """Get rugpull alerts (real-time)."""
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    result = (
-        supabase.table("rugpull_alerts")
-        .select("*")
-        .order("confidence_score", desc=True)
-        .order("collected_at", desc=True)
-        .limit(limit)
-        .execute()
+    result = await _supabase_request(
+        "GET",
+        "rugpull_alerts",
+        params={
+            "select": "*",
+            "order": "confidence_score.desc,collected_at.desc",
+            "limit": str(limit),
+        },
     )
 
-    return {"rugpulls": result.data or []}
+    return {"rugpulls": result or []}
 
 
 # ── User Intelligence Alerts ─────────────────────────────────
@@ -403,32 +492,38 @@ async def get_my_alerts(
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    query = (
-        supabase.table("intelligence_alerts")
-        .select("*")
-        .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .limit(limit)
-    )
-
+    params: dict[str, str] = {
+        "select": "*",
+        "user_id": f"eq.{user_id}",
+        "order": "created_at.desc",
+        "limit": str(limit),
+    }
     if unread_only:
-        query = query.eq("is_read", False)
+        params["is_read"] = "eq.false"
     if severity:
-        query = query.eq("severity", severity)
+        params["severity"] = f"eq.{severity}"
 
-    result = query.execute()
+    result = await _supabase_request("GET", "intelligence_alerts", params=params)
 
     # Mark as read if unread_only
-    if unread_only and result.data:
-        supabase.table("intelligence_alerts").update(
-            {"is_read": True, "read_at": datetime.now(UTC).isoformat()}
-        ).eq("user_id", user_id).eq("is_read", False).execute()
+    if unread_only and result:
+        await _supabase_request(
+            "PATCH",
+            "intelligence_alerts",
+            data={
+                "is_read": True,
+                "read_at": datetime.now(UTC).isoformat(),
+            },
+            params={
+                "user_id": f"eq.{user_id}",
+                "is_read": "eq.false",
+            },
+        )
 
-    return {"alerts": result.data or []}
+    return {"alerts": result or []}
 
 
 @router.post("/me/alerts/{alert_id}/dismiss")
@@ -441,19 +536,20 @@ async def dismiss_alert(
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    supabase = _get_supabase()
-    if not supabase:
+    if not _supabase_is_configured():
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
-    result = (
-        supabase.table("intelligence_alerts")
-        .update({"is_dismissed": True})
-        .eq("id", alert_id)
-        .eq("user_id", user_id)
-        .execute()
+    result = await _supabase_request(
+        "PATCH",
+        "intelligence_alerts",
+        data={"is_dismissed": True},
+        params={
+            "id": f"eq.{alert_id}",
+            "user_id": f"eq.{user_id}",
+        },
     )
 
-    return {"status": "ok", "dismissed": bool(result.data)}
+    return {"status": "ok", "dismissed": len(result) > 0}
 
 
 # ── Health ───────────────────────────────────────────────────
@@ -462,11 +558,10 @@ async def dismiss_alert(
 @router.get("/health")
 async def intelligence_health():
     """Intelligence service health check."""
-    supabase = _get_supabase()
     return {
         "status": "ok",
         "service": "intelligence-platform",
-        "supabase_connected": supabase is not None,
+        "supabase_connected": _supabase_is_configured(),
         "features": [
             "market_intelligence",
             "premium_intelligence",
@@ -517,7 +612,7 @@ async def generate_card(card_type: str, data: dict):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Card generation failed: {e}")
+        logger.error("Card generation failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
@@ -572,7 +667,7 @@ async def generate_marketing_graphic(graphic_type: str, data: dict | None = None
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Marketing graphic generation failed: {e}")
+        logger.error("Marketing graphic generation failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
