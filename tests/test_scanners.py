@@ -57,7 +57,11 @@ class TestDegenSecurityScanner:
             }
             instance.token_holders_total.return_value = 500
             instance.get_holder_wallets.return_value = [
-                {"address": "FakeAddress111111111111111111111111111", "amount": 500_000, "uiAmount": 50.0}
+                {
+                    "address": "FakeAddress111111111111111111111111111",
+                    "amount": 500_000,
+                    "uiAmount": 50.0,
+                }
             ]
 
             from app.domains.scanner.degen_security_scanner import DegenSecurityScanner
@@ -68,15 +72,34 @@ class TestDegenSecurityScanner:
     @pytest.mark.asyncio
     async def test_full_scan_returns_security_report(self, scanner):
         """full_scan() returns a SecurityReport with expected fields."""
-        with patch.object(scanner, "_helius_token_metadata", AsyncMock(return_value={
-            "name": "TestToken", "symbol": "TST", "decimals": 9,
-            "mintAuthority": None, "freezeAuthority": None,
-            "supply": "1000000000",
-        })):
-            with patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={
-                "price": 0.05, "mc": 50000, "v24hUSD": 10000,
-                "priceChange24h": 12.0, "liquidity": 20000, "buySellRatio": 1.2,
-            })):
+        with patch.object(
+            scanner,
+            "_helius_token_metadata",
+            AsyncMock(
+                return_value={
+                    "name": "TestToken",
+                    "symbol": "TST",
+                    "decimals": 9,
+                    "mintAuthority": None,
+                    "freezeAuthority": None,
+                    "supply": "1000000000",
+                }
+            ),
+        ):
+            with patch.object(
+                scanner,
+                "_birdeye_token_data",
+                AsyncMock(
+                    return_value={
+                        "price": 0.05,
+                        "mc": 50000,
+                        "v24hUSD": 10000,
+                        "priceChange24h": 12.0,
+                        "liquidity": 20000,
+                        "buySellRatio": 1.2,
+                    }
+                ),
+            ):
                 report = await scanner.full_scan("FakeTokenMintAddress1111111111")
 
         assert report.token_address == "FakeTokenMintAddress1111111111"
@@ -90,11 +113,19 @@ class TestDegenSecurityScanner:
     @pytest.mark.asyncio
     async def test_full_scan_with_active_mint_authority_flag_critical(self, scanner):
         """Active mint authority produces a critical-level warning."""
-        with patch.object(scanner, "_helius_token_metadata", AsyncMock(return_value={
-            "name": "RugToken", "symbol": "RUG", "decimals": 9,
-            "mintAuthority": "DevWallet111111111111111111111111111111",
-            "freezeAuthority": None,
-        })):
+        with patch.object(
+            scanner,
+            "_helius_token_metadata",
+            AsyncMock(
+                return_value={
+                    "name": "RugToken",
+                    "symbol": "RUG",
+                    "decimals": 9,
+                    "mintAuthority": "DevWallet111111111111111111111111111111",
+                    "freezeAuthority": None,
+                }
+            ),
+        ):
             with patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
                 report = await scanner.full_scan("FakeRugTokenMint11111111111111", quick=True)
 
@@ -106,10 +137,19 @@ class TestDegenSecurityScanner:
     @pytest.mark.asyncio
     async def test_full_scan_with_freeze_authority_adds_risk(self, scanner):
         """Active freeze authority raises risk."""
-        with patch.object(scanner, "_helius_token_metadata", AsyncMock(return_value={
-            "name": "FreezeToken", "symbol": "FRZ", "decimals=9",
-            "mintAuthority": None, "freezeAuthority": "Freezer11111111111111111111111111",
-        })):
+        with patch.object(
+            scanner,
+            "_helius_token_metadata",
+            AsyncMock(
+                return_value={
+                    "name": "FreezeToken",
+                    "symbol": "FRZ",
+                    "decimals": 9,
+                    "mintAuthority": None,
+                    "freezeAuthority": "Freezer11111111111111111111111111",
+                }
+            ),
+        ):
             with patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
                 report = await scanner.full_scan("FreezeTokenMint1111111111111111", quick=True)
 
@@ -122,9 +162,17 @@ class TestDegenSecurityScanner:
         scanner.solscan.token_data.return_value = None
         scanner.solscan.token_holders_total.return_value = None
 
-        with patch.object(scanner, "_helius_token_metadata", AsyncMock(return_value={
-            "name": "HeliusToken", "symbol": "HLT", "decimals=6",
-        })):
+        with patch.object(
+            scanner,
+            "_helius_token_metadata",
+            AsyncMock(
+                return_value={
+                    "name": "HeliusToken",
+                    "symbol": "HLT",
+                    "decimals": 6,
+                }
+            ),
+        ):
             with patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
                 report = await scanner.full_scan("HeliusOnlyMint11111111111111111", quick=True)
 
@@ -252,11 +300,16 @@ class TestOracleManipulationDetector:
             PriceSnapshot(timestamp=1002.0, block_number=3, price=99.0),
         ]
         window = TWAPWindow(
-            start_block=1, end_block=3,
-            start_time=1000.0, end_time=1002.0,
-            average_price=100.0, median_price=100.0,
-            min_price=99.0, max_price=101.0,
-            std_dev_pct=0.01, samples=snapshots,
+            start_block=1,
+            end_block=3,
+            start_time=1000.0,
+            end_time=1002.0,
+            average_price=100.0,
+            median_price=100.0,
+            min_price=99.0,
+            max_price=101.0,
+            std_dev_pct=0.01,
+            samples=snapshots,
         )
         risk = window.manipulation_risk()
         assert 0.0 <= risk <= 1.0
@@ -274,11 +327,16 @@ class TestOracleManipulationDetector:
             PriceSnapshot(timestamp=1002.0, block_number=3, price=99.99),
         ]
         window = TWAPWindow(
-            start_block=1, end_block=3,
-            start_time=1000.0, end_time=1002.0,
-            average_price=100.0, median_price=100.0,
-            min_price=99.99, max_price=100.01,
-            std_dev_pct=0.0001, samples=snapshots,
+            start_block=1,
+            end_block=3,
+            start_time=1000.0,
+            end_time=1002.0,
+            average_price=100.0,
+            median_price=100.0,
+            min_price=99.99,
+            max_price=100.01,
+            std_dev_pct=0.0001,
+            samples=snapshots,
         )
         risk = window.manipulation_risk()
         # Stable prices should yield low risk
@@ -374,9 +432,7 @@ class TestScannerInputValidation:
         """Solana address regex matches valid base58."""
         from app.domains.portfolio.portfolio_risk_aggregator import SOLANA_ADDRESS_RE
 
-        assert SOLANA_ADDRESS_RE.match(
-            "FakeAddress111111111111111111111111111111111111"
-        )
+        assert SOLANA_ADDRESS_RE.match("FakeAddress111111111111111111111111111111111111")
         assert not SOLANA_ADDRESS_RE.match("0xInvalid")  # hex prefix not solana
 
     def test_portfolio_validate_address_evm(self):
