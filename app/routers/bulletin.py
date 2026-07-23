@@ -234,7 +234,7 @@ async def get_comments(post_id: int) -> dict | dict[str, list]:
             "bulletin_comments", {"post_id": f"eq.{post_id}", "order": "created_at.asc"}
         )
         return {"comments": comments}
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         return {"comments": []}
 
 
@@ -581,25 +581,25 @@ async def community_stats() -> dict:
     try:
         posts = _sb_get("bulletin_posts", {"select": "id", "limit": "1000"})
         total_posts = len(posts)
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     try:
         profiles = _sb_get("profiles", {"select": "id", "limit": "1000"})
         total_users = len(profiles)
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     try:
         bots = _sb_get("profiles", {"select": "id", "is_bot": "eq.true", "limit": "100"})
         total_bots = len(bots)
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     try:
         alerts = _sb_get("alerts", {"select": "id", "limit": "500"})
         total_alerts = len(alerts)
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     return {

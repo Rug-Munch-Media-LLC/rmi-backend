@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
-from app.prediction_market_service import (
+from app.domains.prediction.prediction_market_service import (
     PredictionMarket,
     get_prediction_market_service,
 )

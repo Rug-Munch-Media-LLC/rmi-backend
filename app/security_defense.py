@@ -527,7 +527,7 @@ class HoneypotSystem:
         await BotDetectionEngine._log_security_event(event)
 
         # Auto-ban the IP
-        from app.admin_backend import SecurityManager
+        from app.domains.admin.admin_backend import SecurityManager
 
         await SecurityManager.block_ip(ip, f"Honeypot triggered: {path}", 168)  # 7 days
 

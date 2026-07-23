@@ -199,7 +199,7 @@ async def _section_news(subject_id: str) -> dict[str, Any]:
 
         # Fallback: try news_service
         try:
-            from app.news_service import NewsService
+            from app.domains.news.news_service import NewsService
 
             svc = NewsService()
             news_items = await svc.get_news_for_subject(subject_id, limit=10)

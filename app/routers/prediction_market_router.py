@@ -22,7 +22,7 @@ Rate limiting: Inherited from app-wide slowapi configuration.
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
-from app.prediction_market_service import (
+from app.domains.prediction.prediction_market_service import (
     PredictionDigest,
     PredictionMarket,
     get_prediction_market_service,

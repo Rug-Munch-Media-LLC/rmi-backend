@@ -366,7 +366,7 @@ async def _check_historical_mev(chain: str, token_address: str | None = None) ->
     score = 0.2
     try:
         # Try to import the MEV detector for historical data
-        from app.mev_sandwich_detector import MEVSandwichDetector
+        from app.domains.detectors.mev_sandwich_detector import MEVSandwichDetector
 
         detector = MEVSandwichDetector()
         stats = await detector.scan()

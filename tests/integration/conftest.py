@@ -13,6 +13,7 @@ import os
 os.environ.setdefault("RMI_AUTH_TOKEN", "test-auth-token-32-chars-long!!")
 os.environ.setdefault("RMI_INTERNAL_KEY", "test-internal-key-32-chars-long!!!")
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-thats-32-chars-long!")
+os.environ.setdefault("RMI_JWT_SECRET", "test-jwt-secret-key-thats-32-chars-long!")
 os.environ.setdefault("ENVIRONMENT", "dev")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")

@@ -100,6 +100,42 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     huggingface_token: str = ""
 
+    # ── Backend self-reference ──────────────────────────────────
+    backend_url: str = Field(
+        default="http://localhost:8000",
+        description=(
+            "Self-referencing URL for internal API calls to this backend. Set BACKEND_URL env var."
+        ),
+    )
+
+    # ── LLM proxy ─────────────────────────────────────────────────
+    litellm_api_base: str = Field(
+        default="http://localhost:4000/v1",
+        description=("LiteLLM / OpenAI-compatible proxy base URL. Set LITELLM_API_BASE env var."),
+    )
+
+    # ── Solscan API ──────────────────────────────────────────────
+    solscan_url: str = Field(
+        default="https://api-v2.solscan.io/v2",
+        description=(
+            "Solscan API base URL for reverse-engineered client. Set SOLSCAN_URL env var."
+        ),
+    )
+
+    # ── Pricing / Upsell ─────────────────────────────────────────
+    pricing_url: str = Field(
+        default="https://rugmunch.io/pricing",
+        description=("Public pricing page URL shown in upsell messages. Set PRICING_URL env var."),
+    )
+
+    # ── GCloud ───────────────────────────────────────────────────
+    gcloud_sa_vault_path: str = Field(
+        default="/root/.secrets/google-sa-cryptorugmunch.json",
+        description=(
+            "Path to Google service account JSON key in vault. Set GCLOUD_SA_VAULT_PATH env var."
+        ),
+    )
+
     # ── Langfuse v4 (observability) ─────────────────────────────────
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
@@ -113,6 +149,31 @@ class Settings(BaseSettings):
     helius_api_key: str = Field(
         default="",
         description="Helius API key for Solana RPC access. Set via HELIUS_API_KEY env var.",
+    )
+
+    # ── Pryscraper ──────────────────────────────────────────────────
+    pryscraper_url: str = Field(
+        default="http://pry:8002",
+        description=(
+            "Pryscraper base URL. Defaults to the `pry` container on rmi_network "
+            "at port 8002. Override with PRYSCRAPER_URL env var."
+        ),
+    )
+    pry_api_key: str = Field(
+        default="",
+        description=(
+            "API key for Pryscraper authentication. "
+            "Must match the PRY_API_KEY set in the pry container. "
+            "Set via PRY_API_KEY env var."
+        ),
+    )
+    pry_x402_offline: bool = Field(
+        default=False,
+        description=(
+            "Enable offline x402 payment mode for internal use. "
+            "When True, paid Pry endpoints (scrape, extract) auto-verify "
+            "without on-chain transactions. Set PRY_X402_OFFLINE=true."
+        ),
     )
 
     # ── RMI-specific ────────────────────────────────────────────────

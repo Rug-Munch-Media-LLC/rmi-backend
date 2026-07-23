@@ -72,7 +72,7 @@ def get_cached(tool: str, params: dict) -> dict | None:
         data = r.get(key)
         if data:
             return json.loads(data)
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
         pass
     return None
 
@@ -85,7 +85,7 @@ def set_cached(tool: str, params: dict, result: dict, ttl: int = CACHE_TTL) -> N
         result["_cached"] = True
         result["_cached_at"] = datetime.now(UTC).isoformat()
         r.setex(key, ttl, json.dumps(result))
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError):
         pass
 
 

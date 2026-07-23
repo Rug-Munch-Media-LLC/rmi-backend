@@ -494,7 +494,9 @@ async def entity_batch_label(addresses: list[str]) -> Any:
 
 
 @router.get("/entity/search")
-async def entity_search(q: str = "", category: str | None = None, limit: int = 50) -> dict[str, list[dict]]:
+async def entity_search(
+    q: str = "", category: str | None = None, limit: int = 50
+) -> dict[str, list[dict]]:
     """Search entity database."""
     _el = _L("app.entity_labeler")
     db = await _el.get_entity_labeler()
@@ -557,7 +559,7 @@ async def portfolio_history(wallet: str, chain: str = "ethereum", hours: int = 2
 @router.post("/monitor/watch")
 async def monitor_watch(address: str, chain: str = "ethereum", tags: str = "") -> dict[str, bool]:
     """Add a wallet to the watchlist."""
-    _wm = _L("app.wallet_monitor")
+    _wm = _L("app.domains.wallet.wallet_monitor")
     manager = _wm.WalletMonitorManager()
     await manager.add_watch(address, chain, tags.split(",") if tags else [])
     return {"watched": True, "address": address, "chain": chain}
@@ -566,7 +568,7 @@ async def monitor_watch(address: str, chain: str = "ethereum", tags: str = "") -
 @router.post("/monitor/unwatch")
 async def monitor_unwatch(address: str, chain: str = "ethereum") -> dict[str, bool]:
     """Remove a wallet from the watchlist."""
-    _wm = _L("app.wallet_monitor")
+    _wm = _L("app.domains.wallet.wallet_monitor")
     manager = _wm.WalletMonitorManager()
     await manager.remove_watch(address, chain)
     return {"unwatched": True, "address": address, "chain": chain}
@@ -575,7 +577,7 @@ async def monitor_unwatch(address: str, chain: str = "ethereum") -> dict[str, bo
 @router.get("/monitor/watches")
 async def monitor_list() -> dict:
     """List all watched wallets."""
-    _wm = _L("app.wallet_monitor")
+    _wm = _L("app.domains.wallet.wallet_monitor")
     manager = _wm.WalletMonitorManager()
     watches = await manager.list_watches()
     return {"watches": watches, "count": len(watches)}
@@ -659,7 +661,7 @@ async def security_health() -> dict[str, str]:
     try:
         r = await _get_redis()
         modules["redis"] = "connected" if r and await r.ping() else "disconnected"
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError):
         modules["redis"] = "disconnected"
 
     return {
@@ -682,5 +684,5 @@ async def _get_redis() -> Any | None:
             db=int(os.getenv("REDIS_DB", "0")),
             decode_responses=True,
         )
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError):
         return None

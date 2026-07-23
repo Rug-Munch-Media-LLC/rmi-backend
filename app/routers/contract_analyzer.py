@@ -102,7 +102,7 @@ async def _get_contract_bytecode(address: str, chain: str) -> dict[str, Any]:
                 result["source"] = data.get("SourceCode", "")
                 result["abi"] = data.get("ABI", "[]")
                 result["verified"] = True
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     return result
@@ -186,7 +186,7 @@ async def analyze_contract(address: str, chain: str = Query("ethereum")) -> dict
                 sentinel = resp.json()
                 analysis["sentinel_score"] = sentinel.get("safety_score", 50)
                 analysis["sentinel_flags"] = sentinel.get("risk_flags", [])
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     return {

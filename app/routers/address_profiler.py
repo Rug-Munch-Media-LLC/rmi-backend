@@ -45,7 +45,7 @@ async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict:
             resp = await client.get(f"{DATABUS_BASE}/{chain}/balance/{address}")
             if resp.status_code == 200:
                 return {"chain": chain, **resp.json()}
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
     return {"chain": chain, "balance_usd": 0, "tx_count": 0, "error": "unavailable"}
 
@@ -57,7 +57,7 @@ async def _fetch_eth_labels(address: str) -> list[dict]:
             resp = await client.get(f"{ETH_LABELS_URL}/lookup/{address}")
             if resp.status_code == 200:
                 return resp.json().get("labels", [])
-    except Exception:
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
     return []
 

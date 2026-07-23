@@ -199,7 +199,7 @@ PROVIDERS: list[ProviderDef] = [
     },
     {
         "name": "news_provider",
-        "module": "app.news_service",
+        "module": "app.domains.news.news_service",
         "cb_var": None,
         "description": "News service — crypto news feeds, headlines, sentiment",
         "tier": "free",

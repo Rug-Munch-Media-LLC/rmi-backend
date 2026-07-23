@@ -4,6 +4,7 @@ Uses Redis with the same fingerprint+wallet gating as x402_enforcement.
 Bots get fingerprint-based trials (1 per tool without wallet, full with device ID).
 Humans connect wallet for full trial allotment.
 """
+
 import os
 from typing import Any
 
@@ -28,7 +29,7 @@ async def _get_trial_redis() -> Any | None:
         )
         await r.ping()
         return r
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError):
         return None
 
 
@@ -76,7 +77,7 @@ async def consume_trial(identifier: str, tool_id: str) -> bool:
         pipe.expire(key, TRIAL_WINDOW_SECONDS)
         await pipe.execute()
         return True
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError):
         return False
     finally:
         await r.close()

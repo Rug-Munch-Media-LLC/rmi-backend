@@ -25,7 +25,7 @@ Admin endpoints (require admin session):
 from fastapi import APIRouter, Body, Request
 from pydantic import BaseModel, Field
 
-from app.admin_backend import AuditLogger, require_admin
+from app.domains.admin.admin_backend import AuditLogger, require_admin
 from app.bulletin_board import (
     BulletinBoardManager,
     PostCategory,

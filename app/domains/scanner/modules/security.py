@@ -141,10 +141,10 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
         detailed findings including fee analysis and simulation results.
 
     Data Sources:
-        - app.smart_contract_honeypot_detector.HoneypotDetector
+        - app.domains.detectors.smart_contract_honeypot_detector.HoneypotDetector
     """
     try:
-        from app.smart_contract_honeypot_detector import HoneypotDetector
+        from app.domains.detectors.smart_contract_honeypot_detector import HoneypotDetector
 
         detector = HoneypotDetector()
         result = await detector.analyze_token(token_address, chain=chain)

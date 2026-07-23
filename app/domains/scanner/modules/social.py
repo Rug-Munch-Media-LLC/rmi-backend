@@ -525,7 +525,7 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
     # ── Source 3: HoneypotDetector fallback ──
     if not result.get("source"):
         try:
-            from app.smart_contract_honeypot_detector import HoneypotDetector
+            from app.domains.detectors.smart_contract_honeypot_detector import HoneypotDetector
 
             detector = HoneypotDetector()
             hp_result = await detector.analyze_token(token_address, chain=chain)

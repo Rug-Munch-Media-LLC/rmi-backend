@@ -1,12 +1,16 @@
-"""Password helpers - re-exports from app.domains.auth.
+"""Password hashing and verification."""
 
-Phase 3B of AUDIT-2026-Q3.md.
+import bcrypt
 
-Public API:
-- hash_password, verify_password
-"""
 
-from app.domains.auth import (  # noqa: F401
-    hash_password,
-    verify_password,
-)
+def hash_password(password: str) -> str:
+    """Hash password using bcrypt."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify password against hash."""
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
