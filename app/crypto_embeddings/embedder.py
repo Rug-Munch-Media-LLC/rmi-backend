@@ -101,8 +101,10 @@ class CryptoEmbedder:
                 return await self._huggingface.embed(texts)
             except Exception as e:
                 logger.warning(f"HuggingFace embedding failed: {e}")
-        logger.warning("Using hash-based fallback embeddings (low quality)")
-        return [self._hash_embed(text) for text in texts]
+        raise RuntimeError(
+            "CryptoEmbedder: ALL embedding backends failed. No hash fallback available. "
+            "Check Ollama/OpenRouter/HuggingFace connectivity."
+        )
 
     async def _semantic_embed_one(self, text: str, head: str = "semantic") -> list[float]:
         cache_key = await self._cache_key(head, text)
@@ -110,7 +112,11 @@ class CryptoEmbedder:
         if cached is not None:
             return cached
         results = await self._semantic_embed([text], head)
-        vector = results[0] if results else self._hash_embed(text)
+        if not results:
+            raise RuntimeError(
+                "CryptoEmbedder: _semantic_embed returned empty for single text. "  # T04: fail loud
+            )
+        vector = results[0]
         await self._cache_set(cache_key, vector, ttl=86400)
         return vector
 

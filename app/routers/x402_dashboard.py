@@ -50,7 +50,7 @@ def _get_redis() -> Any | None:
         r.ping()
         return r
     except Exception as e:
-        logger.warning(f"Dashboard: Redis unavailable: {e}")
+        logger.warning("Dashboard: Redis unavailable: %s", e)
         return None
 
 
@@ -62,7 +62,7 @@ async def _get_redis_async() -> Any:
         r = await get_redis()
         return r
     except (ImportError, Exception) as e:
-        logger.debug(f"Async Redis unavailable, falling back to sync: {e}")
+        logger.debug("Async Redis unavailable, falling back to sync: %s", e)
         return _get_redis()
 
 
@@ -92,7 +92,7 @@ async def _persist_payment_to_supabase(
             f"Persisted x402 payment to Supabase: tool={tool} chain={chain} tx={tx_hash[:16] if tx_hash else 'N/A'}"
         )
     except Exception as e:
-        logger.warning(f"Supabase payment persist failed: {e}")
+        logger.warning("Supabase payment persist failed: %s", e)
 
 
 async def _sync_spent_tx_to_supabase() -> Any | int:
@@ -146,13 +146,13 @@ async def _sync_spent_tx_to_supabase() -> Any | int:
                     existing_txs.add(tx_hash)
                     synced += 1
                 except Exception as e:
-                    logger.debug(f"Sync failed for {key}: {e}")
+                    logger.debug("Sync failed for %s: %s", key, e)
             if cursor == 0:
                 break
         if synced:
-            logger.info(f"Synced {synced} x402 payments from Redis to Supabase")
+            logger.info("Synced %s x402 payments from Redis to Supabase", synced)
     except Exception as e:
-        logger.warning(f"Redis->Supabase sync error: {e}")
+        logger.warning("Redis->Supabase sync error: %s", e)
     return synced
 
 
@@ -199,7 +199,7 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
                     }
                 )
             except (json.JSONDecodeError, ValueError, TypeError) as e:
-                logger.debug(f"Payment stats scan failed for {key}: {e}")
+                logger.debug("Payment stats scan failed for %s: %s", key, e)
                 continue
         if cursor == 0:
             break
@@ -233,7 +233,7 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
                 if chain != "unknown":
                     earnings_by_chain[chain] += amt_atoms
             except (json.JSONDecodeError, ValueError, TypeError) as e:
-                logger.debug(f"Tool stats scan failed for {key}: {e}")
+                logger.debug("Tool stats scan failed for %s: %s", key, e)
                 continue
         if cursor == 0:
             break
@@ -264,7 +264,7 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
                 if customer:
                     unique_payers.add(customer)
             except (json.JSONDecodeError, ValueError, TypeError) as e:
-                logger.debug(f"Receipt stats scan failed for {key}: {e}")
+                logger.debug("Receipt stats scan failed for %s: %s", key, e)
                 continue
         if cursor == 0:
             break
@@ -278,7 +278,7 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
                 day = datetime.fromtimestamp(p["timestamp"], tz=UTC).strftime("%Y-%m-%d")
                 earnings_by_day[day] += p.get("amount", 0)
             except (ValueError, TypeError) as e:
-                logger.debug(f"Earnings by day parse failed: {e}")
+                logger.debug("Earnings by day parse failed: %s", e)
 
     # Today's earnings
     today_str = datetime.now(UTC).strftime("%Y-%m-%d")
@@ -341,7 +341,7 @@ def _aggregate_trial_stats(r) -> dict[str, Any]:
                 else:
                     unique_fingerprints.add(client_id)
             except (ValueError, TypeError) as e:
-                logger.debug(f"Trial stats parse failed: {e}")
+                logger.debug("Trial stats parse failed: %s", e)
                 continue
         if cursor == 0:
             break
@@ -429,7 +429,7 @@ async def x402_dashboard() -> dict:
             # Get full Supabase earnings summary
             supabase_summary = await get_x402_earnings_summary()
         except Exception as e:
-            logger.debug(f"Supabase dashboard enrichment failed: {e}")
+            logger.debug("Supabase dashboard enrichment failed: %s", e)
 
         # Trigger background sync (non-blocking)
         with contextlib.suppress(Exception):
@@ -459,7 +459,7 @@ async def x402_dashboard() -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Dashboard error: {e}")
+        logger.error("Dashboard error: %s", e)
         raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)[:200]}") from e
 
 
@@ -526,13 +526,13 @@ async def ensure_x402_payments_table() -> Any | bool:
                     json={"sql": sql},
                     headers=headers,
                 )
-                logger.info(f"x402_payments table creation via exec_sql: {r.status_code}")
+                logger.info("x402_payments table creation via exec_sql: %s", r.status_code)
                 return r.status_code in (200, 204)
         except Exception as e:
-            logger.warning(f"Could not ensure x402_payments table (fallback): {e}")
+            logger.warning("Could not ensure x402_payments table (fallback): %s", e)
             return False
     except Exception as e:
-        logger.warning(f"Could not ensure x402_payments table: {e}")
+        logger.warning("Could not ensure x402_payments table: %s", e)
         return False
 
 

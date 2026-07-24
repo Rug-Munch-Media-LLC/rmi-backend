@@ -428,10 +428,10 @@ async def fetch_data(
             if resp.status == 200:
                 data: dict[str, Any] = await resp.json()
                 return data
-            logger.debug(f"HTTP {resp.status} for {url}")
+            logger.debug("HTTP %s for %s", resp.status, url)
             return None
     except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
-        logger.debug(f"Fetch failed for {url}: {e}")
+        logger.debug("Fetch failed for %s: %s", url, e)
         return None
 
 
@@ -633,30 +633,30 @@ async def main() -> None:
     chain = sys.argv[2] if len(sys.argv) > 2 else "ethereum"
     depth = sys.argv[3] if len(sys.argv) > 3 else "standard"
 
-    logger.info(f"Cross-Chain Fund Trace: {address}")
-    logger.info(f"Chain: {chain} | Depth: {depth}")
+    logger.info("Cross-Chain Fund Trace: %s", address)
+    logger.info("Chain: %s | Depth: %s", chain, depth)
     logger.info("=" * 60)
 
     result = await trace_funds(address, chain, depth=depth)
 
-    logger.info(f"\nSummary: {result['summary']}")
-    logger.info(f"\nHops: {len(result['trace_path'])}")
-    logger.info(f"Chains: {result['chain_count']}")
-    logger.info(f"Bridges: {result['bridge_hops']}")
-    logger.info(f"Mixers: {result['mixer_hops']}")
-    logger.info(f"Suspicious Score: {result['suspicious_score']}")
-    logger.info(f"Confidence Score: {result['confidence_score']}")
-    logger.info(f"Source: {result['source_of_funds']}")
-    logger.info(f"Sink: {result['ultimate_sink']}")
-    logger.info(f"Analysis Time: {result['analysis_time_ms']}ms")
+    logger.info("\nSummary: %s", result['summary'])
+    logger.info("\nHops: %s", len(result['trace_path']))
+    logger.info("Chains: %s", result['chain_count'])
+    logger.info("Bridges: %s", result['bridge_hops'])
+    logger.info("Mixers: %s", result['mixer_hops'])
+    logger.info("Suspicious Score: %s", result['suspicious_score'])
+    logger.info("Confidence Score: %s", result['confidence_score'])
+    logger.info("Source: %s", result['source_of_funds'])
+    logger.info("Sink: %s", result['ultimate_sink'])
+    logger.info("Analysis Time: %sms", result['analysis_time_ms'])
 
     if result["warnings"]:
-        logger.info(f"\nWarnings ({len(result['warnings'])}):")
+        logger.info("\nWarnings (%s):", len(result['warnings']))
         for w in result["warnings"]:
-            logger.info(f"  ⚠ {w}")
+            logger.info("  ⚠ %s", w)
 
     if result["trace_path"]:
-        logger.info(f"\nTrace Path ({len(result['trace_path'])} hops):")
+        logger.info("\nTrace Path (%s hops):", len(result['trace_path']))
         for hop in result["trace_path"]:
             conf_icon = {"high": "🟢", "medium": "🟡", "low": "🟠", "guess": "🔴"}
             suspicious = " ⚠" if hop["is_suspicious"] else ""
@@ -665,7 +665,7 @@ async def main() -> None:
                 f"→ {hop['protocol'] or 'unknown'}{suspicious}"
             )
             if hop["tx_hash"]:
-                logger.info(f"     Tx: {hop['tx_hash'][:20]}...")
+                logger.info("     Tx: %s...", hop['tx_hash'][:20])
 
 
 if __name__ == "__main__":

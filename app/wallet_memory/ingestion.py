@@ -254,7 +254,7 @@ class WalletIngestionPipeline:
 
         # Check cooldown - don't re-fetch within 5 minutes
         if self._cooldown.is_cooled(addr, chain):
-            logger.debug(f"Ingestion cooldown active for {addr} on {chain}")
+            logger.debug("Ingestion cooldown active for %s on %s", addr, chain)
             return False
 
         # Determine chain family and fetch
@@ -264,11 +264,11 @@ class WalletIngestionPipeline:
             elif is_evm(chain):
                 txs = await self._fetch_evm_transactions(addr, chain)
             else:
-                logger.warning(f"Unsupported chain for ingestion: {chain}")
+                logger.warning("Unsupported chain for ingestion: %s", chain)
                 return False
 
             if not txs:
-                logger.info(f"No transactions fetched for {addr} on {chain}")
+                logger.info("No transactions fetched for %s on %s", addr, chain)
                 self._cooldown.mark_fetched(addr, chain)
                 return False
 
@@ -279,7 +279,7 @@ class WalletIngestionPipeline:
             if self.engine:
                 clustering_dicts = [t.to_clustering_dict() for t in normalized]
                 self.engine.feed_transactions(clustering_dicts, chain_id=chain)
-                logger.info(f"Fed {len(clustering_dicts)} txs into clustering for {addr}")
+                logger.info("Fed %s txs into clustering for %s", len(clustering_dicts), addr)
 
             # Store token transfers in ClickHouse
             await self._store_token_transfers(normalized)
@@ -296,8 +296,8 @@ class WalletIngestionPipeline:
             return True
 
         except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-            logger.warning(f"error: {e}")
-            logger.error(f"Ingestion failed for {addr} on {chain}: {e}")
+            logger.warning("error: %s", e)
+            logger.error("Ingestion failed for %s on %s: %s", addr, chain, e)
             # Still mark cooldown to avoid hammering on error
             self._cooldown.mark_fetched(addr, chain)
             return False
@@ -348,7 +348,7 @@ class WalletIngestionPipeline:
             try:
                 resp = await client.get(url, params=params)
                 if resp.status_code != 200:
-                    logger.warning(f"Helius API returned {resp.status_code} for {address}")
+                    logger.warning("Helius API returned %s for %s", resp.status_code, address)
                     break
 
                 data = resp.json()
@@ -365,11 +365,11 @@ class WalletIngestionPipeline:
                     break
 
             except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.warning(f"Helius fetch error (page {page}): {e}")
+                logger.warning("error: %s", e)
+                logger.warning("Helius fetch error (page %s): %s", page, e)
                 break
 
-        logger.info(f"Fetched {len(all_txs)} Solana txs from Helius for {address}")
+        logger.info("Fetched %s Solana txs from Helius for %s", len(all_txs), address)
         return all_txs
 
     # ── EVM: Etherscan-family API ──────────────────────────────────
@@ -378,12 +378,12 @@ class WalletIngestionPipeline:
         """Fetch transaction history from Etherscan-family API."""
         net = ETHERSCAN_NETWORKS.get(chain.lower())
         if not net:
-            logger.warning(f"No Etherscan network config for chain: {chain}")
+            logger.warning("No Etherscan network config for chain: %s", chain)
             return []
 
         api_key = net.get("key", "")
         if not api_key:
-            logger.warning(f"No Etherscan API key for {chain}")
+            logger.warning("No Etherscan API key for %s", chain)
             return []
 
         client = await self._get_http_client()
@@ -408,14 +408,14 @@ class WalletIngestionPipeline:
             try:
                 resp = await client.get(net["url"], params=params)
                 if resp.status_code != 200:
-                    logger.warning(f"Etherscan returned {resp.status_code} for {chain}")
+                    logger.warning("Etherscan returned %s for %s", resp.status_code, chain)
                     break
 
                 data = resp.json()
                 if data.get("status") != "1":
                     # "No transactions found" or rate limit
                     if page == 1:
-                        logger.debug(f"Etherscan: no txs for {address} on {chain}")
+                        logger.debug("Etherscan: no txs for %s on %s", address, chain)
                     break
 
                 result = data.get("result", [])
@@ -427,8 +427,8 @@ class WalletIngestionPipeline:
                     break
 
             except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.warning(f"Etherscan fetch error (page {page}, {chain}): {e}")
+                logger.warning("error: %s", e)
+                logger.warning("Etherscan fetch error (page %s, %s): %s", page, chain, e)
                 break
 
         # Fetch internal transactions (first page only - these are secondary)
@@ -456,8 +456,8 @@ class WalletIngestionPipeline:
                             itx["_internal"] = True
                         all_txs.extend(int_txs)
         except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-            logger.warning(f"error: {e}")
-            logger.debug(f"Etherscan internal tx fetch failed for {chain}: {e}")
+            logger.warning("error: %s", e)
+            logger.debug("Etherscan internal tx fetch failed for %s: %s", chain, e)
 
         # Fetch ERC-20 token transfers
         await self._etherscan_limiter.acquire()
@@ -483,10 +483,10 @@ class WalletIngestionPipeline:
                             ttx["_token_transfer"] = True
                         all_txs.extend(token_txs)
         except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-            logger.warning(f"error: {e}")
-            logger.debug(f"Etherscan token tx fetch failed for {chain}: {e}")
+            logger.warning("error: %s", e)
+            logger.debug("Etherscan token tx fetch failed for %s: %s", chain, e)
 
-        logger.info(f"Fetched {len(all_txs)} EVM txs from Etherscan for {address} on {chain}")
+        logger.info("Fetched %s EVM txs from Etherscan for %s on %s", len(all_txs), address, chain)
         return all_txs
 
     # ── Normalization ──────────────────────────────────────────────
@@ -646,8 +646,8 @@ class WalletIngestionPipeline:
                     )
 
             except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.debug(f"Failed to normalize Helius tx: {e}")
+                logger.warning("error: %s", e)
+                logger.debug("Failed to normalize Helius tx: %s", e)
                 continue
 
         return normalized
@@ -751,8 +751,8 @@ class WalletIngestionPipeline:
                             normalized[-1].is_contract_creation = True
 
             except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.debug(f"Failed to normalize Etherscan tx: {e}")
+                logger.warning("error: %s", e)
+                logger.debug("Failed to normalize Etherscan tx: %s", e)
                 continue
 
         return normalized
@@ -803,11 +803,11 @@ class WalletIngestionPipeline:
                     VALUES""",
                     rows,
                 )
-                logger.info(f"Stored {len(rows)} token transfers in ClickHouse")
+                logger.info("Stored %s token transfers in ClickHouse", len(rows))
 
         except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-            logger.warning(f"error: {e}")
-            logger.warning(f"Token transfer storage failed: {e}")
+            logger.warning("error: %s", e)
+            logger.warning("Token transfer storage failed: %s", e)
 
     # ── Storage: deployer events ────────────────────────────────────
 
@@ -820,7 +820,7 @@ class WalletIngestionPipeline:
             try:
                 token_addr = tx.counterparty or tx.token_address
                 if not token_addr:
-                    logger.debug(f"Skipping deployer event with no contract address: {tx.tx_hash}")
+                    logger.debug("Skipping deployer event with no contract address: %s", tx.tx_hash)
                     continue
 
                 await self.storage.save_deployer_event(
@@ -837,8 +837,8 @@ class WalletIngestionPipeline:
                 )
 
             except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.debug(f"Deployer event record failed: {e}")
+                logger.warning("error: %s", e)
+                logger.debug("Deployer event record failed: %s", e)
 
     # ── Cleanup ─────────────────────────────────────────────────────
 

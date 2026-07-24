@@ -54,12 +54,12 @@ async def _get_clickhouse() -> Any | None:
             send_receive_timeout=30,
         )
         _ch_client.execute("SELECT 1")
-        logger.info(f"ClickHouse connected: {ch_host}:{ch_port}/{ch_db}")
+        logger.info("ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
         _try_mark_healthy("clickhouse")
         return _ch_client
     except (ValueError, ConnectionError, RuntimeError) as e:
-        logger.warning(f"error: {e}")
-        logger.warning(f"ClickHouse unavailable, running Redis-only: {e}")
+        logger.warning("error: %s", e)
+        logger.warning("ClickHouse unavailable, running Redis-only: %s", e)
         _ch_client = None
         _try_mark_down("clickhouse")
         return None
@@ -109,11 +109,11 @@ async def _get_redis() -> aioredis.Redis | None:
             )
         _redis_client = aioredis.from_url(url, decode_responses=True)
         await _redis_client.ping()
-        logger.info(f"Redis connected for wallet memory: {url.split('@')[-1]}")
+        logger.info("Redis connected for wallet memory: %s", url.split('@')[-1])
         return _redis_client
     except (ValueError, ConnectionError, RuntimeError) as e:
-        logger.warning(f"error: {e}")
-        logger.warning(f"Redis unavailable for wallet memory: {e}")
+        logger.warning("error: %s", e)
+        logger.warning("Redis unavailable for wallet memory: %s", e)
         _redis_client = None
         return None
 
@@ -231,8 +231,8 @@ async def ensure_schema() -> bool:
         logger.info("ClickHouse schema ensured")
         return True
     except (ValueError, ConnectionError, RuntimeError) as e:
-        logger.warning(f"error: {e}")
-        logger.error(f"ClickHouse schema creation failed: {e}")
+        logger.warning("error: %s", e)
+        logger.error("ClickHouse schema creation failed: %s", e)
         return False
 
 
@@ -288,8 +288,8 @@ class WalletStorage:
                     profile = dict(zip(cols, rows[0], strict=False))
                 _try_mark_healthy("clickhouse")
             except (ValueError, ConnectionError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.debug(f"ClickHouse profile query failed: {e}")
+                logger.warning("error: %s", e)
+                logger.debug("ClickHouse profile query failed: %s", e)
                 _try_mark_down("clickhouse")
 
         # Cache the result (even None for negative caching, short TTL)
@@ -336,8 +336,8 @@ class WalletStorage:
                     ],
                 )
             except (ValueError, ConnectionError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.warning(f"ClickHouse profile save failed: {e}")
+                logger.warning("error: %s", e)
+                logger.warning("ClickHouse profile save failed: %s", e)
 
         # Update Redis cache
         if self._redis:
@@ -383,8 +383,8 @@ class WalletStorage:
                         "heuristic_type": rows[0][4],
                     }
             except (ValueError, ConnectionError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.debug(f"ClickHouse entity query failed: {e}")
+                logger.warning("error: %s", e)
+                logger.debug("ClickHouse entity query failed: %s", e)
                 _try_mark_down("clickhouse")
 
         if self._redis and result:
@@ -417,8 +417,8 @@ class WalletStorage:
                 for r in rows
             ]
         except (ValueError, ConnectionError, RuntimeError) as e:
-            logger.warning(f"error: {e}")
-            logger.debug(f"ClickHouse entity wallets query failed: {e}")
+            logger.warning("error: %s", e)
+            logger.debug("ClickHouse entity wallets query failed: %s", e)
             return []
 
     async def save_entity_link(
@@ -481,8 +481,8 @@ class WalletStorage:
                     logger.warning("error")
             return True
         except (ValueError, ConnectionError, RuntimeError) as e:
-            logger.warning(f"error: {e}")
-            logger.warning(f"Entity link save failed: {e}")
+            logger.warning("error: %s", e)
+            logger.warning("Entity link save failed: %s", e)
             return False
 
     # ── Scam addresses ───────────────────────────────────────────
@@ -518,8 +518,8 @@ class WalletStorage:
                         "evidence": rows[0][4],
                     }
             except (ValueError, ConnectionError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.debug(f"ClickHouse scam query failed: {e}")
+                logger.warning("error: %s", e)
+                logger.debug("ClickHouse scam query failed: %s", e)
 
         if self._redis:
             with contextlib.suppress(Exception):
@@ -556,8 +556,8 @@ class WalletStorage:
                     ],
                 )
             except (ValueError, ConnectionError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.warning(f"Scam address save failed: {e}")
+                logger.warning("error: %s", e)
+                logger.warning("Scam address save failed: %s", e)
 
         # Update Redis
         if self._redis:
@@ -616,8 +616,8 @@ class WalletStorage:
                 for r in rows
             ]
         except (ValueError, ConnectionError, RuntimeError) as e:
-            logger.warning(f"error: {e}")
-            logger.debug(f"ClickHouse deployer history query failed: {e}")
+            logger.warning("error: %s", e)
+            logger.debug("ClickHouse deployer history query failed: %s", e)
             return []
 
     async def save_deployer_event(
@@ -655,8 +655,8 @@ class WalletStorage:
                     ],
                 )
             except (ValueError, ConnectionError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.warning(f"Deployer event save failed: {e}")
+                logger.warning("error: %s", e)
+                logger.warning("Deployer event save failed: %s", e)
         return True
 
     # ── Bridge mappings ──────────────────────────────────────────
@@ -685,8 +685,8 @@ class WalletStorage:
                 for r in rows
             ]
         except (ValueError, ConnectionError, RuntimeError) as e:
-            logger.warning(f"error: {e}")
-            logger.debug(f"ClickHouse bridge query failed: {e}")
+            logger.warning("error: %s", e)
+            logger.debug("ClickHouse bridge query failed: %s", e)
             return []
 
     async def save_bridge_link(
@@ -721,8 +721,8 @@ class WalletStorage:
                     ],
                 )
             except (ValueError, ConnectionError, RuntimeError) as e:
-                logger.warning(f"error: {e}")
-                logger.warning(f"Bridge link save failed: {e}")
+                logger.warning("error: %s", e)
+                logger.warning("Bridge link save failed: %s", e)
         return True
 
     # ── Quick Redis-only lookups (backward compat) ────────────────

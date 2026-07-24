@@ -19,9 +19,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.core.errors import UpstreamError
+from app.core.rate_limiter import get_rate_limit_dependency
 from pydantic import BaseModel, Field
 
 from app.auth import require_auth
@@ -200,11 +201,16 @@ class IngestNewsRequest(BaseModel):
 @router.post("/rag/ingest-news")
 async def ingest_news_webhook(
     request: IngestNewsRequest,
+    _auth: dict[str, Any] = Depends(require_auth),
+    _rl: None = Depends(get_rate_limit_dependency("rag_ingest", rate=1.0, burst=5)),
 ) -> dict[str, Any]:
     """Webhook: ingest a scraped news article into the RAG ``news`` collection.
 
     Called automatically after Pryscraper scrapes a news article.
     The article is chunked, embedded, and stored for semantic search.
+
+    Auth: JWT or API key required.
+    Rate limit: 1 req/s burst 5 (token-bucket).
     """
     try:
         from app.rag.ingestion import ingest_news_article as _ingest_news
