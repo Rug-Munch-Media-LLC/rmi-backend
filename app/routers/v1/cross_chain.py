@@ -24,7 +24,7 @@ async def cross_chain_profile(address: str) -> None:
     )
 
 
-@router.post("/trace")
+@router.post("/trace", summary="Cross Chain Trace", description="Trace fund flows across multiple blockchains. Follows transactions through bridges, mixers, and CEX deposits. Returns complete flow visualization.")
 async def cross_chain_trace(addresses: list[str]) -> None:
     """Trace fund flows across chains."""
     raise ServiceUnavailableError(

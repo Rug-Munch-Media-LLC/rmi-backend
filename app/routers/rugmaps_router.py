@@ -1,10 +1,11 @@
 """
-from __future__ import annotations
 
 RugMaps API Router - RMI's interactive wallet visualization.
 Self-contained engine, no RugMaps - no external API dependency.
 Connects to /api/v1/rugmaps/*
 """
+
+from __future__ import annotations
 
 from fastapi import APIRouter, Query
 from app.core.errors import AppError, ServiceUnavailableError, ValidationError

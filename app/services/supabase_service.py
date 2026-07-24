@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """
-from __future__ import annotations
 
 RMI Supabase Service - Unified backend layer for all Supabase tables.
 Replaces scattered REST calls with a clean, typed service interface.
@@ -12,6 +11,8 @@ bypassing Row Level Security (RLS). The anon key would not suffice because:
   - Operations like upsert, delete, and bulk inserts require service_role
   - Direct SQL execution (exec_sql RPC) is restricted to service_role
 """
+
+from __future__ import annotations
 
 import os
 from datetime import UTC, datetime

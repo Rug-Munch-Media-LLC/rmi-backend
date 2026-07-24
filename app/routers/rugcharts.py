@@ -1,11 +1,12 @@
 """
-from __future__ import annotations
 
 RugCharts Backend Router
 ========================
 Real OHLCV candles via GeckoTerminal, volume authenticity, dev reputation,
 and comprehensive token intelligence for the RugCharts page.
 """
+
+from __future__ import annotations
 
 import datetime
 import json

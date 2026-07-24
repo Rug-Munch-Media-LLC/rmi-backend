@@ -103,7 +103,7 @@ async def risky_tokens(req: FindRiskyTokensRequest) -> dict:
 
 
 # ── Wallet endpoints ─────────────────────────────────────────────
-@router.get("/wallets/{chain}/{address}")
+@router.get("/wallets/{chain}/{address}", summary="Get Wallet", description="Look up a wallet by chain and address. Returns full wallet model with provenance, entity labels, and transaction history from the catalog store. Supports all 13+ tracked chains.")
 async def get_wallet(chain: str, address: str) -> dict:
     try:
         c = Chain(chain)

@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 MBAL query adapter for the federated label API.
 
@@ -10,6 +9,8 @@ Usage (called by federated.py):
 
 Pattern: async function that returns list[Label]
 """
+
+from __future__ import annotations
 
 from app.domains.labels.models import Label
 from app.domains.labels.sources.mbal_source import get_mbalsy_service

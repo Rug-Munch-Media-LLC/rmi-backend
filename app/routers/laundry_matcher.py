@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """#9 - Token Laundry Matcher. Finds copycat tokens by code similarity, deployer patterns,
-from __future__ import annotations
 
 liquidity profile, marketing tactics. Spots scams before they launch."""
+
+from __future__ import annotations
 
 import httpx
 from fastapi import APIRouter, Query

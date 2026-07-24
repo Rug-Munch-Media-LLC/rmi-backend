@@ -1,11 +1,12 @@
 """
-from __future__ import annotations
 
 Liquidity Lock Authenticity
 ============================
 Not just "is it locked?" but meaningful analysis of the lock.
 Duration vs project claims, partial unlocks, LP ratio health.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

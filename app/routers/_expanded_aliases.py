@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 Expanded tool aliases - maps 44 new specialized tools + 80 per-chain variants
 to their closest real handler endpoint.
@@ -8,6 +7,8 @@ Per-chain variants (e.g., wallet_solana) are handled by the dispatcher
 automatically via the base_tool field in TOOL_PRICES.
 This file only maps the 44 brand-new tool names.
 """
+
+from __future__ import annotations
 
 EXPANDED_ALIASES = {
     # Security → real SENTINEL Tier 2/3 endpoints where available

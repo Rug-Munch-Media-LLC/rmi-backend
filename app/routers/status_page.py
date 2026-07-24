@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 RMI Public Status Page
 =======================
@@ -26,6 +25,8 @@ Endpoints:
 Author: RMI Development
 Date: 2026-06-05
 """
+
+from __future__ import annotations
 
 import json
 import os

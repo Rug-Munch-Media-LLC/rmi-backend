@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 Prediction Market Intelligence Signals
 ========================================
@@ -23,6 +22,8 @@ Each signal has:
 
 This is the "people actually want to know" layer.
 """
+
+from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field

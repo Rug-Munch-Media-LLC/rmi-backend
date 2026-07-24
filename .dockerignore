@@ -8,23 +8,80 @@
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
 .venv/
 venv/
 .env
+.env.production*
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
 
 # Data files (volume mounted at runtime)
 data/
 data/faiss/
 data/models/
+data/backups/
 
 # Git
 .git/
+.gitattributes
 .gitignore
+.gitmessage
+.gitsigners
+.gitmodules
 
-# IDE
+# CI/CD + Quality
+.github/
+.gitlab/
+.forgejo/
+.coverage
+.bandit
+.gitleaks*
+.trivyignore
+.semgrep/
+sonar-project.properties
+
+# Docs + design (not needed at runtime)
+docs/
+bruno/
+plans/
+DESIGN.md
+ARCHITECTURE.md
+PRICING_*.md
+PRODUCT.md
+*.md
+README*
+
+# IDE / Editor configs
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Tests
+# Tests (not in production image)
 tests/
 *.test.py
+
+# SDKs (separate projects)
+sdks/
+
+# Legacy / archive / unused
+app/_archive/
+app/legacy/
+data/legacy/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Host-specific configs
+.mise.toml
+commitlint.config.js
+renovate.json
+pyrightconfig.json
+
+# Secrets / Audit artifacts
+.secretsallow

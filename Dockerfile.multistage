@@ -64,10 +64,17 @@ COPY --chown=rmi:rmi . .
 
 USER rmi
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/live || exit 1
 
 EXPOSE 8000
 
 ENTRYPOINT ["/tini", "--"]
 CMD ["gunicorn", "main:app", "-k", "uvicorn.workers.UvicornWorker", "-w", "4", "--bind", "0.0.0.0:8000", "--timeout", "120", "--keep-alive", "5", "--worker-tmp-dir", "/dev/shm"]
+
+# Security hardening (applied at runtime):
+#   --read-only                    Makes rootfs read-only
+#   --cap-drop=ALL                 Drops all Linux capabilities
+#   --security-opt=no-new-privileges
+#   --tmpfs /tmp                   Writable tmpfs for runtime
+#   --tmpfs /dev/shm               Writable tmpfs for gunicorn

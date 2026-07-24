@@ -138,13 +138,26 @@ RATE_LIMIT_SALT_SECRET = os.getenv("RATE_LIMIT_SALT", "")
 
 
 def _get_daily_salt() -> bytes:
-    """Derive a daily-rotating salt from server secret + today's UTC date."""
+    """Derive a daily-rotating salt from server secret + today's UTC date.
+    
+    In production, RATE_LIMIT_SALT_SECRET MUST be set via RATE_LIMIT_SALT env var.
+    If unset, falls back to a hash of the JWT_SECRET to avoid a hardcoded dev string.
+    """
     date_str = _time.strftime("%Y-%m-%d")
-    secret = (
-        RATE_LIMIT_SALT_SECRET.encode()
-        if RATE_LIMIT_SALT_SECRET
-        else b"dev-only-rmi-salt-replace-in-prod"
-    )
+    secret = RATE_LIMIT_SALT_SECRET.encode() if RATE_LIMIT_SALT_SECRET else None
+    if not secret:
+        # Fall back to JWT_SECRET as a unique-per-instance salt
+        try:
+            from app.config import settings
+            jwt_part = (settings.jwt_secret or "").encode()
+            if len(jwt_part) >= 16:
+                secret = jwt_part
+        except Exception:
+            pass
+    if not secret:
+        # Absolute last resort — instance-unique, not a hardcoded string
+        import socket
+        secret = socket.gethostname().encode() + b"rmi-rate-salt"
     return hmac.new(secret, date_str.encode(), hashlib.sha256).digest()
 
 

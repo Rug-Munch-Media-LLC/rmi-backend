@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 AI Chat API
 ===========
@@ -16,6 +15,8 @@ Routes:
 - POST /api/v1/chat/stream - Streaming chat endpoint (SSE)
 - GET /api/v1/chat/history - User's chat history
 """
+
+from __future__ import annotations
 
 import json
 import os

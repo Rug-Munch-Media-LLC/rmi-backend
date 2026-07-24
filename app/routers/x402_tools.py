@@ -1,6 +1,5 @@
 """x402_tools.py — DEPRECATED shim. Re-exports from app.billing.x402.
 
-from __future__ import annotations
 
 Phase 3A of AUDIT-2026-Q3.md split this 5,780-LOC god-file into focused modules
 under app/billing/x402/. This file is kept as a thin re-export shim so any
@@ -26,6 +25,8 @@ Pre-existing issues surfaced (not introduced) by this refactor:
     P3A now exposes a logging stub here so the missing-import fix has a clear
     home. Track: fix(f821).
 """
+
+from __future__ import annotations
 
 from app.billing.x402.router import router
 from app.billing.x402.shared import (

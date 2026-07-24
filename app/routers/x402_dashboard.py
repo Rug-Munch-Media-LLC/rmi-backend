@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 RMI x402 Analytics Dashboard Endpoint
 =======================================
@@ -13,6 +12,8 @@ GET /api/v1/x402/dashboard - Public analytics endpoint returning:
 Author: RMI Development
 Date: 2026-05-20
 """
+
+from __future__ import annotations
 
 import asyncio
 import contextlib

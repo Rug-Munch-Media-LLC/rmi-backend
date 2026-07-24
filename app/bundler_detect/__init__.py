@@ -1,0 +1,42 @@
+"""
+Supply Manipulation / Bundler Detector
+=======================================
+Detects bundled token launches where insiders control disproportionate
+supply through sniper-controlled wallet distributions.
+
+Usage:
+    from app.bundler_detect import BundlerDetector, BundlerReport
+    from app.bundler_detect import label_risk, gini_coefficient
+"""
+
+from app.bundler_detect.detector import BundlerDetector
+from app.bundler_detect.models import (
+    BUNDLER_SCORE_WEIGHTS,
+    BundledBuy,
+    BundlerReport,
+    BundlerRisk,
+    EVM_CHAINS,
+    HolderCluster,
+    SUPPORTED_CHAINS,
+)
+from app.bundler_detect.scoring import (
+    entropy,
+    gini_coefficient,
+    label_risk,
+    time_cluster_similarity,
+)
+
+__all__ = [
+    "BUNDLER_SCORE_WEIGHTS",
+    "BundledBuy",
+    "BundlerDetector",
+    "BundlerReport",
+    "BundlerRisk",
+    "EVM_CHAINS",
+    "HolderCluster",
+    "SUPPORTED_CHAINS",
+    "entropy",
+    "gini_coefficient",
+    "label_risk",
+    "time_cluster_similarity",
+]

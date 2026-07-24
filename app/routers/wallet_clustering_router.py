@@ -1,9 +1,10 @@
 """
-from __future__ import annotations
 
 Wallet Clustering API Router - Cluster detection, funding paths, risk analysis.
 Connects to /api/v1/wallet-clusters/*
 """
+
+from __future__ import annotations
 
 import datetime
 from datetime import UTC

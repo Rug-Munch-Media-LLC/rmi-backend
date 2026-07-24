@@ -1,11 +1,12 @@
 """
-from __future__ import annotations
 
 Slow Rug Detector
 ==================
 Detect gradual LP removal, fee increases, slow ownership transfers.
 Track liquidity drain velocity over time.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 RMI Prediction Market Router
 ==============================
@@ -20,6 +19,8 @@ x402 Tool Registration:
 Caching: Redis-backed, 30s-1hr TTL by endpoint.
 Rate limiting: Inherited from app-wide slowapi configuration.
 """
+
+from __future__ import annotations
 
 from fastapi import APIRouter, Query
 

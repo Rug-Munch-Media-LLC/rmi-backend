@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 RMI Facilitator Health Monitor
 ===============================
@@ -15,6 +14,8 @@ around degraded/dead facilitators.
 Author: RMI Development
 Date: 2026-06-05
 """
+
+from __future__ import annotations
 
 from datetime import UTC, datetime
 

@@ -1,11 +1,12 @@
 """
-from __future__ import annotations
 
 Ownership Theater Detector
 ===========================
 Detect fake renunciation: hidden admin roles, upgradeable proxies,
 secondary controlled addresses, remaining privileges.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

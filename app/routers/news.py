@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 News Router - THE Crypto News Aggregator Feed
 =============================================
@@ -14,6 +13,8 @@ Endpoints:
   POST /api/v1/news/comment   - Comment on article (social)
   GET /api/v1/news/comments/:article_id - Get comments for article
 """
+
+from __future__ import annotations
 
 import asyncio
 import hashlib

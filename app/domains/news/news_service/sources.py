@@ -1,10 +1,11 @@
 """
-from __future__ import annotations
 
 News Service — Static Config & Data Sources
 ==============================================
 RSS feeds (170+), Reddit subreddits, sentiment keywords, category keywords.
 """
+from __future__ import annotations
+
 import os
 import random
 

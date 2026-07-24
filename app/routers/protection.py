@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """
-from __future__ import annotations
 
 Protection Suite API Endpoints
 Provides safety checking for URLs, wallets, and tokens.
@@ -8,6 +7,8 @@ Provides safety checking for URLs, wallets, and tokens.
 Dependency injection: all external clients are injected via FastAPI's
 ``Depends()`` so they can be mocked in tests.
 """
+
+from __future__ import annotations
 
 import asyncio
 import json

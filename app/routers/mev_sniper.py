@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """#1 - MEV Sniper Dashboard. Real-time new pair signals + SENTINEL risk scoring.
-from __future__ import annotations
 
 Surfaces snipeable launches across all chains with safety filtering."""
+
+from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta

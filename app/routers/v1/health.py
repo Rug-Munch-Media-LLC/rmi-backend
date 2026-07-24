@@ -35,19 +35,19 @@ router = APIRouter(prefix="/health", tags=["health-v1"])
 # ──────────────────────────────────────────────────────────────────────
 
 
-@router.get("/live")
+@router.get("/live", summary="Liveness Check", description="Kubernetes-style liveness probe (redirect to /live). Returns 307 redirect. Use root /live for the actual check.")
 async def live_v1() -> Any:
     """Liveness check (redirect to root /live)."""
     return RedirectResponse(url="/live", status_code=307)
 
 
-@router.get("/ready")
+@router.get("/ready", summary="Readiness Check", description="Kubernetes-style readiness probe (redirect to /ready). Returns 307 redirect. Use root /ready for the actual check.")
 async def ready_v1() -> Any:
     """Readiness check (redirect to root /ready)."""
     return RedirectResponse(url="/ready", status_code=307)
 
 
-@router.get("")
+@router.get("", summary="Full Health Check", description="Full health check (redirect to root /health). Returns 307 redirect. Use root /health for the comprehensive probe.")
 async def health_v1() -> Any:
     """Full health check (redirect to root /health)."""
     return RedirectResponse(url="/health", status_code=307)
@@ -173,7 +173,7 @@ def _compute_overall_status(
     return "healthy"
 
 
-@router.get("/unified")
+@router.get("/unified", summary="Unified Health Dashboard", description="Aggregated health dashboard combining service health (Redis, PostgreSQL, Neo4j, Qdrant, ClickHouse, MinIO), provider status (30+ connector circuit breakers), degradation registry, and config validation. Cached for 15 seconds.")
 async def health_unified() -> dict[str, Any]:
     """Aggregated health dashboard combining all service health, provider status,
     degradation info, and config validation.

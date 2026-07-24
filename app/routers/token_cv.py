@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """#5 - On-Chain CV for Tokens. One-page report: age, holders, liquidity, contract risks,
-from __future__ import annotations
 
 social signals, price history. Shareable permalink."""
+
+from __future__ import annotations
 
 from typing import Any
 

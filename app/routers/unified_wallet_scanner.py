@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 RMI Wallet Scanner v3 - AI-Powered, World-Class
 ================================================
@@ -18,6 +17,8 @@ RMI Wallet Scanner v3 - AI-Powered, World-Class
 
 All powered by DataBus + Ollama Cloud + RAG.
 """
+
+from __future__ import annotations
 
 import asyncio
 import json

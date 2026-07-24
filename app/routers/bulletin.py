@@ -238,7 +238,7 @@ async def create_comment(
         }
 
 
-@router.get("/posts/{post_id}/comments")
+@router.get("/posts/{post_id}/comments", summary="Get Comments", description="Retrieve all comments for a bulletin board post. Returns comment text, author, timestamp, and vote count. Sorted by creation date ascending.")
 async def get_comments(post_id: int) -> dict | dict[str, list]:
     """Get comments for a bulletin post."""
     try:
@@ -322,7 +322,7 @@ async def register_bot(bot: BotRegistrationIn) -> dict:
     }
 
 
-@router.get("/bots")
+@router.get("/bots", summary="List Bots", description="List all registered bulletin board bots with their status, fee payment status, and posting statistics. Optionally filter by status.")
 async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict:
     """List all registered bots."""
     params: dict = {
@@ -336,7 +336,7 @@ async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict:
     return {"bots": result, "total": len(result)}
 
 
-@router.get("/bots/{bot_id}/fee-status")
+@router.get("/bots/{bot_id}/fee-status", summary="Bot Fee Status", description="Check a specific bot's fee payment status including amount due, last payment date, and next billing date.")
 async def bot_fee_status(bot_id: str) -> dict:
     """Check a bot's fee payment status."""
     reg = _sb_get("bot_registrations", {"bot_user_id": f"eq.{bot_id}", "limit": "1"})
@@ -356,7 +356,7 @@ async def bot_fee_status(bot_id: str) -> dict:
     }
 
 
-@router.post("/bots/{bot_id}/pay-fee")
+@router.post("/bots/{bot_id}/pay-fee", summary="Pay Bot Fee", description="Record a bot fee payment. Accepts payment transaction hash and amount. Updates the bot's fee status and extends service period.")
 async def pay_bot_fee(
     bot_id: str, amount: float, tx_hash: str | None = None, currency: str = "usdc"
 ) -> dict:
@@ -446,7 +446,7 @@ class ModerationActionIn(BaseModel):
     reason: str | None = None
 
 
-@router.post("/reports")
+@router.post("/reports", summary="Create Report", description="Submit a report on a bulletin board post for moderation review. Include reason, evidence links, and category.")
 async def create_report(report: ReportIn) -> Any:
     """Submit a report on a post."""
     result = _sb_post(
@@ -465,7 +465,7 @@ async def create_report(report: ReportIn) -> Any:
     return result[0]
 
 
-@router.get("/reports")
+@router.get("/reports", summary="List Reports", description="List submitted reports (admin view). Optionally filter by status (pending/reviewed/dismissed) and limit results.")
 async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
     """List reports (admin view)."""
     params: dict = {"order": "created_at.desc", "limit": str(limit)}
@@ -475,7 +475,7 @@ async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, l
     return {"reports": result, "total": len(result)}
 
 
-@router.post("/moderate")
+@router.post("/moderate", summary="Moderate", description="Take a moderation action on a post or comment. Supports warnings, content removal, and user restrictions.")
 async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
     """Take a moderation action."""
     # Log the action
@@ -521,7 +521,7 @@ async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
     }
 
 
-@router.get("/moderation/log")
+@router.get("/moderation/log", summary="Moderation Log", description="View the moderation action history log. Returns timestamp, moderator, action type, and target.")
 async def moderation_log(limit: int = Query(50)) -> dict:
     """View moderation log."""
     result = _sb_get("bulletin_moderation_log", {"order": "created_at.desc", "limit": str(limit)})
@@ -640,7 +640,7 @@ async def community_stats() -> dict:
 # ── Health ──────────────────────────────────────────────────
 
 
-@router.get("/health")
+@router.get("/health", summary="Bulletin Health", description="Bulletin board service health check. Verifies Supabase connectivity and returns status for the bulletin system.")
 async def health() -> Any:
     from app.services.supabase_service import check_health
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """#14 - Honeypot Network Map. Maps all known honeypot contracts, clusters by deployer,
-from __future__ import annotations
 
 fund flows. Interactive graph showing the honeypot factory network."""
+
+from __future__ import annotations
 
 import httpx
 from fastapi import APIRouter, Query
