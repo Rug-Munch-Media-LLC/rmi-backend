@@ -286,6 +286,32 @@ class Settings(BaseSettings):
         description="Enable LlamaIndex-based RAG pipeline. Set LLAMA_RAG_ENABLED env var.",
     )
 
+
+    # ── Embedder ────────────────────────────────────────────────────────
+    bge_m3_url: str = Field(
+        default="http://localhost:8001",
+        description="BGE-M3 embedding service URL (Docker container). Set BGE_M3_URL env var.",
+    )
+    embedder_primary: str = Field(
+        default="bge-m3",
+        description="Primary embedding backend: bge-m3 | ollama | openrouter. Set EMBEDDER_PRIMARY.",
+    )
+    embedder_fallback: str = Field(
+        default="nomic-embed-text",
+        description=(
+            "Fallback model name for Ollama when primary backend fails. "
+            "Set EMBEDDER_FALLBACK. Examples: nomic-embed-text, qwen3-embed:4b"
+        ),
+    )
+    embedder_cache_ttl: int = Field(
+        default=86400,
+        description="TTL (seconds) for cached embedding vectors. Default 24h. Set EMBEDDER_CACHE_TTL.",
+    )
+    embedder_cache_maxsize: int = Field(
+        default=10000,
+        description="Max entries in the in-memory embedding cache. Set EMBEDDER_CACHE_MAXSIZE.",
+    )
+
     # ── Validators ──────────────────────────────────────────────────────
 
     @field_validator("cors_origins")
@@ -328,3 +354,4 @@ def get_settings() -> Settings:
 
 # Module-level singleton for convenience.
 settings = get_settings()
+

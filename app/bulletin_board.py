@@ -902,3 +902,46 @@ async def verify_x402_bot(tx_hash: str, bot_addr: str) -> bool:
         return True
     except (ConnectionError, OSError, TimeoutError):
         return False
+
+
+# ── RAG ingestion hook ───────────────────────────────────────────────
+
+
+async def ingest_post_to_rag(post: Post) -> dict:
+    """Ingest a published bulletin board post into the RAG ``research`` collection.
+
+    Call this after a post transitions to ``published`` status to make it
+    searchable via the RAG system.
+
+    Args:
+        post: The published Post object.
+
+    Returns:
+        Ingestion report dict with status and chunk count.
+    """
+    try:
+        from app.rag.ingestion import ingest_research_post as _ingest_research
+
+        report = await _ingest_research(
+            post_id=post.post_id,
+            title=post.title,
+            content=post.content,
+            category=post.category,
+            tags=post.tags,
+            author=post.author_name,
+        )
+        logger.info(
+            "bulletin_rag_ingested",
+            post_id=post.post_id,
+            title=post.title[:60],
+            status=report.status,
+            chunks=report.chunks_total,
+        )
+        return {
+            "success": report.status in ("completed", "partial"),
+            "status": report.status,
+            "chunks": report.chunks_total,
+        }
+    except Exception as exc:
+        logger.warning("bulletin_rag_ingest_failed", post_id=post.post_id, error=str(exc))
+        return {"success": False, "status": "failed", "error": str(exc)[:300]}

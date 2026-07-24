@@ -22,6 +22,26 @@ from app.cluster_detection.engine import (
     get_cluster_detection_pro,
     get_cluster_detector,
 )
+from app.cluster_detection.scoring import (
+    SIGNAL_WEIGHTS,
+    calculate_behavioral_similarity,
+    calculate_cluster_confidence,
+    calculate_risk_score,
+    classify_cluster_type,
+    distribution,
+    merge_clusters_by_overlap,
+)
+from app.cluster_detection.detectors import (
+    detect_behavioral_clusters,
+    detect_counterparty_clusters,
+    detect_funding_clusters,
+    detect_temporal_clusters,
+)
+from app.cluster_detection.detectors_advanced import (
+    detect_ml_clusters,
+    detect_pattern_clusters,
+    detect_sleeper_clusters,
+)
 
 __all__ = [
     "ClusterConfidence",
@@ -29,7 +49,21 @@ __all__ = [
     "ClusterSignal",
     "ClusterType",
     "FundingPath",
+    "SIGNAL_WEIGHTS",
     "WalletCluster",
+    "calculate_behavioral_similarity",
+    "calculate_cluster_confidence",
+    "calculate_risk_score",
+    "classify_cluster_type",
+    "detect_behavioral_clusters",
+    "detect_counterparty_clusters",
+    "detect_funding_clusters",
+    "detect_ml_clusters",
+    "detect_pattern_clusters",
+    "detect_sleeper_clusters",
+    "detect_temporal_clusters",
+    "distribution",
     "get_cluster_detection_pro",
     "get_cluster_detector",
+    "merge_clusters_by_overlap",
 ]

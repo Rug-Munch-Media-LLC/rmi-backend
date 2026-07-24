@@ -125,7 +125,7 @@ async def _validate_token_exists(
                 if code and code != "0x":
                     return True
             except Exception:
-                pass
+                logger.debug("evm_code_check_failed %s", addr[:12])
             return True  # Accept on format if client unavailable
     except Exception as exc:
         logger.debug("token_validation_probe_failed %s: %s", addr[:12], exc)

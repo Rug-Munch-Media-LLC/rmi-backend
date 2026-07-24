@@ -139,6 +139,7 @@ class RugImminencePredictor:
             try:
                 dex_data = await self._fetch_dexscreener_pool(result.token_address, result.chain)
             except Exception:
+                logger.debug("dexscreener_pool_fetch_failed %s", result.token_address[:12])
                 result.sources_failed.append("dexscreener")
             if dex_data and dex_data.get("pairs"):
                 pair = dex_data["pairs"][0]
@@ -212,6 +213,7 @@ class RugImminencePredictor:
                         sig.flags.append("unknown_lock_status")
                         sig.evidence.append("LP lock status unknown - assume unlocked")
                 except Exception:
+                    logger.debug("lp_lock_check_failed %s", result.token_address[:12])
                     sig.score += 5
                     result.sources_failed.append("lp_lock_check")
             else:
@@ -344,6 +346,7 @@ class RugImminencePredictor:
                             f"Top 10 holders own {holder_data['top10_pct']:.0f}% of supply"
                         )
             except Exception:
+                logger.debug("holder_data_fetch_failed %s", result.token_address[:12])
                 result.sources_failed.append("holder_data")
             sig.confidence = min(0.8, 0.3 + (sig.score / 50))
         except Exception as e:
@@ -727,6 +730,7 @@ class RugImminencePredictor:
                                 }
             return None
         except Exception:
+            logger.debug("wallet_age_check_failed")
             return None
 
     async def _check_deployer_history(self, deployer: str, chain: str) -> dict:

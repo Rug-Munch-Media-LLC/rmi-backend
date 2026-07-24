@@ -41,7 +41,8 @@ class PredictionMarketService:
             try:
                 cached = await redis.get(cache_key)
                 if cached: return [_dict_to_market(d) for d in json.loads(cached)]
-            except Exception: pass
+            except Exception:
+                logger.debug("search_cache_read_failed")
         results: list[list[PredictionMarket]] = await asyncio.gather(self._search_polymarket(query), self._search_kalshi(query), self._search_limitless(query), self._search_manifold(query), return_exceptions=True)
         all_markets: list[PredictionMarket] = []
         sources = ["polymarket", "kalshi", "limitless", "manifold"]
@@ -68,7 +69,8 @@ class PredictionMarketService:
             try:
                 cached = await redis.get(cache_key)
                 if cached: return _dict_to_digest(json.loads(cached))
-            except Exception: pass
+            except Exception:
+                logger.debug("digest_cache_read_failed")
         security_queries = ["crypto hack exploit scam", "defi rug pull fraud", "exchange insolvent breach", "stablecoin depeg collapse", "crypto regulation SEC enforcement", "blockchain vulnerability zero-day"]
         all_markets: list[PredictionMarket] = []
         searches = [self.search(q, security_only=False) for q in security_queries]
@@ -161,7 +163,8 @@ class PredictionMarketService:
                     try:
                         price_resp = await self._http.get(f"{POLYMARKET_CLOB}/price", params={"token_id": tokens[0], "side": "buy"}, timeout=5.0)
                         if price_resp.status_code == 200: pm.probability_yes = float(price_resp.json().get("price", pm.probability_yes))
-                    except Exception: pass
+                    except Exception:
+                        logger.debug("polymarket_price_fetch_failed %s", slug)
             return pm
         except Exception as e: logger.warning(f"Polymarket detail error for {slug}: {e}"); return None
 
@@ -181,7 +184,9 @@ class PredictionMarketService:
                         for m in mr.json().get("markets", []):
                             pm = self._parse_kalshi_market(m)
                             if pm: results.append(pm)
-                except Exception: continue
+                except Exception:
+                    logger.debug("kalshi_market_fetch_failed %s", event_ticker)
+                    continue
             return results
         except Exception as e: logger.warning(f"Kalshi search error: {e}"); return []
 
@@ -207,7 +212,9 @@ class PredictionMarketService:
                         for m in mr.json().get("markets", []):
                             pm = self._parse_kalshi_market(m)
                             if pm: results.append(pm)
-                except Exception: continue
+                except Exception:
+                    logger.debug("kalshi_trending_market_failed %s", event_ticker)
+                    continue
             return results[:limit]
         except Exception as e: logger.warning(f"Kalshi trending error: {e}"); return []
 

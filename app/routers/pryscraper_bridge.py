@@ -181,3 +181,61 @@ async def pryscraper_stats(
         return client.get_stats()
     except Exception as exc:
         return {"status": "error", "error": str(exc)[:200]}
+
+# ── RAG ingestion integration ──────────────────────────────────────────────
+
+
+class IngestNewsRequest(BaseModel):
+    """Request body for POST /api/v1/rag/ingest-news."""
+
+    title: str = Field(..., min_length=1, max_length=1024, description="Article title")
+    body: str = Field(..., min_length=1, description="Article body / content")
+    source_url: str = Field(..., description="Original article URL")
+    source_name: str = Field("", description="Source publication name")
+    published_at: str = Field("", description="ISO-8601 publish timestamp")
+    categories: list[str] = Field(default_factory=list, description="Topic categories")
+    sentiment: float = Field(0.0, ge=-1.0, le=1.0, description="Sentiment score -1..1")
+
+
+@router.post("/rag/ingest-news")
+async def ingest_news_webhook(
+    request: IngestNewsRequest,
+) -> dict[str, Any]:
+    """Webhook: ingest a scraped news article into the RAG ``news`` collection.
+
+    Called automatically after Pryscraper scrapes a news article.
+    The article is chunked, embedded, and stored for semantic search.
+    """
+    try:
+        from app.rag.ingestion import ingest_news_article as _ingest_news
+
+        report = await _ingest_news(
+            title=request.title,
+            body=request.body,
+            source_url=request.source_url,
+            source_name=request.source_name,
+            published_at=request.published_at,
+            categories=request.categories,
+            sentiment=request.sentiment,
+        )
+        logger.info(
+            "news_ingested",
+            title=request.title[:60],
+            status=report.status,
+            chunks=report.chunks_total,
+        )
+        return {
+            "success": True,
+            "status": report.status,
+            "doc_id": f"news:{request.title[:12]}",
+            "chunks": report.chunks_total,
+            "accepted": report.accepted,
+            "rejected": report.rejected,
+        }
+    except Exception as exc:
+        logger.error("news_ingest_failed", title=request.title[:60], exc_info=exc)
+        return {
+            "success": False,
+            "status": "failed",
+            "error": str(exc)[:500],
+        }
