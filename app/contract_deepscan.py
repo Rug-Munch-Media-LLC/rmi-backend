@@ -199,7 +199,7 @@ class SlitherScanner:
                     source = json.loads(source[1:-1])["SourceCode"]
                 return source
         except Exception as e:
-            logger.error(f"Error fetching source: {e}")
+            logger.error("Error fetching source: %s", e)
 
         return None
 

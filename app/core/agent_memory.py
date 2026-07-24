@@ -17,14 +17,14 @@ router = APIRouter(prefix="/api/v1/memory", tags=["agent-memory"])
 async def _run_query(query: str, params: dict | None = None) -> list:
     """Run a Cypher query against Memgraph."""
     try:
-        r = httpx.post(
-            "http://localhost:7444/db/memgraph/query",
-            json={"query": query, "parameters": params or {}},
-            headers={"Content-Type": "application/json"},
-            timeout=10,
-        )
-        if r.status_code == 200:
-            return r.json().get("data", [])
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                "http://localhost:7444/db/memgraph/query",
+                json={"query": query, "parameters": params or {}},
+                headers={"Content-Type": "application/json"},
+            )
+            if r.status_code == 200:
+                return r.json().get("data", [])
     except (httpx.HTTPError):
         pass
     return []

@@ -133,7 +133,7 @@ class UnifiedProvider:
                         )
             return holders
         except (ConnectionError, TimeoutError, OSError) as e:
-            logger.debug(f"Helius holders failed: {e}")
+            logger.debug("Helius holders failed: %s", e)
             return []
 
     async def _birdeye_holders(self, mint: str, limit: int) -> list[dict]:
@@ -149,7 +149,7 @@ class UnifiedProvider:
                 for i in items
             ]
         except (ConnectionError, TimeoutError, OSError) as e:
-            logger.debug(f"Birdeye holders failed: {e}")
+            logger.debug("Birdeye holders failed: %s", e)
             return []
 
     async def _solscan_holders(self, mint: str, limit: int) -> list[dict]:
@@ -172,7 +172,7 @@ class UnifiedProvider:
                 ]
             return []
         except (ConnectionError, TimeoutError, OSError) as e:
-            logger.debug(f"Solscan holders failed: {e}")
+            logger.debug("Solscan holders failed: %s", e)
             return []
 
     async def _dexscreener_holders(self, mint: str, limit: int) -> list[dict]:
@@ -192,7 +192,7 @@ class UnifiedProvider:
                             }
                         ]
         except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
-            logger.debug(f"DexScreener holders failed: {e}")
+            logger.debug("DexScreener holders failed: %s", e)
         return []
 
     # ── Solana: Wallet Transactions ────────────────────────
@@ -239,7 +239,7 @@ class UnifiedProvider:
                 else []
             )
         except (ConnectionError, TimeoutError, OSError) as e:
-            logger.debug(f"Helius txs failed: {e}")
+            logger.debug("Helius txs failed: %s", e)
             return []
 
     async def _solscan_txs(self, wallet: str, limit: int) -> list[dict]:
@@ -258,7 +258,7 @@ class UnifiedProvider:
                 ]
             return []
         except (ConnectionError, TimeoutError, OSError) as e:
-            logger.debug(f"Solscan txs failed: {e}")
+            logger.debug("Solscan txs failed: %s", e)
             return []
 
     # ── Token Price ────────────────────────────────────────

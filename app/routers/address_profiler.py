@@ -41,6 +41,8 @@ class AddressProfile(BaseModel):
     total_value_usd: float = 0
     risk_score: int = 50
     risk_factors: list[str] = []
+    rag_context: dict | None = None
+    entity_hints: list[str] = []
 
 
 async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict:
@@ -104,6 +106,56 @@ async def get_address_profile(address: str, chains: str = Query(None)) -> Any:
     if len(chains_active) > 5:
         risk -= 10  # diverse activity = less risky
 
+    # ── RAG enrichment ──
+    rag_ctx = None
+    entity_hints = []
+    try:
+        from app.rag.intelligence import RAGIntelligenceEnricher
+
+        enricher = RAGIntelligenceEnricher()
+        wallet_hits = await enricher.get_wallet_context(
+            wallet_address=address,
+            chain=",".join(chain_list),
+        )
+        if wallet_hits:
+            rag_ctx = {
+                "hits": [
+                    {
+                        "content": h.content[:300],
+                        "score": round(h.final_score or h.score, 4),
+                        "collection": h.collection,
+                        "doc_id": h.doc_id,
+                    }
+                    for h in wallet_hits[:5]
+                ],
+                "total": len(wallet_hits),
+            }
+            # Extract entity resolution hints from RAG hits
+            for h in wallet_hits:
+                meta = h.metadata or {}
+                entities = meta.get("entities", [])
+                if isinstance(entities, list):
+                    entity_hints.extend(e for e in entities if e not in entity_hints)
+                labels_from_meta = meta.get("labels", [])
+                if isinstance(labels_from_meta, list):
+                    entity_hints.extend(
+                        f"label:{l}" for l in labels_from_meta
+                        if f"label:{l}" not in entity_hints
+                    )
+            # Boost risk if RAG has scam flags for this wallet
+            if entity_hints:
+                for hint in entity_hints:
+                    if any(w in hint.lower() for w in ["scam", "phish", "hack", "drain", "sanction"]):
+                        risk = max(risk, 70)
+                        factor = f"RAG entity hint: {hint}"
+                        if factor not in risk_factors:
+                            risk_factors.append(factor)
+    except ImportError:
+        pass
+    except Exception as exc:
+        from app.core.logging import get_logger
+        get_logger(__name__).warning("rag_wallet_context_failed", error=str(exc)[:100])
+
     profile = {
         "address": address,
         "labels": labels,
@@ -112,5 +164,7 @@ async def get_address_profile(address: str, chains: str = Query(None)) -> Any:
         "total_value_usd": round(total_value, 2),
         "risk_score": min(100, max(0, risk)),
         "risk_factors": risk_factors,
+        "rag_context": rag_ctx,
+        "entity_hints": entity_hints[:10],
     }
     return profile

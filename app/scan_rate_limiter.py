@@ -292,7 +292,7 @@ async def check_scan_limit(
         }
 
     except Exception as e:
-        logger.error(f"Rate limit check failed: {e}, using in-memory fallback")
+        logger.error("Rate limit check failed: %s, using in-memory fallback", e)
         # On Redis failure, fall back to in-memory counter instead of failing open
         return _check_memory_fallback(identity, daily_limit)
 
@@ -333,7 +333,7 @@ async def increment_scan_usage(
         return {"recorded": True, "total_today": total, "remaining": max(0, remaining)}
 
     except Exception as e:
-        logger.error(f"Usage recording failed: {e}")
+        logger.error("Usage recording failed: %s", e)
         return {"recorded": False, "total_today": 0, "remaining": -1}
 
 
@@ -355,7 +355,7 @@ async def get_usage_stats(identity: str, identity_type: str = "ip") -> dict[str,
             "resets_at": (datetime.now(UTC) + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z"),
         }
     except Exception as e:
-        logger.error(f"Usage stats failed: {e}")
+        logger.error("Usage stats failed: %s", e)
         return {"identity": identity, "scans_today": 0, "error": str(e)}
 
 

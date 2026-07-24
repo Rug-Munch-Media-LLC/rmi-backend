@@ -25,7 +25,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+
+import httpx
+
+# Import urllib.request only inside sync thread helpers
 
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
@@ -204,12 +207,12 @@ class UnifiedWalletScanner:
             rag_url = _validate_https_url(
                 f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5"
             )
-            req = Request(
-                rag_url,
-                headers={"X-RMI-Key": INTERNAL_API_KEY},
-            )
-            resp = urlopen(req, timeout=8)
-            data = json.loads(resp.read())
+            async with httpx.AsyncClient(timeout=8) as client:
+                resp = await client.get(
+                    rag_url,
+                    headers={"X-RMI-Key": INTERNAL_API_KEY},
+                )
+            data = resp.json()
             r.rag_matches = data.get("results", [])
             if r.rag_matches:
                 r.modules_run.append("rag_entity_resolution")
@@ -348,33 +351,31 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     async def _risk_forecast(self, r) -> None:
         try:
-            body = json.dumps(
-                {
-                    "model": MODEL,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "Based on wallet risk profile, predict 7-day risk trajectory. One sentence: INCREASING/STABLE/DECREASING risk, plus brief reason. Under 100 chars.",
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Risk:{r.risk_score} Flags:{','.join(r.risk_flags[:5])} ScamTokens:{r.scam_tokens_held} Persona:{r.persona}",
-                        },
-                    ],
-                    "max_tokens": 60,
-                    "temperature": 0.2,
-                }
-            ).encode()
-            req = Request(
-                OLLAMA_URL,
-                data=body,
-                headers={
-                    "Authorization": f"Bearer {OLLAMA_KEY}",
-                    "Content-Type": "application/json",
-                },
-            )
-            resp = urlopen(req, timeout=5)
-            r.risk_forecast = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
+            body = {
+                "model": MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Based on wallet risk profile, predict 7-day risk trajectory. One sentence: INCREASING/STABLE/DECREASING risk, plus brief reason. Under 100 chars.",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Risk:{r.risk_score} Flags:{','.join(r.risk_flags[:5])} ScamTokens:{r.scam_tokens_held} Persona:{r.persona}",
+                    },
+                ],
+                "max_tokens": 60,
+                "temperature": 0.2,
+            }
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.post(
+                    OLLAMA_URL,
+                    json=body,
+                    headers={
+                        "Authorization": f"Bearer {OLLAMA_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                )
+            r.risk_forecast = resp.json()["choices"][0]["message"]["content"].strip()
             r.modules_run.append("ai_forecast")
         except (json.JSONDecodeError):
             r.risk_forecast = "Unable to forecast"

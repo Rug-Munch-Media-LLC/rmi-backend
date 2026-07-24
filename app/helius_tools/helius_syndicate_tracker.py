@@ -117,7 +117,7 @@ class SyndicateTracker:
                 data = await resp.json()
                 return data.get("result", {})
         except Exception as e:
-            logger.error(f"RPC {method} failed: {e}")
+            logger.error("RPC %s failed: %s", method, e)
             return {}
 
     async def close(self) -> None:
@@ -126,7 +126,7 @@ class SyndicateTracker:
 
     async def scan_contract(self) -> dict[str, Any]:
         """Full scan of CRM V1 contract state."""
-        logger.info(f"Scanning CRM V1 contract: {CRM_V1_CONTRACT}")
+        logger.info("Scanning CRM V1 contract: %s", CRM_V1_CONTRACT)
 
         # Get token metadata
         metadata = await self._rpc_call("getAsset", {"id": CRM_V1_CONTRACT})
@@ -198,7 +198,7 @@ class SyndicateTracker:
 
     async def track_wallet(self, wallet_address: str) -> dict[str, Any]:
         """Deep analysis of a single syndicate wallet."""
-        logger.info(f"Tracking wallet: {wallet_address}")
+        logger.info("Tracking wallet: %s", wallet_address)
 
         tier_info = TIERS.get(wallet_address)
 

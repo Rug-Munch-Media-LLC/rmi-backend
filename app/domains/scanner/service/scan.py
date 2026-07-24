@@ -257,6 +257,60 @@ async def scan_token(
     # Ingest to RAG
     await _ingest_scan_to_rag(result)
 
+    # ── Enrich with RAG intelligence ──
+    try:
+        from app.rag.intelligence import RAGIntelligenceEnricher
+
+        enricher = RAGIntelligenceEnricher()
+        rag_ctx = await enricher.enrich_scan_result(result)
+        result.rag_context = {
+            "similar_scams": [
+                {
+                    "content": h.content[:200],
+                    "score": round(h.final_score or h.score, 4),
+                    "collection": h.collection,
+                    "doc_id": h.doc_id,
+                }
+                for h in rag_ctx.similar_scams[:5]
+            ],
+            "wallet_context": [
+                {
+                    "content": h.content[:200],
+                    "score": round(h.final_score or h.score, 4),
+                    "collection": h.collection,
+                }
+                for h in rag_ctx.wallet_context[:3]
+            ],
+            "market_signals": len(rag_ctx.market_context),
+            "fusion_summary": rag_ctx.fusion_summary,
+            "collections_searched": rag_ctx.collections_searched,
+            "took_ms": rag_ctx.took_ms,
+            "query_id": rag_ctx.query_id,
+        }
+        # Log what RAG contributed
+        scam_count = len(rag_ctx.similar_scams)
+        scorching_find = any(
+            h.final_score > 0.7 for h in rag_ctx.similar_scams
+        )
+        logger.info(
+            "rag_enrichment_done",
+            token=token_address[:16],
+            similar_scams=scam_count,
+            scorching_find=scorching_find,
+            took_ms=rag_ctx.took_ms,
+        )
+        # If RAG found a highly similar scam, add it as a risk flag
+        if scorching_find:
+            top_match = rag_ctx.similar_scams[0]
+            label = top_match.metadata.get("pattern_name", "") or "rag_matched_scam"
+            flag = f"rag:{label}"
+            if flag not in result.risk_flags:
+                result.risk_flags.append(flag)
+    except ImportError:
+        logger.debug("rag_enrichment_skipped (RAGIntelligenceEnricher not available)")
+    except Exception as exc:
+        logger.warning("rag_enrichment_failed", token=token_address[:16], error=str(exc)[:100])
+
     return result
 
 async def quick_scan_text(token_address: str, chain: str = "solana") -> str:

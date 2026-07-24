@@ -113,11 +113,11 @@ class GoogleCloudManager:
                         logger.warning("Vertex AI rate limited")
                         return None
                     else:
-                        logger.warning(f"Vertex AI HTTP {r.status_code}")
+                        logger.warning("Vertex AI HTTP %s", r.status_code)
                         return None
                 return vectors if vectors else None
         except Exception as e:
-            logger.warning(f"Vertex AI: {e}")
+            logger.warning("Vertex AI: %s", e)
             return None
 
     async def list_buckets(self) -> list:
@@ -169,15 +169,15 @@ class GoogleCloudManager:
                 if r.status_code == 200:
                     errors = r.json().get("insertErrors", [])
                     if errors:
-                        logger.warning(f"BigQuery insert errors: {len(errors)}")
+                        logger.warning("BigQuery insert errors: %s", len(errors))
                     return len(errors) == 0
                 elif r.status_code == 404:
-                    logger.info(f"BigQuery table {dataset}.{table} not found - needs creation")
+                    logger.info("BigQuery table %s.%s not found - needs creation", dataset, table)
                 else:
-                    logger.warning(f"BigQuery insert HTTP {r.status_code}")
+                    logger.warning("BigQuery insert HTTP %s", r.status_code)
                 return False
         except Exception as e:
-            logger.warning(f"BigQuery insert: {e}")
+            logger.warning("BigQuery insert: %s", e)
             return False
 
     async def bigquery_query(self, sql: str) -> list:
@@ -200,10 +200,10 @@ class GoogleCloudManager:
                         rows.append(dict(zip(schema, vals, strict=False)))
                     return rows
                 else:
-                    logger.warning(f"BigQuery query HTTP {r.status_code}")
+                    logger.warning("BigQuery query HTTP %s", r.status_code)
                     return []
         except Exception as e:
-            logger.warning(f"BigQuery query: {e}")
+            logger.warning("BigQuery query: %s", e)
             return []
 
     # ── Cloud Vision ───────────────────────────────────────
@@ -237,10 +237,10 @@ class GoogleCloudManager:
                 elif r.status_code == 403:
                     logger.info("Cloud Vision API not enabled")
                 else:
-                    logger.warning(f"Vision HTTP {r.status_code}")
+                    logger.warning("Vision HTTP %s", r.status_code)
                 return ""
         except Exception as e:
-            logger.warning(f"Vision: {e}")
+            logger.warning("Vision: %s", e)
             return ""
 
     async def vision_labels(
@@ -271,7 +271,7 @@ class GoogleCloudManager:
                     return [a.get("description", "") for a in annotations]
                 return []
         except Exception as e:
-            logger.warning(f"Vision labels: {e}")
+            logger.warning("Vision labels: %s", e)
             return []
 
     # ── Natural Language ───────────────────────────────────
@@ -302,7 +302,7 @@ class GoogleCloudManager:
                     logger.info("Natural Language API not enabled")
                 return []
         except Exception as e:
-            logger.warning(f"NL: {e}")
+            logger.warning("NL: %s", e)
             return []
 
     async def nl_sentiment(self, text: str) -> dict:
@@ -324,7 +324,7 @@ class GoogleCloudManager:
                     }
                 return {"score": 0, "magnitude": 0}
         except Exception as e:
-            logger.warning(f"NL sentiment: {e}")
+            logger.warning("NL sentiment: %s", e)
             return {"score": 0, "magnitude": 0}
 
     # ── Cloud Storage lifecycle ────────────────────────────

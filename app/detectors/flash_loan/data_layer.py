@@ -215,8 +215,8 @@ class BlockchainDataLayer:
                 response = await client.post(url, json=payload)
                 return response.json()
         except ImportError:
-            logger.debug("httpx not available, trying urllib fallback")
-            return self._http_post_sync(url, payload)
+            logger.debug("httpx not available, trying urllib fallback via thread")
+            return await asyncio.to_thread(self._http_post_sync, url, payload)
         except Exception as e:
             logger.debug("HTTP request failed: %s", e)
             return None

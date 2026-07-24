@@ -10,6 +10,8 @@ Social-Onchain Correlation + Composite Report.
 Backward-compatible re-export layer — imports from sub-modules.
 """
 
+from typing import Any
+
 # Core infrastructure (safe — no side-effect imports)
 from app.services.deep_intelligence.core import (
     DeepIntelConfig,
@@ -46,7 +48,7 @@ from app.services.deep_intelligence.models import (
 # the top, which has the same pre-existing transitive import issue.
 # This lazy approach preserves backward compatibility for callers while keeping
 # imports of core/analyzers/models working perfectly.
-async def full_deep_intel(*args, **kwargs):
+async def full_deep_intel(*args: Any, **kwargs: Any) -> dict[str, Any]:
     """Composite deep intelligence report — lazily imported."""
     from app.services.deep_intelligence.processors.composite import full_deep_intel as _impl  # noqa: PLC0415
     return await _impl(*args, **kwargs)

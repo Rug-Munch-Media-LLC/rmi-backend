@@ -95,7 +95,7 @@ class SniperDetector:
                 data = await resp.json()
                 return data.get("result", {})
         except Exception as e:
-            logger.error(f"RPC {method} failed: {e}")
+            logger.error("RPC %s failed: %s", method, e)
             return {}
 
     async def close(self) -> None:
@@ -104,7 +104,7 @@ class SniperDetector:
 
     async def analyze_token_launch(self, token_address: str) -> SniperReport:
         """Full sniper analysis on a token launch."""
-        logger.info(f"Analyzing token launch: {token_address}")
+        logger.info("Analyzing token launch: %s", token_address)
 
         # Step 1: Find token creation transaction
         creation_info = await self._find_creation_tx(token_address)

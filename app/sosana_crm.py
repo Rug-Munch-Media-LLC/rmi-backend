@@ -28,7 +28,7 @@ class SOSANACRM:
                 self._loaded = True
                 return True
             except Exception as e:
-                logger.error(f"Failed to load SOSANA CRM: {e}")
+                logger.error("Failed to load SOSANA CRM: %s", e)
         return False
 
     @property

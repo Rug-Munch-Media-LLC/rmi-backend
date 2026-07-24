@@ -98,21 +98,21 @@ def _request(endpoint: str, params: dict | None = None, retries: int = DEFAULT_R
                 return result
             elif response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
                 wait = RETRY_BASE_DELAY**attempt
-                logger.warning(f"Rate limited, waiting {wait}s...")
+                logger.warning("Rate limited, waiting %ds...", wait)
                 _solscan_cb.record_failure(is_server_error=False)
                 time.sleep(wait)
             elif response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
-                logger.warning(f"HTTP {response.status_code} on {endpoint}")
+                logger.warning("HTTP %s on %s", response.status_code, endpoint)
                 _solscan_cb.record_failure(is_server_error=True)
                 if attempt == retries - 1:
                     return None
             else:
-                logger.warning(f"HTTP {response.status_code} on {endpoint}")
+                logger.warning("HTTP %s on %s", response.status_code, endpoint)
                 _solscan_cb.record_failure(is_server_error=False)
                 if attempt == retries - 1:
                     return None
         except Exception as e:
-            logger.error(f"Request failed ({attempt + 1}/{retries}): {e}")
+            logger.error("Request failed (%s/%s): %s", attempt + 1, retries, e)
             _solscan_cb.record_failure(is_server_error=True)
             if attempt == retries - 1:
                 return None

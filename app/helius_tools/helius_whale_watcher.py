@@ -93,7 +93,7 @@ class WhaleWatcher:
                 data = await resp.json()
                 return data.get("result", {})
         except Exception as e:
-            logger.error(f"RPC {method} failed: {e}")
+            logger.error("RPC %s failed: %s", method, e)
             return {}
 
     async def close(self) -> None:
@@ -104,7 +104,7 @@ class WhaleWatcher:
 
     async def scan_token_for_whales(self, token_address: str) -> dict[str, Any]:
         """Scan a token for whale activity."""
-        logger.info(f"Scanning {token_address} for whales...")
+        logger.info("Scanning %s for whales...", token_address)
 
         # Get token supply
         supply_result = await self._rpc_call("getTokenSupply", [token_address])
@@ -185,7 +185,7 @@ class WhaleWatcher:
 
     async def detect_whale_dump(self, token_address: str, hours_back: int = 24) -> dict[str, Any]:
         """Detect recent whale dumping activity."""
-        logger.info(f"Detecting whale dumps for {token_address}...")
+        logger.info("Detecting whale dumps for %s...", token_address)
 
         # Get recent transactions
         sigs_result = await self._rpc_call(
@@ -239,7 +239,7 @@ class WhaleWatcher:
 
     async def get_whale_profile(self, wallet_address: str) -> dict[str, Any]:
         """Build a comprehensive whale profile for a wallet."""
-        logger.info(f"Building whale profile for {wallet_address}")
+        logger.info("Building whale profile for %s", wallet_address)
 
         # SOL balance
         sol_result = await self._rpc_call("getBalance", [wallet_address])
@@ -321,15 +321,15 @@ class WhaleWatcher:
 
     async def monitor_tokens(self, token_addresses: list[str], interval_seconds: int = 60) -> None:
         """Continuously monitor tokens for whale activity."""
-        logger.info(f"Starting whale monitor for {len(token_addresses)} tokens")
+        logger.info("Starting whale monitor for %d tokens", len(token_addresses))
         while True:
             for token in token_addresses:
                 try:
                     result = await self.scan_token_for_whales(token)
                     if result.get("alerts"):
                         for alert in result["alerts"]:
-                            logger.warning(f"WHALE ALERT: {alert['message']}")
+                            logger.warning("WHALE ALERT: %s", alert['message'])
                     self._monitored_tokens[token] = result
                 except Exception as e:
-                    logger.error(f"Monitor error for {token}: {e}")
+                    logger.error("Monitor error for %s: %s", token, e)
             await asyncio.sleep(interval_seconds)
