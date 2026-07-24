@@ -5,7 +5,9 @@ Deployer reputation, history, and linked addresses.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+
+from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/deployer", tags=["deployer-v1"])
 
@@ -19,9 +21,8 @@ async def get_deployer_info(
 
     Returns deployer history, deployed contracts, risk score.
     """
-    raise HTTPException(
-        status_code=503,
-        detail="Deployer info endpoint — planned: GET /api/v1/deployer/{address} — see roadmap",
+    raise ServiceUnavailableError(
+        "Deployer info endpoint — planned: GET /api/v1/deployer/{address} — see roadmap",
     )
 
 
@@ -31,7 +32,6 @@ async def get_deployer_contracts(
     chain: str = Query("ethereum", description="Blockchain to query"),
 ) -> None:
     """Get contracts deployed by this address."""
-    raise HTTPException(
-        status_code=503,
-        detail="Deployer contracts endpoint — planned: GET /api/v1/deployer/{address}/contracts — see roadmap",
+    raise ServiceUnavailableError(
+        "Deployer contracts endpoint — planned: GET /api/v1/deployer/{address}/contracts — see roadmap",
     )

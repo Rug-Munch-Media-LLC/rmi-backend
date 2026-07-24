@@ -5,7 +5,9 @@ Token/contract analysis. Redirects to existing handlers.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+
+from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/analyze", tags=["analyze-v1"])
 
@@ -20,7 +22,6 @@ async def analyze_address(
     Full implementation at /api/v1/contract-analyzer/analyze/{address}
     (mounted from app.routers.contract_analyzer).
     """
-    raise HTTPException(
-        status_code=503,
-        detail="Analyze endpoint — re-routed to /api/v1/contract-analyzer/analyze/{address} — see roadmap",
+    raise ServiceUnavailableError(
+        "Analyze endpoint — re-routed to /api/v1/contract-analyzer/analyze/{address} — see roadmap",
     )

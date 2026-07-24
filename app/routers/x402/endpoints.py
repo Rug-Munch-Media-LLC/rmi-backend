@@ -6,10 +6,18 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+
+from app.core.errors import UpstreamError, ValidationError
 from app.core.logging import get_logger
 from app.routers.x402.pricing import X402_TOOL_PRICING, check_trial, TRIAL_WINDOW_SECONDS
 from app.routers.x402.payment import verify_x402_payment, _clean_response
-from app.routers.x402.payment import AddressRequest, MintRequest, QueryRequest, AddressDepthRequest, GenericDataRequest
+from app.routers.x402.payment import (
+    AddressRequest,
+    MintRequest,
+    QueryRequest,
+    AddressDepthRequest,
+    GenericDataRequest,
+)
 
 logger = get_logger("x402_databus_endpoints")
 
@@ -25,7 +33,6 @@ async def x402_catalog(request: Request) -> dict[str, str]:
     for tool_id, info in sorted(
         X402_TOOL_PRICING.items(), key=lambda x: (x[1]["category"], x[1]["price_usd"])
     ):
-
         allowed_free = access_controller.get_x402_allowed_types("free")
         allowed_basic = access_controller.get_x402_allowed_types("basic")
         allowed_premium = access_controller.get_x402_allowed_types("premium")
@@ -608,8 +615,7 @@ async def x402_universal_fetch(req: GenericDataRequest, request: Request) -> Any
     """
     data_type = req.data_type
     if data_type not in X402_TOOL_PRICING:
-        raise HTTPException(
-            400,
+        raise ValidationError(
             f"Unknown data_type: {data_type}. Available: {', '.join(sorted(X402_TOOL_PRICING.keys()))}",
         )
 
@@ -635,7 +641,7 @@ async def x402_universal_fetch(req: GenericDataRequest, request: Request) -> Any
     )
 
     if result is None:
-        raise HTTPException(502, f"No data available for {data_type}")
+        raise UpstreamError(f"No data available for {data_type}")
 
     # Add payment metadata
     result["x402"] = {
