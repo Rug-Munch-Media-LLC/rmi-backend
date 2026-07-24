@@ -779,3 +779,98 @@ async def build_graph_from_rag(
         "edges_created": total_edges,
         "collections": coll_stats,
     }
+
+
+    async def delete_node(self, node_type: str, node_id: str) -> bool:
+        """Delete a node and all its edges (cascade).
+
+        Removes:
+        1. The node hash itself
+        2. All edges referencing this node (both outgoing and incoming)
+        3. Both edge direction indexes
+
+        Returns True if the node existed and was deleted.
+        """
+        r = await self._get_redis()
+        node_key = f"kg:node:{node_type}:{node_id}"
+        exists = await r.exists(node_key)
+        if not exists:
+            return False
+
+        # Collect all outgoing edge keys
+        out_idx_key = f"kg:edges:{node_type}:{node_id}"
+        out_edge_keys = await r.zrange(out_idx_key, 0, -1)
+
+        # Collect all incoming edge keys
+        in_idx_key = f"kg:edges_in:{node_type}:{node_id}"
+        in_edge_keys = await r.zrange(in_idx_key, 0, -1)
+
+        # Build the set of edge keys to remove
+        all_edge_keys = set(out_edge_keys) | set(in_edge_keys)
+
+        # Clean up reverse indexes for each edge
+        pipe = r.pipeline()
+        for ek in all_edge_keys:
+            edge_data = await r.hgetall(ek)
+            if edge_data:
+                # Remove from outgoing index of the from-node
+                from_type = edge_data.get("from_type", "")
+                from_id = edge_data.get("from_id", "")
+                if from_type and from_id:
+                    pipe.zrem(f"kg:edges:{from_type}:{from_id}", ek)
+                # Remove from incoming index of the to-node
+                to_type = edge_data.get("to_type", "")
+                to_id = edge_data.get("to_id", "")
+                if to_type and to_id:
+                    pipe.zrem(f"kg:edges_in:{to_type}:{to_id}", ek)
+            pipe.delete(ek)
+
+        # Remove the node itself and its index keys
+        pipe.delete(node_key)
+        pipe.delete(out_idx_key)
+        pipe.delete(in_idx_key)
+
+        # Also evict from local cache
+        cache_key = f"{node_type}:{node_id}"
+        self._node_cache.pop(cache_key, None)
+
+        await pipe.execute()
+        return True
+
+    async def prune_orphaned_edges(self) -> int:
+        """Remove any edges whose source or target node no longer exists.
+
+        Scans all kg:edge: keys and verifies both end nodes exist.
+        Returns the count of orphaned edges removed.
+        """
+        r = await self._get_redis()
+        removed = 0
+        processed = 0
+
+        async for edge_key in r.scan_iter(match="kg:edge:*", count=500):
+            processed += 1
+            edge_data = await r.hgetall(edge_key)
+            if not edge_data:
+                continue
+            from_type = edge_data.get("from_type", "")
+            from_id = edge_data.get("from_id", "")
+            to_type = edge_data.get("to_type", "")
+            to_id = edge_data.get("to_id", "")
+
+            from_key = f"kg:node:{from_type}:{from_id}"
+            to_key = f"kg:node:{to_type}:{to_id}"
+
+            from_exists = await r.exists(from_key)
+            to_exists = await r.exists(to_key)
+
+            if not from_exists or not to_exists:
+                # Orphaned — remove edge and its index entries
+                pipe = r.pipeline()
+                pipe.zrem(f"kg:edges:{from_type}:{from_id}", edge_key)
+                pipe.zrem(f"kg:edges_in:{to_type}:{to_id}", edge_key)
+                pipe.delete(edge_key)
+                await pipe.execute()
+                removed += 1
+
+        logger.info("kg_prune_orphans scanned=%d removed=%d", processed, removed)
+        return removed

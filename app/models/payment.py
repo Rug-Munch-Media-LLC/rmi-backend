@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import JSON, String
+from sqlalchemy import Index, JSON, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -36,4 +36,8 @@ class Payment(Base, TimestampMixin):
         String(128),
         nullable=True,
         index=True,
+    )
+
+    __table_args__ = (
+        Index("ix_payment_status", "status"),
     )
