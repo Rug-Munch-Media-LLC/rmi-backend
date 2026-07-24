@@ -1627,7 +1627,10 @@ class TestHealthCheckReuse:
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
         os.environ["REDIS_URL"] = f"redis://{host}:{port}/0"
-        os.environ["DATABASE_URL"] = pg_dsn
+        # Use sync DSN (without +asyncpg driver) — the health check's
+        # built-in _check_postgres connects via sync psycopg.
+        sync_dsn = pg_dsn.replace("+asyncpg", "")
+        os.environ["DATABASE_URL"] = sync_dsn
         yield
         # Don't clear — other tests may rely on these
 
