@@ -19,12 +19,8 @@ class TestCreateJWT:
         """_create_jwt should return a JWT string with 3 parts."""
         from app.domains.auth.__init__ import _create_jwt
 
-        with patch(
-            "app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
-        ):
-            token = _create_jwt(
-                user_id="user_123", email="test@example.com", tier="FREE", role="USER"
-            )
+        with patch("app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"):
+            token = _create_jwt(user_id="user_123", email="test@example.com", tier="FREE", role="USER")
             assert isinstance(token, str)
             parts = token.split(".")
             assert len(parts) == 3
@@ -35,9 +31,7 @@ class TestCreateJWT:
 
         secret = "test-secret-key-32-chars-long-enough!!"
         with patch("app.domains.auth.jwt.JWT_SECRET", secret):
-            token = _create_jwt(
-                user_id="user_456", email="alice@example.com", tier="PRO", role="ADMIN"
-            )
+            token = _create_jwt(user_id="user_456", email="alice@example.com", tier="PRO", role="ADMIN")
             payload = pyjwt.decode(token, secret, algorithms=["HS256"])
             assert payload["sub"] == "user_456"
             assert payload["email"] == "alice@example.com"
@@ -67,7 +61,7 @@ class TestCreateJWT:
         secret = "test-secret-key-32-chars-long-enough!!"
         with (
             patch("app.domains.auth.jwt.JWT_SECRET", secret),
-            patch("app.domains.auth.__init__.datetime") as mock_dt,
+            patch("app.domains.auth.jwt.datetime") as mock_dt,
         ):
             fixed_now = datetime(2026, 7, 14, 12, 0, 0)
             mock_dt.now.return_value = fixed_now
@@ -97,9 +91,7 @@ class TestVerifyJWT:
         """_verify_jwt should return None for an invalid token."""
         from app.domains.auth.__init__ import _verify_jwt
 
-        with patch(
-            "app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
-        ):
+        with patch("app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"):
             result = _verify_jwt("invalid.token.here")
             assert result is None
 
@@ -137,9 +129,7 @@ class TestVerifyJWT:
         """Empty token should return None."""
         from app.domains.auth.__init__ import _verify_jwt
 
-        with patch(
-            "app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
-        ):
+        with patch("app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"):
             assert _verify_jwt("") is None
 
 

@@ -23,10 +23,10 @@ Storage impact: ~500 Redis keys at steady state, 0 ClickHouse writes.
 """
 
 from __future__ import annotations
+
 import datetime
 import json
 import time
-import urllib.error
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -153,6 +153,7 @@ CHAIN_SUFFIXES = {
     "bitcoin",
 }
 
+
 def _is_enrichable(tool_name: str) -> str:
     """Check if tool is enrichable, handling per-chain variants."""
     if "_" in tool_name:
@@ -167,9 +168,11 @@ def _is_enrichable(tool_name: str) -> str:
             return cat
     return ""
 
+
 MAX_BATCH_SIZE = 200  # Max addresses per ClickHouse batch query
 ENRICH_CACHE_TTL = 3600  # 1 hour
 SIMILARITY_THRESHOLD = 0.6  # Cosine similarity floor for RAG matches
+
 
 @dataclass
 class WalletLabel:
@@ -182,6 +185,7 @@ class WalletLabel:
     source: str = ""
     is_sanctioned: bool = False
 
+
 @dataclass
 class EnrichmentResult:
     """Merged enrichment for all addresses in a tool response."""
@@ -192,6 +196,7 @@ class EnrichmentResult:
     similar_patterns: list[dict] = field(default_factory=list)
     lookup_ms: float = 0
     rag_ms: float = 0
+
 
 def _redis(enrich_cache: dict | None = None) -> Any:
     """Lazy Redis connection (sync client)."""
@@ -210,6 +215,7 @@ def _redis(enrich_cache: dict | None = None) -> Any:
         socket_timeout=2,
     )
 
+
 def _ch() -> None:
     """Lazy ClickHouse connection."""
     import os
@@ -223,6 +229,7 @@ def _ch() -> None:
         password=os.getenv("CH_PASSWORD", "") or None,
         settings={"max_execution_time": 3},
     )
+
 
 def extract_addresses(result: dict[str, Any], tool_name: str) -> list[str]:
     """
@@ -279,6 +286,7 @@ def extract_addresses(result: dict[str, Any], tool_name: str) -> list[str]:
 
     return list(addresses)[:MAX_BATCH_SIZE]
 
+
 def lookup_labels(addresses: list[str]) -> tuple[dict[str, list[WalletLabel]], float]:
     """
     Batch lookup wallet labels from ClickHouse.
@@ -330,6 +338,7 @@ def lookup_labels(addresses: list[str]) -> tuple[dict[str, list[WalletLabel]], f
         return {}, (time.time() - t0) * 1000
 
     return results, (time.time() - t0) * 1000
+
 
 def search_similar_patterns(
     addresses: list[str],
@@ -398,6 +407,7 @@ def search_similar_patterns(
 
     return patterns, (time.time() - t0) * 1000
 
+
 def build_risk_summary(
     labels: dict[str, list[WalletLabel]],
     sanctioned: list[str],
@@ -433,6 +443,7 @@ def build_risk_summary(
             parts.append(f"{len(high_matches)} address(es) match known scam patterns")
 
     return ". ".join(parts) + "." if parts else ""
+
 
 def enrich_tool_response(
     tool_name: str,
@@ -494,11 +505,10 @@ def enrich_tool_response(
 
         from app.rag_service import detect_scam_patterns
 
-        for addr in addresses[:5]:
+        for addr in addresses[:
+            5]:
             try:
-                result = asyncio.run(
-                    detect_scam_patterns({"address": addr, "chain": "ethereum"}, 0.65)
-                )
+                result = asyncio.run(detect_scam_patterns({"address": addr, "chain": "ethereum"}, 0.65))
                 if result and result.get("risk_score", 0) > 0:
                     scam_flags.append(
                         {
@@ -507,10 +517,10 @@ def enrich_tool_response(
                             "patterns": result.get("patterns", [])[:3],
                         }
                     )
-                    except (RuntimeError, ConnectionError, TimeoutError):
-                        pass
-        except (ImportError, RuntimeError):
-            pass
+            except (RuntimeError, ConnectionError, TimeoutError):
+                pass
+    except (ImportError, RuntimeError):
+        pass
 
     # 5c. LLM-synthesized summary (DeepSeek Flash, $0.0003/call)
     llm_summary = ""
@@ -598,7 +608,9 @@ def enrich_tool_response(
 
     return raw_result
 
+
 # ── Cron Intel Injection ─────────────────────────────────────
+
 
 def _load_recent_intel(r=None) -> dict | None:
     """Load the latest RMI intel briefing from Redis for injection into tool results.
@@ -627,7 +639,9 @@ def _load_recent_intel(r=None) -> dict | None:
     except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError):
         return None
 
+
 # ── LLM Synthesis ────────────────────────────────────────────
+
 
 def _synthesize_enrichment(risk_summary: str, scam_flags: list, tool_name: str) -> str:
     """Use DeepSeek Flash to synthesize a human-readable enrichment paragraph."""
@@ -666,7 +680,9 @@ def _synthesize_enrichment(risk_summary: str, scam_flags: list, tool_name: str) 
     except (_httpx.HTTPError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
         return ""  # Best-effort - never block enrichment on LLM failure
 
+
 # ── Alert Hooks ──────────────────────────────────────────────
+
 
 def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None) -> None:
     """Fire alert when enrichment finds high-risk addresses."""
@@ -687,7 +703,9 @@ def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None) 
     except (ConnectionError, TimeoutError, OSError):
         pass
 
+
 # ── Cross-Chain Label Propagation ────────────────────────────
+
 
 def propagate_labels_cross_chain() -> Any | int:
     """
@@ -724,20 +742,24 @@ def propagate_labels_cross_chain() -> Any | int:
         logger.warning(f"Cross-chain propagation failed: {e}")
         return 0
 
+
 # ── Lightweight: cache-only enrichment for repeated queries ──
+
 
 def get_cached_enrichment(address: str) -> dict | None:
     """Check if an address has cached enrichment data."""
     try:
         r = _redis()
-            cached = r.get(f"x402:enrich:{address}")
+        cached = r.get(f"x402:enrich:{address}")
         if cached:
             return json.loads(cached)
     except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError):
         pass
     return None
 
+
 # ── Etherscan V2 Live Contract Name Lookups ──
+
 
 def _get_etherscan_key() -> str:
     """Load Etherscan API key from .env. Returns empty string if not configured."""
@@ -750,6 +772,7 @@ def _get_etherscan_key() -> str:
         return os.getenv("ETHERSCAN_API_KEY", "")
     except (ImportError, OSError):
         return ""
+
 
 def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict[str, str]:
     """
@@ -811,6 +834,7 @@ def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict
 
     return results
 
+
 def preload_enrichment_cache(addresses: list[str]) -> None:
     """
     Background preload: fetch and cache enrichment for hot addresses.
@@ -830,12 +854,7 @@ def preload_enrichment_cache(addresses: list[str]) -> None:
                     f"x402:enrich:{addr}",
                     1800,
                     json.dumps(
-                        {
-                            "labels": [
-                                {"category": line.label_category, "name": line.label_name}
-                                for line in labels
-                            ]
-                        }
+                        {"labels": [{"category": line.label_category, "name": line.label_name} for line in labels]}
                     ),
                 )
         except (ConnectionError, TimeoutError, OSError, ValueError, json.JSONDecodeError):

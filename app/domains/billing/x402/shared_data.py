@@ -6,12 +6,10 @@ from typing import Any
 
 import httpx
 
-
 logger = get_logger("x402_tools")
 
 # Caching shield - all data calls route through cache → rate limit → provider chain
 from app.caching_shield.service_mcp import get_service_mcp
-from app.caching_shield.tool_data import td
 
 _svc_mcp = get_service_mcp()
 

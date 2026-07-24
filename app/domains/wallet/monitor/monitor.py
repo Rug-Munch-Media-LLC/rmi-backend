@@ -67,11 +67,13 @@ class WalletMonitor:
                         "params": ["alchemy_minedTransactions", {"addresses": [], "includeRemoved": False, "hashesOnly": False}],
                     }))
                     async for message in ws:
-                        if not self.running: break
+                        if not self.running:
+                            break
                         try:
                             data = json.loads(message)
                             result = data.get("params", {}).get("result", {})
-                            if not result: continue
+                            if not result:
+                                continue
                             tx = self._parse_evm_tx(result)
                             if self._is_watched(tx.from_addr) or self._is_watched(tx.to_addr):
                                 await self._process_tx(tx)
@@ -90,7 +92,8 @@ class WalletMonitor:
         to_lower = to_addr.lower()
         for name, addr in DEX_ROUTERS.items():
             if to_lower == addr.lower():
-                dex_swap = {"dex": name, "router": addr}; break
+                dex_swap = {"dex": name, "router": addr}
+                break
         token_transfers: list[dict] = []
         for log in raw.get("logs", []):
             topics = log.get("topics", [])
@@ -111,24 +114,29 @@ class WalletMonitor:
     # ─── SOLANA ────────────────────────────────────────────────
     async def _listen_solana(self) -> None:
         if not self.ws_url:
-            logger.warning("solana_no_ws_url"); return
+            logger.warning("solana_no_ws_url")
+            return
         while self.running:
             try:
                 async with websockets.connect(self.ws_url) as ws:
                     watched = list(self._watched)
-                    for idx, acc in enumerate(watched[:100]):
+                    for idx, acc in enumerate(watched[:
+                        100]):
                         await ws.send(json.dumps({
                             "jsonrpc": "2.0", "id": idx + 1, "method": "accountSubscribe",
                             "params": [acc, {"commitment": "confirmed", "encoding": "jsonParsed"}],
                         }))
                     async for message in ws:
-                        if not self.running: break
+                        if not self.running:
+                            break
                         try:
                             data = json.loads(message)
-                            if not data.get("params", {}).get("result", {}): continue
+                            if not data.get("params", {}).get("result", {}):
+                                continue
                             acc_key = data.get("params", {}).get("subscription", "")
                             tx = await self._fetch_solana_latest_tx(acc_key)
-                            if tx: await self._process_tx(tx)
+                            if tx:
+                                await self._process_tx(tx)
                         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                             continue
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, websockets.ConnectionClosed) as e:
@@ -136,14 +144,16 @@ class WalletMonitor:
                 await asyncio.sleep(5)
 
     async def _fetch_solana_latest_tx(self, account: str) -> WalletTx | None:
-        if not self.rpc_url: return None
+        if not self.rpc_url:
+            return None
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(self.rpc_url, json={
                     "jsonrpc": "2.0", "id": 1, "method": "getSignaturesForAddress",
                     "params": [account, {"limit": 1}]})
                 sigs = (resp.json()).get("result", [])
-                if not sigs: return None
+                if not sigs:
+                    return None
                 sig = sigs[0]["signature"]
                 tx_resp = await client.post(self.rpc_url, json={
                     "jsonrpc": "2.0", "id": 1, "method": "getTransaction",
@@ -153,14 +163,19 @@ class WalletMonitor:
             return None
 
     def _parse_solana_tx(self, raw: dict, signature: str) -> WalletTx:
-        meta = raw.get("meta", {}); tx_inner = raw.get("transaction", {})
-        msg = tx_inner.get("message", {}); accts = msg.get("accountKeys", [])
-        from_addr = accts[0] if accts else ""; to_addr = accts[1] if len(accts) > 1 else ""
+        meta = raw.get("meta", {})
+        tx_inner = raw.get("transaction", {})
+        msg = tx_inner.get("message", {})
+        accts = msg.get("accountKeys", [])
+        from_addr = accts[0] if accts else ""
+        to_addr = accts[1] if len(accts) > 1 else ""
         dex_swap = None
         for ix in msg.get("instructions", []):
             prog = ix.get("programId", "")
             for name, addr in DEX_ROUTERS.items():
-                if prog == addr: dex_swap = {"dex": name, "router": addr}; break
+                if prog == addr:
+                    dex_swap = {"dex": name, "router": addr}
+                    break
         token_transfers: list[dict] = []
         for p in meta.get("postTokenBalances", []):
             token_transfers.append({"token": p.get("mint", ""), "owner": p.get("owner", ""),

@@ -17,22 +17,23 @@ TEST_JWT_SECRET: str = "test-jwt-secret-key-thats-32-chars-long!"
 os.environ.setdefault("RMI_AUTH_TOKEN", TEST_RMI_AUTH_TOKEN)
 os.environ.setdefault("RMI_INTERNAL_KEY", TEST_INTERNAL_KEY)
 os.environ.setdefault("JWT_SECRET", TEST_JWT_SECRET)
-os.environ.setdefault("RMI_JWT_SECRET", TEST_JWT_SECRET)
-os.environ.setdefault("RMI_JWT_ALGORITHM", "HS256")
-os.environ.setdefault("ENVIRONMENT", "dev")
-os.environ.setdefault("LOG_LEVEL", "WARNING")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
-os.environ.setdefault("REDIS_PASSWORD", "")
-os.environ.setdefault("REDIS_HOST", "localhost")
-os.environ.setdefault("REDIS_PORT", "6379")
-os.environ.setdefault("CORS_ORIGINS", '["*"]')
-
 import pytest
 
 
 @pytest.fixture(scope="session")
 def app():
     """Build the FastAPI app once per test session."""
+    import os
+
+    os.environ.setdefault("RMI_JWT_SECRET", TEST_JWT_SECRET)
+    os.environ.setdefault("RMI_JWT_ALGORITHM", "HS256")
+    os.environ.setdefault("ENVIRONMENT", "dev")
+    os.environ.setdefault("LOG_LEVEL", "WARNING")
+    os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+    os.environ.setdefault("REDIS_PASSWORD", "")
+    os.environ.setdefault("REDIS_HOST", "localhost")
+    os.environ.setdefault("REDIS_PORT", "6379")
+
     from app.factory import create_app
 
     return create_app()

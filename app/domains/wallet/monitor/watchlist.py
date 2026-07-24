@@ -12,7 +12,8 @@ class WatchlistManager:
     @staticmethod
     async def add(wallet: str, chain: str = "ethereum", tags: list[str] | None = None) -> bool:
         r = await get_redis()
-        if not r: return False
+        if not r:
+            return False
         key = f"{CONFIG['WATCHLIST_KEY']}:{chain}"
         await r.zadd(key, {wallet.lower(): datetime.now(UTC).timestamp()})
         if tags:
@@ -22,7 +23,8 @@ class WatchlistManager:
     @staticmethod
     async def remove(wallet: str, chain: str = "ethereum") -> bool:
         r = await get_redis()
-        if not r: return False
+        if not r:
+            return False
         key = f"{CONFIG['WATCHLIST_KEY']}:{chain}"
         await r.zrem(key, wallet.lower())
         await r.delete(f"{CONFIG['WATCHLIST_KEY']}:{chain}:tags:{wallet.lower()}")
@@ -31,7 +33,8 @@ class WatchlistManager:
     @staticmethod
     async def list(chain: str = "ethereum", limit: int = 1000) -> list[dict]:
         r = await get_redis()
-        if not r: return []
+        if not r:
+            return []
         key = f"{CONFIG['WATCHLIST_KEY']}:{chain}"
         wallets = await r.zrevrange(key, 0, limit - 1, withscores=True)
         result = []
@@ -46,13 +49,15 @@ class WatchlistManager:
     @staticmethod
     async def is_watched(wallet: str, chain: str = "ethereum") -> bool:
         r = await get_redis()
-        if not r: return False
+        if not r:
+            return False
         s = await r.zscore(f"{CONFIG['WATCHLIST_KEY']}:{chain}", wallet.lower())
         return s is not None
 
     @staticmethod
     async def all_watched_set(chain: str = "ethereum") -> set[str]:
         r = await get_redis()
-        if not r: return set()
+        if not r:
+            return set()
         wallets = await r.zrange(f"{CONFIG['WATCHLIST_KEY']}:{chain}", 0, -1)
         return {w.lower() for w in wallets}

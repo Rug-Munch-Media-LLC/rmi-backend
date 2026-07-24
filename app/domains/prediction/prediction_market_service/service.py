@@ -98,7 +98,8 @@ class PredictionMarketService:
         unique_markets = []
         for m in all_markets:
             q_key = m.question.lower().strip()[:80]
-            if q_key not in seen_questions: seen_questions.add(q_key)
+            if q_key not in seen_questions:
+                seen_questions.add(q_key)
             unique_markets.append(m)
         top_threats = sorted([m for m in unique_markets if m.is_security_relevant and m.volume_usd > 10000], key=lambda m: m.volume_usd, reverse=True)
         token_specific = sorted([m for m in unique_markets if m.is_crypto_relevant and m.is_security_relevant and len(m.tokens_mentioned) > 0], key=lambda m: m.volume_usd, reverse=True)
@@ -157,7 +158,8 @@ class PredictionMarketService:
                     if pm:
                         markets.append(pm)
             return markets
-        except Exception as e: logger.warning(f"Polymarket search error: {e}")
+        except Exception as e:
+            logger.warning(f"Polymarket search error: {e}")
         return []
 
     def _parse_polymarket_market(self, m: dict, event: dict | None = None) -> PredictionMarket | None:
@@ -176,7 +178,8 @@ class PredictionMarketService:
             if event:
                 tags.extend([t.get("label", "") for t in event.get("tags", [])])
             return PredictionMarket(source="polymarket", source_id=slug, question=question, slug=slug, probability_yes=prob_yes, probability_no=prob_no, volume_usd=volume, liquidity_usd=liquidity, category=m.get("category", event.get("category", "") if event else ""), tags=tags, tokens_mentioned=tokens_mentioned, url=f"https://polymarket.com/event/{slug}" if slug else "", ends_at=m.get("endDate", event.get("endDate", "") if event else ""), updated_at=datetime.now(UTC).isoformat())
-        except Exception as e: logger.warning(f"Failed to parse Polymarket market: {e}")
+        except Exception as e:
+            logger.warning(f"Failed to parse Polymarket market: {e}")
         return None
 
     async def _trending_polymarket(self, limit: int) -> list[PredictionMarket]:
@@ -194,7 +197,8 @@ class PredictionMarketService:
                     if pm:
                         markets.append(pm)
             return markets
-        except Exception as e: logger.warning(f"Polymarket trending error: {e}")
+        except Exception as e:
+            logger.warning(f"Polymarket trending error: {e}")
         return []
 
     async def _polymarket_detail(self, slug: str) -> PredictionMarket | None:
@@ -214,7 +218,8 @@ class PredictionMarketService:
                     except Exception:
                         logger.debug("polymarket_price_fetch_failed %s", slug)
             return pm
-        except Exception as e: logger.warning(f"Polymarket detail error for {slug}: {e}")
+        except Exception as e:
+            logger.warning(f"Polymarket detail error for {slug}: {e}")
         return None
 
     async def _search_kalshi(self, query: str) -> list[PredictionMarket]:
@@ -246,7 +251,8 @@ class PredictionMarketService:
                     logger.debug("kalshi_market_fetch_failed %s", event_ticker)
                     continue
             return results
-        except Exception as e: logger.warning(f"Kalshi search error: {e}")
+        except Exception as e:
+            logger.warning(f"Kalshi search error: {e}")
         return []
 
     def _parse_kalshi_market(self, m: dict) -> PredictionMarket | None:
@@ -262,7 +268,8 @@ class PredictionMarketService:
             prob_no = 1.0 - prob_yes if prob_yes else 0.5
             tokens_mentioned = _extract_token_symbols(title)
             return PredictionMarket(source="kalshi", source_id=ticker, question=title, slug=ticker, probability_yes=prob_yes, probability_no=prob_no, volume_usd=volume, category=category, tokens_mentioned=tokens_mentioned, url=f"https://kalshi.com/markets/{ticker}" if ticker else "", updated_at=datetime.now(UTC).isoformat())
-        except Exception as e: logger.warning(f"Failed to parse Kalshi market: {e}")
+        except Exception as e:
+            logger.warning(f"Failed to parse Kalshi market: {e}")
         return None
 
     async def _trending_kalshi(self, limit: int) -> list[PredictionMarket]:
@@ -286,7 +293,8 @@ class PredictionMarketService:
                     logger.debug("kalshi_trending_market_failed %s", event_ticker)
                     continue
             return results[:limit]
-        except Exception as e: logger.warning(f"Kalshi trending error: {e}")
+        except Exception as e:
+            logger.warning(f"Kalshi trending error: {e}")
         return []
 
     async def _kalshi_detail(self, ticker: str) -> PredictionMarket | None:
@@ -303,11 +311,13 @@ class PredictionMarketService:
                 markets = meta_resp.json().get("markets", [])
                 if markets:
                     pm = self._parse_kalshi_market(markets[0])
-                    if pm: pm.probability_yes = best_yes
+                    if pm:
+                        pm.probability_yes = best_yes
                     pm.probability_no = 1.0 - best_yes
                     return pm
             return None
-        except Exception as e: logger.warning(f"Kalshi detail error for {ticker}: {e}")
+        except Exception as e:
+            logger.warning(f"Kalshi detail error for {ticker}: {e}")
         return None
 
     async def _search_limitless(self, query: str) -> list[PredictionMarket]:
@@ -327,7 +337,8 @@ class PredictionMarketService:
                     if pm:
                         results.append(pm)
             return results
-        except Exception as e: logger.warning(f"Limitless search error: {e}")
+        except Exception as e:
+            logger.warning(f"Limitless search error: {e}")
         return []
 
     def _parse_limitless_market(self, m: dict) -> PredictionMarket | None:
@@ -344,7 +355,8 @@ class PredictionMarketService:
             tags = m.get("tags", [])
             tokens_mentioned = _extract_token_symbols(title)
             return PredictionMarket(source="limitless", source_id=str(slug), question=title, slug=str(slug), probability_yes=prob_yes, probability_no=prob_no, volume_usd=volume, category=category, tags=tags, tokens_mentioned=tokens_mentioned, url=f"https://limitless.exchange/markets/{slug}" if slug else "", ends_at=m.get("expirationDate", ""), updated_at=datetime.now(UTC).isoformat())
-        except Exception as e: logger.warning(f"Failed to parse Limitless market: {e}")
+        except Exception as e:
+            logger.warning(f"Failed to parse Limitless market: {e}")
         return None
 
     async def _trending_limitless(self, limit: int) -> list[PredictionMarket]:
@@ -356,7 +368,8 @@ class PredictionMarketService:
             data = resp.json()
             markets = data.get("data", [])
             return [pm for m in markets[:limit] if (pm := self._parse_limitless_market(m))]
-        except Exception as e: logger.warning(f"Limitless trending error: {e}")
+        except Exception as e:
+            logger.warning(f"Limitless trending error: {e}")
         return []
 
     async def _search_manifold(self, query: str) -> list[PredictionMarket]:
@@ -373,7 +386,8 @@ class PredictionMarketService:
                 if pm:
                     results.append(pm)
             return results
-        except Exception as e: logger.warning(f"Manifold search error: {e}")
+        except Exception as e:
+            logger.warning(f"Manifold search error: {e}")
         return []
 
     def _parse_manifold_market(self, c: dict) -> PredictionMarket | None:
@@ -385,7 +399,8 @@ class PredictionMarketService:
             tokens_mentioned = _extract_token_symbols(question)
             tags = list(c.get("tags", []))
             return PredictionMarket(source="manifold", source_id=str(slug), question=question, slug=str(slug), probability_yes=prob, probability_no=1.0-prob, volume_usd=volume, category="", tags=tags, tokens_mentioned=tokens_mentioned, url=f"https://manifold.markets/{c.get('creatorUsername','')}/{slug}" if slug else "", updated_at=datetime.now(UTC).isoformat())
-        except Exception as e: logger.warning(f"Failed to parse Manifold market: {e}")
+        except Exception as e:
+            logger.warning(f"Failed to parse Manifold market: {e}")
         return None
 
     @staticmethod

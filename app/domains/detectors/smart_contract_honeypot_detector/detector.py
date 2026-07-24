@@ -36,7 +36,8 @@ class HoneypotDetector:
         await self._analyze_liquidity(address, chain, result)
         await self._analyze_holders(address, chain, result)
         await self._analyze_market_data(address, chain, result)
-        if deep_scan or self.enable_deep_scan: await self._deep_scan(address, chain, result)
+        if deep_scan or self.enable_deep_scan:
+            await self._deep_scan(address, chain, result)
         result.risk_score = self._compute_risk_score(result)
         result.risk_label = self._risk_score_to_label(result.risk_score)
         result.scan_duration_ms = int((time_mod.monotonic() - start) * 1000)
@@ -57,23 +58,28 @@ class HoneypotDetector:
                 info.market_cap_usd = float(pair.get("fdv", 0) or 0)
                 info.chain_data_sources.append("dexscreener")
                 pair_addr = pair.get("pairAddress", "")
-                if pair_addr: info.chain_data_sources.append(f"pair:{pair_addr}")
-        except Exception as e: logger.debug(f"DexScreener failed: {e}")
+                if pair_addr:
+                    info.chain_data_sources.append(f"pair:{pair_addr}")
+        except Exception as e:
+            logger.debug(f"DexScreener failed: {e}")
         explorer_url = chain_info.get("explorer", "")
         explorer_key = self._explorer_keys.get(chain, "")
         if explorer_url:
             try:
                 url = f"{explorer_url}?module=contract&action=getsourcecode&address={address}"
-                if explorer_key: url += f"&apikey={explorer_key}"
+                if explorer_key:
+                    url += f"&apikey={explorer_key}"
                 data, _ = await fetch_with_fallback([url])
                 if data and data.get("status") == "1":
                     source = data["result"][0]
                     info.is_verified = source.get("SourceCode", "") != ""
                     info.creator_address = source.get("ContractCreator", "")
                     abi_str = source.get("ABI", "")
-                    if abi_str and abi_str != "Contract source code not verified": info.is_verified = True
+                    if abi_str and abi_str != "Contract source code not verified":
+                        info.is_verified = True
                     info.chain_data_sources.append(f"explorer:{chain}")
-            except Exception as e: logger.debug(f"Explorer failed: {e}")
+            except Exception as e:
+                logger.debug(f"Explorer failed: {e}")
         return info
 
     async def _analyze_fees(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
@@ -87,7 +93,8 @@ class HoneypotDetector:
                         result.findings.append(SecurityFinding(finding_type=HoneypotType.SELL_RESTRICTION, severity=FindingSeverity.CRITICAL, description=f"Cannot sell tokens - 0 sells in 24h vs {buy_tx} buys", detail=f"Found on {pair.get('dexId', '?')} - {pair.get('pairAddress', '')[:12]}..."))
                     elif buy_tx > 50 and sell_tx < buy_tx * 0.05:
                         result.findings.append(SecurityFinding(finding_type=HoneypotType.HIGH_SELL_TAX, severity=FindingSeverity.HIGH, description="Extremely low sell volume - possible sell restriction", detail=f"Buys: {buy_tx}, Sells: {sell_tx} (ratio: {sell_tx / max(buy_tx, 1):.2%})"))
-        except Exception as e: logger.debug(f"Fee analysis via DexScreener failed: {e}")
+        except Exception as e:
+            logger.debug(f"Fee analysis via DexScreener failed: {e}")
         try:
             data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
             if data and data.get("pairs"):
@@ -103,8 +110,10 @@ class HoneypotDetector:
             logger.debug("dex_market_analysis_failed %s", address[:12])
 
     async def _analyze_ownership(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
-        chain_info = EVM_CHAINS.get(chain, {}); rpc_url = chain_info.get("rpc", "")
-        if not rpc_url: return
+        chain_info = EVM_CHAINS.get(chain, {})
+        rpc_url = chain_info.get("rpc", "")
+        if not rpc_url:
+            return
         import httpx
         try:
             async with httpx.AsyncClient(timeout=10) as client:
@@ -115,7 +124,8 @@ class HoneypotDetector:
                     if resp.status_code == 200:
                         impl_data = resp.json().get("result", "")
                         if impl_data and impl_data != "0x" + "0" * 64:
-                            result.token.is_proxy = True; result.token.implementation_address = "0x" + impl_data[-40:]
+                            result.token.is_proxy = True
+                            result.token.implementation_address = "0x" + impl_data[-40:]
                             result.findings.append(SecurityFinding(finding_type=HoneypotType.PROXY_UPGRADE, severity=FindingSeverity.HIGH, description="Upgradable proxy contract detected", detail=f"Implementation at {result.token.implementation_address}", code_reference="EIP-1967 proxy storage slot"))
                 except Exception:
                     logger.debug("impl_storage_failed %s", address[:12])
@@ -129,44 +139,58 @@ class HoneypotDetector:
                             result.token.owner_address = "0x" + admin_data[-40:]
                 except Exception:
                     logger.debug("admin_slot_failed %s", address[:12])
-        except Exception as e: logger.debug(f"Ownership analysis failed: {e}")
+        except Exception as e:
+            logger.debug(f"Ownership analysis failed: {e}")
 
     async def _analyze_contract_functions(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
-        chain_info = EVM_CHAINS.get(chain, {}); rpc_url = chain_info.get("rpc", "")
-        if not rpc_url: return
+        chain_info = EVM_CHAINS.get(chain, {})
+        rpc_url = chain_info.get("rpc", "")
+        if not rpc_url:
+            return
         import httpx
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 payload = {"jsonrpc": "2.0", "id": 1, "method": "eth_getCode", "params": [address, "latest"]}
                 resp = await client.post(rpc_url, json=payload)
-                if resp.status_code != 200: return
+                if resp.status_code != 200:
+                    return
                 bytecode = resp.json().get("result", "")
                 if not bytecode or bytecode == "0x":
-                    result.warnings.append("No contract bytecode found - not a contract"); return
+                    result.warnings.append("No contract bytecode found - not a contract")
+                    return
                 bytecode = bytecode[2:] if bytecode.startswith("0x") else bytecode
                 selectors_found: set[str] = set()
                 for i in range(0, len(bytecode) - 7, 2):
-                    if bytecode[i:i+2] == "63":
+                    if bytecode[i:
+                        i+2] == "63":
                         selector = "0x" + bytecode[i+2:i+10]
-                        if len(selector) == 10: selectors_found.add(selector)
-                    if bytecode[i:i+2] == "7f":
+                        if len(selector) == 10:
+                            selectors_found.add(selector)
+                    if bytecode[i:
+                        i+2] == "7f":
                         potential = "0x" + bytecode[i+2:i+10]
-                        if len(potential) == 10: selectors_found.add(potential)
+                        if len(potential) == 10:
+                            selectors_found.add(potential)
                 for selector in selectors_found:
-                    if selector in BENIGN_SELECTORS: continue
+                    if selector in BENIGN_SELECTORS:
+                        continue
                     if selector in KNOWN_MALICIOUS_SELECTORS:
                         sig, htype, desc = KNOWN_MALICIOUS_SELECTORS[selector]
-                        if selector == "0xf2fde38b" and htype == HoneypotType.UNKNOWN: continue
+                        if selector == "0xf2fde38b" and htype == HoneypotType.UNKNOWN:
+                            continue
                         severity = FindingSeverity.MEDIUM
-                        if htype in (HoneypotType.SELFDESTRUCT, HoneypotType.LIQUIDITY_DRAIN): severity = FindingSeverity.CRITICAL
-                        elif htype in (HoneypotType.OWNER_MINT, HoneypotType.PROXY_UPGRADE, HoneypotType.BLACKLIST, HoneypotType.TRADING_PAUSE): severity = FindingSeverity.HIGH
+                        if htype in (HoneypotType.SELFDESTRUCT, HoneypotType.LIQUIDITY_DRAIN):
+                            severity = FindingSeverity.CRITICAL
+                        elif htype in (HoneypotType.OWNER_MINT, HoneypotType.PROXY_UPGRADE, HoneypotType.BLACKLIST, HoneypotType.TRADING_PAUSE):
+                            severity = FindingSeverity.HIGH
                         result.findings.append(SecurityFinding(finding_type=htype, severity=severity, description=desc or f"Malicious function pattern: {sig}", detail=f"Function: {sig}", code_reference=f"Selector {selector} in bytecode"))
                 if "ff" in bytecode:
                     if not any(f.finding_type == HoneypotType.SELFDESTRUCT for f in result.findings):
                         result.findings.append(SecurityFinding(finding_type=HoneypotType.SELFDESTRUCT, severity=FindingSeverity.CRITICAL, description="SELFDESTRUCT opcode found in contract bytecode", detail="Contract can be permanently destroyed - all funds lost", code_reference="SELFDESTRUCT (0xff) in bytecode"))
                 if "f4" in bytecode and not result.token.is_proxy:
                     result.findings.append(SecurityFinding(finding_type=HoneypotType.PROXY_UPGRADE, severity=FindingSeverity.MEDIUM, description="DELEGATECALL used - possible proxy or delegate pattern", detail="Contract uses delegatecall pattern for execution forwarding", code_reference="DELEGATECALL (0xf4) in bytecode"))
-        except Exception as e: logger.debug(f"Bytecode analysis failed: {e}")
+        except Exception as e:
+            logger.debug(f"Bytecode analysis failed: {e}")
 
     async def _analyze_liquidity(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
         try:
@@ -180,14 +204,18 @@ class HoneypotDetector:
                     pair_created = pair.get("pairCreatedAt", 0)
                     if pair_created and liquidity > 1000:
                         age_hours = (datetime.now(UTC).timestamp() - pair_created / 1000) / 3600
-                        if age_hours < 1: result.warnings.append(f"Pool is less than 1 hour old ({age_hours:.1f}h) - very high risk")
-                        elif age_hours < 24: result.warnings.append(f"Pool is less than 24 hours old ({age_hours:.1f}h)")
-        except Exception as e: logger.debug(f"Liquidity analysis failed: {e}")
+                        if age_hours < 1:
+                            result.warnings.append(f"Pool is less than 1 hour old ({age_hours:.1f}h) - very high risk")
+                        elif age_hours < 24:
+                            result.warnings.append(f"Pool is less than 24 hours old ({age_hours:.1f}h)")
+        except Exception as e:
+            logger.debug(f"Liquidity analysis failed: {e}")
 
     async def _analyze_holders(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
         try:
             data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
-            if data and data.get("pairs"): result.chain_data_sources.append("dexscreener_holders")
+            if data and data.get("pairs"):
+                result.chain_data_sources.append("dexscreener_holders")
         except Exception:
             logger.debug("holder_analysis_failed %s", address[:12])
 
@@ -212,8 +240,10 @@ class HoneypotDetector:
 
     async def _deep_scan(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
         import httpx
-        chain_info = EVM_CHAINS.get(chain, {}); rpc_url = chain_info.get("rpc", "")
-        if not rpc_url: return
+        chain_info = EVM_CHAINS.get(chain, {})
+        rpc_url = chain_info.get("rpc", "")
+        if not rpc_url:
+            return
         logger.debug(f"Deep scan enabled for {address[:10]} on {chain}")
         try:
             async with httpx.AsyncClient(timeout=15) as client:
@@ -227,17 +257,26 @@ class HoneypotDetector:
     def _compute_risk_score(self, result: HoneypotAnalysisResult) -> int:
         score = 0
         for finding in result.findings:
-            if finding.severity == FindingSeverity.CRITICAL: score += 35
-            elif finding.severity == FindingSeverity.HIGH: score += 20
-            elif finding.severity == FindingSeverity.MEDIUM: score += 10
-            elif finding.severity == FindingSeverity.LOW: score += 3
+            if finding.severity == FindingSeverity.CRITICAL:
+                score += 35
+            elif finding.severity == FindingSeverity.HIGH:
+                score += 20
+            elif finding.severity == FindingSeverity.MEDIUM:
+                score += 10
+            elif finding.severity == FindingSeverity.LOW:
+                score += 3
         score = min(score, 100)
-        if score > 0 and score < 15: score = 15
+        if score > 0 and score < 15:
+            score = 15
         return score
 
     def _risk_score_to_label(self, score: int) -> str:
-        if score >= 70: return "critical"
-        if score >= 40: return "high"
-        if score >= 20: return "medium"
-        if score >= 5: return "low"
+        if score >= 70:
+            return "critical"
+        if score >= 40:
+            return "high"
+        if score >= 20:
+            return "medium"
+        if score >= 5:
+            return "low"
         return "safe"

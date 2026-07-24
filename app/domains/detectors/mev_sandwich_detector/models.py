@@ -74,11 +74,16 @@ class MEVTransaction:
     method_signature: str = ""
 
     def __post_init__(self) -> None:
-        if self.value_eth < 0: raise ValueError(f"Negative ETH value: {self.value_eth}")
-        if self.gas_price_gwei < 0: raise ValueError(f"Negative gas price: {self.gas_price_gwei}")
-        if self.gas_used < 0: raise ValueError(f"Negative gas used: {self.gas_used}")
-        if self.block_number < 0: raise ValueError(f"Negative block number: {self.block_number}")
-        if self.tx_index < 0: raise ValueError(f"Negative tx index: {self.tx_index}")
+        if self.value_eth < 0:
+            raise ValueError(f"Negative ETH value: {self.value_eth}")
+        if self.gas_price_gwei < 0:
+            raise ValueError(f"Negative gas price: {self.gas_price_gwei}")
+        if self.gas_used < 0:
+            raise ValueError(f"Negative gas used: {self.gas_used}")
+        if self.block_number < 0:
+            raise ValueError(f"Negative block number: {self.block_number}")
+        if self.tx_index < 0:
+            raise ValueError(f"Negative tx index: {self.tx_index}")
 
 @dataclass
 class SandwichAttack:
