@@ -595,7 +595,8 @@ class TestNewsProviders:
         mock_client.get.return_value = mock_response
         with patch("app.databus.provider_implementations.news.httpx.AsyncClient") as mock_http:
             mock_http.return_value.__aenter__.return_value = mock_client
-            result = await _messari_news(limit=10, api_key="valid-key")
+            with patch.dict("os.environ", {"MESSARI_API_KEY": ""}, clear=False):
+                result = await _messari_news(limit=10, api_key="valid-key")
         assert result is None
 
     @pytest.mark.asyncio
@@ -604,7 +605,8 @@ class TestNewsProviders:
         from app.databus.provider_implementations.news import _coindesk_news
 
         with patch("app.databus.provider_implementations.news.httpx.AsyncClient") as mock_http:
-            result = await _coindesk_news(api_key="")
+            with patch.dict("os.environ", {"COINDESK_API_KEY": ""}, clear=False):
+                result = await _coindesk_news(api_key="")
             assert result is None
             mock_http.assert_not_called()
 
@@ -614,7 +616,8 @@ class TestNewsProviders:
         from app.databus.provider_implementations.news import _santiment_dev_activity
 
         with patch("app.databus.provider_implementations.news.httpx.AsyncClient") as mock_http:
-            result = await _santiment_dev_activity(project_slug="bitcoin", api_key="")
+            with patch.dict("os.environ", {"SANTIMENT_API_KEY": ""}, clear=False):
+                result = await _santiment_dev_activity(project_slug="bitcoin", api_key="")
             assert result is None
             mock_http.assert_not_called()
 
@@ -624,7 +627,8 @@ class TestNewsProviders:
         from app.databus.provider_implementations.news import _virustotal_url_scan
 
         with patch("app.databus.provider_implementations.news.httpx.AsyncClient") as mock_http:
-            result = await _virustotal_url_scan(url="https://example.com", api_key="")
+            with patch.dict("os.environ", {"VIRUSTOTAL_API_KEY": ""}, clear=False):
+                result = await _virustotal_url_scan(url="https://example.com", api_key="")
             assert result is None
             mock_http.assert_not_called()
 
