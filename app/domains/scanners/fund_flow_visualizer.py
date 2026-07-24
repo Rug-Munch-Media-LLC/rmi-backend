@@ -328,7 +328,7 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
 def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple:
     """Build node list and edge list from wallet data.
 
-    Returns (nodes: List[FundFlowNode], edges: List[FundFlowEdge], risk_flags: List[str])
+    Returns (nodes: list[FundFlowNode], edges: list[FundFlowEdge], risk_flags: list[str])
     """
     nodes: list[FundFlowNode] = []
     edges: list[FundFlowEdge] = []

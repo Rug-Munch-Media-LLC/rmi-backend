@@ -45,7 +45,7 @@ class SemanticCache:
     On store: save query embedding + results to Redis with TTL.
     """
 
-    _instance: Optional["SemanticCache"] = None
+    _instance: "SemanticCache" | None = None
 
     def __init__(self) -> None:
         self._redis = None

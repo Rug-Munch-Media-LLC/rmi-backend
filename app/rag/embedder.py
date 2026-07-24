@@ -361,7 +361,7 @@ class _MemoryCache:
     def __init__(self, maxsize: int = 10_000, default_ttl: int = 86_400) -> None:
         self._maxsize = maxsize
         self._default_ttl = default_ttl
-        self._store: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+        self._store: Ordereddict[str, tuple[float, Any]] = OrderedDict()
         self._hits = 0
         self._misses = 0
 

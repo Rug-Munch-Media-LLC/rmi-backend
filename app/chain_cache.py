@@ -54,7 +54,7 @@ class ChainCache:
     def __init__(self, max_size: int = 500, default_ttl: int = 300) -> None:
         self.max_size = max_size
         self.default_ttl = default_ttl
-        self._cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+        self._cache: Ordereddict[str, tuple[float, Any]] = OrderedDict()
         self._lock = asyncio.Lock()
         self._warmed = False
 
