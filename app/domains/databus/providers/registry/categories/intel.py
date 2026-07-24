@@ -9,16 +9,22 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     """Build intel provider chains."""
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict
+    # ── Conditional imports for optional databus modules ──
+    try:
+        from app.databus.arkham_ws import arkham_ws_subscribe
+    except ImportError:
+        arkham_ws_subscribe = None
+
 
     chains["entity_intel"] = ProviderChain(
         data_type="entity_intel",
         description="Entity resolution and risk scoring (local labels → Arkham free → Moralis)",
         providers=[
-            Provider("wallet_labels_local", ProviderTier.LOCAL, _local_wallet_labels, weight=10.0),
+            Provider("wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0),
             Provider(
                 "arkham_entity",
                 ProviderTier.FREEMIUM,
-                _arkham_entity,
+                _g["_arkham_entity"],
                 weight=8.0,
                 rate_limit_rps=5.0,
                 requires_key=True,
@@ -28,7 +34,7 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "moralis_labels",
                 ProviderTier.FREEMIUM,
-                _moralis_wallet_tokens,
+                _g["_moralis_wallet_tokens"],
                 weight=3.0,
                 requires_key=True,
                 key_env="MORALIS_API_KEY",
@@ -40,11 +46,11 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="arkham_labels",
         description="Entity labels with confidence scores (local → Arkham free trial)",
         providers=[
-            Provider("wallet_labels_local", ProviderTier.LOCAL, _local_wallet_labels, weight=10.0),
+            Provider("wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0),
             Provider(
                 "arkham_labels_api",
                 ProviderTier.FREEMIUM,
-                _arkham_labels,
+                _g["_arkham_labels"],
                 weight=8.0,
                 rate_limit_rps=5.0,
                 requires_key=True,
@@ -61,7 +67,7 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "arkham_portfolio_api",
                 ProviderTier.FREEMIUM,
-                _arkham_portfolio,
+                _g["_arkham_portfolio"],
                 weight=10.0,
                 rate_limit_rps=3.0,
                 requires_key=True,
@@ -78,7 +84,7 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "arkham_transfers_api",
                 ProviderTier.FREEMIUM,
-                _arkham_transfers,
+                _g["_arkham_transfers"],
                 weight=10.0,
                 rate_limit_rps=3.0,
                 requires_key=True,
@@ -95,7 +101,7 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "arkham_counterparties_api",
                 ProviderTier.FREEMIUM,
-                _arkham_counterparties,
+                _g["_arkham_counterparties"],
                 weight=10.0,
                 rate_limit_rps=3.0,
                 requires_key=True,
@@ -112,7 +118,7 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "arkham_intel_search",
                 ProviderTier.FREEMIUM,
-                _arkham_intel_search,
+                _g["_arkham_intel_search"],
                 weight=10.0,
                 rate_limit_rps=5.0,
                 requires_key=True,

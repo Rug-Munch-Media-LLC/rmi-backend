@@ -406,14 +406,14 @@ async def mempool_status() -> dict:
     }
 
 
-@router.post("/mempool/start")
+@router.post("/mempool/start", summary="Mempool Start", description="Start monitoring the mempool for suspicious transactions on a specified chain.")
 async def mempool_start(chain: str = "ethereum") -> dict[str, str]:
     sentinel = await get_sentinel()
     await sentinel.start(chain)
     return {"status": "started", "chain": chain}
 
 
-@router.post("/mempool/stop")
+@router.post("/mempool/stop", summary="Mempool Stop", description="Stop monitoring the mempool for a specified chain.")
 async def mempool_stop() -> dict[str, str]:
     sentinel = await get_sentinel()
     await sentinel.stop()

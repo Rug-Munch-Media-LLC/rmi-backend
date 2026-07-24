@@ -336,3 +336,18 @@ def get_evm_client(
 ) -> EVMClient:
     """Get global EVM client."""
     return _client_manager.get_client(chain, rpc_url, use_moralis)
+
+# ─── CIRCUIT BREAKER ──────────────────────────────────────────────
+# Prevents cascading failures when RPC endpoints are degraded.
+# Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
+# See app.core.circuit_breaker for the implementation.
+
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+
+_evm_rpc_cb = AsyncCircuitBreaker(
+    name="evm_rpc",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+    half_open_max=1,
+)

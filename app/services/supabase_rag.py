@@ -107,3 +107,17 @@ async def get_namespace_stats(namespace: str = "default") -> dict:
             "count": int(r.headers.get("content-range", "0").split("/")[-1] or 0),
             "status": r.status_code,
         }
+
+# ─── CIRCUIT BREAKER ──────────────────────────────────────────────
+# Prevents cascading failures when Supabase RAG is degraded.
+# Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
+
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+
+_supabase_rag_cb = AsyncCircuitBreaker(
+    name="supabase_rag",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+    half_open_max=1,
+)

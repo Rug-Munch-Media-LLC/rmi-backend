@@ -32,10 +32,10 @@ async def search_similar(
             try:
                 from app.rag_observability import trace_retrieval
                 trace_retrieval((time.time() - t0) * 1000, collection, len(cached), cache_hit=True)
-            except Exception:
+            except (ImportError, AttributeError):
                 pass
             return cached
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     results = []

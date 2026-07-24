@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 RMI Worker - Background job processor for token scanning and queue processing
+
+Uses structured JSON logging consistent with the FastAPI backend.
 """
 
 import asyncio
 import json
-import logging
 import os
 import sys
 from datetime import UTC, datetime
@@ -14,12 +15,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger(__name__)
+# ── Structured logging ───────────────────────────────────────────────
+from app.core.logging_config import setup_stdlib_logging  # noqa: E402 — dotenv must load first
+
+logger = setup_stdlib_logging(__name__)
+worker_log = logger  # alias used throughout
 
 REDIS_HOST = os.getenv("REDIS_HOST", "dragonfly")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -48,13 +48,16 @@ async def connect_redis():
                 decode_responses=True,
             )
             await r.ping()
-            logger.info(f"Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+            logger.info("redis_connected", extra={"host": REDIS_HOST, "port": REDIS_PORT})
             return r
         except Exception as e:
             retries += 1
-            logger.warning(f"Redis connection attempt {retries}/{max_retries} failed: {e}")
+            logger.warning(
+                "redis_connect_retry",
+                extra={"attempt": retries, "max_retries": max_retries, "error": str(e)},
+            )
             if retries >= max_retries:
-                logger.error("Max Redis retries reached, exiting")
+                logger.error("redis_max_retries_exceeded")
                 sys.exit(1)
             await asyncio.sleep(2)
 
@@ -68,7 +71,10 @@ async def process_scan_job(r, job_data):
         chain = job_data.get("chain", "solana")
         tiers = ["free", "pro"] if job_data.get("deep") else ["free"]
 
-        logger.info(f"Scanning token: {token_address} on {chain} (tiers: {tiers})")
+        logger.info(
+            "scanning_token",
+            extra={"token_address": token_address, "chain": chain, "tiers": tiers},
+        )
 
         # Use the real scanner engine with real modules
         try:
@@ -97,14 +103,19 @@ async def process_scan_job(r, job_data):
             }
 
             logger.info(
-                f"Token {token_address} scanned — "
-                f"safety: {scan_result_obj.safety_score}/100, "
-                f"flags: {scan_result_obj.risk_flags or 'none'}"
+                "token_scanned",
+                extra={
+                    "token_address": token_address,
+                    "safety_score": scan_result_obj.safety_score,
+                    "risk_flags": scan_result_obj.risk_flags or [],
+                },
             )
 
         except ImportError:
             # Fallback: basic DexScreener fetch
-            logger.warning("scanner module not available, using fallback")
+            logger.warning(
+                "scanner_fallback", extra={"token_address": token_address, "chain": chain}
+            )
             import httpx
 
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -112,10 +123,12 @@ async def process_scan_job(r, job_data):
                     response = await client.get(
                         f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
                     )
-                    token_data = response.json() if response.status_code == 200 else {}
+                    _ = response.json() if response.status_code == 200 else {}
                 except Exception as e:
-                    logger.error(f"Failed to fetch token data: {e}")
-                    token_data = {}
+                    logger.error(
+                        "token_fetch_failed",
+                        extra={"token_address": token_address, "error": str(e)},
+                    )
 
             scan_result = {
                 "token_address": token_address,
@@ -132,38 +145,38 @@ async def process_scan_job(r, job_data):
         await r.lpush("scan_results", json.dumps(scan_result))
         await r.ltrim("scan_results", 0, 99)
 
-        logger.info(f"Scan completed for {token_address}")
+        logger.info("scan_completed", extra={"token_address": token_address})
         return True
     except Exception as e:
-        logger.error(f"Scan job failed: {e}")
+        logger.error("scan_job_failed", extra={"token_address": token_address, "error": str(e)})
         return False
 
 
 async def process_news_job(r, job_data):
     """Process a news aggregation job"""
     try:
-        logger.info(f"Processing news job: {job_data}")
+        logger.info("news_job_processing", extra={"job_data": job_data})
         # TODO: Implement news aggregation
         return True
     except Exception as e:
-        logger.error(f"News job failed: {e}")
+        logger.error("news_job_failed", extra={"error": str(e)})
         return False
 
 
 async def process_alert_job(r, job_data):
     """Process an alert generation job"""
     try:
-        logger.info(f"Processing alert job: {job_data}")
+        logger.info("alert_job_processing", extra={"job_data": job_data})
         # TODO: Implement alert generation
         return True
     except Exception as e:
-        logger.error(f"Alert job failed: {e}")
+        logger.error("alert_job_failed", extra={"error": str(e)})
         return False
 
 
 async def worker_loop(r):
     """Main worker loop - process jobs from queues"""
-    logger.info("Starting worker loop...")
+    logger.info("worker_loop_started")
 
     while True:
         try:
@@ -201,23 +214,23 @@ async def worker_loop(r):
             await asyncio.sleep(0.5)
 
         except asyncio.CancelledError:
-            logger.info("Worker loop cancelled")
+            logger.info("worker_loop_cancelled")
             break
         except Exception as e:
-            logger.error(f"Worker loop error: {e}")
+            logger.error("worker_loop_error", extra={"error": str(e)})
             await asyncio.sleep(5)
 
 
 async def periodic_token_scan(r):
     """Periodically scan new tokens from DEXs using token_discovery engine."""
-    logger.info("Starting periodic token scanner...")
+    logger.info("periodic_scanner_started")
 
     try:
         from app.token_discovery import MONITORED_CHAINS, discover_new_tokens
 
         DISCOVERY_AVAILABLE = True
     except ImportError:
-        logger.warning("token_discovery module not available, using stub mode")
+        logger.warning("token_discovery_unavailable")
         DISCOVERY_AVAILABLE = False
 
     while True:
@@ -250,27 +263,27 @@ async def periodic_token_scan(r):
                                 ),
                             )
 
-                    logger.info(f"🔍 Queued {total} new tokens for deep scanning")
+                    logger.info("tokens_queued_for_scan", extra={"count": total})
                 else:
-                    logger.debug("No new tokens discovered this cycle")
+                    logger.debug("no_new_tokens_discovered")
             else:
-                logger.warning("Periodic scan tick - token discovery not available")
+                logger.warning("periodic_scan_tick_discovery_unavailable")
 
             # Run every 5 minutes
             await asyncio.sleep(300)
 
         except asyncio.CancelledError:
-            logger.info("Periodic scanner cancelled")
+            logger.info("periodic_scanner_cancelled")
             break
         except Exception as e:
-            logger.error(f"Periodic scanner error: {e}")
+            logger.error("periodic_scanner_error", extra={"error": str(e)})
             await asyncio.sleep(60)
 
 
 async def main():
     """Main entry point"""
-    logger.info("RMI Worker starting...")
-    logger.info(f"Config: REDIS_HOST={REDIS_HOST}, REDIS_PORT={REDIS_PORT}")
+    logger.info("worker_starting")
+    logger.info("worker_config", extra={"redis_host": REDIS_HOST, "redis_port": REDIS_PORT})
 
     r = await connect_redis()
 
@@ -282,7 +295,7 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Worker stopped by user")
+        logger.info("worker_stopped_by_user")
     except Exception as e:
-        logger.error(f"Worker crashed: {e}")
+        logger.error("worker_crashed", extra={"error": str(e)})
         sys.exit(1)

@@ -73,7 +73,7 @@ a:hover{{text-decoration:underline}}
 </html>"""
 
 
-@router.get("/docs")
+@router.get("/docs", summary="Docs Landing", description="Landing page for the x402 API documentation portal.")
 @router.get("/docs/v2/landing")
 async def landing_page() -> Any:
     """Landing page - the product is token intelligence, not x402."""
@@ -135,7 +135,7 @@ Your API key is all you need. We handle the blockchain.
     )
 
 
-@router.get("/docs/v2/quickstart")
+@router.get("/docs/v2/quickstart", summary="Quickstart", description="Quickstart guide for the x402 API. Shows how to get started with token scanning, wallet analysis, and x402 payments.")
 async def quickstart() -> Any:
     return HTMLResponse(
         content=_page(
@@ -189,7 +189,7 @@ no seed phrases to lose.
     )
 
 
-@router.get("/docs/v2/api-reference")
+@router.get("/docs/v2/api-reference", summary="Api Reference", description="Full API reference documentation for all x402 endpoints, including request/response schemas and authentication.")
 async def api_reference() -> Any:
     return HTMLResponse(
         content=_page(

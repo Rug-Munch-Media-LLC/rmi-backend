@@ -9,12 +9,26 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     """Build system provider chains."""
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict
+    # ── Conditional imports for optional databus modules ──
+    try:
+        from app.databus.webhooks import handle_webhook, list_webhooks, setup_webhook
+    except ImportError:
+        handle_webhook = list_webhooks = setup_webhook = None
+    try:
+        from app.databus.model_registry import ai_call, get_usage_stats, review_content
+    except ImportError:
+        ai_call = get_usage_stats = review_content = None
+    try:
+        from app.databus.rag_ingestion import nightly_rag_index, rag_health_check
+    except ImportError:
+        nightly_rag_index = rag_health_check = None
+
 
     chains["alerts"] = ProviderChain(
         data_type="alerts",
         description="Active threat alerts from scanner pipeline",
         providers=[
-            Provider("rmi_alerts", ProviderTier.LOCAL, _passthrough_alerts, weight=10.0),
+            Provider("rmi_alerts", ProviderTier.LOCAL, _g["_passthrough_alerts"], weight=10.0),
         ],
     )
 
@@ -26,7 +40,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "santiment_dev",
                 ProviderTier.FREEMIUM,
-                _santiment_dev_activity,
+                _g["_santiment_dev_activity"],
                 weight=10.0,
                 rate_limit_rps=1.0,
                 requires_key=True,
@@ -41,7 +55,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="mcp_bridge",
         description="Universal MCP bridge - calls any local/remote MCP server tool",
         providers=[
-            Provider("mcp_bridge", ProviderTier.LOCAL, _mcp_bridge, weight=10.0),
+            Provider("mcp_bridge", ProviderTier.LOCAL, _g["_mcp_bridge"], weight=10.0),
         ],
     )
 
@@ -144,7 +158,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="hyperliquid",
         description="Hyperliquid perp markets and funding rates",
         providers=[
-            Provider("rmi_hyperliquid", ProviderTier.LOCAL, _passthrough_hyperliquid, weight=10.0),
+            Provider("rmi_hyperliquid", ProviderTier.LOCAL, _g["_passthrough_hyperliquid"], weight=10.0),
         ],
     )
 
@@ -156,7 +170,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "rmi_hyperliquid_action",
                 ProviderTier.LOCAL,
-                _passthrough_hyperliquid_action,
+                _g["_passthrough_hyperliquid_action"],
                 weight=10.0,
             ),
         ],
@@ -170,7 +184,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "rmi_insider_wallets",
                 ProviderTier.LOCAL,
-                _passthrough_insider_wallets,
+                _g["_passthrough_insider_wallets"],
                 weight=10.0,
             ),
         ],
@@ -184,11 +198,33 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "rmi_prediction_signals",
                 ProviderTier.LOCAL,
-                _passthrough_prediction_signals,
+                _g["_passthrough_prediction_signals"],
                 weight=10.0,
             ),
         ],
     )
 
+
+
+    # ── Full News Feed ──
+    try:
+        from app.databus.news_provider import get_full_news_feed  # noqa: E402
+    except ImportError:
+        get_full_news_feed = None
+
+    if get_full_news_feed:
+        chains["full_news"] = ProviderChain(
+            data_type="full_news",
+            description="Complete news feed: headlines + market data + fear/greed + polymarket predictions",
+            providers=[
+                Provider(
+                    "full_news_feed",
+                    ProviderTier.LOCAL,
+                    get_full_news_feed,
+                    weight=15.0,
+                    rate_limit_rps=5.0,
+                )
+            ],
+        )
 
     return chains

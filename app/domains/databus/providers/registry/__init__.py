@@ -96,7 +96,6 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     from .categories.intel import build_intel_chains
     from .categories.social import build_social_chains
     from .categories.system import build_system_chains
-    from .categories.news import build_news_chains
 
     chains.update(build_market_chains(locals()))
     chains.update(build_security_chains(locals()))
@@ -104,7 +103,6 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     chains.update(build_intel_chains(locals()))
     chains.update(build_social_chains(locals()))
     chains.update(build_system_chains(locals()))
-    chains.update(build_news_chains(locals()))
 
     # ── Initialize circuit breakers and rate limiters ──
     for chain in chains.values():

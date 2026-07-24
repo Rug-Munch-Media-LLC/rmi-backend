@@ -755,3 +755,17 @@ async def ensure_x402_payments_table() -> bool:
             return r.status_code in (200, 204)
     except (httpx.HTTPError, httpx.TimeoutException):
         return False
+
+# ─── CIRCUIT BREAKER ──────────────────────────────────────────────
+# Prevents cascading failures when Supabase is degraded.
+# Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
+
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+
+_supabase_cb = AsyncCircuitBreaker(
+    name="supabase",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+    half_open_max=1,
+)

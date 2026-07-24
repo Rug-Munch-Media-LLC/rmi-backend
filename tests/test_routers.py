@@ -6,9 +6,22 @@ Covers:
 - /ready readiness endpoint
 - /api/v2/scanner/token/scan endpoint
 - Router response schemas
+- Route registration
+- Response format contracts
+- Error responses (422, 401, 404)
+- Pagination, filtering
+- Multiple router prefixes and feature flags
 """
 
 from __future__ import annotations
+
+import os
+
+# Force env vars BEFORE any app imports
+os.environ["JWT_SECRET"] = "a" * 32
+os.environ["ENVIRONMENT"] = "dev"
+os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
+os.environ["DEV_BYPASS_AUTH"] = "false"
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -32,7 +45,9 @@ async def client(app):
         yield ac
 
 
-# ── Health Route Tests ────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+# ── Health Route Tests
+# ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.asyncio
@@ -97,7 +112,9 @@ async def test_root_endpoint(client):
     assert response.status_code in (200, 404)
 
 
-# ── Scanner Router Tests ─────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+# ── Scanner Route Tests
+# ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.asyncio
@@ -107,7 +124,6 @@ async def test_scanner_endpoint_requires_auth(client):
         "/api/v2/scanner/token/scan",
         json={"address": "0xtoken", "chain": "ethereum"},
     )
-    # Should fail with auth or 500 since scanner requires init
     assert response.status_code in (401, 403, 422, 500)
 
 
@@ -121,7 +137,210 @@ async def test_scanner_endpoint_bad_request(client):
     assert response.status_code in (422, 400, 403)
 
 
-# ── Router Response Schema ────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+# ── Router Registration Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_health_routes_accessible(client):
+    """Health endpoints /health, /live, /ready are accessible."""
+    for path in ("/health", "/live", "/ready"):
+        resp = await client.get(path)
+        assert resp.status_code == 200, f"{path} should return 200"
+
+
+@pytest.mark.asyncio
+async def test_market_routes_require_auth(client):
+    """Market router endpoints require authentication."""
+    resp = await client.get("/api/v1/market/overview")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_scanner_routes_require_auth(client):
+    """Scanner v2 router endpoints require authentication."""
+    for endpoint in ("/api/v2/scanner/token/scan", "/api/v2/scanner/wallet/scan"):
+        resp = await client.post(endpoint, json={"address": "0xtest", "chain": "ethereum"})
+        assert resp.status_code in (401, 403, 422), f"{endpoint} should require auth"
+
+
+@pytest.mark.asyncio
+async def test_bulletin_routes_registered(client):
+    """Bulletin router prefix /api/v1/bulletin is registered."""
+    resp = await client.get(
+        "/api/v1/bulletin/posts",
+        headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
+    )
+    # Could be 200, 404, or 500 depending on supabase connectivity
+    # But not 401 (we sent auth) or a routing error
+    assert resp.status_code != 404, "Bulletin route not found"
+
+
+@pytest.mark.asyncio
+async def test_deep_intel_router_has_correct_prefix(app):
+    """Deep intel router has correct prefix and routes."""
+    from app.services.deep_intel_router import router
+
+    assert router.prefix == "/api/v1/deep-intel"
+    expected = (
+        "/api/v1/deep-intel/health",
+        "/api/v1/deep-intel/deployer/{address}",
+        "/api/v1/deep-intel/full-report/{token_address}",
+        "/api/v1/deep-intel/batch-report",
+    )
+    route_paths = {r.path for r in router.routes}
+    for path in expected:
+        assert path in route_paths, f"Expected route {path} not found in deep intel router"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ── Response Format Contract Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_live_response_format(client):
+    """GET /live response matches LivenessResponse schema."""
+    response = await client.get("/live")
+    data = response.json()
+    # Contract: must have 'status' = 'alive', no extra required fields
+    assert list(data.keys()) == ["status"]
+    assert data["status"] == "alive"
+
+
+@pytest.mark.asyncio
+async def test_health_response_format(client):
+    """GET /health response has required top-level fields."""
+    response = await client.get("/health")
+    data = response.json()
+    required_fields = {"status", "version", "uptime_seconds", "stores"}
+    assert required_fields.issubset(data.keys()), (
+        f"Missing fields: {required_fields - set(data.keys())}"
+    )
+    assert isinstance(data["version"], str)
+    assert isinstance(data["uptime_seconds"], (int, float))
+    assert isinstance(data["stores"], dict)
+
+
+@pytest.mark.asyncio
+async def test_ready_response_format(client):
+    """GET /ready response matches ReadinessResponse schema."""
+    response = await client.get("/ready")
+    data = response.json()
+    assert "status" in data
+    assert "checks" in data
+    assert isinstance(data["checks"], dict)
+    assert "redis" in data["checks"]
+    assert "postgres" in data["checks"]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ── Error Response Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_404_returns_json_error(client):
+    """Non-existent route returns JSON error, not HTML (with valid auth)."""
+    response = await client.get(
+        "/nonexistent-route-12345",
+        headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
+    )
+    assert response.status_code == 404
+    content_type = response.headers.get("content-type", "")
+    assert "json" in content_type, "404 should return JSON, not HTML"
+
+
+@pytest.mark.asyncio
+async def test_unauthenticated_error_format(client):
+    """401 error response has 'detail' key."""
+    response = await client.get("/api/v1/market/overview")
+    assert response.status_code == 401
+    data = response.json()
+    assert "detail" in data
+    assert "Unauthorized" in data["detail"]
+
+
+@pytest.mark.asyncio
+async def test_scanner_invalid_address_format_error(client):
+    """Scanner returns proper error for invalid address format."""
+    response = await client.post(
+        "/api/v2/scanner/token/scan",
+        json={"address": "", "chain": "solana"},
+        headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
+    )
+    # Should be a JSON error, not a crash
+    # May be 403 (CSRF), 422 (validation), or 500 (scan failure)
+    assert response.status_code in (400, 403, 422, 500)
+    assert "application/json" in response.headers.get("content-type", "")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ── Pagination Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_bulletin_posts_pagination_defaults(client):
+    """GET /api/v1/bulletin/posts uses pagination defaults."""
+    response = await client.get(
+        "/api/v1/bulletin/posts",
+        headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
+    )
+    # This may return 200 or 500 depending on supabase mock availability
+    # But should not be 401 (we sent auth)
+    assert response.status_code != 401
+
+
+@pytest.mark.asyncio
+async def test_bulletin_posts_accepts_limit_param(client):
+    """GET /api/v1/bulletin/posts with limit query is routed correctly."""
+    response = await client.get(
+        "/api/v1/bulletin/posts",
+        params={"limit": "5"},
+        headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
+    )
+    assert response.status_code != 401
+    # May be 200 (success), 405 (method), or 500 (upstream)
+    assert response.status_code in (200, 405, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ── Request Header Forwarding Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_request_id_propagates_to_response(client):
+    """X-Request-ID from request appears in response headers."""
+    req_id = "test-req-id-42"
+    response = await client.get("/live", headers={"X-Request-ID": req_id})
+    assert response.headers.get("X-Request-ID") == req_id
+
+
+@pytest.mark.asyncio
+async def test_cors_headers_on_options(app):
+    """OPTIONS request includes CORS headers."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.options(
+            "/live",
+            headers={
+                "Origin": "https://app.rugmunch.io",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        # CORS headers present
+        assert "access-control-allow-origin" in response.headers or response.status_code in (
+            200,
+            400,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ── Health Response Model Tests
+# ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.asyncio
@@ -158,3 +377,117 @@ async def test_readiness_response_model():
     rr = ReadinessResponse(status="ready", checks={"redis": True, "postgres": True})
     assert rr.status == "ready"
     assert rr.checks["redis"] is True
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ── Config Validation Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestConfigValidation:
+    """Health config validation logic."""
+
+    def test_check_config_missing_key(self, monkeypatch):
+        """check_config flags missing required keys."""
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("REDIS_URL", raising=False)
+        monkeypatch.setenv("CLICKHOUSE_URL", "http://clickhouse:8123")
+
+        from app.core.health_route import check_config
+
+        issues = check_config()
+        issue_keys = [i["key"] for i in issues]
+        assert "DATABASE_URL" in issue_keys
+        assert "REDIS_URL" in issue_keys
+
+    def test_check_config_placeholder_detected(self, monkeypatch):
+        """check_config flags placeholder values."""
+        monkeypatch.setenv("DATABASE_URL", "postgresql://user:***@host/db")
+        monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+        monkeypatch.setenv("CLICKHOUSE_URL", "http://clickhouse:8123")
+
+        from app.core.health_route import check_config
+
+        issues = check_config()
+        assert len(issues) >= 1  # DATABASE_URL has *** placeholder
+
+    def test_check_config_clean_passes(self, monkeypatch):
+        """check_config returns empty list when all required vars are set properly."""
+        monkeypatch.setenv("DATABASE_URL", "postgresql://user:realpass@host/db")
+        monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+        monkeypatch.setenv("CLICKHOUSE_URL", "http://clickhouse:8123")
+
+        from app.core.health_route import check_config
+
+        issues = check_config()
+        # Only non-placeholder, non-missing configs
+        assert "DATABASE_URL" not in {i["key"] for i in issues}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ── TokenScanRequest Model Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestTokenScanRequest:
+    """TokenScanRequest model validation."""
+
+    def test_default_chain_is_solana(self):
+        from app.routers.unified_scanner_router import TokenScanRequest
+
+        req = TokenScanRequest(address="So11111111111111111111111111111111111111112")
+        assert req.chain == "solana"
+
+    def test_chain_override(self):
+        from app.routers.unified_scanner_router import TokenScanRequest
+
+        req = TokenScanRequest(address="0xtoken", chain="ethereum")
+        assert req.chain == "ethereum"
+
+    def test_address_required(self):
+        from app.routers.unified_scanner_router import TokenScanRequest
+
+        with pytest.raises(Exception):
+            TokenScanRequest()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ── Rate Limiter Unit Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestRateLimitPathResolution:
+    """_resolve_rate_limit path categorization."""
+
+    def test_health_path(self):
+        from app.core.rate_limiter import _resolve_rate_limit
+
+        rate, burst = _resolve_rate_limit("/health")
+        assert rate > 0
+        assert burst > 0
+
+    def test_auth_path(self):
+        from app.core.rate_limiter import _resolve_rate_limit
+
+        rate, burst = _resolve_rate_limit("/login")
+        assert rate > 0
+
+    def test_unknown_path_defaults(self):
+        from app.core.rate_limiter import _resolve_rate_limit
+
+        rate, burst = _resolve_rate_limit("/some/unknown/path")
+        assert rate > 0
+        assert burst > 0
+
+    def test_scanner_path(self):
+        from app.core.rate_limiter import _resolve_rate_limit
+
+        rate, burst = _resolve_rate_limit("/api/v1/scanner/token")
+        assert rate > 0
+
+    def test_path_matches_longest_prefix(self):
+        from app.core.rate_limiter import _resolve_rate_limit
+
+        # /api/v1/scanner should match before /api/v1 defaults
+        rate, burst = _resolve_rate_limit("/api/v1/scanner/token/scan")
+        assert rate > 0

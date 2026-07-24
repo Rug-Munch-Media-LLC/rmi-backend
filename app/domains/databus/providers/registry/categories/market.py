@@ -9,16 +9,27 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     """Build market provider chains."""
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict
+    # ── Conditional imports for optional databus modules ──
+    try:
+        from app.databus.bitquery_provider import BitqueryProvider
+    except ImportError:
+        BitqueryProvider = None
+    try:
+        from app.databus.ohlcv_engine import fetch_ohlcv, ingest_trade_data
+    except ImportError:
+        fetch_ohlcv = None
+        ingest_trade_data = None
+
 
     chains["token_price"] = ProviderChain(
         data_type="token_price",
         description="Token price across DEXs and CEXs",
         providers=[
-            Provider("local_price", ProviderTier.LOCAL, _local_token_price, weight=10.0),
+            Provider("local_price", ProviderTier.LOCAL, _g["_local_token_price"], weight=10.0),
             Provider(
                 "solana_tracker",
                 ProviderTier.FREEMIUM,
-                _solana_tracker_price,
+                _g["_solana_tracker_price"],
                 weight=8.0,
                 rate_limit_rps=3.0,
                 requires_key=True,
@@ -28,15 +39,15 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "dexscreener",
                 ProviderTier.FREE_API,
-                _dexscreener_price,
+                _g["_dexscreener_price"],
                 weight=5.0,
                 rate_limit_rps=2.0,
             ),
-            Provider("coingecko", ProviderTier.FREE_API, _coingecko_price, weight=5.0),
+            Provider("coingecko", ProviderTier.FREE_API, _g["_coingecko_price"], weight=5.0),
             Provider(
                 "moralis",
                 ProviderTier.PAID,
-                _moralis_price,
+                _g["_moralis_price"],
                 weight=1.0,
                 requires_key=True,
                 key_env="MORALIS_API_KEY",
@@ -51,12 +62,12 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         description="Global market cap, BTC/ETH/SOL prices, fear & greed",
         providers=[
             Provider(
-                "rmi_market_overview", ProviderTier.LOCAL, _passthrough_market_overview, weight=10.0
+                "rmi_market_overview", ProviderTier.LOCAL, _g["_passthrough_market_overview"], weight=10.0
             ),
             Provider(
                 "coingecko_global",
                 ProviderTier.FREEMIUM,
-                _coingecko_price,
+                _g["_coingecko_price"],
                 weight=5.0,
                 requires_key=True,
                 key_env="COINGECKO_API_KEY",
@@ -69,11 +80,11 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="trending",
         description="Trending tokens across chains",
         providers=[
-            Provider("rmi_trending", ProviderTier.LOCAL, _passthrough_trending, weight=10.0),
+            Provider("rmi_trending", ProviderTier.LOCAL, _g["_passthrough_trending"], weight=10.0),
             Provider(
                 "solana_tracker_trending",
                 ProviderTier.FREEMIUM,
-                _solana_tracker_trending,
+                _g["_solana_tracker_trending"],
                 weight=8.0,
                 rate_limit_rps=3.0,
                 requires_key=True,
@@ -83,7 +94,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "dexscreener_trending",
                 ProviderTier.FREE_API,
-                _dexscreener_price,
+                _g["_dexscreener_price"],
                 weight=5.0,
                 rate_limit_rps=1.0,
             ),
@@ -98,7 +109,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "dexscreener_trades",
                 ProviderTier.FREE_API,
-                _dexscreener_trades,
+                _g["_dexscreener_trades"],
                 weight=10.0,
                 rate_limit_rps=2.0,
             ),
@@ -113,7 +124,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "dexscreener_top_traders",
                 ProviderTier.FREE_API,
-                _dexscreener_top_traders,
+                _g["_dexscreener_top_traders"],
                 weight=10.0,
                 rate_limit_rps=2.0,
             ),
@@ -128,7 +139,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "dune_early_buyers_api",
                 ProviderTier.FREEMIUM,
-                _dune_early_buyers,
+                _g["_dune_early_buyers"],
                 weight=10.0,
                 rate_limit_rps=0.5,
                 requires_key=True,
@@ -146,7 +157,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 Provider(
                     "dexscreener_holders",
                     ProviderTier.FREE_API,
-                    _dexscreener_holders,
+                    _g["_dexscreener_holders"],
                     weight=10.0,
                     rate_limit_rps=2.0,
                 ),
@@ -170,7 +181,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 Provider(
                     "etherscan_trace",
                     ProviderTier.FREE_API,
-                    _etherscan_tx_trace,
+                    _g["_etherscan_tx_trace"],
                     weight=10.0,
                     rate_limit_rps=3.0,
                 ),
@@ -211,7 +222,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "defillama_tvl_api",
                 ProviderTier.FREE_API,
-                _defillama_tvl,
+                _g["_defillama_tvl"],
                 weight=10.0,
                 rate_limit_rps=2.0,
             ),
@@ -225,7 +236,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "defillama_chains_api",
                 ProviderTier.FREE_API,
-                _defillama_chains,
+                _g["_defillama_chains"],
                 weight=10.0,
                 rate_limit_rps=2.0,
             ),
@@ -240,7 +251,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "blockchair_addr_api",
                 ProviderTier.FREE_API,
-                _blockchair_address,
+                _g["_blockchair_address"],
                 weight=10.0,
                 rate_limit_rps=3.0,
             ),
@@ -254,7 +265,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "blockchair_stats_api",
                 ProviderTier.FREE_API,
-                _blockchair_stats,
+                _g["_blockchair_stats"],
                 weight=10.0,
                 rate_limit_rps=3.0,
             ),
@@ -269,7 +280,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "birdeye_overview_api",
                 ProviderTier.FREEMIUM,
-                _birdeye_overview,
+                _g["_birdeye_overview"],
                 weight=10.0,
                 rate_limit_rps=2.0,
                 requires_key=True,
@@ -286,7 +297,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "birdeye_price_api",
                 ProviderTier.FREEMIUM,
-                _birdeye_price,
+                _g["_birdeye_price"],
                 weight=5.0,
                 rate_limit_rps=5.0,
                 requires_key=True,
@@ -296,7 +307,7 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "dexscreener_price",
                 ProviderTier.FREE_API,
-                _dexscreener_price,
+                _g["_dexscreener_price"],
                 weight=10.0,
                 rate_limit_rps=2.0,
             ),
@@ -394,5 +405,15 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 )
             ],
         )
+
+
+    # ── RAG Search ──
+    chains["rag_search"] = ProviderChain(
+        data_type="rag_search",
+        description="RAG-based semantic search across intelligence data",
+        providers=[
+            Provider("local_rag", ProviderTier.LOCAL, _g["_passthrough_rag"], weight=10.0),
+        ],
+    )
 
     return chains
