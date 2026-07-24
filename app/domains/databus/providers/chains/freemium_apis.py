@@ -150,21 +150,21 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict |
     if not api_key:
         return None
     try:
-        query = """
-        {
-          getMetric(metric: "dev_activity") {
+        query = f"""
+        {{
+          getMetric(metric: "dev_activity") {{
             timeseriesData(
-              slug: "%s"
+              slug: "{project_slug}"
               from: "2025-01-01T00:00:00Z"
               to: "2025-12-31T23:59:59Z"
               interval: "1w"
-            ) {
+            ) {{
               datetime
               value
-            }
-          }
-        }
-        """ % project_slug
+            }}
+          }}
+        }}
+        """
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.post(
                 "https://api.santiment.net/graphql",

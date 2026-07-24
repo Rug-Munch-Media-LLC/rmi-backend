@@ -6,7 +6,8 @@ Commands: watchlist, watch, unwatch
 """
 from __future__ import annotations
 
-from telegram import Update
+from typing import TYPE_CHECKING
+
 from telegram.constants import ParseMode
 
 from app.domains.telegram.rugmunchbot import db
@@ -19,6 +20,9 @@ from app.domains.telegram.rugmunchbot.formatters import (
     short_addr,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 
 async def cmd_watchlist(update: Update, ctx) -> None:

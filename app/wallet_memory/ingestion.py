@@ -126,7 +126,7 @@ class NormalizedTransaction:
         tx_hash: str = "",
         tx_type: str = "transfer",
         token_address: str = "",
-        token_value_raw: str = "0",  # noqa: S107
+        token_value_raw: str = "0",
         token_value_decimal: float = 0.0,
         transfer_type: str = "native",
         block_number: int = 0,
@@ -538,8 +538,8 @@ class WalletIngestionPipeline:
                             programs_involved.add(ip)
 
                 # Detect token deployments: create/mint instructions
-                spl_token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"  # noqa: S105
-                token_metadata_program = "metaqbxxU9dKaqAta4M99M7C5pWm7adgGpSxq9BDpL4"  # noqa: S105
+                spl_token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                token_metadata_program = "metaqbxxU9dKaqAta4M99M7C5pWm7adgGpSxq9BDpL4"
                 token_deploy_programs = {spl_token_program, token_metadata_program}
                 if token_deploy_programs & programs_involved:
                     is_deploy = True

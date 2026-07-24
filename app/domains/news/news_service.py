@@ -7,7 +7,7 @@ This stub re-exports everything for backward compatibility.
 """
 from __future__ import annotations
 
-from app.domains.news.news_service import *  # noqa: F403
+from app.domains.news.news_service import *
 
 __all__ = [
     "BEARISH_WORDS",

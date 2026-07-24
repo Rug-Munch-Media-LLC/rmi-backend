@@ -31,13 +31,15 @@ from __future__ import annotations
 import json
 import os
 import re
-from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 logger = get_logger(__name__)
 

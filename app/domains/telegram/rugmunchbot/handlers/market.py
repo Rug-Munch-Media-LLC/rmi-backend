@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import contextlib
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
@@ -30,6 +30,9 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
 

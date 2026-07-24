@@ -126,7 +126,7 @@ class AntiSniperProtection:
     """
 
     # Known bot/sniper patterns (addresses and creation patterns)
-    KNOWN_BOT_PATTERNS = [  # noqa: RUF012
+    KNOWN_BOT_PATTERNS = [
         "0x0000000000000000000000000000000000000000",  # Burn address
     ]
 

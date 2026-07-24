@@ -11,11 +11,12 @@ coexist with the lifespan-registered handlers; the more-specific class wins.
 
 from __future__ import annotations
 
-from fastapi import (  # noqa: TC002 - runtime use (matches app/core/errors.py + pre-existing project-wide pattern)
+from typing import TYPE_CHECKING
+
+from fastapi import (
     FastAPI,
     Request,
 )
-from fastapi.responses import JSONResponse
 
 from app.core.errors import (
     AppError,
@@ -31,6 +32,9 @@ from app.core.errors import (
 )
 from app.core.logging import get_logger
 from app.core.problem_details import ProblemDetail
+
+if TYPE_CHECKING:
+    from fastapi.responses import JSONResponse
 
 log = get_logger(__name__)
 

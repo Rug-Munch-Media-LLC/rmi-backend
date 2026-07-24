@@ -30,10 +30,13 @@ import contextlib
 import hashlib
 import json
 import os
-from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 logger = get_logger("agent.system")
 
@@ -507,7 +510,7 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                 "stream": True,
             }
 
-            async with httpx.AsyncClient(timeout=45) as c:  # noqa: SIM117
+            async with httpx.AsyncClient(timeout=45) as c:
                 async with c.stream("POST", base_url, json=body, headers=headers) as r:
                     if r.status_code == 200:
                         async for line in r.aiter_lines():

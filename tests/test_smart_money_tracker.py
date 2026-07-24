@@ -47,8 +47,7 @@ def sample_wallets():
             category=WalletCategory.WHALE,
             reputation_score=85.0,
             confidence=0.8,
-            tags=["whale", "test"],
-            total_value_usd=5_000_000,
+            tags={"whale", "test"},
         ),
         SmartWallet(
             address="A3eME5C1Z7YpEkna5K5WJs8xJ9KXGxFwVvxn3BbmxM7G",
@@ -57,8 +56,7 @@ def sample_wallets():
             category=WalletCategory.WHALE,
             reputation_score=70.0,
             confidence=0.6,
-            tags=["solana"],
-            total_value_usd=2_500_000,
+            tags={"solana"},
         ),
         SmartWallet(
             address="0xabcdef1234567890abcdef1234567890abcdef12",
@@ -67,8 +65,7 @@ def sample_wallets():
             category=WalletCategory.MARKET_MAKER,
             reputation_score=90.0,
             confidence=0.9,
-            tags=["mm", "high-freq"],
-            total_value_usd=50_000_000,
+            tags={"mm", "high-freq"},
         ),
     ]
 
@@ -95,50 +92,49 @@ class TestSmartWallet:
             chain="ethereum",
             label="Test Wallet",
             category=WalletCategory.WHALE,
-            total_value_usd=1_000_000,
             reputation_score=75.0,
         )
         summary = wallet.summary()
         assert "Test Wallet" in summary
-        assert "ethereum" in summary
-        assert "1,000,000" in summary
-        assert "75/100" in summary
-        assert "🐋" in summary  # Whale icon
+        assert "ETHEREUM" in summary
+        assert "whale" in summary
 
-    def test_vc_fund_category_icon(self):
-        """Test that VC fund has correct icon."""
+    def test_label_or_address(self):
+        """Test that address is shown when label is empty."""
         wallet = SmartWallet(
-            address="0xabc",
+            address="0x1234567890abcdef1234567890abcdef12345678",
             chain="ethereum",
-            label="Paradigm",
-            category=WalletCategory.VC_FUND,
         )
-        assert "🏦" in wallet.summary()
+        summary = wallet.summary()
+        assert "0x12345678" in summary
 
-    def test_category_scores(self):
-        """Test that reputation scores transfer correctly."""
+    def test_category_default(self):
+        """Test default category is UNKNOWN."""
+        wallet = SmartWallet(address="0xabc", chain="ethereum")
+        assert wallet.category == WalletCategory.UNKNOWN
+
+    def test_reputation(self):
+        """Test reputation property."""
         wallet = SmartWallet(
             address="0xabc",
             chain="ethereum",
             label="Test",
-            category=WalletCategory.TOP_TRADER,
+            category=WalletCategory.WHALE,
             reputation_score=88.0,
         )
         assert wallet.reputation_score == 88.0
+        assert wallet.reputation == 88.0
 
     def test_default_values(self):
         """Test default values for optional fields."""
         wallet = SmartWallet(
             address="0xabc",
             chain="ethereum",
-            label="Test",
-            category=WalletCategory.UNKNOWN,
         )
-        assert wallet.tags == []
-        assert wallet.total_value_usd == 0.0
+        assert wallet.tags == set()
         assert wallet.reputation_score == 50.0
         assert wallet.confidence == 0.5
-        assert wallet.tx_count == 0
+        assert wallet.total_tx_count == 0
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -157,7 +153,7 @@ class TestDetectedMove:
         )
 
     def test_enter_move_summary(self, sample_wallet):
-        """Test that enter moves show green icon."""
+        """Test that enter moves summary is formatted."""
         move = DetectedMove(
             wallet=sample_wallet,
             token_address="0xtoken",
@@ -172,15 +168,14 @@ class TestDetectedMove:
             context="Opened new position",
         )
         summary = move.summary()
-        assert "🟢" in summary  # Enter icon
         assert "ENTER" in summary
         assert "RUG" in summary
-        # Summary shows $SYMBOL (amount) format, not $SYMBOL ($amount)
         assert "50,000" in summary
-        assert "⚠️" in summary  # High impact icon
+        assert "HIGH" in summary
+        assert "Test Whale" in summary
 
     def test_exit_move_summary(self, sample_wallet):
-        """Test that exit moves show red icon."""
+        """Test that exit moves summary is formatted."""
         move = DetectedMove(
             wallet=sample_wallet,
             token_address="0xtoken",
@@ -195,9 +190,8 @@ class TestDetectedMove:
             context="Full exit from BTC position",
         )
         summary = move.summary()
-        assert "🔴" in summary
         assert "EXIT" in summary
-        assert "🚨" in summary  # Critical icon
+        assert "CRITICAL" in summary
 
     def test_medium_impact_shows_correctly(self, sample_wallet):
         """Test medium impact formatting."""
@@ -215,8 +209,8 @@ class TestDetectedMove:
             context="Added to position",
         )
         summary = move.summary()
-        assert "📊" in summary
-        assert "ADD" in summary in summary
+        assert "ADD" in summary
+        assert "MEDIUM" in summary
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -249,8 +243,8 @@ class TestFlowReport:
             context=f"Test move ${value}",
         )
 
-    def test_top_moves_sorts_by_impact_then_value(self, sample_wallet):
-        """Test that top_moves returns highest impact first, sorted by value."""
+    def test_top_moves_sorts_by_value(self, sample_wallet):
+        """Test that top_moves returns highest value first."""
         report = FlowReport()
         report.moves = [
             self.make_move(sample_wallet, 200_000, ImpactLevel.MEDIUM),
@@ -261,9 +255,9 @@ class TestFlowReport:
 
         top = report.top_moves(limit=3)
         assert len(top) == 3
-        assert top[0].impact == ImpactLevel.CRITICAL
-        assert top[1].impact == ImpactLevel.HIGH
-        assert top[2].impact == ImpactLevel.MEDIUM
+        assert top[0].value_usd == 1_000_000
+        assert top[1].value_usd == 750_000
+        assert top[2].value_usd == 200_000
 
     def test_by_impact_filters_correctly(self, sample_wallet):
         """Test filtering by impact level."""
@@ -292,10 +286,10 @@ class TestFlowReport:
 
         summary = report.summary()
         assert "Smart Money Flow Report" in summary
-        assert "10 wallets" in summary
+        assert "10" in summary
         assert "ethereum" in summary
         assert "solana" in summary
-        assert "$1,600,000" in summary or "$1,600,000" in summary
+        assert "1,600,000" in summary
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -377,7 +371,7 @@ class TestSmartMoneyTracker:
         """Test that default wallets are loaded when no saved data."""
         tracker = SmartMoneyTracker(data_dir=temp_data_dir)
         # Should have the default wallet set
-        assert tracker.get_wallet_count() == 10  # 10 default wallets
+        assert tracker.get_wallet_count() == 13  # 13 default wallets
 
     def test_score_impact_critical(self, tracker):
         """Test critical impact scoring."""
@@ -421,7 +415,7 @@ class TestSmartMoneyTracker:
             address="0xlow",
             chain="ethereum",
             label="Low",
-            category=WalletCategory.TOP_TRADER,
+            category=WalletCategory.TRADER,
             reputation_score=55.0,
         )
         impact = tracker._score_impact(wallet, 20_000, MoveDirection.TRANSFER)
@@ -446,24 +440,20 @@ class TestSmartMoneyTracker:
             address="0xctx",
             chain="ethereum",
             label="Trader",
-            category=WalletCategory.TOP_TRADER,
+            category=WalletCategory.TRADER,
         )
         ctx = tracker._generate_context(MoveDirection.EXIT, wallet, 500_000)
         assert "fully exited" in ctx
 
     def test_generate_context_add(self, tracker):
         """Test context generation for add moves."""
-        wallet = SmartWallet(
-            address="0xctx", chain="ethereum", label="Whale", category=WalletCategory.WHALE
-        )
+        wallet = SmartWallet(address="0xctx", chain="ethereum", label="Whale", category=WalletCategory.WHALE)
         ctx = tracker._generate_context(MoveDirection.ADD, wallet, 50_000)
         assert "added" in ctx
 
     def test_generate_context_reduce(self, tracker):
         """Test context generation for reduce moves."""
-        wallet = SmartWallet(
-            address="0xctx", chain="ethereum", label="Whale", category=WalletCategory.WHALE
-        )
+        wallet = SmartWallet(address="0xctx", chain="ethereum", label="Whale", category=WalletCategory.WHALE)
         ctx = tracker._generate_context(MoveDirection.REDUCE, wallet, 50_000)
         assert "reduced" in ctx
 

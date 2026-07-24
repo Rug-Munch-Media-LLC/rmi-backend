@@ -21,7 +21,7 @@ import traceback
 import uuid
 from typing import Any
 
-from fastapi import (  # noqa: TC002 - runtime use for FastAPI decorator + inspect.signature
+from fastapi import (
     FastAPI,
     Request,
 )

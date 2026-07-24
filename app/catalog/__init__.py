@@ -49,7 +49,7 @@ async def _health_check() -> DomainHealth:
 health_mod.register_health_check("catalog", _health_check)
 
 # Public API
-from app.catalog.models import (  # noqa: E402
+from app.catalog.models import (
     CHAIN_REGISTRY,
     COLLECTIONS,
     Alert,
@@ -64,7 +64,7 @@ from app.catalog.models import (  # noqa: E402
     Token,
     Wallet,
 )
-from app.catalog.service import CatalogService, get_catalog  # noqa: E402
+from app.catalog.service import CatalogService, get_catalog
 
 __all__ = [
     "CHAIN_REGISTRY",

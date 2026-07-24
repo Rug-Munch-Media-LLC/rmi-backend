@@ -15,7 +15,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     try:
         from app.databus.webhooks import handle_webhook, list_webhooks, setup_webhook
     except ImportError:
-        handle_webhook = list_webhooks = setup_webhook = None
+        handle_webhook = None
     try:
         from app.databus.model_registry import ai_call, get_usage_stats, review_content
     except ImportError:

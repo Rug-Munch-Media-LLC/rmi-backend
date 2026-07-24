@@ -38,6 +38,6 @@ async def close_http_client() -> None:
         _client = None
 
 # Re-export for convenience
-from httpx import Limits, Response, Timeout  # noqa: E402
+from httpx import Limits, Response, Timeout
 
 __all__ = ["Limits", "Response", "Timeout", "close_http_client", "get_http_client"]

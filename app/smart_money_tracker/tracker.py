@@ -56,19 +56,24 @@ class SmartMoneyTracker:
                     for w in raw:
                         if not isinstance(w, dict):
                             continue
-                        self._wallets.append(SmartWallet(
-                            address=w.get("address", ""),
-                            chain=w.get("chain", "ethereum"),
-                            label=w.get("label", ""),
-                            category=safe_wallet_category(w.get("category", "unknown")),
-                            tags=set(w.get("tags", [])),
-                            first_seen=w.get("first_seen", 0),
-                            last_active=w.get("last_active", 0),
-                            total_tx_count=w.get("total_tx_count", 0),
-                            reputation_score=w.get("reputation_score", w.get("reputation", 50.0)),
-                            confidence=w.get("confidence", 0.5),
-                            notes=w.get("notes", ""),
-                        ))
+                        self._wallets.append(
+                            SmartWallet(
+                                address=w.get("address", ""),
+                                chain=w.get("chain", "ethereum"),
+                                label=w.get("label", ""),
+                                category=safe_wallet_category(w.get("category", "unknown")),
+                                tags=set(w.get("tags", [])),
+                                first_seen=w.get("first_seen", 0),
+                                last_active=w.get("last_active", 0),
+                                total_tx_count=w.get("total_tx_count", 0),
+                                reputation_score=w.get("reputation_score", w.get("reputation", 50.0)),
+                                confidence=w.get("confidence", 0.5),
+                                notes=w.get("notes", ""),
+                            )
+                        )
+            else:
+                self._wallets = self._default_wallets()
+                self._save_wallets()
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logger.warning("Could not load wallets: %s — seeding defaults", e)
             self._wallets = self._default_wallets()
@@ -78,35 +83,82 @@ class SmartMoneyTracker:
         data = {
             "version": 2,
             "created_at": datetime.now(UTC).isoformat(),
-            "wallets": [{"address": w.address, "chain": w.chain, "label": w.label,
-                         "category": w.category.value, "tags": list(w.tags),
-                         "first_seen": w.first_seen, "last_active": w.last_active,
-                         "total_tx_count": w.total_tx_count,
-                         "reputation_score": w.reputation_score,
-                         "confidence": w.confidence, "notes": w.notes} for w in self._wallets],
+            "wallets": [
+                {
+                    "address": w.address,
+                    "chain": w.chain,
+                    "label": w.label,
+                    "category": w.category.value,
+                    "tags": list(w.tags),
+                    "first_seen": w.first_seen,
+                    "last_active": w.last_active,
+                    "total_tx_count": w.total_tx_count,
+                    "reputation_score": w.reputation_score,
+                    "confidence": w.confidence,
+                    "notes": w.notes,
+                }
+                for w in self._wallets
+            ],
         }
         with open(self._wallets_file, "w") as f:
             json.dump(data, f, indent=2)
 
     def _default_wallets(self) -> list[SmartWallet]:
         return [
-            SmartWallet("0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be", "ethereum", "Binance Hot Wallet 1", WalletCategory.EXCHANGE),
-            SmartWallet("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503", "ethereum", "Binance Hot Wallet 2", WalletCategory.EXCHANGE),
-            SmartWallet("0x4f26ffbe5f04ed43630fdc30a87638d53d0b0876", "ethereum", "Binance Cold Wallet", WalletCategory.EXCHANGE),
-            SmartWallet("0x742d35cc6634c0532925a3b844bc454e4438f44e", "ethereum", "Bitfinex Hot Wallet", WalletCategory.EXCHANGE),
-            SmartWallet("0x1151314c646ce4e0efd76d1af4760ae66a9fe30f", "ethereum", "Bitfinex Cold Wallet", WalletCategory.EXCHANGE),
-            SmartWallet("0xdAC17F958D2ee523a2206206994597C13D831ec7", "ethereum", "Tether Treasury", WalletCategory.PROTOCOL),
+            SmartWallet(
+                "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+                "ethereum",
+                "Binance Hot Wallet 1",
+                WalletCategory.EXCHANGE,
+            ),
+            SmartWallet(
+                "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503",
+                "ethereum",
+                "Binance Hot Wallet 2",
+                WalletCategory.EXCHANGE,
+            ),
+            SmartWallet(
+                "0x4f26ffbe5f04ed43630fdc30a87638d53d0b0876", "ethereum", "Binance Cold Wallet", WalletCategory.EXCHANGE
+            ),
+            SmartWallet(
+                "0x742d35cc6634c0532925a3b844bc454e4438f44e", "ethereum", "Bitfinex Hot Wallet", WalletCategory.EXCHANGE
+            ),
+            SmartWallet(
+                "0x1151314c646ce4e0efd76d1af4760ae66a9fe30f",
+                "ethereum",
+                "Bitfinex Cold Wallet",
+                WalletCategory.EXCHANGE,
+            ),
+            SmartWallet(
+                "0xdAC17F958D2ee523a2206206994597C13D831ec7", "ethereum", "Tether Treasury", WalletCategory.PROTOCOL
+            ),
             SmartWallet("0xfe9e8709d3215310075d67e3ed32a380ccf451c8", "ethereum", "a16z Wallet", WalletCategory.VC),
-            SmartWallet("0xb81d0c5d3c2ba823a1e5e4a7c0f3b0b3b3b3b3b3", "ethereum", "Paradigm Capital", WalletCategory.VC),
+            SmartWallet(
+                "0xb81d0c5d3c2ba823a1e5e4a7c0f3b0b3b3b3b3b3", "ethereum", "Paradigm Capital", WalletCategory.VC
+            ),
             SmartWallet("0x7a95f1554e80138d5b6a2ab5b9d6c0d5a5c5e5f5", "ethereum", "0xSifu", WalletCategory.WHALE),
-            SmartWallet("0x10a5d6c7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3", "ethereum", "Uniswap Treasury", WalletCategory.PROTOCOL),
-            SmartWallet("0x2b5e3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b", "ethereum", "Aave Treasury", WalletCategory.PROTOCOL),
-            SmartWallet("DUSTawcnrPC2bPE4fMBCJ8eLqX29HnidPF3q3V6jzWBP", "solana", "Solana Foundation", WalletCategory.PROTOCOL),
-            SmartWallet("1db3439a222c451ab1c1e3f3c7c2c7d4e1c3e1a", "solana", "Jupiter DEX Aggregator", WalletCategory.PROTOCOL),
+            SmartWallet(
+                "0x10a5d6c7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3", "ethereum", "Uniswap Treasury", WalletCategory.PROTOCOL
+            ),
+            SmartWallet(
+                "0x2b5e3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b", "ethereum", "Aave Treasury", WalletCategory.PROTOCOL
+            ),
+            SmartWallet(
+                "DUSTawcnrPC2bPE4fMBCJ8eLqX29HnidPF3q3V6jzWBP", "solana", "Solana Foundation", WalletCategory.PROTOCOL
+            ),
+            SmartWallet(
+                "1db3439a222c451ab1c1e3f3c7c2c7d4e1c3e1a", "solana", "Jupiter DEX Aggregator", WalletCategory.PROTOCOL
+            ),
         ]
 
     def add_wallet(self, wallet: SmartWallet) -> None:
-        self._wallets.append(wallet)
+        # Update if exists, otherwise append
+        for i, w in enumerate(self._wallets):
+            if w.address.lower() == wallet.address.lower() and w.chain == wallet.chain:
+                self._wallets[i] = wallet
+                break
+        else:
+            self._wallets.append(wallet)
         self._save_wallets()
 
     def remove_wallet(self, address: str, chain: str) -> bool:
@@ -134,36 +186,99 @@ class SmartMoneyTracker:
 
     async def _fetch_solana_txs(self, wallet: SmartWallet, lookback_minutes: int) -> list[dict[str, Any]]:
         import httpx
+
         lookback_ts = int((datetime.now(UTC) - timedelta(minutes=lookback_minutes)).timestamp())
-        r = (await httpx.AsyncClient(timeout=30).post("https://api.mainnet-beta.solana.com",
-            json={"jsonrpc": "2.0", "id": 1, "method": "getSignaturesForAddress", "params": [wallet.address, {"limit": 20}]},
-            headers={"Content-Type": "application/json"})).json()
-        return [{"tx_hash": s["signature"], "timestamp": datetime.fromtimestamp(s.get("blockTime", 0), tz=UTC),
-                 "chain": "solana", "type": "transfer", "from": wallet.address, "to": "unknown",
-                 "value_usd": 0, "token_address": "", "token_symbol": "SOL", "raw": s}
-                for s in r.get("result", [])[:10] if s.get("blockTime", 0) >= lookback_ts]
+        r = (
+            await httpx.AsyncClient(timeout=30).post(
+                "https://api.mainnet-beta.solana.com",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "getSignaturesForAddress",
+                    "params": [wallet.address, {"limit": 20}],
+                },
+                headers={"Content-Type": "application/json"},
+            )
+        ).json()
+        return [
+            {
+                "tx_hash": s["signature"],
+                "timestamp": datetime.fromtimestamp(s.get("blockTime", 0), tz=UTC),
+                "chain": "solana",
+                "type": "transfer",
+                "from": wallet.address,
+                "to": "unknown",
+                "value_usd": 0,
+                "token_address": "",
+                "token_symbol": "SOL",
+                "raw": s,
+            }
+            for s in r.get("result", [])[:10]
+            if s.get("blockTime", 0) >= lookback_ts
+        ]
 
     async def _fetch_evm_txs(self, wallet: SmartWallet, chain: str, lookback_minutes: int) -> list[dict[str, Any]]:
         import httpx
-        rpc_url = {"ethereum": "https://eth.llamarpc.com", "bsc": "https://bsc-dataseed.binance.org",
-                   "polygon": "https://polygon-rpc.com", "arbitrum": "https://arb1.arbitrum.io/rpc",
-                   "optimism": "https://mainnet.optimism.io", "avalanche": "https://api.avax.network/ext/bc/C/rpc"}.get(chain, "https://eth.llamarpc.com")
+
+        rpc_url = {
+            "ethereum": "https://eth.llamarpc.com",
+            "bsc": "https://bsc-dataseed.binance.org",
+            "polygon": "https://polygon-rpc.com",
+            "arbitrum": "https://arb1.arbitrum.io/rpc",
+            "optimism": "https://mainnet.optimism.io",
+            "avalanche": "https://api.avax.network/ext/bc/C/rpc",
+        }.get(chain, "https://eth.llamarpc.com")
         async with httpx.AsyncClient(timeout=15) as client:
-            latest = int((await client.post(rpc_url, json={"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1},
-                                            headers={"Content-Type": "application/json"})).json().get("result", "0x0"), 16)
+            latest = int(
+                (
+                    await client.post(
+                        rpc_url,
+                        json={"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1},
+                        headers={"Content-Type": "application/json"},
+                    )
+                )
+                .json()
+                .get("result", "0x0"),
+                16,
+            )
             start = hex(max(0, latest - lookback_minutes * 5))
             addr = wallet.address.lower()
-            r = (await client.post(rpc_url, json={"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{"fromBlock": start,
-                "toBlock": "latest", "address": None,
-                "topics": ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-                           f"0x{'0'*24}{addr[2:]}" if addr.startswith('0x') else ""]}], "id": 2},
-                                   headers={"Content-Type": "application/json"}))
+            r = await client.post(
+                rpc_url,
+                json={
+                    "jsonrpc": "2.0",
+                    "method": "eth_getLogs",
+                    "params": [
+                        {
+                            "fromBlock": start,
+                            "toBlock": "latest",
+                            "address": None,
+                            "topics": [
+                                "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                                f"0x{'0' * 24}{addr[2:]}" if addr.startswith("0x") else "",
+                            ],
+                        }
+                    ],
+                    "id": 2,
+                },
+                headers={"Content-Type": "application/json"},
+            )
             if r.status_code == 200:
-                return [{"tx_hash": log.get("transactionHash", ""), "timestamp": datetime.now(UTC), "chain": chain,
-                         "type": "transfer", "from": f"0x{log['topics'][1][26:]}" if len(log.get("topics", [])) > 1 else "",
-                         "to": f"0x{log['topics'][2][26:]}" if len(log.get("topics", [])) > 2 else "",
-                         "value_usd": 0, "token_address": log.get("address", ""), "token_symbol": "TOKEN", "raw": log}
-                        for log in r.json().get("result", [])[:15]]
+                return [
+                    {
+                        "tx_hash": log.get("transactionHash", ""),
+                        "timestamp": datetime.now(UTC),
+                        "chain": chain,
+                        "type": "transfer",
+                        "from": f"0x{log['topics'][1][26:]}" if len(log.get("topics", [])) > 1 else "",
+                        "to": f"0x{log['topics'][2][26:]}" if len(log.get("topics", [])) > 2 else "",
+                        "value_usd": 0,
+                        "token_address": log.get("address", ""),
+                        "token_symbol": "TOKEN",
+                        "raw": log,
+                    }
+                    for log in r.json().get("result", [])[:15]
+                ]
         return []
 
     async def _analyze_moves(self, wallet: SmartWallet, txs: list[dict[str, Any]]) -> list[DetectedMove]:
@@ -174,14 +289,31 @@ class SmartMoneyTracker:
             if tx["tx_hash"] in seen:
                 continue
             fa, ta, wa = (tx.get("from", "") or "").lower(), (tx.get("to", "") or "").lower(), wallet.address.lower()
-            direction = MoveDirection.REDUCE if (fa == wa and ta and ta != wa) else MoveDirection.ADD if (ta == wa and fa and fa != wa) else MoveDirection.INTERACT
+            direction = (
+                MoveDirection.REDUCE
+                if (fa == wa and ta and ta != wa)
+                else MoveDirection.ADD
+                if (ta == wa and fa and fa != wa)
+                else MoveDirection.INTERACT
+            )
             token_safety = await self._get_token_safety(tx.get("token_address", ""), tx.get("chain", wallet.chain))
-            moves.append(DetectedMove(wallet=wallet, token_address=tx.get("token_address", ""),
-                token_symbol=tx.get("token_symbol", "UNKNOWN"), chain=tx.get("chain", wallet.chain),
-                direction=direction, tx_hash=tx["tx_hash"], timestamp=tx.get("timestamp", datetime.now(UTC)),
-                value_usd=tx.get("value_usd", 0), impact=self._score_impact(wallet, tx.get("value_usd", 0), direction),
-                token_safety_score=token_safety, confidence=wallet.confidence,
-                context=self._generate_context(direction, wallet, tx.get("value_usd", 0)), details=tx))
+            moves.append(
+                DetectedMove(
+                    wallet=wallet,
+                    token_address=tx.get("token_address", ""),
+                    token_symbol=tx.get("token_symbol", "UNKNOWN"),
+                    chain=tx.get("chain", wallet.chain),
+                    direction=direction,
+                    tx_hash=tx["tx_hash"],
+                    timestamp=tx.get("timestamp", datetime.now(UTC)),
+                    value_usd=tx.get("value_usd", 0),
+                    impact=self._score_impact(wallet, tx.get("value_usd", 0), direction),
+                    token_safety_score=token_safety,
+                    confidence=wallet.confidence,
+                    context=self._generate_context(direction, wallet, tx.get("value_usd", 0)),
+                    details=tx,
+                )
+            )
         return moves
 
     def _score_impact(self, wallet: SmartWallet, value_usd: float, direction: MoveDirection) -> ImpactLevel:
@@ -211,6 +343,7 @@ class SmartMoneyTracker:
             return 50.0
         try:
             from app.token_scanner import TokenScanner
+
             return (await TokenScanner().scan(token_address, chain)).get("safety_score", 50.0)
         except (ImportError, Exception):
             return 50.0
@@ -238,16 +371,23 @@ class SmartMoneyTracker:
         except Exception as e:
             logger.error("Failed to save move history: %s", e)
 
-    async def scan(self, lookback_minutes: int = 60, chains: list[str] | None = None, max_wallets: int = 50) -> FlowReport:
+    async def scan(
+        self, lookback_minutes: int = 60, chains: list[str] | None = None, max_wallets: int = 50
+    ) -> FlowReport:
         start = time.monotonic()
         report = FlowReport()
-        wallets = [w for w in self._wallets[:max_wallets] if not chains or w.chain.lower() in [c.lower() for c in chains]]
+        wallets = [
+            w for w in self._wallets[:max_wallets] if not chains or w.chain.lower() in [c.lower() for c in chains]
+        ]
         report.wallets_scanned = len(wallets)
         report.chains_covered = list({w.chain for w in wallets})
         all_moves = []
         for i in range(0, len(wallets), 5):
-            batch = wallets[i:i + 5]
-            for result in await asyncio.gather(*[asyncio.create_task(self._scan_single_wallet(w, lookback_minutes)) for w in batch], return_exceptions=True):
+            batch = wallets[i : i + 5]
+            for result in await asyncio.gather(
+                *[asyncio.create_task(self._scan_single_wallet(w, lookback_minutes)) for w in batch],
+                return_exceptions=True,
+            ):
                 if isinstance(result, Exception):
                     logger.error("Wallet scan failed: %s", result)
                 elif result is not None:
@@ -258,10 +398,17 @@ class SmartMoneyTracker:
                 await asyncio.sleep(0.5)
         report.moves = all_moves
         report.scan_duration_ms = (time.monotonic() - start) * 1000
-        logger.info("Smart money scan done: %d moves from %d wallets in %.0fms", len(all_moves), len(wallets), report.scan_duration_ms)
+        logger.info(
+            "Smart money scan done: %d moves from %d wallets in %.0fms",
+            len(all_moves),
+            len(wallets),
+            report.scan_duration_ms,
+        )
         return report
 
-    async def _scan_single_wallet(self, wallet: SmartWallet, lookback_minutes: int) -> tuple[list[DetectedMove], str, set[str]] | None:
+    async def _scan_single_wallet(
+        self, wallet: SmartWallet, lookback_minutes: int
+    ) -> tuple[list[DetectedMove], str, set[str]] | None:
         txs = await self._fetch_recent_tx(wallet, lookback_minutes)
         if not txs:
             return None

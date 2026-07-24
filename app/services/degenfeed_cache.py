@@ -11,7 +11,6 @@ degradation to in-memory LRU when Redis is unavailable.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import time
 from collections import OrderedDict
@@ -241,11 +240,11 @@ async def degenfeed_cache_stats() -> dict[str, Any]:
             feed_count = 0
             identity_count = 0
             post_count = 0
-            async for key in redis.scan_iter(match=f"{_PREFIX_FEED}*"):
+            async for _key in redis.scan_iter(match=f"{_PREFIX_FEED}*"):
                 feed_count += 1
-            async for key in redis.scan_iter(match=f"{_PREFIX_IDENTITY}*"):
+            async for _key in redis.scan_iter(match=f"{_PREFIX_IDENTITY}*"):
                 identity_count += 1
-            async for key in redis.scan_iter(match=f"{_PREFIX_POST}*"):
+            async for _key in redis.scan_iter(match=f"{_PREFIX_POST}*"):
                 post_count += 1
             stats.update({
                 "redis_feed_keys": feed_count,

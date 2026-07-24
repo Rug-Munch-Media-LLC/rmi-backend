@@ -10,4 +10,4 @@ into focused sub-modules under _generated/chains/ for maintainability.
 
 from __future__ import annotations
 
-from app.domains.databus._generated.chains import build_provider_chains  # noqa: F401
+from app.domains.databus._generated.chains import build_provider_chains

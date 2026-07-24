@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-from app.domains.tokens.deployer.base import ChainDeployer
 from app.domains.tokens.deployer.evm import EVMDeployer
 from app.domains.tokens.deployer.solana import SolanaDeployer
 from app.domains.tokens.deployer.tron import TronDeployer
+
+if TYPE_CHECKING:
+    from app.domains.tokens.deployer.base import ChainDeployer
 
 
 class TokenDeployerFactory:

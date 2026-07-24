@@ -8,14 +8,15 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
-
-from fastapi import Request
+from typing import TYPE_CHECKING, Any
 
 from app.core.errors import PaymentRequiredError
 from app.core.logging import get_logger
 from app.routers.x402_databus_tools.pricing import X402_TOOL_PRICING
 from app.routers.x402_databus_tools.rate_limit import check_trial, consume_trial
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 logger = get_logger("x402_databus_tools")
 

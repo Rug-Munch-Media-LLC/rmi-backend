@@ -11,6 +11,6 @@ Submodules:
 
 from __future__ import annotations
 
-from app.analyzer.multi_chain import *  # noqa: F403
-from app.analyzer.pnl_calculator import *  # noqa: F403
-from app.analyzer.portfolio import *  # noqa: F403
+from app.analyzer.multi_chain import *
+from app.analyzer.pnl_calculator import *
+from app.analyzer.portfolio import *

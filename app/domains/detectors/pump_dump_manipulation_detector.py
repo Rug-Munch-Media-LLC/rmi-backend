@@ -7,7 +7,7 @@ This stub re-exports everything for backward compatibility.
 
 from __future__ import annotations
 
-from app.domains.detectors.pump_dump_detector_package import *  # noqa: F403
+from app.domains.detectors.pump_dump_detector_package import *
 
 __all__ = [
     "PUMP_DUMP_THRESHOLDS",

@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import secrets
-
-from fastapi import Request, Response
+from typing import TYPE_CHECKING
 
 from app.domains.auth.jwt import JWT_EXPIRY_DAYS
+
+if TYPE_CHECKING:
+    from fastapi import Request, Response
 
 
 def _is_localhost(request: Request) -> bool:
     """Check if the request is from localhost."""
     host = request.headers.get("host", "")
-    return host.startswith("localhost") or host.startswith("127.0.0.1") or host.startswith("[::1]")
+    return host.startswith(("localhost", "127.0.0.1", "[::1]"))
 
 def _set_auth_cookie(response: Response, token: str, request: Request) -> None:
     """Set the JWT as an HttpOnly cookie."""

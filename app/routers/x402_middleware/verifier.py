@@ -103,18 +103,17 @@ class PaymentVerifier:
 
         body = {"x402Version": 2, "paymentPayload": payload_data, "paymentRequirements": flat_req}
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://facilitator.payai.network/verify", json=body,
-                    headers={"Content-Type": "application/json"},
-                    timeout=aiohttp.ClientTimeout(total=15),
-                ) as resp:
-                    data = await resp.json()
-                    if data.get("isValid"):
-                        return {"verified": True, "reason": "Verified via PayAI",
-                                "payer": data.get("payer"), "tx_hash": None}
-                    return {"verified": False, "reason": f"PayAI: {data.get('invalidReason', 'unknown')}",
-                            "payer": data.get("payer")}
+            async with aiohttp.ClientSession() as session, session.post(
+                "https://facilitator.payai.network/verify", json=body,
+                headers={"Content-Type": "application/json"},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                data = await resp.json()
+                if data.get("isValid"):
+                    return {"verified": True, "reason": "Verified via PayAI",
+                            "payer": data.get("payer"), "tx_hash": None}
+                return {"verified": False, "reason": f"PayAI: {data.get('invalidReason', 'unknown')}",
+                        "payer": data.get("payer")}
         except Exception as e:
             logger.error(f"PayAI verification error: {e}")
             return {"verified": False, "reason": f"PayAI connection error: {e!s}"}

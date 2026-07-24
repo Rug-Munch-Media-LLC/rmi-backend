@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-
-import httpx
+from typing import TYPE_CHECKING
 
 from app.domains.detectors.pump_dump_detector_package.sources import fetch_trades
 from app.domains.detectors.pump_dump_detector_package.types import (
@@ -13,6 +12,9 @@ from app.domains.detectors.pump_dump_detector_package.types import (
     ManipulationType,
     WashTradeCluster,
 )
+
+if TYPE_CHECKING:
+    import httpx
 
 
 async def detect_coordinated_buys(

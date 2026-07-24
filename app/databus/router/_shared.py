@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
-
-from fastapi import Request
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 logger = get_logger("databus.router")
 

@@ -20,7 +20,7 @@ import hmac
 import os
 import time as _time
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
@@ -148,7 +148,7 @@ RATE_LIMIT_SALT_SECRET = os.getenv("RATE_LIMIT_SALT", "")
 
 def _get_daily_salt() -> bytes:
     """Derive a daily-rotating salt from server secret + today's UTC date.
-    
+
     In production, RATE_LIMIT_SALT_SECRET MUST be set via RATE_LIMIT_SALT env var.
     If unset, falls back to a hash of the JWT_SECRET to avoid a hardcoded dev string.
     """
@@ -478,7 +478,9 @@ def get_rate_limiter() -> UnifiedRateLimiter:
 # ═══════════════════════════════════════════════════════════════════════════
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response as StarletteResponse
+
+if TYPE_CHECKING:
+    from starlette.responses import Response as StarletteResponse
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import JSON, DateTime, Index, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -12,6 +11,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
 from app.models.base import TimestampMixin
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ScanResult(Base, TimestampMixin):

@@ -6,13 +6,15 @@ from __future__ import annotations
 import asyncio
 import hashlib as _hl
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import httpx
-from fastapi import Request
 
 from .models import CHAIN_SUFFIXES, NETWORKS
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 # ── Catalog & Format Converters ────────────────────────────────
 
@@ -318,10 +320,7 @@ def resolve_tool_alias(tool_id: str) -> tuple[str | None, str | None]:
                 suffix = tool_id[last_underscore + 1 :]
                 prefix = tool_id[:last_underscore]
                 if suffix in CHAIN_SUFFIXES:
-                    if prefix in TOOL_ALIASES:
-                        target = TOOL_ALIASES[prefix]
-                    else:
-                        target = prefix
+                    target = TOOL_ALIASES.get(prefix, prefix)
                     injected_chain = suffix
 
     return target, injected_chain

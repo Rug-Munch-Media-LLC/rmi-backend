@@ -101,7 +101,7 @@ def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
 
     t0 = time.time()
     try:
-        r = subprocess.run(  # noqa: S603  — gated by _check_safe_cmd allowlist
+        r = subprocess.run(
             parts,
             shell=False,
             capture_output=True,
@@ -155,7 +155,7 @@ def run_quick(cmd_name: str) -> dict[str, Any]:
 
     t0 = time.time()
     try:
-        r = subprocess.run(  # noqa: S603  — hardcoded quick commands only
+        r = subprocess.run(
             cmd_parts,
             shell=False,
             capture_output=True,

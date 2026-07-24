@@ -15,16 +15,3 @@ Providers:
 
 from __future__ import annotations
 
-from app.databus.providers import (  # noqa: F401
-    _alchemy_token_balances,
-    _alchemy_token_metadata,
-    _etherscan_tx_trace,
-    _moralis_price,
-    _moralis_search_tokens,
-    _moralis_token_metadata,
-    _moralis_token_price,
-    _moralis_wallet_net_worth,
-    _moralis_wallet_nfts,
-    _moralis_wallet_tokens,
-    _moralis_wallet_transactions,
-)

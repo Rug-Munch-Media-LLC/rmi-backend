@@ -50,38 +50,38 @@ from app.caching_shield.api_registry import (
     get_api_manager,
 )
 from app.caching_shield.batcher import (
-    BATCH_WINDOW_MS,  # noqa: F401
-    MAX_BATCH_SIZE,  # noqa: F401
-    BatchRequest,  # noqa: F401
-    BatchResult,  # noqa: F401
-    RpcBatcher,  # noqa: F401
+    BATCH_WINDOW_MS,
+    MAX_BATCH_SIZE,
+    BatchRequest,
+    BatchResult,
+    RpcBatcher,
 )
 from app.caching_shield.funding_tracer import (
     FundingTrace,
     trace_funding_source,
 )
 from app.caching_shield.history_depth import (
-    DEFAULT_DEPTH,  # noqa: F401
-    MAX_DEPTH,  # noqa: F401
-    MAX_PAGINATED,  # noqa: F401
-    HistoryDepthController,  # noqa: F401
-    get_history_controller,  # noqa: F401
+    DEFAULT_DEPTH,
+    MAX_DEPTH,
+    MAX_PAGINATED,
+    HistoryDepthController,
+    get_history_controller,
 )
 from app.caching_shield.rate_limiter import (
-    PROVIDER_LIMITS,  # noqa: F401
-    ProviderLimit,  # noqa: F401
-    RpcRateLimiter,  # noqa: F401
-    get_rate_limiter,  # noqa: F401
+    PROVIDER_LIMITS,
+    ProviderLimit,
+    RpcRateLimiter,
+    get_rate_limiter,
 )
 from app.caching_shield.rpc_cache import (
-    TTL_TABLE,  # noqa: F401
-    CacheStats,  # noqa: F401
-    RpcCacheClient,  # noqa: F401
-    get_rpc_cache,  # noqa: F401
+    TTL_TABLE,
+    CacheStats,
+    RpcCacheClient,
+    get_rpc_cache,
 )
 from app.caching_shield.solana_tracker import (
-    SolanaTrackerClient,  # noqa: F401
-    get_solana_tracker,  # noqa: F401
+    SolanaTrackerClient,
+    get_solana_tracker,
 )
 from app.caching_shield.tool_data import (
     ToolData,
@@ -93,12 +93,12 @@ from app.caching_shield.unified_layer import (
     get_data_layer,
 )
 from app.caching_shield.ws_broadcaster import (
-    CHANNEL_ALERTS,  # noqa: F401
-    CHANNEL_PRICES,  # noqa: F401
-    CHANNEL_SCANS,  # noqa: F401
-    CHANNEL_TOKENS,  # noqa: F401
-    WsClientManager,  # noqa: F401
-    get_ws_manager,  # noqa: F401
+    CHANNEL_ALERTS,
+    CHANNEL_PRICES,
+    CHANNEL_SCANS,
+    CHANNEL_TOKENS,
+    WsClientManager,
+    get_ws_manager,
 )
 
 __all__ = [

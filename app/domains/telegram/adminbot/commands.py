@@ -6,9 +6,10 @@ All /command handler functions for the RMI Admin Bot.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot import admin_ops
 from app.domains.telegram.adminbot.helpers import (
@@ -19,6 +20,9 @@ from app.domains.telegram.adminbot.helpers import (
     owner_only,
     service_action_keyboard,
 )
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 # ── Optional modules ───────────────────────────────────────────────
 try:

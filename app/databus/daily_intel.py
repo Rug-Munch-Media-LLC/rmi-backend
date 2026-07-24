@@ -467,7 +467,7 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict:
         elif line.startswith("- ") and len(tg_text) < 3500:
             tg_text += f"{line}\n"
         elif "BOTTOM LINE" in line and i + 1 < len(lines):
-            tg_text += f"\n💡 *Bottom Line:* {next_line}\n"  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+            tg_text += f"\n💡 *Bottom Line:* {next_line}\n"
             break
 
     tg_text += "\n🔗 Full report: https://rugmunch.io/news"

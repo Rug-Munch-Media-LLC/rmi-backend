@@ -5,9 +5,10 @@ RugMaps — Interactive HTML Export
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app.domains.scanner.rugmaps.models import BubbleMap
+if TYPE_CHECKING:
+    from app.domains.scanner.rugmaps.models import BubbleMap
 
 
 def export_html(bubble_map: BubbleMap, output_path: str) -> Any:

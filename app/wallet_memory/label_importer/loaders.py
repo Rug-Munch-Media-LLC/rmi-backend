@@ -131,7 +131,7 @@ async def _load_csv_labels(
     logger.info(f"Loaded {count} labels from {src} (chain={chain})")
     return count
 
-import os  # noqa: E402 (used in _load_csv_labels)
+import os
 
 
 async def _ensure_wallet_labels_table(storage) -> None:

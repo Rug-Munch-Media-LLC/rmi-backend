@@ -486,7 +486,7 @@ class BundleDetector:
         )
 
 # Type alias for early buyer data placeholder
-from dataclasses import dataclass as _dataclass  # noqa: E402
+from dataclasses import dataclass as _dataclass
 
 
 @_dataclass

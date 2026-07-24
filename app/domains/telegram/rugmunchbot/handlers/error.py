@@ -5,11 +5,14 @@ RugMunchBot -- Global error handler.
 from __future__ import annotations
 
 import contextlib
+from typing import TYPE_CHECKING
 
 from telegram import Update
-from telegram.ext import ContextTypes
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
 

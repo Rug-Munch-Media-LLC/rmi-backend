@@ -142,7 +142,7 @@ NEWS_SOURCES = {
         "tier": 1,
         "category": "social",
         "quality_weight": 0.6,  # lower - social media noise
-        "icon": "𝕏",  # noqa: RUF001
+        "icon": "𝕏",
     },
 }
 

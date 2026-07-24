@@ -15,7 +15,7 @@ import sys as _sys
 from app.domains.billing import x402 as _x402
 
 # Public re-exports
-from app.domains.billing.x402 import (  # noqa: F401
+from app.domains.billing.x402 import (
     CHAIN_USDC,
     TOOL_PRICES,
     X402Enforcer,

@@ -38,11 +38,10 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.rag.config import (
@@ -109,7 +108,12 @@ class IngestReport:
 
 # ── DocumentProcessor ───────────────────────────────────────────────
 
+import contextlib
+
 from app.rag.chunking import content_hash as _content_hash
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 
 def _quality_score(text: str, max_chunk: int) -> float:
@@ -585,10 +589,8 @@ class IngestionScheduler:
         self._running = False
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
             self._task = None
         log.info("scheduler_stopped")
 

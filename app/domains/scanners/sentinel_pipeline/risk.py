@@ -7,16 +7,19 @@ compute the weighted composite score, and collect red flags.
 
 from __future__ import annotations
 
-from app.domains.scanners.bundle_detector import BundleReport
-from app.domains.scanners.dev_reputation import DevReputationReport
-from app.domains.scanners.exchange_funder import ExchangeFundReport
-from app.domains.scanners.guilt_association import GuiltAssociationReport
-from app.domains.scanners.holder_analyzer import HHIReport
-from app.domains.scanners.liquidity_verifier import LockReport
-from app.domains.scanners.metadata_fingerprint import FingerprintReport
-from app.domains.scanners.pumpfun_analyzer import PumpFunReport
-from app.domains.scanners.sentiment_analyzer import SentimentReport
-from app.domains.scanners.wash_trading import WashTradingReport
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.domains.scanners.bundle_detector import BundleReport
+    from app.domains.scanners.dev_reputation import DevReputationReport
+    from app.domains.scanners.exchange_funder import ExchangeFundReport
+    from app.domains.scanners.guilt_association import GuiltAssociationReport
+    from app.domains.scanners.holder_analyzer import HHIReport
+    from app.domains.scanners.liquidity_verifier import LockReport
+    from app.domains.scanners.metadata_fingerprint import FingerprintReport
+    from app.domains.scanners.pumpfun_analyzer import PumpFunReport
+    from app.domains.scanners.sentiment_analyzer import SentimentReport
+    from app.domains.scanners.wash_trading import WashTradingReport
 
 
 def _extract_risk_hhi(report: HHIReport) -> float:

@@ -53,7 +53,7 @@ def print_header(title: str) -> None:
 def print_box(title: str, content: str, color=Colors.WHITE) -> None:
     """Print content in a box."""
     lines = content.split("\n")
-    max_len = max(len(l) for l in lines) if lines else 0  # noqa: E741
+    max_len = max(len(l) for l in lines) if lines else 0
     width = max_len + 4
 
     logger.info(f"\n{color}┌{'─' * width}┐{Colors.RESET}")

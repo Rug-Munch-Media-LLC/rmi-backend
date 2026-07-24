@@ -19,7 +19,7 @@ Import from other services (walletpress, pryscraper):
 
 from __future__ import annotations
 
-from app.auth.jwt_validation import (  # noqa: F401
+from app.auth.jwt_validation import (
     create_token,
     extract_token_from_request,
     get_current_user,

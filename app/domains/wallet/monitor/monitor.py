@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
-from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import httpx
 import websockets
@@ -25,6 +26,9 @@ from app.domains.wallet.monitor.config import (
 from app.domains.wallet.monitor.labeler import AutoLabeler
 from app.domains.wallet.monitor.models import WalletAlert, WalletTx
 from app.domains.wallet.monitor.watchlist import WatchlistManager
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger(__name__)
 
@@ -189,12 +193,11 @@ class WalletMonitor:
                 except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
         alerts = await self.alert_engine.evaluate(tx, history)
-        if r and tx.to_addr:
-            if await r.sismember(SCAMMER_SET_KEY, tx.to_addr.lower()):
-                alerts.append(WalletAlert(alert_type="known_scammer_interaction", wallet=tx.from_addr,
-                    chain=tx.chain, tx_hash=tx.hash, severity="critical",
-                    message=f"Interaction with known scammer {tx.to_addr}",
-                    metadata={"scammer": tx.to_addr}, timestamp=tx.timestamp))
+        if r and tx.to_addr and await r.sismember(SCAMMER_SET_KEY, tx.to_addr.lower()):
+            alerts.append(WalletAlert(alert_type="known_scammer_interaction", wallet=tx.from_addr,
+                chain=tx.chain, tx_hash=tx.hash, severity="critical",
+                message=f"Interaction with known scammer {tx.to_addr}",
+                metadata={"scammer": tx.to_addr}, timestamp=tx.timestamp))
         await BurstDetector.record(tx.from_addr, tx.chain, tx.hash)
         burst = await BurstDetector.check(tx.from_addr, tx.chain)
         if burst:
@@ -211,10 +214,8 @@ class WalletMonitor:
             d = alert.to_dict()
             await AlertChannel.publish_alert(d)
             for cb in self._callbacks:
-                try:
+                with contextlib.suppress(ConnectionError, OSError, TimeoutError):
                     await cb(d) if asyncio.iscoroutinefunction(cb) else cb(d)
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
         if label:
             await AlertChannel.publish_intel(label.to_dict())
 

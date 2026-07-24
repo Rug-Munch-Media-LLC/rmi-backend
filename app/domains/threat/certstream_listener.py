@@ -274,7 +274,7 @@ async def start_listener() -> asyncio.Task | None:
         logger.info("certstream_disabled env=CERTSTREAM_ENABLED=0")
         return None
     try:
-        import websockets  # noqa: F401
+        import websockets
     except ImportError:
         logger.info("certstream_skipped err=websockets_not_installed")
         return None

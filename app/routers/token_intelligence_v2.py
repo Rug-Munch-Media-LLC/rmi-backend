@@ -57,7 +57,7 @@ async def token_intelligence(
         "scanned_at": int(time.time()),
         "elapsed_ms": int((time.perf_counter() - start) * 1000),
     }
-    for key, result in zip(keys, results):
+    for key, result in zip(keys, results, strict=False):
         if isinstance(result, Exception):
             response[key] = {"error": str(result)[:200]}
         else:

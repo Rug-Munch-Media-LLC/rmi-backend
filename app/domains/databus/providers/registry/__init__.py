@@ -13,14 +13,17 @@ Split from registry.py into categories/: market, security, wallet, intel, social
 from __future__ import annotations
 
 import importlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from app.core.logging import get_logger
 
-from ..base import Provider, ProviderChain, ProviderTier
+from ..base import Provider, ProviderTier
 from ..circuit_breaker import _circuit_breakers, _CircuitBreaker, _rate_limiters, _RateLimiter
+
+if TYPE_CHECKING:
+    from ..base import ProviderChain
 
 logger = get_logger("databus.providers.registry")
 

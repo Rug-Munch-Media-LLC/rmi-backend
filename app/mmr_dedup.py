@@ -273,7 +273,7 @@ async def _enrich_with_embeddings(
 
         raw_docs = await pipe.execute()
 
-        for (idx, key), data in zip(keys_to_fetch, raw_docs, strict=False):  # noqa: B007
+        for (idx, key), data in zip(keys_to_fetch, raw_docs, strict=False):
             if data:
                 try:
                     doc = json.loads(data)

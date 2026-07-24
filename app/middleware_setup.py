@@ -245,13 +245,12 @@ def _try_register_cors(app: FastAPI) -> None:
         from app.config import settings
 
         # Validate CORS origins in production
-        if settings.environment == "prod":
-            if not settings.cors_origins or settings.cors_origins == ["*"]:
-                raise RuntimeError(
-                    "CORS_ORIGINS cannot be empty or ['*'] in production. "
-                    "Set CORS_ORIGINS to a specific list of allowed origins, e.g. "
-                    "CORS_ORIGINS='[\"https://app.rugmunch.io\"]'."
-                )
+        if settings.environment == "prod" and (not settings.cors_origins or settings.cors_origins == ["*"]):
+            raise RuntimeError(
+                "CORS_ORIGINS cannot be empty or ['*'] in production. "
+                "Set CORS_ORIGINS to a specific list of allowed origins, e.g. "
+                "CORS_ORIGINS='[\"https://app.rugmunch.io\"]'."
+            )
 
         app.add_middleware(
             CORSMiddleware,

@@ -14,17 +14,20 @@ import asyncio
 import json
 import os
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.core.dependencies import get_http_client, get_rate_limiter
 from app.core.errors import AppError, RateLimitError, ValidationError
 from app.core.logging import get_logger
-from app.core.rate_limiter import UnifiedRateLimiter
+
+if TYPE_CHECKING:
+    import httpx
+
+    from app.core.rate_limiter import UnifiedRateLimiter
 
 logger = get_logger("protection")
 

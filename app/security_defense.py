@@ -566,8 +566,8 @@ class HoneypotSystem:
 class GeoBlocker:
     """Country-based access control."""
 
-    BLOCKED_COUNTRIES: set[str] = set()  # ISO country codes  # noqa: RUF012
-    ALLOWED_COUNTRIES: set[str] = set()  # If set, only allow these  # noqa: RUF012
+    BLOCKED_COUNTRIES: set[str] = set()  # ISO country codes
+    ALLOWED_COUNTRIES: set[str] = set()  # If set, only allow these
 
     @staticmethod
     async def check_country(ip: str) -> dict[str, Any]:

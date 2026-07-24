@@ -23,12 +23,10 @@ import os
 import sqlite3
 import time
 import uuid
-from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
-import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -45,8 +43,13 @@ ai_guard = AIGuard()
 
 # ── Auth ──
 # ── AI Router ──
-from app.ai_router import router as ai_router  # noqa: E402
-from app.auth import get_current_user, require_auth  # noqa: E402
+from app.ai_router import router as ai_router
+from app.auth import get_current_user, require_auth
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    import redis.asyncio as redis
 
 # ── DB path ──
 DB_PATH = os.path.join(

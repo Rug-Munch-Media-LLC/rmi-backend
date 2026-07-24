@@ -12,8 +12,12 @@ Pattern: async function that returns list[Label]
 
 from __future__ import annotations
 
-from app.domains.labels.models import Label
+from typing import TYPE_CHECKING
+
 from app.domains.labels.sources.mbal_source import get_mbalsy_service
+
+if TYPE_CHECKING:
+    from app.domains.labels.models import Label
 
 
 async def query_mbal(address: str, chain: str) -> list[Label]:

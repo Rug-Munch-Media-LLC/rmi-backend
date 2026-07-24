@@ -25,7 +25,7 @@ CLI:
 # Re-export everything from the new package structure
 from __future__ import annotations
 
-from app.detectors.flash_loan import *  # noqa: F403
+from app.detectors.flash_loan import *
 
 # Also re-export the CLI main() at module level for backward compat
 # (the original module had `main()` and `if __name__ == "__main__"`)

@@ -9,13 +9,15 @@ import hashlib
 import json
 import secrets
 from datetime import UTC, datetime
-
-from fastapi import Request
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis
 from app.routers.scam_school.content import API_BASE, COURSES
 from app.routers.scam_school.models import UserProgress
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 logger = get_logger("scam_school")
 
@@ -272,12 +274,11 @@ def _check_achievements(progress: UserProgress) -> list[dict]:
             new_achievements.append({"id": "first-course", "name": "Course Complete", "xp": 200})
 
     # All courses
-    if "all-courses" not in progress.achievements:
-        if len(progress.courses_progress) >= len(COURSES):
-            all_done = all(c.completed_at for c in progress.courses_progress.values())
-            if all_done:
-                progress.achievements.append("all-courses")
-                new_achievements.append({"id": "all-courses", "name": "Scholar", "xp": 2000})
+    if "all-courses" not in progress.achievements and len(progress.courses_progress) >= len(COURSES):
+        all_done = all(c.completed_at for c in progress.courses_progress.values())
+        if all_done:
+            progress.achievements.append("all-courses")
+            new_achievements.append({"id": "all-courses", "name": "Scholar", "xp": 2000})
 
     # Streak achievements
     if "streak-3" not in progress.achievements and progress.streak_days >= 3:

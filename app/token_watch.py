@@ -102,7 +102,7 @@ class TokenWatchService:
     DEXSCREENER_SEARCH_URL = "https://api.dexscreener.com/latest/dex/search?q={address}"
 
     # Chain name mapping for Dexscreener
-    CHAIN_MAP = {  # noqa: RUF012
+    CHAIN_MAP = {
         "ethereum": "ethereum",
         "eth": "ethereum",
         "bsc": "bsc",

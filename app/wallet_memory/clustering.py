@@ -18,9 +18,12 @@ Union-Find for O(alpha(n)) merges. Results persisted to storage.py.  # noqa: RUF
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 logger = get_logger("wallet_memory.clustering")
 
@@ -262,7 +265,7 @@ class WalletClusteringEngine:
 
         # Find pairs sharing >= MIN_COMMON_COUNTERPARTIES
         pair_shared: dict[tuple[str, str], int] = defaultdict(int)
-        for cp, wallets in cp_wallets.items():  # noqa: B007
+        for cp, wallets in cp_wallets.items():
             wl = list(wallets)
             for i in range(len(wl)):
                 for j in range(i + 1, len(wl)):

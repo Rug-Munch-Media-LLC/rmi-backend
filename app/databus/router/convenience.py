@@ -122,7 +122,7 @@ async def prediction_signals(request: Request) -> Any:
     return result
 
 @router.get("/market/prediction-markets")
-async def prediction_markets() -> Any:  # noqa: F811
+async def prediction_markets() -> Any:
     """Prediction markets from Polymarket. Free, no key needed."""
     return await databus.fetch("prediction_markets")
 

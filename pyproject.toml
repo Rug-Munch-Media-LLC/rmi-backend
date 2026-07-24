@@ -156,6 +156,7 @@ markers = [
     "integration: marks tests that need docker/compose",
     "property: marks property-based tests using Hypothesis",
     "benchmark: marks performance benchmark tests",
+    "e2e: marks end-to-end tests that need full system running",
 ]
 
 # Hypothesis profiles are registered in conftest.py via hypothesis.settings.register_profile().

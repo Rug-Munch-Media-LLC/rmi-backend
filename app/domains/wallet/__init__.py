@@ -48,30 +48,30 @@ from app.domains.wallet.models import (
 )
 
 __all__ = [
-    # Manager
-    "WalletManagerV2",
-    "WalletManagerFacade",
-    "get_wallet_manager_v2",
     # Models
     "CHAIN_REGISTRY",
     "ChainMeta",
     "PaymentRecord",
     "PaymentType",
+    # Crypto
+    "ShamirSecretSharing",
+    "WalletEncryption",
+    "WalletManagerFacade",
+    # Manager
+    "WalletManagerV2",
     "WalletPurpose",
     "WalletRecord",
     "WalletRotationSchedule",
     "WalletStatus",
     "WalletTier",
-    "_build_registry",
-    # Crypto
-    "ShamirSecretSharing",
-    "WalletEncryption",
     "ZKAddressVerifier",
-    # Labels
-    "import_legacy_wallets",
+    "_build_registry",
     # Entities
     "get_chain_meta",
-    "list_chains",
     "get_chains_by_group",
+    "get_wallet_manager_v2",
+    # Labels
+    "import_legacy_wallets",
+    "list_chains",
     "resolve_chain_address",
 ]

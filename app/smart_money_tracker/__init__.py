@@ -18,7 +18,14 @@ import asyncio
 import logging
 
 from app.smart_money_tracker.tracker import SmartMoneyTracker
-from app.smart_money_tracker.types import ImpactLevel, WalletCategory
+from app.smart_money_tracker.types import (
+    DetectedMove,
+    FlowReport,
+    ImpactLevel,
+    MoveDirection,
+    SmartWallet,
+    WalletCategory,
+)
 
 
 async def run_smart_money_scan(lookback_minutes: int = 60, chains: list[str] | None = None) -> str:

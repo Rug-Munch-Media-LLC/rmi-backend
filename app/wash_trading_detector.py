@@ -40,7 +40,7 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
     import aiohttp
 
     try:
-        async with aiohttp.ClientSession() as session:  # noqa: SIM117
+        async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
                 if resp.status == 200:
                     return await resp.json()
@@ -171,7 +171,7 @@ def _generate_recommendation(score: float, confidence: float) -> str:
         )
     elif score >= 15:
         base = (
-            "ℹ️ LOW wash trading indicators. Minor anomalies detected but overall "  # noqa: RUF001
+            "ℹ️ LOW wash trading indicators. Minor anomalies detected but overall "
             "trading behavior appears organic."
         )
     else:
@@ -296,7 +296,7 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict:
         elif tx_count_24h > 500:
             volume_tx_ratio = 0.3
             signals.append(
-                f"ℹ️ High transaction volume ({tx_count_24h} txs) - "  # noqa: RUF001
+                f"ℹ️ High transaction volume ({tx_count_24h} txs) - "
                 "may indicate organic activity, worth monitoring"
             )
 

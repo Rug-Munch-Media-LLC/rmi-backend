@@ -7,11 +7,11 @@ Handles all inline keyboard button presses.
 from __future__ import annotations
 
 import secrets
+from typing import TYPE_CHECKING
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -41,6 +41,9 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     scamschool_kb,
     topup_kb,
 )
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
 

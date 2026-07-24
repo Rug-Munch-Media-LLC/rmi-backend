@@ -60,7 +60,7 @@ async def detect_ml_clusters(
             clusters_dict[label].append(wallet)
 
     clusters = []
-    for label, cluster_wallets in clusters_dict.items():  # noqa: B007
+    for label, cluster_wallets in clusters_dict.items():
         if len(cluster_wallets) >= 2:
             cluster = WalletCluster(
                 cluster_id=f"ml_{len(clusters)}",

@@ -51,7 +51,7 @@ def _run_subprocess(args: list[str], timeout: int = 30) -> dict[str, Any]:
         return _err("Empty command")
     t0 = time.time()
     try:
-        r = subprocess.run(  # noqa: S603  — args validated by blocklist + allowlist
+        r = subprocess.run(
             args,
             shell=False,
             capture_output=True,

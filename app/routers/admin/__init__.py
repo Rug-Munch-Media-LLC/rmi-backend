@@ -29,12 +29,12 @@ async def verify_admin(request: Request) -> bool:
 # (using lazy import pattern to avoid circular deps with router reference)
 
 def _include_sub_routers():
-    from .telegram import telegram_router
-    from .ghost import ghost_router
     from .cron import cron_router
     from .dify import dify_router
-    from .server import server_router
+    from .ghost import ghost_router
     from .mail import mail_router
+    from .server import server_router
+    from .telegram import telegram_router
 
     router.include_router(telegram_router)
     router.include_router(ghost_router)

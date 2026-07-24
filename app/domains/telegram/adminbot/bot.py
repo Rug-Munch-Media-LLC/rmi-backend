@@ -12,6 +12,7 @@ Owner-only Telegram bot for fleet ops. Extracted sub-modules:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from telegram.ext import (
@@ -54,12 +55,10 @@ async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle uncaught exceptions from handlers."""
     logger.error(f"Exception: {ctx.error}", exc_info=ctx.error)
     if hasattr(update, "effective_message") and update.effective_message:
-        try:
+        with contextlib.suppress(ConnectionError, OSError, TimeoutError):
             await update.effective_message.reply_text(
                 f"⚠️ Operation failed: {str(ctx.error)[:200]}"
             )
-        except (ConnectionError, OSError, TimeoutError):
-            pass
 
 # ═══════════════════════════════════════════════════════════════════
 # MAIN

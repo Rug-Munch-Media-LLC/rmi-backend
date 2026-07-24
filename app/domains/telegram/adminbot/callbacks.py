@@ -6,12 +6,13 @@ All inline keyboard callback routing for the admin bot.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+from typing import TYPE_CHECKING
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot import admin_ops, admin_terminal
 from app.domains.telegram.adminbot.helpers import (
@@ -22,6 +23,9 @@ from app.domains.telegram.adminbot.helpers import (
     main_menu_keyboard,
     service_action_keyboard,
 )
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger("admin_bot")
 
@@ -315,9 +319,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Callback error: {e}")
-        try:
+        with contextlib.suppress(httpx.HTTPError):
             await query.edit_message_text(
                 f"⚠️ Error: {str(e)[:200]}", reply_markup=back_button("main")
             )
-        except (httpx.HTTPError):
-            pass

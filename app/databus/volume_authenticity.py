@@ -267,7 +267,7 @@ class VolumeAuthenticityScorer:
         buy_sell: 0.15
     """
 
-    DEFAULT_WEIGHTS = {  # noqa: RUF012
+    DEFAULT_WEIGHTS = {
         "statistical": 0.25,
         "vl_ratio": 0.20,
         "wallet_concentration": 0.20,

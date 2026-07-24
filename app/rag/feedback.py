@@ -18,6 +18,7 @@ Redis key schema:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from datetime import UTC, datetime
@@ -166,10 +167,8 @@ async def get_recent_feedback(limit: int = 20) -> list[dict[str, Any]]:
             for key in keys:
                 raw = r.get(key)
                 if raw:
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         records.append(json.loads(raw))
-                    except json.JSONDecodeError:
-                        pass
             if cursor == 0:
                 break
 

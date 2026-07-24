@@ -37,9 +37,9 @@ from __future__ import annotations
 
 # Import submodules to register routes on the router
 from app.routers.x402_databus_tools import (
-    analysis_tools,  # noqa: F401
-    market_tools,  # noqa: F401
-    wallet_tools,  # noqa: F401
+    analysis_tools,
+    market_tools,
+    wallet_tools,
 )
 from app.routers.x402_databus_tools.auth import _clean_response, verify_x402_payment
 from app.routers.x402_databus_tools.models import (

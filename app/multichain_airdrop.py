@@ -9,4 +9,4 @@ Backward-compatibility shim: this module now lives in ``app.domains.airdrop.mult
 
 from __future__ import annotations
 
-from app.domains.airdrop.multichain import *  # noqa: F403
+from app.domains.airdrop.multichain import *

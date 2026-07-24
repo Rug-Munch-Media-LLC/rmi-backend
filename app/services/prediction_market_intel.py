@@ -73,7 +73,7 @@ class PredictionMarketIntel:
     HIGH_VOLUME = 50_000  # $50K minimum for high-confidence signals
 
     # Security-relevant search queries for ecosystem monitoring
-    ECOSYSTEM_QUERIES = [  # noqa: RUF012
+    ECOSYSTEM_QUERIES = [
         "crypto hack",
         "defi exploit",
         "crypto exchange insolvent",

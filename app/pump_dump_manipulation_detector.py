@@ -16,7 +16,7 @@ CLI:
 
 from __future__ import annotations
 
-from app.domains.detectors.pump_dump_manipulation_detector import *  # noqa: F403
+from app.domains.detectors.pump_dump_manipulation_detector import *
 
 if __name__ == "__main__":
     from app.domains.detectors.pump_dump_manipulation_detector import main as _main

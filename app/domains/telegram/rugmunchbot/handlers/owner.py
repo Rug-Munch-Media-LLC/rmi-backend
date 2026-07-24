@@ -5,14 +5,17 @@ RugMunchBot -- Owner/admin command handlers.
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
-from telegram import Update
 from telegram.constants import ParseMode
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import TIERS
 from app.domains.telegram.rugmunchbot.formatters import is_owner, thin_sep
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 logger = get_logger("rmi_bot")
 

@@ -60,28 +60,28 @@ async def full_deep_intel(*args: Any, **kwargs: Any) -> dict[str, Any]:
 __all__ = [
     # Core
     "DeepIntelConfig",
-    "MultiChainClient",
-    "cfg",
-    "client",
-    "logger",
-    # Analyzers
-    "deployer_reputation",
-    "preflight_simulate",
-    "liquidity_lock_authenticity",
-    "volume_authenticity",
-    "slow_rug_detector",
-    "funding_source_tracer",
-    "ownership_theater_detector",
-    "exit_liquidity_calculator",
-    "token_lifespan_predictor",
-    "post_purchase_monitor",
-    "cross_chain_identity",
-    "social_onchain_correlation",
-    "threat_intel_check",
-    # Composite (lazy)
-    "full_deep_intel",
     # Models
     "JsonDict",
+    "MultiChainClient",
     "RiskFlags",
     "RiskLevel",
+    "cfg",
+    "client",
+    "cross_chain_identity",
+    # Analyzers
+    "deployer_reputation",
+    "exit_liquidity_calculator",
+    # Composite (lazy)
+    "full_deep_intel",
+    "funding_source_tracer",
+    "liquidity_lock_authenticity",
+    "logger",
+    "ownership_theater_detector",
+    "post_purchase_monitor",
+    "preflight_simulate",
+    "slow_rug_detector",
+    "social_onchain_correlation",
+    "threat_intel_check",
+    "token_lifespan_predictor",
+    "volume_authenticity",
 ]

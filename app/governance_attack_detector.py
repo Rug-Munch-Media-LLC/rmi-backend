@@ -551,11 +551,10 @@ async def detect_governance_attack(
             "Token does not appear to have on-chain governance - "
             "no governor contract detected in verified source."
         )
-    if result.is_governed and result.governance_params:
-        if not result.governance_params.get("has_timelock"):
-            warnings.append(
-                "Governance actions can execute instantly - no timelock delay protects holders."
-            )
+    if result.is_governed and result.governance_params and not result.governance_params.get("has_timelock"):
+        warnings.append(
+            "Governance actions can execute instantly - no timelock delay protects holders."
+        )
     result.warnings = warnings
 
     # 6. Build details

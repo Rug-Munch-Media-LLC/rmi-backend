@@ -213,7 +213,7 @@ class PumpDumpDetector:
                 price_change_24h = float(birdeye_data.get("priceChange24h", 0) or 0)
 
         now_ms = int(time.time() * 1000)
-        if created_at > 0:  # noqa: SIM108
+        if created_at > 0:
             age_hours = (now_ms - created_at) / 3_600_000
         else:
             age_hours = 24  # default assumption
@@ -271,7 +271,7 @@ class PumpDumpDetector:
             by_time[window].append(t)
 
         groups: list[CoordinatedBuyGroup] = []
-        for window, window_buys in by_time.items():  # noqa: B007
+        for window, window_buys in by_time.items():
             if len(window_buys) < self.MIN_COORDINATED_WALLETS:
                 continue
 

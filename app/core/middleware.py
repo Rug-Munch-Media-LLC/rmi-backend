@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import Request
 from fastapi.responses import JSONResponse
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 # ═══════════════════════════════════════════════════════════════
 # Rate-limit config

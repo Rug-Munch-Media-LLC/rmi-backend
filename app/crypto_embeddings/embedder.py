@@ -312,7 +312,7 @@ Code patterns: {'; '.join(code_snippets or [])[:3000]}"""
                 pipe.get(f"rag:{collection}:{did}")
             results = await pipe.execute()
             scored = []
-            for i, data in enumerate(results):
+            for _i, data in enumerate(results):
                 if not data:
                     continue
                 try:

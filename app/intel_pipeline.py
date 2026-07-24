@@ -132,7 +132,7 @@ async def generate_embedding(text: str) -> list[float] | None:
 
     async with httpx.AsyncClient(timeout=60) as client:
         r = await client.post(
-            f"{HF_API}/{EMBEDDING_MODEL}",  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+            f"{HF_API}/{EMBEDDING_MODEL}",
             headers={"Authorization": f"Bearer {HF_TOKEN}"},
             json={"inputs": text[:1024]},
         )

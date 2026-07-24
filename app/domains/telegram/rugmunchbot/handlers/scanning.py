@@ -7,11 +7,11 @@ Commands: start, help, scan, wallet, ta, compare, quick, rugcheck
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -42,6 +42,9 @@ from app.domains.telegram.rugmunchbot.formatters import (
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb, scan_result_kb
 from app.domains.telegram.rugmunchbot.scanner import analyze_wallet, scan_token
 from app.domains.telegram.rugmunchbot.states import check_spam
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
 

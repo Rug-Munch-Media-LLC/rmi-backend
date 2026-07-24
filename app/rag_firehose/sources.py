@@ -11,10 +11,12 @@ from __future__ import annotations
 import csv
 import os
 from datetime import UTC, datetime
-
-import httpx
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    import httpx
 
 logger = get_logger("rag.firehose")
 

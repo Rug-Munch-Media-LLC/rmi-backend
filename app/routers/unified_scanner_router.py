@@ -6,7 +6,7 @@ are injected via ``Depends()`` so they can be mocked in tests.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -14,8 +14,10 @@ from pydantic import BaseModel
 from app.core.dependencies import get_token_scanner, get_wallet_scanner
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
-from app.domains.scanner.unified_token_scanner import UnifiedTokenScanner
-from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
+
+if TYPE_CHECKING:
+    from app.domains.scanner.unified_token_scanner import UnifiedTokenScanner
+    from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v2/scanner", tags=["scanner-v2"])

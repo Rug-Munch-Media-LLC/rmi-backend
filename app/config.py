@@ -318,12 +318,11 @@ class Settings(BaseSettings):
     def _cors_origins_must_be_safe(cls, v: list[str]) -> list[str]:
         """Reject dangerous CORS configurations."""
         env = os.getenv("ENVIRONMENT", "dev")
-        if v == ["*"] or not v:
-            if env == "prod":
-                raise ValueError(
-                    "cors_origins must be an explicit non-empty list of origins in production. "
-                    "Set CORS_ORIGINS env var."
-                )
+        if (v == ["*"] or not v) and env == "prod":
+            raise ValueError(
+                "cors_origins must be an explicit non-empty list of origins in production. "
+                "Set CORS_ORIGINS env var."
+            )
         return v
 
     @field_validator("jwt_secret")

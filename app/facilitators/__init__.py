@@ -15,7 +15,7 @@ import importlib as _importlib
 import sys as _sys
 
 # Re-export public surface
-from app.domains.billing.facilitators import (  # noqa: F401
+from app.domains.billing.facilitators import (
     Facilitator,
     FacilitatorRegistry,
     FacilitatorRouter,

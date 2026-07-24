@@ -167,7 +167,7 @@ async def main() -> None:
     else:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     chains = args.chains.split(",") if args.chains else None
-    is_valid, chain_hint = validate_wallet_address(args.wallet)
+    is_valid, _chain_hint = validate_wallet_address(args.wallet)
     if not is_valid:
         print(f"Invalid wallet address: {args.wallet}")
         sys.exit(1)

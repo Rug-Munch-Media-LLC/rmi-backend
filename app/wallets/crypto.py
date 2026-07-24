@@ -21,7 +21,7 @@ except ImportError:
     _HAS_COINCURVE = False
 
 try:
-    from ecdsa import NIST256p, NIST384p, NIST521p, SECP256k1, SigningKey  # noqa: F401
+    from ecdsa import NIST256p, NIST384p, NIST521p, SECP256k1, SigningKey
     _HAS_ECDSA = True
 except ImportError:
     _HAS_ECDSA = False

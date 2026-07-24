@@ -12,10 +12,3 @@ Providers:
 
 from __future__ import annotations
 
-from app.databus.providers import (  # noqa: F401
-    _birdeye_overview,
-    _birdeye_price,
-    _solana_tracker_price,
-    _solana_tracker_token,
-    _solana_tracker_trending,
-)

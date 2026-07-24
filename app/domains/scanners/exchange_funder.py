@@ -71,7 +71,7 @@ class ExchangeFunderDetector:
     """
 
     # Dead/burn addresses for renounce verification
-    DEAD_ADDRESSES = {  # noqa: RUF012
+    DEAD_ADDRESSES = {
         "ethereum": [
             "0x000000000000000000000000000000000000dEaD",
             "0x0000000000000000000000000000000000000000",

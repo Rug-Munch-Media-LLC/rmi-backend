@@ -7,15 +7,17 @@ Mixed BASIC, PREMIUM, and ELITE tier pricing.
 """
 from __future__ import annotations
 
-from typing import Any
-
-from fastapi import Request
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.databus import databus
 from app.routers.x402_databus_tools.auth import _clean_response, verify_x402_payment
-from app.routers.x402_databus_tools.models import AddressRequest, QueryRequest
 from app.routers.x402_databus_tools.router import router
+
+if TYPE_CHECKING:
+    from fastapi import Request
+
+    from app.routers.x402_databus_tools.models import AddressRequest, QueryRequest
 
 logger = get_logger("x402_databus_tools")
 

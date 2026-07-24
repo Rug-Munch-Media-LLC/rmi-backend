@@ -26,17 +26,19 @@ Override in tests:
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from fastapi import Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings as _get_settings
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from fastapi import Request
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from app.chain_client import ChainClient
     from app.core.rate_limiter import UnifiedRateLimiter
     from app.domains.scanner.unified_token_scanner import UnifiedTokenScanner

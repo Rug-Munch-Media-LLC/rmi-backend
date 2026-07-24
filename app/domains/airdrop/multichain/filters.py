@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
-from app.domains.airdrop.multichain.models import CrossChainHolder
+
+if TYPE_CHECKING:
+    from app.domains.airdrop.multichain.models import CrossChainHolder
 
 logger = get_logger("darkroom_multichain_airdrop")
 
@@ -15,7 +18,7 @@ class AntiGamingFilter:
     Filter out sybils, bots, and gaming attempts.
     """
 
-    KNOWN_BOT_PATTERNS = [  # noqa: RUF012
+    KNOWN_BOT_PATTERNS = [
         "0x0000000000000000000000000000000000000000",
         "0x000000000000000000000000000000000000dead",
     ]

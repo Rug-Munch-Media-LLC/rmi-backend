@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -24,6 +23,7 @@ async def ghost_drafts(
     """Get Ghost drafts."""
     try:
         import httpx
+
         from app.content_platform import GHOST_API, GHOST_CONTENT_KEY
 
         if not GHOST_CONTENT_KEY:
@@ -57,6 +57,7 @@ async def ghost_tags(
     """Get Ghost tags."""
     try:
         import httpx
+
         from app.content_platform import GHOST_API, GHOST_CONTENT_KEY
 
         if not GHOST_CONTENT_KEY:
@@ -88,6 +89,7 @@ async def ghost_analytics(
     """Get Ghost analytics computed from local data."""
     try:
         import httpx
+
         from app.content_platform import GHOST_API, GHOST_CONTENT_KEY
 
         total_posts = 0
@@ -132,6 +134,7 @@ async def ghost_publish(
     """Publish a Ghost draft post."""
     try:
         import httpx
+
         from app.content_platform import GHOST_API, _get_session_cookie
 
         session = _get_session_cookie()

@@ -83,9 +83,7 @@ def is_free_path(path: str, method: str = "GET") -> bool:
         return True
     if normalized.startswith(FREE_PATH_PREFIXES):
         return True
-    if method == "GET" and normalized in FREE_GET_PATHS:
-        return True
-    return False
+    return bool(method == "GET" and normalized in FREE_GET_PATHS)
 
 def extract_tool_id(path: str) -> str | None:
     """Extract the tool identifier from a request path.

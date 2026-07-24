@@ -28,7 +28,7 @@ except ImportError:
     get_current_user = None  # type: ignore[assignment]
     get_optional_user = None  # type: ignore[assignment]
 
-try:  # noqa: SIM105
-    from app.core.config import settings  # noqa: F401
+try:
+    from app.core.config import settings
 except ImportError:
     pass  # fallback until core.config lands

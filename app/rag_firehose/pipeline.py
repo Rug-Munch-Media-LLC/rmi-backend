@@ -12,9 +12,7 @@ import hashlib
 import re
 import time
 from datetime import UTC, datetime
-from typing import Any
-
-import httpx
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.rag_firehose.models import (
@@ -23,6 +21,9 @@ from app.rag_firehose.models import (
     RAG_API,
     RATE_LIMITS,
 )
+
+if TYPE_CHECKING:
+    import httpx
 
 logger = get_logger("rag.firehose")
 

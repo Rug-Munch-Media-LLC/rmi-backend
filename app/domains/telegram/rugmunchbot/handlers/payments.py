@@ -7,9 +7,7 @@ Telegram Stars payment pre-checkout and successful payment routing.
 from __future__ import annotations
 
 import time
-
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -22,6 +20,10 @@ from app.domains.telegram.rugmunchbot.formatters import short_addr
 from app.domains.telegram.rugmunchbot.keyboards import scan_result_kb
 from app.domains.telegram.rugmunchbot.scanner import scan_token
 from app.domains.telegram.rugmunchbot.states import _pending_deep_scans
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
 

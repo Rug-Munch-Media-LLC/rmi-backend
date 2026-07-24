@@ -339,11 +339,11 @@ def get_catalog() -> Any:
     """
 
     # Always rebuild (no stale caching)
-    base_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     # ── Primary source: TOOL_PRICES + DATABUS_TOOLS (170 total, single source of truth) ──
     try:
-        from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES  # noqa: F401
+        from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES
 
         all_tools = {}
         services = set()

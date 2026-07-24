@@ -20,11 +20,13 @@ when fetching data for multiple tokens/wallets simultaneously.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 logger = get_logger("rpc_batcher")
 
@@ -191,12 +193,12 @@ class RpcBatcher:
                         logger.debug(f"Orphan batch result for id={rid}")
 
             # Resolve any unmatched futures with None
-            for rid, fut in futures.items():  # noqa: B007
+            for rid, fut in futures.items():
                 if not fut.done():
                     fut.set_result(None)
         except Exception as e:
             # Batch failed - fail all futures
-            for rid, fut in futures.items():  # noqa: B007
+            for rid, fut in futures.items():
                 if not fut.done():
                     fut.set_exception(e)
 
