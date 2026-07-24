@@ -25,7 +25,6 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
-
 # ── Root-level route deprecation registry ─────────────────────────────
 # These routes are at root level (no /api/v1 prefix) and have /api/v1/*
 # equivalents. Logged at startup so operators know what's deprecated.
@@ -102,7 +101,6 @@ ROOT_LEVEL_ROUTES: Final[list[dict[str, str]]] = [
         "file": "app.routers.x402_mcp_handler",
     },
 ]
-
 
 # Canonical router list (single source of truth)
 # Order matters for path resolution. v1 routers are mounted at /api/v1/*.
@@ -223,7 +221,6 @@ ROUTER_MODULES: Final[list[str]] = [
     #     app.routers.label_lookup already serves /api/v1/labels/*.
 ]
 
-
 def mount_all(app: Any) -> int:
     """Mount every router. Returns count of successful mounts.
 
@@ -241,7 +238,6 @@ def mount_all(app: Any) -> int:
     _log_deprecation_warning()
 
     return mounted
-
 
 def _log_deprecation_warning() -> None:
     """Log a startup warning listing all root-level routes that are deprecated."""
@@ -263,7 +259,6 @@ def _log_deprecation_warning() -> None:
             len(mcp_level),
         )
 
-
 def _try_mount(app: Any, module_path: str) -> bool:
     """Try to import + mount a single router. Returns True on success."""
     try:
@@ -283,7 +278,6 @@ def _try_mount(app: Any, module_path: str) -> bool:
             exc,
         )
         return False
-
 
 def register_external_router(module_path: str) -> None:
     """Allow third-party code to register additional routers at runtime.

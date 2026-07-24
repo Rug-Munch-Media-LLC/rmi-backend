@@ -1,5 +1,6 @@
 """CryptoEmbedder - multi-head embedding engine for crypto scam detection."""
 
+from __future__ import annotations
 import hashlib
 import json
 import os
@@ -30,7 +31,6 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PW = os.getenv("REDIS_PASSWORD", "")
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN", "")
-
 
 class CryptoEmbedder:
     """Multi-head embedder for crypto scam detection."""

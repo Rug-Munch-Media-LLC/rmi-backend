@@ -15,6 +15,7 @@ Free models used (zero cost):
   Writing:  google/gemma-4-26b-a4b-it:free (262K ctx, excellent prose)
 """
 
+from __future__ import annotations
 import os
 import re
 import subprocess
@@ -40,7 +41,6 @@ FALLBACK_WRITING = "moonshotai/kimi-k2.6:free"
 X_ACCOUNT = "CryptoRugMunch"
 GHOST_URL = os.getenv("GHOST_URL", "http://172.19.0.3:2368")
 GHOST_KEY = os.getenv("GHOST_ADMIN_API_KEY", "") or os.getenv("GHOST_CONTENT_API_KEY", "")
-
 
 async def _openrouter_chat(
     model: str, system: str, user: str, max_tokens: int = 1500, temperature: float = 0.5
@@ -77,7 +77,6 @@ async def _openrouter_chat(
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"OpenRouter error: {e}")
         return ""
-
 
 async def _gather_all_data() -> dict:
     """Gather comprehensive data from ALL DataBus sources."""
@@ -140,7 +139,6 @@ async def _gather_all_data() -> dict:
 
     return data
 
-
 def _build_research_context(data: dict) -> str:
     """Build comprehensive context for the research model."""
     parts = []
@@ -193,7 +191,6 @@ def _build_research_context(data: dict) -> str:
 
     return "\n\n".join(parts)
 
-
 WRITING_STANDARDS = """You are a senior financial writer for RugCharts Daily Intelligence.
 
 WRITING STANDARDS:
@@ -232,7 +229,6 @@ FORMAT EXACTLY LIKE THIS:
 ---
 Published by RugCharts Daily Intelligence
 Subscribe: https://rugmunch.io/news"""
-
 
 async def generate_daily_intel(publish: bool = False, **kw) -> dict | None:
     """Generate the complete Daily Intelligence Briefing with quality review.
@@ -356,7 +352,6 @@ Stay sharp. Data-driven decisions only."""
 
     return report_data
 
-
 async def _publish_briefing(report: str, date_str: str) -> dict:
     """Publish the briefing to all channels."""
     results = {}
@@ -374,7 +369,6 @@ async def _publish_briefing(report: str, date_str: str) -> dict:
     results["telegram"] = tg_result
 
     return results
-
 
 async def _publish_to_x(report: str, date_str: str) -> dict:
     """Publish briefing summary to X @CryptoRugMunch via xurl."""
@@ -412,7 +406,6 @@ async def _publish_to_x(report: str, date_str: str) -> dict:
             return {"status": "failed", "platform": "x", "error": result.stderr[:200]}
     except Exception as e:  # noqa: BLE001
         return {"status": "error", "platform": "x", "error": str(e)[:200]}
-
 
 async def _publish_to_ghost(report: str, date_str: str) -> dict:
     """Publish briefing to Ghost CMS under 'daily' tag."""
@@ -453,7 +446,6 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict:
                 return {"status": "failed", "platform": "ghost", "error": r.text[:200]}
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         return {"status": "error", "platform": "ghost", "error": str(e)[:200]}
-
 
 async def _publish_to_telegram(report: str, date_str: str) -> dict:
     """Send briefing to Telegram channel."""
@@ -496,7 +488,6 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict:
                 return {"status": "failed", "platform": "telegram", "error": r.text[:200]}
     except (httpx.HTTPError, httpx.TimeoutException, telegram.error.TelegramError) as e:
         return {"status": "error", "platform": "telegram", "error": str(e)[:200]}
-
 
 def _markdown_to_html(md: str) -> str:
     """Simple markdown to HTML conversion for Ghost."""

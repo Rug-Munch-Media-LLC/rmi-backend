@@ -67,7 +67,6 @@ LTV_RANGES = {
     "risky_asset": 0.50,
 }
 
-
 def _try_import_web3() -> Any | None:
     """Try to import web3, return None if not available."""
     try:
@@ -75,7 +74,6 @@ def _try_import_web3() -> Any | None:
         return web3
     except ImportError:
         return None
-
 
 def _estimate_asset_ltv(asset_symbol: str) -> tuple[float, float]:
     """Estimate LTV and liquidation threshold for a given asset type."""
@@ -95,7 +93,6 @@ def _estimate_asset_ltv(asset_symbol: str) -> tuple[float, float]:
     else:
         return 0.50, 0.55
 
-
 def _estimate_asset_price(asset_symbol: str) -> float:
     """Return a rough price estimate for common assets."""
     prices = {
@@ -106,7 +103,6 @@ def _estimate_asset_price(asset_symbol: str) -> float:
         "aave": 140.0, "uni": 7.5, "link": 14.0, "op": 2.0, "arb": 0.80,
     }
     return prices.get(asset_symbol.lower(), 1.0)
-
 
 def _resolve_asset_symbol(address: str, chain: str) -> str:
     """Map common token addresses to symbols."""
@@ -146,7 +142,6 @@ def _resolve_asset_symbol(address: str, chain: str) -> str:
         if known_addr.lower() == addr:
             return sym
     return f"TOKEN({addr[:10]}...)"
-
 
 def _validate_address(address: str) -> bool:
     """Validate an Ethereum or Solana address."""

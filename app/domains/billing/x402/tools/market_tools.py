@@ -32,11 +32,9 @@ from app.domains.billing.x402.shared import (
 
 sub_router = APIRouter(tags=["x402-market-tools"])
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 4: Launch Radar ($0.50)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _detect_launches(chain: str, window_min: int) -> dict:
     """Detect new token launches with risk scoring."""
@@ -108,7 +106,6 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
 
     return result
 
-
 @sub_router.get("/launch")
 async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[str, str]:
     """New token launch detection with risk scoring."""
@@ -127,11 +124,9 @@ async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[s
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 16: Launch Intel ($0.05)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _launch_intel(chain: str, hours: int) -> dict:
     """Token launch intelligence."""
@@ -187,7 +182,6 @@ async def _launch_intel(chain: str, hours: int) -> dict:
     result["total_found"] = len(launches)
     return result
 
-
 @sub_router.post("/launch_intel")
 async def launch_intel(req: GenericRequest) -> dict[str, str]:
     """Token launch intelligence."""
@@ -206,11 +200,9 @@ async def launch_intel(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 17: Anomaly Detector ($0.08)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _anomaly_detector(chain: str) -> dict:
     """Market anomaly detection."""
@@ -265,7 +257,6 @@ async def _anomaly_detector(chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/anomaly")
 async def anomaly_detector(req: GenericRequest) -> dict[str, str]:
     """Market anomaly detector."""
@@ -285,11 +276,9 @@ async def anomaly_detector(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 19: Market Overview ($0.05)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _market_overview(chain: str) -> dict:
     """Comprehensive market overview."""
@@ -344,7 +333,6 @@ async def _market_overview(chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/market_overview")
 async def market_overview(req: GenericRequest) -> dict[str, str]:
     """Comprehensive market overview."""
@@ -363,11 +351,9 @@ async def market_overview(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 21: Chain Health ($0.05)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _chain_health(chain: str) -> dict:
     """Chain health metrics."""
@@ -422,7 +408,6 @@ async def _chain_health(chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/chain_health")
 async def chain_health(req: GenericRequest) -> dict[str, str]:
     """Chain health metrics."""
@@ -441,11 +426,9 @@ async def chain_health(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 27: DeFi Yield Scanner ($0.08)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _defi_yield_scanner(chain: str) -> dict:
     """DeFi yield scanner."""
@@ -478,7 +461,6 @@ async def _defi_yield_scanner(chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/defi_yield_scanner")
 async def defi_yield_scanner(req: GenericRequest) -> dict[str, str]:
     """DeFi yield scanner."""
@@ -497,11 +479,9 @@ async def defi_yield_scanner(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 30: Gas Forecast ($0.05)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _gas_forecast(chain: str) -> dict:
     """Gas price forecast."""
@@ -542,7 +522,6 @@ async def _gas_forecast(chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/gas_forecast")
 async def gas_forecast(req: GenericRequest) -> dict[str, str]:
     """Gas price forecast."""
@@ -561,11 +540,9 @@ async def gas_forecast(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 31: Sniper Alert ($0.05)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _sniper_alert(chain: str, hours: int) -> dict:
     """Sniper bot detection and alerts."""
@@ -621,7 +598,6 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
     result["total_alerts"] = len(result["sniper_activity"])
     return result
 
-
 @sub_router.post("/sniper_alert")
 async def sniper_alert(req: GenericRequest) -> dict[str, str]:
     """Sniper bot detection."""
@@ -640,11 +616,9 @@ async def sniper_alert(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 34: Airdrop Finder ($0.05)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _airdrop_finder(chain: str) -> dict:
     """Airdrop opportunity finder."""
@@ -674,7 +648,6 @@ async def _airdrop_finder(chain: str) -> dict:
     result["total_opportunities"] = len(result["opportunities"])
     return result
 
-
 @sub_router.post("/airdrop_finder")
 async def airdrop_finder(req: GenericRequest) -> dict[str, str]:
     """Airdrop opportunity finder."""
@@ -693,11 +666,9 @@ async def airdrop_finder(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 35: MEV Protection ($0.08)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _mev_protection(chain: str) -> dict:
     """MEV protection analysis."""
@@ -759,7 +730,6 @@ async def _mev_protection(chain: str) -> dict:
     ]
 
     return result
-
 
 @sub_router.post("/mev_protection")
 async def mev_protection(req: GenericRequest) -> dict[str, str]:

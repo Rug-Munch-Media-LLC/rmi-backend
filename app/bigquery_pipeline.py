@@ -5,13 +5,13 @@ Streams wallet labels, scan results, and embedding usage to BigQuery.
 All usage counts against free tier (1TB queries/month - we'll use <1%).
 """
 
+from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
 from app.gcloud_manager import get_gcloud
 
 logger = get_logger("bigquery.pipeline")
-
 
 async def stream_wallet_labels(labels: list) -> dict:
     """Stream wallet labels to BigQuery rmi_production.wallet_labels."""
@@ -37,7 +37,6 @@ async def stream_wallet_labels(labels: list) -> dict:
     ok = await gcloud.bigquery_insert("rmi_production", "wallet_labels", rows)
     return {"streamed": len(rows) if ok else 0, "errors": 0 if ok else len(rows)}
 
-
 async def stream_scan_result(result: dict) -> bool:
     """Stream a single scan result to BigQuery."""
     gcloud = get_gcloud()
@@ -57,7 +56,6 @@ async def stream_scan_result(result: dict) -> bool:
         ],
     )
 
-
 async def stream_embedding_usage(provider: str, task: str, dims: int, count: int = 1) -> None:
     """Log embedding usage for analytics."""
     gcloud = get_gcloud()
@@ -75,7 +73,6 @@ async def stream_embedding_usage(provider: str, task: str, dims: int, count: int
         ],
     )
 
-
 async def top_scam_wallets(limit: int = 10) -> list:
     """Query BigQuery for top scam-flagged wallets."""
     gcloud = get_gcloud()
@@ -86,7 +83,6 @@ async def top_scam_wallets(limit: int = 10) -> list:
         ORDER BY risk_score DESC
         LIMIT {limit}
     """)
-
 
 async def daily_scan_stats() -> list:
     """Get today's scan statistics from BigQuery."""

@@ -1,5 +1,6 @@
 """OAuth authentication flows (Google, GitHub, X/Twitter)."""
 
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
@@ -21,7 +22,6 @@ from app.domains.auth.router import router
 from app.domains.auth.store import _get_user_by_email
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://rugmunch.io")
-
 
 # ═══════════════════════════════════════════
 # Google OAuth
@@ -45,7 +45,6 @@ async def google_auth_url() -> dict[str, Any]:
     url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
     return {"url": url}
 
-
 async def _google_token_exchange(code: str) -> dict | None:
     """Exchange authorization code for Google access token."""
     client_id = os.getenv("GOOGLE_CLIENT_ID")
@@ -68,7 +67,6 @@ async def _google_token_exchange(code: str) -> dict | None:
             return None
         return resp.json()
 
-
 async def _google_get_user(access_token: str) -> dict | None:
     """Get Google user info from access token."""
     async with httpx.AsyncClient() as client:
@@ -79,7 +77,6 @@ async def _google_get_user(access_token: str) -> dict | None:
         if resp.status_code != 200:
             return None
         return resp.json()
-
 
 async def _create_or_get_user(email: str, display_name: str, provider: str = "google") -> dict:
     """Find existing user or create a new one."""
@@ -107,7 +104,6 @@ async def _create_or_get_user(email: str, display_name: str, provider: str = "go
     r.hset("rmi:users:email", email.lower(), user_id)
     return user
 
-
 @router.get("/google/callback")
 async def google_callback(request: Request) -> Any:
     """Handle Google OAuth redirect."""
@@ -132,7 +128,6 @@ async def google_callback(request: Request) -> Any:
     redirect = RedirectResponse(f"{FRONTEND_URL}/auth/callback?provider=google")
     _set_auth_cookie(redirect, jwt_token, request)
     return redirect
-
 
 @router.post("/google/callback")
 async def google_callback_post(request: Request) -> JSONResponse:
@@ -173,7 +168,6 @@ async def google_callback_post(request: Request) -> JSONResponse:
     _set_csrf_cookie(response, request)
     return response
 
-
 # ═══════════════════════════════════════════
 # GitHub OAuth
 # ═══════════════════════════════════════════
@@ -188,7 +182,6 @@ async def github_auth_url() -> dict[str, Any]:
     params = {"client_id": client_id, "redirect_uri": redirect_uri, "scope": "user:email"}
     url = f"https://github.com/login/oauth/authorize?{urlencode(params)}"
     return {"url": url}
-
 
 @router.get("/github/callback")
 async def github_callback(request: Request) -> Any:
@@ -245,7 +238,6 @@ async def github_callback(request: Request) -> Any:
         _set_auth_cookie(redirect, jwt_token, request)
         return redirect
 
-
 # ═══════════════════════════════════════════
 # X/Twitter OAuth
 # ═══════════════════════════════════════════
@@ -260,7 +252,6 @@ async def x_auth_url() -> dict[str, Any]:
     params = {"client_id": client_id, "redirect_uri": redirect_uri, "response_type": "code", "scope": "tweet.read users.read"}
     url = f"https://twitter.com/i/oauth2/authorize?{urlencode(params)}"
     return {"url": url}
-
 
 @router.get("/x/callback")
 async def x_callback(request: Request) -> Any:

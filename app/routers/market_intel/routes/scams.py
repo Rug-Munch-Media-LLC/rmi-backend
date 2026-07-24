@@ -3,6 +3,7 @@ Market Intelligence - Scam Detection & Alerts Feed Routes
 Scam alerts from DexScreener suspicious tokens and combined alerts feed.
 """
 
+from __future__ import annotations
 from fastapi import APIRouter, Query, Request
 
 from app.routers.market_intel.providers import _cg, _ds
@@ -12,7 +13,6 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["market-intel"])
-
 
 @router.get("/scams")
 async def get_market_scams(
@@ -94,7 +94,6 @@ async def get_market_scams(
 
     items = items[:limit]
     return {"items": items, "total": len(items), "updated_at": now}
-
 
 @router.get("/alerts-feed")
 async def get_market_alerts_feed(

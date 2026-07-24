@@ -20,6 +20,7 @@ Standards (2026 consensus):
   - Annual reports: recursive, 800 tokens, 15% overlap
 """
 
+from __future__ import annotations
 import hashlib
 import re
 
@@ -41,11 +42,9 @@ STRATEGY_PRESETS = {
 RECURSIVE_SEPARATORS = ["\n\n", "\n", ". ", " ", ""]
 CODE_SEPARATORS = ["\n\nclass ", "\n\ndef ", "\n\n", "\n", " ", ""]
 
-
 def get_strategy(content_type: str) -> dict:
     """Get chunking strategy preset for a content type."""
     return STRATEGY_PRESETS.get(content_type, STRATEGY_PRESETS["default"])
-
 
 def recursive_chunk(
     text: str,
@@ -114,7 +113,6 @@ def recursive_chunk(
     # Remove empty chunks
     return [c for c in chunks if len(c) > 20]
 
-
 def code_chunk(
     code: str,
     chunk_size: int = 256,
@@ -122,7 +120,6 @@ def code_chunk(
 ) -> list[str]:
     """Structure-aware chunking for smart contract code."""
     return recursive_chunk(code, chunk_size, overlap, CODE_SEPARATORS)
-
 
 def sentence_chunk(
     text: str,
@@ -169,7 +166,6 @@ def sentence_chunk(
 
     return chunks
 
-
 def fixed_chunk(
     text: str,
     chunk_size: int = 128,
@@ -183,7 +179,6 @@ def fixed_chunk(
     for i in range(0, len(text), chunk_size - overlap_chars):
         chunks.append(text[i : i + chunk_size].strip())
     return [c for c in chunks if len(c) > 10]
-
 
 def chunk_document(
     text: str,
@@ -223,9 +218,7 @@ def chunk_document(
     else:
         return recursive_chunk(text, size, overlap)
 
-
 # ── Content Hash Dedup ──
-
 
 def content_hash(text: str) -> str:
     """SHA-256 hash of normalized text for dedup."""
@@ -233,7 +226,6 @@ def content_hash(text: str) -> str:
     normalized = re.sub(r"\s+", " ", text.lower().strip())
     normalized = re.sub(r"[^\w\s]", "", normalized)
     return hashlib.sha256(normalized.encode()).hexdigest()
-
 
 async def is_duplicate(collection: str, text: str, redis_client=None) -> bool:
     """Check if content already exists in the collection via hash dedup."""
@@ -246,7 +238,6 @@ async def is_duplicate(collection: str, text: str, redis_client=None) -> bool:
     key = f"rag:dedup:{collection}:{h}"
     exists = await redis_client.exists(key)
     return bool(exists)
-
 
 async def mark_ingested(
     collection: str,
@@ -264,9 +255,7 @@ async def mark_ingested(
     key = f"rag:dedup:{collection}:{h}"
     await redis_client.setex(key, ttl, "1")
 
-
 # ── Quality Scoring ──
-
 
 def quality_score(text: str, content_type: str = "default") -> int:
     """
@@ -326,9 +315,7 @@ def quality_score(text: str, content_type: str = "default") -> int:
 
     return max(0, min(100, score))
 
-
 # ── Batch Chunking for Ingestion ──
-
 
 def chunk_batch(
     documents: list[dict],

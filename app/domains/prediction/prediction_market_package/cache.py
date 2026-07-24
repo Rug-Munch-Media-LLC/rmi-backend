@@ -2,6 +2,7 @@
 Prediction Market — Caching Helpers
 Serialization/deserialization for PredictionMarket and PredictionDigest.
 """
+from __future__ import annotations
 import hashlib
 
 from app.domains.prediction.prediction_market_package.models import (
@@ -9,11 +10,9 @@ from app.domains.prediction.prediction_market_package.models import (
     PredictionMarket,
 )
 
-
 def cache_hash(*args) -> str:
     raw = "|".join(str(a) for a in args)
     return hashlib.sha256(raw.encode()).hexdigest()[:12]
-
 
 def market_to_dict(m: PredictionMarket) -> dict:
     return {
@@ -26,7 +25,6 @@ def market_to_dict(m: PredictionMarket) -> dict:
         "is_crypto_relevant": m.is_crypto_relevant,
         "url": m.url, "ends_at": m.ends_at, "updated_at": m.updated_at,
     }
-
 
 def dict_to_market(d: dict) -> PredictionMarket:
     return PredictionMarket(
@@ -44,7 +42,6 @@ def dict_to_market(d: dict) -> PredictionMarket:
         updated_at=d.get("updated_at", ""),
     )
 
-
 def digest_to_dict(d: PredictionDigest) -> dict:
     return {
         "generated_at": d.generated_at,
@@ -56,7 +53,6 @@ def digest_to_dict(d: PredictionDigest) -> dict:
         "ecosystem_risk_markets": [market_to_dict(m) for m in d.ecosystem_risk_markets],
         "regulatory_markets": [market_to_dict(m) for m in d.regulatory_markets],
     }
-
 
 def dict_to_digest(d: dict) -> PredictionDigest:
     return PredictionDigest(

@@ -11,6 +11,7 @@ No Twitter/Telegram API keys required - uses public DexScreener and
 Birdeye endpoints for social/sentiment data.
 """
 
+from __future__ import annotations
 import re
 import time
 from collections import Counter, defaultdict
@@ -142,11 +143,9 @@ PUMP_KEYWORDS: dict[str, float] = {
     "hurry": 0.6,
 }
 
-
 # ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class SocialMessage:
@@ -160,7 +159,6 @@ class SocialMessage:
     replies: int = 0
     account_age_hours: float | None = None  # None = unknown
 
-
 @dataclass
 class BotCampaign:
     """Detected bot campaign group."""
@@ -172,7 +170,6 @@ class BotCampaign:
     new_account_count: int = 0
     confidence: float = 0.0  # 0-1
     evidence: list[str] = field(default_factory=list)
-
 
 @dataclass
 class SentimentReport:
@@ -201,11 +198,9 @@ class SentimentReport:
     pump_signal_count: int = 0
     pump_keywords_found: list[str] = field(default_factory=list)
 
-
 # ---------------------------------------------------------------------------
 # SentimentAnalyzer
 # ---------------------------------------------------------------------------
-
 
 class SentimentAnalyzer:
     """Analyzes token sentiment from DexScreener/Birdeye social data."""

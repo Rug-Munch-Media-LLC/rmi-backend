@@ -12,7 +12,6 @@ from app.factory import DESCRIPTION, TITLE, VERSION
 
 router = APIRouter(tags=["homepage"])
 
-
 class VersionResponse(BaseModel):
     """Backend version info."""
 
@@ -20,7 +19,6 @@ class VersionResponse(BaseModel):
     title: str
     description: str
     status: str = "operational"
-
 
 class HomeResponse(BaseModel):
     """Landing page response."""
@@ -32,12 +30,10 @@ class HomeResponse(BaseModel):
     health: str = "/health"
     metrics: str = "/metrics"
 
-
 @router.get("/", response_model=HomeResponse)
 async def home() -> HomeResponse:
     """Landing page - returns service metadata."""
     return HomeResponse(service=TITLE, version=VERSION)
-
 
 @router.get("/version", response_model=VersionResponse)
 async def version() -> VersionResponse:

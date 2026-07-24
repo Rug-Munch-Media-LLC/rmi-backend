@@ -4,6 +4,7 @@ Wallet Data Models — enums, dataclasses, and chain registry.
 Extracted from manager.py during god-file split (2026-07-23).
 """
 
+from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -12,9 +13,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("wallet_models")
 
-
 # ── Enums ─────────────────────────────────────────────────────────
-
 
 class WalletStatus(StrEnum):
     ACTIVE = "active"
@@ -24,13 +23,11 @@ class WalletStatus(StrEnum):
     ARCHIVED = "archived"
     COMPROMISED = "compromised"
 
-
 class WalletTier(StrEnum):
     HOT = "hot"
     WARM = "warm"
     COLD = "cold"
     VAULT = "vault"
-
 
 class WalletPurpose(StrEnum):
     PAYMENTS = "payments"
@@ -44,7 +41,6 @@ class WalletPurpose(StrEnum):
     MARKETING = "marketing"
     RESERVE = "reserve"
 
-
 class PaymentType(StrEnum):
     X402 = "x402"
     SUBSCRIPTION = "subscription"
@@ -56,9 +52,7 @@ class PaymentType(StrEnum):
     FEE = "fee"
     REWARD = "reward"
 
-
 # ── Chain Registry ────────────────────────────────────────────────
-
 
 @dataclass
 class ChainMeta:
@@ -82,7 +76,6 @@ class ChainMeta:
     min_confirmation_blocks: int = 1
     supports_tokens: bool = True
     supports_nfts: bool = False
-
 
 def _build_registry() -> dict[str, ChainMeta]:
     """Build the comprehensive chain registry."""
@@ -321,12 +314,9 @@ def _build_registry() -> dict[str, ChainMeta]:
 
     return reg
 
-
 CHAIN_REGISTRY: dict[str, ChainMeta] = _build_registry()
 
-
 # ── Data Models ─────────────────────────────────────────────────
-
 
 @dataclass
 class WalletRecord:
@@ -398,7 +388,6 @@ class WalletRecord:
         d.pop("public_key", None)
         return d
 
-
 @dataclass
 class PaymentRecord:
     """Payment transaction record."""
@@ -437,7 +426,6 @@ class PaymentRecord:
     def to_dict(self) -> dict:
         return asdict(self)
 
-
 @dataclass
 class WalletRotationSchedule:
     """Schedule for automatic wallet rotation."""
@@ -452,7 +440,6 @@ class WalletRotationSchedule:
 
     def to_dict(self) -> dict:
         return asdict(self)
-
 
 __all__ = [
     "CHAIN_REGISTRY",

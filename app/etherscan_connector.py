@@ -11,6 +11,7 @@ Supports:
 - Logs: getLogs
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -66,7 +67,6 @@ NETWORKS = {
     },
     "base": {"name": "Basescan", "url": "https://api.basescan.org/api", "key": ETHERSCAN_API_KEY},
 }
-
 
 class EtherscanConnector:
     """Etherscan family API connector with intelligent key rotation."""
@@ -364,10 +364,8 @@ class EtherscanConnector:
             "cache_entries": len(self._cache),
         }
 
-
 # Singleton
 _etherscan: EtherscanConnector | None = None
-
 
 def get_etherscan_connector() -> EtherscanConnector:
     global _etherscan

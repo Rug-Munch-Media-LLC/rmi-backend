@@ -4,6 +4,7 @@
 Simulate how a buy or sell would execute at current market conditions.
 """
 
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
@@ -11,7 +12,6 @@ from app.core.logging import get_logger
 logger = get_logger("rmi.simulate")
 
 DEXSCREENER = "https://api.dexscreener.com/latest/dex"
-
 
 async def cmd_simulate(update, ctx) -> None:
     """Handle /simulate command - simulate buy/sell."""

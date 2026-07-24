@@ -8,13 +8,13 @@ and RugMaps pages.
 Part of the scanner domain — provides visual forensics for investigation reports.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger("entity.graph")
-
 
 @dataclass
 class GraphNode:
@@ -27,7 +27,6 @@ class GraphNode:
     color: str = "#8B5CF6"
     metadata: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class GraphEdge:
     source: str
@@ -37,7 +36,6 @@ class GraphEdge:
     tx_count: int = 1
     color: str = "#4B5563"
     width: float = 1.0
-
 
 def build_entity_graph(
     center_address: str,
@@ -213,7 +211,6 @@ def build_entity_graph(
         },
     }
 
-
 def generate_svg(graph_data: dict[str, Any], width: int = 800, height: int = 600) -> str:
     """Generate an SVG visualization of the entity graph.
 
@@ -363,7 +360,6 @@ def generate_svg(graph_data: dict[str, Any], width: int = 800, height: int = 600
     svg_parts.append("</svg>")
     return "\n".join(svg_parts)
 
-
 def _classify_node(address: str, labels: dict[str, Any], tx: dict) -> tuple[str, str]:
     """Classify a counterparty node by type and color."""
     addr_lower = address.lower()
@@ -389,7 +385,6 @@ def _classify_node(address: str, labels: dict[str, Any], tx: dict) -> tuple[str,
         return ("dex", "#06B6D4")
 
     return ("wallet", "#8B5CF6")
-
 
 def _shorten_addr(addr: str) -> str:
     """Shorten address for display."""

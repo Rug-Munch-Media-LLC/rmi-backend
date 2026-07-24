@@ -10,6 +10,7 @@ Chains: solana, ethereum, base, bsc, arbitrum, polygon, avalanche,
         optimism, fantom, linea, zksync, scroll, mantle
 """
 
+from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -44,11 +45,9 @@ EXPLORER_APIS = {
     "avalanche": "https://api.snowtrace.io/api",
 }
 
-
 # ═══════════════════════════════════════════════════════════════
 # WALLET BALANCE & TX HISTORY (real blockchain data)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
     """Get native token balance via RPC."""
@@ -110,7 +109,6 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
 
     return result
 
-
 async def get_transaction_history(
     address: str, chain: str, limit: int = 50, offset: int = 0
 ) -> dict[str, Any]:
@@ -156,11 +154,9 @@ async def get_transaction_history(
 
     return {"transactions": [], "total": 0}
 
-
 # ═══════════════════════════════════════════════════════════════
 # ADVANCED FUNDING TRACEBACK
 # ═══════════════════════════════════════════════════════════════
-
 
 @dataclass
 class FundingHop:
@@ -173,7 +169,6 @@ class FundingHop:
     is_mixer: bool = False
     is_sanctioned: bool = False
     label: str | None = None
-
 
 MIXER_ADDRESSES = {
     "ethereum": [
@@ -199,7 +194,6 @@ CEX_ADDRESSES = {
     "kraken": ["0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0"],
 }
 
-
 def _match_label(address: str, chain: str) -> str | None:
     """Check if address matches known labels."""
     addr_lower = address.lower()
@@ -216,8 +210,6 @@ def _match_label(address: str, chain: str) -> str | None:
                 return cex_name
 
     return None
-
-
 
 async def _trace_solana_hop(
     client: httpx.AsyncClient, address: str, chain: str, visited: set[str]
@@ -255,7 +247,6 @@ async def _trace_solana_hop(
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("Solana hop trace failed")
     return None
-
 
 async def _trace_evm_hop(
     client: httpx.AsyncClient, address: str, chain: str, visited: set[str]
@@ -374,11 +365,9 @@ async def trace_funding(
         "traced_at": datetime.now(UTC).isoformat(),
     }
 
-
 # ═══════════════════════════════════════════════════════════════
 # 100-FACTOR CONTRACT RUG RISK ANALYZER
 # ═══════════════════════════════════════════════════════════════
-
 
 @dataclass
 class RugRiskReport:
@@ -498,7 +487,6 @@ class RugRiskReport:
     rug_risk_category: str = "unknown"  # safe, low, medium, high, extreme
     confidence: float = 0
     factors_analyzed: int = 0
-
 
 async def analyze_contract_rug_risk(
     token_address: str, chain: str, tier: str = "free"

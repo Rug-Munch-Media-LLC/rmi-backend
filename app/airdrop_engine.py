@@ -34,9 +34,7 @@ from app.token_deployer import TokenDeployerFactory, TokenDeployment, get_storag
 
 logger = get_logger("darkroom_airdrop")
 
-
 # ── Data Models ───────────────────────────────────────────────
-
 
 @dataclass
 class AirdropRecipient:
@@ -48,7 +46,6 @@ class AirdropRecipient:
     claimed: bool = False
     claim_tx: str = ""
     claimed_at: str | None = None
-
 
 @dataclass
 class AirdropSnapshot:
@@ -65,7 +62,6 @@ class AirdropSnapshot:
     excluded_addresses: list[str] = field(default_factory=list)
     min_holdings: str = "0"
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class AirdropCampaign:
@@ -99,7 +95,6 @@ class AirdropCampaign:
         d = asdict(self)
         return d
 
-
 @dataclass
 class VestingSchedule:
     """Vesting schedule for team/dev tokens."""
@@ -116,9 +111,7 @@ class VestingSchedule:
     status: str = "active"  # active, completed, revoked
     tx_hashes: list[str] = field(default_factory=list)
 
-
 # ── Anti-Sniper Protection ────────────────────────────────────
-
 
 class AntiSniperProtection:
     """
@@ -224,9 +217,7 @@ class AntiSniperProtection:
         # For now, return the target block
         return str(target_block)
 
-
 # ── Snapshot Engine ─────────────────────────────────────────────
-
 
 class SnapshotEngine:
     """
@@ -366,9 +357,7 @@ class SnapshotEngine:
 
         return snapshot
 
-
 # ── Airdrop Distributor ───────────────────────────────────────
-
 
 class AirdropDistributor:
     """
@@ -476,9 +465,7 @@ class AirdropDistributor:
 
         return results
 
-
 # ── Team Allocation Engine ────────────────────────────────────
-
 
 class TeamAllocation:
     """
@@ -568,9 +555,7 @@ class TeamAllocation:
 
         return results
 
-
 # ── Storage ─────────────────────────────────────────────────────
-
 
 class AirdropStorage:
     """Store airdrop snapshots, campaigns, and vesting schedules."""
@@ -662,9 +647,7 @@ class AirdropStorage:
             logger.error("Get campaign failed: %s", e)
             return None
 
-
 # ── Convenience Functions ─────────────────────────────────────
-
 
 async def create_full_token_with_protection(
     chain: str,

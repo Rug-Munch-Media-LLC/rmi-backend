@@ -33,7 +33,6 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/news", tags=["news"])
 
-
 # ─── Models ───────────────────────────────────────────────────────
 class NewsArticle(BaseModel):
     id: str | None = None
@@ -54,7 +53,6 @@ class NewsArticle(BaseModel):
     chain: str | None = None
     comment_count: int | None = 0
 
-
 class NewsFeedResponse(BaseModel):
     status: str = "success"
     articles: list[NewsArticle] = []
@@ -66,13 +64,11 @@ class NewsFeedResponse(BaseModel):
     cached: bool = False
     fetched_at: str = ""
 
-
 class CommentRequest(BaseModel):
     article_id: str
     author: str = "anon"
     content: str
     parent_id: str | None = None
-
 
 class CommentResponse(BaseModel):
     id: str
@@ -82,7 +78,6 @@ class CommentResponse(BaseModel):
     created_at: str
     parent_id: str | None = None
     likes: int = 0
-
 
 # ─── In-memory cache ──────────────────────────────────────────────
 _NEWS_CACHE = []
@@ -94,13 +89,11 @@ _COMMENTS: dict[str, list[dict]] = {}
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
-
 def _make_comment_id(article_id: str, content: str) -> str:
     h = hashlib.sha256(
         f"{article_id}:{content}:{datetime.now(UTC).isoformat()}".encode()
     ).hexdigest()
     return f"comment-{h[:12]}"
-
 
 async def _refresh_cache(include_rss: bool, include_reddit: bool, include_internal: bool) -> None:
     """Background cache refresh task."""
@@ -123,9 +116,7 @@ async def _refresh_cache(include_rss: bool, include_reddit: bool, include_intern
     except Exception as e:
         logger.warning(f"Background news refresh failed: {e}")
 
-
 # ─── Main Feed ────────────────────────────────────────────────────
-
 
 @router.get("/feed", response_model=NewsFeedResponse)
 async def get_news_feed(
@@ -208,9 +199,7 @@ async def get_news_feed(
         fetched_at=(_CACHE_TS or datetime.now(UTC)).isoformat(),
     )
 
-
 # ─── Headlines ────────────────────────────────────────────────────
-
 
 @router.get("/headlines")
 async def get_headlines(
@@ -235,9 +224,7 @@ async def get_headlines(
         "count": len(feed.articles[:count]),
     }
 
-
 # ─── Sources ──────────────────────────────────────────────────────
-
 
 @router.get("/sources")
 async def get_news_sources() -> dict[str, list[dict]]:
@@ -261,9 +248,7 @@ async def get_news_sources() -> dict[str, list[dict]]:
         "total_sources": len(sources),
     }
 
-
 # ─── Sentiment ────────────────────────────────────────────────────
-
 
 @router.get("/sentiment")
 async def get_sentiment() -> dict:
@@ -276,9 +261,7 @@ async def get_sentiment() -> dict:
         "trending": [a.title for a in feed.articles[:5] if a.sentiment in ("bullish", "bearish")],
     }
 
-
 # ─── Categories ───────────────────────────────────────────────────
-
 
 @router.get("/categories")
 async def get_categories() -> dict[str, list[dict]]:
@@ -294,9 +277,7 @@ async def get_categories() -> dict[str, list[dict]]:
         ],
     }
 
-
 # ─── Stats ────────────────────────────────────────────────────────
-
 
 @router.get("/stats")
 async def get_stats() -> dict:
@@ -319,9 +300,7 @@ async def get_stats() -> dict:
         "fetched_at": feed.fetched_at,
     }
 
-
 # ─── Comments / Social ────────────────────────────────────────────
-
 
 @router.post("/comment", response_model=CommentResponse)
 async def post_comment(req: CommentRequest, user: dict = Depends(require_public_profile)) -> Any:
@@ -345,16 +324,13 @@ async def post_comment(req: CommentRequest, user: dict = Depends(require_public_
 
     return CommentResponse(**comment)
 
-
 @router.get("/comments/{article_id}", response_model=list[CommentResponse])
 async def get_comments(article_id: str) -> list:
     """Get comments for a specific article."""
     comments = _COMMENTS.get(article_id, [])
     return [CommentResponse(**c) for c in sorted(comments, key=lambda x: x["created_at"])]
 
-
 # ─── Internal: for cron jobs to post scanner findings as news ─────
-
 
 @router.post("/internal/scanner-alert")
 async def post_scanner_alert(

@@ -1,5 +1,6 @@
 """Tool catalog — /mcp/tools, /tools, /mcp/capabilities."""
 
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
@@ -17,7 +18,6 @@ from .config import (
 
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_catalog"])
-
 
 def _build_tools_list() -> tuple[Any, Any, Any, Any]:
     """Build the full MCP-compatible tools list."""
@@ -78,7 +78,6 @@ def _build_tools_list() -> tuple[Any, Any, Any, Any]:
 
     return tools, cats, chains_data, fac_count
 
-
 @router.get("/mcp/tools")
 async def mcp_tools_list(request: Request) -> dict[str, str]:
     """Every tool in the RMI platform -- full catalog."""
@@ -129,7 +128,6 @@ async def mcp_tools_list(request: Request) -> dict[str, str]:
         "updated_at": datetime.now(UTC).isoformat(),
     }
 
-
 @router.get("/tools")
 async def mcp_tools_mcp_router_format(request: Request) -> dict:
     """Serve tools in mcp-router compatible format."""
@@ -152,7 +150,6 @@ async def mcp_tools_mcp_router_format(request: Request) -> dict:
             }
         )
     return {"tools": services}
-
 
 @router.get("/mcp/capabilities")
 async def mcp_capabilities() -> dict[str, str]:

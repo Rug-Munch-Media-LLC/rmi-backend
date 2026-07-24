@@ -1,5 +1,6 @@
 """Multi-chain snapshot engine."""
 
+from __future__ import annotations
 import os
 
 from app.core.logging import get_logger

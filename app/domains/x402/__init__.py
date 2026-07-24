@@ -11,7 +11,6 @@ from __future__ import annotations
 from app.core import health as health_mod
 from app.core.health import DomainHealth
 
-
 async def _health_check() -> DomainHealth:
     """x402 health: catalog + middleware available."""
     try:
@@ -25,9 +24,7 @@ async def _health_check() -> DomainHealth:
     except (ValueError, TypeError, KeyError, OSError) as e :
         return DomainHealth(name="x402", healthy=False, error=str(e))
 
-
 health_mod.register_health_check("x402", _health_check)
-
 
 # Re-export models for backward compat with v1 routers and tests
 from app.domains.x402.models import (  # noqa: E402

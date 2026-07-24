@@ -12,7 +12,6 @@ from typing import Any
 
 from app.services.deep_intelligence.core import cfg, client, logger
 
-
 async def deployer_reputation(address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Track EVERY token a deployer wallet has created across ALL chains.

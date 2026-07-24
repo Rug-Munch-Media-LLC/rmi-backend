@@ -19,6 +19,7 @@ Label categories:
 - pig_butchering: Slow buildup then sudden drain pattern
 """
 
+from __future__ import annotations
 import os
 import time
 from collections import Counter, defaultdict
@@ -144,7 +145,6 @@ AUTO_LABELS = {
         "icon": "⚡",
     },
 }
-
 
 class AutoLabeler:
     """Auto-labeling engine that watches wallets and assigns labels based on behavior."""
@@ -367,10 +367,8 @@ class AutoLabeler:
             "last_run": self.last_run,
         }
 
-
 # Singleton
 _auto_labeler: AutoLabeler | None = None
-
 
 def get_auto_labeler() -> AutoLabeler:
     global _auto_labeler

@@ -17,6 +17,7 @@ Tier: Premium ($0.08)
 Endpoint: POST /api/v1/x402-tools/governance_attack
 """
 
+from __future__ import annotations
 import contextlib
 import os
 from dataclasses import asdict, dataclass, field
@@ -42,9 +43,7 @@ SOLSCAN_TOKEN_HOLDERS = "https://api.solscan.io/v2/token/holders?token={}&limit=
 BIRDEYE_HOLDER = "https://public-api.birdeye.so/defi/v3/token/holder?address={}"
 HELIUS_WEBHOOK = "https://api.helius.xyz/v0/token-metadata?mintAddress={}"
 
-
 # ── Dataclasses ──────────────────────────────────────────────────
-
 
 @dataclass
 class HolderStake:
@@ -53,7 +52,6 @@ class HolderStake:
     label: str = ""
     is_contract: bool = False
     is_exchange: bool = False
-
 
 @dataclass
 class GovernanceParams:
@@ -64,7 +62,6 @@ class GovernanceParams:
     voting_period_blocks: int = 0
     has_timelock: bool = False
     is_governance_contract: bool = False
-
 
 @dataclass
 class GovernanceAttackResult:
@@ -83,9 +80,7 @@ class GovernanceAttackResult:
     warnings: list[str] = field(default_factory=list)
     details: dict[str, Any] = field(default_factory=dict)
 
-
 # ─── HTTP helpers (minimal dependencies) ─────────────────────────
-
 
 async def _fetch_json(
     url: str, headers: dict | None = None, params: dict | None = None, timeout: int = 10
@@ -105,7 +100,6 @@ async def _fetch_json(
     except Exception as e:
         logger.debug(f"Fetch failed: {url} - {e}")
     return None
-
 
 async def _eth_call(rpc_url: str, to: str, data: str) -> str | None:
     """Low-level eth_call to read contract state."""
@@ -132,14 +126,11 @@ async def _eth_call(rpc_url: str, to: str, data: str) -> str | None:
         logger.debug(f"eth_call failed for {to}: {e}")
     return None
 
-
 # ─── Data fetching ───────────────────────────────────────────────
-
 
 async def _fetch_dexscreener(token_address: str) -> dict | None:
     """Fetch token pair data from DexScreener (free, no key)."""
     return await _fetch_json(DEXSCREENER_API.format(token_address))
-
 
 async def _fetch_solscan_holders(token_address: str) -> list[dict]:
     """Fetch top holders from Solscan (Solana)."""
@@ -151,7 +142,6 @@ async def _fetch_solscan_holders(token_address: str) -> list[dict]:
     if data and isinstance(data, dict):
         return data.get("data", [])
     return []
-
 
 async def _fetch_birdeye_holders(token_address: str) -> list[dict]:
     """Fetch holders from Birdeye."""
@@ -170,7 +160,6 @@ async def _fetch_birdeye_holders(token_address: str) -> list[dict]:
         )
         return items
     return []
-
 
 async def _fetch_evm_holders(token_address: str, chain: str) -> list[dict]:
     """Fetch top EVM token holders from explorer API."""
@@ -198,7 +187,6 @@ async def _fetch_evm_holders(token_address: str, chain: str) -> list[dict]:
     if data and isinstance(data, dict):
         return data.get("result", [])
     return []
-
 
 async def _fetch_contract_source(address: str, chain: str) -> str | None:
     """Fetch verified contract source code."""
@@ -228,7 +216,6 @@ async def _fetch_contract_source(address: str, chain: str) -> str | None:
             return result[0].get("SourceCode", "")
     return None
 
-
 def _get_rpc_url(chain: str) -> str | None:
     """Get first RPC URL for a chain."""
     from app.chain_registry import CHAINS
@@ -238,9 +225,7 @@ def _get_rpc_url(chain: str) -> str | None:
         return chain_cfg.rpc_endpoints[0]
     return None
 
-
 # ─── Governance parameter extraction ─────────────────────────────
-
 
 async def _extract_evm_governance_params(token_address: str, chain: str) -> GovernanceParams:
     """Extract governance parameters from EVM governor contract."""
@@ -303,7 +288,6 @@ async def _extract_evm_governance_params(token_address: str, chain: str) -> Gove
 
     return params
 
-
 def _check_solana_governance(dex_data: dict | None) -> GovernanceParams:
     """Infer governance risk for Solana SPL tokens (no EVM gov contracts)."""
     params = GovernanceParams()
@@ -331,9 +315,7 @@ def _check_solana_governance(dex_data: dict | None) -> GovernanceParams:
                     params.has_timelock = True  # Immutable = safe
     return params
 
-
 # ─── Holders parsing ─────────────────────────────────────────────
-
 
 def _parse_holders(raw_holders: list[dict]) -> list[HolderStake]:
     """Parse raw explorer holder data into structured objects."""
@@ -365,9 +347,7 @@ def _parse_holders(raw_holders: list[dict]) -> list[HolderStake]:
         )
     return sorted(holders, key=lambda h: h.percentage, reverse=True)
 
-
 # ─── Risk scoring ────────────────────────────────────────────────
-
 
 def _score_governance_risk(
     top_holder_pct: float,
@@ -476,9 +456,7 @@ def _score_governance_risk(
 
     return score, level, flags
 
-
 # ─── Main detection function ─────────────────────────────────────
-
 
 async def detect_governance_attack(
     token_address: str,

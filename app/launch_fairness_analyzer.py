@@ -23,6 +23,7 @@ Tier: Premium ($0.10)
 Endpoint: POST /api/v1/x402-tools/launch_fairness
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import re
@@ -34,13 +35,11 @@ from typing import Any
 from app.core.logging import get_logger
 from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE, is_valid_address
 
-
 logger = get_logger("launch_fairness_analyzer")
 
 # ── Address validation ──────────────────────────────────────────
 
 # ── Enums ────────────────────────────────────────────────────────
-
 
 class FairnessSignal(Enum):
     SNIPED_DISTRIBUTION = "sniped_distribution"
@@ -53,14 +52,12 @@ class FairnessSignal(Enum):
     FAKE_VOLUME = "fake_volume"
     FAIR_LAUNCH = "fair_launch"
 
-
 class Severity(Enum):
     NONE = "none"
     LOW = "low"
     MODERATE = "moderate"
     HIGH = "high"
     CRITICAL = "critical"
-
 
 @dataclass
 class FairnessSignalResult:
@@ -82,7 +79,6 @@ class FairnessSignalResult:
             "details": self.details,
             "evidence": self.evidence,
         }
-
 
 @dataclass
 class LaunchFairnessResult:
@@ -123,9 +119,7 @@ class LaunchFairnessResult:
             "sources_used": self.sources_used,
         }
 
-
 # ── Utility Functions ───────────────────────────────────────────
-
 
 def _detect_chain(address: str) -> str:
     """Detect likely blockchain from address format."""
@@ -136,10 +130,8 @@ def _detect_chain(address: str) -> str:
         return "solana"
     return "unknown"
 
-
 def _normalize_address(addr: str) -> str:
     return addr.strip().lower()
-
 
 def _severity_from_score(score: float) -> Severity:
     if score >= 0.8:
@@ -152,7 +144,6 @@ def _severity_from_score(score: float) -> Severity:
         return Severity.LOW
     return Severity.NONE
 
-
 def _risk_level_from_score(score: float) -> str:
     """Map fairness score (100 = fair) to risk level."""
     if score >= 80:
@@ -163,9 +154,7 @@ def _risk_level_from_score(score: float) -> str:
         return "high"
     return "critical"
 
-
 # ── Signal Detection Functions ──────────────────────────────────
-
 
 def _detect_sniped_distribution(
     token_address: str,
@@ -229,7 +218,6 @@ def _detect_sniped_distribution(
         result.evidence = block_patterns[:3]
 
     return result
-
 
 def _detect_bundled_launch(
     token_address: str,
@@ -309,7 +297,6 @@ def _detect_bundled_launch(
 
     return result
 
-
 def _detect_concentrated_holders(
     holders_data: list[dict[str, Any]] | None = None,
 ) -> FairnessSignalResult:
@@ -365,7 +352,6 @@ def _detect_concentrated_holders(
 
     result.evidence = evidence
     return result
-
 
 def _detect_lp_manipulation(
     lp_data: dict[str, Any] | None = None,
@@ -426,7 +412,6 @@ def _detect_lp_manipulation(
         result.evidence = evidence
 
     return result
-
 
 def _detect_bot_activity(
     simulated_txs: list[dict[str, Any]] | None = None,
@@ -500,7 +485,6 @@ def _detect_bot_activity(
 
     return result
 
-
 def _detect_presale_concentration(
     presale_data: dict[str, Any] | None = None,
 ) -> FairnessSignalResult:
@@ -560,7 +544,6 @@ def _detect_presale_concentration(
     result.evidence = evidence
     return result
 
-
 def _detect_rapid_dump(
     simulated_txs: list[dict[str, Any]] | None = None,
 ) -> FairnessSignalResult:
@@ -616,9 +599,7 @@ def _detect_rapid_dump(
     result.evidence = evidence
     return result
 
-
 # ── Main Analysis Function ──────────────────────────────────────
-
 
 async def analyze_launch_fairness(
     token_address: str,
@@ -793,7 +774,6 @@ async def analyze_launch_fairness(
     result.analysis_time_ms = (time.time() - start_time) * 1000
     return result.to_dict()
 
-
 def _generate_summary(result: LaunchFairnessResult) -> str:
     """Generate human-readable summary."""
     parts = []
@@ -823,7 +803,6 @@ def _generate_summary(result: LaunchFairnessResult) -> str:
         parts.append(f"Bots: {result.bot_wallets_detected}")
 
     return " | ".join(parts)
-
 
 # ── Direct execution for testing ──
 if __name__ == "__main__":

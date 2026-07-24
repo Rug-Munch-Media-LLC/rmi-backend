@@ -1,5 +1,6 @@
 """Scanner module — split from modules.py for maintainability."""
 
+from __future__ import annotations
 import time
 from typing import Any
 
@@ -14,7 +15,6 @@ from app.domains.scanner.modules._core import (
     logger,
 )
 from app.domains.scanner.modules.holders import _get_holder_data
-
 
 def _get_top_symbols() -> set[str]:
     """Get top 1000 symbols from Dune/Coingecko."""
@@ -71,7 +71,6 @@ def _get_top_symbols() -> set[str]:
         "RAY",
     }
 
-
 def _levenshtein_distance(s1: str, s2: str) -> int:
     """Compute Levenshtein distance between two strings."""
     if len(s1) < len(s2):
@@ -88,7 +87,6 @@ def _levenshtein_distance(s1: str, s2: str) -> int:
             curr_row.append(min(insertions, deletions, substitutions))
         prev_row = curr_row
     return prev_row[-1]
-
 
 async def _check_copycat(symbol: str, name: str) -> dict[str, Any] | None:
     """Check if token is a copycat of a top symbol using Levenshtein distance."""
@@ -125,9 +123,7 @@ async def _check_copycat(symbol: str, name: str) -> dict[str, Any] | None:
 
     return {"check": "copycat", "result": "clean", "match_type": "unique"}
 
-
 # ── 7. Bundle Detection ───────────────────────────────────────────────
-
 
 async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if token launch was bundled (coordinated buying)."""
@@ -197,9 +193,7 @@ async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None
 
     return {"check": "bundle", "result": "error", "error": "Bundle detection unavailable"}
 
-
 # ── 8. Contract Verification ──────────────────────────────────────────
-
 
 async def _check_contract_verification(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if contract source code is verified via block explorer or Sourcify."""
@@ -271,9 +265,7 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
 
     return result
 
-
 # ── 9. Price Impact / Consensus ────────────────────────────────────────
-
 
 async def _check_social_sentiment(
     token_address: str, chain: str, symbol: str = ""
@@ -358,9 +350,7 @@ async def _check_social_sentiment(
 
     return result
 
-
 # ── 12. Token Age Check ───────────────────────────────────────────────
-
 
 async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check how old the token/pool is.
@@ -461,9 +451,7 @@ async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | N
     result["result"] = "unavailable"
     return result
 
-
 # ── 13. LP Concentration Check ─────────────────────────────────────────
-
 
 async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if contract ownership has been renounced.
@@ -558,6 +546,5 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
             result["risk_score"] = 0
 
     return result
-
 
 # ── 15. Volume/Liquidity Ratio Check ──────────────────────────────────

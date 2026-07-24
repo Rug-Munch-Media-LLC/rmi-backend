@@ -5,6 +5,7 @@ Self-contained engine for generating interactive wallet
 connection graphs, fund-flow diagrams, and cluster maps.
 """
 
+from __future__ import annotations
 import json
 import os
 from datetime import datetime
@@ -880,10 +881,8 @@ class BubbleMapsPro:
 </body>
 </html>"""
 
-
 # Global instance
 _bubble_pro = None
-
 
 def get_bubble_maps_pro() -> BubbleMapsPro:
     """Get global BubbleMapsPro instance."""

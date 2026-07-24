@@ -1,9 +1,9 @@
 """x402 tool bundles and multi-chain payment facilitator config."""
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
-
 
 @dataclass
 class X402Bundle:
@@ -41,7 +41,6 @@ class X402Bundle:
             "requires_payment": self.requires_payment,
             "pricing": {"base": self.base_eth, "solana": self.solana_usdc},
         }
-
 
 class MultiChainFacilitator:
     """Multi-chain payment facilitator."""

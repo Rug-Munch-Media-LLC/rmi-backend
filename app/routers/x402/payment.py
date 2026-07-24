@@ -2,6 +2,7 @@
 x402 DataBus Tools - Payment verification and request models.
 """
 
+from __future__ import annotations
 import json
 import os
 from typing import Any
@@ -16,7 +17,6 @@ logger = get_logger("x402_databus_payment")
 
 # ── x402 Payment Verification ────────────────────────────────────
 # Verifies payment via x402 enforcement middleware.
-
 
 def _clean_response(result: dict) -> dict:
     """Strip internal DataBus fields that reveal provider architecture.
@@ -35,7 +35,6 @@ def _clean_response(result: dict) -> dict:
         result["data"].pop("source", None)
         result["data"].pop("provider", None)
     return result
-
 
 async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) -> dict[str, Any]:
     """Verify x402 payment header. Returns payment info or 402 response.
@@ -156,31 +155,25 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
 
     raise PaymentRequiredError("payment_verification_failed")
 
-
 # ── Request Models ───────────────────────────────────────────────
-
 
 class AddressRequest(BaseModel):
     address: str
     chain: str = "solana"
 
-
 class MintRequest(BaseModel):
     mint: str
     chain: str = "solana"
-
 
 class QueryRequest(BaseModel):
     query: str = ""
     chain: str = "solana"
     category: str = ""
 
-
 class AddressDepthRequest(BaseModel):
     address: str
     chain: str = "solana"
     depth: int = 2
-
 
 class GenericDataRequest(BaseModel):
     data_type: str

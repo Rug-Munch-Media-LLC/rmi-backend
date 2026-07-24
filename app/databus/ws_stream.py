@@ -14,6 +14,7 @@ Author: RMI Development
 Date: 2026-06-02
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import time
@@ -29,7 +30,6 @@ logger = get_logger("databus.ws_stream")
 router = APIRouter(tags=["databus-websocket"])
 
 # ── Connection Manager ──────────────────────────────────────────────
-
 
 class WSConnectionManager:
     """Manages WebSocket connections by channel."""
@@ -81,16 +81,13 @@ class WSConnectionManager:
             "total_messages_sent": self._total_messages,
         }
 
-
 def _tier_for_ws(ws: WebSocket, channel: str) -> str:
     """Extract tier from WS query params (fallback)."""
     return "free"
 
-
 # ── Singleton ────────────────────────────────────────────────────────
 
 ws_manager = WSConnectionManager()
-
 
 # ── DataBus Integration Hook ────────────────────────────────────────
 
@@ -107,7 +104,6 @@ CHANNEL_MAP = {
     "market_movers": "prices",
 }
 
-
 async def databus_ws_broadcast(data_type: str, result: dict) -> None:
     """Hook called by DataBus core to push real-time updates to WS clients."""
     channel = CHANNEL_MAP.get(data_type)
@@ -120,9 +116,7 @@ async def databus_ws_broadcast(data_type: str, result: dict) -> None:
         }
         await ws_manager.broadcast_all(payload, channel)
 
-
 # ── WebSocket Endpoint ───────────────────────────────────────────────
-
 
 @router.websocket("/api/v1/databus/ws/{channel}")
 async def databus_websocket(ws: WebSocket, channel: str) -> None:
@@ -188,9 +182,7 @@ async def databus_websocket(ws: WebSocket, channel: str) -> None:
     finally:
         ws_manager.disconnect(ws, channel)
 
-
 # ── Stats Endpoint ───────────────────────────────────────────────────
-
 
 @router.get("/api/v1/databus/ws/stats")
 async def ws_stats() -> Any:

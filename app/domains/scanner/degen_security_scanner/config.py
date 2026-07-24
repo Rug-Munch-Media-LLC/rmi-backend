@@ -4,6 +4,7 @@ Degen Security Scanner — Configuration
 API keys, program constants, and configuration for the degen scanner.
 """
 
+from __future__ import annotations
 import os
 
 # ─── API Keys from environment ────────────────────────────────────────────

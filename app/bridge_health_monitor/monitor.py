@@ -5,6 +5,7 @@ Provides the main scan() and alert_if_exploit() async methods that orchestrate
 the full bridge health analysis pipeline.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import time
@@ -24,7 +25,6 @@ from app.bridge_health_monitor.registry import BRIDGE_REGISTRY
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 class BridgeHealthMonitor:
     """Cross-chain bridge health & exploit monitor."""
@@ -395,6 +395,5 @@ class BridgeHealthMonitor:
     async def close(self) -> None:
         if self.session and not self.session.closed:
             await self.session.close()
-
 
 __all__ = ["BridgeHealthMonitor"]

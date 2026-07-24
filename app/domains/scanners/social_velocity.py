@@ -17,6 +17,7 @@ Input: list of mention dicts
   [{timestamp: str|int|float, platform: str, text: str}, ...]
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -24,7 +25,6 @@ from datetime import datetime
 from app.core.logging import get_logger
 
 logger = get_logger("social_velocity")
-
 
 def _parse_timestamp(ts) -> float:
     """Parse a timestamp value into epoch seconds (float).
@@ -54,12 +54,10 @@ def _parse_timestamp(ts) -> float:
     logger.warning(f"Unparseable timestamp {ts!r}, using 0")
     return 0.0
 
-
 @dataclass
 class VelocityTimelinePoint:
     timestamp: float  # epoch seconds
     cumulative_count: int
-
 
 @dataclass
 class SocialVelocityReport:
@@ -74,7 +72,6 @@ class SocialVelocityReport:
     first_50_spread_sec: float = 0.0
     median_interarrival_ms: float = 0.0
     warnings: list[str] = field(default_factory=list)
-
 
 class SocialVelocityAnalyzer:
     """Analyzes social mention velocity to detect bot farms and coordinated campaigns.

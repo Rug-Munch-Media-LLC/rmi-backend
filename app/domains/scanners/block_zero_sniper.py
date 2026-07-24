@@ -20,6 +20,7 @@ Data sources (direct API calls - no circular imports):
   Fallback:   Consensus RPC for earliest block estimation
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -57,9 +58,7 @@ ETHERSCAN_NETWORKS = {
     "base": {"url": "https://api.basescan.org/api", "key": ETHERSCAN_API_KEY},
 }
 
-
 # ── Data Classes ────────────────────────────────────────────────────────────
-
 
 @dataclass
 class SplitPath:
@@ -68,7 +67,6 @@ class SplitPath:
     from_address: str
     to_address: str
     block: int
-
 
 @dataclass
 class BlockZeroReport:
@@ -92,9 +90,7 @@ class BlockZeroReport:
     split_paths: list[SplitPath] = field(default_factory=list)
     risk_label: str = "UNKNOWN"
 
-
 # ── Analyzer ────────────────────────────────────────────────────────────────
-
 
 class BlockZeroSniperAnalyzer:
     """Analyzes block-zero sniping and split patterns to detect team distribution farms.
@@ -569,7 +565,6 @@ class BlockZeroSniperAnalyzer:
             logger.warning("Helius RPC call %s failed: %s", method, e)
         return None
 
-
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
 _DEAD_ADDRESSES: set = {
@@ -583,7 +578,6 @@ _DEAD_ADDRESSES: set = {
     "0x0000000000000000000000000000000000000001",
     "0xdead000000000000000000000000000000000000",
 }
-
 
 def _is_dead_address(address: str) -> bool:
     """Check if an address is a known dead/burn/null address (case-insensitive)."""

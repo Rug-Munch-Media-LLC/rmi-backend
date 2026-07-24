@@ -1,5 +1,6 @@
 """Document ingestion pipeline for RAG."""
 
+from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -10,7 +11,6 @@ from app.rag_service.state import _pattern_cache, _pattern_cache_loaded, _seeded
 from app.rag_service.cache import _get_redis
 
 logger = get_logger(__name__)
-
 
 async def _preembed_scam_patterns() -> None:
     """Pre-embed all KNOWN_SCAM_PATTERNS and cache results."""
@@ -59,7 +59,6 @@ async def _preembed_scam_patterns() -> None:
 
     _pattern_cache_loaded = True
 
-
 async def _embed_by_collection(embedder, collection: str, content: str, metadata: dict) -> EmbeddingResult:
     """Route to the right embedding head based on collection type."""
     if collection in ("scam_patterns", "known_scams"):
@@ -87,7 +86,6 @@ async def _embed_by_collection(embedder, collection: str, content: str, metadata
     else:
         vec = await embedder._semantic_embed_one(content, "semantic")
         return EmbeddingResult(vector=vec, dims=len(vec), model="openai/text-embedding-3-large", head="semantic")
-
 
 async def ingest_document(
     collection: str, content: str, metadata: dict | None = None, doc_id: str | None = None,
@@ -163,7 +161,6 @@ async def ingest_document(
     logger.info(f"Ingested {collection}/{doc_id}: {content[:60]}...")
     return {"id": doc_id, "dims": result.dims, "collection": collection}
 
-
 async def seed_known_scams() -> dict:
     """Seed the RAG database with known scam patterns."""
     global _seeded
@@ -202,7 +199,6 @@ async def seed_known_scams() -> dict:
 
     _seeded = True
     return {"status": "seeded", "count": count, "patterns": [p["name"] for p in KNOWN_SCAM_PATTERNS]}
-
 
 async def ingest_forensic_report(report_text: str, report_name: str = "forensic_report", metadata: dict | None = None) -> dict:
     """Ingest a forensic report into the RAG knowledge base (permanent storage)."""

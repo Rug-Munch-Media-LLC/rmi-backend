@@ -5,6 +5,7 @@ RAG Tool Interface for OpenClaw Agents (2026 Agentic RAG Approach)
 - Supports reflection loops and multi-hop retrieval
 - Integrates with OpenClaw tool schema
 """
+from __future__ import annotations
 
 import json
 import sys
@@ -14,7 +15,6 @@ from typing import Any
 # Add RAG lib to path
 sys.path.insert(0, str(Path.home() / ".hermes" / "scripts"))
 from rag_system_v2 import RMIRAGSystem
-
 
 class RagToolInterface:
     """2026 Agentic RAG tool wrapper."""
@@ -217,7 +217,6 @@ class RagToolInterface:
                 },
             },
         }
-
 
 # ============================================================
 # CLI INTERFACE

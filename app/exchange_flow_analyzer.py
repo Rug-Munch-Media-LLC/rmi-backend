@@ -10,6 +10,7 @@ Tracks:
 - Risk scoring based on pool participation
 """
 
+from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -26,7 +27,6 @@ except ImportError:
     logger.warning("web3.py not available, using stub mode")
 
 logger = get_logger(__name__)
-
 
 # ─── LIQUIDITY POOL CONFIGURATIONS ────────────────────────────────
 
@@ -80,9 +80,7 @@ DEX_CONFIGS = {
     },
 }
 
-
 # ─── POOL DATA MODELS ─────────────────────────────────────────────
-
 
 @dataclass
 class LiquidityPool:
@@ -100,7 +98,6 @@ class LiquidityPool:
     dune_analytics_id: str | None = None
     dex: str = "unknown"
 
-
 @dataclass
 class ExchangeFlow:
     """Exchange deposit/withdrawal flow."""
@@ -114,7 +111,6 @@ class ExchangeFlow:
     profit_usd: float = 0
     risk_score: int = 0
 
-
 @dataclass
 class WhaleMovement:
     """Whale movement tracking."""
@@ -127,9 +123,7 @@ class WhaleMovement:
     timestamp: str = ""
     tx_hash: str | None = None
 
-
 # ─── EXCHANGE FLOW ANALYZER ───────────────────────────────────────
-
 
 class ExchangeFlowAnalyzer:
     """Analyzer for exchange flows and liquidity pools."""
@@ -317,21 +311,17 @@ class ExchangeFlowAnalyzer:
         # Simplified - real implementation would scan blocks
         return []
 
-
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _analyzer = ExchangeFlowAnalyzer()
-
 
 def analyze_entity_flows(address: str, chain: str = "base") -> dict[str, Any]:
     """Analyze entity exchange flows."""
     return _analyzer.analyze_entity_flows(address, chain)
 
-
 def compare_flows(addresses: list[str], chain: str = "base") -> dict[str, Any]:
     """Compare exchange flows between addresses."""
     return _analyzer.compare_flows(addresses, chain)
-
 
 def get_reserves(pool_address: str, chain: str = "base") -> dict[str, int]:
     """Get pool reserves."""

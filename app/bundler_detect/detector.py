@@ -5,6 +5,7 @@ Main detector class for bundled/supply-manipulated token launches.
 Orchestrates data fetching, analysis, and scoring.
 """
 
+from __future__ import annotations
 import os
 import time
 from typing import Any
@@ -32,7 +33,6 @@ from app.core.logging import get_logger
 from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE
 
 logger = get_logger(__name__)
-
 
 class BundlerDetector:
     """Main detector for bundled/supply-manipulated token launches."""

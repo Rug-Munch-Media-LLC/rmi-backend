@@ -4,6 +4,7 @@ Admin Bot - Callback Query Handler
 All inline keyboard callback routing for the admin bot.
 """
 
+from __future__ import annotations
 import logging
 
 import httpx
@@ -21,7 +22,6 @@ try:
     from app.domains.telegram.adminbot import admin_ai  # type: ignore[import-untyped]
 except ImportError:
     admin_ai = None
-
 
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Route all inline keyboard callbacks to the appropriate action."""

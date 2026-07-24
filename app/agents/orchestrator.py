@@ -1,8 +1,8 @@
 """Agent orchestrator — routes tasks to specialist agents."""
 
+from __future__ import annotations
 from .specialists import AGENTS
 from typing import Any
-
 
 class AgentOrchestrator:
     """Routes tasks to the right specialist agent."""

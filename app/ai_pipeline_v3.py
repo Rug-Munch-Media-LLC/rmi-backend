@@ -4,6 +4,7 @@ RMI AI Pipeline v3 - Full Production
 Redis caching, FastAPI endpoints, usage tracking, retry logic.
 """
 
+from __future__ import annotations
 import contextlib
 import hashlib
 import json
@@ -36,7 +37,6 @@ try:
 except (ConnectionError, OSError):
     pass
 
-
 def _cache_get(key: str) -> str | None:
     if REDIS_AVAILABLE:
         try:
@@ -45,26 +45,21 @@ def _cache_get(key: str) -> str | None:
             pass
     return None
 
-
 def _cache_set(key: str, value: str, ttl: int = 300) -> None:
     if REDIS_AVAILABLE:
         with contextlib.suppress(BaseException):
             _redis.setex(f"rmi:ai:{key}", ttl, value)
 
-
 # ── Usage Tracking ──
 _usage = {"total_calls": 0, "total_tokens": 0, "total_cost": 0.0}
-
 
 def _track(prompt_tokens: int, completion_tokens: int, cost: float) -> None:
     _usage["total_calls"] += 1
     _usage["total_tokens"] += prompt_tokens + completion_tokens
     _usage["total_cost"] += cost
 
-
 def usage_stats() -> dict:
     return {**_usage, "timestamp": datetime.now(UTC).isoformat()}
-
 
 # ── Retry with Exponential Backoff ──
 def _call_ollama(
@@ -112,9 +107,7 @@ def _call_ollama(
                 logger.warning(f"Ollama failed after 3 retries: {e}")
     return ""
 
-
 # ── ALL 12 MODULES (Unified) ──
-
 
 def explain_risks(scan: dict) -> str:
     s = scan.get("safety_score", 50)
@@ -129,7 +122,6 @@ def explain_risks(scan: dict) -> str:
         600,
     )
     return r or f"<b>Safety: {s}/100</b>. Risk flags: {', '.join(f[:3])}. Always DYOR."
-
 
 def classify_news(title: str, content: str = "") -> str:
     r = _call_ollama(
@@ -149,7 +141,6 @@ def classify_news(title: str, content: str = "") -> str:
         return "MARKET"
     return "GENERAL"
 
-
 def profile_wallet(tx: dict) -> str:
     return (
         _call_ollama(
@@ -160,7 +151,6 @@ def profile_wallet(tx: dict) -> str:
         or "Unknown|0"
     )
 
-
 def enrich_rag(query: str, docs: str) -> str:
     return (
         _call_ollama(
@@ -169,7 +159,6 @@ def enrich_rag(query: str, docs: str) -> str:
         or docs[:400]
     )
 
-
 def rank_alerts(alerts: list) -> list:
     s = "\n".join(
         f"{a.get('id', '?')}|{a.get('severity', '?')}|{str(a.get('title', ''))[:80]}"
@@ -177,7 +166,6 @@ def rank_alerts(alerts: list) -> list:
     )
     r = _call_ollama("Rank by urgency. Reply: id1,id2,id3...", s, 50)
     return [x.strip() for x in r.split(",") if x.strip()] if r else []
-
 
 def briefing(data: dict) -> str:
     return (
@@ -191,7 +179,6 @@ def briefing(data: dict) -> str:
         or "Briefing unavailable."
     )
 
-
 def post_mortem(incident: dict) -> str:
     return (
         _call_ollama(
@@ -204,13 +191,11 @@ def post_mortem(incident: dict) -> str:
         or "Autopsy unavailable."
     )
 
-
 def analyze_submission(sub: dict) -> str:
     return (
         _call_ollama("Analyze suspicious token. Verdict+2-3 concerns.", json.dumps(sub)[:1500], 200)
         or "Analysis unavailable."
     )
-
 
 def cross_chain(wallets: dict) -> str:
     return (
@@ -221,7 +206,6 @@ def cross_chain(wallets: dict) -> str:
         )
         or "Unknown"
     )
-
 
 def blog_draft(topic: str, data: dict) -> str:
     return (
@@ -235,7 +219,6 @@ def blog_draft(topic: str, data: dict) -> str:
         or f"# {topic}\n\nDraft unavailable."
     )
 
-
 def social_post(incident: dict) -> str:
     return (
         _call_ollama(
@@ -243,7 +226,6 @@ def social_post(incident: dict) -> str:
         )
         or "Post unavailable."
     )
-
 
 def compare_tokens(a: dict, b: dict) -> str:
     return (

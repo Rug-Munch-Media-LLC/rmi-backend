@@ -16,7 +16,6 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 def verify_wallet_signature(
     message: str, signature: str, address: str, chain: str = "base"
 ) -> bool:
@@ -106,7 +105,6 @@ def verify_wallet_signature(
         # Default to EVM signature verification for all other chains
         return _verify_evm_signature(address, message, signature)
 
-
 def _verify_evm_signature(address: str, message: str, signature: str) -> bool:
     """Verify an EVM wallet signature."""
     try:
@@ -124,7 +122,6 @@ def _verify_evm_signature(address: str, message: str, signature: str) -> bool:
         logger.debug("_verify_evm_signature_error", exc_info=True)
         logger.debug(f"EVM signature verification failed: {e}")
         return False
-
 
 def _verify_solana_signature(address: str, message: str, signature: str) -> bool:
     """Verify a Solana wallet signature."""
@@ -144,7 +141,6 @@ def _verify_solana_signature(address: str, message: str, signature: str) -> bool
         logger.debug(f"Solana signature verification failed: {e}")
         return False
 
-
 def decode_signature(signature: str) -> tuple[str, str, int]:
     """
     Decode a wallet signature into r, s, v components.
@@ -160,7 +156,6 @@ def decode_signature(signature: str) -> tuple[str, str, int]:
     v = sig_bytes[64]
 
     return r, s, v
-
 
 async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[str, Any]:
     """
@@ -249,7 +244,6 @@ async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[s
         "address": address,
         "chain": chain,
     }
-
 
 async def verify_auth_token(token: str) -> dict[str, Any] | None:
     """

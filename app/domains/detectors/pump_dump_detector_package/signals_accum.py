@@ -1,4 +1,5 @@
 """Pre-pump accumulation and lifecycle pattern detection signals."""
+from __future__ import annotations
 from collections import defaultdict
 
 import httpx
@@ -9,7 +10,6 @@ from app.domains.detectors.pump_dump_detector_package.types import (
     ManipulationType,
     PrePumpAccumulation,
 )
-
 
 async def detect_pre_pump_accumulation(
     client: httpx.AsyncClient, token_address: str, chain: str,
@@ -57,7 +57,6 @@ async def detect_pre_pump_accumulation(
             "evidence": {"accumulation_count": len(accumulations), "total_accumulated": ta}})
     return {"accumulations": accumulations, "findings": findings}
 
-
 def check_lifecycle_patterns(pairs_data: dict) -> list[dict]:
     """Check for known pump-dump lifecycle patterns."""
     findings: list[dict] = []
@@ -83,7 +82,6 @@ def check_lifecycle_patterns(pairs_data: dict) -> list[dict]:
             "evidence": {"buys_1h": b1, "sells_1h": s1}})
     return findings
 
-
 def calculate_risk_score(findings) -> float:
     from app.domains.detectors.pump_dump_detector_package.types import FindingSeverity
     if not findings:
@@ -92,13 +90,11 @@ def calculate_risk_score(findings) -> float:
         FindingSeverity.LOW: 5, FindingSeverity.INFO: 1}.get(f.severity, 0) for f in findings)
     return min(score, 100.0)
 
-
 def score_to_level(score: float) -> str:
     if score >= 70: return "critical"
     elif score >= 40: return "high"
     elif score >= 20: return "medium"
     else: return "low"
-
 
 def estimate_traders(pairs_data: dict) -> int:
     if not pairs_data.get("pairs"):

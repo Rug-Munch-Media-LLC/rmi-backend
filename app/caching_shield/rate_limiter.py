@@ -1,6 +1,7 @@
 # DEPRECATED: Use app.core.rate_limiter (UnifiedRateLimiter) instead.
 # The new UnifiedRateLimiter supports acquire_provider() for backward compat.
 # Remove after migration verified. Consolidates 7 rate limiters into 1.
+from __future__ import annotations
 """
 Aggressive Caching Shield - Token Bucket Rate Limiter
 Redis-backed rate limiting to stay under free tier RPC limits.
@@ -34,7 +35,6 @@ logger = get_logger("rpc_rate_limiter")
 
 # ── Provider Rate Limits ───────────────────────────────────────────────────
 
-
 @dataclass
 class ProviderLimit:
     name: str
@@ -42,7 +42,6 @@ class ProviderLimit:
     burst_size: int
     # Additional per-method constraints
     method_limits: dict[str, tuple[float, int]] = field(default_factory=dict)
-
 
 PROVIDER_LIMITS: dict[str, ProviderLimit] = {
     "helius": ProviderLimit(
@@ -78,7 +77,6 @@ BURST_PREFIX = "rmi:ratelimit_burst:"
 
 # In-memory fallback
 MEM_BUCKET_CLEANUP_INTERVAL = 60  # seconds
-
 
 class RpcRateLimiter:
     """Token bucket rate limiter using Redis (with in-memory fallback).
@@ -274,11 +272,9 @@ class RpcRateLimiter:
         """Return all configured provider limits (read-only)."""
         return PROVIDER_LIMITS.copy()
 
-
 # ── Singleton ──────────────────────────────────────────────────────────────
 
 _limiter: RpcRateLimiter | None = None
-
 
 def get_rate_limiter() -> RpcRateLimiter:
     global _limiter

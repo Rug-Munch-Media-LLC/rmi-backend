@@ -30,7 +30,6 @@ router = APIRouter(prefix="/api/v1/intelligence", tags=["intelligence-panel"])
 pm_intel = None
 _pm_intel_loaded = False
 
-
 def _get_pm_intel() -> Any:
     global pm_intel, _pm_intel_loaded
     if _pm_intel_loaded:
@@ -46,7 +45,6 @@ def _get_pm_intel() -> Any:
         pm_intel = None
     return pm_intel
 
-
 class IntelSignalResponse(BaseModel):
     signal_type: str
     severity: str
@@ -56,7 +54,6 @@ class IntelSignalResponse(BaseModel):
     confidence: float
     generated_at: str
 
-
 class FearIndexResponse(BaseModel):
     overall_risk: float
     exploit_risk: float
@@ -64,7 +61,6 @@ class FearIndexResponse(BaseModel):
     stablecoin_risk: float
     exchange_risk: float
     generated_at: str
-
 
 class IntelligenceItem(BaseModel):
     id: str
@@ -78,15 +74,12 @@ class IntelligenceItem(BaseModel):
     highlight: bool | None = False
     severity: str | None = None
 
-
 class IntelligenceFeedResponse(BaseModel):
     items: list[IntelligenceItem]
     count: int
     timestamp: str
 
-
 # ── Prediction Market Intelligence ─────────────────────────
-
 
 @router.get("/prediction-signals", response_model=list[IntelSignalResponse])
 async def get_prediction_signals(limit: int = Query(10, ge=1, le=20)) -> list:
@@ -117,7 +110,6 @@ async def get_prediction_signals(limit: int = Query(10, ge=1, le=20)) -> list:
         )
         for s in signals
     ]
-
 
 @router.get("/crypto-fear-index", response_model=FearIndexResponse)
 async def get_crypto_fear_index() -> Any:
@@ -154,9 +146,7 @@ async def get_crypto_fear_index() -> Any:
         generated_at=fear.generated_at,
     )
 
-
 # ── Aggregated Feed ────────────────────────────────────────
-
 
 @router.get("/feed", response_model=IntelligenceFeedResponse)
 async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)) -> Any:
@@ -244,7 +234,6 @@ async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)) -> Any:
         count=min(len(items), limit),
         timestamp=now_ts,
     )
-
 
 @router.get("/latest")
 async def get_latest_intelligence() -> Any:

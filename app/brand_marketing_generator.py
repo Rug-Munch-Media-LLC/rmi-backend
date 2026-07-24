@@ -4,6 +4,7 @@ Uses detective character, purple/gold colors, circular frames.
 NO DEVIATION from brand guidelines.
 """
 
+from __future__ import annotations
 import os
 from datetime import UTC, datetime
 
@@ -114,7 +115,6 @@ MARKETING_COPY = {
 
 # ── Graphics Generation Functions ────────────────────────────
 
-
 def create_gradient_background(size, color1, color2) -> Any:
     """Create purple gradient background."""
     img = Image.new("RGB", size, color1)
@@ -129,7 +129,6 @@ def create_gradient_background(size, color1, color2) -> Any:
 
     return img
 
-
 def add_circular_frame(img, color=BRAND["gold"], width=5) -> Any:
     """Add gold circular frame."""
     draw = ImageDraw.Draw(img)
@@ -138,7 +137,6 @@ def add_circular_frame(img, color=BRAND["gold"], width=5) -> Any:
         [margin, margin, img.size[0] - margin, img.size[1] - margin], outline=color, width=width
     )
     return img
-
 
 def add_text_centered(img, text, position, font_size, color, font_path=None) -> Any:
     """Add centered text."""
@@ -157,7 +155,6 @@ def add_text_centered(img, text, position, font_size, color, font_path=None) -> 
     draw.text((x, position[1]), text, fill=color, font=font)
 
     return img
-
 
 def generate_feature_graphic(feature_key: str) -> dict:
     """Generate feature showcase graphic."""
@@ -207,7 +204,6 @@ def generate_feature_graphic(feature_key: str) -> dict:
         "filename": filename,
     }
 
-
 def generate_launch_graphic() -> dict:
     """Generate platform launch announcement."""
     config = CONTENT_TYPES["launch_announcement"]
@@ -238,7 +234,6 @@ def generate_launch_graphic() -> dict:
         "filename": filename,
     }
 
-
 def generate_all_marketing_graphics() -> list[dict]:
     """Generate all marketing graphics."""
     results = []
@@ -253,7 +248,6 @@ def generate_all_marketing_graphics() -> list[dict]:
     results.append(result)
 
     return results
-
 
 if __name__ == "__main__":
     print("Generating marketing graphics with EXACT brand compliance...")

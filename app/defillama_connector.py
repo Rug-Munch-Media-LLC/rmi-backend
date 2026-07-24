@@ -9,6 +9,7 @@ Real-time DeFi data from DeFiLlama:
 - Lending data
 """
 
+from __future__ import annotations
 from typing import Any
 
 import httpx
@@ -29,7 +30,6 @@ _defillama_cb = SimpleCircuitBreaker(
     recovery_timeout=30.0,
 )
 
-
 # ─── DEFI LLAMA API ENDPOINTS ─────────────────────────────────────
 
 DEFI_LLAMA_BASE = "https://api.llama.fi"
@@ -43,9 +43,7 @@ ENDPOINTS = {
     "lending": "/lending/{protocol}",
 }
 
-
 # ─── HELPER — wrap a sync HTTP call with CB + stale cache ─────────
-
 
 def _cb_http_get(
     url: str,
@@ -77,7 +75,6 @@ def _cb_http_get(
         raise CircuitBreakerOpenError(cb.name, cb.state, f"{cb.name} circuit OPEN — failing fast")
     return httpx.get(url, params=params, timeout=timeout)
 
-
 class _StaleResultAvailable(Exception):
     """Internal sentinel — a stale cached result was found during CB check."""
 
@@ -85,9 +82,7 @@ class _StaleResultAvailable(Exception):
         self.result = result
         super().__init__("stale result")
 
-
 # ─── DEFI LLAMA CLIENT ────────────────────────────────────────────
-
 
 class DeFiLlamaClient:
     """Client for DeFiLlama API."""
@@ -183,11 +178,9 @@ class DeFiLlamaClient:
             }
         ]
 
-
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _client: DeFiLlamaClient | None = None
-
 
 def get_defillama_client() -> DeFiLlamaClient:
     """Get or create DeFiLlama client instance."""
@@ -196,18 +189,15 @@ def get_defillama_client() -> DeFiLlamaClient:
         _client = DeFiLlamaClient()
     return _client
 
-
 def get_defi_tvl() -> dict[str, Any]:
     """Get current DeFi TVL totals."""
     client = get_defillama_client()
     return client.get_protocols_data()
 
-
 def get_defi_protocols() -> list[dict[str, Any]]:
     """Get all DeFi protocols."""
     client = get_defillama_client()
     return client.get_protocols()
-
 
 def get_chain_tvls() -> dict[str, float]:
     """Get TVL by chain."""

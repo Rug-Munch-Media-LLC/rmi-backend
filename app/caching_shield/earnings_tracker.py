@@ -9,6 +9,7 @@ Payment wallets:
   Solana:  From gateway config (solana worker)
 """
 
+from __future__ import annotations
 import os
 from datetime import UTC, datetime
 
@@ -39,7 +40,6 @@ PAYMENT_WALLETS = {
 _revenue_log: list[dict] = []
 _earnings_cache: dict = {"updated": 0, "data": {}}
 
-
 async def fetch_wallet_earnings() -> dict:
     """Fetch current balances and recent transactions for all payment wallets."""
     results = {}
@@ -64,7 +64,6 @@ async def fetch_wallet_earnings() -> dict:
     results["total_usd"] = round(total_usd, 2)
     results["updated"] = datetime.now(UTC).isoformat()
     return results
-
 
 async def _fetch_evm_balance(address: str, chain_id: int) -> dict:
     """Fetch EVM wallet balance via Blockscout."""
@@ -104,7 +103,6 @@ async def _fetch_evm_balance(address: str, chain_id: int) -> dict:
 
     return {"balance": 0, "balance_usd": 0}
 
-
 async def _fetch_solana_balance(address: str) -> dict:
     """Fetch Solana wallet balance via Helius."""
     key = os.getenv("HELIUS_API_KEY", "")
@@ -134,7 +132,6 @@ async def _fetch_solana_balance(address: str) -> dict:
 
     return {"balance": 0, "balance_usd": 0}
 
-
 def log_revenue(tool_id: str, amount_usd: float, chain: str, facilitator: str) -> None:
     """Log a revenue event for tracking by source."""
     _revenue_log.append(
@@ -149,7 +146,6 @@ def log_revenue(tool_id: str, amount_usd: float, chain: str, facilitator: str) -
     # Keep last 1000 events
     if len(_revenue_log) > 1000:
         _revenue_log.pop(0)
-
 
 def get_revenue_by_source() -> dict:
     """Aggregate revenue by tool, chain, and facilitator."""
@@ -172,7 +168,6 @@ def get_revenue_by_source() -> dict:
         "by_chain": by_chain,
         "by_facilitator": by_facilitator,
     }
-
 
 def get_earnings_report() -> dict:
     """Full earnings report for the dashboard."""

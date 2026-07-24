@@ -4,6 +4,7 @@ RugMunchBot -- Account & billing command handlers.
 
 Commands: account, pricing, topup, buystars, scamschool, refer
 """
+from __future__ import annotations
 
 from datetime import UTC, datetime
 from urllib.parse import quote
@@ -25,7 +26,6 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     scamschool_kb,
     topup_kb,
 )
-
 
 async def cmd_account(update: Update, ctx) -> None:
     user = update.effective_user
@@ -79,7 +79,6 @@ async def cmd_account(update: Update, ctx) -> None:
         text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True
     )
 
-
 async def cmd_pricing(update: Update, ctx) -> None:
     user = update.effective_user
     balance = 0
@@ -109,7 +108,6 @@ async def cmd_pricing(update: Update, ctx) -> None:
         text, parse_mode=ParseMode.HTML, reply_markup=pricing_kb(), disable_web_page_preview=True
     )
 
-
 async def cmd_topup(update: Update, ctx) -> None:
     user = update.effective_user
     balance = 0
@@ -128,7 +126,6 @@ async def cmd_topup(update: Update, ctx) -> None:
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=topup_kb())
 
-
 async def cmd_buystars(update: Update, ctx) -> None:
     """Buy Telegram Stars - purchase Stars to spend on scans, subs, etc."""
     user = update.effective_user
@@ -144,7 +141,6 @@ async def cmd_buystars(update: Update, ctx) -> None:
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=buy_stars_kb())
 
-
 async def cmd_scamschool(update: Update, ctx) -> None:
     text = (
         f"\U0001f4da <b>Scam School</b>\n{sep()}\n\n"
@@ -156,7 +152,6 @@ async def cmd_scamschool(update: Update, ctx) -> None:
     await update.message.reply_text(
         text, parse_mode=ParseMode.HTML, reply_markup=scamschool_kb(), disable_web_page_preview=True
     )
-
 
 async def cmd_refer(update: Update, ctx) -> None:
     user = update.effective_user

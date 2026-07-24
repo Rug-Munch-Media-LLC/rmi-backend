@@ -4,6 +4,7 @@ Wallet Factory - Cryptographic Utilities
 Library availability flags and AES-256-GCM encryption utilities.
 """
 
+from __future__ import annotations
 import base64
 import os
 import secrets
@@ -45,7 +46,6 @@ try:
 except ImportError:
     _has_cryptography = False
 
-
 def encrypt_key(plaintext: str, password: str) -> str:
     """AES-256-GCM encrypt with Argon2 key derivation."""
     if not _has_cryptography or not password:
@@ -60,7 +60,6 @@ def encrypt_key(plaintext: str, password: str) -> str:
     ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
 
     return base64.b64encode(salt + nonce + ciphertext).decode()
-
 
 def decrypt_key(encrypted: str, password: str) -> str:
     """Decrypt an AES-256-GCM encrypted private key."""

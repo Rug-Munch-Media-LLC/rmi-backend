@@ -1,5 +1,6 @@
 """Redis-backed Background Task Queue - retry with exponential backoff, visibility."""
 
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -13,11 +14,9 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")
 
 TASKS = {}
 
-
 def register_task(name: str, fn: Callable) -> None:
     """Register a background task handler."""
     TASKS[name] = fn
-
 
 async def enqueue(name: str, payload: dict, delay: int = 0, max_retries: int = 3) -> None:
     """Enqueue a background task."""
@@ -41,7 +40,6 @@ async def enqueue(name: str, payload: dict, delay: int = 0, max_retries: int = 3
         logger.debug(f"Task enqueued: {name}")
     except Exception as e:
         logger.warning(f"Task enqueue failed: {e}")
-
 
 async def process_tasks() -> None:
     """Process tasks from the queue. Run as background loop."""
@@ -95,7 +93,6 @@ async def process_tasks() -> None:
         except Exception as e:
             logger.error(f"Task processor error: {e}")
             await asyncio.sleep(1)
-
 
 async def get_queue_stats() -> dict:
     """Get task queue statistics."""

@@ -3,6 +3,7 @@ RugMaps AI Analysis - DeepSeek Flash powered token investigation.
 Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import os
@@ -25,10 +26,8 @@ AI_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")  # Flash by default
 _analysis_cache: dict[str, dict] = {}
 CACHE_TTL = 3600  # 1 hour
 
-
 def _cache_key(token: str, chain: str) -> str:
     return hashlib.sha256(f"{chain}:{token}".encode()).hexdigest()[:16]
-
 
 async def get_cached_analysis(token: str, chain: str) -> dict | None:
     """Check if we have a cached analysis for this token."""
@@ -40,7 +39,6 @@ async def get_cached_analysis(token: str, chain: str) -> dict | None:
             logger.info(f"RugMaps cache HIT for {token[:12]}...")
             return entry
     return None
-
 
 def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
     """Cache analysis result."""
@@ -54,7 +52,6 @@ def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
         for k, _ in oldest:
             del _analysis_cache[k]
 
-
 async def get_token_holders(token_address: str, chain: str) -> list[dict]:
     """Get token holders from our data sources."""
     try:
@@ -66,7 +63,6 @@ async def get_token_holders(token_address: str, chain: str) -> list[dict]:
     except Exception as e:
         logger.warning(f"Holder fetch failed: {e}")
         return []
-
 
 async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
     """Get wallet labels from our ClickHouse/FAISS database."""
@@ -89,7 +85,6 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
     except Exception as e:
         logger.warning(f"Label fetch error: {e}")
     return labels
-
 
 async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
     """Search FAISS indexes for similar scam patterns."""
@@ -154,7 +149,6 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
             unique.append(s)
 
     return unique[:10]
-
 
 async def generate_ai_analysis(
     token_address: str,
@@ -280,7 +274,6 @@ Return ONLY valid JSON, no markdown, no code blocks."""
     return generate_fallback_analysis(
         risk_score, holders, labels, similar_scams, node_count, link_count
     )
-
 
 def generate_fallback_analysis(
     risk_score: int,

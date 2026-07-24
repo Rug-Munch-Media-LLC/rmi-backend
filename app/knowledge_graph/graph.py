@@ -11,6 +11,7 @@ Key naming:
   kg:edges_in:{type}:{id}        -> sorted set (incoming edges)
 """
 
+from __future__ import annotations
 import contextlib
 import json
 import time
@@ -21,7 +22,6 @@ import redis.asyncio as aioredis
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 class KnowledgeGraph:
     """

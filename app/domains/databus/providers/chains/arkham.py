@@ -5,13 +5,12 @@ Covers: entity resolution, labels, portfolio, transfers, counterparties,
 and intel search.
 """
 
-
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.arkham")
-
 
 async def _arkham_entity(address: str = "", **kw) -> dict | None:
     """Arkham — entity resolution for an address."""
@@ -30,7 +29,6 @@ async def _arkham_entity(address: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
     """Arkham — counterparty network mapping."""
     api_key = kw.get("api_key", "")
@@ -47,7 +45,6 @@ async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
     """Arkham — entity intelligence search."""
@@ -67,7 +64,6 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
     """Arkham — portfolio holdings with USD values."""
     api_key = kw.get("api_key", "")
@@ -85,7 +81,6 @@ async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _arkham_transfers(address: str = "", **kw) -> dict | None:
     """Arkham — transfer history with counterparty mapping."""
     api_key = kw.get("api_key", "")
@@ -102,7 +97,6 @@ async def _arkham_transfers(address: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _arkham_labels(address: str = "", **kw) -> dict | None:
     """Arkham — entity labels with confidence scores."""

@@ -5,6 +5,7 @@ Bots get fingerprint-based trials (1 per tool without wallet, full with device I
 Humans connect wallet for full trial allotment.
 """
 
+from __future__ import annotations
 import os
 from typing import Any
 
@@ -14,7 +15,6 @@ logger = get_logger("x402_databus_pricing")
 
 TRIAL_REDIS_PREFIX = "x402:databus_trials:"
 TRIAL_WINDOW_SECONDS = 86400  # 24 hours
-
 
 async def _get_trial_redis() -> Any | None:
     """Get Redis connection for trial tracking."""
@@ -33,7 +33,6 @@ async def _get_trial_redis() -> Any | None:
     except (ConnectionError, TimeoutError, OSError) as e:
         logger.warning(f"Trial Redis unavailable: {e}")
         return None
-
 
 async def check_trial(identifier: str, tool_id: str, max_trials: int) -> dict[str, Any]:
     """Check if a wallet or fingerprint has remaining trial calls for a tool.
@@ -65,7 +64,6 @@ async def check_trial(identifier: str, tool_id: str, max_trials: int) -> dict[st
         return {"allowed": True, "remaining": max_trials, "reason": "error"}
     finally:
         await r.close()
-
 
 async def consume_trial(identifier: str, tool_id: str) -> bool:
     """Record a trial call. Returns True if recorded."""

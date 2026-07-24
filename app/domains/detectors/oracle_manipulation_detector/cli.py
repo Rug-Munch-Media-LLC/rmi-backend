@@ -4,6 +4,7 @@ Oracle Manipulation Detector — CLI Entry Point
 Command-line interface for running scans.
 """
 
+from __future__ import annotations
 import argparse
 import asyncio
 import json
@@ -17,7 +18,6 @@ from .constants import SUPPORTED_CHAINS
 from .detector import OracleManipulationDetector
 
 logger = get_logger(__name__)
-
 
 def main() -> None:
     """Main CLI entry point for the Oracle Manipulation Detector."""
@@ -99,7 +99,6 @@ def main() -> None:
             print(report.json())
         else:
             print(report.to_dict())
-
 
 if __name__ == "__main__":
     main()

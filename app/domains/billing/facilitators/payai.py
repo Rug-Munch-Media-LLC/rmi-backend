@@ -29,7 +29,6 @@ logger = get_logger("facilitator.payai")
 # ── Verify URL ──────────────────────────────────────────────────────
 PAYAI_VERIFY_URL = "https://facilitator.payai.network/verify"
 
-
 class PayAIFacilitator(Facilitator):
     """PayAI hosted payment facilitator.
 

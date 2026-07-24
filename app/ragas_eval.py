@@ -11,6 +11,7 @@ Metrics:
   - hit_rate (% queries with at least one relevant hit)
 """
 
+from __future__ import annotations
 import math
 import re
 import time
@@ -21,7 +22,6 @@ import numpy as np
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 # ======================================================================
 # GOLDEN TEST SET - 50+ (query, relevant_doc_ids, expected_answer) pairs
@@ -365,11 +365,9 @@ GOLDEN_TEST_SET = [
     },
 ]
 
-
 # ======================================================================
 # METRICS
 # ======================================================================
-
 
 def context_precision(
     retrieved_ids: list[str], relevant_ids: list[str], k: int | None = None
@@ -405,7 +403,6 @@ def context_precision(
 
     return dcg / idcg
 
-
 def context_recall(retrieved_ids: list[str], relevant_ids: list[str]) -> float:
     """
     Percentage of relevant documents found in retrieved results.
@@ -416,7 +413,6 @@ def context_recall(retrieved_ids: list[str], relevant_ids: list[str]) -> float:
     found = sum(1 for rid in relevant_ids if rid in set(retrieved_ids))
     return found / len(relevant_ids)
 
-
 def hit_rate(retrieved_ids: list[str], relevant_ids: list[str]) -> float:
     """
     Binary: 1.0 if at least one relevant doc was found, 0.0 otherwise.
@@ -424,7 +420,6 @@ def hit_rate(retrieved_ids: list[str], relevant_ids: list[str]) -> float:
     if not relevant_ids:
         return 1.0
     return 1.0 if any(rid in set(retrieved_ids) for rid in relevant_ids) else 0.0
-
 
 def mrr(retrieved_ids: list[str], relevant_ids: list[str]) -> float:
     """
@@ -436,7 +431,6 @@ def mrr(retrieved_ids: list[str], relevant_ids: list[str]) -> float:
         if doc_id in set(relevant_ids):
             return 1.0 / (i + 1)
     return 0.0
-
 
 async def faithfulness(answer: str, context_chunks: list[str]) -> float:
     """
@@ -456,7 +450,6 @@ async def faithfulness(answer: str, context_chunks: list[str]) -> float:
     except Exception as e:
         logger.debug("NLI faithfulness failed, using keyword overlap: %s", e)
         return _keyword_faithfulness(answer, context_chunks)
-
 
 def _keyword_faithfulness(answer: str, context_chunks: list[str]) -> float:
     """
@@ -579,7 +572,6 @@ def _keyword_faithfulness(answer: str, context_chunks: list[str]) -> float:
 
     return supported / len(answer_words)
 
-
 async def answer_relevancy(answer: str, query: str) -> float:
     """
     Cosine similarity between answer embedding and query embedding.
@@ -607,7 +599,6 @@ async def answer_relevancy(answer: str, query: str) -> float:
         logger.debug("Answer relevancy embedding failed: %s", e)
         return _keyword_relevancy(answer, query)
 
-
 def _keyword_relevancy(answer: str, query: str) -> float:
     """Fallback keyword-based relevancy."""
     query_words = {w.lower() for w in re.findall(r"\b\w{3,}\b", query)}
@@ -617,11 +608,9 @@ def _keyword_relevancy(answer: str, query: str) -> float:
     overlap = len(query_words & answer_words)
     return overlap / len(query_words)
 
-
 # ======================================================================
 # EVALUATION DATA MODELS
 # ======================================================================
-
 
 @dataclass
 class QueryMetrics:
@@ -637,7 +626,6 @@ class QueryMetrics:
     answer_relevancy_score: float = 0.0
     latency_ms: float = 0.0
     error: str = ""
-
 
 @dataclass
 class EvaluationReport:
@@ -655,11 +643,9 @@ class EvaluationReport:
     errors: int = 0
     collection: str | None = None
 
-
 # ======================================================================
 # EVALUATION RUNNER
 # ======================================================================
-
 
 async def run_evaluation(
     collection: str | None = None,

@@ -7,11 +7,11 @@ similarity, and cluster classification.
 Extracted from ClusterDetectionPro methods to reduce module size.
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
 from app.cluster_detection.models import ClusterType, WalletCluster
-
 
 # ── Signal weights for confidence calculation ────────────────────
 
@@ -24,7 +24,6 @@ SIGNAL_WEIGHTS: dict[str, float] = {
     "code_similarity": 0.10,
     "social_connections": 0.05,
 }
-
 
 def calculate_cluster_confidence(cluster: WalletCluster) -> float:
     """Calculate overall confidence score for a cluster."""
@@ -46,7 +45,6 @@ def calculate_cluster_confidence(cluster: WalletCluster) -> float:
     confidence = (weighted_score / total_weight) + boost if total_weight > 0 else 0.0
     return min(1.0, confidence)
 
-
 def classify_cluster_type(cluster: WalletCluster) -> ClusterType:
     """Classify the type of cluster based on signals."""
     signal_types = [s.signal_type for s in cluster.detection_signals]
@@ -64,7 +62,6 @@ def classify_cluster_type(cluster: WalletCluster) -> ClusterType:
         return ClusterType.SYBIL
 
     return ClusterType.UNKNOWN
-
 
 def calculate_risk_score(cluster: WalletCluster) -> float:
     """Calculate risk score for a cluster."""
@@ -85,7 +82,6 @@ def calculate_risk_score(cluster: WalletCluster) -> float:
     score *= 0.5 + cluster.confidence * 0.5
 
     return min(100, score)
-
 
 def calculate_behavioral_similarity(fp1: dict, fp2: dict) -> float:
     """Calculate similarity between two behavioral fingerprints."""
@@ -116,7 +112,6 @@ def calculate_behavioral_similarity(fp1: dict, fp2: dict) -> float:
 
     return sum(scores) / len(scores) if scores else 0.0
 
-
 def distribution(values: list[int], bins: int = 24) -> list[float]:
     """Calculate distribution of values."""
     counts = [0] * bins
@@ -125,7 +120,6 @@ def distribution(values: list[int], bins: int = 24) -> list[float]:
             counts[v] += 1
     total = sum(counts)
     return [c / total if total > 0 else 0 for c in counts]
-
 
 def merge_clusters_by_overlap(
     all_signals: dict, wallets: list[str]

@@ -10,6 +10,7 @@ Fixes false positives, enriches all responses, populates empty providers.
 5. Provider Fallback Enhancement - when one returns empty, try harder
 """
 
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
@@ -113,7 +114,6 @@ KNOWN_ENTITIES = {
     },
 }
 
-
 def lookup_entity(address: str, chain: str = "") -> dict | None:
     """Check if an address is a known entity."""
     # Exact match
@@ -131,12 +131,10 @@ def lookup_entity(address: str, chain: str = "") -> dict | None:
 
     return None
 
-
 def is_wallet_not_token(address: str, chain: str = "") -> bool:
     """Detect if an address is likely a wallet, not a token contract."""
     entity = lookup_entity(address, chain)
     return bool(entity and entity.get("type") in ("individual", "exchange", "burn"))
-
 
 def get_trust_bonus(address: str, chain: str = "") -> tuple[int, str]:
     """Get trust bonus (score reduction) for known entities.
@@ -160,11 +158,9 @@ def get_trust_bonus(address: str, chain: str = "") -> tuple[int, str]:
 
     return 0, ""
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # 2. DATA ENRICHMENT - Inject wallet labels, Arkham, RAG everywhere
 # ═══════════════════════════════════════════════════════════════════════
-
 
 def _r() -> Any:
     return redis.Redis(
@@ -174,7 +170,6 @@ def _r() -> Any:
         decode_responses=True,
         socket_connect_timeout=2,
 )
-
 
 async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
     """Look up wallet labels from our 190K-label Redis store."""
@@ -192,7 +187,6 @@ async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"Label enrichment failed: {e}")
     return labels
-
 
 async def enrich_with_arkham(address: str) -> dict | None:
     """Enrich an address with Arkham entity data."""
@@ -220,7 +214,6 @@ async def enrich_with_arkham(address: str) -> dict | None:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     return None
-
 
 async def enrich_response(result: dict, address: str, chain: str) -> dict:
     """Universal response enrichment - injects labels, entities, trust into any result."""
@@ -273,7 +266,6 @@ async def enrich_response(result: dict, address: str, chain: str) -> dict:
     enriched["enriched_at"] = datetime.now(UTC).isoformat()
 
     return enriched
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # 3. SMART TIERING - Clear free/premium/admin boundaries
@@ -360,18 +352,15 @@ TIER_DEFINITIONS = {
     },
 }
 
-
 def get_tier_info(tier: str) -> dict:
     """Get tier definition."""
     return TIER_DEFINITIONS.get(tier, TIER_DEFINITIONS["free"])
-
 
 def tier_allows(tier: str, data_type: str) -> bool:
     """Check if a tier can access a data type."""
     tier_def = TIER_DEFINITIONS.get(tier, TIER_DEFINITIONS["free"])
     allowed = tier_def["allowed_data_types"]
     return "*" in allowed or data_type in allowed
-
 
 def tier_comparison_table() -> list[dict]:
     """Generate competitive comparison table."""
@@ -474,11 +463,9 @@ def tier_comparison_table() -> list[dict]:
         },
     ]
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # 4. ENHANCED TOKEN REPORT - Smart verdicts, narratives, comparables
 # ═══════════════════════════════════════════════════════════════════════
-
 
 def smart_verdict(report: dict) -> str:
     """Generate an intelligent, nuanced verdict instead of just 'EXTREME RISK'."""
@@ -550,7 +537,6 @@ def smart_verdict(report: dict) -> str:
         return f"ELEVATED RISK - {'; '.join(risks)}. Review all details before trading."
     else:
         return f"MINOR CONCERNS - {'; '.join(risks)}. Standard due diligence recommended."
-
 
 async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> dict | None:
     """Enhanced token report with smart verdicts, enrichment, and tier info."""
@@ -651,11 +637,9 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
 
     return base_report
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # 5. TIER COMPARISON ENDPOINT DATA
 # ═══════════════════════════════════════════════════════════════════════
-
 
 async def get_tier_comparison(**kw) -> dict:
     """Return the competitive tier comparison table."""

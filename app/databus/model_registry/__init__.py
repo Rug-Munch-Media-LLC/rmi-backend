@@ -10,6 +10,7 @@ Split into:
   - prompts:    build_research_prompt, build_writing_prompt, get_usage_stats
 """
 
+from __future__ import annotations
 from .models import AI_ROLES, MODELS, PROVIDER_LIMITS
 from .prompts import build_research_prompt, build_writing_prompt, get_usage_stats
 from .providers import _call_groq, _call_mistral, _call_openrouter, ai_call

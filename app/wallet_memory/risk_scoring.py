@@ -16,12 +16,12 @@ Risk levels:
   80-100 critical
 """
 
+from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger("wallet_memory.risk_scoring")
-
 
 class RiskScorer:
     """

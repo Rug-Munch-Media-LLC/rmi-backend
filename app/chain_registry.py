@@ -8,10 +8,10 @@ Chains: solana, ethereum, base, bsc, arbitrum, polygon, avalanche,
         optimism, fantom, linea, zksync, scroll, mantle
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-
 
 class ChainFamily(Enum):
     """Blockchain family classification."""
@@ -19,7 +19,6 @@ class ChainFamily(Enum):
     SOLANA = "solana"  # Solana SPL tokens
     EVM = "evm"  # Ethereum Virtual Machine chains
     COSMOS = "cosmos"  # Not yet supported
-
 
 @dataclass
 class ChainConfig:
@@ -65,7 +64,6 @@ class ChainConfig:
     @property
     def is_evm(self) -> bool:
         return self.family == ChainFamily.EVM
-
 
 # ─── Chain Registry ────────────────────────────────────────────────
 
@@ -646,45 +644,36 @@ CHAINS: dict[str, ChainConfig] = {
     ),
 }
 
-
 # ─── Convenience functions ─────────────────────────────────────────
-
 
 def get_chain(chain_name: str) -> ChainConfig | None:
     """Get chain config by name (case-insensitive)."""
     return CHAINS.get(chain_name.lower())
-
 
 def get_chain_family(chain_name: str) -> ChainFamily:
     """Determine if a chain is Solana, EVM, or other."""
     cfg = CHAINS.get(chain_name.lower())
     return cfg.family if cfg else ChainFamily.EVM
 
-
 def is_solana(chain_name: str) -> bool:
     return get_chain_family(chain_name) == ChainFamily.SOLANA
 
-
 def is_evm(chain_name: str) -> bool:
     return get_chain_family(chain_name) == ChainFamily.EVM
-
 
 def resolve_chain_id(chain_name: str) -> str:
     """Resolve chain name to numeric or canonical ID."""
     cfg = CHAINS.get(chain_name.lower())
     return cfg.chain_id if cfg else chain_name
 
-
 def list_chains() -> list[str]:
     """List all supported chain names."""
     return list(CHAINS.keys())
-
 
 def get_chain_display(chain_name: str) -> str:
     """Get human-readable chain display name."""
     cfg = CHAINS.get(chain_name.lower())
     return cfg.display_name if cfg else chain_name.title()
-
 
 def get_explorer_url(chain_name: str, address: str, tx: str = "") -> str:
     """Build explorer URL for an address or transaction."""
@@ -696,7 +685,6 @@ def get_explorer_url(chain_name: str, address: str, tx: str = "") -> str:
     if cfg.is_solana:
         return f"{cfg.explorer_url}/account/{address}"
     return f"{cfg.explorer_url}/address/{address}"
-
 
 def get_rpc_urls(chain_name: str) -> list[str]:
     """Get list of RPC URLs for a chain (with env vars resolved)."""
@@ -712,7 +700,6 @@ def get_rpc_urls(chain_name: str) -> list[str]:
         urls.append(resolved)
     return urls
 
-
 def get_explorer_api_config(chain_name: str) -> tuple[str, str]:
     """Get (api_url, api_key) for a chain's block explorer."""
     cfg = CHAINS.get(chain_name.lower())
@@ -723,12 +710,10 @@ def get_explorer_api_config(chain_name: str) -> tuple[str, str]:
         api_key = os.getenv(cfg.api_key_env, "")
     return (cfg.explorer_api_url, api_key)
 
-
 def get_cex_wallets(chain_name: str) -> dict[str, list[str]]:
     """Get known CEX hot wallets for a chain."""
     cfg = CHAINS.get(chain_name.lower())
     return cfg.cex_hot_wallets if cfg else {}
-
 
 def get_known_lockers(chain_name: str) -> dict[str, str]:
     """Get known liquidity locker contracts for a chain (keys are lowercase-normalized)."""

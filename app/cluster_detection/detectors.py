@@ -15,6 +15,7 @@ Methods:
   7. Sleeper Detection   - Dormant wallet groups
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any
@@ -31,7 +32,6 @@ from app.cluster_detection.scoring import (
     calculate_behavioral_similarity,
     distribution,
 )
-
 
 async def detect_temporal_clusters(
     wallet_profiles: dict[str, dict],
@@ -102,7 +102,6 @@ async def detect_temporal_clusters(
 
     return clusters
 
-
 async def detect_counterparty_clusters(
     wallet_profiles: dict[str, dict],
     wallets: list[str],
@@ -171,7 +170,6 @@ async def detect_counterparty_clusters(
             clustered.update(cluster_wallets)
 
     return clusters
-
 
 async def detect_behavioral_clusters(
     wallet_profiles: dict[str, dict],
@@ -279,7 +277,6 @@ async def detect_behavioral_clusters(
 
     return clusters
 
-
 async def detect_funding_clusters(
     wallet_profiles: dict[str, dict],
     wallets: list[str],
@@ -324,5 +321,4 @@ async def detect_funding_clusters(
             clusters.append(cluster)
 
     return clusters
-
 

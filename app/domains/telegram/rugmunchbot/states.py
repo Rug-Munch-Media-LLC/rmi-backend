@@ -4,6 +4,7 @@ RugMunchBot — State management (spam protection, rate limits, caches).
 
 Keeps all in-memory state in one place for easy visibility.
 """
+from __future__ import annotations
 
 import time
 
@@ -19,7 +20,6 @@ logger = get_logger("rmi_bot")
 # ══════════════════════════════════════════════
 _sol_price: float = 150.0  # fallback
 _sol_price_ts: float = 0
-
 
 async def get_sol_price() -> float:
     """Fetch current SOL/USD price from Jupiter API (free, no auth needed)."""
@@ -48,13 +48,11 @@ async def get_sol_price() -> float:
         logger.warning(f"Failed to fetch SOL price: {e}")
     return _sol_price
 
-
 # ══════════════════════════════════════════════
 # SPAM PROTECTION
 # ══════════════════════════════════════════════
 _user_last_action: TTLCache = TTLCache(maxsize=10000, ttl=60)
 SPAM_COOLDOWN = 3
-
 
 def check_spam(user_id: int) -> bool:
     """Return True if the user is spamming (rate-limited)."""
@@ -65,16 +63,13 @@ def check_spam(user_id: int) -> bool:
     _user_last_action[user_id] = now
     return False
 
-
 def is_owner(uid: int) -> bool:
     """Check if a user ID is a bot owner."""
     return uid in OWNER_IDS
 
-
 # ── Alert rate limiter (max 1 DM per user per 5 min) ──
 _alert_last_sent: dict[int, float] = {}
 ALERT_RATE_LIMIT_SEC = 300
-
 
 def check_alert_rate_limit(user_id: int) -> bool:
     """Return True if user can receive another alert (rate-limited to 1 per 5 min)."""
@@ -84,7 +79,6 @@ def check_alert_rate_limit(user_id: int) -> bool:
         return False
     _alert_last_sent[user_id] = now
     return True
-
 
 # ── Pending deep scan payments (token → details) ──
 _pending_deep_scans: dict[str, dict] = {}

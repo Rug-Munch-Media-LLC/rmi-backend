@@ -9,6 +9,7 @@ persona classifications.
 Premium feature: "Smart Money Accumulator", "Meme Dumper", "Exit LP", etc.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -106,7 +107,6 @@ PERSONAS = {
     },
 }
 
-
 @dataclass
 class WalletFingerprint:
     """Complete behavioral fingerprint for a wallet."""
@@ -156,7 +156,6 @@ class WalletFingerprint:
     sophistication_score: float = 0.0  # 0-100, how sophisticated is this trader?
     risk_score: float = 0.0  # 0-100, how risky is interacting with this wallet?
     reliability_score: float = 0.0  # 0-100, how reliable/consistent is behavior?
-
 
 def compute_fingerprint(wallet_data: dict[str, Any]) -> WalletFingerprint:
     """Compute behavioral fingerprint from wallet on-chain data."""
@@ -308,7 +307,6 @@ def compute_fingerprint(wallet_data: dict[str, Any]) -> WalletFingerprint:
 
     return fp
 
-
 def classify_persona(fp: WalletFingerprint) -> Any:
     """Assign persona based on behavioral fingerprint."""
     scores = {}
@@ -407,7 +405,6 @@ def classify_persona(fp: WalletFingerprint) -> Any:
     ]
 
     return fp
-
 
 def fingerprint_to_dict(fp: WalletFingerprint) -> dict[str, Any]:
     """Convert fingerprint to API response format."""

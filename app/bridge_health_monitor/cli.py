@@ -6,13 +6,13 @@ Usage:
     python3 -m app.bridge_health_monitor --bridge stargate
 """
 
+from __future__ import annotations
 import asyncio
 import logging
 
 from app.bridge_health_monitor.monitor import BridgeHealthMonitor
 
 logger = logging.getLogger(__name__)
-
 
 async def main() -> None:
     """CLI entry point."""
@@ -40,7 +40,6 @@ async def main() -> None:
             logger.info(report.summary())
     finally:
         await monitor.close()
-
 
 if __name__ == "__main__":
     asyncio.run(main())

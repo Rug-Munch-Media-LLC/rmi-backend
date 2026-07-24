@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """#10 - DataBus Public API Gateway. Free tier + x402 paid tier. 102 chains, 119 providers."""
+from __future__ import annotations
 
 import hashlib
 import os
@@ -20,7 +21,6 @@ RATE_LIMIT_PAID = int(os.environ.get("DATABUS_PAID_RATE", "5000"))
 # Simple in-memory rate limiter (Redis-backed in prod)
 _rate_store: dict[str, list[float]] = {}
 
-
 def _check_rate(key: str, limit: int, window: int = 3600) -> bool:
     now = time.time()
     bucket = _rate_store.setdefault(key, [])
@@ -30,7 +30,6 @@ def _check_rate(key: str, limit: int, window: int = 3600) -> bool:
     bucket.append(now)
     return True
 
-
 @dataclass
 class DatabusQueryResult:
     chain: str
@@ -38,7 +37,6 @@ class DatabusQueryResult:
     source: str
     cached: bool
     latency_ms: float
-
 
 async def databus_get(
     chain: str, endpoint: str, params: dict | None = None, tier: str = "free"
@@ -59,7 +57,6 @@ async def databus_get(
         latency_ms=elapsed,
     )
 
-
 async def databus_cross_chain(
     query: str, chains: list[str] | None = None, tier: str = "free"
 ) -> dict[str, DatabusQueryResult]:
@@ -78,7 +75,6 @@ async def databus_cross_chain(
             )
     return results
 
-
 async def verify_x402_payment(signature: str, payload: str, chain: str = "solana") -> bool:
     """Verify x402 micropayment signature (shared httpx client)."""
     client = await get_http_client()
@@ -87,10 +83,8 @@ async def verify_x402_payment(signature: str, payload: str, chain: str = "solana
     )
     return resp.status_code == 200 and resp.json().get("valid", False)
 
-
 def generate_api_key() -> str:
     return "rmi_databus_" + hashlib.sha256(os.urandom(32)).hexdigest()[:32]
-
 
 # Chain availability
 SUPPORTED_CHAINS = [

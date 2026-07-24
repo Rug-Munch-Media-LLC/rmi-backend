@@ -7,6 +7,7 @@ Command handlers and business logic live in handlers/ and supporting modules.
 
 Run: cd /root/backend && python3 -m app.domains.telegram.rugmunchbot.bot
 """
+from __future__ import annotations
 
 import random
 import sys
@@ -80,7 +81,6 @@ from app.domains.telegram.rugmunchbot.handlers.watchlist import (
 
 logger = get_logger("rmi_bot")
 
-
 async def setup_bot_profile(app: Application) -> None:
     """Set bot description, about text, and command list via BotFather API."""
     bot = app.bot
@@ -129,7 +129,6 @@ async def setup_bot_profile(app: Application) -> None:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Could not set commands: {e}")
 
-
 async def daily_scam_tip(ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not CHANNELS.get("main"):
         return
@@ -150,7 +149,6 @@ async def daily_scam_tip(ctx: ContextTypes.DEFAULT_TYPE) -> None:
     except (KeyError, TypeError) as e :
         logger.debug("daily_scam_tip_error", exc_info=True)
         logger.error(f"Daily tip failed: {e}")
-
 
 def main() -> None:
     if not BOT_TOKEN:
@@ -230,7 +228,6 @@ def main() -> None:
 
     logger.info("\U0001f6e1\ufe0f CryptoRugMunch Bot v6 starting...")
     app.run_polling(drop_pending_updates=True)
-
 
 if __name__ == "__main__":
     main()

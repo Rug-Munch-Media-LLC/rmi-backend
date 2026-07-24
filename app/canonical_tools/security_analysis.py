@@ -2,6 +2,7 @@
 Canonical Tool Prices — Security, Analysis, and DeFi categories.
 """
 
+from __future__ import annotations
 SECURITY_ANALYSIS_TOOLS = {
     # ── security ──
     "anomaly": {"price_usd": 0.08, "price_atoms": "80000", "category": "security", "trial_free": 0, "description": "anomaly"},

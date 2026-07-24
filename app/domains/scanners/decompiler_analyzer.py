@@ -15,6 +15,7 @@ For Solana:
   - Attempt Anchor IDL extraction
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -136,9 +137,7 @@ ANCHOR_DANGEROUS_IX_NAMES = [
     "freeze_account",
 ]
 
-
 # ── Report dataclass ─────────────────────────────────────────────────
-
 
 @dataclass
 class DecompilerReport:
@@ -170,9 +169,7 @@ class DecompilerReport:
     red_flags: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
-
 # ── 4-byte selector extraction (whatsABI approach) ───────────────────
-
 
 def _extract_selectors_from_bytecode(bytecode: str) -> list[str]:
     """Extract function selectors from EVM bytecode using PUSH4 + EQ/DIV pattern.
@@ -204,7 +201,6 @@ def _extract_selectors_from_bytecode(bytecode: str) -> list[str]:
             i += 2
 
     return sorted(selectors)
-
 
 def _match_selectors_to_known(
     selectors: list[str],
@@ -247,7 +243,6 @@ def _match_selectors_to_known(
 
     return sig_map, rug_matches
 
-
 def _scan_decompiled_source(source: str) -> list[str]:
     """Scan decompiled source text for dangerous function patterns."""
     found = []
@@ -256,9 +251,7 @@ def _scan_decompiled_source(source: str) -> list[str]:
             found.append(description)
     return found
 
-
 # ── Analyzer class ────────────────────────────────────────────────────
-
 
 class DecompilerAnalyzer:
     """Decompile and analyze unverified contracts for dangerous patterns."""

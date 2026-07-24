@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     import redis
     import redis.asyncio as aioredis
 
-
 def _get_redis_url() -> str:
     """Get Redis URL from settings, falling back to direct env var during boot."""
     try:
@@ -33,14 +32,12 @@ def _get_redis_url() -> str:
         pass
     return os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-
 REDIS_URL = _get_redis_url()
 
 _redis_client: "redis.Redis | aioredis.Redis | None" = None  # type: ignore[type-arg]
 _sync_pool: "redis.ConnectionPool | None" = None
 _async_pool: "aioredis.ConnectionPool | None" = None
 _degraded: bool = False
-
 
 def get_redis() -> "redis.Redis | None":  # type: ignore[type-arg]
     """Get Redis client with connection pooling. Single source of truth."""
@@ -72,7 +69,6 @@ def get_redis() -> "redis.Redis | None":  # type: ignore[type-arg]
         _mark_degraded()
         return None
 
-
 def get_redis_async() -> "aioredis.Redis | None":  # type: ignore[type-arg]
     """Get async Redis client for async operations."""
     global _redis_client, _async_pool
@@ -98,7 +94,6 @@ def get_redis_async() -> "aioredis.Redis | None":  # type: ignore[type-arg]
         logger.error(f"Async Redis client creation failed: {e}")
         return None
 
-
 def close_redis() -> None:
     """Close Redis connection pool."""
     global _sync_pool, _async_pool
@@ -117,7 +112,6 @@ def close_redis() -> None:
             logger.error(f"Async Redis pool close failed: {e}")
         _async_pool = None
 
-
 def _mark_degraded() -> None:
     """Mark Redis as degraded in the global registry."""
     global _degraded
@@ -128,7 +122,6 @@ def _mark_degraded() -> None:
         get_registry().mark_down("redis")
     except (AttributeError, ImportError):
         pass
-
 
 def _mark_healthy() -> None:
     """Mark Redis as healthy in the global registry."""
@@ -141,11 +134,9 @@ def _mark_healthy() -> None:
     except (AttributeError, ImportError):
         pass
 
-
 def is_redis_degraded() -> bool:
     """Check if Redis is currently degraded."""
     return _degraded
-
 
 def get_lru_cache() -> Any | None:
     """Get the in-process LRU cache for degraded operation."""

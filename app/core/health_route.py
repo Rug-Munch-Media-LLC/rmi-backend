@@ -51,14 +51,12 @@ router = APIRouter(tags=["health"])
 _ENV = os.getenv("ENVIRONMENT", "production").lower()
 _IS_DEV = _ENV in ("dev", "development", "local", "test")
 
-
 def _get_url(key: str, docker: str, local: str) -> str:
     """Resolve a service URL: explicit env var wins, otherwise pick the
     Docker-Compose default (production) or the localhost default (dev).
     """
     val = os.getenv(key)
     return val if val is not None else (local if _IS_DEV else docker)
-
 
 # ── Service URLs (module-level for reuse) ────────────────────────
 # Defaults use Docker Compose service names so containers resolve
@@ -115,7 +113,6 @@ _OPTIONAL_CONFIG: dict[str, str] = {
 
 _SHARED_HTTP_CLIENT: httpx.AsyncClient | None = None
 
-
 async def _get_http_client() -> httpx.AsyncClient:
     global _SHARED_HTTP_CLIENT
     if _SHARED_HTTP_CLIENT is None:
@@ -124,9 +121,7 @@ async def _get_http_client() -> httpx.AsyncClient:
         _SHARED_HTTP_CLIENT = httpx.AsyncClient(timeout=5.0)
     return _SHARED_HTTP_CLIENT
 
-
 # ── Config validation ───────────────────────────────────────────
-
 
 def check_config() -> list[dict[str, str]]:
     """Validate required / optional env vars.
@@ -153,9 +148,7 @@ def check_config() -> list[dict[str, str]]:
 
     return issues
 
-
 # ── Response models ─────────────────────────────────────────────
-
 
 class HealthResponse(BaseModel):
     status: str
@@ -166,21 +159,16 @@ class HealthResponse(BaseModel):
     model_config = {"extra": "allow"}
     config_issues: list[dict[str, str]] = []
 
-
 class LivenessResponse(BaseModel):
     status: str = "alive"
-
 
 class ReadinessResponse(BaseModel):
     status: str
     checks: dict[str, bool]
 
-
 _START_TIME = time.monotonic()
 
-
 # ── Store check helpers ─────────────────────────────────────────
-
 
 async def _check_store(name: str, coro) -> dict[str, Any]:
     """Run a health check and emit Prometheus metrics (if available)."""
@@ -200,7 +188,6 @@ async def _check_store(name: str, coro) -> dict[str, Any]:
             HEALTH_CHECK_STATUS.labels(store=name).set(0)
         return {"healthy": False, "error": str(e)[:200]}
 
-
 async def _check_redis() -> dict[str, Any]:
     try:
         from app.core.redis import get_redis_async
@@ -212,7 +199,6 @@ async def _check_redis() -> dict[str, Any]:
         return {"healthy": True}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
-
 
 async def _check_postgres() -> dict[str, Any]:
     try:
@@ -228,7 +214,6 @@ async def _check_postgres() -> dict[str, Any]:
         return {"healthy": True}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
-
 
 async def _check_neo4j() -> dict[str, Any]:
     try:
@@ -256,7 +241,6 @@ async def _check_neo4j() -> dict[str, Any]:
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
 
-
 async def _check_qdrant() -> dict[str, Any]:
     try:
         import httpx
@@ -270,7 +254,6 @@ async def _check_qdrant() -> dict[str, Any]:
         }
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
-
 
 async def _check_clickhouse() -> dict[str, Any]:
     try:
@@ -291,7 +274,6 @@ async def _check_clickhouse() -> dict[str, Any]:
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
 
-
 async def _check_minio() -> dict[str, Any]:
     try:
         client = await _get_http_client()
@@ -299,7 +281,6 @@ async def _check_minio() -> dict[str, Any]:
         return {"healthy": resp.status_code == 200, "details": {"status_code": resp.status_code}}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
-
 
 async def _check_reth() -> dict[str, Any]:
     try:
@@ -316,7 +297,6 @@ async def _check_reth() -> dict[str, Any]:
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
 
-
 def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
     """Win #14: Sync health check results to the degradation registry."""
     try:
@@ -332,7 +312,6 @@ def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
     except (AttributeError, ImportError):
         pass
 
-
 def _get_degradation_section() -> dict[str, Any]:
     """Win #14: Get degradation section for health endpoint."""
     try:
@@ -342,14 +321,11 @@ def _get_degradation_section() -> dict[str, Any]:
     except (AttributeError, ImportError):
         return {}
 
-
 # ── Endpoints ───────────────────────────────────────────────────
-
 
 @router.get("/live", response_model=LivenessResponse, summary="Liveness", description="Kubernetes-style liveness probe. Returns 200 if the process is alive. No dependency checks.")
 async def liveness() -> LivenessResponse:
     return LivenessResponse(status="alive")
-
 
 @router.get("/ready", response_model=ReadinessResponse, summary="Readiness", description="Kubernetes-style readiness probe. Checks critical dependencies (Redis, PostgreSQL). Returns 200 only when all critical stores are reachable.")
 async def readiness() -> ReadinessResponse:
@@ -360,7 +336,6 @@ async def readiness() -> ReadinessResponse:
     checks = {"redis": redis_ok.get("healthy", False), "postgres": pg_ok.get("healthy", False)}
     all_ok = all(checks.values())
     return ReadinessResponse(status="ready" if all_ok else "not_ready", checks=checks)
-
 
 @router.get("/health", response_model=HealthResponse, summary="Full Health Check", description="Comprehensive system health check. Probes Redis, PostgreSQL, Neo4j, Qdrant, ClickHouse, MinIO, and Ethereum RPC. Returns aggregated status with per-store health, latency, and config validation.")
 async def health() -> HealthResponse:

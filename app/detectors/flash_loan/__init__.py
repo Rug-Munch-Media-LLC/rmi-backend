@@ -14,6 +14,7 @@ Usage:
 """
 
 # Re-export main detector class
+from __future__ import annotations
 from app.detectors.flash_loan.detector import FlashLoanAttackDetector
 
 # Re-export data models

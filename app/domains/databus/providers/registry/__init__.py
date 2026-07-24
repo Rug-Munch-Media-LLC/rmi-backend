@@ -10,6 +10,7 @@ Every data source in the system is organized into fallback chains:
 Split from registry.py into categories/: market, security, wallet, intel, social, system.
 """
 
+from __future__ import annotations
 import importlib
 from typing import Any
 
@@ -21,7 +22,6 @@ from ..base import Provider, ProviderChain, ProviderTier
 from ..circuit_breaker import _circuit_breakers, _CircuitBreaker, _rate_limiters, _RateLimiter
 
 logger = get_logger("databus.providers.registry")
-
 
 def build_provider_chains() -> dict[str, ProviderChain]:
     """Build all fallback chains for every data type."""

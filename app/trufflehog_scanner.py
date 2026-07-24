@@ -9,6 +9,7 @@ Secure scanning for git repositories and code to detect:
 - Tokens
 """
 
+from __future__ import annotations
 import json
 import subprocess
 from dataclasses import dataclass
@@ -17,7 +18,6 @@ from datetime import UTC, datetime
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 @dataclass
 class SecretFinding:
@@ -39,9 +39,7 @@ class SecretFinding:
     line: int
     column: int
 
-
 # ─── TRUFFLEHOG SCANNER ───────────────────────────────────────────
-
 
 class TruffleHogScanner:
     """Scanner using TruffleHog CLI."""
@@ -256,11 +254,9 @@ class TruffleHogScanner:
         """
         return [f for f in findings if f.verified or (not f.verified and min_severity == 0)]
 
-
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _scanner: TruffleHogScanner | None = None
-
 
 def get_scanner() -> TruffleHogScanner:
     """Get global TruffleHog scanner instance."""
@@ -269,12 +265,10 @@ def get_scanner() -> TruffleHogScanner:
         _scanner = TruffleHogScanner()
     return _scanner
 
-
 def scan_directory(path: str, **kwargs) -> list[SecretFinding]:
     """Scan a directory for secrets."""
     scanner = get_scanner()
     return scanner.scan_directory(path, **kwargs)
-
 
 def scan_git_repo(url: str, **kwargs) -> list[SecretFinding]:
     """Scan a Git repository for secrets."""

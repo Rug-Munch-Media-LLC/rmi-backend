@@ -1,4 +1,5 @@
 """Configuration and constants for rug imminence prediction."""
+from __future__ import annotations
 import os
 from app.core.logging import get_logger
 from app.domains.detectors.rug_imminence_predictor.models import ImminenceLevel

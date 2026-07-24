@@ -12,10 +12,10 @@ Usage:
     asterpay_key = cfg.asterpay_api_key
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any
-
 
 @dataclass
 class FacilitatorConfig:
@@ -168,17 +168,14 @@ class FacilitatorConfig:
                     d[k] = val[:4] + "..." + val[-4:] if len(val) > 12 else "***"
         return d
 
-
 # Singleton
 _config: FacilitatorConfig | None = None
-
 
 def get_config() -> FacilitatorConfig:
     global _config
     if _config is None:
         _config = FacilitatorConfig()
     return _config
-
 
 def reset_config() -> None:
     global _config

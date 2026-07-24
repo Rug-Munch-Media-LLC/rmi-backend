@@ -4,7 +4,9 @@ Priority: Helius → Birdeye → Solscan → GMGN → DexScreener → QuickNode 
 Rate-limited to ~5 req/sec total. Heavy caching. Never blocks on a single API.
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -12,15 +14,13 @@ logger = get_logger(__name__)
 
 # ── Singleton ──────────────────────────────────────────────
 
-_provider: "UnifiedProvider" | None = None
+_provider: UnifiedProvider | None = None
 
-
-def get_unified_provider() -> "UnifiedProvider":
+def get_unified_provider() -> UnifiedProvider:
     global _provider
     if _provider is None:
         _provider = UnifiedProvider()
     return _provider
-
 
 class UnifiedProvider:
     """Multi-source chain data with fallback cascade."""

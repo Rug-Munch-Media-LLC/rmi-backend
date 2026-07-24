@@ -3,13 +3,13 @@ Market Intelligence - Hyperliquid Routes
 Hyperliquid perp markets, funding rates, and action data.
 """
 
+from __future__ import annotations
 from fastapi import APIRouter, Query, Request
 
 from app.routers.market_intel.providers import _hyperliquid_markets, _hyperliquid_funding, _hyperliquid_action
 from app.routers.market_intel.utils import _now
 
 router = APIRouter(tags=["market-intel"])
-
 
 @router.get("/hyperliquid")
 async def get_hyperliquid_data(
@@ -26,7 +26,6 @@ async def get_hyperliquid_data(
         "total_markets": len(markets),
         "updated_at": now,
     }
-
 
 @router.get("/hyperliquid-action")
 async def get_hyperliquid_action(

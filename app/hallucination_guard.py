@@ -53,17 +53,14 @@ LABEL_CONTRADICTION = 2
 CONFIDENCE_HIGH = 0.85
 CONFIDENCE_MEDIUM = 0.60
 
-
 class ConfidenceLevel(StrEnum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
 
-
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class CheckResult:
@@ -83,7 +80,6 @@ class CheckResult:
             return ConfidenceLevel.MEDIUM
         return ConfidenceLevel.LOW
 
-
 @dataclass
 class CitationVerificationResult:
     """Result of verifying inline citations against sources."""
@@ -94,26 +90,22 @@ class CitationVerificationResult:
     citation_details: list[dict[str, Any]] = field(default_factory=list)
     all_supported: bool = True
 
-
 # ---------------------------------------------------------------------------
 # Claim splitter - simple sentence-level extraction
 # ---------------------------------------------------------------------------
 
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
-
 def _split_claims(text: str) -> list[str]:
     """Split answer into individual claim sentences for granular checking."""
     sentences = _SENTENCE_RE.split(text.strip())
     return [s.strip() for s in sentences if s.strip()]
-
 
 # ---------------------------------------------------------------------------
 # Citation parser
 # ---------------------------------------------------------------------------
 
 _CITATION_RE = re.compile(r"\[(\d+)\]")
-
 
 def _extract_citations(text: str) -> list[tuple[int, str]]:
     """
@@ -128,11 +120,9 @@ def _extract_citations(text: str) -> list[tuple[int, str]]:
             results.append((int(n), sentence))
     return results
 
-
 # ---------------------------------------------------------------------------
 # HallucinationGuard
 # ---------------------------------------------------------------------------
-
 
 class HallucinationGuard:
     """NLI-based hallucination detector with LLM self-check fallback."""
@@ -720,11 +710,9 @@ class HallucinationGuard:
         """Reset the singleton instance (for testing purposes only)."""
         cls._instance = None
 
-
 # ---------------------------------------------------------------------------
 # Module-level convenience
 # ---------------------------------------------------------------------------
-
 
 async def get_guard() -> HallucinationGuard:
     """Async singleton accessor - the recommended entry point."""

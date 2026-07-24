@@ -5,6 +5,7 @@ Served at /walletsafe/ as a single-page app.
 Hits /api/v1/wallet/* endpoints directly via fetch().
 """
 
+from __future__ import annotations
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 from typing import Any
@@ -354,12 +355,10 @@ async function loadDashboard() {
 </body>
 </html>"""
 
-
 @router.get("/walletsafe/")
 async def walletsafe_root() -> Any:
     """Serve the WalletSafe frontend."""
     return HTMLResponse(content=WALLETSAFE_HTML)
-
 
 @router.get("/walletsafe")
 async def walletsafe_no_slash() -> Any:

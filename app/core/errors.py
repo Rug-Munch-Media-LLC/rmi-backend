@@ -33,7 +33,6 @@ from app.core.problem_details import ProblemDetail
 
 # ── AppError hierarchy ──────────────────────────────────────────────
 
-
 class AppError(Exception):
     """Base class for all RMI application errors.
 
@@ -71,7 +70,6 @@ class AppError(Exception):
             "context": self.context,
         }
 
-
 class AuthError(AppError):
     """401 — authentication failure (missing/invalid credentials)."""
 
@@ -80,7 +78,6 @@ class AuthError(AppError):
 
     def __init__(self, message: str = "unauthorized", **kwargs: Any) -> None:
         super().__init__(message, **kwargs)
-
 
 class AuthorizationError(AppError):
     """403 — authenticated but not permitted to access the resource."""
@@ -91,7 +88,6 @@ class AuthorizationError(AppError):
     def __init__(self, message: str = "forbidden", **kwargs: Any) -> None:
         super().__init__(message, **kwargs)
 
-
 class PaymentRequiredError(AppError):
     """402 — payment required (x402 gate)."""
 
@@ -100,7 +96,6 @@ class PaymentRequiredError(AppError):
 
     def __init__(self, message: str = "payment required", **kwargs: Any) -> None:
         super().__init__(message, **kwargs)
-
 
 class ConflictError(AppError):
     """409 — resource conflict (e.g. duplicate, version mismatch)."""
@@ -111,13 +106,11 @@ class ConflictError(AppError):
     def __init__(self, message: str = "conflict", **kwargs: Any) -> None:
         super().__init__(message, **kwargs)
 
-
 class RateLimitError(AppError):
     """429 — too many requests."""
 
     status_code = 429
     code = "ratelimit.exceeded"
-
 
 class ValidationError(AppError):
     """400 — request body or params failed validation.
@@ -131,13 +124,11 @@ class ValidationError(AppError):
     status_code = 400
     code = "validation.failed"
 
-
 class NotFoundError(AppError):
     """404 — resource does not exist."""
 
     status_code = 404
     code = "not_found"
-
 
 class UpstreamError(AppError):
     """502 — an external service we depend on failed."""
@@ -145,13 +136,11 @@ class UpstreamError(AppError):
     status_code = 502
     code = "upstream.failed"
 
-
 class ExternalAPIError(AppError):
     """502 — an external API call failed (alias for semantic clarity)."""
 
     status_code = 502
     code = "external_api.failed"
-
 
 class ServiceUnavailableError(AppError):
     """503 — service temporarily unavailable (e.g. backend dependency down)."""
@@ -159,9 +148,7 @@ class ServiceUnavailableError(AppError):
     status_code = 503
     code = "service.unavailable"
 
-
 # ── RFC 7807 helpers ────────────────────────────────────────────────
-
 
 def _build_problem(
     request: Request,
@@ -186,9 +173,7 @@ def _build_problem(
         errors=errors,
     )
 
-
 # ── Handler registration (used by app/lifespan.py) ──────────────────
-
 
 def register_error_handlers(app: FastAPI, debug: bool = False) -> None:
     """Register RFC 7807 exception handlers on the FastAPI app.

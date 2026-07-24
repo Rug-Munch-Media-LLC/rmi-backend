@@ -13,13 +13,13 @@ Sources:
 Gets called by x402_catalog.py for accurate tool counts.
 """
 
+from __future__ import annotations
 import os
 from pathlib import Path
 
 from app.core.logging import get_logger
 
 logger = get_logger("tool_registry")
-
 
 def count_all_tools() -> dict:
     """Return accurate tool counts across the entire system."""
@@ -45,7 +45,6 @@ def count_all_tools() -> dict:
     counts["total_mcp_servers"] = 13
     return counts
 
-
 def _count_gateway_tools() -> int:
     """Count x402 gateway tools from CF worker static catalog."""
     # The gateway has ~50 static tools defined in index.ts
@@ -61,7 +60,6 @@ def _count_gateway_tools() -> int:
             return len(tools)
     return 45  # known fallback count
 
-
 def _count_our_mcp() -> int:
     """Count tools in our own MCP server."""
     mcp_file = Path("/root/backend/app/routers/mcp_server.py")
@@ -74,14 +72,12 @@ def _count_our_mcp() -> int:
         return len(tools)
     return 26  # known count
 
-
 def _count_svm_tools() -> int:
     """Solana SVM MCP server - compiled Rust binary with 60+ RPC tools."""
     binary = Path("/root/.hermes/mcp-servers/solana-svm/target/release/solana-mcp-server")
     if binary.exists():
         return 60  # getBalance, getAccountInfo, getTokenSupply, etc.
     return 0
-
 
 def _count_evm_tools() -> int:
     """EVM MCP server - 25 tools across 86 networks."""
@@ -90,31 +86,25 @@ def _count_evm_tools() -> int:
         return 25  # verified: get_wallet_address through wait_for_transaction
     return 0
 
-
 def _count_service_mcp() -> int:
     """Our keyed service MCP wrappers - GMGN, Birdeye, Solscan, etc."""
     return 13  # 6 services, 13 endpoints total
-
 
 def _count_data_providers() -> int:
     """Caching shield data providers - unified_layer.py chains."""
     return 20  # Jupiter, ST, DexScreener, Binance, Helius DAS, GoPlus, RugCheck, etc.
 
-
 def _count_boar_tools() -> int:
     """Boar blockchain MCP - 50 free read-only tools."""
     return 50  # eth_call, get_balance, resolve_ens, etc.
-
 
 def _count_investigative() -> int:
     """Investigative framework endpoints."""
     return 4  # trace, scan, chains, health
 
-
 def _count_fallback_chains() -> int:
     """Fallback engine chains."""
     return 6  # token_price, token_meta, wallet_balance, risk_scan, tx_history, funding_source
-
 
 # Module-level export for x402_catalog.py
 TOOL_COUNTS = count_all_tools()

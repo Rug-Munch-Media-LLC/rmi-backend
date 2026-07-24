@@ -3,6 +3,7 @@ eth-labels DataBus Provider - 115K+ labeled addresses across 15+ EVM chains.
 Queries the SQLite database built from dawsbot/eth-labels.
 """
 
+from __future__ import annotations
 import os
 import sqlite3
 
@@ -20,7 +21,6 @@ if not os.path.exists(DB_PATH):
         if os.path.exists(p):
             DB_PATH = p
             break
-
 
 async def fetch_eth_labels(
     address: str | None = None,

@@ -20,6 +20,7 @@ Per RMIV5 v4.0 §T28 (P1): biggest moat - 5K internal labels → 200K+
 via federation.
 """
 
+from __future__ import annotations
 from app.domains.labels.federated import (
     FederatedLabelAPI,
     get_federated_api,

@@ -1,5 +1,6 @@
 """Public API — detect_insiders, get_insider_score, find_pre_pump_wallets."""
 
+from __future__ import annotations
 import asyncio
 
 from app.core.logging import get_logger
@@ -19,7 +20,6 @@ from .models import InsiderReport
 from .utils import _check_early_buy, _deduplicate_evidence, _generate_insights
 
 logger = get_logger(__name__)
-
 
 async def detect_insiders(
     token_address: str, chain: str = "sol",
@@ -81,7 +81,6 @@ async def detect_insiders(
     )
 
     return report
-
 
 async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
     """Score a wallet on how likely it is to be an insider (0-100)."""
@@ -168,7 +167,6 @@ async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
         "avg_lead_time_minutes": round(total_lead_time / pre_event_count, 1) if pre_event_count else 0,
         "total_frontrun_profit": round(total_profit, 2),
     }
-
 
 async def find_pre_pump_wallets(token_address: str, chain: str = "sol") -> list[dict]:
     """Find wallets that bought this token BEFORE the pump."""

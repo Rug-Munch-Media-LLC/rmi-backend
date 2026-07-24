@@ -24,7 +24,6 @@ from app.domains.billing.x402.shared import (
 
 sub_router = APIRouter(tags=["x402-labels"])
 
-
 @sub_router.post("/address_labels")
 async def address_labels_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Address Labels - multi-source wallet address labeling.

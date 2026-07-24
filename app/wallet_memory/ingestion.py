@@ -19,6 +19,7 @@ Rate limiting:
   Etherscan: 5 req/s (bucket capacity 5, refill 5/s)
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -33,9 +34,7 @@ from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 
 logger = get_logger("wallet_memory.ingestion")
 
-
 # ── Token-bucket rate limiter (uses UnifiedRateLimiter) ──────────────
-
 
 class TokenBucketRateLimiter:
     """Token bucket rate limiter wrapper using UnifiedRateLimiter.
@@ -60,9 +59,7 @@ class TokenBucketRateLimiter:
                 return
             await asyncio.sleep(1.0 / max(self.rate, 0.1))
 
-
 # ── Cooldown tracker ────────────────────────────────────────────────
-
 
 class IngestionCooldown:
     """Per-address cooldown: don't re-fetch within COOLDOWN_SECONDS."""
@@ -95,9 +92,7 @@ class IngestionCooldown:
         age = (datetime.now(UTC) - last_seen_at).total_seconds()
         return age > self.COOLDOWN_SECONDS
 
-
 # ── Normalized transaction format ──────────────────────────────────
-
 
 class NormalizedTransaction:
     """Common transaction representation across Solana and EVM."""
@@ -197,9 +192,7 @@ class NormalizedTransaction:
             "transfer_type": self.transfer_type,
         }
 
-
 # ── Main pipeline class ─────────────────────────────────────────────
-
 
 class WalletIngestionPipeline:
     """
@@ -848,11 +841,9 @@ class WalletIngestionPipeline:
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.close()
 
-
 # ── Global singleton ────────────────────────────────────────────────
 
 _pipeline: WalletIngestionPipeline | None = None
-
 
 def get_ingestion_pipeline(engine=None, storage=None) -> WalletIngestionPipeline:
     """Get global ingestion pipeline instance."""

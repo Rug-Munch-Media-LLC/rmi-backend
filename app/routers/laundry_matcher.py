@@ -21,14 +21,12 @@ router = APIRouter(prefix="/api/v1/laundry-matcher", tags=["laundry-matcher"])
 
 BACKEND = settings.backend_url
 
-
 class LaundryMatch(BaseModel):
     address: str
     chain: str
     similarity_score: float  # 0-1
     match_reasons: list[str]
     risk_inherited: int
-
 
 def _name_similarity(a: str, b: str) -> float:
     """Simple trigram similarity for token names."""
@@ -43,7 +41,6 @@ def _name_similarity(a: str, b: str) -> float:
         return 0.0
     return len(ta & tb) / len(ta | tb)
 
-
 async def _fetch_token_pairs(chain: str, max_pairs: int = 50) -> list[dict]:
     """Fetch recent token pairs from DexScreener for comparison."""
     try:
@@ -55,7 +52,6 @@ async def _fetch_token_pairs(chain: str, max_pairs: int = 50) -> list[dict]:
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning(f"DexScreener pair fetch failed: {e}")
         return []
-
 
 @router.get("/match/{address}")
 async def find_matches(
@@ -130,7 +126,6 @@ async def find_matches(
         "matches": matches[:limit],
         "total_candidates_scanned": len(pairs),
     }
-
 
 @router.get("/scan-similar/{address}")
 async def scan_and_match(address: str, chain: str = Query("solana")) -> dict:

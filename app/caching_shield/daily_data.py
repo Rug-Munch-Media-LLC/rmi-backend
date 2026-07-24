@@ -4,6 +4,7 @@ Enhanced Daily Market Data - Price action, sentiment, security, whales.
 Pulls from ALL our data sources to create comprehensive daily analysis.
 """
 
+from __future__ import annotations
 import asyncio
 import os
 from datetime import UTC, datetime
@@ -13,7 +14,6 @@ import httpx
 from app.core.logging import get_logger
 
 logger = get_logger("market_data")
-
 
 async def get_price_action() -> dict:
     """Get real-time prices and 24h changes for major assets."""
@@ -39,7 +39,6 @@ async def get_price_action() -> dict:
     except Exception as e:
         return {"error": str(e), "major_assets": {}, "trending": []}
 
-
 async def get_fear_greed() -> dict:
     """Get Fear & Greed index from our local MCP."""
     try:
@@ -58,7 +57,6 @@ async def get_fear_greed() -> dict:
     except (ConnectionError, OSError, TimeoutError):
         pass
     return {"value": 50, "classification": "Neutral"}
-
 
 async def get_top_movers() -> dict:
     """Get top gainers and losers from CoinGecko."""
@@ -79,7 +77,6 @@ async def get_top_movers() -> dict:
     except (ConnectionError, OSError, TimeoutError):
         pass
     return {"trending": [], "trending_score": []}
-
 
 async def get_security_alerts() -> dict:
     """Get recent security incidents from our risk scanner + news."""
@@ -121,7 +118,6 @@ async def get_security_alerts() -> dict:
 
     return {"alerts": alerts, "count": len(alerts)}
 
-
 async def get_whale_activity() -> dict:
     """Get whale movement summary."""
     try:
@@ -137,7 +133,6 @@ async def get_whale_activity() -> dict:
     except (AttributeError, ImportError):
         pass
     return {"trending_high_volume": 0}
-
 
 async def get_prediction_markets() -> dict:
     """Get Polymarket odds for crypto-related markets."""
@@ -161,7 +156,6 @@ async def get_prediction_markets() -> dict:
     except (ConnectionError, OSError, TimeoutError):
         pass
     return {"active_markets": 0, "top_markets": []}
-
 
 async def get_daily_rundown_data() -> dict:
     """Get ALL daily data for the AI market rundown."""

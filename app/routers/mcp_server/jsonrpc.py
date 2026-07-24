@@ -1,5 +1,6 @@
 """MCP JSON-RPC endpoint — POST /mcp (Streamable HTTP)."""
 
+from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Request
@@ -17,7 +18,6 @@ from .config import (
 
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_jsonrpc"])
-
 
 @router.post("/mcp")
 async def mcp_jsonrpc(request: Request) -> Any:

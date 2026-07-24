@@ -4,6 +4,7 @@ CryptoRugMunch Bot - Database Layer
 ====================================
 SQLite-based user tracking, subscriptions, scan counts, watchlists.
 """
+from __future__ import annotations
 
 import contextlib
 import os
@@ -13,14 +14,12 @@ from datetime import UTC, datetime, timedelta
 
 DB_PATH = os.getenv("BOT_DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bot_users.db"))
 
-
 def get_db() -> sqlite3.Connection:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
-
 
 def init_db() -> None:
     conn = get_db()
@@ -92,9 +91,7 @@ def init_db() -> None:
     conn.commit()
     conn.close()
 
-
 # ── User Management ──
-
 
 def get_or_create_user(
     user_id: int, username: str | None = None, first_name: str | None = None
@@ -123,7 +120,6 @@ def get_or_create_user(
     conn.close()
     return result
 
-
 def get_user_tier(user_id: int) -> str:
     conn = get_db()
     row = conn.execute(
@@ -142,7 +138,6 @@ def get_user_tier(user_id: int) -> str:
         return "free"
     return row["tier"]
 
-
 def set_user_tier(user_id: int, tier: str, days: int = 30) -> None:
     expires = int(time.time() + timedelta(days=days).total_seconds()) if tier != "free" else 0
     conn = get_db()
@@ -152,16 +147,13 @@ def set_user_tier(user_id: int, tier: str, days: int = 30) -> None:
     conn.commit()
     conn.close()
 
-
 # ── Weekly Usage ──
-
 
 def _current_week_start() -> str:
     """Return Monday of the current UTC week as YYYY-MM-DD."""
     now = datetime.now(UTC)
     monday = now - timedelta(days=now.weekday())
     return monday.strftime("%Y-%m-%d")
-
 
 def get_weekly_usage(user_id: int) -> tuple[int, int]:
     week = _current_week_start()
@@ -172,7 +164,6 @@ def get_weekly_usage(user_id: int) -> tuple[int, int]:
     ).fetchone()
     conn.close()
     return (row["scans"], row["ai_msgs"]) if row else (0, 0)
-
 
 def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> bool:
     """Consume 1 scan or AI msg. Tries weekly allotment first, then bonus balance."""
@@ -252,7 +243,6 @@ def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> b
     conn.close()
     return True
 
-
 def check_rate_limit(user_id: int, action: str = "scan") -> tuple[bool, int, int]:
     """Returns (allowed, current_used, max_allowed).
     'allowed' is True if weekly allotment OR bonus balance has room."""
@@ -283,9 +273,7 @@ def check_rate_limit(user_id: int, action: str = "scan") -> tuple[bool, int, int
     allowed = (current < limit) or (bonus > 0)
     return allowed, current, limit
 
-
 # ── Watchlist ──
-
 
 def add_watchlist(
     user_id: int,
@@ -314,7 +302,6 @@ def add_watchlist(
     conn.close()
     return True
 
-
 def get_watchlist(user_id: int) -> list[dict]:
     conn = get_db()
     rows = conn.execute(
@@ -323,7 +310,6 @@ def get_watchlist(user_id: int) -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
-
 
 def remove_watchlist(user_id: int, token_address: str) -> bool:
     conn = get_db()
@@ -335,7 +321,6 @@ def remove_watchlist(user_id: int, token_address: str) -> bool:
     result = cursor.rowcount > 0
     conn.close()
     return result
-
 
 def get_active_alerts() -> list[dict]:
     """Return all watchlist entries with active price alerts."""
@@ -352,7 +337,6 @@ def get_active_alerts() -> list[dict]:
     conn.close()
     return [dict(r) for r in rows]
 
-
 def mark_alert_triggered(watch_id: int) -> None:
     """Mark an alert as fired by setting triggered_at and deactivating."""
     conn = get_db()
@@ -362,7 +346,6 @@ def mark_alert_triggered(watch_id: int) -> None:
     )
     conn.commit()
     conn.close()
-
 
 def get_watchlist_for_user(user_id: int, include_triggered: bool = False) -> list[dict]:
     """Get user watchlist with alert metadata.
@@ -383,9 +366,7 @@ def get_watchlist_for_user(user_id: int, include_triggered: bool = False) -> lis
     conn.close()
     return [dict(r) for r in rows]
 
-
 # ── Scan History ──
-
 
 def log_scan(
     user_id: int, token_address: str, chain: str, scan_type: str, risk_score: float
@@ -398,7 +379,6 @@ def log_scan(
     conn.commit()
     conn.close()
 
-
 def activate_tier(user_id: int, tier: str, days: int = 30) -> None:
     """Atomically activate a paid tier for N days (sets tier + tier_expires)."""
     expires = int(time.time() + timedelta(days=days).total_seconds())
@@ -410,9 +390,7 @@ def activate_tier(user_id: int, tier: str, days: int = 30) -> None:
     conn.commit()
     conn.close()
 
-
 # ── Stars Balance ──
-
 
 def add_stars(user_id: int, amount: int, action: str, payment_id: str | None = None) -> None:
     conn = get_db()
@@ -425,7 +403,6 @@ def add_stars(user_id: int, amount: int, action: str, payment_id: str | None = N
     )
     conn.commit()
     conn.close()
-
 
 def spend_stars(user_id: int, amount: int, action: str) -> bool:
     conn = get_db()
@@ -443,7 +420,6 @@ def spend_stars(user_id: int, amount: int, action: str) -> bool:
     conn.commit()
     conn.close()
     return True
-
 
 def apply_top_up(
     user_id: int, pack_type: str, amount: int, stars_cost: int, payment_id: str | None = None
@@ -478,9 +454,7 @@ def apply_top_up(
     conn.close()
     return True
 
-
 # ── Stats ──
-
 
 def get_user_stats(user_id: int) -> dict:
     conn = get_db()
@@ -498,7 +472,6 @@ def get_user_stats(user_id: int) -> dict:
         "scans_this_week": scans_used,
         "ai_msgs_this_week": ai_used,
     }
-
 
 # Init on import
 init_db()

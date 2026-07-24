@@ -5,6 +5,7 @@ app/domains/databus/providers/. This shim uses lazy imports to
 avoid circular import with app.databus.core.
 """
 
+from __future__ import annotations
 import importlib
 
 # All names that come from app.databus.provider_core
@@ -52,7 +53,6 @@ _DOMAIN_NAMES = frozenset({"build_provider_chains"})
 
 _all_names = frozenset.union(_CORE_NAMES, _IMPL_NAMES, _SPL_NAMES, _DOMAIN_NAMES)
 
-
 def __getattr__(name):
     if name in _CORE_NAMES:
         mod = importlib.import_module("app.databus.provider_core")
@@ -67,6 +67,5 @@ def __getattr__(name):
         mod = importlib.import_module("app.domains.databus.providers")
         return getattr(mod, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
 
 __all__ = sorted(_all_names)

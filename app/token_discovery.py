@@ -6,6 +6,7 @@ Multi-chain real-time token discovery. Add this route to main.py:
     app.include_router(discover_endpoint)
 """
 
+from __future__ import annotations
 from datetime import UTC, datetime
 
 import httpx
@@ -23,7 +24,6 @@ MONITORED_CHAINS = {
     "polygon": "137",
     "avalanche": "43114",
 }
-
 
 async def fetch_dexscreener_new_pairs(chain: str, limit: int = 20) -> list[dict]:
     """Fetch newest trading pairs from DexScreener."""
@@ -49,7 +49,6 @@ async def fetch_dexscreener_new_pairs(chain: str, limit: int = 20) -> list[dict]
             logger.error(f"DexScreener {chain}: {e}")
             return []
 
-
 async def fetch_gecko_new_pools(network: str, limit: int = 20) -> list[dict]:
     """Fetch newest pools from GeckoTerminal."""
     url = f"https://api.geckoterminal.com/api/v2/networks/{network}/new_pools"
@@ -63,7 +62,6 @@ async def fetch_gecko_new_pools(network: str, limit: int = 20) -> list[dict]:
         except Exception as e:
             logger.warning(f"GeckoTerminal {network}: {e}")
             return []
-
 
 async def scan_token_security(chain_id: str, token_address: str) -> dict | None:
     """GoPlus Security scan."""
@@ -106,7 +104,6 @@ async def scan_token_security(chain_id: str, token_address: str) -> dict | None:
         except Exception as e:
             logger.warning(f"GoPlus {token_address}: {e}")
     return None
-
 
 async def discover_tokens(chains: list[str] | None = None) -> dict:
     """Discover new tokens across chains. Returns {chain: [tokens]}."""

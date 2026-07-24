@@ -1,4 +1,5 @@
 """Coordinated buy and wash trading detection signals."""
+from __future__ import annotations
 from collections import defaultdict
 
 import httpx
@@ -11,7 +12,6 @@ from app.domains.detectors.pump_dump_detector_package.types import (
     ManipulationType,
     WashTradeCluster,
 )
-
 
 async def detect_coordinated_buys(
     client: httpx.AsyncClient, token_address: str, chain: str, depth: int = 100,
@@ -61,7 +61,6 @@ async def detect_coordinated_buys(
             "detail": f"Fresh wallets: 0/{len(wallets)}",
             "evidence": {"wallet_count": len(wallets), "total_usd": total_usd, "window_s": PUMP_DUMP_THRESHOLDS["coordinated_buy_window_s"]}})
     return {"groups": groups, "findings": findings}
-
 
 async def detect_wash_trading(
     client: httpx.AsyncClient, token_address: str, chain: str,

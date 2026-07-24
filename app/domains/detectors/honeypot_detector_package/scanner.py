@@ -3,6 +3,7 @@ Honeypot Detector — Main detection engine
 Analyzes token contracts for honeypot mechanisms, rug-pull patterns, and
 malicious functionality across EVM chains.
 """
+from __future__ import annotations
 import os
 import re
 import time
@@ -25,7 +26,6 @@ from app.domains.detectors.honeypot_detector_package.models import (
 )
 
 logger = get_logger(__name__)
-
 
 class HoneypotDetector:
     """Advanced honeypot and malicious token contract detector."""

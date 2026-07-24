@@ -1,6 +1,6 @@
 """Analysis helper functions for MEV detection."""
 
-
+from __future__ import annotations
 def _check_pool_vulnerability(pool: dict) -> list[str]:
     """Score a DEX pool for MEV vulnerability based on characteristics. Returns vulnerability flags."""
     flags: list[str] = []
@@ -19,7 +19,6 @@ def _check_pool_vulnerability(pool: dict) -> list[str]:
         flags.append("high_fee_sandwich_vuln")
     return flags
 
-
 def _estimate_mev_vulnerability_score(flags: list[str]) -> float:
     """Compute a 0.0-1.0 MEV vulnerability score from flags."""
     score = 0.0
@@ -30,7 +29,6 @@ def _estimate_mev_vulnerability_score(flags: list[str]) -> float:
     for flag in flags:
         score += weights.get(flag, 0.1)
     return min(score, 1.0)
-
 
 def _is_sandwich_pattern(frontrun: dict, victim: dict, backrun: dict) -> float:
     """Heuristic check: are these three transactions a sandwich attack? Returns confidence 0.0-1.0."""

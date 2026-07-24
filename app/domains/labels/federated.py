@@ -22,7 +22,6 @@ from app.domains.labels.models import Label, LabelSource
 
 log = get_logger(__name__)
 
-
 # Default sources to query. Subclasses can override.
 DEFAULT_SOURCES: list[LabelSource] = [
     LabelSource.ETH_LABELS_DB,
@@ -33,7 +32,6 @@ DEFAULT_SOURCES: list[LabelSource] = [
     LabelSource.METASLEUTH,
     LabelSource.MBAL,
 ]
-
 
 class FederatedLabelAPI:
     """Orchestrates wallet label queries across all configured sources.
@@ -305,9 +303,7 @@ class FederatedLabelAPI:
 
         return f"labels:{chain}:{_hash_identifier(address.lower())}"
 
-
 _default_instance: FederatedLabelAPI | None = None
-
 
 def get_federated_api() -> FederatedLabelAPI:
     """Get a process-wide FederatedLabelAPI instance."""

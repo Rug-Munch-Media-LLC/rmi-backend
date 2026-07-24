@@ -5,6 +5,7 @@ Everything else — including all /api/v1/* routes not in the whitelist —
 requires authentication.
 """
 
+from __future__ import annotations
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -54,7 +55,6 @@ PUBLIC_PREFIXES = (
     "/ws/",
 )
 
-
 def is_public_path(path: str, method: str) -> bool:
     """Check if a path is publicly accessible without auth (whitelist).
 
@@ -67,7 +67,6 @@ def is_public_path(path: str, method: str) -> bool:
         return True
 
     return any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
-
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Any:

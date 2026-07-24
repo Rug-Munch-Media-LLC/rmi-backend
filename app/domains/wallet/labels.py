@@ -4,6 +4,7 @@ Wallet Labels — label/tag management and legacy wallet importing.
 Extracted from manager.py during god-file split (2026-07-23).
 """
 
+from __future__ import annotations
 import json
 import os
 import secrets
@@ -18,7 +19,6 @@ from app.domains.wallet.models import (
 )
 
 logger = get_logger("wallet_labels")
-
 
 def import_legacy_wallets(manager: object) -> int:
     """Import wallets from legacy v1 JSON files into v2 vault."""
@@ -85,6 +85,5 @@ def import_legacy_wallets(manager: object) -> int:
         logger.info(f"Imported {imported} legacy wallets")
 
     return imported
-
 
 __all__ = ["import_legacy_wallets"]

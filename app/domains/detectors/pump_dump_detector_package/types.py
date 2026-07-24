@@ -28,7 +28,6 @@ PUMP_DUMP_THRESHOLDS = {
 
 SOCIAL_SPIKE_WINDOW_MINUTES = 30
 
-
 # ── Enums ────────────────────────────────────────────────────────────
 
 class ManipulationType(StrEnum):
@@ -41,14 +40,12 @@ class ManipulationType(StrEnum):
     SOCIAL_COORDINATION = "social_coordination"
     POST_PUMP_DISTRIBUTION = "post_pump_distribution"
 
-
 class FindingSeverity(StrEnum):
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
     INFO = "info"
-
 
 # ── Dataclasses ──────────────────────────────────────────────────────
 
@@ -66,7 +63,6 @@ class CoordinatedBuyGroup:
     def to_dict(self) -> dict:
         return asdict(self)
 
-
 @dataclass
 class VolumeAnomaly:
     """Unusual volume pattern indicating artificial activity."""
@@ -79,7 +75,6 @@ class VolumeAnomaly:
     def to_dict(self) -> dict:
         return asdict(self)
 
-
 @dataclass
 class WashTradeCluster:
     """A group of wallets engaging in circular wash trading."""
@@ -91,7 +86,6 @@ class WashTradeCluster:
 
     def to_dict(self) -> dict:
         return asdict(self)
-
 
 @dataclass
 class PricePumpSignal:
@@ -106,7 +100,6 @@ class PricePumpSignal:
     def to_dict(self) -> dict:
         return asdict(self)
 
-
 @dataclass
 class PrePumpAccumulation:
     """Wallets accumulating before a coordinated pump."""
@@ -118,7 +111,6 @@ class PrePumpAccumulation:
 
     def to_dict(self) -> dict:
         return asdict(self)
-
 
 @dataclass
 class ManipulationFinding:
@@ -137,7 +129,6 @@ class ManipulationFinding:
             "detail": self.detail,
             "evidence": self.evidence,
         }
-
 
 @dataclass
 class PumpDumpAnalysisResult:

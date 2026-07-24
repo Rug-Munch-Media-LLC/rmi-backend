@@ -9,6 +9,7 @@ Uses direct API calls: DexScreener (trades/pairs), Birdeye (trades),
 Solscan/Etherscan (account history), Helius (parsed transactions).
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -22,9 +23,7 @@ from app.domains.scanners.rag_citations import build_citation_string, query_rag_
 
 logger = get_logger("flash_loan_detector")
 
-
 # ── Dataclasses ──────────────────────────────────────────────────────
-
 
 @dataclass
 class FlashLoanFlag:
@@ -41,7 +40,6 @@ class FlashLoanFlag:
     wallet_had_no_prior_balance: bool
     block_timestamp: int | None = None
 
-
 @dataclass
 class FlashLoanReport:
     token_address: str
@@ -55,9 +53,7 @@ class FlashLoanReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
-
 # ── Detector Class ──────────────────────────────────────────────────
-
 
 class FlashLoanDetector:
     """Detects flash-loan sandwich / manipulation patterns.

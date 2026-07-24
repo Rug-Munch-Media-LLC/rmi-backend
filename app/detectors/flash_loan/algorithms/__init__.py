@@ -8,6 +8,7 @@ This module provides the stateless detection logic consumed by the
 FlashLoanAttackDetector class in the parent package.
 """
 
+from __future__ import annotations
 from typing import Any
 
 from app.detectors.flash_loan.models import (
@@ -138,11 +139,9 @@ _SUSPICIOUS_PATTERNS: list[dict[str, Any]] = [
     {"type": "nested_flashloan", "description": "Flash loan within a flash loan"},
 ]
 
-
 # ═══════════════════════════════════════════════════════════════════
 # Detection Functions
 # ═══════════════════════════════════════════════════════════════════
-
 
 def _detect_attack_type(
     flash_loans: list[FlashLoanCall],
@@ -213,7 +212,6 @@ def _detect_attack_type(
 
     return best_type, best_score
 
-
 def _calculate_severity(
     attacker_profit: float,
     victim_loss: float,
@@ -240,7 +238,6 @@ def _calculate_severity(
     elif total_impact > 0:
         return AttackSeverity.LOW
     return AttackSeverity.INFO
-
 
 def _score_sophistication(
     flash_loans: list[FlashLoanCall],
@@ -279,13 +276,11 @@ def _score_sophistication(
 
     return min(10.0, score)
 
-
 def _is_known_flashloan_provider(address: str, chain: str) -> bool:
     """Check if an address is a known flash loan provider on the given chain."""
     address_lower = address.lower()
     providers = FLASHLOAN_PROVIDERS.get(chain, [])
     return any(p.lower() == address_lower for p in providers)
-
 
 def _resolve_shared_aave_sig(
     provider_address: str,
@@ -323,7 +318,6 @@ def _resolve_shared_aave_sig(
 
     # Unknown provider with shared sig - return UNKNOWN
     return FlashLoanProtocol.UNKNOWN
-
 
 def _estimate_token_price_usd(
     token_address: str,

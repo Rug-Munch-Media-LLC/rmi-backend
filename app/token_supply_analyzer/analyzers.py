@@ -4,6 +4,7 @@ Token Supply Analyzer — Analysis functions for supply, concentration, liquidit
 Each function mutates the TokenSupplyProfile in-place with scores, patterns, and recommendations.
 """
 
+from __future__ import annotations
 from app.token_supply_analyzer.models import (
     SupplyRisk,
     LockStatus,
@@ -12,7 +13,6 @@ from app.token_supply_analyzer.models import (
     SUPPLY_RISK_RATIO,
     _classify_risk,
 )
-
 
 def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
     """Analyze token supply data for dilution risk and manipulation patterns."""
@@ -100,7 +100,6 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
     profile.supply_risk_score = max(0.0, min(100.0, score))
     profile.supply_risk = _classify_risk(profile.supply_risk_score)
 
-
 def _analyze_concentration(profile: TokenSupplyProfile) -> None:
     """Analyze holder concentration for whale dominance and insider risk."""
     score = 0.0
@@ -177,7 +176,6 @@ def _analyze_concentration(profile: TokenSupplyProfile) -> None:
     profile.concentration_score = max(0.0, min(100.0, score))
     profile.concentration_risk = _classify_risk(profile.concentration_score)
 
-
 def _analyze_liquidity(profile: TokenSupplyProfile) -> None:
     """Analyze liquidity pool health and lock status."""
     score = 0.0
@@ -240,7 +238,6 @@ def _analyze_liquidity(profile: TokenSupplyProfile) -> None:
     profile.liquidity_score = max(0.0, min(100.0, score))
     profile.liquidity_risk = _classify_risk(profile.liquidity_score)
 
-
 def _compute_overall_risk(profile: TokenSupplyProfile) -> None:
     """Compute overall risk score from all sub-scores."""
     weights = {"supply": 0.35, "concentration": 0.30, "liquidity": 0.20, "tax": 0.10, "ownership": 0.05}
@@ -284,7 +281,6 @@ def _compute_overall_risk(profile: TokenSupplyProfile) -> None:
         + ownership_score * weights["ownership"]
     )
     profile.overall_risk = _classify_risk(profile.overall_risk_score)
-
 
 __all__ = [
     "_analyze_supply_mechanics",

@@ -47,7 +47,6 @@ _discovery_cache: dict[str, Any] | None = None
 _discovery_cache_time: float = 0
 DISCOVERY_CACHE_TTL = 300
 
-
 def _build_discovery_response() -> dict[str, Any]:
     """Build the full discovery response with all 13 chains and active facilitators."""
     _ensure_tool_prices()
@@ -198,7 +197,6 @@ def _build_discovery_response() -> dict[str, Any]:
         "tools": tools,
     }
 
-
 @discovery_router.get("/.well-known/x402")
 async def x402_discovery() -> dict[str, Any]:
     """x402 discovery endpoint - lists all tools, chains, payment requirements, and trial info."""
@@ -211,7 +209,6 @@ async def x402_discovery() -> dict[str, Any]:
     _discovery_cache = _build_discovery_response()
     _discovery_cache_time = now
     return _discovery_cache
-
 
 @discovery_router.get("/api/v1/x402/trial-status")
 async def get_trial_status(request: Request) -> dict[str, Any]:
@@ -240,7 +237,6 @@ async def get_trial_status(request: Request) -> dict[str, Any]:
         "trials": trials,
         "tools_with_trials": len(trials),
     }
-
 
 @discovery_router.get("/api/v1/x402/revenue", response_model=None)
 async def get_revenue(request: Any = None) -> JSONResponse:
@@ -317,7 +313,6 @@ async def get_revenue(request: Any = None) -> JSONResponse:
             content={"error": f"Failed to read revenue: {str(e)[:100]}"},
             headers=SECURITY_HEADERS,
         )
-
 
 @discovery_router.get("/api/v1/x402/analytics/pricing-suggestions")
 async def get_pricing_suggestions() -> JSONResponse:
@@ -403,7 +398,6 @@ async def get_pricing_suggestions() -> JSONResponse:
             headers=SECURITY_HEADERS,
         )
 
-
 def _verify_refund_ownership(refund_payer: str, tx_hash: str) -> bool:
     """Verify the requester controls the payer address by checking on-chain."""
     r = get_redis()
@@ -420,7 +414,6 @@ def _verify_refund_ownership(refund_payer: str, tx_hash: str) -> bool:
         return bool(refund_payer and recorded_payer and refund_payer.lower() == recorded_payer)
     except (json.JSONDecodeError, TypeError, AttributeError):
         return False
-
 
 @router.post("/refund")
 async def request_refund(request: Request) -> JSONResponse:

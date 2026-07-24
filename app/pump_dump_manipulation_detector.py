@@ -14,6 +14,7 @@ CLI:
     python3 -m app.pump_dump_manipulation_detector 0x... --chain solana --alert
 """
 
+from __future__ import annotations
 import sys as _sys
 from app.domains.detectors.pump_dump_manipulation_detector import *  # noqa: F401, F403
 

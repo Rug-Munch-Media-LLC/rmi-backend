@@ -12,7 +12,6 @@ from app.core.logging import get_logger
 
 logger = get_logger("rmi_admin_backend")
 
-
 class AdminRole(StrEnum):
     """Admin role hierarchy. Higher = more permissions."""
 
@@ -21,7 +20,6 @@ class AdminRole(StrEnum):
     MODERATOR = "moderator"
     VIEWER = "viewer"
     SUPPORT = "support"
-
 
 # Permission matrix: role -> set of allowed permissions
 PERMISSIONS = {
@@ -48,14 +46,12 @@ PERMISSIONS = {
     },
 }
 
-
 def has_permission(role: AdminRole, permission: str) -> bool:
     """Check if a role has a specific permission."""
     if role == AdminRole.SUPERADMIN:
         return True
     perms = PERMISSIONS.get(role, set())
     return permission in perms or "*" in perms
-
 
 @dataclass
 class AuditLogEntry:

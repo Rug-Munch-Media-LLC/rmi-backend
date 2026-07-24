@@ -17,7 +17,6 @@ from __future__ import annotations
 from app.core import health as health_mod
 from app.core.health import DomainHealth
 
-
 async def _health_check() -> DomainHealth:
     """RAG health: v3 engine present + Redis reachable."""
     try:
@@ -36,9 +35,7 @@ async def _health_check() -> DomainHealth:
     except Exception as e:  # noqa: BLE001
         return DomainHealth(name="rag", healthy=False, error=str(e))
 
-
 health_mod.register_health_check("rag", _health_check)
-
 
 # Public API
 from app.rag.models import (  # noqa: E402

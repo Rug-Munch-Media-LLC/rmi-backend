@@ -28,7 +28,6 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
-
 # ── Public constants ────────────────────────────────────────────────
 VERSION: Final = "2026.06.21"
 TITLE: Final = "RMI Backend"
@@ -36,7 +35,6 @@ DESCRIPTION: Final = (
     "Rug Munch Intelligence - institutional-grade crypto intelligence API. "
     "13+ chains, 96 data providers, 8 MCP tools, x402 paid tier, sovereign-first FOSS."
 )
-
 
 def create_app() -> FastAPI:
     """Build the FastAPI app. Single source of truth for composition.

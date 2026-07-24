@@ -3,6 +3,7 @@ Market Intelligence - Token & Market Data Routes
 Token launches, trending, whales, predictions, insiders, dex flows, liquidations, funding, options, airdrops, runners.
 """
 
+from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Query, Request
@@ -11,7 +12,6 @@ from app.routers.market_intel.providers import _cg, _ds, _polymarket, _binance_f
 from app.routers.market_intel.utils import _now, _safe_float
 
 router = APIRouter(tags=["market-intel"])
-
 
 @router.get("/launches")
 async def get_market_launches(
@@ -85,7 +85,6 @@ async def get_market_launches(
 
     return {"items": items, "total": len(items), "updated_at": now}
 
-
 @router.get("/trending")
 async def get_market_trending(
     request: Request,
@@ -112,7 +111,6 @@ async def get_market_trending(
                 "image": coin.get("thumb", ""),
             })
     return {"items": items, "total": len(items), "updated_at": now}
-
 
 @router.get("/whales")
 async def get_market_whales(
@@ -165,7 +163,6 @@ async def get_market_whales(
     items = items[:limit]
     return {"items": items, "total": len(items), "updated_at": now}
 
-
 @router.get("/predictions")
 async def get_market_predictions(
     request: Request,
@@ -202,7 +199,6 @@ async def get_market_predictions(
             })
 
     return {"items": items, "total": len(items), "updated_at": now}
-
 
 @router.get("/insiders")
 async def get_market_insiders(
@@ -262,7 +258,6 @@ async def get_market_insiders(
     items = items[:limit]
     return {"items": items, "total": len(items), "updated_at": now}
 
-
 @router.get("/dex-flows")
 async def get_market_dex_flows(
     request: Request,
@@ -290,7 +285,6 @@ async def get_market_dex_flows(
             })
 
     return {"items": items, "total": len(items), "updated_at": now}
-
 
 @router.get("/liquidations")
 async def get_market_liquidations(
@@ -321,7 +315,6 @@ async def get_market_liquidations(
     items = items[:10]
     return {"items": items, "total": len(items), "updated_at": now}
 
-
 @router.get("/funding")
 async def get_market_funding(
     request: Request,
@@ -344,7 +337,6 @@ async def get_market_funding(
             })
 
     return {"items": items, "total": len(items), "updated_at": now}
-
 
 @router.get("/options")
 async def get_market_options(
@@ -378,7 +370,6 @@ async def get_market_options(
             })
 
     return {"items": items, "total": len(items), "updated_at": now}
-
 
 @router.get("/airdrops")
 async def get_market_airdrops(
@@ -456,7 +447,6 @@ async def get_market_airdrops(
         },
     ]
     return {"items": items, "total": len(items), "updated_at": now}
-
 
 @router.get("/runners")
 async def get_market_runners(

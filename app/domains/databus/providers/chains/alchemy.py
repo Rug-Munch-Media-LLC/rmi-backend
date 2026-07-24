@@ -2,13 +2,12 @@
 Alchemy providers — token balances and metadata (freemium, 300M compute/mo).
 """
 
-
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.alchemy")
-
 
 async def _alchemy_token_balances(
     address: str = "", network: str = "eth-mainnet", **kw
@@ -32,7 +31,6 @@ async def _alchemy_token_balances(
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _alchemy_token_metadata(
     address: str = "", network: str = "eth-mainnet", **kw

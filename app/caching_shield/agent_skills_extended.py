@@ -2,6 +2,7 @@
 RMI Agent Skills - Extended Pack. More workflows for more agent types.
 """
 
+from __future__ import annotations
 AGENT_SKILLS_EXTENDED = {
     "mev_avoidance": {
         "name": "MEV/Sandwich Attack Avoidance",
@@ -377,7 +378,6 @@ AGENT_SKILLS_EXTENDED = {
 from app.caching_shield.agent_skills import AGENT_SKILLS, get_agent_skills  # noqa: E402
 
 ALL_AGENT_SKILLS = {**AGENT_SKILLS, **AGENT_SKILLS_EXTENDED}
-
 
 def get_all_agent_skills() -> dict:
     base = get_agent_skills()

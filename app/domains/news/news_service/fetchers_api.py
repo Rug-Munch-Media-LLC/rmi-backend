@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-
 async def fetch_coingecko(svc: NewsService, limit: int = 15) -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -51,7 +50,6 @@ async def fetch_coingecko(svc: NewsService, limit: int = 15) -> list[dict[str, A
         logger.debug("fetch_coingecko_error", exc_info=True)
         logger.debug(f"CoinGecko failed: {e}")
         return []
-
 
 async def fetch_cryptopanic(svc: NewsService, limit: int = 15) -> list[dict[str, Any]]:
     try:
@@ -92,7 +90,6 @@ async def fetch_cryptopanic(svc: NewsService, limit: int = 15) -> list[dict[str,
         logger.debug(f"CryptoPanic failed: {e}")
         return []
 
-
 async def fetch_rmi_scanner(svc: NewsService) -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -129,7 +126,6 @@ async def fetch_rmi_scanner(svc: NewsService) -> list[dict[str, Any]]:
         logger.warning(f"RMI Scanner fetch failed: {e}")
         return []
 
-
 async def fetch_rmi_alerts(svc: NewsService) -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -154,7 +150,6 @@ async def fetch_rmi_alerts(svc: NewsService) -> list[dict[str, Any]]:
         logger.debug("fetch_rmi_alerts_error", exc_info=True)
         logger.debug(f"RMI Alerts failed: {e}")
         return []
-
 
 async def fetch_ghost(svc: NewsService, limit: int = 5) -> list[dict[str, Any]]:
     if not GHOST_CONTENT_KEY: return []

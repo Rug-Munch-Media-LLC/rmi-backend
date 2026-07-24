@@ -25,7 +25,6 @@ from app.domains.analysis.liquidation.models import (
 
 logger = get_logger(__name__)
 
-
 class LiquidationCascadeAnalyzer:
     """Main analyzer class for liquidation cascade risk."""
 

@@ -5,6 +5,7 @@ RPC communication, transaction fetching, block scanning, and response
 parsing. Provides the data acquisition layer for the detector.
 """
 
+from __future__ import annotations
 import json as json_module
 import logging
 import os
@@ -15,7 +16,6 @@ from app.core.logging import get_logger
 from app.detectors.flash_loan.models import TransactionTrace
 
 logger = get_logger(__name__)
-
 
 class BlockchainDataLayer:
     """Handles all blockchain RPC communication for the detector.

@@ -10,6 +10,7 @@ Usage:
     from app.portfolio_risk_aggregator import PortfolioRiskAggregator
 """
 
+from __future__ import annotations
 import sys as _sys
 from app.domains.portfolio.portfolio_risk_aggregator import *  # noqa: F401, F403
 

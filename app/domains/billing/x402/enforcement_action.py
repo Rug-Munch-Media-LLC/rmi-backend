@@ -39,7 +39,6 @@ SECURITY_HEADERS: dict[str, str] = {
     "Cache-Control": "no-store",
 }
 
-
 def _build_accepts_list(tool_id: str, pricing: dict[str, Any]) -> list[dict[str, Any]]:
     """Build x402 v2 spec 'accepts' array from TOOL_PRICES and CHAIN_USDC."""
     _ensure_pay_addresses()
@@ -105,7 +104,6 @@ def _build_accepts_list(tool_id: str, pricing: dict[str, Any]) -> list[dict[str,
         accepts.append(requirement)
 
     return accepts
-
 
 def _build_bazaar_extension(
     tool_id: str, pricing: dict[str, Any], accepts: list[dict[str, Any]]
@@ -209,7 +207,6 @@ def _build_bazaar_extension(
 
     return {"info": info, "schema": schema}
 
-
 def _build_resource_info(tool_id: str, pricing: dict[str, Any]) -> dict[str, Any]:
     """Build x402 v2 ResourceInfo object for PaymentRequired response."""
     description = pricing.get("description", f"Rug Munch Intelligence - {tool_id}")
@@ -221,7 +218,6 @@ def _build_resource_info(tool_id: str, pricing: dict[str, Any]) -> dict[str, Any
         "description": description,
         "mimeType": "application/json",
     }
-
 
 def build_402_response(tool_id: str, client_id: str = "") -> JSONResponse:
     """Build an x402 v2 compliant Payment Required response."""
@@ -292,7 +288,6 @@ def build_402_response(tool_id: str, client_id: str = "") -> JSONResponse:
         },
     )
 
-
 def build_scanner_response() -> JSONResponse:
     """403 for known scanner/bot user agents."""
     return JSONResponse(
@@ -303,7 +298,6 @@ def build_scanner_response() -> JSONResponse:
         },
         headers=SECURITY_HEADERS,
     )
-
 
 def build_burst_response(retry_after: int = 60) -> JSONResponse:
     """429 for burst rate limit exceeded."""
@@ -317,7 +311,6 @@ def build_burst_response(retry_after: int = 60) -> JSONResponse:
         headers={**SECURITY_HEADERS, "Retry-After": str(retry_after)},
     )
 
-
 def build_invalid_tool_response() -> JSONResponse:
     """400 for invalid tool identifiers."""
     return JSONResponse(
@@ -326,7 +319,6 @@ def build_invalid_tool_response() -> JSONResponse:
         headers=SECURITY_HEADERS,
     )
 
-
 def build_oversized_header_response() -> JSONResponse:
     """400 for oversized payment headers."""
     return JSONResponse(
@@ -334,7 +326,6 @@ def build_oversized_header_response() -> JSONResponse:
         content={"error": "Payment header too large"},
         headers=SECURITY_HEADERS,
     )
-
 
 def _record_refundable_payment(
     tx_hash: str, chain: str, payer: str, amount: str, tool: str, reason: str

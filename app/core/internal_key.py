@@ -2,12 +2,12 @@
 Read from RMI_INTERNAL_KEY env var. No default — must be set in production.
 """
 
+from __future__ import annotations
 import os
 
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
-
 
 def get_internal_key() -> str:
     """Retrieve the internal API key from the environment.
@@ -25,7 +25,6 @@ def get_internal_key() -> str:
         )
     return key
 
-
 def get_internal_key_or_none() -> str | None:
     """Like get_internal_key() but returns None instead of raising.
     Use for routers that can degrade gracefully without the key.
@@ -35,7 +34,6 @@ def get_internal_key_or_none() -> str | None:
     except RuntimeError:
         log.warning("RMI_INTERNAL_KEY not set — internal auth will be unavailable")
         return None
-
 
 # Module-level singleton — returns a dev-safe default, logs warning if unset,
 # so routers that import this at module level don't blow up in dev environments.

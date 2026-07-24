@@ -12,6 +12,7 @@ Uses direct API calls: DexScreener (pool data), Etherscan (contract reads),
 Birdeye (price data), Chainlink feed registry.
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -24,7 +25,6 @@ from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("oracle_manipulation")
-
 
 # ── Constants ───────────────────────────────────────────────────────
 
@@ -50,9 +50,7 @@ ORACLE_ABI_SELECTORS = {
     "peek": "0x4e4c9c1c",  # MakerDAO style
 }
 
-
 # ── Dataclasses ──────────────────────────────────────────────────────
-
 
 @dataclass
 class OracleInfo:
@@ -64,7 +62,6 @@ class OracleInfo:
     feed_decimals: int = 8
     last_price: float = 0.0
     is_working: bool = True
-
 
 @dataclass
 class OracleManipulationReport:
@@ -83,9 +80,7 @@ class OracleManipulationReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
-
 # ── Detector Class ──────────────────────────────────────────────────
-
 
 class OracleManipulationDetector:
     """Detects oracle manipulation risks for a token.

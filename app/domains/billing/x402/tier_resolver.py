@@ -16,7 +16,6 @@ from app.core.redis import get_redis
 
 logger = get_logger("x402_enforcement")
 
-
 def check_trial(tool_id: str, client_id: str, max_trials: int = 3) -> tuple[bool, int]:
     """Check if a client has remaining trial calls for a tool.
 
@@ -41,7 +40,6 @@ def check_trial(tool_id: str, client_id: str, max_trials: int = 3) -> tuple[bool
         logger.error(f"Trial check failed: {e}")
         return True, max_trials
 
-
 def consume_trial(tool_id: str, client_id: str, max_trials: int = 3) -> bool:
     """Record a trial usage. Increments counter, sets TTL on first use."""
     try:
@@ -60,7 +58,6 @@ def consume_trial(tool_id: str, client_id: str, max_trials: int = 3) -> bool:
         logger.error(f"Trial consume failed: {e}")
         return False
 
-
 async def check_developer_key(request: Any) -> dict[str, Any] | None:
     """Validate a developer API key attached to the request.
 
@@ -77,7 +74,6 @@ async def check_developer_key(request: Any) -> dict[str, Any] | None:
         logger.debug("check_developer_key_error", exc_info=True)
         logger.warning(f"Developer key check failed: {e}")
         return None
-
 
 def check_burst_limit(client_id: str, tool_id: str) -> dict[str, Any] | None:
     """Enforce burst rate limiting (max N requests per tool per client per window).

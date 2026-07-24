@@ -4,6 +4,7 @@ Wallet Factory - Core Factory Class
 WalletFactory class with generate, batch, rotation, storage, and singleton.
 """
 
+from __future__ import annotations
 import json
 import os
 import time
@@ -18,7 +19,6 @@ from app.wallets.generation import GENERATORS
 from app.wallets.models import WalletResult
 
 logger = get_logger("wallet_factory")
-
 
 class WalletFactory:
     """
@@ -152,11 +152,9 @@ class WalletFactory:
             },
         }
 
-
 # ── Singleton ───────────────────────────────────────────────────
 
 _factory: WalletFactory | None = None
-
 
 def get_wallet_factory(encrypt: bool = True) -> WalletFactory:
     global _factory

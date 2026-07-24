@@ -43,7 +43,6 @@ from app.rag.engine import (
 
 log = get_logger(__name__)
 
-
 # ── Connection config (from env, with sensible defaults to netcup IPs) ──
 # These defaults point to the actual IPs on netcup rmi_network.
 # Override via env vars in docker-compose.yml for portability.
@@ -79,7 +78,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
 }
 
-
 class StoreHealth:
     """Tracks which stores are reachable. Updated on each probe."""
 
@@ -90,7 +88,6 @@ class StoreHealth:
         self.qdrant: bool = False
         self.minio: bool = False
         self.last_checked: float = 0.0
-
 
 class CatalogService:
     """Unified read/write API for RMI data.
@@ -591,10 +588,8 @@ class CatalogService:
                 out["qdrant_error"] = str(e)
         return out
 
-
 # ── Singleton accessor ──────────────────────────────────────────────
 _catalog: CatalogService | None = None
-
 
 def get_catalog() -> CatalogService:
     """Get the global CatalogService. Lazy-init on first call."""

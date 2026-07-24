@@ -18,7 +18,6 @@ log = get_logger(__name__)
 
 HASH_KEY = "rmi:alerts"
 
-
 class AlertRepository:
     """Async Redis-backed subscription storage."""
 

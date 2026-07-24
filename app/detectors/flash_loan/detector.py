@@ -6,6 +6,7 @@ combining blockchain data fetching, signature matching, heuristic
 classification, and alert generation.
 """
 
+from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
@@ -32,7 +33,6 @@ from app.detectors.flash_loan.models import (
 )
 
 logger = get_logger(__name__)
-
 
 class FlashLoanAttackDetector:
     """Real-time flash loan attack detection and analysis engine.

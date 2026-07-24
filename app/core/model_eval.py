@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """#8 - Model Evaluation Harness. Benchmarks models on Real-CATS scam data.
 Runs lm-eval locally or via Ollama. Picks the best model per task."""
+from __future__ import annotations
 
 import asyncio
 import json
@@ -44,7 +45,6 @@ BENCHMARK_TASKS = {
         "metric": "accuracy",
     },
 }
-
 
 async def evaluate_model(model: str, task_name: str) -> dict[str, Any]:
     """Evaluate a model on a benchmark task."""
@@ -102,7 +102,6 @@ async def evaluate_model(model: str, task_name: str) -> dict[str, Any]:
         "results": results,
     }
 
-
 async def compare_models(models: list[str], task: str = "scam_detection") -> dict:
     """Compare multiple models on a benchmark task."""
     scores = []
@@ -120,7 +119,6 @@ async def compare_models(models: list[str], task: str = "scam_detection") -> dic
         ],
         "best_model": scores[0]["model"] if scores else None,
     }
-
 
 if __name__ == "__main__":
 

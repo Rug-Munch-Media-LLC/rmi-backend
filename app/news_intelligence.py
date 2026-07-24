@@ -5,6 +5,7 @@ RMI News Intelligence v3 - Industry Best
 AI-powered news pipeline: categorization, sentiment, trending, briefing.
 Uses MiniMax ($20/mo flat) + Ollama Cloud.
 """
+from __future__ import annotations
 
 import json
 import os
@@ -21,7 +22,6 @@ OLLAMA_URL = "https://ollama.com/v1/chat/completions"
 # Simple in-memory trending tracker
 _trending_topics = Counter()
 _breaking_alerts = []
-
 
 def analyze_article(title: str, content: str = "") -> dict:
     """Full AI analysis of a news article."""
@@ -104,16 +104,13 @@ def analyze_article(title: str, content: str = "") -> dict:
         "analyzed_at": datetime.now(UTC).isoformat(),
     }
 
-
 def get_trending(limit: int = 10) -> list:
     """Get trending topics from recent article analysis."""
     return [{"topic": word, "count": count} for word, count in _trending_topics.most_common(limit)]
 
-
 def get_breaking() -> list:
     """Get breaking news alerts."""
     return _breaking_alerts[-10:]
-
 
 def daily_briefing() -> str:
     """Generate an AI-powered daily news briefing using Ollama Cloud."""
@@ -146,7 +143,6 @@ def daily_briefing() -> str:
         return json.loads(resp.read())["choices"][0]["message"]["content"].strip()
     except (json.JSONDecodeError):
         return f"Daily briefing: {topics} are trending in crypto news today."
-
 
 def news_search(query: str, articles: list, limit: int = 10) -> list:
     """Smart search across articles with relevance ranking."""

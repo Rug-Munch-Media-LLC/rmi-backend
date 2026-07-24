@@ -29,6 +29,7 @@ Data Sources (all free):
   - GoPlus (free) - token security info (if available)
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import logging
@@ -57,7 +58,6 @@ FREE_APIS = {
     "goplus": "https://api.gopluslabs.io/api/v1",
 }
 
-
 # Default risk thresholds
 DEFAULT_WEIGHTS = {
     "liquidity": 0.25,
@@ -68,9 +68,7 @@ DEFAULT_WEIGHTS = {
     "social_signals": 0.10,
 }
 
-
 # ── Data Models ──────────────────────────────────────────────────
-
 
 class RiskLevel(Enum):
     SAFE = "safe"
@@ -78,7 +76,6 @@ class RiskLevel(Enum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
-
 
 @dataclass
 class SignalResult:
@@ -105,7 +102,6 @@ class SignalResult:
         elif self.score < 80:
             return RiskLevel.HIGH
         return RiskLevel.CRITICAL
-
 
 @dataclass
 class RugPullAnalysis:
@@ -145,11 +141,7 @@ class RugPullAnalysis:
             "analyzed_at": self.analysis_timestamp,
         }
 
-
 # ── Helpers ──────────────────────────────────────────────────────
-
-
-
 
 def _level_from_score(score: float) -> RiskLevel:
     if score < 20:
@@ -162,9 +154,7 @@ def _level_from_score(score: float) -> RiskLevel:
         return RiskLevel.HIGH
     return RiskLevel.CRITICAL
 
-
 # ── Signal Analyzers ────────────────────────────────────────────
-
 
 async def _analyze_liquidity(
     client: httpx.AsyncClient, token_address: str, chain: str
@@ -228,7 +218,6 @@ async def _analyze_liquidity(
 
     signal.score = min(signal.score, 100)
     return signal
-
 
 async def _analyze_holder_concentration(
     client: httpx.AsyncClient, token_address: str, chain: str
@@ -295,7 +284,6 @@ async def _analyze_holder_concentration(
     signal.score = min(signal.score, 100)
     return signal
 
-
 async def _analyze_deployer(
     client: httpx.AsyncClient, deployer: str | None, chain: str
 ) -> SignalResult:
@@ -350,7 +338,6 @@ async def _analyze_deployer(
 
     signal.score = min(signal.score, 100)
     return signal
-
 
 async def _analyze_launch_pattern(
     client: httpx.AsyncClient, token_address: str, chain: str
@@ -419,7 +406,6 @@ async def _analyze_launch_pattern(
     signal.score = min(signal.score, 100)
     return signal
 
-
 async def _analyze_trading_behavior(
     client: httpx.AsyncClient, token_address: str, chain: str
 ) -> SignalResult:
@@ -473,7 +459,6 @@ async def _analyze_trading_behavior(
     signal.score = min(signal.score, 100)
     return signal
 
-
 async def _analyze_social_signals(token_address: str, chain: str) -> SignalResult:
     """Analyze social signals (placeholder - relies on chain metadata)."""
     signal = SignalResult(
@@ -487,9 +472,7 @@ async def _analyze_social_signals(token_address: str, chain: str) -> SignalResul
     signal.score = 30
     return signal
 
-
 # ── Main Analysis ───────────────────────────────────────────────
-
 
 async def predict_rug_pull(
     token_address: str,
@@ -619,9 +602,7 @@ async def predict_rug_pull(
         analysis_timestamp=datetime.now(UTC).isoformat(),
     )
 
-
 # ── Synchronous Wrapper ─────────────────────────────────────────
-
 
 def analyze(token_address: str, chain: str = "solana", **kwargs: Any) -> dict[str, Any]:
     """
@@ -637,7 +618,6 @@ def analyze(token_address: str, chain: str = "solana", **kwargs: Any) -> dict[st
     """
     result = asyncio.run(predict_rug_pull(token_address, chain, **kwargs))
     return result.to_dict()
-
 
 # ── CLI Entry Point ─────────────────────────────────────────────
 

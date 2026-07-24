@@ -16,6 +16,7 @@ Bytecode is cleaned before hashing:
 Database:  scam_bytecode_db.json  (auto-created, maintained in this directory)
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import os
@@ -64,9 +65,7 @@ SOLANA_RPC = "https://api.mainnet-beta.solana.com"
 # Known CBOR / Solidity metadata markers to strip (near end of bytecode)
 METADATA_MARKERS = ["a1", "a2", "65766d", "627a6574"]
 
-
 # ── Standalone Helpers ──────────────────────────────────────────────
-
 
 def hash_bytecode(hex_str: str) -> str:
     """Standalone SHA-256 hash of cleaned bytecode.
@@ -103,9 +102,7 @@ def hash_bytecode(hex_str: str) -> str:
 
     return hashlib.sha256(clean.encode()).hexdigest()
 
-
 # ── Report Dataclass ─────────────────────────────────────────────────
-
 
 @dataclass
 class BytecodeSimilarityReport:
@@ -119,9 +116,7 @@ class BytecodeSimilarityReport:
     risk_label: str = "LOW"  # LOW / MEDIUM / HIGH / CRITICAL
     warnings: list[str] = field(default_factory=list)
 
-
 # ── Analyzer ─────────────────────────────────────────────────────────
-
 
 class BytecodeSimilarityAnalyzer:
     """Compare token bytecode against a local database of known scam contracts.

@@ -11,6 +11,7 @@ Sources: DexScreener, GeckoTerminal, Jupiter (Solana), DIA, CoinGecko,
 Depends on: httpx, numpy (for median/percentile), optional env keys.
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -41,7 +42,6 @@ DEFAULT_SOURCE_WEIGHTS = {
 
 # ── Data Classes ────────────────────────────────────────────────────────────
 
-
 @dataclass
 class PriceSource:
     """A single price data provider."""
@@ -52,7 +52,6 @@ class PriceSource:
     last_price: float = 0.0
     last_latency: float = 0.0
     error_count: int = 0
-
 
 @dataclass
 class PriceConsensus:
@@ -73,9 +72,7 @@ class PriceConsensus:
     def is_reliable(self) -> bool:
         return self.confidence >= 60.0 and self.price is not None
 
-
 # ── Price Consensus Engine ─────────────────────────────────────────────────
-
 
 class PriceConsensusEngine:
     """Multi-source price aggregation with MAD-based outlier rejection.
@@ -631,11 +628,9 @@ class PriceConsensusEngine:
             "sources": source_stats,
         }
 
-
 # ── Singleton ─────────────────────────────────────────────────────────────
 
 _price_engine: PriceConsensusEngine | None = None
-
 
 def get_price_consensus() -> PriceConsensusEngine:
     """Get the global PriceConsensusEngine singleton."""

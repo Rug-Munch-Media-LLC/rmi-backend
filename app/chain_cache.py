@@ -4,6 +4,7 @@ Minimizes Helius API calls on free tier (100k credits/month).
 Includes startup warming for hot wallets.
 """
 
+from __future__ import annotations
 import asyncio
 import time
 from collections import OrderedDict
@@ -46,7 +47,6 @@ HOT_TOKENS: list[str] = [
     "56",  # BSC chain
     "8453",  # Base chain
 ]
-
 
 class ChainCache:
     """LRU cache with TTL for chain data. Max 500 entries, 5-min default TTL."""
@@ -156,10 +156,8 @@ class ChainCache:
         self._warmed = True
         logger.info(f"Cache warmed: {len(self._cache)}/{self.max_size} entries")
 
-
 # Singleton
 _cache: ChainCache | None = None
-
 
 def get_chain_cache() -> ChainCache:
     global _cache

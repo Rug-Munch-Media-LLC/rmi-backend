@@ -17,6 +17,7 @@ Uses:
   - Known CEX hot wallet registry from chain_registry
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -32,7 +33,6 @@ from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
 logger = get_logger("gas_trace")
-
 
 # ── Etherscan Network Config (mirrors dev_reputation pattern) ─────────────
 
@@ -59,9 +59,7 @@ ETHERSCAN_NETWORKS = {
     "scroll": {"url": "https://api.scrollscan.com/api", "key": ETHERSCAN_API_KEY},
 }
 
-
 # ── Data Models ────────────────────────────────────────────────────────────
-
 
 @dataclass
 class TraceHop:
@@ -71,7 +69,6 @@ class TraceHop:
     relationship: str  # "deployer", "funder", "funder_of_funder", "cex_hot_wallet", etc.
     first_seen: str  # ISO timestamp or "unknown"
     tx_hash: str = ""  # The transaction that connected this hop
-
 
 @dataclass
 class GasTraceReport:
@@ -115,9 +112,7 @@ class GasTraceReport:
             "errors": self.errors,
         }
 
-
 # ── Gas Trace Analyzer ─────────────────────────────────────────────────────
-
 
 class GasTraceAnalyzer:
     """
@@ -714,9 +709,7 @@ class GasTraceAnalyzer:
 
         return "LOW"
 
-
 # ── Standalone helper (matching pipeline pattern) ─────────────────────────
-
 
 async def run_gas_trace_analysis(
     deployer_address: str,

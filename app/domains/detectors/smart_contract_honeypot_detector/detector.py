@@ -1,4 +1,5 @@
 """Main honeypot detector class."""
+from __future__ import annotations
 import os, re, json, time as time_mod
 from datetime import UTC, datetime
 from typing import Any

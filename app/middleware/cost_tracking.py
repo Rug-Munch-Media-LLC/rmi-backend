@@ -12,7 +12,10 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -22,7 +25,6 @@ if TYPE_CHECKING:
     from fastapi import Request, Response
 
 log = get_logger(__name__)
-
 
 class TimingStats:
     """Per-endpoint timing histogram for performance monitoring.
@@ -62,7 +64,6 @@ class TimingStats:
         """Reset all timing stats."""
         self._stats.clear()
 
-
 class CostBuffer:
     """In-memory buffer of recent costs.
 
@@ -92,7 +93,6 @@ class CostBuffer:
         """Snapshot of all tenant totals."""
         return dict(self._totals)
 
-
 class CostTrackingMiddleware(BaseHTTPMiddleware):
     """Records per-request cost + timing stats.
 
@@ -105,7 +105,7 @@ class CostTrackingMiddleware(BaseHTTPMiddleware):
         self.buffer = buffer
         self.timing_stats = TimingStats()
 
-    async def dispatch(self, request: Request, call_next: Any) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         start = time.monotonic()
         response = await call_next(request)
         elapsed = time.monotonic() - start

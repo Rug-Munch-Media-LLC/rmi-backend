@@ -13,6 +13,7 @@ Tables:
   - address_index: Unified search index across all datasets
 """
 
+from __future__ import annotations
 import contextlib
 import os
 import time
@@ -82,13 +83,11 @@ CREATE TABLE IF NOT EXISTS address_index (
 
 # ── Data loading ────────────────────────────────────────────────
 
-
 def _find_dir(candidates: list[str]) -> str | None:
     for d in candidates:
         if os.path.isdir(d) and os.listdir(d):
             return d
     return None
-
 
 def _load_real_cats(con, base_dir: str) -> dict:
     """Load Real-CATS dataset into criminal_addresses and benign_addresses."""
@@ -153,7 +152,6 @@ def _load_real_cats(con, base_dir: str) -> dict:
             )
 
     return stats
-
 
 def _load_mbal(con, base_dir: str) -> dict:
     """Load MBAL 10M address labels into mbal_labels."""
@@ -249,7 +247,6 @@ def _load_mbal(con, base_dir: str) -> dict:
 
     return stats
 
-
 def _build_index(con) -> None:
     """Build unified address_index from all loaded data."""
     con.execute("DELETE FROM address_index")
@@ -312,9 +309,7 @@ def _build_index(con) -> None:
     except (ConnectionError, OSError):
         pass
 
-
 # ── Public API ───────────────────────────────────────────────────
-
 
 class DuckDBAnalytics:
     """Offline analytics engine using DuckDB on cinnabox."""
@@ -584,11 +579,9 @@ class DuckDBAnalytics:
             self._con.close()
             self._con = None
 
-
 # ── DataBus provider functions ───────────────────────────────────
 
 _engine: DuckDBAnalytics | None = None
-
 
 def _get_engine() -> DuckDBAnalytics:
     global _engine
@@ -597,14 +590,12 @@ def _get_engine() -> DuckDBAnalytics:
         _engine.initialize()
     return _engine
 
-
 async def _duckdb_lookup(address: str = "", **kwargs) -> dict | None:
     """Look up address in local DuckDB analytics."""
     if not address:
         return None
     engine = _get_engine()
     return engine.lookup_address(address)
-
 
 async def _duckdb_batch_lookup(addresses: list | None = None, **kwargs) -> dict | None:
     """Batch look up addresses in local DuckDB analytics."""
@@ -618,7 +609,6 @@ async def _duckdb_batch_lookup(addresses: list | None = None, **kwargs) -> dict 
         "found": sum(1 for r in results if r["found"]),
     }
 
-
 async def _duckdb_risk_score(address: str = "", **kwargs) -> dict | None:
     """Get risk score for an address."""
     if not address:
@@ -626,7 +616,6 @@ async def _duckdb_risk_score(address: str = "", **kwargs) -> dict | None:
     engine = _get_engine()
     score = engine.risk_score(address)
     return {"address": address, "risk_score": score, "source": "duckdb_offline"}
-
 
 async def _duckdb_search_labels(
     query: str = "", chain: str | None = None, limit: int = 50, **kwargs
@@ -638,12 +627,10 @@ async def _duckdb_search_labels(
     results = engine.search_labels(query, chain, limit)
     return {"query": query, "chain": chain, "results": results, "count": len(results)}
 
-
 async def _duckdb_stats(**kwargs) -> dict | None:
     """Get DuckDB analytics statistics."""
     engine = _get_engine()
     return engine.stats()
-
 
 async def _duckdb_query(sql: str = "", **kwargs) -> dict | None:
     """Run arbitrary SQL on DuckDB (admin only)."""
@@ -658,7 +645,6 @@ async def _duckdb_query(sql: str = "", **kwargs) -> dict | None:
         return {"sql": sql, "rows": len(rows), "data": rows[:100], "truncated": len(rows) > 100}
     except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
-
 
 if __name__ == "__main__":
     import asyncio

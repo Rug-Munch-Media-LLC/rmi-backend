@@ -14,3 +14,4 @@ All adapters follow these conventions:
   - All addresses are normalized to lowercase before query
   - Each label has source=LabelSource.MY_SOURCE
 """
+from __future__ import annotations

@@ -24,6 +24,7 @@ Author: RMI Analytics Team
 Date: 2026-05-31
 """
 
+from __future__ import annotations
 import os
 import time
 from dataclasses import asdict, dataclass, field
@@ -34,9 +35,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("rmi_analytics")
 
-
 # ── Data Models ─────────────────────────────────────────────
-
 
 @dataclass
 class MetricPoint:
@@ -48,7 +47,6 @@ class MetricPoint:
 
     def to_dict(self) -> dict:
         return asdict(self)
-
 
 @dataclass
 class MetricSeries:
@@ -88,7 +86,6 @@ class MetricSeries:
             "point_count": len(self.points),
         }
 
-
 @dataclass
 class DashboardWidget:
     """Dashboard widget configuration."""
@@ -102,7 +99,6 @@ class DashboardWidget:
     refresh_interval: int = 30  # seconds
     config: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class Dashboard:
     """Dashboard configuration."""
@@ -114,9 +110,7 @@ class Dashboard:
     created_by: str = ""
     is_default: bool = False
 
-
 # ── Analytics Engine ────────────────────────────────────────
-
 
 class AnalyticsEngine:
     """
@@ -413,11 +407,9 @@ class AnalyticsEngine:
 
         return None
 
-
 # ── Singleton ─────────────────────────────────────────────────
 
 _analytics_instance: AnalyticsEngine | None = None
-
 
 def get_analytics_engine() -> AnalyticsEngine:
     """Get or create analytics engine instance."""

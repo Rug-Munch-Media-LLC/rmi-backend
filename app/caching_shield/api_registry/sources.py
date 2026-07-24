@@ -4,6 +4,7 @@ API Registry - Backend Data Sources
 Registry of all free/no-auth/self-hosted data sources used by the system.
 """
 
+from __future__ import annotations
 from .manager import get_api_manager
 
 BACKEND_SOURCES = {
@@ -298,7 +299,6 @@ BACKEND_SOURCES = {
     },
 }
 
-
 def list_all_sources() -> dict:
     """Return combined view of all API keys + backend data sources."""
     mgr = get_api_manager()
@@ -321,7 +321,6 @@ def list_all_sources() -> dict:
         "total_free_sources": len(BACKEND_SOURCES),
         "summary": _summarize_all(mgr),
     }
-
 
 def _summarize_all(mgr) -> dict:
     """Generate a unified capacity summary across all sources."""

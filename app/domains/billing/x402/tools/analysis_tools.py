@@ -30,11 +30,9 @@ from app.domains.billing.x402.shared import (
 
 sub_router = APIRouter(tags=["x402-analysis-tools"])
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 6: Social Sentiment Radar ($0.50)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _sentiment_analysis(token: str, chain: str) -> dict:
     """Analyze social signals across multiple sources."""
@@ -128,7 +126,6 @@ async def _sentiment_analysis(token: str, chain: str) -> dict:
     )
     return result
 
-
 @sub_router.post("/sentiment")
 async def social_sentiment(req: SentimentRequest) -> dict[str, str]:
     """Social signal analysis across Twitter, Telegram, RSS feeds."""
@@ -145,11 +142,9 @@ async def social_sentiment(req: SentimentRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 9: URL Scam Detector ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 def _analyze_url(url: str) -> dict:
     """Analyze URL for scam indicators using structural analysis."""
@@ -256,7 +251,6 @@ def _analyze_url(url: str) -> dict:
     result["domain"] = domain
     return result
 
-
 @sub_router.post("/urlcheck")
 async def url_scam_detector(req: URLRequest) -> dict[str, str]:
     """URL scam analysis - structural analysis, no blacklists needed."""
@@ -273,11 +267,9 @@ async def url_scam_detector(req: URLRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 11: Twitter Profile ($0.01)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _twitter_profile(query: str) -> dict:
     """Get Twitter/X user profile data."""
@@ -312,7 +304,6 @@ async def _twitter_profile(query: str) -> dict:
 
     return result
 
-
 @sub_router.post("/tw_profile")
 async def twitter_profile(req: GenericRequest) -> dict[str, str]:
     """Twitter/X profile lookup."""
@@ -330,11 +321,9 @@ async def twitter_profile(req: GenericRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 12: Twitter Timeline ($0.01)
 # ═══════════════════════════════════════════════════════════════
-
 
 @sub_router.post("/tw_timeline")
 async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
@@ -368,11 +357,9 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 13: Twitter Search ($0.01)
 # ═══════════════════════════════════════════════════════════════
-
 
 @sub_router.post("/tw_search")
 async def twitter_search(req: GenericRequest) -> dict[str, str]:
@@ -404,11 +391,9 @@ async def twitter_search(req: GenericRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 18: Social Signal ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _social_signal(query: str) -> dict:
     """Social signal analyzer."""
@@ -446,7 +431,6 @@ async def _social_signal(query: str) -> dict:
 
     return result
 
-
 @sub_router.post("/social_signal")
 async def social_signal(req: GenericRequest) -> dict[str, str]:
     """Social signal analyzer."""
@@ -464,11 +448,9 @@ async def social_signal(req: GenericRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 28: NFT Wash Detector ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _nft_wash_detector(collection: str) -> dict:
     """NFT wash trading detection."""
@@ -527,7 +509,6 @@ async def _nft_wash_detector(collection: str) -> dict:
 
     return result
 
-
 @sub_router.post("/nft_wash_detector")
 async def nft_wash_detector(req: GenericRequest) -> dict[str, str]:
     """NFT wash trading detector."""
@@ -545,11 +526,9 @@ async def nft_wash_detector(req: GenericRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 29: Bridge Security ($0.08)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _bridge_security() -> dict:
     """Bridge security monitoring."""
@@ -583,7 +562,6 @@ async def _bridge_security() -> dict:
         pass
 
     return result
-
 
 @sub_router.post("/bridge_security")
 async def bridge_security(req: GenericRequest) -> dict[str, str]:

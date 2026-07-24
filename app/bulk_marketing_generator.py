@@ -4,6 +4,7 @@ Uses Alibaba's best vision model for professional marketing graphics.
 All graphics follow EXACT brand guidelines. Uploads to Dropbox automatically.
 """
 
+from __future__ import annotations
 import os
 from datetime import UTC, datetime
 
@@ -371,7 +372,6 @@ GRAPHIC_CONCEPTS = [
 
 # ── Graphics Generation Functions ────────────────────────────
 
-
 def create_gradient_background(size, color1, color2, direction="vertical") -> Any:
     """Create purple gradient background."""
     img = Image.new("RGB", size, color1)
@@ -390,7 +390,6 @@ def create_gradient_background(size, color1, color2, direction="vertical") -> An
 
     return img
 
-
 def add_circular_frame(img, color=BRAND["gold"], width=5) -> Any:
     """Add gold circular frame."""
     draw = ImageDraw.Draw(img)
@@ -399,7 +398,6 @@ def add_circular_frame(img, color=BRAND["gold"], width=5) -> Any:
         [margin, margin, img.size[0] - margin, img.size[1] - margin], outline=color, width=width
     )
     return img
-
 
 def add_text_centered(img, text, position, font_size, color, bold=True) -> Any:
     """Add centered text."""
@@ -421,7 +419,6 @@ def add_text_centered(img, text, position, font_size, color, bold=True) -> Any:
     draw.text((x, position[1]), text, fill=color, font=font)
 
     return img
-
 
 def generate_graphic(concept: dict) -> dict:
     """Generate a single marketing graphic."""
@@ -498,7 +495,6 @@ def generate_graphic(concept: dict) -> dict:
         "size": f"{size[0]}x{size[1]}",
     }
 
-
 def upload_to_dropbox(local_path: str, dropbox_path: str | None = None) -> bool:
     """Upload file to Dropbox."""
     try:
@@ -515,7 +511,6 @@ def upload_to_dropbox(local_path: str, dropbox_path: str | None = None) -> bool:
     except Exception as e:
         logger.error(f"Dropbox upload failed: {e}")
         return False
-
 
 def generate_all_graphics() -> list[dict]:
     """Generate all 50+ marketing graphics."""
@@ -547,7 +542,6 @@ def generate_all_graphics() -> list[dict]:
     logger.info(f"☁️  Dropbox: {DROPBOX_DIR}")
 
     return results
-
 
 if __name__ == "__main__":
     results = generate_all_graphics()

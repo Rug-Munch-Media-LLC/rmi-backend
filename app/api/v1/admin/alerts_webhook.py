@@ -13,7 +13,6 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/alerts", tags=["admin"])
 
-
 class AlertWebhookPayload(BaseModel):
     """Generic webhook payload from external alert sources."""
 
@@ -22,7 +21,6 @@ class AlertWebhookPayload(BaseModel):
     title: str
     description: str | None = None
     labels: dict[str, str] = {}
-
 
 @router.post("/webhook")
 async def receive_alert_webhook(payload: AlertWebhookPayload) -> dict[str, Any]:

@@ -8,12 +8,10 @@ from fastapi import Request, Response
 
 from app.domains.auth.jwt import JWT_EXPIRY_DAYS
 
-
 def _is_localhost(request: Request) -> bool:
     """Check if the request is from localhost."""
     host = request.headers.get("host", "")
     return host.startswith("localhost") or host.startswith("127.0.0.1") or host.startswith("[::1]")
-
 
 def _set_auth_cookie(response: Response, token: str, request: Request) -> None:
     """Set the JWT as an HttpOnly cookie."""
@@ -30,7 +28,6 @@ def _set_auth_cookie(response: Response, token: str, request: Request) -> None:
         samesite="strict",
     )
 
-
 def _set_csrf_cookie(response: Response, request: Request) -> str:
     """Generate and set a CSRF token as a non-HttpOnly cookie."""
     csrf_token = secrets.token_hex(32)
@@ -45,7 +42,6 @@ def _set_csrf_cookie(response: Response, request: Request) -> str:
         samesite="lax",
     )
     return csrf_token
-
 
 def _clear_auth_cookie(response: Response, request: Request) -> None:
     """Clear the auth cookie (logout)."""

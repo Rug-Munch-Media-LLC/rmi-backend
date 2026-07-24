@@ -14,6 +14,7 @@ Uses direct API calls: DexScreener (pairs/market), Birdeye (overview),
 Solscan (holders), Helius (account metadata).
 """
 
+from __future__ import annotations
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -28,7 +29,6 @@ from app.free_solscan_client import FreeSolscanClient
 
 logger = get_logger("holder_analyzer")
 
-
 @dataclass
 class HolderInfo:
     address: str
@@ -40,7 +40,6 @@ class HolderInfo:
     is_contract: bool = False
     label: str | None = None
 
-
 @dataclass
 class ClusterGroup:
     wallets: list[str]
@@ -48,7 +47,6 @@ class ClusterGroup:
     confidence: float  # 0.0-1.0
     cluster_type: str  # "funding", "creation", "behavior", "exchange"
     evidence: list[str] = field(default_factory=list)
-
 
 @dataclass
 class HHIReport:
@@ -63,7 +61,6 @@ class HHIReport:
     exchange_funded_percentage: float = 0.0
     new_wallets_percentage: float = 0.0  # wallets < 7 days old
     warnings: list[str] = field(default_factory=list)
-
 
 class HolderAnalyzer:
     """Analyzes holder distribution, calculates HHI, detects fake diversification.

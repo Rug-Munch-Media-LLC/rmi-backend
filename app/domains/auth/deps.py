@@ -9,7 +9,6 @@ from fastapi import HTTPException, Request
 from app.domains.auth.jwt import _verify_jwt
 from app.domains.auth.store import _get_user
 
-
 def _extract_token(request: Request) -> str | None:
     """Extract JWT from cookie first, then Authorization header fallback."""
     cookie_token = request.cookies.get("rmi_token")
@@ -19,7 +18,6 @@ def _extract_token(request: Request) -> str | None:
     if auth_header.startswith("Bearer "):
         return auth_header[7:]
     return None
-
 
 async def get_current_user(request: Request) -> dict[str, Any] | None:
     """Verify JWT from cookie or Authorization header."""
@@ -34,14 +32,12 @@ async def get_current_user(request: Request) -> dict[str, Any] | None:
         return None
     return user
 
-
 async def require_auth(request: Request) -> dict[str, Any]:
     """Require valid JWT. Raises 401 if missing/invalid."""
     user = await get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 async def require_public_profile(request: Request) -> dict[str, Any]:
     """Require authenticated user with a public profile."""

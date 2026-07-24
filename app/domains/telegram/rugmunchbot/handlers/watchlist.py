@@ -4,6 +4,7 @@ RugMunchBot -- Watchlist command handlers.
 
 Commands: watchlist, watch, unwatch
 """
+from __future__ import annotations
 
 from telegram import Update
 from telegram.constants import ParseMode
@@ -18,7 +19,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     short_addr,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
-
 
 async def cmd_watchlist(update: Update, ctx) -> None:
     user = update.effective_user
@@ -47,7 +47,6 @@ async def cmd_watchlist(update: Update, ctx) -> None:
     await update.message.reply_text(
         text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
     )
-
 
 async def cmd_watch(update: Update, ctx) -> None:
     user = update.effective_user
@@ -82,7 +81,6 @@ async def cmd_watch(update: Update, ctx) -> None:
             await update.message.reply_text(
                 "\u274c Could not add. Limit reached or already added.", parse_mode=ParseMode.HTML
             )
-
 
 async def cmd_unwatch(update: Update, ctx) -> None:
     user = update.effective_user

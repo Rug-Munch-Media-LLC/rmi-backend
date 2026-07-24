@@ -36,7 +36,6 @@ from app.domains.reports.citation_validator import validate_section
 
 log = get_logger(__name__)
 
-
 # ── Section prompts (v4.0 §T29) ─────────────────────────────────────
 REPORT_PROMPTS: dict[str, str] = {
     "executive_summary": """You are an analyst at RugMunch Intelligence, a crypto scam-detection platform.
@@ -96,7 +95,6 @@ Write a 1-paragraph RECOMMENDATION. Be direct: AVOID / CAUTION / NEUTRAL / OPPOR
 Justify in 2 sentences. If the asset is a serial rugger, say so clearly.""",
 }
 
-
 # ── Data gathering (fan-out from catalog) ─────────────────────────
 async def _gather_token(catalog, chain: str, address: str) -> dict:
     """Gather all data sources for a token."""
@@ -126,7 +124,6 @@ async def _gather_token(catalog, chain: str, address: str) -> dict:
         "risk": _risk,
     }
 
-
 async def _gather_wallet(catalog, chain: str, address: str) -> dict:
     """Gather data for a wallet report."""
     from app.catalog.models import Chain
@@ -148,7 +145,6 @@ async def _gather_wallet(catalog, chain: str, address: str) -> dict:
         "rag_findings": rag_findings,
         "entity": entity,
     }
-
 
 async def _fetch_news(catalog, subject_id: str, since_hours: int = 720) -> list:
     """Fetch news mentioning this subject."""
@@ -172,7 +168,6 @@ async def _fetch_news(catalog, subject_id: str, since_hours: int = 720) -> list:
     except (KeyError, ValueError, TypeError) as e :
         log.warning(f"fetch_news_fail: {e}")
         return []
-
 
 # ── Risk scoring (deterministic) ───────────────────────────────────
 def _compute_risk_token(token_data: dict) -> tuple[int, list[str], RiskTier]:
@@ -223,7 +218,6 @@ def _compute_risk_token(token_data: dict) -> tuple[int, list[str], RiskTier]:
         tier = RiskTier.CRITICAL
     return score, factors, tier
 
-
 def _compute_risk_wallet(wallet_data: dict) -> tuple[int, list[str], RiskTier]:
     score = 0
     factors = []
@@ -253,7 +247,6 @@ def _compute_risk_wallet(wallet_data: dict) -> tuple[int, list[str], RiskTier]:
     else:
         tier = RiskTier.CRITICAL
     return score, factors, tier
-
 
 # ── Report generation ──────────────────────────────────────────────
 async def generate_token_report(
@@ -399,7 +392,6 @@ async def generate_token_report(
     )
     return report
 
-
 async def generate_wallet_report(
     catalog, chain: str, address: str, model: str = "deepseek-v3"
 ) -> ScanReport:
@@ -513,7 +505,6 @@ async def generate_wallet_report(
         sections=sections,
     )
 
-
 def _template_fallback(name: str, ctx: dict) -> str:
     """Templated content for when LLM is unreachable."""
     sid = ctx.get("subject_id", "unknown")
@@ -549,7 +540,6 @@ def _template_fallback(name: str, ctx: dict) -> str:
         )
         return f"## Recommendation\n\n**{verdict}** (risk {rs}/100). Templated fallback."
     return f"## {name.title()}\n\n(Templated fallback)"
-
 
 # ── Save to Postgres + MinIO ────────────────────────────────────────
 async def save_report(catalog, report: ScanReport) -> bool:

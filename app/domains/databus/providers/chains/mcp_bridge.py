@@ -4,13 +4,13 @@ MCP Bridge — call any local/remote MCP server tool from DataBus.
 Uses subprocess to invoke opencode MCP tools and returns parsed results.
 """
 
+from __future__ import annotations
 import json
 import subprocess
 
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.mcp_bridge")
-
 
 async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | None:
     """Universal MCP bridge — calls any local/remote MCP server tool.

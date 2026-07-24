@@ -6,6 +6,7 @@ Persistent PostgreSQL storage via Supabase with Redis caching.
 Write-through: Supabase first, then Redis.
 Read-through: Redis first, Supabase on miss.
 """
+from __future__ import annotations
 
 import asyncio
 import json
@@ -117,11 +118,9 @@ CREATE INDEX IF NOT EXISTS idx_trenches_posts_category ON trenches_posts(categor
 CREATE INDEX IF NOT EXISTS idx_trenches_posts_created ON trenches_posts(created_at DESC);
 """
 
-
 # ═══════════════════════════════════════════════════════════
 # RETRY UTILITIES
 # ═══════════════════════════════════════════════════════════
-
 
 def _async_retry(max_retries: int = 3, delay: float = 0.5, backoff: float = 2.0) -> Any:
     """Simple async retry decorator for Supabase operations."""
@@ -149,11 +148,9 @@ def _async_retry(max_retries: int = 3, delay: float = 0.5, backoff: float = 2.0)
 
     return decorator
 
-
 # ═══════════════════════════════════════════════════════════
 # PYDANTIC MODELS
 # ═══════════════════════════════════════════════════════════
-
 
 class User(BaseModel):
     id: str
@@ -164,7 +161,6 @@ class User(BaseModel):
     created_at: str | None = None
     xp: int = 0
     level: int = 1
-
 
 class InvestigationCase(BaseModel):
     id: str
@@ -178,7 +174,6 @@ class InvestigationCase(BaseModel):
     risk_score: float = 0.0
     findings: dict[str, Any] = Field(default_factory=dict)
 
-
 class WalletScan(BaseModel):
     id: str | None = None
     address: str
@@ -188,7 +183,6 @@ class WalletScan(BaseModel):
     scanned_at: str | None = None
     user_id: str | None = None
 
-
 class ContractAudit(BaseModel):
     id: str | None = None
     address: str
@@ -197,7 +191,6 @@ class ContractAudit(BaseModel):
     findings: list[dict[str, Any]] = Field(default_factory=list)
     ai_analysis: dict[str, Any] = Field(default_factory=dict)
     audited_at: str | None = None
-
 
 class TrenchesPost(BaseModel):
     id: str | None = None
@@ -210,7 +203,6 @@ class TrenchesPost(BaseModel):
     tags: list[str] = Field(default_factory=list)
     created_at: str | None = None
 
-
 class Alert(BaseModel):
     id: str | None = None
     token_address: str
@@ -218,7 +210,6 @@ class Alert(BaseModel):
     webhook_url: str | None = None
     active: bool = True
     created_at: str | None = None
-
 
 class GamificationProfile(BaseModel):
     user_id: str
@@ -229,11 +220,9 @@ class GamificationProfile(BaseModel):
     posts_count: int = 0
     updated_at: str | None = None
 
-
 # ═══════════════════════════════════════════════════════════
 # SUPABASE CLIENT
 # ═══════════════════════════════════════════════════════════
-
 
 class SupabaseClient:
     """Wrapped Supabase client with connection pooling, retries, and helpers."""
@@ -315,11 +304,9 @@ class SupabaseClient:
                 f"[DB] ensure_tables failed (tables may already exist or RPC missing): {exc}"
             )
 
-
 # ═══════════════════════════════════════════════════════════
 # REPOSITORIES
 # ═══════════════════════════════════════════════════════════
-
 
 class _BaseRepo:
     def __init__(self, db: SupabaseClient) -> None:
@@ -333,7 +320,6 @@ class _BaseRepo:
         if exclude_none:
             d = {k: v for k, v in d.items() if v is not None}
         return d
-
 
 class UserRepository(_BaseRepo):
     TABLE = "profiles"
@@ -384,7 +370,6 @@ class UserRepository(_BaseRepo):
         self.db.table(self.TABLE).delete().eq("id", user_id).execute()
         return True
 
-
 class InvestigationCaseRepository(_BaseRepo):
     TABLE = "cases"
 
@@ -421,7 +406,6 @@ class InvestigationCaseRepository(_BaseRepo):
     async def delete(self, case_id: str) -> bool:
         self.db.table(self.TABLE).delete().eq("id", case_id).execute()
         return True
-
 
 class WalletScanRepository(_BaseRepo):
     TABLE = "wallet_intel"
@@ -468,7 +452,6 @@ class WalletScanRepository(_BaseRepo):
         self.db.table(self.TABLE).delete().eq("id", scan_id).execute()
         return True
 
-
 class ContractAuditRepository(_BaseRepo):
     TABLE = "contract_audits"
 
@@ -503,7 +486,6 @@ class ContractAuditRepository(_BaseRepo):
         self.db.table(self.TABLE).delete().eq("id", audit_id).execute()
         return True
 
-
 class TrenchesPostRepository(_BaseRepo):
     TABLE = "trenches_posts"
 
@@ -537,7 +519,6 @@ class TrenchesPostRepository(_BaseRepo):
     async def delete(self, post_id: str) -> bool:
         self.db.table(self.TABLE).delete().eq("id", post_id).execute()
         return True
-
 
 class AlertRepository(_BaseRepo):
     TABLE = "alerts"
@@ -577,7 +558,6 @@ class AlertRepository(_BaseRepo):
     async def delete(self, alert_id: str) -> bool:
         self.db.table(self.TABLE).delete().eq("id", alert_id).execute()
         return True
-
 
 class GamificationProfileRepository(_BaseRepo):
     TABLE = "gamification_profiles"
@@ -619,11 +599,9 @@ class GamificationProfileRepository(_BaseRepo):
         self.db.table(self.TABLE).delete().eq("user_id", user_id).execute()
         return True
 
-
 # ═══════════════════════════════════════════════════════════
 # UNIFIED DB INTERFACE
 # ═══════════════════════════════════════════════════════════
-
 
 class RmiDatabase:
     """Unified interface: Supabase persistence + Redis cache."""
@@ -641,13 +619,11 @@ class RmiDatabase:
     async def ensure_tables(self) -> None:
         await self.db.ensure_tables()
 
-
 # ═══════════════════════════════════════════════════════════
 # REDIS CACHE HELPERS
 # ═══════════════════════════════════════════════════════════
 
 _CACHE_TTL = 300  # 5 minutes default
-
 
 async def _get_redis() -> Any | None:
     """Lazy Redis client (mirrors main.py pattern)."""
@@ -665,7 +641,6 @@ async def _get_redis() -> Any | None:
         logger.warning("[DB] Redis init failed: %s", exc)
         return None
 
-
 async def cache_set(key: str, value: Any, ttl: int = _CACHE_TTL) -> None:
     r = await _get_redis()
     if r is None:
@@ -674,7 +649,6 @@ async def cache_set(key: str, value: Any, ttl: int = _CACHE_TTL) -> None:
         await r.set(key, json.dumps(value), ex=ttl)
     except Exception as exc:
         logger.warning("[DB] cache_set failed: %s", exc)
-
 
 async def cache_get(key: str) -> Any | None:
     r = await _get_redis()
@@ -687,7 +661,6 @@ async def cache_get(key: str) -> Any | None:
         logger.warning("[DB] cache_get failed: %s", exc)
         return None
 
-
 async def cache_delete(key: str) -> None:
     r = await _get_redis()
     if r is None:
@@ -697,7 +670,6 @@ async def cache_delete(key: str) -> None:
     except Exception as exc:
         logger.warning("[DB] cache_delete failed: %s", exc)
 
-
 async def cache_hash_set(hash_name: str, field: str, value: Any) -> None:
     r = await _get_redis()
     if r is None:
@@ -706,7 +678,6 @@ async def cache_hash_set(hash_name: str, field: str, value: Any) -> None:
         await r.hset(hash_name, field, json.dumps(value))
     except Exception as exc:
         logger.warning("[DB] cache_hash_set failed: %s", exc)
-
 
 async def cache_hash_get_all(hash_name: str) -> dict[str, Any]:
     r = await _get_redis()
@@ -719,11 +690,9 @@ async def cache_hash_get_all(hash_name: str) -> dict[str, Any]:
         logger.warning("[DB] cache_hash_get_all failed: %s", exc)
         return {}
 
-
 # ═══════════════════════════════════════════════════════════
 # MIGRATION HELPER
 # ═══════════════════════════════════════════════════════════
-
 
 async def sync_redis_to_supabase() -> dict[str, int]:
     """
@@ -839,13 +808,11 @@ async def sync_redis_to_supabase() -> dict[str, int]:
     logger.info("[DB] Migration complete: %s", counts)
     return counts
 
-
 # ═══════════════════════════════════════════════════════════
 # SINGLETON INSTANCE
 # ═══════════════════════════════════════════════════════════
 
 _rmi_db: RmiDatabase | None = None
-
 
 def get_db() -> RmiDatabase:
     global _rmi_db

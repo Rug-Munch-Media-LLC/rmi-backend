@@ -12,6 +12,7 @@ Uses direct API calls: Solscan (account transfers, funding sources),
 Helius (signatures, parsed transactions), Birdeye (token overview).
 """
 
+from __future__ import annotations
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -25,14 +26,12 @@ from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
 logger = get_logger("exchange_funder")
 
-
 @dataclass
 class ExchangeWallet:
     address: str
     exchange: str
     chain: str
     label: str = ""
-
 
 @dataclass
 class BuyerFundingInfo:
@@ -45,7 +44,6 @@ class BuyerFundingInfo:
     is_fresh_wallet: bool = False  # No prior history
     time_from_funding_to_buy_ms: int = 0  # How fast they bought after funding
     bought_same_block: bool = False
-
 
 @dataclass
 class ExchangeFundReport:
@@ -64,7 +62,6 @@ class ExchangeFundReport:
     risk_level: str = "LOW"
     warnings: list[str] = field(default_factory=list)
     buyer_details: list[BuyerFundingInfo] = field(default_factory=list)
-
 
 class ExchangeFunderDetector:
     """Detects wallets funded from centralized exchanges.

@@ -5,6 +5,7 @@ External API data retrieval for token metadata, holders, and buy transactions.
 Supports DexScreener, Birdeye, and Solscan APIs.
 """
 
+from __future__ import annotations
 import logging
 from typing import Any
 
@@ -13,7 +14,6 @@ import httpx
 from app.bundler_detect.models import BIRDEYE_PUBLIC, DEXSCREENER_API
 
 logger = logging.getLogger(__name__)
-
 
 async def fetch_metadata(http: httpx.AsyncClient, address: str, chain: str) -> dict[str, Any]:
     """Fetch token metadata from DexScreener."""
@@ -49,7 +49,6 @@ async def fetch_metadata(http: httpx.AsyncClient, address: str, chain: str) -> d
         logger.debug(f"Metadata fetch error: {e}")
         return {}
 
-
 async def fetch_holders(
     http: httpx.AsyncClient,
     address: str,
@@ -64,7 +63,6 @@ async def fetch_holders(
     except Exception as e:
         logger.debug(f"Holder fetch error: {e}")
         return []
-
 
 async def _fetch_solana_holders(
     http: httpx.AsyncClient,
@@ -113,7 +111,6 @@ async def _fetch_solana_holders(
 
     return []
 
-
 async def _fetch_evm_holders(
     http: httpx.AsyncClient,
     address: str,
@@ -142,7 +139,6 @@ async def _fetch_evm_holders(
         logger.debug(f"EVM holder fetch error: {e}")
 
     return []
-
 
 async def fetch_buys(http: httpx.AsyncClient, address: str, chain: str) -> list[dict[str, Any]]:
     """Fetch recent buy transactions for the token."""

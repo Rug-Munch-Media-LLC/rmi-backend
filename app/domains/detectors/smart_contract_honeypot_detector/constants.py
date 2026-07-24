@@ -1,4 +1,5 @@
 """Constants and thresholds for the honeypot detector."""
+from __future__ import annotations
 from typing import Any
 from .models import HoneypotType
 

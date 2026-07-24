@@ -3,6 +3,7 @@ RMI Apify Integration -- Free/cheap external actors as MCP tools.
 Actors: Arkham wallet intelligence, web scraping, Twitter data.
 """
 
+from __future__ import annotations
 import os
 from typing import Any
 
@@ -12,7 +13,6 @@ logger = get_logger("rmi_apify")
 
 APIFY_TOKEN = os.getenv("APIFY_API_TOKEN", "")
 APIFY_BASE = "https://api.apify.com/v2"
-
 
 def _apify_call(actor_id: str, run_input: dict, timeout: int = 120) -> dict | None:
     """Run an Apify actor and return results."""
@@ -51,7 +51,6 @@ def _apify_call(actor_id: str, run_input: dict, timeout: int = 120) -> dict | No
     except Exception as e:
         return {"error": str(e)[:200]}
 
-
 def arkham_wallet_intel(address: str) -> dict[str, Any]:
     """Get Arkham Intelligence wallet data. Near-free via Apify (~$0.03/wallet)."""
     return _apify_call(
@@ -62,7 +61,6 @@ def arkham_wallet_intel(address: str) -> dict[str, Any]:
             "proxyConfiguration": {"useApifyProxy": True},
         },
     )
-
 
 def arkham_wallet_portfolio(address: str, date: str | None = None) -> dict[str, Any]:
     """Get Arkham wallet portfolio/holdings."""

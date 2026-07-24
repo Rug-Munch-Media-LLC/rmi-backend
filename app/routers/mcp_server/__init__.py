@@ -3,6 +3,7 @@ Rug Munch Intelligence MCP Server v3.1 — Split into focused modules.
 Maintains backward compatibility: from app.routers.mcp_server import router
 """
 
+from __future__ import annotations
 from fastapi import APIRouter
 
 # Create the main router

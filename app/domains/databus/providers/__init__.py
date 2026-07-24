@@ -8,6 +8,7 @@ Backward-compat re-export layer. All implementations are in:
   - circuit_breaker.py — rate limiting and circuit breaking
 """
 
+from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
@@ -30,7 +31,6 @@ from app.domains.databus.providers.registry import build_provider_chains
 
 # Lazy-import provider functions on demand
 _imported_names = {}
-
 
 def __getattr__(name: str) -> Any:
     """Lazy-import provider functions from chains/ modules."""
@@ -117,7 +117,6 @@ def __getattr__(name: str) -> Any:
         return val
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
 
 __all__ = [
     # Core classes

@@ -11,6 +11,7 @@ Architecture:
   - Returns: success/fail, expected output, tax rate, risk assessment
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 
 import httpx
@@ -18,7 +19,6 @@ import httpx
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 @dataclass
 class SimulationResult:
@@ -45,7 +45,6 @@ class SimulationResult:
     def is_hard_rug(self) -> bool:
         return not self.can_sell and not self.can_buy
 
-
 # ═══════════════════════════════════════════════
 # SOLANA SIMULATION (via Jupiter + Helius)
 # ═══════════════════════════════════════════════
@@ -54,7 +53,6 @@ JUPITER_QUOTE = "https://quote-api.jup.ag/v6/quote"
 JUPITER_SWAP = "https://quote-api.jup.ag/v6/swap"
 WSOL_MINT = "So11111111111111111111111111111111111111112"
 SIMULATION_AMOUNT = 100_000  # 0.0001 SOL for simulation
-
 
 async def simulate_solana(token_address: str) -> SimulationResult:
     """Simulate a sell transaction on Solana."""
@@ -122,7 +120,6 @@ async def simulate_solana(token_address: str) -> SimulationResult:
 
     return result
 
-
 async def _get_quote(
     client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int
 ) -> dict | None:
@@ -143,7 +140,6 @@ async def _get_quote(
     except (ConnectionError, OSError, TimeoutError):
         return None
 
-
 # ═══════════════════════════════════════════════
 # EVM SIMULATION (via eth_call)
 # ═══════════════════════════════════════════════
@@ -160,7 +156,6 @@ EVM_RPC_ENDPOINTS = {
     "base": "https://mainnet.base.org",
     "optimism": "https://mainnet.optimism.io",
 }
-
 
 async def simulate_evm(token_address: str, chain: str = "ethereum") -> SimulationResult:
     """Simulate a sell on EVM chains via eth_call."""
@@ -210,7 +205,6 @@ async def simulate_evm(token_address: str, chain: str = "ethereum") -> Simulatio
 
     return result
 
-
 async def _eth_call(client: httpx.AsyncClient, rpc_url: str, to: str, data: str) -> dict:
     """Execute an eth_call JSON-RPC request."""
     try:
@@ -226,7 +220,6 @@ async def _eth_call(client: httpx.AsyncClient, rpc_url: str, to: str, data: str)
         return r.json()
     except Exception as e:
         return {"error": str(e)}
-
 
 async def _simulate_uniswap_sell(client: httpx.AsyncClient, rpc_url: str, token: str) -> dict:
     """Simulate a Uniswap V2 sell transaction."""
@@ -261,11 +254,9 @@ async def _simulate_uniswap_sell(client: httpx.AsyncClient, rpc_url: str, token:
     except (ConnectionError, OSError, TimeoutError):
         return {"success": False}
 
-
 # ═══════════════════════════════════════════════
 # UNIFIED SIMULATION
 # ═══════════════════════════════════════════════
-
 
 async def simulate_transaction(token_address: str, chain: str = "solana") -> SimulationResult:
     """

@@ -22,6 +22,7 @@ Chains supported (expandable via RPC config):
 Tokens supported: USDC, USDT, DAI, WBTC, WETH, native coins (ETH, POL, AVAX, etc.)
 """
 
+from __future__ import annotations
 from typing import Any
 
 import aiohttp
@@ -41,7 +42,6 @@ logger = get_logger("facilitator.eip7702")
 
 # ERC-20 Transfer event signature
 TRANSFER_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-
 
 class EIP7702Facilitator(Facilitator):
     """

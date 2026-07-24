@@ -4,12 +4,12 @@ CryptoRugMunch Bot - Configuration
 ===================================
 Tiers, channels, API endpoints, DEX ref links, and constants.
 """
+from __future__ import annotations
 
 import os
 import subprocess
 
 import httpx
-
 
 # ══════════════════════════════════════════════
 # BOT TOKEN (gopass → env fallback)
@@ -35,7 +35,6 @@ def _get_token(gopass_path: str, env_keys: list[str]) -> str:
         if token:
             return token
     return ""
-
 
 BOT_TOKEN = _get_token(
     "rmi/infra/telegram_rugmunch_bot_token",
@@ -85,7 +84,6 @@ _IN_DOCKER = os.getenv("DOCKER_CONTAINER") or os.path.exists("/.dockerenv")
 BACKEND_HOST = "rmi-backend:8000" if _IN_DOCKER else "localhost:8000"
 BACKEND_URL = os.getenv("RMI_BACKEND_URL", f"http://{BACKEND_HOST}")
 
-
 async def check_backend_health() -> None:
     """Ping backend /health on startup. Logs WARNING if unreachable."""
     try:
@@ -105,7 +103,6 @@ async def check_backend_health() -> None:
         from app.core.logging import get_logger
 
         get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", BACKEND_URL, exc)
-
 
 # Alert engine
 ALERT_CHECK_INTERVAL = 300  # seconds between alert checks (5 min)
@@ -422,7 +419,6 @@ RISK_COLORS = {
     "unknown": "⚪",
 }
 
-
 def risk_bar(score: float, length: int = 10) -> str:
     """Generate a visual risk bar (0-100 scale)."""
     filled = int((score / 100) * length)
@@ -437,10 +433,8 @@ def risk_bar(score: float, length: int = 10) -> str:
     else:
         return "✅" * filled + "⬜" * (length - filled) + f" {score}% SAFE"
 
-
 def threat_indicator(label: str, found: bool) -> str:
     return f"{'🔴' if found else '✅'} {label}"
-
 
 # ══════════════════════════════════════════════
 # FORMATTING HELPERS
@@ -466,7 +460,6 @@ def fmt_number(n) -> str:
     else:
         return f"${n:.10f}"
 
-
 def fmt_pct(n) -> str:
     if n is None:
         return "N/A"
@@ -474,7 +467,6 @@ def fmt_pct(n) -> str:
         return f"{float(n):.2f}%"
     except (ValueError, TypeError):
         return str(n)
-
 
 def fmt_chain(chain: str) -> str:
     """Return chain emoji + name."""
@@ -492,7 +484,6 @@ def fmt_chain(chain: str) -> str:
         "bitcoin": "₿",
     }
     return f"{emojis.get(chain.lower(), '⛓️')} {chain.capitalize()}"
-
 
 # ══════════════════════════════════════════════
 # SCAM SCHOOL TOPICS

@@ -49,7 +49,6 @@ for _canonical, _aliases in CHAIN_ALIASES.items():
     for _alias in _aliases:
         _CHAIN_FROM_ALIAS[_alias.lower()] = _canonical
 
-
 def normalize_chain(chain: str) -> str:
     """Normalize a chain name/alias to its canonical form.
 
@@ -61,7 +60,6 @@ def normalize_chain(chain: str) -> str:
         Falls back to lowercased input if unknown.
     """
     return _CHAIN_FROM_ALIAS.get(chain.lower().strip(), chain.lower().strip())
-
 
 # ── Address validation ─────────────────────────────────────────────
 
@@ -85,7 +83,6 @@ def is_valid_address(address: str) -> bool:
         return True
     return bool(SOLANA_ADDRESS_RE.match(addr))
 
-
 def is_evm_address(address: str) -> bool:
     """Check whether *address* is a valid EVM address.
 
@@ -97,7 +94,6 @@ def is_evm_address(address: str) -> bool:
     """
     return bool(address and EVM_ADDRESS_RE.match(address.strip()))
 
-
 def is_solana_address(address: str) -> bool:
     """Check whether *address* is a valid Solana address.
 
@@ -108,7 +104,6 @@ def is_solana_address(address: str) -> bool:
         ``True`` if it matches the base58 32–44 char pattern.
     """
     return bool(address and SOLANA_ADDRESS_RE.match(address.strip()))
-
 
 def detect_address_type(address: str) -> str:
     """Detect whether *address* is EVM or Solana.
@@ -122,7 +117,6 @@ def detect_address_type(address: str) -> str:
     if SOLANA_ADDRESS_RE.match(addr):
         return "solana"
     return ""
-
 
 # ── EIP-55 checksum validation ─────────────────────────────────────
 
@@ -165,7 +159,6 @@ def validate_eip55_checksum(address: str) -> bool:
                 return False
     return True
 
-
 # ── Wallet address validation with chain detection ─────────────────
 
 def validate_wallet_address(address: str) -> tuple[bool, str]:
@@ -186,7 +179,6 @@ def validate_wallet_address(address: str) -> tuple[bool, str]:
     if addr.startswith("0x") and len(addr) == 42:
         return True, "evm"
     return False, ""
-
 
 __all__ = [
     "CHAIN_ALIASES",

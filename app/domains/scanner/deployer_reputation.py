@@ -19,6 +19,7 @@ Signals analyzed:
 Returns a 0-100 risk score with human-readable explanation.
 """
 
+from __future__ import annotations
 from typing import Any
 
 import numpy as np
@@ -112,7 +113,6 @@ KNOWN_PATTERNS = {
     },
 }
 
-
 def build_behavioral_fingerprint(
     address: str,
     deployment_count: int = 0,
@@ -150,7 +150,6 @@ def build_behavioral_fingerprint(
     )
 
     return vec
-
 
 def score_deployer_risk(
     address: str,

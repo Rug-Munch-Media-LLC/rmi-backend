@@ -12,6 +12,7 @@ Redis keys:
   token_id format: "{chain}:{token_address}"
 """
 
+from __future__ import annotations
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -28,7 +29,6 @@ EXPIRY_WINDOW_HOURS = 24
 
 # Module-level Redis connection pool (reused across calls)
 _redis_pool = None
-
 
 def _get_redis() -> Any:
     """Get a Redis client from the shared connection pool.
@@ -50,16 +50,13 @@ def _get_redis() -> Any:
         )
     return redis.Redis(connection_pool=_redis_pool)
 
-
 def _token_id(token_address: str, chain: str) -> str:
     """Build a unique token ID for Redis keys."""
     return f"{chain}:{token_address}".lower()
 
-
 def _token_hash_key(token_address: str, chain: str) -> str:
     """Redis hash key for a tracked token."""
     return f"{REDIS_NS}:token:{_token_id(token_address, chain)}"
-
 
 def track_token(
     token_address: str,
@@ -109,7 +106,6 @@ def track_token(
         "created_at": data["created_at"],
     }
 
-
 def untrack_token(token_address: str, chain: str) -> bool:
     """Remove a token from monitoring.
 
@@ -123,7 +119,6 @@ def untrack_token(token_address: str, chain: str) -> bool:
     r.delete(hash_key)
     removed = r.srem(f"{REDIS_NS}:tracked", token_id)
     return removed > 0
-
 
 def get_tracked_tokens() -> list[dict[str, Any]]:
     """List all currently tracked tokens with their stored data."""
@@ -150,7 +145,6 @@ def get_tracked_tokens() -> list[dict[str, Any]]:
         )
 
     return tokens
-
 
 def check_expiring_locks() -> list[dict[str, Any]]:
     """Find all tracked tokens whose lock expiry is within EXPIRY_WINDOW_HOURS.
@@ -200,7 +194,6 @@ def check_expiring_locks() -> list[dict[str, Any]]:
         )
 
     return expiring
-
 
 def check_all_locks_summary() -> dict[str, Any]:
     """Get a summary of all tracked locks and their status.

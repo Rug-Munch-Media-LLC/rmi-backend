@@ -3,6 +3,7 @@ RMI MEGA SCRAPER v3 - Substack, Mirror.xyz, Medium, Blog Scrapers
 Grabs EVERYTHING crypto. Biggest free news DB on the internet.
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import logging
@@ -110,7 +111,6 @@ RESEARCH_FEEDS = [
     ("coincentral", "https://coincentral.com/feed/"),
 ]
 
-
 def fetch_generic_feeds(feed_list, prefix="", label="generic") -> Any:
     """Fetch any list of RSS feeds. Returns articles."""
     results = []
@@ -151,7 +151,6 @@ def fetch_generic_feeds(feed_list, prefix="", label="generic") -> Any:
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug(f"  {prefix}{source}: {str(e)[:60]}")
     return results
-
 
 def store_all() -> dict[str, int] | dict[str, str]:
     """Fetch all sources and store in Redis + Postgres."""
@@ -228,7 +227,6 @@ def store_all() -> dict[str, int] | dict[str, str]:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Store failed: {e}")
         return {"error": str(e), "articles_collected": len(all_articles)}
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [mega] %(message)s")

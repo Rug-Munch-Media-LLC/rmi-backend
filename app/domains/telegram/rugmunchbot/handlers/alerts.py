@@ -4,6 +4,7 @@ RugMunchBot -- Alert engine + /alert and /alerts commands.
 
 Background price alert checker and alert management commands.
 """
+from __future__ import annotations
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -37,7 +38,6 @@ DIRECTION_LABELS = {
     "any": "\U0001f504 significant change",
 }
 
-
 async def _fetch_prices_batch(addresses: list[str]) -> dict[str, float]:
     """Fetch current USD prices for a list of token addresses from DexScreener."""
     prices: dict[str, float] = {}
@@ -59,7 +59,6 @@ async def _fetch_prices_batch(addresses: list[str]) -> dict[str, float]:
         logger.warning(f"Batch price fetch error: {e}")
     return prices
 
-
 def _check_alert_condition(current_price: float, alert_price: float, direction: str) -> bool:
     if current_price <= 0 or alert_price <= 0:
         return False
@@ -72,7 +71,6 @@ def _check_alert_condition(current_price: float, alert_price: float, direction: 
     elif direction == "any":
         return abs((current_price - alert_price) / alert_price) * 100 >= 2.0
     return False
-
 
 async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Background job: check all active price alerts and fire notifications."""
@@ -164,7 +162,6 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
         f"{len(triggered) - sent_count - rate_limited} failed"
     )
 
-
 # --- Alert commands ---
 
 async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -235,7 +232,6 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
     )
-
 
 async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Set a price alert: /alert <ABOVE|BELOW> <address> <price>"""

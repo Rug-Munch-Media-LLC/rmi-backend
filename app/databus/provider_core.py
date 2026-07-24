@@ -6,6 +6,7 @@ Circuit breakers, rate limiters, quota tracking, and core provider classes.
 This module contains NO external API implementations.
 """
 
+from __future__ import annotations
 import os
 import time
 from collections.abc import Callable
@@ -19,7 +20,6 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.core")
 
-
 class ProviderTier(Enum):
     """Provider tiers: LOCAL > FREE_API > FREEMIUM > PAID"""
 
@@ -27,7 +27,6 @@ class ProviderTier(Enum):
     FREE_API = "free_api"  # Free external API - no key needed
     FREEMIUM = "freemium"  # Free tier with key - limited credits
     PAID = "paid"  # Paid API - precious credits
-
 
 @dataclass
 class Provider:
@@ -47,7 +46,6 @@ class Provider:
     # Circuit breaker
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
-
 
 @dataclass
 class ProviderChain:
@@ -128,9 +126,7 @@ class ProviderChain:
 
         return None
 
-
 # ── Circuit Breaker ────────────────────────────────────────────
-
 
 class _CircuitBreaker:
     """Circuit breaker to prevent cascading failures."""
@@ -161,7 +157,6 @@ class _CircuitBreaker:
         self.failures = 0
         self.open = False
 
-
 class _RateLimiter:
     """Simple rate limiter based on time intervals."""
 
@@ -176,13 +171,11 @@ class _RateLimiter:
     def record_call(self) -> None:
         self.last_call = time.time()
 
-
 # ── Shared State ───────────────────────────────────────────────
 
 _circuit_breakers: dict[str, _CircuitBreaker] = {}
 _rate_limiters: dict[str, _RateLimiter] = {}
 _quota_usage: dict[str, int] = {}
-
 
 def reset_state() -> None:
     """Reset all circuit breakers, rate limiters, and quota tracking.

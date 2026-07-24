@@ -4,18 +4,17 @@ Degen Security Scanner — Convenience API and CLI
 Module-level functions for one-shot scans and report formatting.
 """
 
+from __future__ import annotations
 import asyncio
 import sys
 
 from .models import SecurityReport
 from .scanner import DegenSecurityScanner
 
-
 async def scan_token(token_address: str, quick: bool = False) -> SecurityReport:
     """One-shot token scan."""
     scanner = DegenSecurityScanner()
     return await scanner.full_scan(token_address, quick=quick)
-
 
 def format_report(report: SecurityReport) -> str:
     """Format a security report for display."""
@@ -136,7 +135,6 @@ def format_report(report: SecurityReport) -> str:
 
     return "\n".join(lines)
 
-
 if __name__ == "__main__":
     # Test scan on a known token
     test_token = "So11111111111111111111111111111111111111112"  # Wrapped SOL
@@ -146,7 +144,6 @@ if __name__ == "__main__":
     print(f"Testing Degen Security Scanner on: {test_token}")
     report = asyncio.run(scan_token(test_token, quick=True))
     print(format_report(report))
-
 
 __all__ = [
     "format_report",

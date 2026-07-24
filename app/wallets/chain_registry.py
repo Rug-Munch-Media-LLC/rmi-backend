@@ -4,12 +4,12 @@ Wallet Factory - Chain Registry
 ChainFamily enum, ChainConfig dataclass, and full SUPPORTED_CHAINS registry.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.logging import get_logger
 
 logger = get_logger("wallet_factory")
-
 
 class ChainFamily:
     """Blockchain families - used for routing to the right generation logic."""
@@ -26,7 +26,6 @@ class ChainFamily:
     TEZOS = "tezos"
     MONERO = "monero"
 
-
 @dataclass
 class ChainConfig:
     """Configuration for a blockchain network wallet."""
@@ -42,7 +41,6 @@ class ChainConfig:
     testnet_hd_path: str = ""
     slip44: int = 0
     description: str = ""
-
 
 SUPPORTED_CHAINS: dict[str, ChainConfig] = {
     "btc": ChainConfig(

@@ -64,7 +64,6 @@ SUBSCRIPTION_TIERS = {
 
 router = APIRouter(prefix="/api/v1", tags=["Stripe"])
 
-
 class CheckoutRequest(BaseModel):
     package: str = ""
     tier: str = ""
@@ -72,7 +71,6 @@ class CheckoutRequest(BaseModel):
     cancel_url: str = ""
     api_key: str = ""
     email: str = ""
-
 
 class CreditEntry:
     """In-memory credit store - replace with Redis/Postgres in production."""
@@ -110,9 +108,7 @@ class CreditEntry:
             "total_purchased": entry["total_purchased"],
         }
 
-
 _credit_store = CreditEntry()
-
 
 @router.post("/stripe/checkout")
 async def create_checkout(req: CheckoutRequest) -> Any | dict:
@@ -190,7 +186,6 @@ async def create_checkout(req: CheckoutRequest) -> Any | dict:
         logger.error(f"Stripe checkout error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)[:200]})
 
-
 @router.post("/stripe/webhook")
 async def stripe_webhook(request: Request) -> dict[str, bool] | Any:
     """Stripe webhook - called when payment succeeds."""
@@ -235,7 +230,6 @@ async def stripe_webhook(request: Request) -> dict[str, bool] | Any:
         logger.error(f"Stripe webhook error: {e}")
         return JSONResponse(status_code=400, content={"error": str(e)[:200]})
 
-
 @router.get("/stripe/packages")
 async def list_packages() -> dict[str, dict]:
     """List available credit packages and subscription tiers."""
@@ -257,7 +251,6 @@ async def list_packages() -> dict[str, dict]:
         "note": "Pay with credit card. No crypto wallet needed. Credits never expire.",
     }
 
-
 @router.get("/credits/balance")
 async def check_balance(api_key: str = "") -> dict[str, int | float] | dict[str, str]:
     """Check remaining credit balance for an API key."""
@@ -270,7 +263,6 @@ async def check_balance(api_key: str = "") -> dict[str, int | float] | dict[str,
         "total_purchased": spending["total_purchased"],
         "free_tier": spending["total_purchased"] == 0,
     }
-
 
 @router.post("/credits/buy")
 async def buy_credits(api_key: str = "", amount_usd: int = 1000) -> dict:
@@ -315,7 +307,6 @@ async def buy_credits(api_key: str = "", amount_usd: int = 1000) -> dict:
         "mode": "sandbox",
         "note": "Stripe not configured - credits added in sandbox mode. Add STRIPE_SECRET_KEY for live payments.",
     }
-
 
 @router.get("/stripe/portal")
 async def customer_portal(customer_id: str = "") -> dict | Any:

@@ -1,7 +1,7 @@
 """Stub ml_anomaly - ML-based anomaly detection"""
 
+from __future__ import annotations
 from typing import Any
-
 
 class WalletAnomalyDetector:
     """Detect anomalous wallet behavior."""
@@ -25,7 +25,6 @@ class WalletAnomalyDetector:
         for addr in addresses:
             results.append(self.analyze_wallet(addr, chain))
         return {"wallets": results, "total": len(results)}
-
 
 class TokenMetricAnomalyDetector:
     """Detect anomalous token metrics."""

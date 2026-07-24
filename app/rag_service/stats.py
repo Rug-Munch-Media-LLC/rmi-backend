@@ -1,11 +1,11 @@
 """RAG statistics."""
 
+from __future__ import annotations
 from typing import Any
 
 from app.crypto_embeddings import COLLECTIONS, get_embedder
 from app.rag_service.state import _seeded
 from app.rag_service.cache import _get_redis
-
 
 async def get_stats() -> dict[str, Any]:
     """Get RAG system statistics."""

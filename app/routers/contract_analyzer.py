@@ -60,7 +60,6 @@ MALICIOUS_PATTERNS = [
     ("proxy upgrade risk", [r"upgradeTo\(", r"upgradeToAndCall\(", r"_upgradeTo"]),
 ]
 
-
 async def _get_contract_bytecode(address: str, chain: str, client: httpx.AsyncClient) -> dict[str, Any]:
     """Fetch contract bytecode and source from Etherscan/Blockscout."""
     explorers = {
@@ -109,7 +108,6 @@ async def _get_contract_bytecode(address: str, chain: str, client: httpx.AsyncCl
         pass
 
     return result
-
 
 def _analyze_bytecode(bytecode: str, source: str) -> dict:
     """Analyze contract bytecode/source for suspicious patterns."""
@@ -168,7 +166,6 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
     )
     return {"risk_score": min(100, risk_score), "risk_level": risk_level, "findings": findings}
 
-
 @router.get("/analyze/{address}")
 async def analyze_contract(
     address: str,
@@ -207,7 +204,6 @@ async def analyze_contract(
             f"Verified: {'Yes' if info.get('verified') else 'No'}."
         ),
     }
-
 
 @router.get("/detect-mint/{address}")
 async def detect_mint_function(

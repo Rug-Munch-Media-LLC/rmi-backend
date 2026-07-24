@@ -12,6 +12,7 @@ Preserves complete logical units for accurate security analysis.
 Uses solc (Solidity compiler) already installed in the Docker container.
 """
 
+from __future__ import annotations
 import json
 import re
 import subprocess
@@ -37,7 +38,6 @@ MIN_CHUNK_SIZE = 200
 # Maximum chunk size (merge when possible)
 TARGET_CHUNK_SIZE = 2000
 MAX_CHUNK_SIZE = 3500
-
 
 def parse_solidity_ast(source: str) -> dict | None:
     """Parse Solidity source into AST using solc.
@@ -72,7 +72,6 @@ def parse_solidity_ast(source: str) -> dict | None:
     except Exception as e:
         logger.debug(f"solc AST parse error: {e}")
         return None
-
 
 def extract_boundaries(
     ast: dict,
@@ -146,7 +145,6 @@ def extract_boundaries(
 
     return boundaries
 
-
 def _compute_line_offsets(source: str) -> list[int]:
     """Compute byte offset of start of each line."""
     offsets = [0]
@@ -154,7 +152,6 @@ def _compute_line_offsets(source: str) -> list[int]:
         if ch == "\n":
             offsets.append(i + 1)
     return offsets
-
 
 def chunk_solidity_ast(
     source: str,
@@ -180,7 +177,6 @@ def chunk_solidity_ast(
     # Fallback: regex-based heuristic chunking for unparseable sources
     logger.debug("AST chunking unavailable - using regex heuristics")
     return _chunk_solidity_regex(source, target_size, max_size)
-
 
 def _build_chunks_from_boundaries(
     source: str,
@@ -213,7 +209,6 @@ def _build_chunks_from_boundaries(
         chunks.append(current.strip())
 
     return [c for c in chunks if len(c) >= MIN_CHUNK_SIZE]
-
 
 def _chunk_solidity_regex(
     source: str,

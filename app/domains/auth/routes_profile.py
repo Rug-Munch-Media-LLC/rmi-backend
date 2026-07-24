@@ -1,6 +1,5 @@
 """User profile and auth cookie/logout endpoints."""
 
-
 from __future__ import annotations
 
 from fastapi import HTTPException, Request
@@ -16,7 +15,6 @@ from app.domains.auth.jwt import _verify_jwt
 from app.domains.auth.router import router
 from app.domains.auth.schemas import UserResponse
 from app.domains.auth.store import _get_user
-
 
 @router.get("/user/me", response_model=UserResponse)
 async def user_profile_me(request: Request) -> dict:
@@ -41,7 +39,6 @@ async def user_profile_me(request: Request) -> dict:
         "badges": user.get("badges", []),
     }
 
-
 @router.get("/cookie-token")
 async def cookie_token(request: Request) -> JSONResponse:
     """Return user info from HttpOnly cookie. Used by frontend OAuth callback."""
@@ -64,7 +61,6 @@ async def cookie_token(request: Request) -> JSONResponse:
             "created_at": user.get("created_at"),
         },
     })
-
 
 @router.post("/logout")
 async def logout(request: Request) -> JSONResponse:

@@ -5,11 +5,11 @@ Generates D3.js-compatible bubble map data and AI-ready forensic context
 for deep wallet cluster analysis.
 """
 
+from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
 from app.domains.wallet.clustering.models import Cluster, Connection, WalletProfile
-
 
 def get_connections_for_bubble_map(
     connections: dict[tuple[str, str], Connection],
@@ -53,7 +53,6 @@ def get_connections_for_bubble_map(
             break
 
     return list(all_wallets_set), relevant_connections
-
 
 def generate_bubble_map_data(
     connections: dict[tuple[str, str], Connection],
@@ -118,11 +117,9 @@ def generate_bubble_map_data(
         "generated_at": datetime.now().isoformat(),
     }
 
-
 def _get_known_scammer_wallets() -> set[str]:
     """Get set of known scammer wallets (placeholder)."""
     return set()
-
 
 def generate_ai_forensic_breakdown(
     connections: dict[tuple[str, str], Connection],
@@ -222,7 +219,6 @@ def generate_ai_forensic_breakdown(
         "generated_at": datetime.now().isoformat(),
     }
 
-
 def get_cluster_report(cluster: Cluster, wallets: dict[str, WalletProfile], connections: dict) -> dict | None:
     """Get detailed report for a cluster."""
     if not cluster:
@@ -248,7 +244,6 @@ def get_cluster_report(cluster: Cluster, wallets: dict[str, WalletProfile], conn
         if conn.wallet_a in cluster.wallets and conn.wallet_b in cluster.wallets
     ])
     return report
-
 
 __all__ = [
     "get_connections_for_bubble_map",

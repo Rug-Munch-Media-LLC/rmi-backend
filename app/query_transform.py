@@ -11,6 +11,7 @@ Three strategies:
 All strategies have LLM-backed and rule-based fallback paths.
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import os
@@ -40,11 +41,9 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/compl
 AI_BASE = LLM_BASE_URL if LLM_API_KEY else "https://openrouter.ai/api/v1/chat/completions"
 AI_MODEL = os.getenv("QUERY_TRANSFORM_MODEL", os.getenv("LLM_MODEL", "deepseek-v4-flash"))
 
-
 # ======================================================================
 # DATA MODEL
 # ======================================================================
-
 
 @dataclass
 class TransformedQuery:
@@ -53,11 +52,9 @@ class TransformedQuery:
     transformed_queries: list[str]  # list of strings to embed & search
     metadata: dict = field(default_factory=dict)
 
-
 # ======================================================================
 # REDIS HELPER
 # ======================================================================
-
 
 async def _get_redis() -> Any:
     import redis.asyncio as ai_redis
@@ -70,11 +67,9 @@ async def _get_redis() -> Any:
         decode_responses=True,
     )
 
-
 # ======================================================================
 # LLM HELPER
 # ======================================================================
-
 
 async def _call_llm(prompt: str, max_tokens: int = 512) -> str | None:
     """Call LLM chat API (DeepSeek primary, OpenRouter fallback). Returns None if unavailable."""
@@ -100,7 +95,6 @@ async def _call_llm(prompt: str, max_tokens: int = 512) -> str | None:
     except Exception as e:
         logger.warning(f"LLM call failed: {e}")
         return None
-
 
 # ======================================================================
 # CRYPTO SYNONYM MAPPINGS (rule-based fallback for query expansion)
@@ -161,11 +155,9 @@ _TOKEN_CATEGORIES = {
     "BASE": "Base ecosystem token",
 }
 
-
 # ======================================================================
 # 1. HyDE -- HYPOTHETICAL DOCUMENT EMBEDDING
 # ======================================================================
-
 
 async def hyde_transform(query: str) -> str:
     """
@@ -210,7 +202,6 @@ async def hyde_transform(query: str) -> str:
 
     return result
 
-
 def _hyde_rule_based(query: str) -> str:
     """Rule-based HyDE: prepend crypto investigation context."""
     query_lower = query.lower()
@@ -231,11 +222,9 @@ def _hyde_rule_based(query: str) -> str:
 
     return f"{prefixes[0]} {query}"
 
-
 # ======================================================================
 # 2. QUERY EXPANSION
 # ======================================================================
-
 
 async def expand_query(query: str) -> list[str]:
     """
@@ -264,7 +253,6 @@ async def expand_query(query: str) -> list[str]:
 
     # Rule-based fallback
     return _expand_rule_based(query)
-
 
 def _expand_rule_based(query: str) -> list[str]:
     """Rule-based query expansion using crypto synonym mappings."""
@@ -302,11 +290,9 @@ def _expand_rule_based(query: str) -> list[str]:
 
     return unique[:6]
 
-
 # ======================================================================
 # 3. STEP-BACK PROMPTING
 # ======================================================================
-
 
 async def step_back_query(query: str) -> str:
     """
@@ -329,7 +315,6 @@ async def step_back_query(query: str) -> str:
 
     # Rule-based fallback
     return _step_back_rule_based(query)
-
 
 def _step_back_rule_based(query: str) -> str:
     """Rule-based step-back: replace specific tokens with broader categories."""
@@ -394,11 +379,9 @@ def _step_back_rule_based(query: str) -> str:
 
     return result
 
-
 # ======================================================================
 # 4. ROUTER -- auto-select the best strategy
 # ======================================================================
-
 
 async def transform_query(query: str, strategy: str = "auto") -> TransformedQuery:
     """
@@ -458,7 +441,6 @@ async def transform_query(query: str, strategy: str = "auto") -> TransformedQuer
         transformed_queries=[query],
         metadata={"reason": f"unknown strategy: {strategy}"},
     )
-
 
 def _auto_select_strategy(query: str) -> str:
     """

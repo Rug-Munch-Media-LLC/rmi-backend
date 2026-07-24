@@ -5,6 +5,7 @@ Reads scanner snapshots from Redis and DexScreener, computes trends over
 a configurable lookback window.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -20,7 +21,6 @@ from app.routers.x402_advanced_tools.confidence import compute_confidence
 from app.routers.x402_advanced_tools.models import HistoryRequest
 
 logger = get_logger("x402.history")
-
 
 async def token_history(req: HistoryRequest) -> Any:
     """Historical risk/liquidity/holder data for any token.
@@ -143,6 +143,5 @@ async def token_history(req: HistoryRequest) -> Any:
     except Exception as e:
         logger.error(f"Token history failed: {e}")
         raise AppError(message=str(e)) from e
-
 
 __all__ = ["token_history"]

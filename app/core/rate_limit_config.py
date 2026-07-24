@@ -1,7 +1,7 @@
 """Rate limit categories and path-to-category mappings for slowapi."""
 
+from __future__ import annotations
 from dataclasses import dataclass
-
 
 @dataclass(frozen=True)
 class RateLimitRule:
@@ -9,7 +9,6 @@ class RateLimitRule:
     limit: str  # e.g. "10/min"
     burst: int = 1
     exempt_internal: bool = True
-
 
 RULES: list[RateLimitRule] = [
     RateLimitRule("health", "1000/min"),

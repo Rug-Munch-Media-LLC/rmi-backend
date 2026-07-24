@@ -3,6 +3,7 @@ RMI Mega News Aggregator - Largest Free Crypto News Pipeline
 50+ RSS feeds, automatic dedup, sentiment scoring, multi-DB storage
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import logging
@@ -124,7 +125,6 @@ NEGATIVE_WORDS = {
     "fear",
 }
 
-
 def score_sentiment(text: str) -> float:
     """Fast lexicon-based sentiment: -1 (bearish) to +1 (bullish)"""
     words = set(text.lower().split())
@@ -132,7 +132,6 @@ def score_sentiment(text: str) -> float:
     neg = len(words & NEGATIVE_WORDS)
     total = pos + neg
     return (pos - neg) / total if total > 0 else 0.0
-
 
 def extract_tickers(text: str) -> list[str]:
     """Extract crypto tickers from text"""
@@ -142,7 +141,6 @@ def extract_tickers(text: str) -> list[str]:
         if t not in ("THE", "AND", "FOR", "BTC", "ETH", "SOL"):
             tickers.add(t)
     return list(tickers)[:5]
-
 
 def fetch_all_feeds(db=None) -> dict:
     """Fetch ALL 50+ RSS feeds, deduplicate, score, store. Returns stats."""
@@ -287,7 +285,6 @@ def fetch_all_feeds(db=None) -> dict:
         stats = {"total_fetched": len(results), "redis_error": str(e)[:100]}
 
     return stats
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [news] %(message)s")

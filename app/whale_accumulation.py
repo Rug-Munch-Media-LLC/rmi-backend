@@ -9,6 +9,7 @@ Tier: Premium ($0.10)
 Endpoint: POST /api/v1/x402-tools/whale_accumulation
 """
 
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
@@ -22,7 +23,6 @@ DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/search?q={}"
 BIRDEYE_API = "https://public-api.birdeye.so/defi/v3/token/holder?address={}"
 BIRDEYE_FALLBACK = "https://api.birdeye.so/defi/holder?token={}"
 
-
 async def _rpc_call(chain: str, method: str, params: list) -> Any:
     """Call into the x402_tools RPC fallback system."""
     try:
@@ -32,7 +32,6 @@ async def _rpc_call(chain: str, method: str, params: list) -> Any:
     except Exception as e:
         logger.debug(f"RPC call failed: {e}")
         return None
-
 
 async def _fetch(url: str, timeout: int = 10) -> dict | None:
     """Single URL fetch with aiohttp."""
@@ -47,7 +46,6 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
         logger.debug(f"Fetch failed: {url} - {e}")
     return None
 
-
 async def _fetch_with_fallback(urls: list[str]) -> tuple[Any, str | None]:
     """Try multiple URLs in sequence."""
     for url in urls:
@@ -55,7 +53,6 @@ async def _fetch_with_fallback(urls: list[str]) -> tuple[Any, str | None]:
         if result:
             return result, url
     return None, None
-
 
 def _compute_accumulation_score(
     buy_volume_ratio: float,
@@ -104,7 +101,6 @@ def _compute_accumulation_score(
 
     return round(min(score, 100), 1)
 
-
 def _classify_accumulation(score: float) -> str:
     """Classify accumulation intensity."""
     if score >= 80:
@@ -116,7 +112,6 @@ def _classify_accumulation(score: float) -> str:
     elif score >= 20:
         return "low"
     return "none"
-
 
 def _generate_recommendation(score: float, persona: str) -> str:
     """Generate human-readable recommendation."""
@@ -143,7 +138,6 @@ def _generate_recommendation(score: float, persona: str) -> str:
     elif score >= 20:
         return "LOW accumulation signals. No significant whale activity detected."
     return "No accumulation signals detected. Current market is neutral."
-
 
 async def detect_accumulation(token_address: str, chain: str) -> dict:
     """

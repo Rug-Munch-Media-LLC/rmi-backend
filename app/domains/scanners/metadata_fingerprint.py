@@ -17,6 +17,7 @@ Scoring:
   overall_similarity >= 70%       → SUSPICIOUS (worth manual review)
 """
 
+from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field
@@ -30,11 +31,9 @@ from app.core.logging import get_logger
 
 logger = get_logger("metadata_fingerprint")
 
-
 # ---------------------------------------------------------------------------
 # HTML structure extractor - strips text content, keeps tag hierarchy
 # ---------------------------------------------------------------------------
-
 
 class _TagStructureExtractor(HTMLParser):
     """Parses HTML and builds a structural fingerprint of tag order."""
@@ -50,7 +49,6 @@ class _TagStructureExtractor(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         self.tags.append(f"</{tag}>")
 
-
 def extract_html_structure(html: str) -> str:
     """Return a normalised tag-structure string from raw HTML."""
     if not html:
@@ -63,7 +61,6 @@ def extract_html_structure(html: str) -> str:
         return re.sub(r"\s+", " ", html).strip()
     return "".join(extractor.tags)
 
-
 def hash_html_structure(html: str) -> str:
     """SHA-256 hash of the HTML tag structure (content-independent)."""
     structure = extract_html_structure(html)
@@ -71,11 +68,9 @@ def hash_html_structure(html: str) -> str:
         return ""
     return hashlib.sha256(structure.encode("utf-8")).hexdigest()
 
-
 # ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class TokenMetadata:
@@ -89,7 +84,6 @@ class TokenMetadata:
     logo_url: str = ""
     creator: str = ""
 
-
 @dataclass
 class SocialOverlapResult:
     overlapping_links: list[str]
@@ -97,7 +91,6 @@ class SocialOverlapResult:
     total_unique: int
     overlap_ratio: float  # 0.0-1.0
     shared_domains: list[str] = field(default_factory=list)
-
 
 @dataclass
 class FingerprintReport:
@@ -114,11 +107,9 @@ class FingerprintReport:
     warnings: list[str] = field(default_factory=list)
     confidence: str = "LOW"  # LOW, MEDIUM, HIGH
 
-
 # ---------------------------------------------------------------------------
 # MetadataFingerprinter
 # ---------------------------------------------------------------------------
-
 
 class MetadataFingerprinter:
     """Fingerprints token metadata and detects near-duplicate / copycat tokens.

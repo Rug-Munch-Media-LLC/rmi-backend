@@ -4,6 +4,7 @@ SENTINEL - Module Singleton Management
 Lazy-initialized module singletons and _ensure_modules() factory.
 """
 
+from __future__ import annotations
 from typing import Any
 
 import httpx
@@ -91,7 +92,6 @@ _social_velocity: SocialVelocityAnalyzer | None = None
 _bytecode_similarity: BytecodeSimilarityAnalyzer | None = None
 _block_zero_sniper: BlockZeroSniperAnalyzer | None = None
 _gas_trace: GasTraceAnalyzer | None = None
-
 
 def _ensure_modules(config: SentinelConfig | None = None) -> None:
     """Initialize or reinitialize module singletons with the given config.

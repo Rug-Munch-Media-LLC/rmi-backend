@@ -42,7 +42,6 @@ _SUPPORTED_CHAINS = [
     "fantom",
 ]
 
-
 async def _get_wallet_profile(address: str, chain: str) -> dict | None:
     """Get wallet profile from storage (ClickHouse + Redis, degradation-aware)."""
     try:
@@ -53,7 +52,6 @@ async def _get_wallet_profile(address: str, chain: str) -> dict | None:
     except Exception as exc:
         logger.debug("wallet_profile_fail chain=%s addr=%s: %s", chain, address[:12], exc)
         return None
-
 
 async def _resolve_entity(address: str, chain: str) -> dict[str, Any] | None:
     """Resolve cross-chain entity for a wallet address."""
@@ -66,7 +64,6 @@ async def _resolve_entity(address: str, chain: str) -> dict[str, Any] | None:
         logger.debug("entity_resolve_fail addr=%s: %s", address[:12], exc)
         return None
 
-
 async def _get_labels(address: str, chain: str) -> dict[str, Any] | None:
     """Get unified labels from all federated sources."""
     try:
@@ -77,7 +74,6 @@ async def _get_labels(address: str, chain: str) -> dict[str, Any] | None:
     except Exception as exc:
         logger.debug("label_resolve_fail addr=%s: %s", address[:12], exc)
         return None
-
 
 async def _get_risk_score(
     address: str, chain: str, intel: dict | None = None
@@ -91,7 +87,6 @@ async def _get_risk_score(
     except Exception as exc:
         logger.debug("risk_score_fail addr=%s: %s", address[:12], exc)
         return None
-
 
 async def _get_chain_profile(address: str, chain: str) -> dict[str, Any]:
     """Get single-chain profile fragment.
@@ -131,7 +126,6 @@ async def _get_chain_profile(address: str, chain: str) -> dict[str, Any]:
         "risk_level": None,
     }
 
-
 async def _get_deployer_history(address: str) -> list[dict[str, Any]]:
     """Get deployer history for a wallet across all chains."""
     try:
@@ -142,7 +136,6 @@ async def _get_deployer_history(address: str) -> list[dict[str, Any]]:
     except Exception as exc:
         logger.debug("deployer_history_fail addr=%s: %s", address[:12], exc)
         return []
-
 
 @router.get("/{address}/cross-chain")
 async def entity_cross_chain(address: str) -> dict[str, Any]:
@@ -280,7 +273,6 @@ async def entity_cross_chain(address: str) -> dict[str, Any]:
         response["deployer_history"] = deployer_history
 
     return response
-
 
 def _max_confidence(entity: dict[str, Any]) -> float:
     """Get the maximum confidence score across all resolved addresses."""

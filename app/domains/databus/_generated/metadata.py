@@ -7,10 +7,10 @@ data types with descriptions, used for introspection and documentation.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
-
 # Descriptive metadata for every registered data type.
 # This dict is populated on import from build_provider_chains() output
 # for introspection purposes.
+from __future__ import annotations
 CHAIN_METADATA: dict[str, dict] = {
     "token_price": {
         "description": "Token price across DEXs and CEXs",
@@ -134,11 +134,9 @@ CATEGORY_INDEX: dict[str, list[str]] = {}
 for _key, _meta in CHAIN_METADATA.items():
     CATEGORY_INDEX.setdefault(_meta["category"], []).append(_key)
 
-
 def get_chains_by_category() -> dict[str, list[str]]:
     """Return a dict mapping category names to lists of data_type keys."""
     return dict(CATEGORY_INDEX)
-
 
 __all__ = [
     "CATEGORY_INDEX",

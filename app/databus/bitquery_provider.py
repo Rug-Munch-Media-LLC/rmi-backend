@@ -30,6 +30,7 @@ Rate limits:
   - Business: $499/mo, highest rate limits
 """
 
+from __future__ import annotations
 import hashlib
 import time
 
@@ -55,7 +56,6 @@ CACHE_TTL_BALANCE = 600  # 10 min
 # Rate limits (free tier)
 FREE_CREDITS_PER_MONTH = 100_000
 MAX_RPS = 1.0
-
 
 class BitqueryProvider:
     """

@@ -43,7 +43,6 @@ _SERVICE_MAP = {
     "pumpfun_gainers": "launch-platform",
 }
 
-
 def _sanitize_tool(tool: dict) -> dict:
     """Remove upstream provider names from user-visible tool fields"""
     for field in ("name", "description"):
@@ -56,12 +55,10 @@ def _sanitize_tool(tool: dict) -> dict:
         tool["service"] = _SERVICE_MAP.get(tool["service"], tool["service"])
     return tool
 
-
 router = APIRouter(prefix="/api/v1/x402", tags=["x402-catalog"])
 
 # Cache for tool catalog
 _catalog_cache: dict = {}
-
 
 def parse_gateway_tools(gateway_dir: str) -> list[dict]:
     """Parse RMI_TOOLS definitions from a gateway index.ts file.
@@ -159,7 +156,6 @@ def parse_gateway_tools(gateway_dir: str) -> list[dict]:
 
     return tools
 
-
 def load_external_mcp_tools() -> list[dict]:
     """Load expanded external MCP tool definitions.
 
@@ -253,7 +249,6 @@ def load_external_mcp_tools() -> list[dict]:
 
     return []
 
-
 def discover_route_tools() -> list[dict]:
     """Discover tools from FastAPI route definitions"""
     tools = []
@@ -334,7 +329,6 @@ def discover_route_tools() -> list[dict]:
                 }
             )
     return tools
-
 
 def get_catalog() -> Any:
     """Build full tool catalog from TOOL_PRICES + X402_TOOL_PRICING (databus) = single source of truth.
@@ -554,12 +548,10 @@ def get_catalog() -> Any:
     _catalog_cache.update(result)
     return result
 
-
 @router.get("/tools-catalog")
 async def list_tools_catalog() -> Any:
     """Get all available MCP tools across all chains and external services"""
     return get_catalog()
-
 
 @router.get("/tools-catalog/{chain}")
 async def list_chain_tools(chain: str) -> dict:
@@ -569,14 +561,12 @@ async def list_chain_tools(chain: str) -> dict:
     chain_tools = [t for t in catalog["tools"] if chain_upper in t.get("chains", [])]
     return {"chain": chain, "count": len(chain_tools), "tools": chain_tools}
 
-
 @router.get("/tools-catalog/category/{category}")
 async def list_category_tools(category: str) -> dict:
     """Get tools in a specific category across all chains"""
     catalog = get_catalog()
     filtered = [t for t in catalog["tools"] if t.get("category", "") == category.lower()]
     return {"category": category, "count": len(filtered), "tools": filtered}
-
 
 @router.get("/tools-catalog/service/{service}")
 async def list_service_tools(service: str) -> dict:

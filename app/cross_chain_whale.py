@@ -18,6 +18,7 @@ Data Sources (all free):
 - Jupiter - Solana token info
 """
 
+from __future__ import annotations
 import asyncio
 import os
 from contextlib import suppress
@@ -79,9 +80,7 @@ CHAIN_IDS: dict[str, int] = {
     "base": 8453,
 }
 
-
 # ── Data Models ───────────────────────────────────────────────────
-
 
 @dataclass
 class WhalePosition:
@@ -99,7 +98,6 @@ class WhalePosition:
     wallet_label: str = ""
     source: str = ""  # data source (birdeye, etherscan, etc.)
 
-
 @dataclass
 class CrossChainWhale:
     """A whale wallet tracked across chains."""
@@ -116,7 +114,6 @@ class CrossChainWhale:
     is_exchange: bool = False
     is_scammer: bool = False
     is_smart_money: bool = False
-
 
 @dataclass
 class WhaleTrackerReport:
@@ -137,23 +134,18 @@ class WhaleTrackerReport:
     chains_no_data: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
-
 # ── Helpers ───────────────────────────────────────────────────────
-
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
-
 def _get_env_key(key: str) -> str:
     return os.getenv(key, "")
-
 
 def _truncate_address(addr: str) -> str:
     if len(addr) <= 12:
         return addr
     return f"{addr[:6]}...{addr[-4:]}"
-
 
 def _compute_concentration(positions: list[WhalePosition]) -> float:
     """Compute HHI-like concentration from whale positions."""
@@ -166,9 +158,7 @@ def _compute_concentration(positions: list[WhalePosition]) -> float:
     # Normalize: HHI of 1 = fully concentrated, HHI near 0 = very distributed
     return round(min(hhi * 100, 100), 1)
 
-
 # ── API Fetchers ──────────────────────────────────────────────────
-
 
 async def _fetch_json(url: str, headers: dict | None = None, timeout: float = 15.0) -> dict | None:
     """Fetch JSON from URL with error handling."""
@@ -186,7 +176,6 @@ async def _fetch_json(url: str, headers: dict | None = None, timeout: float = 15
         logger.debug(f"Error fetching {url}: {e}")
         return None
 
-
 async def _fetch_dexscreener_pairs(token_address: str) -> list[dict]:
     """Fetch all DEX pairs for a token across all chains."""
     url = f"{FREE_APIS['dexscreener']}/tokens/{token_address}"
@@ -194,7 +183,6 @@ async def _fetch_dexscreener_pairs(token_address: str) -> list[dict]:
     if not data or "pairs" not in data:
         return []
     return data["pairs"]
-
 
 async def _fetch_etherscan_holders(token_address: str, chain: str) -> list[dict[str, Any]]:
     """Fetch top token holders from Etherscan-family explorer."""
@@ -225,7 +213,6 @@ async def _fetch_etherscan_holders(token_address: str, chain: str) -> list[dict[
         return []
     return data.get("result", [])
 
-
 async def _fetch_birdeye_holders(token_address: str, chain: str) -> list[dict]:
     """Fetch top holders from Birdeye public API."""
     api_key = _get_env_key("BIRDEYE_API_KEY")
@@ -238,7 +225,6 @@ async def _fetch_birdeye_holders(token_address: str, chain: str) -> list[dict]:
     if not data or not data.get("success"):
         return []
     return data.get("data", {}).get("holders", [])
-
 
 async def _fetch_jupiter_token_info(token_address: str) -> dict | list | None:
     """Fetch Jupiter token info for Solana tokens."""
@@ -255,7 +241,6 @@ async def _fetch_jupiter_token_info(token_address: str) -> dict | list | None:
         except (ConnectionError, OSError, TimeoutError):
             continue
     return None
-
 
 async def _fetch_token_supply(token_address: str, chain: str) -> float | None:
     """Fetch total token supply from DexScreener or Birdeye.
@@ -290,9 +275,7 @@ async def _fetch_token_supply(token_address: str, chain: str) -> float | None:
     logger.debug(f"Token supply fetch failed for {token_address} on {chain}")
     return None
 
-
 # ── Core Analysis ─────────────────────────────────────────────────
-
 
 async def _analyze_single_chain(
     token_address: str,
@@ -450,7 +433,6 @@ async def _analyze_single_chain(
 
     return result
 
-
 def _is_exchange_address(addr: str) -> bool:
     """Heuristic: check if address looks like a known exchange."""
     addr_lower = addr.lower()
@@ -471,11 +453,9 @@ def _is_exchange_address(addr: str) -> bool:
     # Check if any exchange name appears in the address or label
     return any(exch in addr_lower for exch in known_exchanges)
 
-
 def _is_smart_money_address(addr: str) -> bool:
     """Heuristic: placeholder for smart money detection."""
     return False
-
 
 async def _cross_reference_whales(
     chain_results: dict[str, dict[str, Any]],
@@ -539,11 +519,9 @@ async def _cross_reference_whales(
 
     return whales, cross_chain_whales
 
-
 # ── Public API ────────────────────────────────────────────────────
 
 _instance: "CrossChainWhaleTracker | None" = None
-
 
 def get_whale_tracker() -> "CrossChainWhaleTracker":
     """Get or create the singleton CrossChainWhaleTracker instance."""
@@ -551,7 +529,6 @@ def get_whale_tracker() -> "CrossChainWhaleTracker":
     if _instance is None:
         _instance = CrossChainWhaleTracker()
     return _instance
-
 
 class CrossChainWhaleTracker:
     """Track whale wallets across multiple chains."""
@@ -731,9 +708,7 @@ class CrossChainWhaleTracker:
 
         return result
 
-
 # ── Formatting ─────────────────────────────────────────────────────
-
 
 def format_whale_report(report: WhaleTrackerReport) -> str:
     """Format a WhaleTrackerReport for human-readable output."""
@@ -788,18 +763,14 @@ def format_whale_report(report: WhaleTrackerReport) -> str:
     lines.append(f"   Scan: {report.scan_timestamp}")
     return "\n".join(lines)
 
-
 # ── Address validation ────────────────────────────────────────────
-
 
 def is_valid_address(address: str) -> bool:
     """Basic address validation for Solana and EVM addresses - delegates to shared_utils."""
     from app.core.shared_utils import is_valid_address as _check
     return _check(address)
 
-
 # ── Quick test ────────────────────────────────────────────────────
-
 
 async def _quick_test() -> None:
     """Run a quick smoke test with a well-known token."""
@@ -814,7 +785,6 @@ async def _quick_test() -> None:
         logger.info("Quick test passed ✓")
     else:
         logger.warning("Quick test FAILED ✗")
-
 
 if __name__ == "__main__":
     asyncio.run(_quick_test())

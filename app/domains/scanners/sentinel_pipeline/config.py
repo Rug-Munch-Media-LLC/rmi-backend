@@ -4,6 +4,7 @@ SENTINEL - Configuration & Report Dataclasses
 SentinelConfig, SentinelReport, and the dataclass_to_dict utility.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 from typing import Any
@@ -13,7 +14,6 @@ import httpx
 from app.core.logging import get_logger
 
 logger = get_logger("sentinel_pipeline")
-
 
 @dataclass
 class SentinelConfig:
@@ -31,7 +31,6 @@ class SentinelConfig:
         if self.dexscreener_client is None:
             self.dexscreener_client = httpx.AsyncClient(timeout=15.0)
         return self.dexscreener_client
-
 
 def dataclass_to_dict(obj: Any) -> Any:
     """Recursively convert dataclass instances to dicts.
@@ -55,7 +54,6 @@ def dataclass_to_dict(obj: Any) -> Any:
         return {k: dataclass_to_dict(v) for k, v in obj.items()}
 
     return obj
-
 
 @dataclass
 class SentinelReport:

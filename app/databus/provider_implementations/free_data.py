@@ -1,11 +1,11 @@
 """Free fallback providers — never pay for what's free."""
 
+from __future__ import annotations
 import os
 
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
-
 
 async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
     """DexScreener - free token metadata from pairs endpoint."""
@@ -36,7 +36,6 @@ async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
     """DexScreener - free holder/liquidity data from pairs."""
     token = mint or kw.get("token", "")
@@ -53,7 +52,6 @@ async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> dict | None:
     """DexScreener - recent trades for a token (free, no API key required)."""
@@ -78,7 +76,6 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
         logger.warning("provider error")
     return None
 
-
 async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw) -> dict | None:
     """DexScreener - top profitable traders for a token."""
     if not token:
@@ -101,7 +98,6 @@ async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw)
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw) -> dict | None:
     """Etherscan - free transaction data (5 req/sec, no key needed for basic)."""
@@ -142,7 +138,6 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
         logger.warning("provider error")
     return None
 
-
 async def _defillama_tvl(**kw) -> dict | None:
     """DeFiLlama - global TVL and protocol data (completely free)."""
     try:
@@ -161,7 +156,6 @@ async def _defillama_tvl(**kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _defillama_chains(**kw) -> dict | None:
     """DeFiLlama - TVL by chain (completely free)."""
     try:
@@ -179,7 +173,6 @@ async def _defillama_chains(**kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -> dict | None:
     """Blockchair - address balance and tx count (free tier)."""
@@ -201,7 +194,6 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -
         logger.warning("provider error")
     return None
 
-
 async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
     """Blockchair - chain statistics (free tier)."""
     try:
@@ -217,7 +209,6 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _birdeye_overview(address: str = "", **kw) -> dict | None:
     """Birdeye - token overview, liquidity, and holder stats (free tier)."""

@@ -38,17 +38,14 @@ EMBEDDING_DIM: Final = lookup_dim(settings.embedder_primary)
 # Re-export _resize for legacy code (rmi-rag/legacy_supabase.py)
 _resize = normalize_dim
 
-
 class RAGUnavailableError(Exception):
     """Raised when no embedding backend is reachable. The RAG endpoint
     translates this to HTTP 503 + an explicit empty-result body.
     See T04 in MINIMAX_M3_TASKS.md."""
 
-
 # ── Backwards-compatible async API ──────────────────────────────────────
 
 _EMBEDDER: EmbedderProtocol | None = None
-
 
 def _get_embedder() -> EmbedderProtocol:
     """Lazy singleton embedder for the convenience functions below."""
@@ -56,7 +53,6 @@ def _get_embedder() -> EmbedderProtocol:
     if _EMBEDDER is None:
         _EMBEDDER = get_default_embedder()
     return _EMBEDDER
-
 
 async def get_embedding(text: str) -> list[float]:
     """Async embedding API. Returns ``EMBEDDING_DIM``-dimensional float list.
@@ -77,7 +73,6 @@ async def get_embedding(text: str) -> list[float]:
             f"no embedding backend available: {exc}"
         ) from exc
 
-
 async def get_embeddings(texts: list[str]) -> list[list[float]]:
     """Batch embedding. Handles 100+ texts efficiently.
 
@@ -95,7 +90,6 @@ async def get_embeddings(texts: list[str]) -> list[list[float]]:
             f"batch embedding failed: {exc}"
         ) from exc
 
-
 # ── Health / observability ──────────────────────────────────────────────
 
 def current_backend() -> str:
@@ -105,7 +99,6 @@ def current_backend() -> str:
         return e.name
     except Exception:
         return "unavailable"
-
 
 # ── Embedder factory (convenience for callers who want explicit control) ─
 
@@ -127,7 +120,6 @@ def create_embedder(
     from app.rag.embedder import get_embedder as _build
 
     return _build(primary=primary, fallback=fallback, enable_cache=enable_cache)
-
 
 __all__ = [
     "EMBEDDING_DIM",

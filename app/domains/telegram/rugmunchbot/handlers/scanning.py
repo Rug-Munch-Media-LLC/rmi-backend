@@ -4,6 +4,7 @@ RugMunchBot -- Core scanning command handlers.
 
 Commands: start, help, scan, wallet, ta, compare, quick, rugcheck
 """
+from __future__ import annotations
 
 import asyncio
 
@@ -43,7 +44,6 @@ from app.domains.telegram.rugmunchbot.scanner import analyze_wallet, scan_token
 from app.domains.telegram.rugmunchbot.states import check_spam
 
 logger = get_logger("rmi_bot")
-
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -110,7 +110,6 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True
     )
 
-
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     d = thin_sep()
     s = sep()
@@ -160,7 +159,6 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True
     )
-
 
 async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -226,7 +224,6 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=back_kb(),
         )
 
-
 async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if user is None:
@@ -268,7 +265,6 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
-
 
 async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -365,7 +361,6 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             f"\u274c TA failed: {str(e)[:200]}", parse_mode=ParseMode.HTML, reply_markup=back_kb()
         )
 
-
 async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if user is None:
@@ -433,7 +428,6 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
-
 
 async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Quick price check - same as $TOKEN but as a command."""

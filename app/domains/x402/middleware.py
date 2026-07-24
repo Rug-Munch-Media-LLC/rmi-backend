@@ -38,7 +38,6 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
-
 # ── Pricing per v4.0 §T34 ───────────────────────────────────────────
 PRICING: dict[str, dict[str, Any]] = {
     # free_tier: bool, pro_cents: int (USD cents), ent_cents: int
@@ -107,7 +106,6 @@ PRICING: dict[str, dict[str, Any]] = {
 # Free tier daily limit
 FREE_DAILY_LIMIT = 5
 
-
 # ── Nonce burn (replay protection) ──────────────────────────────
 # Per MINIMAX_M3_TASKS.md T02. Each tx_hash can only be used ONCE.
 # We use Redis SETNX (set-if-not-exists) as an atomic nonce burn:
@@ -116,7 +114,6 @@ FREE_DAILY_LIMIT = 5
 # TTL is 24h (the x402 invoice expiry window).
 
 X402_NONCE_TTL = 86400  # 24 hours
-
 
 async def _burn_nonce(catalog, tx_hash: str) -> bool:
     """Atomically burn a payment nonce. Returns True if first use, False if replay.
@@ -140,7 +137,6 @@ async def _burn_nonce(catalog, tx_hash: str) -> bool:
         log.error(f"x402_nonce_burn_fail: {e}")
         # Fail closed - reject if we can't burn atomically
         return False
-
 
 # ── Prometheus counters (lightweight, no external dep) ──────────
 try:
@@ -172,7 +168,6 @@ except (ConnectionError, OSError, TimeoutError):
     _X402_REPLAY_COUNTER = _Stub()
     _X402_REVENUE_COUNTER = _Stub()
 
-
 def get_tool_price_usd(tool: str) -> float:
     """Get the per-call price for a tool in USD.
 
@@ -196,7 +191,6 @@ def get_tool_price_usd(tool: str) -> float:
     except (ConnectionError, OSError, TimeoutError):
         return p.get("pro_cents", 1) / 100.0
 
-
 def get_tool_metadata(tool: str) -> dict:
     """Public-facing tool metadata for /api/v1/x402/catalog."""
     p = PRICING.get(tool, {})
@@ -208,7 +202,6 @@ def get_tool_metadata(tool: str) -> dict:
         "price_ent_usd": p.get("ent_cents", 0) / 100.0,
         "description": p.get("description", ""),
     }
-
 
 # ── Rate limit tracking (Redis) ───────────────────────────────────
 def _agent_id_from_request(request: Request | None) -> str:
@@ -236,7 +229,6 @@ def _agent_id_from_request(request: Request | None) -> str:
     if client:
         return f"anon:{client.host}"
     return "anon:unknown"
-
 
 async def _check_rate_limit(redis, agent_id: str) -> None:
     """Sliding-window rate limit: 5 free calls/day, 1000 pro, unlimited ent.
@@ -268,9 +260,7 @@ async def _check_rate_limit(redis, agent_id: str) -> None:
     except (httpx.HTTPError, ValueError, TypeError, ConnectionError, OSError) as e :
         log.warning(f"rate_limit_check_fail: {e}")
 
-
 # ── HMAC key from env ────────────────────────────────────────────
-
 
 def _get_hmac_key() -> bytes:
     """Load HMAC signing key from environment. Never hardcoded."""
@@ -283,7 +273,6 @@ def _get_hmac_key() -> bytes:
             )
         get_logger("wp.x402").warning("X402_HMAC_KEY not set, using ADMIN_API_KEY")
     return key.encode()
-
 
 # ── Payment challenge ─────────────────────────────────────────────
 def create_invoice(tool: str, agent_id: str) -> dict:
@@ -316,7 +305,6 @@ def create_invoice(tool: str, agent_id: str) -> dict:
     ).decode()
     return invoice
 
-
 def verify_payment_header(x_payment: str, expected_amount_usd: float) -> tuple[str, str] | None:
     """Decode the X-Payment header. Returns (tx_hash, signature) or None.
 
@@ -330,7 +318,6 @@ def verify_payment_header(x_payment: str, expected_amount_usd: float) -> tuple[s
         return data.get("tx_hash", ""), data.get("signature", "")
     except (json.JSONDecodeError):
         return None
-
 
 async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> bool:
     """Verify an on-chain payment.
@@ -419,7 +406,6 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
 
     return False
 
-
 async def record_receipt(
     catalog, tx_hash: str, tool: str, agent_id: str, amount_usd: float
 ) -> bool:
@@ -443,7 +429,6 @@ async def record_receipt(
     except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
         log.warning(f"receipt_record_fail: {e}")
         return False
-
 
 # ── Main middleware ────────────────────────────────────────────────
 async def require_payment(

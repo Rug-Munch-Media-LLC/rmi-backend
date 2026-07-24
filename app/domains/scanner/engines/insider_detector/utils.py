@@ -1,5 +1,6 @@
 """Utility functions for insider detection (no circular deps with collectors)."""
 
+from __future__ import annotations
 from collections import defaultdict
 
 from app.core.logging import get_logger
@@ -8,7 +9,6 @@ from .config import AVG_PRE_TRENDING_PUMP, INSIDER_WINDOW_MIN
 from .models import Confidence, InsiderEvidence, InsiderReport, InsiderType
 
 logger = get_logger(__name__)
-
 
 def _deduplicate_evidence(evidence_list: list[InsiderEvidence]) -> list[InsiderEvidence]:
     """Deduplicate by wallet + insider_type. Keep highest confidence and PnL."""
@@ -28,7 +28,6 @@ def _deduplicate_evidence(evidence_list: list[InsiderEvidence]) -> list[InsiderE
         if ev_score > ex_score or (ev_score == ex_score and ev.pnl_estimate > existing.pnl_estimate):
             best[key] = ev
     return list(best.values())
-
 
 def _generate_insights(report: InsiderReport) -> list[str]:
     """Generate human-readable insights from the report."""
@@ -70,7 +69,6 @@ def _generate_insights(report: InsiderReport) -> list[str]:
         f"${report.total_frontrun_value:,.0f} frontrun value"
     )
     return insights
-
 
 async def _check_early_buy(
     token_address: str, chain: str, bought_at: float,

@@ -14,7 +14,6 @@ from pydantic.config import ConfigDict
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
 
-
 class WalletResolveResponse(BaseModel):
     """Response for wallet resolution."""
 
@@ -26,7 +25,6 @@ class WalletResolveResponse(BaseModel):
     entity: str | None = Field(None, min_length=1, max_length=100)
     balance_usd: float | None = Field(None, ge=0)
     tx_count: int | None = Field(None, ge=0)
-
 
 @router.get("/{address}", response_model=WalletResolveResponse)
 async def resolve_wallet(
@@ -42,7 +40,6 @@ async def resolve_wallet(
         detail="Wallet resolution not yet implemented - coming in v5.1",
     )
 
-
 @router.get("/{address}/labels", response_model=list[dict[str, Any]])
 async def get_wallet_labels(address: str, chain: str = "ethereum") -> list[dict[str, Any]]:
     """Return labels for a wallet from all federated sources."""
@@ -50,7 +47,6 @@ async def get_wallet_labels(address: str, chain: str = "ethereum") -> list[dict[
         status_code=501,
         detail="Federated labels API pending - see T11",
     )
-
 
 @router.get("/{address}/history")
 async def get_wallet_history(address: str, chain: str = "ethereum") -> dict[str, Any]:

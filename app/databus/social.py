@@ -13,6 +13,7 @@ x402 integration: per-call pricing via DataBus
 Cache: Redis-backed SWR with 15-min hot, 1-hour warm, 24-hour cold
 """
 
+from __future__ import annotations
 import hashlib
 import time
 from datetime import UTC, datetime
@@ -38,7 +39,6 @@ CACHE_TTL_HOT = 900  # 15 min - real-time-ish
 CACHE_TTL_WARM = 3600  # 1 hour - recent
 CACHE_TTL_COLD = 86400  # 24 hours - historical
 CACHE_TTL_WEEKLY = 604800  # 7 days - old data
-
 
 class XTwitterProvider:
     """
@@ -318,7 +318,6 @@ class XTwitterProvider:
 
         data = await self._api_call("POST", "/tweets", params=payload)
         return data
-
 
 class SocialDataAggregator:
     """

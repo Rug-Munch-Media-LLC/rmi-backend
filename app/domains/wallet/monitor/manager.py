@@ -8,7 +8,6 @@ from app.domains.wallet.monitor.channel import AlertChannel
 from app.domains.wallet.monitor.monitor import WalletMonitor
 from app.domains.wallet.monitor.watchlist import WatchlistManager
 
-
 class WalletMonitorManager:
     """Manages WalletMonitor instances across multiple chains."""
 

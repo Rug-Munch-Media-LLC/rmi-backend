@@ -2,6 +2,7 @@
 x402 DataBus Tools - API endpoints.
 """
 
+from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -24,7 +25,6 @@ logger = get_logger("x402_databus_endpoints")
 router = APIRouter(prefix="/api/v1/x402-databus", tags=["x402-databus-tools"])
 
 # ── x402 Catalog & Discovery ─────────────────────────────────────
-
 
 @router.get("/catalog")
 async def x402_catalog(request: Request) -> dict[str, str]:
@@ -99,7 +99,6 @@ async def x402_catalog(request: Request) -> dict[str, str]:
         "accepted_tokens": {"USDC": "All networks", "EUR": "SEPA"},
     }
 
-
 @router.get("/access-matrix")
 async def x402_access_matrix() -> dict:
     """Show which data types each x402 tier can access."""
@@ -110,7 +109,6 @@ async def x402_access_matrix() -> dict:
         "premium": access_controller.get_x402_allowed_types("premium"),
         "enterprise": "all (full access)",
     }
-
 
 @router.get("/trials/{identifier}")
 async def x402_trial_status(identifier: str) -> dict:
@@ -138,9 +136,7 @@ async def x402_trial_status(identifier: str) -> dict:
             }
     return {"identifier": identifier, "trials": trials}
 
-
 # ── BASIC TIER ENDPOINTS ($0.01-$0.02) ───────────────────────────
-
 
 @router.post("/token-price")
 async def x402_token_price(req: MintRequest, request: Request) -> Any:
@@ -158,7 +154,6 @@ async def x402_token_price(req: MintRequest, request: Request) -> Any:
         "message": "Price unavailable for this token",
     }
 
-
 @router.post("/token-detail")
 async def x402_token_detail(req: MintRequest, request: Request) -> Any:
     """Rich token intelligence report. $0.02/call."""
@@ -173,14 +168,12 @@ async def x402_token_detail(req: MintRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/trending")
 async def x402_trending(req: QueryRequest, request: Request) -> Any:
     """Trending tokens feed. $0.01/call."""
     await verify_x402_payment(request, "trending", 0.01)
     result = await databus.fetch("trending", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/market-overview")
 async def x402_market_overview(request: Request) -> Any:
@@ -189,14 +182,12 @@ async def x402_market_overview(request: Request) -> Any:
     result = await databus.fetch("market_overview", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/market-movers")
 async def x402_market_movers(request: Request) -> Any:
     """Top market movers. $0.01/call."""
     await verify_x402_payment(request, "market_movers", 0.01)
     result = await databus.fetch("market_movers", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/tvl")
 async def x402_tvl(req: QueryRequest, request: Request) -> Any:
@@ -210,7 +201,6 @@ async def x402_tvl(req: QueryRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/news")
 async def x402_news(req: QueryRequest, request: Request) -> Any:
     """Crypto news feed. $0.01/call."""
@@ -220,14 +210,12 @@ async def x402_news(req: QueryRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/social-feed")
 async def x402_social_feed(request: Request) -> Any:
     """Social intelligence feed. $0.01/call."""
     await verify_x402_payment(request, "social_feed", 0.01)
     result = await databus.fetch("social_feed", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/dex-data")
 async def x402_dex_data(req: MintRequest, request: Request) -> Any:
@@ -238,14 +226,12 @@ async def x402_dex_data(req: MintRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/defi-protocols")
 async def x402_defi_protocols(request: Request) -> Any:
     """DeFi protocol tracker. $0.01/call."""
     await verify_x402_payment(request, "defi_protocols", 0.01)
     result = await databus.fetch("defi_protocols", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/prediction-markets")
 async def x402_prediction_markets(req: QueryRequest, request: Request) -> Any:
@@ -260,14 +246,12 @@ async def x402_prediction_markets(req: QueryRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/prediction-signals")
 async def x402_prediction_signals(request: Request) -> Any:
     """Automated trading signals. $0.02/call."""
     await verify_x402_payment(request, "prediction_signals", 0.02)
     result = await databus.fetch("prediction_signals", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/rugmap")
 async def x402_rugmap(req: AddressDepthRequest, request: Request) -> Any:
@@ -283,7 +267,6 @@ async def x402_rugmap(req: AddressDepthRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/rugmaps-analysis")
 async def x402_rugmaps_analysis(req: AddressRequest, request: Request) -> Any:
     """RugMaps AI holder analysis. $0.02/call."""
@@ -297,7 +280,6 @@ async def x402_rugmaps_analysis(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/wallet-balance")
 async def x402_wallet_balance(req: AddressRequest, request: Request) -> Any:
     """Wallet balance check. $0.01/call."""
@@ -306,7 +288,6 @@ async def x402_wallet_balance(req: AddressRequest, request: Request) -> Any:
         "wallet_balance", address=req.address, consumer_type="x402_paid", x402_tier="basic"
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/wallet-labels")
 async def x402_wallet_labels(req: AddressRequest, request: Request) -> Any:
@@ -321,7 +302,6 @@ async def x402_wallet_labels(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/risk-scan")
 async def x402_risk_scan(req: AddressRequest, request: Request) -> Any:
     """RugShield quick scan. $0.02/call."""
@@ -334,7 +314,6 @@ async def x402_risk_scan(req: AddressRequest, request: Request) -> Any:
         x402_tier="basic",
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/threat-check")
 async def x402_threat_check(req: AddressRequest, request: Request) -> Any:
@@ -349,7 +328,6 @@ async def x402_threat_check(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/socialfi-resolve")
 async def x402_socialfi_resolve(req: AddressRequest, request: Request) -> Any:
     """Social identity resolver. $0.01/call."""
@@ -359,9 +337,7 @@ async def x402_socialfi_resolve(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 # ── PREMIUM TIER ENDPOINTS ($0.05-$0.10) ─────────────────────────
-
 
 @router.post("/wallet-profile")
 async def x402_wallet_profile(req: AddressRequest, request: Request) -> Any:
@@ -377,7 +353,6 @@ async def x402_wallet_profile(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/smart-money")
 async def x402_smart_money(req: QueryRequest, request: Request) -> Any:
     """Smart money tracker. $0.05/call."""
@@ -386,7 +361,6 @@ async def x402_smart_money(req: QueryRequest, request: Request) -> Any:
         "smart_money", consumer_type="x402_paid", x402_tier="premium", **payment
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/funding-source")
 async def x402_funding_source(req: AddressRequest, request: Request) -> Any:
@@ -411,7 +385,6 @@ async def x402_funding_source(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/cross-chain")
 async def x402_cross_chain(req: AddressRequest, request: Request) -> Any:
     """Cross-chain correlator. $0.08/call."""
@@ -426,7 +399,6 @@ async def x402_cross_chain(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/wallet-cluster")
 async def x402_wallet_cluster(req: AddressRequest, request: Request) -> Any:
     """Syndicate network mapper. $0.08/call."""
@@ -439,7 +411,6 @@ async def x402_wallet_cluster(req: AddressRequest, request: Request) -> Any:
         **payment,
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/bundle-detect")
 async def x402_bundle_detect(req: AddressRequest, request: Request) -> Any:
@@ -455,7 +426,6 @@ async def x402_bundle_detect(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/wallet-tokens")
 async def x402_wallet_tokens(req: AddressRequest, request: Request) -> Any:
     """Wallet token holdings. $0.05/call."""
@@ -469,7 +439,6 @@ async def x402_wallet_tokens(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/wallet-pnl")
 async def x402_wallet_pnl(req: AddressRequest, request: Request) -> Any:
     """Wallet PnL tracker. $0.05/call."""
@@ -478,7 +447,6 @@ async def x402_wallet_pnl(req: AddressRequest, request: Request) -> Any:
         "wallet_pnl", address=req.address, consumer_type="x402_paid", x402_tier="premium", **payment
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/contract-scan")
 async def x402_contract_scan(req: AddressRequest, request: Request) -> Any:
@@ -493,7 +461,6 @@ async def x402_contract_scan(req: AddressRequest, request: Request) -> Any:
         **payment,
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/sentinel-deep")
 async def x402_sentinel_deep(req: AddressRequest, request: Request) -> Any:
@@ -511,7 +478,6 @@ async def x402_sentinel_deep(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/entity-intel")
 async def x402_entity_intel(req: AddressRequest, request: Request) -> Any:
     """Entity intelligence lookup. $0.10/call."""
@@ -527,7 +493,6 @@ async def x402_entity_intel(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/rag-search")
 async def x402_rag_search(req: QueryRequest, request: Request) -> Any:
     """Knowledge search engine. $0.05/call."""
@@ -537,9 +502,7 @@ async def x402_rag_search(req: QueryRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 # ── ELITE TIER ENDPOINTS ($0.15-$0.40) ───────────────────────────
-
 
 @router.post("/arkham-portfolio")
 async def x402_arkham_portfolio(req: AddressRequest, request: Request) -> Any:
@@ -555,7 +518,6 @@ async def x402_arkham_portfolio(req: AddressRequest, request: Request) -> Any:
         **payment,
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/arkham-transfers")
 async def x402_arkham_transfers(req: AddressRequest, request: Request) -> Any:
@@ -573,7 +535,6 @@ async def x402_arkham_transfers(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/nansen-labels")
 async def x402_nansen_labels(req: AddressRequest, request: Request) -> Any:
     """Nansen label intelligence. $0.15/call."""
@@ -586,7 +547,6 @@ async def x402_nansen_labels(req: AddressRequest, request: Request) -> Any:
         **payment,
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/portfolio")
 async def x402_portfolio(req: AddressRequest, request: Request) -> Any:
@@ -602,10 +562,8 @@ async def x402_portfolio(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 # ── UNIVERSAL DATA ENDPOINT ───────────────────────────────────────
 # Single endpoint that accepts any data_type. Payment based on tier pricing.
-
 
 @router.post("/fetch")
 async def x402_universal_fetch(req: GenericDataRequest, request: Request) -> Any:

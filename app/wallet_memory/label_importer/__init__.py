@@ -4,6 +4,7 @@ Replaces the sync Redis-only wallet_label_loader.py with an async module.
 Re-exports all public functions for backward compatibility.
 """
 
+from __future__ import annotations
 import json
 import time
 
@@ -43,16 +44,13 @@ from .clean import load_clean_labels
 _loading = False
 _last_load_counts: dict[str, int] = {}
 
-
 def get_last_load_counts() -> dict[str, int]:
     """Return counts from the most recent label import."""
     return _last_load_counts
 
-
 def is_loading() -> bool:
     """Check if a label import is currently in progress."""
     return _loading
-
 
 # ── Main entry point ──
 
@@ -170,9 +168,7 @@ async def load_all_static_labels() -> dict[str, int]:
     _last_load_counts = counts
     return counts
 
-
 import os  # noqa: E402 (used in load_all_static_labels)
-
 
 __all__ = [
     "load_all_static_labels",

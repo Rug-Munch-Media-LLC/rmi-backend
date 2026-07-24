@@ -11,7 +11,6 @@ from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/cross-chain", tags=["cross-chain-v1"])
 
-
 @router.get("/{address}")
 async def cross_chain_profile(address: str) -> None:
     """Get cross-chain profile for a wallet address.
@@ -22,7 +21,6 @@ async def cross_chain_profile(address: str) -> None:
     raise ServiceUnavailableError(
         "Cross-chain profile — planned: GET /api/v1/cross-chain/{address} — see roadmap",
     )
-
 
 @router.post("/trace", summary="Cross Chain Trace", description="Trace fund flows across multiple blockchains. Follows transactions through bridges, mixers, and CEX deposits. Returns complete flow visualization.")
 async def cross_chain_trace(addresses: list[str]) -> None:

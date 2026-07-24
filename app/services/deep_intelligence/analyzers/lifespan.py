@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 
 from app.services.deep_intelligence.core import client, logger
 
-
 async def token_lifespan_predictor(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """
     AI-driven survival analysis. Compare against historical rug patterns.

@@ -18,7 +18,6 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
     """All runtime configuration. Add new env vars here as needed."""
 
@@ -286,7 +285,6 @@ class Settings(BaseSettings):
         description="Enable LlamaIndex-based RAG pipeline. Set LLAMA_RAG_ENABLED env var.",
     )
 
-
     # ── Embedder ────────────────────────────────────────────────────────
     bge_m3_url: str = Field(
         default="http://localhost:8001",
@@ -345,12 +343,10 @@ class Settings(BaseSettings):
                 )
         return v
 
-
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Cached settings instance."""
     return Settings()
-
 
 # Module-level singleton for convenience.
 settings = get_settings()

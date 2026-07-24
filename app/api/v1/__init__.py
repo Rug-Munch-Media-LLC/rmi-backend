@@ -24,7 +24,6 @@ api_v1_router: list[APIRouter] = []
 #     api_v1_router.append(public_router)
 router = APIRouter(prefix="/api/v1", tags=["v1"])
 
-
 # ── Migrated domains ───────────────────────────────────────────────────
 # Each migrated domain is imported here. The router exposes endpoints
 # at /api/v1/<domain>/* (path defined per-router).
@@ -64,7 +63,6 @@ api_v1_router.append(admin_alerts_webhook_router)
 from app.api.v1.catalog import router as catalog_router  # noqa: E402
 
 api_v1_router.append(catalog_router)
-
 
 def build_v1_router() -> APIRouter:
     """Construct the v1 aggregator with all migrated routes mounted."""

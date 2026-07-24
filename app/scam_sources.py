@@ -21,6 +21,7 @@ Architecture:
   4. Store in pgvector + Redis (dual-write)
   5. Trigger re-scan of related tokens/wallets
 """
+from __future__ import annotations
 
 import asyncio
 import hashlib
@@ -64,7 +65,6 @@ SCRAPE_SOURCES = [
         "selector": "article a",
     },
 ]
-
 
 class RSSFeedConnector:
     """Generic RSS/Atom feed connector for security feeds."""
@@ -113,7 +113,6 @@ class RSSFeedConnector:
             logger.warning(f"RSS {source_name} failed: {e}")
         return results
 
-
 class GoPlusConnector:
     """GoPlus Security API - real-time token risk detection.
     Free tier: rate limited but no API key needed for basic checks."""
@@ -153,7 +152,6 @@ class GoPlusConnector:
         except Exception as e:
             logger.warning(f"GoPlus check failed for {address}: {e}")
         return {}
-
 
 # ══════════════════════════════════════════════════════════════════════
 # KNOWN SCAM DATABASE - Manual curated patterns (expanded)
@@ -322,11 +320,9 @@ KNOWN_SCAMS_EXPANDED = [
     },
 ]
 
-
 # ══════════════════════════════════════════════════════════════════════
 # INGESTION ORCHESTRATOR
 # ══════════════════════════════════════════════════════════════════════
-
 
 class ScamIngestionPipeline:
     """
@@ -476,13 +472,11 @@ class ScamIngestionPipeline:
                 logger.warning(f"Failed to embed curated pattern {pattern['name']}: {e}")
         return docs
 
-
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ══════════════════════════════════════════════════════════════════════
 
 _pipeline: ScamIngestionPipeline | None = None
-
 
 async def get_ingestion_pipeline() -> ScamIngestionPipeline:
     global _pipeline

@@ -23,18 +23,15 @@ from typing import Any
 router = APIRouter(prefix="/api/v1/wallet-clusters", tags=["wallet-clustering"])
 logger = get_logger(__name__)
 
-
 class ClusterRequest(BaseModel):
     wallets: list[str]
     min_confidence: float = 0.3
     include_sleepers: bool = True
 
-
 class FundingPathRequest(BaseModel):
     source: str
     target: str
     max_depth: int = 5
-
 
 class RugMapRequest(BaseModel):
     center_wallet: str
@@ -42,13 +39,11 @@ class RugMapRequest(BaseModel):
     max_wallets: int = 250
     ai_deep_dive: bool = False
 
-
 class ContractScanRequest(BaseModel):
     contract_address: str
     chain: str = "solana"
     detect_clusters: bool = True
     detect_bundles: bool = True
-
 
 def _get_detector() -> Any:
     try:
@@ -58,7 +53,6 @@ def _get_detector() -> Any:
     except ImportError as e:
         raise ServiceUnavailableError(message=f"Module unavailable: {e}") from e
 
-
 def _get_engine() -> Any:
     try:
         from app.domains.wallet.clustering import get_clustering_engine
@@ -66,7 +60,6 @@ def _get_engine() -> Any:
         return get_clustering_engine()
     except ImportError as e:
         raise ServiceUnavailableError(message=f"Module unavailable: {e}") from e
-
 
 @router.post("/detect")
 async def detect_clusters(req: ClusterRequest) -> Any:
@@ -116,7 +109,6 @@ async def detect_clusters(req: ClusterRequest) -> Any:
         confidence=brief.get("confidence", 0.5),
     )
 
-
 @router.post("/funding-path")
 async def trace_funding_path(req: FundingPathRequest) -> Any:
     """Trace the funding path between two wallets (BFS)."""
@@ -140,7 +132,6 @@ async def trace_funding_path(req: FundingPathRequest) -> Any:
         cache_ttl=120,
         confidence=0.7 if data["path_found"] else 0.3,
     )
-
 
 @router.post("/scan")
 async def scan_all() -> Any:
@@ -182,7 +173,6 @@ async def scan_all() -> Any:
         confidence=brief.get("confidence", 0.5),
     )
 
-
 @router.get("/health", summary="Clustering Health", description="Health check for the wallet clustering engine. Returns status of clustering models and data sources.")
 async def clustering_health() -> dict[str, str]:
     cache_stats = {}
@@ -222,7 +212,6 @@ async def clustering_health() -> dict[str, str]:
         "spam_registry": spam_stats,
     }
 
-
 @router.get("/report/{cluster_id}")
 async def get_cluster_report(cluster_id: str) -> Any:
     """Get detailed report for a specific cluster."""
@@ -231,7 +220,6 @@ async def get_cluster_report(cluster_id: str) -> Any:
     if not report:
         raise HTTPException(status_code=404, detail="Cluster not found")
     return report
-
 
 @router.post("/rugmap-data")
 async def get_rugmap_data(req: RugMapRequest) -> Any:
@@ -327,7 +315,6 @@ async def get_rugmap_data(req: RugMapRequest) -> Any:
         confidence=0.6 if node_count > 0 else 0.2,
     )
 
-
 @router.post("/ai-forensic-breakdown")
 async def get_ai_forensic_breakdown(req: RugMapRequest) -> Any:
     """
@@ -417,7 +404,6 @@ Be direct and avoid fluff."""
         cache_ttl=300,
         confidence=min(1.0, breakdown.get("total_wallets_analyzed", 0) / 200),
     )
-
 
 @router.post("/contract-scan")
 async def scan_contract_clusters(req: ContractScanRequest) -> Any:

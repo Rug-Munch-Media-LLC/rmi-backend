@@ -13,6 +13,7 @@ Uses direct API calls: DexScreener, Solscan (holders), Etherscan (contracts),
 Birdeye, Helius.
 """
 
+from __future__ import annotations
 import contextlib
 import os
 from dataclasses import dataclass, field
@@ -27,9 +28,7 @@ from app.domains.scanners.rag_citations import build_citation_string, query_rag_
 
 logger = get_logger("governance_attack")
 
-
 # ── Dataclasses ──────────────────────────────────────────────────────
-
 
 @dataclass
 class HolderStake:
@@ -41,7 +40,6 @@ class HolderStake:
     is_contract: bool = False
     is_exchange: bool = False
 
-
 @dataclass
 class GovernanceParams:
     """Governance contract parameters (EVM)."""
@@ -52,7 +50,6 @@ class GovernanceParams:
     proposal_threshold_pct: float = 0.0  # % of supply needed to propose
     voting_period_blocks: int = 0
     has_timelock: bool = False
-
 
 @dataclass
 class GovernanceAttackReport:
@@ -72,9 +69,7 @@ class GovernanceAttackReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
-
 # ── Detector Class ──────────────────────────────────────────────────
-
 
 class GovernanceAttackDetector:
     """Detects governance concentration and attack risks.

@@ -42,7 +42,6 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
-
 class DuckDBAnalytics:
     """Embedded DuckDB analytics engine.
 
@@ -264,10 +263,8 @@ class DuckDBAnalytics:
     ) -> None:
         self.close()
 
-
 # Convenience factory
 _default_instance: DuckDBAnalytics | None = None
-
 
 def get_default_analytics() -> DuckDBAnalytics:
     """Get a process-wide DuckDBAnalytics instance.

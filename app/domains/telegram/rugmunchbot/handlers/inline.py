@@ -2,6 +2,7 @@
 """
 RugMunchBot -- Inline query handler.
 """
+from __future__ import annotations
 
 from telegram import (
     InlineQueryResultArticle,
@@ -11,7 +12,6 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 from app.domains.telegram.rugmunchbot.formatters import is_evm, is_sol, short_addr
-
 
 async def handle_inline(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.inline_query.query.strip()

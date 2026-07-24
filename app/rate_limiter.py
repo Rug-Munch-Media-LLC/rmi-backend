@@ -2,6 +2,7 @@
 # This file is an AI EMBEDDING provider dispatcher — not a general API rate limiter.
 # The RateTracker/EmbeddingDispatcher here solves a different problem (load-balancing
 # across free embedding providers). For API request rate limiting, use UnifiedRateLimiter.
+from __future__ import annotations
 """
 Rate-Limit-Aware Multi-Provider System
 =======================================
@@ -36,7 +37,6 @@ logger = get_logger("rate.limiter")
 # Verified Provider Limits (June 2026)
 # ──────────────────────────────────────────────────────────────
 
-
 @dataclass
 class ProviderLimit:
     id: str
@@ -51,10 +51,8 @@ class ProviderLimit:
     priority: int = 100  # Higher = preferred within free tier
     timeout: float = 15.0
 
-
 # Configured limits - auto-detected from credit status
 PROVIDERS: list[ProviderLimit] = []
-
 
 def configure_providers(has_openrouter_credits: bool = True) -> None:
     """Configure provider limits based on credit status."""
@@ -196,15 +194,12 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
         ),
     ]
 
-
 # Default: assume credits
 configure_providers(has_openrouter_credits=True)
-
 
 # ──────────────────────────────────────────────────────────────
 # Redis-Backed Rate Tracker
 # ──────────────────────────────────────────────────────────────
-
 
 class RateTracker:
     """Tracks per-provider usage in Redis + memory. Survives restarts."""
@@ -333,11 +328,9 @@ class RateTracker:
             )
         return result
 
-
 # ──────────────────────────────────────────────────────────────
 # Embedding Cache
 # ──────────────────────────────────────────────────────────────
-
 
 class EmbeddingCache:
     """Caches embedding results to avoid redundant API calls.
@@ -427,11 +420,9 @@ class EmbeddingCache:
             "hit_rate": round(self._hits / max(total, 1) * 100, 1),
         }
 
-
 # ──────────────────────────────────────────────────────────────
 # Smart Embedding Dispatcher
 # ──────────────────────────────────────────────────────────────
-
 
 class EmbeddingDispatcher:
     """Routes embedding requests to the best provider with available capacity."""
@@ -690,10 +681,8 @@ class EmbeddingDispatcher:
             "local_model_loaded": self._local_model is not None,
         }
 
-
 # ── Singleton ──
 _dispatcher: EmbeddingDispatcher | None = None
-
 
 async def get_dispatcher() -> EmbeddingDispatcher:
     global _dispatcher
@@ -701,7 +690,6 @@ async def get_dispatcher() -> EmbeddingDispatcher:
         _dispatcher = EmbeddingDispatcher()
         await _dispatcher.init()
     return _dispatcher
-
 
 async def smart_embed(texts: list[str]) -> tuple[list[list[float]], str]:
     return await (await get_dispatcher()).embed(texts)

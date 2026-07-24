@@ -21,6 +21,7 @@ Usage:
     await manager.broadcast("scans", {"token": "SoL...", "score": 85})
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -41,7 +42,6 @@ CHANNEL_TOKENS = "rmi:ws:tokens"
 
 # Heartbeat interval for zombie detection
 HEARTBEAT_INTERVAL = 30
-
 
 class WsClientManager:
     """Tracks connected WebSocket clients and handles broadcasting.
@@ -205,11 +205,9 @@ class WsClientManager:
             "broadcasts_failed": self.broadcasts_failed,
         }
 
-
 # ── Singleton ──────────────────────────────────────────────────────────────
 
 _manager: WsClientManager | None = None
-
 
 def get_ws_manager() -> WsClientManager:
     global _manager

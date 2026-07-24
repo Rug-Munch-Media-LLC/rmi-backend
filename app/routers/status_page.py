@@ -45,7 +45,6 @@ logger = get_logger("status_page")
 
 router = APIRouter(prefix="/api/v1/status", tags=["status-page"])
 
-
 def _try_mark_down(store: str) -> None:
     try:
         from app.core.degradation import get_registry
@@ -56,9 +55,7 @@ def _try_mark_down(store: str) -> None:
     except Exception as e:
         logger.debug(f"Degradation registry mark_down failed: {e}")
 
-
 # ── Health Check Functions ───────────────────────────────────────
-
 
 async def check_http_service(url: str, timeout: float = 5.0) -> dict[str, Any]:
     """Check an HTTP endpoint."""
@@ -93,7 +90,6 @@ async def check_http_service(url: str, timeout: float = 5.0) -> dict[str, Any]:
             "last_check": datetime.now(UTC).isoformat(),
         }
 
-
 def check_redis() -> dict[str, Any]:
     """Check Redis connectivity."""
     r = get_redis()
@@ -126,7 +122,6 @@ def check_redis() -> dict[str, Any]:
             "error": str(e)[:200],
             "last_check": datetime.now(UTC).isoformat(),
         }
-
 
 def check_clickhouse() -> dict[str, Any]:
     """Check ClickHouse connectivity."""
@@ -169,7 +164,6 @@ def check_clickhouse() -> dict[str, Any]:
             "last_check": datetime.now(UTC).isoformat(),
         }
 
-
 async def check_service(name: str, config: dict) -> dict[str, Any]:
     """Check a single service."""
     check_type = config.get("check_type", "http")
@@ -183,16 +177,13 @@ async def check_service(name: str, config: dict) -> dict[str, Any]:
     else:
         return {"status": "unknown", "error": f"Unknown check type: {check_type}"}
 
-
 # ── Incident Management ──────────────────────────────────────────
-
 
 class IncidentReport(BaseModel):
     service: str
     severity: str = "minor"  # minor, major, critical
     message: str
     resolved: bool = False
-
 
 def get_incidents(limit: int = 20) -> list[dict[str, Any]]:
     """Get recent incidents from Redis."""
@@ -202,7 +193,6 @@ def get_incidents(limit: int = 20) -> list[dict[str, Any]]:
 
     incidents = r.lrange("rmi:status:incidents", 0, limit - 1)
     return [json.loads(i) for i in incidents]
-
 
 def report_incident(service: str, severity: str, message: str, resolved: bool = False) -> None:
     """Report an incident."""
@@ -238,7 +228,6 @@ def report_incident(service: str, severity: str, message: str, resolved: bool = 
     else:
         r.delete(f"rmi:status:current:{service}")
 
-
 def get_uptime_history(days: int = 30) -> dict[str, Any]:
     """Get uptime history for the past N days."""
     r = get_redis()
@@ -263,9 +252,7 @@ def get_uptime_history(days: int = 30) -> dict[str, Any]:
 
     return history
 
-
 # ── Background Monitor ───────────────────────────────────────────
-
 
 async def run_all_checks() -> None:
     """Run all health checks and store results."""
@@ -306,7 +293,6 @@ async def run_all_checks() -> None:
     }
     r.set("rmi:status:overall", json.dumps(overall), ex=120)
 
-
 async def status_monitor_loop() -> None:
     """Run status checks every 30 seconds."""
     while True:
@@ -318,9 +304,7 @@ async def status_monitor_loop() -> None:
 
         await asyncio.sleep(30)
 
-
 # ── Endpoints ────────────────────────────────────────────────────
-
 
 @router.get("")
 async def get_status() -> Any:
@@ -363,7 +347,6 @@ async def get_status() -> Any:
 
     return JSONResponse(content=overall)
 
-
 @router.get("/summary")
 async def status_summary() -> Any:
     """Get one-line summary for status badges."""
@@ -391,13 +374,11 @@ async def status_summary() -> Any:
         }
     )
 
-
 @router.get("/history")
 async def status_history(days: int = 7) -> Any:
     """Get uptime history."""
     days = min(days, 90)  # Cap at 90 days
     return JSONResponse(content=get_uptime_history(days))
-
 
 @router.post("/incident")
 async def create_incident(incident: IncidentReport, request: Request) -> Any:
@@ -420,7 +401,6 @@ async def create_incident(incident: IncidentReport, request: Request) -> Any:
             "message": "Incident reported",
         }
     )
-
 
 @router.get("/services")
 async def list_services() -> Any:

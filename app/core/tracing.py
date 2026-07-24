@@ -1,5 +1,6 @@
 """OpenTelemetry Tracing - request IDs, spans, Grafana Tempo export."""
 
+from __future__ import annotations
 import os
 import time
 import uuid
@@ -13,7 +14,6 @@ try:
     TRACING_ENABLED = _s.otel_enabled or os.getenv("OTEL_ENABLED", "false").lower() == "true"
 except Exception:
     TRACING_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
-
 
 def setup_tracing(app: FastAPI) -> None:
     if not TRACING_ENABLED:
@@ -41,10 +41,8 @@ def setup_tracing(app: FastAPI) -> None:
             "note": "OpenTelemetry export to Grafana Tempo configured. Traces available at :3000.",
         }
 
-
 def start_span(name: str, attributes: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"name": name, "start": time.perf_counter(), "attrs": attributes or {}}
-
 
 def end_span(span: dict[str, Any]) -> None:
     span["elapsed_ms"] = (time.perf_counter() - span["start"]) * 1000

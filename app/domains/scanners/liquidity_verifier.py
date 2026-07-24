@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import ClassVar
 
 """
@@ -59,7 +60,6 @@ MORALIS_DATA_URL = "https://deep-index.moralis.io/api/v2.2"
 HELIUS_RPC_URL = "https://mainnet.helius-rpc.com"
 HELIUS_API_URL = "https://api.helius.xyz"
 
-
 class LockStatus(Enum):
     LOCKED = "locked"
     BURNED = "burned"
@@ -67,7 +67,6 @@ class LockStatus(Enum):
     PARTIAL = "partial"  # Split lock (e.g., 80% locked, 20% unlocked)
     EXPIRED = "expired"
     UNKNOWN = "unknown"
-
 
 @dataclass
 class LockDetail:
@@ -81,7 +80,6 @@ class LockDetail:
     is_legit: bool = True  # False if locker is a fake/unverified contract
     is_burned: bool = False
     unlock_in_days: int | None = None
-
 
 @dataclass
 class LockReport:
@@ -99,13 +97,11 @@ class LockReport:
     risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
     warnings: list[str] = field(default_factory=list)
 
-
 # Dead/burn addresses for Solana
 SOLANA_BURN_ADDRESSES = {
     "1nc1nerator11111111111111111111111111111111",
     "11111111111111111111111111111111",
 }
-
 
 class LiquidityVerifier:
     """Verifies liquidity locks, detects fake locks, monitors expiry.

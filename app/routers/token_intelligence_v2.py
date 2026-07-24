@@ -9,7 +9,6 @@ from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/api/v2/tokens", tags=["token-intelligence-v2"])
 
-
 @router.get("/{address}/intelligence")
 async def token_intelligence(
     address: str, chain: str = Query(default="solana")

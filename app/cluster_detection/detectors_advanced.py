@@ -4,6 +4,7 @@ Cluster Detection Pro - Advanced Detection Methods
 ML-based and sleeper detection methods.
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 from typing import Any
@@ -13,7 +14,6 @@ from sklearn.preprocessing import StandardScaler
 
 from app.cluster_detection.models import ClusterSignal, ClusterType, WalletCluster
 
-
 async def detect_pattern_clusters(
     wallet_profiles: dict[str, dict],
     wallets: list[str],
@@ -21,7 +21,6 @@ async def detect_pattern_clusters(
     """Detect clusters based on transaction patterns (stub)."""
     _ = wallet_profiles, wallets
     return []
-
 
 async def detect_ml_clusters(
     wallet_profiles: dict[str, dict],
@@ -80,7 +79,6 @@ async def detect_ml_clusters(
             clusters.append(cluster)
 
     return clusters
-
 
 async def detect_sleeper_clusters(
     wallet_profiles: dict[str, dict],

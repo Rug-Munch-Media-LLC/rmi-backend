@@ -4,6 +4,7 @@ Wallet Database Mixin — persistence operations for WalletManagerV2.
 Extracted from manager.py during god-file split (2026-07-23).
 """
 
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
@@ -12,7 +13,6 @@ from app.core.logging import get_logger
 from app.domains.wallet.models import WalletRecord
 
 logger = get_logger("wallet_db")
-
 
 class WalletDBMixin:
     """
@@ -184,6 +184,5 @@ class WalletDBMixin:
         mnemonic = ShamirSecretSharing.combine(shares).decode()
         self._store_mnemonic(wallet_id, mnemonic)
         return mnemonic
-
 
 __all__ = ["WalletDBMixin"]

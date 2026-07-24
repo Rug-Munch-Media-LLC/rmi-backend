@@ -5,6 +5,7 @@ Filters, deduplicates, enriches, and stores documents into RAG.
 Handles quality scoring, entity extraction, rate limiting, and batch ingest.
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import re
@@ -23,7 +24,6 @@ from app.rag_firehose.models import (
 )
 
 logger = get_logger("rag.firehose")
-
 
 class IngestionPipeline:
     """Filters, deduplicates, and enriches documents before RAG storage."""

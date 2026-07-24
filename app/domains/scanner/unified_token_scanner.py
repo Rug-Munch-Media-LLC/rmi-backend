@@ -18,6 +18,7 @@ Architecture:
   scan_token(address, chain, tier) → parallel DataBus.fetch() → merge → score → return
 """
 
+from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass, field
@@ -28,11 +29,9 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # DATA TYPES
 # ═══════════════════════════════════════════════════════════════
-
 
 @dataclass
 class ScanResult:
@@ -78,11 +77,9 @@ class ScanResult:
     tier: str = "free"
     scan_duration_ms: float = 0.0
 
-
 # ═══════════════════════════════════════════════════════════════
 # SCANNER ORCHESTRATOR
 # ═══════════════════════════════════════════════════════════════
-
 
 class UnifiedTokenScanner:
     """
@@ -409,13 +406,11 @@ class UnifiedTokenScanner:
         r.risk_flags = flags
         r.green_flags = green
 
-
 # ═══════════════════════════════════════════════════════════════
 # SINGLETON
 # ═══════════════════════════════════════════════════════════════
 
 _scanner: UnifiedTokenScanner | None = None
-
 
 def get_token_scanner() -> UnifiedTokenScanner:
     global _scanner

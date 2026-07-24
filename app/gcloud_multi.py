@@ -19,6 +19,7 @@ Usage:
   status = await gcloud.all_status()
 """
 
+from __future__ import annotations
 import glob
 import json
 import os
@@ -35,7 +36,6 @@ logger = get_logger("gcloud.multi")
 
 ACCOUNTS_DIR = "/root/.secrets/google"
 os.makedirs(ACCOUNTS_DIR, exist_ok=True)
-
 
 @dataclass
 class GCloudAccount:
@@ -111,7 +111,6 @@ class GCloudAccount:
                 return vectors if vectors else None
         except (ConnectionError, OSError, TimeoutError):
             return None
-
 
 class MultiCloudManager:
     """Manages multiple Google Cloud accounts from service account JSONs."""
@@ -189,9 +188,7 @@ class MultiCloudManager:
 
         return None, "none"
 
-
 _multi: MultiCloudManager | None = None
-
 
 def get_multi_cloud() -> MultiCloudManager:
     global _multi

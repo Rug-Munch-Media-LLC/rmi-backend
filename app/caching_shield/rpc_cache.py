@@ -11,6 +11,7 @@ Free tier rate-aware: Default TTLs keep RPC calls at ~0.5-2 req/s
 per data point, well under Helius/QuickNode free limits.
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import json
@@ -67,7 +68,6 @@ CACHE_PREFIX = "rmi:rpc:"
 LOCK_PREFIX = "rmi:rpc_lock:"
 LOCK_TTL = 5
 
-
 @dataclass
 class CacheStats:
     hits: int = 0
@@ -94,7 +94,6 @@ class CacheStats:
             "mem_hits": self.mem_hits,
             "compress_saved_bytes": self.compress_saved,
         }
-
 
 class RpcCacheClient:
     """Redis-backed L1+L2 cache wrapping ConsensusRpcClient.
@@ -398,9 +397,7 @@ class RpcCacheClient:
             self._l1.clear()
             logger.info("RpcCache: L1 cache cleared")
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────
-
 
 def _dict_to_result(d) -> Any:
     return ConsensusResult(
@@ -411,11 +408,9 @@ def _dict_to_result(d) -> Any:
         response_count=len(d.get("s", [])),
     )
 
-
 # ── Singleton ──────────────────────────────────────────────────────────────
 
 _cache_client = None
-
 
 def get_rpc_cache() -> Any:
     global _cache_client

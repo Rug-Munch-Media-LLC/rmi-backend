@@ -13,6 +13,7 @@ Pipeline:
   5. Return structured report with confidence scoring
 """
 
+from __future__ import annotations
 import json
 import os
 from typing import Any
@@ -102,7 +103,6 @@ HOP_TEMPLATES = {
     ],
 }
 
-
 async def _plan_investigation(
     query: str,
     evidence_so_far: list[dict[str, Any]],
@@ -159,7 +159,6 @@ Return ONLY the JSON array. Maximum 4 hops."""
 
     return HOP_TEMPLATES.get("general", HOP_TEMPLATES["rug_pull"])
 
-
 async def _execute_hop(
     hop: dict[str, str],
     query: str,
@@ -197,7 +196,6 @@ async def _execute_hop(
             "error": str(e),
             "success": False,
         }
-
 
 async def _synthesize_narrative(
     query: str,
@@ -252,9 +250,7 @@ Write the report now:"""
     except Exception as e:
         return f"Narrative generation error: {e}\n\nRaw evidence:\n{context}"
 
-
 # ── Main API ─────────────────────────────────────────────────────
-
 
 async def investigate(
     query: str,

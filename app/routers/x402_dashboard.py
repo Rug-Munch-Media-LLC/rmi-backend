@@ -34,7 +34,6 @@ router = APIRouter(prefix="/api/v1/x402", tags=["x402 Analytics Dashboard"])
 
 # ── Redis helper (reuse existing pattern from enforcement) ─────────────
 
-
 def _get_redis() -> Any | None:
     """Synchronous Redis client for dashboard queries."""
     try:
@@ -53,7 +52,6 @@ def _get_redis() -> Any | None:
         logger.warning("Dashboard: Redis unavailable: %s", e)
         return None
 
-
 async def _get_redis_async() -> Any:
     """Async Redis client for dashboard queries."""
     try:
@@ -65,9 +63,7 @@ async def _get_redis_async() -> Any:
         logger.debug("Async Redis unavailable, falling back to sync: %s", e)
         return _get_redis()
 
-
 # ── Supabase payment persistence ────────────────────────────────────
-
 
 async def _persist_payment_to_supabase(
     tool: str, amount_atoms: str, chain: str, payer: str, tx_hash: str, status: str = "fulfilled"
@@ -93,7 +89,6 @@ async def _persist_payment_to_supabase(
         )
     except Exception as e:
         logger.warning("Supabase payment persist failed: %s", e)
-
 
 async def _sync_spent_tx_to_supabase() -> Any | int:
     """Sync Redis x402:spent_tx:* entries to Supabase (run periodically).
@@ -155,9 +150,7 @@ async def _sync_spent_tx_to_supabase() -> Any | int:
         logger.warning("Redis->Supabase sync error: %s", e)
     return synced
 
-
 # ── Dashboard data aggregation from Redis ────────────────────────────
-
 
 def _aggregate_payment_stats(r) -> dict[str, Any]:
     """Aggregate payment/earnings data from Redis x402:spent_tx:* keys."""
@@ -311,7 +304,6 @@ def _aggregate_payment_stats(r) -> dict[str, Any]:
         "top_tools_by_usage": [{"tool": t, "calls": c} for t, c in top_tools_usage],
     }
 
-
 def _aggregate_trial_stats(r) -> dict[str, Any]:
     """Aggregate trial usage stats from Redis x402:trial:* keys."""
     total_trials_all_time = 0
@@ -371,9 +363,7 @@ def _aggregate_trial_stats(r) -> dict[str, Any]:
         "ip_daily_free_calls": ip_daily_total,
     }
 
-
 # ── Dashboard endpoint ──────────────────────────────────────────────
-
 
 @router.get("/dashboard")
 async def x402_dashboard() -> dict:
@@ -462,9 +452,7 @@ async def x402_dashboard() -> dict:
         logger.error("Dashboard error: %s", e)
         raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)[:200]}") from e
 
-
 # ── Supabase table creation helper ──────────────────────────────────
-
 
 async def ensure_x402_payments_table() -> Any | bool:
     """Ensure x402_payments table exists in Supabase.
@@ -535,9 +523,7 @@ async def ensure_x402_payments_table() -> Any | bool:
         logger.warning("Could not ensure x402_payments table: %s", e)
         return False
 
-
 # ── Register on app startup ─────────────────────────────────────────
-
 
 async def on_startup() -> None:
     """Call this on app startup to ensure the table exists."""

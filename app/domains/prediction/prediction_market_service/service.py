@@ -1,4 +1,5 @@
 """Main prediction market service."""
+from __future__ import annotations
 import asyncio, hashlib, json, os
 from datetime import UTC, datetime
 from typing import Any

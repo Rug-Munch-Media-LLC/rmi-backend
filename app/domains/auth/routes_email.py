@@ -28,7 +28,6 @@ from app.domains.auth.router import router
 from app.domains.auth.schemas import EmailLoginRequest, EmailRegisterRequest
 from app.domains.auth.store import _get_user_by_email, _is_valid_email
 
-
 @router.post("/register")
 @limiter.limit("5/minute")
 def register_email(req: EmailRegisterRequest, request: Request) -> JSONResponse:
@@ -88,7 +87,6 @@ def register_email(req: EmailRegisterRequest, request: Request) -> JSONResponse:
     _set_auth_cookie(response, token, request)
     _set_csrf_cookie(response, request)
     return response
-
 
 @router.post("/login")
 @limiter.limit("5/minute")

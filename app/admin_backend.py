@@ -10,4 +10,5 @@ Usage:
     from app.admin_backend import AuditLogger, require_admin, SecurityManager
 """
 
+from __future__ import annotations
 from app.domains.admin.admin_backend import *  # noqa: F401, F403

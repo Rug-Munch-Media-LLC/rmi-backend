@@ -4,6 +4,7 @@ Solana + EVM funding tracing, risk scanning, token analysis.
 All backed by the unified data fallback engine.
 """
 
+from __future__ import annotations
 import time
 
 from fastapi import APIRouter
@@ -12,25 +13,21 @@ from typing import Any
 
 router = APIRouter(prefix="/api/v1/investigate", tags=["investigate"])
 
-
 class TraceRequest(BaseModel):
     address: str
     chain_id: int | None = 1
     chain: str | None = "ethereum"
     max_depth: int = 2
 
-
 class ScanRequest(BaseModel):
     address: str
     chain_id: int | None = None
     chain: str | None = "solana"
 
-
 class GraphRequest(BaseModel):
     address: str
     chain: str | None = "solana"
     depth: int = 3
-
 
 CHAIN_NAMES = {
     "ethereum": 1,
@@ -44,7 +41,6 @@ CHAIN_NAMES = {
     "gnosis": 100,
     "solana": 0,
 }
-
 
 @router.get("/chains")
 async def list_chains() -> dict[str, list[dict[str, str]]]:
@@ -64,7 +60,6 @@ async def list_chains() -> dict[str, list[dict[str, str]]]:
         "default": "solana",
     }
 
-
 @router.post("/trace")
 async def trace_wallet_funding(req: TraceRequest) -> Any:
     """Trace funding source for any wallet (Solana or EVM)."""
@@ -75,7 +70,6 @@ async def trace_wallet_funding(req: TraceRequest) -> Any:
         return await _trace_solana(req.address)
     else:
         return await _trace_evm(req.address, chain_id, req.max_depth)
-
 
 @router.post("/scan")
 async def full_investigation(req: ScanRequest) -> dict:
@@ -115,14 +109,12 @@ async def full_investigation(req: ScanRequest) -> dict:
         "queried_at": time.time(),
     }
 
-
 @router.get("/health")
 async def fallback_health() -> Any:
     """Check fallback engine status."""
     from app.caching_shield.data_fallback import get_data_engine
 
     return get_data_engine().health()
-
 
 @router.post("/graph")
 async def investigation_graph(req: GraphRequest) -> dict[str, Any | None]:
@@ -234,7 +226,6 @@ async def investigation_graph(req: GraphRequest) -> dict[str, Any | None]:
         "chain": req.chain,
         "queried_at": time.time(),
     }
-
 
 @router.post("/fund-flow")
 async def fund_flow_sankey(req: GraphRequest) -> dict:
@@ -354,11 +345,9 @@ async def fund_flow_sankey(req: GraphRequest) -> dict:
         "queried_at": time.time(),
     }
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # TRACING HELPERS
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 async def _trace_solana(address: str) -> dict:
     from app.caching_shield.data_fallback import DataQueryType, get_data_engine
@@ -376,7 +365,6 @@ async def _trace_solana(address: str) -> dict:
             "is_cex": result.get("is_cex", False),
         }
     return {"source": "none", "error": "no data from any provider"}
-
 
 async def _trace_evm(address: str, chain_id: int, max_depth: int) -> dict:
     from app.caching_shield.funding_tracer import trace_funding_source

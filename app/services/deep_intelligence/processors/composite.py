@@ -30,7 +30,6 @@ from app.services.deep_intelligence.core import logger
 
 logger = get_logger("deep_intel")
 
-
 async def full_deep_intel(
     token_address: str, chain: str = "sol", wallet: str | None = None
 ) -> dict[str, Any]:

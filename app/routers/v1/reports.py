@@ -30,9 +30,7 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/reports", tags=["reports-v1"])
 
-
 # ── Request / Response models ────────────────────────────────────────
-
 
 class ReportRequest(BaseModel):
     """Custom report generation request."""
@@ -44,9 +42,7 @@ class ReportRequest(BaseModel):
     )
     format: Literal["json", "markdown"] = "json"
 
-
 # ── Section handlers ────────────────────────────────────────────────
-
 
 async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[str, Any]:
     """Fetch risk assessment section."""
@@ -113,7 +109,6 @@ async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[
         logger.debug("section_risk_fail: %s", exc)
         return {"error": "unavailable"}
 
-
 async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
     """Fetch holder distribution section."""
     try:
@@ -154,7 +149,6 @@ async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
     except Exception as exc:
         logger.debug("section_holders_fail: %s", exc)
         return {"error": "unavailable"}
-
 
 async def _section_transactions(subject_id: str, chain: str) -> dict[str, Any]:
     """Fetch recent transaction history section."""
@@ -206,7 +200,6 @@ async def _section_transactions(subject_id: str, chain: str) -> dict[str, Any]:
         logger.debug("section_transactions_fail: %s", exc)
         return {"error": "unavailable"}
 
-
 async def _section_news(subject_id: str) -> dict[str, Any]:
     """Fetch news/sentiment section."""
     try:
@@ -244,7 +237,6 @@ async def _section_news(subject_id: str) -> dict[str, Any]:
         logger.debug("section_news_fail: %s", exc)
         return {"error": "unavailable"}
 
-
 async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
     """Fetch technical / contract analysis section."""
     try:
@@ -278,9 +270,7 @@ async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
         logger.debug("section_technical_fail: %s", exc)
         return {"error": "unavailable"}
 
-
 # ── Helpers ─────────────────────────────────────────────────────────
-
 
 _SECTION_HANDLERS = {
     "risk": _section_risk,
@@ -290,7 +280,6 @@ _SECTION_HANDLERS = {
     "technical": _section_technical,
 }
 
-
 def _detect_chain(subject_id: str) -> str:
     """Heuristic chain detection from address format."""
     sid = subject_id.lower().strip()
@@ -299,7 +288,6 @@ def _detect_chain(subject_id: str) -> str:
     if len(sid) >= 32 and len(sid) <= 44 and not sid.startswith("0x"):
         return "solana"
     return "ethereum"
-
 
 def _format_markdown(result: dict[str, Any]) -> str:
     """Format report as Markdown string."""
@@ -326,9 +314,7 @@ def _format_markdown(result: dict[str, Any]) -> str:
         lines.append("")
     return "\n".join(lines)
 
-
 # ── Endpoint ────────────────────────────────────────────────────────
-
 
 @router.post("/custom")
 async def generate_report(request: ReportRequest) -> dict[str, Any]:
@@ -388,7 +374,6 @@ async def generate_report(request: ReportRequest) -> dict[str, Any]:
         result["markdown"] = _format_markdown(result)
 
     return result
-
 
 async def _null_section(section: str, subject_id: str) -> dict[str, Any]:
     """Return empty section for unknown section types."""

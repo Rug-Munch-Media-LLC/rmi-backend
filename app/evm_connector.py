@@ -11,12 +11,12 @@ Includes:
 - Chain abstraction (Ethereum, Base, Arbitrum, etc.)
 """
 
+from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 try:
     from web3 import HTTPProvider, Web3
@@ -38,7 +38,6 @@ except ImportError:
     Wei = int
     BlockNumber = int
     FilterParams = dict
-
 
 # ─── CHAIN CONFIGURATIONS ─────────────────────────────────────────
 
@@ -101,7 +100,6 @@ CHAIN_CONFIGS = {
     },
 }
 
-
 # ─── MORALIS API KEY ──────────────────────────────────────────────
 
 MORALIS_API_KEY = ""
@@ -124,9 +122,7 @@ MORALIS_RPC = {
     "fantom": "https://deep-index.moralis.io/api/v2.2/fantom/mainnet",
 }
 
-
 # ─── WEB3 CLIENT ──────────────────────────────────────────────────
-
 
 class EVMClient:
     """
@@ -303,9 +299,7 @@ class EVMClient:
         """Convert from wei."""
         return self.w3.from_wei(amount, unit)
 
-
 # ─── CLIENT MANAGER ───────────────────────────────────────────────
-
 
 class ClientManager:
     """Manages multiple EVM clients (one per chain)."""
@@ -326,10 +320,8 @@ class ClientManager:
         """Clear all cached clients."""
         self.clients.clear()
 
-
 # Global singleton
 _client_manager = ClientManager()
-
 
 def get_evm_client(
     chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False

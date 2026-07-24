@@ -1,10 +1,10 @@
 """Extra passthrough providers — Hyperliquid, insider wallets, prediction signals."""
 
+from __future__ import annotations
 import httpx
 
 from app.config import settings
 from sdks.python.x402_frameworks.autogen_adapter import logger
-
 
 async def _passthrough_hyperliquid(**kwargs) -> dict | None:
     """Hyperliquid perp markets from our own /api/v1/market/hyperliquid."""
@@ -17,7 +17,6 @@ async def _passthrough_hyperliquid(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _passthrough_hyperliquid_action(**kwargs) -> dict | None:
     """Hyperliquid gain/loss porn from our own /api/v1/market/hyperliquid-action."""
@@ -33,7 +32,6 @@ async def _passthrough_hyperliquid_action(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _passthrough_insider_wallets(**kwargs) -> dict | None:
     """Likely insider trader wallets from our own /api/v1/market/insider-wallets."""
     try:
@@ -48,7 +46,6 @@ async def _passthrough_insider_wallets(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _passthrough_prediction_signals(**kwargs) -> dict | None:
     """Prediction market intelligence from our own /api/v1/market/prediction-signals."""

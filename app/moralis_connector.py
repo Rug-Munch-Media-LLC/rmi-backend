@@ -7,6 +7,7 @@ Free tier: 40,000 API credits/month (~1,333/day).
 Rate-limited to 3 req/sec with caching.
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -70,7 +71,6 @@ CHAIN_ID_MAP = {
     "base": "8453",
     "gnosis": "100",
 }
-
 
 class MoralisConnector:
     """Moralis Data + Auth API connector."""
@@ -401,10 +401,8 @@ class MoralisConnector:
             "cache_entries": len(self._cache),
         }
 
-
 # Singleton
 _moralis: MoralisConnector | None = None
-
 
 def get_moralis_connector() -> MoralisConnector:
     global _moralis

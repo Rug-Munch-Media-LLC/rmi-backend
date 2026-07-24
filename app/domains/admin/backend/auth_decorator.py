@@ -15,7 +15,6 @@ from app.domains.admin.backend.security import SecurityManager
 from app.domains.admin.backend.session import SessionManager
 from app.domains.admin.backend.users import AdminUserStore
 
-
 async def require_admin(
     request: Request,
     required_permission: str = "",

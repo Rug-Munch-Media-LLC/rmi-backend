@@ -5,6 +5,7 @@ Professional copy for wins, losses, KOL scorecards, security alerts.
 
 # ── X/Twitter Post Templates ──────────────────────────────────
 
+from __future__ import annotations
 X_TEMPLATES = {
     "big_win": """🎉 BIG WIN ALERT! 🎉
 
@@ -309,13 +310,11 @@ Oof. Another reminder to take profits, friends. 📉
 
 # ── Content Generation Functions ──────────────────────────────
 
-
 def format_wallet_short(address: str) -> str:
     """Format wallet address for display."""
     if len(address) >= 14:
         return f"{address[:8]}...{address[-6:]}"
     return address
-
 
 def generate_x_post(template_name: str, data: dict) -> str:
     """Generate X/Twitter post from template."""
@@ -334,7 +333,6 @@ def generate_x_post(template_name: str, data: dict) -> str:
 
     return template.format(**data)
 
-
 def generate_telegram_post(template_name: str, data: dict) -> str:
     """Generate Telegram post from template (Markdown)."""
     template = TELEGRAM_TEMPLATES.get(template_name, "")
@@ -352,7 +350,6 @@ def generate_telegram_post(template_name: str, data: dict) -> str:
 
     return template.format(**data)
 
-
 def generate_discord_post(template_name: str, data: dict) -> str:
     """Generate Discord post from template."""
     template = DISCORD_TEMPLATES.get(template_name, "")
@@ -369,7 +366,6 @@ def generate_discord_post(template_name: str, data: dict) -> str:
             data[key] = round(value, 2)
 
     return template.format(**data)
-
 
 def generate_all_posts(template_name: str, data: dict) -> dict:
     """Generate posts for all platforms."""

@@ -5,6 +5,7 @@ RugMunchBot -- Scanning engines.
 Token security scanner and wallet forensics analyzer.
 Both functions fetch data from multiple sources and return structured results.
 """
+from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
@@ -22,7 +23,6 @@ from app.domains.telegram.rugmunchbot.formatters import detect_chain, is_evm, is
 from app.domains.telegram.rugmunchbot.states import get_sol_price
 
 logger = get_logger("rmi_bot")
-
 
 async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     result: dict[str, Any] = {
@@ -207,7 +207,6 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
 
     result["risk_score"] = min(result["risk_score"], 100)
     return result
-
 
 async def analyze_wallet(address: str, chain: str | None = None) -> dict:
     result = {

@@ -7,6 +7,7 @@ Provides:
   - Internal _redis_conn and _cache_key helpers
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import os
@@ -36,7 +37,6 @@ CACHEABLE_TOOLS = {
     "narrative",
 }
 
-
 def _redis_conn() -> Any:
     import redis as _redis
 
@@ -49,11 +49,9 @@ def _redis_conn() -> Any:
         socket_timeout=2,
     )
 
-
 def _cache_key(tool: str, params: dict) -> str:
     raw = f"{tool}:{json.dumps(params, sort_keys=True)}"
     return f"x402:cache:{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
-
 
 def get_cached(tool: str, params: dict) -> dict | None:
     """Check Redis cache for a tool result."""
@@ -67,7 +65,6 @@ def get_cached(tool: str, params: dict) -> dict | None:
         pass
     return None
 
-
 def set_cached(tool: str, params: dict, result: dict, ttl: int = CACHE_TTL) -> None:
     """Store tool result in Redis cache."""
     try:
@@ -79,7 +76,6 @@ def set_cached(tool: str, params: dict, result: dict, ttl: int = CACHE_TTL) -> N
     except (ConnectionError, TimeoutError, OSError):
         pass
 
-
 def invalidate_cache(tool: str | None = None) -> bool:
     """Clear cache for a tool or all cached results."""
     try:
@@ -90,7 +86,6 @@ def invalidate_cache(tool: str | None = None) -> bool:
     except (ConnectionError, TimeoutError, OSError) as e:
         logger.warning(f"Cache clear failed (Redis): {e}")
         return False
-
 
 __all__ = [
     "CACHE_TTL",

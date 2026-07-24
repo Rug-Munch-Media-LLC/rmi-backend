@@ -7,6 +7,7 @@ CONTRIBUTING.md.
 Phase 1 of AUDIT-2026-Q3.md, item P1.1.
 """
 
+from __future__ import annotations
 from app.factory import create_app
 
 app = create_app()

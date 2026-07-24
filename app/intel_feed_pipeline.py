@@ -21,6 +21,7 @@ Architecture:
   Prometheus → every N minutes pull RSS → extract entities → embed → store
   New token event → quick keyword scan → if suspicious → deep embed → alert
 """
+from __future__ import annotations
 
 import hashlib
 import html
@@ -203,11 +204,9 @@ ENTITY_PATTERNS = {
     "protocol_name": r"(?<=the\s)(?:Uniswap|Aave|Compound|Curve|Balancer|Sushi|Pancake|Raydium|Orca|Jupiter|Marinade)(?=\s)",
 }
 
-
 # ══════════════════════════════════════════════════════════════════════
 # FEED PROCESSORS
 # ══════════════════════════════════════════════════════════════════════
-
 
 @dataclass
 class IntelItem:
@@ -221,7 +220,6 @@ class IntelItem:
     severity: str
     entities: dict[str, list[str]] = field(default_factory=dict)
     raw: dict = field(default_factory=dict)
-
 
 class RSSProcessor:
     """Process standard RSS/Atom feeds into IntelItems."""
@@ -287,7 +285,6 @@ class RSSProcessor:
                 found[entity_type] = list(set(matches))[:10]
         return found
 
-
 class NitterProcessor(RSSProcessor):
     """Process Nitter (Twitter mirror) RSS feeds."""
 
@@ -304,11 +301,9 @@ class NitterProcessor(RSSProcessor):
             item.content = html.unescape(item.content)
         return items
 
-
 # ══════════════════════════════════════════════════════════════════════
 # ON-CHAIN SCANNER
 # ══════════════════════════════════════════════════════════════════════
-
 
 class OnChainScanner:
     """Scan new tokens on Solana/Ethereum for immediate risk assessment."""
@@ -392,11 +387,9 @@ class OnChainScanner:
             pass
         return {}
 
-
 # ══════════════════════════════════════════════════════════════════════
 # INTELLIGENCE PIPELINE ORCHESTRATOR
 # ══════════════════════════════════════════════════════════════════════
-
 
 class IntelPipeline:
     """
@@ -600,13 +593,11 @@ class IntelPipeline:
         results.sort(key=lambda x: x.get("stored_at", ""), reverse=True)
         return results[:limit]
 
-
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ══════════════════════════════════════════════════════════════════════
 
 _pipeline: IntelPipeline | None = None
-
 
 async def get_pipeline() -> IntelPipeline:
     global _pipeline

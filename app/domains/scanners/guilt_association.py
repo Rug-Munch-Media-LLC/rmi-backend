@@ -15,6 +15,7 @@ Uses:
   - Built-in MIXER_ADDRESSES dict keyed by chain
 """
 
+from __future__ import annotations
 import asyncio
 import contextlib
 from dataclasses import dataclass, field
@@ -27,7 +28,6 @@ from app.chain_registry import get_explorer_api_config, is_evm, is_solana
 from app.core.logging import get_logger
 
 logger = get_logger("guilt_association")
-
 
 # ─── Known Mixer / Fixed-Float / Laundering Addresses ────────────────
 # Keyed by chain name.  Each entry: {address: label}
@@ -169,7 +169,6 @@ INTERACTION_TYPE_SENT_TO_SIDESHIFT = "sent_to_sideshift"
 INTERACTION_TYPE_RECEIVED_FROM_SIDESHIFT = "received_from_sideshift"
 INTERACTION_TYPE_OTHER_MIXER_CONTACT = "mixer_contact"
 
-
 def _classify_interaction(service_label: str, is_incoming: bool) -> str:
     """Derive a semantic interaction type from the mixer label and flow direction."""
     label_lower = service_label.lower()
@@ -197,7 +196,6 @@ def _classify_interaction(service_label: str, is_incoming: bool) -> str:
         )
     return INTERACTION_TYPE_OTHER_MIXER_CONTACT
 
-
 def _is_mixer_type(interaction_type: str) -> bool:
     """Return True if the interaction type involves a classic mixer (not fixedfloat/changenow)."""
     return interaction_type in (
@@ -206,9 +204,7 @@ def _is_mixer_type(interaction_type: str) -> bool:
         INTERACTION_TYPE_OTHER_MIXER_CONTACT,
     )
 
-
 # ─── Report Dataclass ────────────────────────────────────────────────
-
 
 @dataclass
 class FlagEntry:
@@ -219,7 +215,6 @@ class FlagEntry:
     type: str  # interaction type string
     tx_hash: str = ""
     timestamp: int | None = None  # Unix seconds
-
 
 @dataclass
 class GuiltAssociationReport:
@@ -247,9 +242,7 @@ class GuiltAssociationReport:
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
-
 # ─── Analyzer ────────────────────────────────────────────────────────
-
 
 class GuiltAssociationAnalyzer:
     """Check a deployer wallet for associations with known mixing / laundering services.
@@ -676,9 +669,7 @@ class GuiltAssociationAnalyzer:
         """Close the underlying HTTP client."""
         await self._http.aclose()
 
-
 # ─── Standalone entry point ──────────────────────────────────────────
-
 
 async def run_guilt_association(deployer_address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Convenience runner - returns a plain dict for pipeline integration."""

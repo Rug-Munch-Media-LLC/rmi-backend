@@ -25,7 +25,6 @@ TG_BOT = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 # In-memory subscription store (Redis in prod)
 _subscriptions: dict[str, list[dict]] = {}  # user_id -> list of alert rules
 
-
 class WhaleAlert(BaseModel):
     user_id: str
     address: str
@@ -34,7 +33,6 @@ class WhaleAlert(BaseModel):
     notify_telegram: bool = True
     label: str = ""
 
-
 class WhaleAlertResponse(BaseModel):
     id: str
     user_id: str
@@ -42,7 +40,6 @@ class WhaleAlertResponse(BaseModel):
     chain: str
     threshold_usd: float
     active: bool
-
 
 @router.post("/subscribe")
 async def subscribe(alert: WhaleAlert) -> dict:
@@ -62,7 +59,6 @@ async def subscribe(alert: WhaleAlert) -> dict:
     _subscriptions.setdefault(alert.user_id, []).append(entry)
     return {"id": sub_id, "status": "subscribed"}
 
-
 @router.delete("/subscribe/{alert_id}")
 async def unsubscribe(alert_id: str) -> dict:
     """Remove a whale alert subscription."""
@@ -73,12 +69,10 @@ async def unsubscribe(alert_id: str) -> dict:
                 return {"id": alert_id, "status": "unsubscribed"}
     raise NotFoundError("Alert not found")
 
-
 @router.get("/subscriptions/{user_id}")
 async def list_subscriptions(user_id: str) -> dict[str, Any | None]:
     """List all whale alert subscriptions for a user."""
     return {"subscriptions": _subscriptions.get(user_id, [])}
-
 
 @router.get("/check/{address}")
 async def check_transfer(
@@ -101,7 +95,6 @@ async def check_transfer(
     except Exception as e:
         return {"address": address, "chain": chain, "transfers": [], "error": str(e)}
 
-
 async def _send_telegram_alert(chat_id: str, text: str) -> None:
     """Send whale alert to Telegram."""
     if not TG_BOT:
@@ -114,7 +107,6 @@ async def _send_telegram_alert(chat_id: str, text: str) -> None:
             )
     except (httpx.HTTPError, TimeoutError) as e:
         logger.warning(f"Telegram alert send failed: {e}")
-
 
 @router.post("/scan")
 async def scan_whale_activity(background_tasks: BackgroundTasks) -> dict:

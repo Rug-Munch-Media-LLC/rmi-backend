@@ -10,4 +10,5 @@ Usage:
     from app.wallet_monitor import WalletMonitor
 """
 
+from __future__ import annotations
 from app.domains.wallet.wallet_monitor import *  # noqa: F401, F403

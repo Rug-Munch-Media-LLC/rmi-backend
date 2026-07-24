@@ -34,11 +34,9 @@ from app.domains.billing.x402.shared import (
 
 sub_router = APIRouter(tags=["x402-token-tools"])
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 1: Deep Contract Audit ($0.50)
 # ═══════════════════════════════════════════════════════════════
-
 
 @sub_router.post("/audit")
 async def deep_contract_audit(req: TokenRequest) -> dict[str, str]:
@@ -97,11 +95,9 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, str]:
             raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 5: Rug Shield ($0.25)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _rug_shield(address: str, chain: str) -> dict:
     """Quick pre-buy safety check - fast binary verdict."""
@@ -179,7 +175,6 @@ async def _rug_shield(address: str, chain: str) -> dict:
     result["flags"] = flags
     return result
 
-
 @sub_router.post("/rugshield")
 async def rug_shield(req: TokenRequest) -> dict[str, str]:
     """Quick pre-buy safety check. Binary safe/unsafe in under 2 seconds."""
@@ -198,11 +193,9 @@ async def rug_shield(req: TokenRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 10: Token Pulse ($0.25)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _token_pulse(address: str, chain: str) -> dict:
     """Comprehensive token health dashboard."""
@@ -306,7 +299,6 @@ async def _token_pulse(address: str, chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/pulse")
 async def token_pulse(req: TokenRequest) -> dict[str, str]:
     """Token health dashboard - liquidity, volume, momentum, trajectory."""
@@ -325,11 +317,9 @@ async def token_pulse(req: TokenRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 14: Token Forensics ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _token_forensics(address: str, chain: str) -> dict:
     """Deep token forensics combining multiple data sources."""
@@ -420,7 +410,6 @@ async def _token_forensics(address: str, chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/forensics")
 async def token_forensics(req: GenericRequest) -> dict[str, str]:
     """Deep token forensics report."""
@@ -440,11 +429,9 @@ async def token_forensics(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 20: Token Deep Dive ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 @sub_router.post("/token_deep_dive")
 async def token_deep_dive(req: GenericRequest) -> dict[str, str]:
@@ -466,11 +453,9 @@ async def token_deep_dive(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 22: Honeypot Check ($0.05)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _honeypot_check(address: str, chain: str) -> dict:
     """Honeypot detection."""
@@ -528,7 +513,6 @@ async def _honeypot_check(address: str, chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/honeypot_check")
 async def honeypot_check(req: GenericRequest) -> dict[str, str]:
     """Honeypot detection."""
@@ -548,11 +532,9 @@ async def honeypot_check(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 25: Token Comparison ($0.08)
 # ═══════════════════════════════════════════════════════════════
-
 
 @sub_router.post("/token_comparison")
 async def token_comparison(req: MultiTokenRequest) -> dict[str, str]:
@@ -585,11 +567,9 @@ async def token_comparison(req: MultiTokenRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 26: Risk Monitor ($0.05)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _risk_monitor(address: str, chain: str) -> dict:
     """Real-time risk monitoring."""
@@ -648,7 +628,6 @@ async def _risk_monitor(address: str, chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/risk_monitor")
 async def risk_monitor(req: GenericRequest) -> dict[str, str]:
     """Real-time risk monitoring."""
@@ -668,11 +647,9 @@ async def risk_monitor(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 32: Liquidity Flow ($0.08)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _liquidity_flow(address: str, chain: str) -> dict:
     """Liquidity flow analysis."""
@@ -718,7 +695,6 @@ async def _liquidity_flow(address: str, chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/liquidity_flow")
 async def liquidity_flow(req: GenericRequest) -> dict[str, str]:
     """Liquidity flow analysis."""
@@ -738,11 +714,9 @@ async def liquidity_flow(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 33: Rug Pull Predictor ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _rug_pull_predictor(address: str, chain: str) -> dict:
     """Rug pull prediction model."""
@@ -838,7 +812,6 @@ async def _rug_pull_predictor(address: str, chain: str) -> dict:
     )
 
     return result
-
 
 @sub_router.post("/rug_pull_predictor")
 async def rug_pull_predictor(req: GenericRequest) -> dict[str, str]:

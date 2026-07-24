@@ -4,6 +4,7 @@ Admin Bot - AI Gateway
 AI model query gateway for the admin bot.
 """
 
+from __future__ import annotations
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
@@ -14,7 +15,6 @@ try:
     from app.domains.telegram.adminbot import admin_ai  # type: ignore[import-untyped]
 except ImportError:
     admin_ai = None
-
 
 @owner_only
 async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

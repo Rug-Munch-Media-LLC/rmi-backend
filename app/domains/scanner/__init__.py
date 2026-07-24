@@ -15,10 +15,10 @@ Architecture:
   - app/token_scanner.py             Backward compatibility shim
 """
 
+from __future__ import annotations
 from typing import Any
 
 from app.domains.scanner.models import ScanResult
-
 
 def quick_scan_text(*args, **kwargs) -> Any:
     """Lazy import to avoid circular dependency with modules package."""
@@ -26,12 +26,10 @@ def quick_scan_text(*args, **kwargs) -> Any:
 
     return _f(*args, **kwargs)
 
-
 def scan_token(*args, **kwargs) -> Any:
     """Lazy import to avoid circular dependency with modules package."""
     from app.domains.scanner.service import scan_token as _f
 
     return _f(*args, **kwargs)
-
 
 __all__ = ["ScanResult", "quick_scan_text", "scan_token"]

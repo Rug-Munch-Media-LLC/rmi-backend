@@ -3,6 +3,7 @@ Binance Web3 API adapter for Wallet PnL Analyzer.
 All endpoints are free and require no authentication.
 """
 
+from __future__ import annotations
 import httpx
 from typing import Any
 
@@ -31,7 +32,6 @@ _HEADERS = {
     "clientversion": "1.2.0",
 }
 
-
 def _get(url, params=None, timeout=10) -> Any | None:
     resp = httpx.get(url, params=params, headers=_HEADERS, timeout=timeout)
     resp.raise_for_status()
@@ -39,7 +39,6 @@ def _get(url, params=None, timeout=10) -> Any | None:
     if data.get("code") != "000000":
         raise ConnectionError(f"API error: {data.get('message', 'unknown')}")
     return data.get("data", {})
-
 
 def get_wallet_holdings(address: str, chain_id: str) -> list:
     """

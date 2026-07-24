@@ -4,6 +4,7 @@ Uses listmonk API for newsletters + transactional emails.
 SMTP relay: Gmail (cryptorugmuncher@gmail.com)
 """
 
+from __future__ import annotations
 import os
 from datetime import UTC, datetime
 
@@ -21,7 +22,6 @@ LISTMONK_USER = "admin"
 LISTMONK_PASS = "rugmunch2024"
 
 _token_cache = {"token": None, "expires": 0}
-
 
 async def _get_token() -> str:
     """Get listmonk API token, cached."""
@@ -43,7 +43,6 @@ async def _get_token() -> str:
             return token
     raise HTTPException(status_code=500, detail="Listmonk auth failed")
 
-
 # ═══════════════════════════════════════════════════════════
 # SUBSCRIBERS
 # ═══════════════════════════════════════════════════════════
@@ -53,7 +52,6 @@ async def list_subscribers() -> Any:
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(f"{LISTMONK_URL}/subscribers", headers={"Authorization": f"Bearer {token}"})
         return r.json()
-
 
 @router.post("/subscribers")
 async def add_subscriber(data: dict) -> Any:
@@ -69,7 +67,6 @@ async def add_subscriber(data: dict) -> Any:
             json={"email": email, "name": name, "status": "enabled"},
         )
         return r.json()
-
 
 # ═══════════════════════════════════════════════════════════
 # NEWSLETTER CAMPAIGNS
@@ -97,14 +94,12 @@ async def create_campaign(data: dict) -> Any:
         )
         return r.json()
 
-
 @router.get("/campaigns")
 async def list_campaigns() -> Any:
     token = await _get_token()
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(f"{LISTMONK_URL}/campaigns", headers={"Authorization": f"Bearer {token}"})
         return r.json()
-
 
 # ═══════════════════════════════════════════════════════════
 # TRANSACTIONAL - Direct Gmail SMTP
@@ -148,7 +143,6 @@ async def send_transactional(data: dict) -> dict[str, str]:
             "error": str(e),
             "hint": "Gmail App Password required. Set GMAIL_APP_PASSWORD env var",
         }
-
 
 @router.get("/status")
 async def email_status() -> dict[str, str]:

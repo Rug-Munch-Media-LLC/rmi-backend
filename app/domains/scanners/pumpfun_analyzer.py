@@ -16,6 +16,7 @@ Pump.fun bonding curve model:
   Graduation occurs at ~85 SOL raised (target moves, but signal is complete curve).
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
@@ -49,11 +50,9 @@ BOT_MAX_TRADES_PER_HOUR = 10
 BOT_MAX_WALLETS_PER_IP = 3  # theoretical; proxied via funding patterns
 BOT_MIN_TRADE_COUNT = 3
 
-
 # ---------------------------------------------------------------------------
 # Data models
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class CurveState:
@@ -67,7 +66,6 @@ class CurveState:
     complete: bool  # curve is complete → graduated
     curve_progress: float  # 0-100%
 
-
 @dataclass
 class BuyerProfile:
     """Profile of a unique buyer on a Pump.fun token."""
@@ -80,7 +78,6 @@ class BuyerProfile:
     is_likely_bot: bool
     funding_source: str | None = None
     labels: list[str] = field(default_factory=list)
-
 
 @dataclass
 class PumpFunReport:
@@ -100,11 +97,9 @@ class PumpFunReport:
     top_buyers: list[BuyerProfile] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
-
 # ---------------------------------------------------------------------------
 # Analyzer
 # ---------------------------------------------------------------------------
-
 
 class PumpFunAnalyzer:
     """Analyzes Pump.fun tokens for bonding curve progress, buyer quality,

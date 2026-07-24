@@ -15,7 +15,6 @@ from app.domains.detectors.pump_dump_detector_package.types import BIRDEYE_API, 
 
 logger = get_logger("pump_dump_detector")
 
-
 async def fetch_pairs(client: httpx.AsyncClient, token_address: str, chain: str) -> dict:
     """Fetch trading pair data from DexScreener."""
     try:
@@ -28,7 +27,6 @@ async def fetch_pairs(client: httpx.AsyncClient, token_address: str, chain: str)
         logger.debug("fetch_pairs_error", exc_info=True)
         logger.warning(f"DexScreener fetch failed: {e}")
     return {}
-
 
 async def fetch_trades(
     client: httpx.AsyncClient, token_address: str, chain: str, limit: int = 100,
@@ -52,7 +50,6 @@ async def fetch_trades(
         logger.debug("fetch_trades_error", exc_info=True)
         logger.warning(f"Trade fetch failed: {e}")
     return trades
-
 
 async def fetch_holders(
     client: httpx.AsyncClient, token_address: str, chain: str,

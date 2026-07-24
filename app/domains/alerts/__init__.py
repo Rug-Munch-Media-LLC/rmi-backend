@@ -5,7 +5,6 @@ from __future__ import annotations
 from app.core import health as health_mod
 from app.core.health import DomainHealth
 
-
 def _read_env_file() -> dict[str, str]:
     """Read env from /proc/self/environ (process env, not the mutable os.environ)."""
     env: dict[str, str] = {}
@@ -18,7 +17,6 @@ def _read_env_file() -> dict[str, str]:
     except (AttributeError, ImportError):
         pass
     return env
-
 
 async def _health_check() -> DomainHealth:
     """Alerts health: Redis reachable via process env (not mutable os.environ)."""
@@ -53,9 +51,7 @@ async def _health_check() -> DomainHealth:
             error=str(e),
         )
 
-
 health_mod.register_health_check("alerts", _health_check)
-
 
 # Public API
 from app.domains.alerts.broadcaster import AlertBroadcaster  # noqa: E402

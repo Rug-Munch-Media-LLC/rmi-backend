@@ -17,6 +17,7 @@ Sources (all free):
   X/Twitter    - v2 API searches (if key available)
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import os
@@ -283,7 +284,6 @@ SENTIMENT_KEYWORDS = {
     ],
 }
 
-
 def score_quality(article: dict) -> float:
     """Score article quality 0-1 based on signals."""
     score = 0.5
@@ -314,7 +314,6 @@ def score_quality(article: dict) -> float:
     score = score * 0.6 + source_weight * 0.4
 
     return max(0.0, min(1.0, score))
-
 
 def analyze_sentiment(article: dict) -> dict:
     """Advanced keyword-based sentiment analysis with impact weighting."""
@@ -364,7 +363,6 @@ def analyze_sentiment(article: dict) -> dict:
             "high_impact": high_impact_title + high_impact_body,
         },
     }
-
 
 def categorize(article: dict) -> list[str]:
     """Auto-categorize article into topics."""
@@ -454,7 +452,6 @@ def categorize(article: dict) -> list[str]:
 
     return categories[:4]  # max 4 categories
 
-
 def content_hash(article: dict) -> str:
     """Generate dedup hash from title + normalized text."""
     text = (article.get("title", "") + article.get("summary", "") + article.get("url", "")).lower()
@@ -463,9 +460,7 @@ def content_hash(article: dict) -> str:
     text = re.sub(r"[^a-z0-9\s]", "", text)
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
-
 # ── Source Fetchers ─────────────────────────────────────────────────
-
 
 async def _fetch_rss(url: str, source_name: str, timeout: int = 15) -> list[dict]:
     """Fetch and parse an RSS/Atom feed."""
@@ -493,7 +488,6 @@ async def _fetch_rss(url: str, source_name: str, timeout: int = 15) -> list[dict
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"RSS fetch failed for {source_name}: {e}")
         return []
-
 
 async def _fetch_cryptopanic() -> list[dict]:
     """Fetch from CryptoPanic API."""
@@ -532,7 +526,6 @@ async def _fetch_cryptopanic() -> list[dict]:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"CryptoPanic failed: {e}")
         return []
-
 
 async def _fetch_x_crypto() -> list[dict]:
     """Fetch crypto news from X/Twitter search (if API key available)."""
@@ -585,9 +578,7 @@ async def _fetch_x_crypto() -> list[dict]:
         logger.debug(f"X fetch failed: {e}")
         return []
 
-
 # ── Main Aggregation Engine ────────────────────────────────────────
-
 
 async def aggregate_all_news(limit: int = 50, **kw) -> dict:
     """THE method. Pull from every source, dedup, score, tag, sort.
@@ -710,7 +701,6 @@ async def aggregate_all_news(limit: int = 50, **kw) -> dict:
         "source": "news_intelligence_engine",
     }
 
-
 async def get_weekly_best(limit: int = 20, **kw) -> dict:
     """Curated weekly best - highest quality articles from the past 7 days."""
     all_news = await aggregate_all_news(limit=100)
@@ -729,7 +719,6 @@ async def get_weekly_best(limit: int = 20, **kw) -> dict:
         "source": "weekly_best",
     }
 
-
 async def get_academic_papers(limit: int = 10, **kw) -> dict:
     """Academic/research papers from arXiv and other sources."""
     papers = await _fetch_rss(NEWS_SOURCES["arxiv"]["url"], "arXiv Research", timeout=20)
@@ -746,7 +735,6 @@ async def get_academic_papers(limit: int = 10, **kw) -> dict:
         "source": "arXiv",
         "generated_at": datetime.now(UTC).isoformat(),
     }
-
 
 async def get_social_feed(limit: int = 30, **kw) -> dict:
     """Social media feed - X/Twitter crypto reactions + CryptoPanic sentiment."""
@@ -783,14 +771,12 @@ async def get_social_feed(limit: int = 30, **kw) -> dict:
         "source": "social_feed",
     }
 
-
 # ── Social Features ─────────────────────────────────────────────────
 
 ARTICLE_REACTIONS: dict[str, dict[str, int]] = {}  # hash → {reaction: count}
 ARTICLE_COMMENTS: dict[str, list[dict]] = {}  # hash → [{user, text, time}]
 
 REACTION_TYPES = ["🔥", "🐂", "🐻", "💎", "🧠", "🤡", "🚀", "💀"]
-
 
 async def add_reaction(content_hash: str, reaction: str, user: str = "anon", **kw) -> dict:
     """Add a reaction to an article."""
@@ -809,7 +795,6 @@ async def add_reaction(content_hash: str, reaction: str, user: str = "anon", **k
         "counts": ARTICLE_REACTIONS[content_hash],
         "total_reactions": sum(ARTICLE_REACTIONS[content_hash].values()),
     }
-
 
 async def add_comment(content_hash: str, user: str, text: str, **kw) -> dict:
     """Add a comment to an article."""
@@ -831,7 +816,6 @@ async def add_comment(content_hash: str, user: str, text: str, **kw) -> dict:
         "total_comments": len(ARTICLE_COMMENTS[content_hash]),
     }
 
-
 async def get_reactions(content_hash: str, **kw) -> dict:
     """Get reactions for an article."""
     counts = ARTICLE_REACTIONS.get(content_hash, {})
@@ -844,7 +828,6 @@ async def get_reactions(content_hash: str, **kw) -> dict:
         "comments": comments[-20:],  # Last 20 comments
         "total_comments": len(comments),
     }
-
 
 async def create_bb_post(content_hash: str, user: str = "system", **kw) -> dict:
     """Turn an article into a Bulletin Board post for community discussion."""

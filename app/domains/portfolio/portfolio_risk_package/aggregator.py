@@ -2,6 +2,7 @@
 Portfolio Risk — Main Aggregator
 Cross-chain portfolio risk analysis engine.
 """
+from __future__ import annotations
 import asyncio
 from typing import Any
 
@@ -23,7 +24,6 @@ from app.domains.portfolio.portfolio_risk_package.pricing import PriceOracle
 from app.domains.portfolio.portfolio_risk_package.scoring import TokenRiskScorer
 
 logger = get_logger(__name__)
-
 
 class PortfolioRiskAggregator:
     """Main portfolio risk analysis engine."""

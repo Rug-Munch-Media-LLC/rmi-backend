@@ -3,6 +3,7 @@ SOSANA CRM Investigation - Detailed case data API (BACKEND ONLY, not public).
 Exposes investigation data: wallets, entities, financials, evidence, risk assessment.
 """
 
+from __future__ import annotations
 import json
 import os
 
@@ -11,7 +12,6 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 CRM_PATH = "/app/data/SOSANA-CRM-2024.json"
-
 
 class SOSANACRM:
     """Loads and serves the SOSANA criminal investigation data."""
@@ -103,7 +103,6 @@ class SOSANACRM:
     def legal_framework(self) -> dict:
         """Legal and prosecution framework."""
         return self.data.get("legal_framework", {})
-
 
 # Singleton
 sosana = SOSANACRM()

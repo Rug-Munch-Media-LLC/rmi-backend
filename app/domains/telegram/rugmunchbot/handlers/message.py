@@ -5,6 +5,7 @@ RugMunchBot -- Message handler + AI chat system.
 Auto-detect contract addresses, $TOKEN lookups, and tiered AI chat
 (RAG backend -> local intent matching -> friendly redirect).
 """
+from __future__ import annotations
 
 import re
 
@@ -34,7 +35,6 @@ from app.domains.telegram.rugmunchbot.keyboards import back_kb, main_menu_kb, pa
 from app.domains.telegram.rugmunchbot.states import check_spam
 
 logger = get_logger("rmi_bot")
-
 
 async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -165,7 +165,6 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
         disable_web_page_preview=True,
     )
 
-
 async def _try_rag_backend(query: str) -> str | None:
     """Tier 1: Query RMI RAG backend. Returns response text or None."""
     try:
@@ -194,7 +193,6 @@ async def _try_rag_backend(query: str) -> str | None:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("RAG backend error: %s", e)
     return None
-
 
 # --- Local intent matching (Tier 2) ---
 
@@ -309,7 +307,6 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
         f"{footer_links()}"
     )),
 ]
-
 
 def local_ai_response(text: str, user) -> str | None:
     """Tier 2: Match user intent against keyword patterns."""

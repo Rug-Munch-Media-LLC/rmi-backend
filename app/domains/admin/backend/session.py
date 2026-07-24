@@ -15,7 +15,6 @@ from app.domains.admin.backend.models import AdminRole
 
 logger = get_logger("rmi_admin_backend")
 
-
 class SessionManager:
     """
     Admin session management.

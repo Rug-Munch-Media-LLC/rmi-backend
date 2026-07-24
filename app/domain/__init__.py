@@ -4,6 +4,7 @@ Phase 4.7 of AUDIT-2026-Q3.md renamed app/domain/ to app/domains/.
 This shim re-exports for legacy callers.
 """
 
+from __future__ import annotations
 import importlib as _importlib
 import sys as _sys
 

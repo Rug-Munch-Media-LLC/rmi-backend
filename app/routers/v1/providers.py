@@ -235,7 +235,6 @@ PROVIDERS: list[ProviderDef] = [
 _cache: dict[str, Any] = {"data": None, "timestamp": 0.0}
 _CACHE_TTL = 15  # seconds
 
-
 def _read_circuit_breaker_state(cb_obj: Any) -> dict[str, Any]:
     """Read state from either AsyncCircuitBreaker or SimpleCircuitBreaker.
 
@@ -273,14 +272,12 @@ def _read_circuit_breaker_state(cb_obj: Any) -> dict[str, Any]:
             "last_error_timestamp": None,
         }
 
-
 def _format_timestamp(ts: float) -> str:
     """Format a Unix timestamp to ISO 8601 string."""
     try:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.UTC).isoformat()
     except (ValueError, TypeError, OSError):
         return str(ts)
-
 
 def _probe_provider(provider: ProviderDef) -> dict[str, Any]:
     """Probe a single provider and return its health status.
@@ -361,11 +358,9 @@ def _probe_provider(provider: ProviderDef) -> dict[str, Any]:
 
     return result
 
-
 # ──────────────────────────────────────────────────────────────────────
 # Endpoint
 # ──────────────────────────────────────────────────────────────────────
-
 
 @router.get("/status")
 async def providers_status() -> dict[str, Any]:

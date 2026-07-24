@@ -4,6 +4,7 @@ Wallet Factory - Per-Family Generation Functions
 Standalone wallet generation functions for each chain family.
 """
 
+from __future__ import annotations
 import hashlib
 import secrets
 
@@ -23,9 +24,7 @@ if _HAS_NACL:
     from nacl.encoding import RawEncoder
     from nacl.signing import SigningKey as NaClSigningKey
 
-
 # ── EVM Generation ──────────────────────────────────────────────
-
 
 def generate_evm(cfg: ChainConfig) -> WalletResult:
     """Generate Ethereum/EVM-compatible wallet."""
@@ -54,9 +53,7 @@ def generate_evm(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
-
 # ── Bitcoin Generation ──────────────────────────────────────────
-
 
 def generate_bitcoin(cfg: ChainConfig) -> WalletResult:
     """Generate Bitcoin wallet (Legacy P2PKH)."""
@@ -100,9 +97,7 @@ def generate_bitcoin(cfg: ChainConfig) -> WalletResult:
         address_type=addr_type,
     )
 
-
 # ── Solana Generation ───────────────────────────────────────────
-
 
 def generate_solana(cfg: ChainConfig) -> WalletResult:
     """Generate Solana wallet using Ed25519."""
@@ -129,9 +124,7 @@ def generate_solana(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
-
 # ── TRON Generation ─────────────────────────────────────────────
-
 
 def generate_tron(cfg: ChainConfig) -> WalletResult:
     """Generate TRON wallet."""
@@ -165,9 +158,7 @@ def generate_tron(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
-
 # ── SECP256K1 Alt Coins ─────────────────────────────────────────
-
 
 def generate_secp256k1_alt(cfg: ChainConfig) -> WalletResult:
     """Generate wallets for Dogecoin, Litecoin, BCH, Dash, Zcash."""
@@ -208,9 +199,7 @@ def generate_secp256k1_alt(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
-
 # ── ED25519 Family ──────────────────────────────────────────────
-
 
 def generate_ed25519(cfg: ChainConfig) -> WalletResult:
     """Generate ED25519 wallets (Cardano, Near, Sui, Aptos)."""
@@ -244,9 +233,7 @@ def generate_ed25519(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
-
 # ── Placeholder generators ──────────────────────────────────────
-
 
 def generate_ripple(cfg: ChainConfig) -> WalletResult:
     priv = secrets.token_hex(32)
@@ -264,7 +251,6 @@ def generate_ripple(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
-
 def generate_substrate(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
         chain="",
@@ -276,7 +262,6 @@ def generate_substrate(cfg: ChainConfig) -> WalletResult:
         private_key_hex=secrets.token_hex(32),
         derivation_path=cfg.hd_path,
     )
-
 
 def generate_cosmos(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
@@ -290,7 +275,6 @@ def generate_cosmos(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
-
 def generate_algorand(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
         chain="",
@@ -303,7 +287,6 @@ def generate_algorand(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
-
 def generate_tezos(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
         chain="",
@@ -315,7 +298,6 @@ def generate_tezos(cfg: ChainConfig) -> WalletResult:
         private_key_hex=secrets.token_hex(32),
         derivation_path=cfg.hd_path,
     )
-
 
 def generate_monero(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
@@ -330,9 +312,7 @@ def generate_monero(cfg: ChainConfig) -> WalletResult:
         tags=["monero-placeholder", "needs-monero-python-for-full-support"],
     )
 
-
 # ── Family dispatch ─────────────────────────────────────────────
-
 
 GENERATORS = {
     ChainFamily.EVM: generate_evm,

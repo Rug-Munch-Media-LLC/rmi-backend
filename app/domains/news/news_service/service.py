@@ -16,7 +16,6 @@ from app.domains.news.news_service.sources import BEARISH_WORDS, BULLISH_WORDS, 
 
 logger = get_logger(__name__)
 
-
 class NewsService:
     """Multi-source crypto news aggregator - 170+ sources, real data only."""
 
@@ -158,10 +157,8 @@ class NewsService:
             "cached": False, "fetched_at": datetime.now(UTC).isoformat(),
         }
 
-
 # ─── Singleton ───────────────────────────────────────────────────
 _news_service: NewsService | None = None
-
 
 def get_news_service() -> NewsService:
     global _news_service

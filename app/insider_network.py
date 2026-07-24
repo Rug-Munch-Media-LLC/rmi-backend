@@ -18,6 +18,7 @@ Data Sources (all free):
 - Public RPCs - on-chain queries
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import re
@@ -63,15 +64,12 @@ ETHERSCAN_BASES: dict[str, str] = {
 
 SOLSCAN_BASE = "https://api.solscan.io"
 
-
 # Cache for HTTP responses
 _cache: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 120  # 2 minutes
 _MAX_STALE_TTL = 600  # 10 minutes - refuse stale cache older than this
 
-
 # ── Data Models ───────────────────────────────────────────────────
-
 
 @dataclass
 class InsiderLink:
@@ -84,7 +82,6 @@ class InsiderLink:
     evidence: list[str] = field(default_factory=list)
     first_seen: str = ""
     last_seen: str = ""
-
 
 @dataclass
 class InsiderCluster:
@@ -100,7 +97,6 @@ class InsiderCluster:
     links: list[InsiderLink] = field(default_factory=list)
     top_relationships: list[dict] = field(default_factory=list)
 
-
 @dataclass
 class InsiderNetworkReport:
     """Complete insider network report."""
@@ -113,21 +109,17 @@ class InsiderNetworkReport:
     highest_risk_score: float = 0.0
     summary: str = ""
 
-
 # ── Address Validation ───────────────────────────────────────────
-
 
 def _validate_eip55_checksum(address: str) -> bool:
     """Validate EIP-55 mixed-case checksum - delegates to shared_utils."""
     from app.core.shared_utils import validate_eip55_checksum as _check
     return _check(address)
 
-
 def is_valid_address(address: str) -> bool:
     """Validate Solana or EVM address with checksum - delegates to shared_utils."""
     from app.core.shared_utils import is_valid_address as _check
     return _check(address)
-
 
 def _truncate_address(addr: str) -> str:
     """Truncate address for display."""
@@ -135,9 +127,7 @@ def _truncate_address(addr: str) -> str:
         return addr
     return f"{addr[:6]}...{addr[-4:]}"
 
-
 # ── HTTP Helpers with Caching ────────────────────────────────────
-
 
 async def _cached_get(
     client: httpx.AsyncClient,
@@ -176,9 +166,7 @@ async def _cached_get(
                 return cached_data
         return None
 
-
 # ── API Data Fetching ────────────────────────────────────────────
-
 
 async def _fetch_dexscreener_pairs(client: httpx.AsyncClient, token_address: str) -> list[dict]:
     """Fetch trading pairs for a token from DexScreener."""
@@ -187,7 +175,6 @@ async def _fetch_dexscreener_pairs(client: httpx.AsyncClient, token_address: str
     if data and "pairs" in data:
         return data["pairs"]
     return []
-
 
 async def _fetch_etherscan_holders(
     client: httpx.AsyncClient,
@@ -217,7 +204,6 @@ async def _fetch_etherscan_holders(
             return result
     return []
 
-
 async def _fetch_solscan_holders(
     client: httpx.AsyncClient, token_address: str, limit: int = 100
 ) -> list[dict]:
@@ -235,7 +221,6 @@ async def _fetch_solscan_holders(
         if isinstance(result, list):
             return result
     return []
-
 
 async def _fetch_birdeye_holders(
     client: httpx.AsyncClient, token_address: str, chain: str = "solana"
@@ -257,7 +242,6 @@ async def _fetch_birdeye_holders(
     if data and "data" in data and "items" in data["data"]:
         return data["data"]["items"]
     return []
-
 
 async def _fetch_token_transfers(
     client: httpx.AsyncClient,
@@ -284,7 +268,6 @@ async def _fetch_token_transfers(
             return result
     return []
 
-
 async def _fetch_wallet_transactions(
     client: httpx.AsyncClient, wallet_address: str, chain: str, limit: int = 50
 ) -> list[dict]:
@@ -307,9 +290,7 @@ async def _fetch_wallet_transactions(
             return result
     return []
 
-
 # ── Core Analysis Logic ──────────────────────────────────────────
-
 
 def _detect_shared_funding(
     cluster_wallets: list[str],
@@ -341,7 +322,6 @@ def _detect_shared_funding(
                     )
                     links.append(link)
     return links
-
 
 def _detect_co_trading(
     cluster_wallets: list[str],
@@ -383,7 +363,6 @@ def _detect_co_trading(
                         links.append(link)
     return links
 
-
 def _detect_value_transfers(
     cluster_wallets: list[str],
     wallet_transactions: dict[str, list[dict]],
@@ -409,7 +388,6 @@ def _detect_value_transfers(
                 )
                 links.append(link)
     return links
-
 
 def _detect_co_deployer(
     cluster_wallets: list[str],
@@ -441,7 +419,6 @@ def _detect_co_deployer(
                     )
                     links.append(link)
     return links
-
 
 def _compute_cluster_risk(cluster: InsiderCluster, links: list[InsiderLink]) -> float:
     """Compute risk score (0-100) for a cluster."""
@@ -478,7 +455,6 @@ def _compute_cluster_risk(cluster: InsiderCluster, links: list[InsiderLink]) -> 
 
     return min(100.0, risk)
 
-
 def _build_summary(report: InsiderNetworkReport) -> str:
     """Generate a human-readable summary."""
     if not report.clusters:
@@ -513,9 +489,7 @@ def _build_summary(report: InsiderNetworkReport) -> str:
 
     return "\n".join(parts)
 
-
 # ── Public API ────────────────────────────────────────────────────
-
 
 async def analyze_insider_network(
     wallet_address: str,
@@ -723,9 +697,7 @@ async def analyze_insider_network(
 
     return report
 
-
 # ── Formatting ────────────────────────────────────────────────────
-
 
 def format_insider_network_report(report: InsiderNetworkReport) -> str:
     """Format insider network report as a human-readable string."""
@@ -777,11 +749,9 @@ def format_insider_network_report(report: InsiderNetworkReport) -> str:
     lines.append(report.summary)
     return "\n".join(lines)
 
-
 # ── Singleton Holder ──────────────────────────────────────────────
 
 _insider_network_instance = None
-
 
 def get_insider_network_analyzer() -> Any:
     """Get or create the singleton InsiderNetworkAnalyzer."""
@@ -789,7 +759,6 @@ def get_insider_network_analyzer() -> Any:
     if _insider_network_instance is None:
         _insider_network_instance = InsiderNetworkAnalyzer()
     return _insider_network_instance
-
 
 class InsiderNetworkAnalyzer:
     """Wrapper class for InsiderNetwork analysis (backward-compat)."""

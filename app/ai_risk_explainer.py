@@ -7,6 +7,7 @@ Used by Telegram bot, website, and scanner API.
 
 Cost: ~100 tokens per explanation = ~$0.0007 on Ollama Cloud
 """
+from __future__ import annotations
 
 import json
 import os
@@ -34,7 +35,6 @@ Rules:
 Example output:
 "<b>Safety: 23/100 - HIGH RISK</b>. This token has <b>unlocked liquidity</b>, meaning the deployer can drain funds anytime. The <b>deployer wallet has 6 prior rugs</b>. No redeeming factors found. Avoid this token. Always DYOR."
 """
-
 
 def explain_risks(scan: dict) -> str:
     """Generate a human-readable risk explanation from scanner data."""
@@ -86,7 +86,6 @@ Write the explanation."""
         # Fallback: basic explanation without AI
         return _basic_explain(scan)
 
-
 def _basic_explain(scan: dict) -> str:
     """Basic explanation when AI is unavailable."""
     score = scan.get("safety_score", 50)
@@ -113,7 +112,6 @@ def _basic_explain(scan: dict) -> str:
     msg.append("Always DYOR.")
     return ". ".join(msg)
 
-
 # ── News Classification ──
 
 NEWS_SYSTEM = """Classify crypto news headlines into categories. Reply with ONLY the category name.
@@ -126,7 +124,6 @@ Categories:
 - DEFI: DeFi protocols, yield, liquidity, lending
 - MEMECOIN: meme tokens, celebrity coins, pump events
 - GENERAL: anything else"""
-
 
 def classify_news(title: str, content: str = "") -> str:
     """Classify a news article into a category."""
@@ -172,7 +169,6 @@ def classify_news(title: str, content: str = "") -> str:
         if any(w in t for w in ["sec ", "regulation", "ban", "law", "legal"]):
             return "REGULATION"
         return "GENERAL"
-
 
 if __name__ == "__main__":
     # Test

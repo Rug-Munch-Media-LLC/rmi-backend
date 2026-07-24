@@ -9,6 +9,7 @@ Architecture:
   Webhook → Validate → Cache(DataBus) → RAG Index → Premium Scanner → Alert Pipeline
 """
 
+from __future__ import annotations
 import hashlib
 import hmac
 import json
@@ -55,7 +56,6 @@ WEBHOOK_CONFIGS = {
     },
 }
 
-
 def _redis() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
@@ -64,7 +64,6 @@ def _redis() -> Any:
         decode_responses=True,
         socket_connect_timeout=2,
     )
-
 
 async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: bytes = b"") -> dict:
     """Universal webhook handler.
@@ -180,7 +179,6 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
         "cached": True,
     }
 
-
 def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
     """HMAC signature verification."""
     if not secret or not signature:
@@ -190,7 +188,6 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
         return hmac.compare_digest(expected, signature)
     except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
         return False
-
 
 def _get_scan_triggers(service: str, event_type: str, payload: dict) -> list[str]:
     """Determine which premium scans to trigger based on webhook event."""
@@ -230,7 +227,6 @@ def _get_scan_triggers(service: str, event_type: str, payload: dict) -> list[str
 
     return triggers
 
-
 def _assess_webhook_risk(service: str, event_type: str, payload: dict) -> dict:
     """Quick risk assessment from webhook data."""
     value_usd = float(payload.get("valueUsd") or payload.get("value", 0))
@@ -255,7 +251,6 @@ def _assess_webhook_risk(service: str, event_type: str, payload: dict) -> dict:
         }
 
     return {"level": "LOW", "title": "Routine event", "description": f"{service} {event_type}"}
-
 
 async def setup_webhook(
     service: str, webhook_url: str, events: list[str] | None = None, **kw
@@ -315,7 +310,6 @@ async def setup_webhook(
         "webhook_url": webhook_url,
         "instructions": f"Configure webhook at {service} dashboard to point to {webhook_url}",
     }
-
 
 async def list_webhooks() -> dict:
     """List all configured webhook subscriptions."""

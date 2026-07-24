@@ -2,6 +2,7 @@
 RugCharts Intel Cache Layer — Redis helpers and configuration.
 """
 
+from __future__ import annotations
 import json
 import os
 
@@ -32,7 +33,6 @@ CACHE_TTL = {
     "dev_reputation": 86400,
     "token_report": 300,
 }
-
 
 def _r() -> Any:
     return redis.Redis(

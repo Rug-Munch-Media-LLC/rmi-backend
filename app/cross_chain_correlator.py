@@ -9,6 +9,7 @@ Links wallets across Solana/Ethereum/BSC/Base using:
 Paper ref: Section 5.3 - Cross-Chain Fragmentation
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -17,7 +18,6 @@ from app.core.logging import get_logger
 from typing import Any
 
 logger = get_logger(__name__)
-
 
 @dataclass
 class CrossChainLink:
@@ -31,7 +31,6 @@ class CrossChainLink:
     confidence: float
     evidence: str
 
-
 @dataclass
 class CrossChainProfile:
     """Aggregated profile of an entity across chains."""
@@ -44,7 +43,6 @@ class CrossChainProfile:
     risk_score: float = 0.0
     labels: list[str] = field(default_factory=list)
     links: list[CrossChainLink] = field(default_factory=list)
-
 
 class CrossChainCorrelator:
     """Multi-chain entity resolution engine."""
@@ -249,10 +247,8 @@ class CrossChainCorrelator:
 
         return profiles
 
-
 # Singleton
 _correlator: CrossChainCorrelator | None = None
-
 
 def get_cross_chain_correlator() -> CrossChainCorrelator:
     global _correlator
@@ -260,9 +256,7 @@ def get_cross_chain_correlator() -> CrossChainCorrelator:
         _correlator = CrossChainCorrelator()
     return _correlator
 
-
 # ── Legacy compatibility: ChainFingerprint (used by security_intel.py) ──
-
 
 @dataclass
 class ChainFingerprint:

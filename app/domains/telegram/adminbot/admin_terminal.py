@@ -45,18 +45,14 @@ _ALLOWED_COMMANDS: frozenset[str] = frozenset(
 
 _sessions: dict[int, dict[str, Any]] = {}
 
-
 def enter_terminal(user_id: int) -> None:
     _sessions[user_id] = {"cwd": "/root", "history": []}
-
 
 def in_terminal(user_id: int) -> bool:
     return user_id in _sessions
 
-
 def exit_terminal(user_id: int) -> None:
     _sessions.pop(user_id, None)
-
 
 def _get_base_command(cmd: str) -> str | None:
     """Extract the base command name. Returns None on parse error."""
@@ -64,7 +60,6 @@ def _get_base_command(cmd: str) -> str | None:
         return shlex.split(cmd.strip())[0]
     except (ValueError, IndexError):
         return None
-
 
 def _check_safe_cmd(cmd: str) -> str | None:
     """Check if command is allowed. Returns None if ok, error string if blocked."""
@@ -79,7 +74,6 @@ def _check_safe_cmd(cmd: str) -> str | None:
     if base not in _ALLOWED_COMMANDS:
         return f"Command not allowed: '{base}'. Allowed: {', '.join(sorted(_ALLOWED_COMMANDS))}"
     return None
-
 
 def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
     stripped = cmd.strip()
@@ -139,15 +133,12 @@ def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
 
-
 def format_prompt(session: dict[str, Any]) -> str:
     return f"`{session.get('cwd', '/root')}$`"
-
 
 def format_result(result: dict[str, Any], session: dict[str, Any]) -> str:
     output = result.get("output", "") or result.get("error", "")
     return f"```\n{output[:2000]}\n```"
-
 
 def run_quick(cmd_name: str) -> dict[str, Any]:
     """Run a predefined quick command — no shell, allowlist-gated."""
@@ -179,7 +170,6 @@ def run_quick(cmd_name: str) -> dict[str, Any]:
         }
     except (ValueError, TypeError, KeyError, OSError) as e :
         return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
-
 
 def quick_commands_keyboard() -> Any:
     return InlineKeyboardMarkup(

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import os
 from datetime import UTC, datetime
@@ -17,7 +18,6 @@ _birdeye_cb = AsyncCircuitBreaker(
     failure_window=60.0,
     recovery_timeout=30.0,
 )
-
 
 class BirdeyeClient:
     def __init__(self) -> None:

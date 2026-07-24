@@ -4,6 +4,7 @@ Model Registry - Rate Limit Tracking
 Tracks API usage across all providers. Respects hard limits.
 """
 
+from __future__ import annotations
 import time
 from collections import defaultdict
 
@@ -12,7 +13,6 @@ from app.core.logging import get_logger
 from .models import PROVIDER_LIMITS
 
 logger = get_logger("model_registry")
-
 
 class RateLimitTracker:
     """Tracks API usage across all providers. Respects hard limits."""
@@ -118,10 +118,8 @@ class RateLimitTracker:
             },
         }
 
-
 # Global tracker instance
 rate_tracker = RateLimitTracker()
-
 
 def _can_use(model_config: dict) -> bool:
     """Check if model is under its rate limit using the tracker."""
@@ -132,7 +130,6 @@ def _can_use(model_config: dict) -> bool:
         rate_tracker.record_throttle(provider)
         return False
     return True
-
 
 def _track_usage(model_id: str, tokens: int = 0) -> None:
     """Track model usage through the rate tracker."""

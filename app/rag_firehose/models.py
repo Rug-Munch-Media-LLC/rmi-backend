@@ -4,9 +4,9 @@ RAG Firehose - Data Models
 Configuration constants and dataclasses for the firehose ingestion engine.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
-
 
 # ── Configuration ──────────────────────────────────────────────
 
@@ -46,7 +46,6 @@ HASH_TTL = {
     "default": 1209600,  # 14 days
 }
 
-
 @dataclass
 class FeedSource:
     """A data source the firehose pulls from."""
@@ -62,7 +61,6 @@ class FeedSource:
     docs_ingested: int = 0
     docs_skipped: int = 0
     errors: int = 0
-
 
 @dataclass
 class FirehoseStats:

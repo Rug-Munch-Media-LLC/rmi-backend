@@ -8,6 +8,7 @@ labels, portfolio, transfers, counterparties, and MCP bridge.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 from app.databus.provider_implementations import (
@@ -31,7 +32,6 @@ from app.databus.provider_implementations import (
 )
 
 logger = get_logger("databus.providers.chains.alchemy_arkham")
-
 
 def build_alchemy_arkham_chains(chains: dict[str, ProviderChain]) -> None:
     """Build Alchemy, Moralis, Arkham, and MCP bridge chains."""

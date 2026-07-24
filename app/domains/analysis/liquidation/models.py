@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-
 class RiskTier(StrEnum):
     SAFE = "SAFE"
     WATCH = "WATCH"
@@ -19,7 +18,6 @@ class RiskTier(StrEnum):
 
     def score(self) -> int:
         return {"SAFE": 0, "WATCH": 1, "DANGER": 2, "CRITICAL": 3}[self.value]
-
 
 @dataclass
 class CollateralPosition:
@@ -35,7 +33,6 @@ class CollateralPosition:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
-
 @dataclass
 class DebtPosition:
     """A debt/borrow position against collateral."""
@@ -48,7 +45,6 @@ class DebtPosition:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
 
 @dataclass
 class ProtocolPosition:
@@ -107,7 +103,6 @@ class ProtocolPosition:
         )
         return d
 
-
 @dataclass
 class CascadeScenario:
     """A simulated cascade event."""
@@ -123,7 +118,6 @@ class CascadeScenario:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
-
 @dataclass
 class LiquidationCluster:
     """A cluster of wallets at similar liquidation prices."""
@@ -137,7 +131,6 @@ class LiquidationCluster:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
 
 @dataclass
 class LiquidationAnalysis:

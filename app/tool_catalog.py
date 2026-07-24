@@ -18,6 +18,7 @@ Categories:
     MCP EXTERNAL (150+) - Third-party data provider tools
 """
 
+from __future__ import annotations
 from typing import Any
 
 # ── Tool Categories with SEO metadata ──────────────────────────
@@ -153,9 +154,7 @@ TOOL_CATEGORIES = {
     },
 }
 
-
 # ── Human-readable tool guide ──────────────────────────────────
-
 
 def get_human_catalog() -> dict[str, Any]:
     """Build a human-friendly tool catalog organized by use case and tier.
@@ -288,7 +287,6 @@ def get_human_catalog() -> dict[str, Any]:
 
     return catalog
 
-
 def get_bot_catalog() -> dict[str, Any]:
     """Build a bot-optimized tool catalog with minimal descriptions.
 
@@ -331,7 +329,6 @@ def get_bot_catalog() -> dict[str, Any]:
         "chains_supported": 13,
         "tools": sorted(tools, key=lambda t: t["category"]),
     }
-
 
 def _get_chains_for_tool(tool_id: str) -> list[str]:
     """Get supported chains for a tool."""

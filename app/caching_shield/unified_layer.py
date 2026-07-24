@@ -10,6 +10,7 @@ Architecture:
 No tool anywhere in the system makes a raw HTTP call. Period.
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import json
@@ -27,7 +28,6 @@ logger = get_logger("unified_data")
 # ═══════════════════════════════════════════════════════════════════════════
 # CACHE
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 class TieredCache:
     """L1 in-memory cache."""
@@ -55,7 +55,6 @@ class TieredCache:
             oldest = min(self._l1.keys(), key=lambda k: self._l1[k][0])
             del self._l1[oldest]
 
-
 class ToolResult:
     """Result from a tool data call with provenance tracking."""
 
@@ -76,11 +75,9 @@ class ToolResult:
             "confidence": round(self.confidence, 2),
         }
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # PROVIDER CHAINS
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 class ProviderChain:
     """Ordered list of data providers with fallback."""
@@ -110,11 +107,9 @@ class ProviderChain:
                 continue
         return None
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # UNIFIED LAYER
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 class UnifiedDataLayer:
     """Single entry point for ALL tool data calls.
@@ -444,13 +439,11 @@ class UnifiedDataLayer:
             "data_types": len(self._providers),
         }
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ═══════════════════════════════════════════════════════════════════════════
 
 _layer: UnifiedDataLayer | None = None
-
 
 def get_data_layer() -> UnifiedDataLayer:
     global _layer

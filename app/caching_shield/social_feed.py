@@ -6,6 +6,7 @@ Falls back to Nitter when rate limited.
 Reddit top posts from r/CryptoCurrency, r/ethfinance, r/solana.
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import time
@@ -154,7 +155,6 @@ TTL_NITTER = 900  # 15 min (fallback, longer cache)
 
 _cache: dict[str, tuple] = {}
 
-
 def _cache_get(key: str) -> dict | None:
     entry = _cache.get(key)
     if entry:
@@ -164,10 +164,8 @@ def _cache_get(key: str) -> dict | None:
         del _cache[key]
     return None
 
-
 def _cache_set(key: str, data: dict, ttl: int) -> None:
     _cache[key] = (time.monotonic() + ttl, data)
-
 
 async def get_twitter_feed(limit: int = 30) -> dict:
     """Get top crypto tweets via Nitter (free, no auth, cached)."""
@@ -224,7 +222,6 @@ async def get_twitter_feed(limit: int = 30) -> dict:
     _cache_set(cache_key, result, TTL_NITTER if tweets else 60)
     return result
 
-
 async def get_reddit_feed(limit: int = 20) -> dict:
     """Get top crypto Reddit posts (free, no auth, cached)."""
     cache_key = f"reddit_feed_{limit}"
@@ -272,7 +269,6 @@ async def get_reddit_feed(limit: int = 20) -> dict:
     _cache_set(cache_key, result, TTL_REDDIT)
     return result
 
-
 async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> dict:
     """Get combined social feed - X + Reddit, sorted by recency."""
     twitter, reddit = await asyncio.gather(
@@ -290,7 +286,6 @@ async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> di
         "total_social_sources": len(TOP_CRYPTO_ACCOUNTS) + len(REDDIT_SUBS),
         "updated": datetime.now(UTC).isoformat(),
     }
-
 
 def get_top_accounts() -> list:
     """Get the list of monitored X accounts with profile pics."""

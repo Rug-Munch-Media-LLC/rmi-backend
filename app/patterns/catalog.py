@@ -12,6 +12,7 @@
 # - nuxt-patterns        - Page/layout patterns
 # - async-patterns       - Async/await best practices
 
+from __future__ import annotations
 PATTERN_LIBRARY = {
     "fastapi": ["rmi-backend"],
     "scanners": ["rmi-backend/app/scanners"],

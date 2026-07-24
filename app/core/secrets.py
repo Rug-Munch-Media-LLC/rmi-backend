@@ -11,13 +11,13 @@ Usage:
     key = get_secret("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
 """
 
+from __future__ import annotations
 import os
 import subprocess
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 def _from_gopass(path: str) -> str | None:
     """Try to read a secret from gopass. Returns None if gopass not available."""
@@ -40,7 +40,6 @@ def _from_gopass(path: str) -> str | None:
     except Exception as exc:
         logger.warning("gopass error reading %s: %s", path, exc)
     return None
-
 
 def get_secret(env_var: str, gopass_path: str | None = None) -> str:
     """Get a secret from gopass first, fall back to env var.
@@ -78,7 +77,6 @@ def get_secret(env_var: str, gopass_path: str | None = None) -> str:
         )
 
     return secret
-
 
 def get_secret_or_none(env_var: str, gopass_path: str | None = None) -> str | None:
     """Get a secret with graceful fallback — returns None instead of raising.

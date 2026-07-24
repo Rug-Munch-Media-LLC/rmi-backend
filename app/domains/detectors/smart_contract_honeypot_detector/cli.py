@@ -1,4 +1,5 @@
 """CLI entry point for the honeypot detector."""
+from __future__ import annotations
 import asyncio, logging
 from app.core.logging import get_logger
 from .constants import EVM_CHAINS

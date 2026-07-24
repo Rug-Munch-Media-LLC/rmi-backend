@@ -10,4 +10,5 @@ Usage:
     from app.degen_security_scanner import DegenSecurityScanner
 """
 
+from __future__ import annotations
 from app.domains.scanner.degen_security_scanner import *  # noqa: F401, F403

@@ -3,10 +3,10 @@ DeFiLlama DataBus Provider - Free, unlimited DeFi analytics.
 7,661 protocols across 350+ chains. No API key needed.
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 
 logger = get_logger("databus.defillama")
-
 
 async def fetch_defillama_tvl(
     protocol: str | None = None, chain: str | None = None, limit: int = 20
@@ -75,7 +75,6 @@ async def fetch_defillama_tvl(
     results["source"] = "DeFiLlama (free, no auth)"
     results["url"] = "https://defillama.com"
     return results
-
 
 async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict:
     """Fetch live prices from Pyth Network Hermes API - 125+ institutional publishers."""

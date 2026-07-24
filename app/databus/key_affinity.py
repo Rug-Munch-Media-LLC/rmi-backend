@@ -1,11 +1,11 @@
 """DataBus Key Affinity - Consistent Hashing for API Key Selection"""
 
+from __future__ import annotations
 import hashlib
 
 from app.core.logging import get_logger
 
 logger = get_logger("databus.key_affinity")
-
 
 class KeyAffinitySelector:
     """Select API keys with consistent affinity based on request params.
@@ -56,7 +56,6 @@ class KeyAffinitySelector:
 
     def stats(self) -> dict:
         return {"affinity_assignments": len(self._assignments)}
-
 
 # Module-level singleton instance
 key_affinity = KeyAffinitySelector()

@@ -1,5 +1,6 @@
 """Trending engine and real-time launch monitor."""
 
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
@@ -10,7 +11,6 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 LAST_KNOWN_LAUNCHES: dict[str, set] = {}
-
 
 async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict[str, Any]:
     """Get trending tokens from multiple sources, normalized across chains."""
@@ -131,7 +131,6 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
         "chains_covered": list({t.get("chain", "?") for t in unique}),
         "updated_at": datetime.now(UTC).isoformat(),
     }
-
 
 async def get_new_launches(chain: str = "solana", since_seconds: int = 300) -> dict[str, Any]:
     """Get tokens launched in the last N seconds."""

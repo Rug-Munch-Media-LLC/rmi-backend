@@ -11,6 +11,7 @@ Resolves wallet/contract addresses to known labels from multiple sources:
 Combines all label sources into a unified response with risk assessment.
 """
 
+from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass, field
@@ -45,9 +46,7 @@ BUILTIN_EXCHANGE_LABELS: dict[str, str] = {
     # Common EOA labels
 }
 
-
 # ── Report dataclass ─────────────────────────────────────────────────
-
 
 @dataclass
 class LabelEntry:
@@ -57,7 +56,6 @@ class LabelEntry:
     label: str
     category: str = ""  # exchange, mev, scam, defi, wallet, contract, bridge, etc.
     confidence: float = 1.0
-
 
 @dataclass
 class AddressLabelReport:
@@ -85,9 +83,7 @@ class AddressLabelReport:
     red_flags: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
-
 # ── Labeler class ────────────────────────────────────────────────────
-
 
 class AddressLabeler:
     """Resolve addresses to known labels from multiple sources in parallel."""

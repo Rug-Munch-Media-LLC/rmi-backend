@@ -6,13 +6,13 @@ containing 115K labeled EVM addresses. Allows SQL queries against the database
 with proper safety measures.
 """
 
+from __future__ import annotations
 import asyncio
 from typing import Any
 
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
-
 
 def _safe_select_query(sql: str) -> bool:
     """
@@ -63,7 +63,6 @@ def _safe_select_query(sql: str) -> bool:
             return False
 
     return True
-
 
 async def query_eth_labels_db_mcp(sql: str, limit: int = 1000) -> dict[str, Any]:
     """
@@ -132,7 +131,6 @@ async def query_eth_labels_db_mcp(sql: str, limit: int = 1000) -> dict[str, Any]
         log.warning("eth_labels_db_mcp_error sql=%s err=%s", sql[:100], result["error"])
 
     return result
-
 
 async def get_eth_labels_stats_mcp() -> dict[str, Any]:
     """

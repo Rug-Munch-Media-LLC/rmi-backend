@@ -1,6 +1,7 @@
 """Constants and configuration for insider detection."""
 
 # DexScreener API endpoints
+from __future__ import annotations
 DEXSCREENER_PROFILES = "https://api.dexscreener.com/token-profiles/latest/v1"
 DEXSCREENER_BOOSTS = "https://api.dexscreener.com/token-boosts/top/v1"
 DEXSCREENER_TOKEN = "https://api.dexscreener.com/latest/dex/tokens/{}"

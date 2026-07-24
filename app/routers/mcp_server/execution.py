@@ -1,5 +1,6 @@
 """Tool execution — /mcp/call/{tool_id}."""
 
+from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Request
@@ -15,7 +16,6 @@ from .config import _get_tools, SERVER_NAME, SERVER_VERSION
 
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_execution"])
-
 
 @router.post("/mcp/call/{tool_id}")
 async def mcp_call_tool(tool_id: str, request: Request) -> Any:

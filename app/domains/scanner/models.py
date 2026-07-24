@@ -1,9 +1,9 @@
 """Scanner data models and constants."""
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
-
 
 @dataclass
 class ScanResult:
@@ -29,7 +29,6 @@ class ScanResult:
     modules_run: list[dict[str, Any]] = field(default_factory=list)  # [{module, status, error?}]
     fusion_brief: dict | None = None  # DataFusion enrichment: fused risk + intelligence brief
     rag_context: dict | None = None  # RAG enrichment context (from RAGIntelligenceEnricher)
-
 
 CHAIN_IDS = {
     "solana": "solana",

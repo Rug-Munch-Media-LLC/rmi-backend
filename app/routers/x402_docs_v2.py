@@ -13,11 +13,9 @@ import os
 
 router = APIRouter(tags=["API-Docs"])
 
-
 SEO_KEYWORDS = "x402 protocol, crypto intelligence API, blockchain token scanner, rug pull detection, USDC payment gateway, crypto scam detection API, web3 security API, on-chain analysis API, token risk assessment, wallet forensics API, blockchain API pay-per-call, MCP crypto tools, DeFi security API, smart contract scam detector"
 
 DEMO_API_KEY = os.getenv("RMI_FREE_API_KEY", "sk-your-free-api-key")
-
 
 def _page(title: str, body: str) -> str:
     return f"""<!DOCTYPE html>
@@ -71,7 +69,6 @@ a:hover{{text-decoration:underline}}
 </div>
 </body>
 </html>"""
-
 
 @router.get("/docs", summary="Docs Landing", description="Landing page for the x402 API documentation portal.")
 @router.get("/docs/v2/landing")
@@ -134,7 +131,6 @@ Your API key is all you need. We handle the blockchain.
         )
     )
 
-
 @router.get("/docs/v2/quickstart", summary="Quickstart", description="Quickstart guide for the x402 API. Shows how to get started with token scanning, wallet analysis, and x402 payments.")
 async def quickstart() -> Any:
     return HTMLResponse(
@@ -187,7 +183,6 @@ no seed phrases to lose.
 """,
         )
     )
-
 
 @router.get("/docs/v2/api-reference", summary="Api Reference", description="Full API reference documentation for all x402 endpoints, including request/response schemas and authentication.")
 async def api_reference() -> Any:
@@ -248,7 +243,6 @@ console.log(data);</pre>
 """,
         )
     )
-
 
 @router.get("/old-docs")
 async def redirect_old_docs() -> Any:

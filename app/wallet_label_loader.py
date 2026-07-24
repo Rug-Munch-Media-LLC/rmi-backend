@@ -5,6 +5,7 @@ Sources:
   - OFAC crypto-sanctions-list
 """
 
+from __future__ import annotations
 import csv
 import json
 import os
@@ -14,7 +15,6 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 LABELS_BASE = "/app/data/wallet-labels"
-
 
 def load_all_labels(redis_client) -> dict:
     """Load all wallet label datasets into Redis. Returns counts."""
@@ -94,7 +94,6 @@ def load_all_labels(redis_client) -> dict:
     logger.info(f"Loaded wallet labels: {counts}")
     return counts
 
-
 def _load_csv_labels(
     redis_client, path: str, chain: str, addr_col: str, label_cols: dict[str, str]
 ) -> int:
@@ -121,7 +120,6 @@ def _load_csv_labels(
     except Exception as e:
         logger.warning(f"Failed to load {path}: {e}")
     return count
-
 
 def lookup_wallet_label(address: str, chain: str | None = None, redis_client=None) -> dict | None:
     """Look up a wallet address in the label database."""

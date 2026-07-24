@@ -1,11 +1,11 @@
 """Price providers for DataBus."""
 
+from __future__ import annotations
 import os
 
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
-
 
 async def _local_token_price(**kwargs) -> dict | None:
     """Get price from our own data (Redis/ClickHouse)."""
@@ -31,7 +31,6 @@ async def _local_token_price(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _dexscreener_price(**kwargs) -> dict | None:
     """DexScreener - free, no key."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
@@ -45,7 +44,6 @@ async def _dexscreener_price(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _coingecko_price(**kwargs) -> dict | None:
     """CoinGecko - free for low volume."""
@@ -63,7 +61,6 @@ async def _coingecko_price(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _moralis_price(**kwargs) -> dict | None:
     """Moralis - paid, high quality."""
     token = kwargs.get("token", "")
@@ -79,7 +76,6 @@ async def _moralis_price(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _birdeye_price(address: str = "", **kw) -> dict | None:
     """Birdeye - real-time token price (free tier)."""
@@ -107,7 +103,6 @@ async def _birdeye_price(address: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
     """Solana Tracker - real-time token price (2 keys, 5000 req/mo total)."""
     if not mint:
@@ -123,7 +118,6 @@ async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
     """Solana Tracker - detailed token metadata and stats."""
     if not mint:
@@ -138,7 +132,6 @@ async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _solana_tracker_trending(**kw) -> dict | None:
     """Solana Tracker - trending tokens on Solana."""

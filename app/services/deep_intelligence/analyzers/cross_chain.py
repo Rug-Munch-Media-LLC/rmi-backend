@@ -12,7 +12,6 @@ from typing import Any
 
 from app.services.deep_intelligence.core import cfg, client, logger
 
-
 async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Same entity, multiple chains. Detect deployer patterns, funding correlation,

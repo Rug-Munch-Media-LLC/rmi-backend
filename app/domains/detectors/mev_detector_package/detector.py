@@ -2,6 +2,7 @@
 MEV Detector — Main Detection Engine
 Real-time detection of MEV attacks - sandwiches, frontruns, backruns.
 """
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
@@ -29,7 +30,6 @@ from app.domains.detectors.mev_detector_package.registry import (
 )
 
 logger = get_logger(__name__)
-
 
 class MEVSandwichDetector:
     """Real-time detection of MEV attacks - sandwiches, frontruns, backruns."""

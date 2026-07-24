@@ -35,18 +35,15 @@ logger = get_logger(__name__)
 
 import contextlib  # noqa: E402
 
-
 # Lazy auth dependency - avoids importing jose+bcrypt at module load
 async def _require_public_profile(request: Request) -> Any:
     from app.auth import require_public_profile
 
     return await require_public_profile(request)
 
-
 router = APIRouter(prefix="/api/v1/bulletin", tags=["bulletin"])
 
 # ── Supabase REST helpers ──────────────────────────────────────
-
 
 def _sb() -> tuple[Any, dict]:
     """Return (url, headers) for direct Supabase REST API.
@@ -70,20 +67,17 @@ def _sb() -> tuple[Any, dict]:
         "Prefer": "return=representation",
     }
 
-
 async def _sb_get(table: str, params: dict | None = None) -> list:
     url, headers = _sb()
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.get(f"{url}/rest/v1/{table}", headers=headers, params=params)
     return r.json() if r.status_code == 200 else []
 
-
 async def _sb_post(table: str, data: dict) -> list:
     url, headers = _sb()
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.post(f"{url}/rest/v1/{table}", headers=headers, json=data)
     return r.json() if r.status_code in (200, 201) else []
-
 
 async def _sb_patch(table: str, data: dict, match: dict) -> list:
     url, headers = _sb()
@@ -92,9 +86,7 @@ async def _sb_patch(table: str, data: dict, match: dict) -> list:
         r = await client.patch(f"{url}/rest/v1/{table}?{params}", headers=headers, json=data)
     return r.json() if r.status_code == 200 else []
 
-
 # ── Models ──────────────────────────────────────────────────
-
 
 class BulletinPostIn(BaseModel):
     title: str
@@ -108,7 +100,6 @@ class BulletinPostIn(BaseModel):
     is_bot: bool = False
     bot_id: str | None = None
 
-
 class AlertIn(BaseModel):
     title: str
     description: str
@@ -120,7 +111,6 @@ class AlertIn(BaseModel):
     amount_usd: float | None = None
     user_id: str | None = None
 
-
 class BotRegistrationIn(BaseModel):
     owner_id: str
     bot_name: str
@@ -130,9 +120,7 @@ class BotRegistrationIn(BaseModel):
     rules: list[str] = []
     allowed_categories: list[str] = []
 
-
 # ── Bulletin Posts ──────────────────────────────────────────
-
 
 @router.get(
     "/latest",
@@ -163,7 +151,6 @@ async def latest_posts(
         posts = [p for p in posts if not p.get("is_bot")]
     return {"posts": posts, "total": len(posts)}
 
-
 @router.post(
     "/posts",
     summary="Create Post",
@@ -189,7 +176,6 @@ async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public
             )
         return result
 
-
 @router.post(
     "/posts/{post_id}/vote", summary="Vote", description="Upvote or downvote a bulletin board post."
 )
@@ -199,10 +185,8 @@ async def vote(post_id: int, vote_type: str = Query(..., pattern="^(up|down)$"))
         raise NotFoundError("Post not found or vote failed")
     return {"status": "ok", "post_id": post_id, "vote": vote_type}
 
-
 class CommentIn(BaseModel):
     content: str
-
 
 @router.post("/posts/{post_id}/comments")
 async def create_comment(
@@ -240,7 +224,6 @@ async def create_comment(
             },
         }
 
-
 @router.get("/posts/{post_id}/comments", summary="Get Comments", description="Retrieve all comments for a bulletin board post. Returns comment text, author, timestamp, and vote count. Sorted by creation date ascending.")
 async def get_comments(post_id: int) -> dict | dict[str, list]:
     """Get comments for a bulletin post."""
@@ -252,11 +235,9 @@ async def get_comments(post_id: int) -> dict | dict[str, list]:
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         return {"comments": []}
 
-
 # ── Bot Endpoints ───────────────────────────────────────────
 
 BOT_FEE_USD = 1.00  # $1 fee for bots to participate
-
 
 @router.post("/bots/register")
 async def register_bot(bot: BotRegistrationIn) -> dict:
@@ -324,7 +305,6 @@ async def register_bot(bot: BotRegistrationIn) -> dict:
         "status": "active" if bot.fee_paid >= BOT_FEE_USD else "pending_fee",
     }
 
-
 @router.get("/bots", summary="List Bots", description="List all registered bulletin board bots with their status, fee payment status, and posting statistics. Optionally filter by status.")
 async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict:
     """List all registered bots."""
@@ -337,7 +317,6 @@ async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict:
         params["status"] = f"eq.{status}"
     result = await _sb_get("bot_registrations", params)
     return {"bots": result, "total": len(result)}
-
 
 @router.get("/bots/{bot_id}/fee-status", summary="Bot Fee Status", description="Check a specific bot's fee payment status including amount due, last payment date, and next billing date.")
 async def bot_fee_status(bot_id: str) -> dict:
@@ -357,7 +336,6 @@ async def bot_fee_status(bot_id: str) -> dict:
         "status": registration["status"],
         "fee_history": fees,
     }
-
 
 @router.post("/bots/{bot_id}/pay-fee", summary="Pay Bot Fee", description="Record a bot fee payment. Accepts payment transaction hash and amount. Updates the bot's fee status and extends service period.")
 async def pay_bot_fee(
@@ -390,7 +368,6 @@ async def pay_bot_fee(
         "fee_required": BOT_FEE_USD,
         "status": "active" if total_paid >= BOT_FEE_USD else "pending_fee",
     }
-
 
 @router.post("/bots/{bot_id}/post")
 async def bot_create_post(bot_id: str, post: BulletinPostIn) -> Any:
@@ -429,9 +406,7 @@ async def bot_create_post(bot_id: str, post: BulletinPostIn) -> Any:
         await _sb_patch("bulletin_posts", {"is_bot": True, "bot_id": bot_id}, {"id": result["id"]})
     return result
 
-
 # ── Reports & Moderation ──────────────────────────────────────
-
 
 class ReportIn(BaseModel):
     post_id: int
@@ -440,14 +415,12 @@ class ReportIn(BaseModel):
     details: str | None = None
     category: str = "other"  # spam, abuse, misinformation, scam, bot_violation, other
 
-
 class ModerationActionIn(BaseModel):
     admin_id: str
     action: str  # remove, lock, pin, unpin, unlock, restore, ban_user
     target_type: str  # post, user, bot
     target_id: str
     reason: str | None = None
-
 
 @router.post("/reports", summary="Create Report", description="Submit a report on a bulletin board post for moderation review. Include reason, evidence links, and category.")
 async def create_report(report: ReportIn) -> Any:
@@ -467,7 +440,6 @@ async def create_report(report: ReportIn) -> Any:
         raise AppError("Failed to create report")
     return result[0]
 
-
 @router.get("/reports", summary="List Reports", description="List submitted reports (admin view). Optionally filter by status (pending/reviewed/dismissed) and limit results.")
 async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
     """List reports (admin view)."""
@@ -476,7 +448,6 @@ async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, l
         params["status"] = f"eq.{status}"
     result = await _sb_get("bulletin_reports", params)
     return {"reports": result, "total": len(result)}
-
 
 @router.post("/moderate", summary="Moderate", description="Take a moderation action on a post or comment. Supports warnings, content removal, and user restrictions.")
 async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
@@ -523,21 +494,17 @@ async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
         "target": f"{moderation.target_type}:{moderation.target_id}",
     }
 
-
 @router.get("/moderation/log", summary="Moderation Log", description="View the moderation action history log. Returns timestamp, moderator, action type, and target.")
 async def moderation_log(limit: int = Query(50)) -> dict:
     """View moderation log."""
     result = await _sb_get("bulletin_moderation_log", {"order": "created_at.desc", "limit": str(limit)})
     return {"log": result, "total": len(result)}
 
-
 # ── Badges ──────────────────────────────────────────────────
-
 
 @router.get("/badges", summary="List Badges", description="List all available achievement badges.")
 async def list_badges(rarity: str = Query(None)) -> Any:
     return await get_badges(rarity=rarity)
-
 
 @router.get(
     "/badges/{user_id}",
@@ -547,7 +514,6 @@ async def list_badges(rarity: str = Query(None)) -> Any:
 async def user_badges(user_id: str) -> Any:
     badges = await get_user_badges(user_id)
     return badges
-
 
 @router.post(
     "/badges/award",
@@ -560,9 +526,7 @@ async def award(badge_id: str, user_id: str, earned_via: str = "auto") -> Any:
         raise AppError("Failed to award badge")
     return result
 
-
 # ── Alerts ──────────────────────────────────────────────────
-
 
 @router.get(
     "/alerts",
@@ -572,7 +536,6 @@ async def award(badge_id: str, user_id: str, earned_via: str = "auto") -> Any:
 async def list_alerts(severity: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
     alerts = await get_alerts(severity=severity, limit=limit)
     return {"alerts": alerts, "total": len(alerts)}
-
 
 @router.post(
     "/alerts",
@@ -595,9 +558,7 @@ async def submit_alert(alert: AlertIn) -> Any:
         raise AppError("Failed to create alert")
     return result
 
-
 # ── Stats ──────────────────────────────────────────────────
-
 
 @router.get("/stats")
 async def community_stats() -> dict:
@@ -639,9 +600,7 @@ async def community_stats() -> dict:
         "bot_fee_required_usd": BOT_FEE_USD,
     }
 
-
 # ── Health ──────────────────────────────────────────────────
-
 
 @router.get("/health", summary="Bulletin Health", description="Bulletin board service health check. Verifies Supabase connectivity and returns status for the bulletin system.")
 async def health() -> Any:

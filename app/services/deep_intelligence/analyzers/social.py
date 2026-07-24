@@ -12,7 +12,6 @@ from typing import Any
 
 from app.services.deep_intelligence.core import client
 
-
 async def social_onchain_correlation(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Map hype cycle: wallet activity spikes correlated with social mentions.

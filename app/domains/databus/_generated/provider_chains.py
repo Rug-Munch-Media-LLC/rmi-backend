@@ -13,4 +13,5 @@ If regenerating, update scripts/generate_provider_chains.py to write
 to the sub-modules instead.
 """
 
+from __future__ import annotations
 from app.domains.databus._generated.chains import build_provider_chains  # noqa: F401

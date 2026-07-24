@@ -1,10 +1,10 @@
 """Temporal workflows for rmi-backend."""
 
+from __future__ import annotations
 from datetime import timedelta
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
-
 
 @workflow.defn
 class TokenScannerWorkflow:
@@ -16,7 +16,6 @@ class TokenScannerWorkflow:
             start_to_close_timeout=timedelta(seconds=30),
             retry_policy=RetryPolicy(maximum_attempts=3),
         )
-
 
 @workflow.defn
 class DatabusHealthCheckWorkflow:
@@ -31,7 +30,6 @@ class DatabusHealthCheckWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=2),
             )
         return results
-
 
 @workflow.defn
 class ChainReindexWorkflow:

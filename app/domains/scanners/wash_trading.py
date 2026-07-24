@@ -17,6 +17,7 @@ Data sources (direct API calls - no self.api_base):
               Etherscan-family (tokentx endpoint)
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -78,7 +79,6 @@ MORALIS_CHAIN_MAP = {
     "base": "base",
 }
 
-
 @dataclass
 class TransferRecord:
     from_address: str
@@ -90,7 +90,6 @@ class TransferRecord:
     dex: str = ""  # "raydium", "orca", "jupiter", "uniswap", etc.
     block_number: int = 0
 
-
 @dataclass
 class WashCycle:
     wallets: list[str]
@@ -100,7 +99,6 @@ class WashCycle:
     confidence: float  # 0-1
     pattern_type: str  # "simple_roundtrip", "multi_hop", "cross_dex", "token_denominated"
     evidence: list[str] = field(default_factory=list)
-
 
 @dataclass
 class WashTradingReport:
@@ -114,7 +112,6 @@ class WashTradingReport:
     token_denominated_wash: int  # Cycles using the same token
     risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
     warnings: list[str] = field(default_factory=list)
-
 
 class WashTradingDetector:
     """Detects wash trading through circular transfer analysis.

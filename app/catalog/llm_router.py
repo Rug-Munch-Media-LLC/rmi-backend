@@ -22,7 +22,6 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
-
 # ── Config ─────────────────────────────────────────────────────────
 LITELLM_URL = os.getenv("LITELLM_URL", "http://litellm.rugmunch.io")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "")
@@ -63,7 +62,6 @@ What should our platform do in response? Options:
 
 Be concise. Do not speculate beyond what the article says.
 """
-
 
 class LLMRouter:
     """Async client for the self-hosted LiteLLM proxy.

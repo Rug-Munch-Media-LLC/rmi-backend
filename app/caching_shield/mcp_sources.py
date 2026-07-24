@@ -15,6 +15,7 @@ Usage:
     balance = await mcp.evm_balance("0x...", chain_id=1)
 """
 
+from __future__ import annotations
 import json
 import time
 
@@ -33,7 +34,6 @@ AUTONSOL_URL = "https://server.smithery.ai/..."  # placeholder - need exact URL
 _l1: dict[str, tuple] = {}
 _cache_hits = 0
 _cache_misses = 0
-
 
 class MCPDataSources:
     """Wraps free MCP servers as cached data sources."""
@@ -224,10 +224,8 @@ class MCPDataSources:
             },
         }
 
-
 # Singleton
 _mcp: MCPDataSources | None = None
-
 
 def get_mcp_sources() -> MCPDataSources:
     global _mcp

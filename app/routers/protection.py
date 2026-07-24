@@ -29,10 +29,8 @@ from app.core.rate_limiter import UnifiedRateLimiter
 
 logger = get_logger("protection")
 
-
 # ── Rate Limiter ─────────────────────────────────────────────────────────────
 # Uses UnifiedRateLimiter injected via Depends.
-
 
 async def _check_rate_limit(
     request: Request,
@@ -51,7 +49,6 @@ async def _check_rate_limit(
         retry_after = headers.get("Retry-After", "60")
         raise RateLimitError(f"Rate limit exceeded. Retry after {retry_after} seconds.")
 
-
 def get_client_id(request: Request) -> str:
     """Extract client identifier for rate limiting."""
     forwarded = request.headers.get("X-Forwarded-For")
@@ -59,25 +56,20 @@ def get_client_id(request: Request) -> str:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
-
 # ── Router Definition ─────────────────────────────────────────────────────────
 router = APIRouter(prefix="/api/v1/protect", tags=["protection"])
-
 
 # Pydantic models for request/response
 class URLCheckRequest(BaseModel):
     url: str
 
-
 class WalletCheckRequest(BaseModel):
     address: str
     chain: str = "ethereum"
 
-
 class TokenCheckRequest(BaseModel):
     address: str
     chain: str
-
 
 class ProtectionResponse(BaseModel):
     safe: bool
@@ -87,7 +79,6 @@ class ProtectionResponse(BaseModel):
     risk_score: int | None = None  # 0-100 for wallet/token
     flags: list[str] = []  # for wallet: ["drainer", "scammer", ...]
     error: str | None = None
-
 
 async def check_rag_for_url(url: str) -> dict[str, Any] | None:
     """Check RAG for known scam URL."""
@@ -122,7 +113,6 @@ async def check_rag_for_url(url: str) -> dict[str, Any] | None:
         logger.debug(f"RAG check failed for {url}: {e}")
     return None
 
-
 async def check_blocklist_for_url(url: str) -> dict[str, Any] | None:
     """Check URL against blocklist.json domains."""
     try:
@@ -145,7 +135,6 @@ async def check_blocklist_for_url(url: str) -> dict[str, Any] | None:
     except Exception as e:
         logger.debug(f"Blocklist check failed for {url}: {e}")
     return None
-
 
 async def scan_url_content(url: str, client: httpx.AsyncClient) -> dict[str, Any] | None:
     """Scan URL content for malicious patterns (simple check)."""
@@ -188,7 +177,6 @@ async def scan_url_content(url: str, client: httpx.AsyncClient) -> dict[str, Any
         logger.debug(f"URL content scan failed for {url}: {e}")
     return None
 
-
 async def feed_url_to_rag(url: str, is_safe: bool) -> None:
     """Feed URL scan result back to RAG for learning (best effort)."""
     try:
@@ -202,9 +190,7 @@ async def feed_url_to_rag(url: str, is_safe: bool) -> None:
     except Exception as e:
         logger.debug(f"Failed to feed URL to RAG: {e}")
 
-
 # ── Endpoints ─────────────────────────────────────────────────────────────────
-
 
 @router.post("/check-url", response_model=ProtectionResponse)
 async def check_url(
@@ -254,7 +240,6 @@ async def check_url(
             source="error",
             error="service_unavailable",
         )
-
 
 @router.post("/check-wallet", response_model=ProtectionResponse)
 async def check_wallet(
@@ -335,7 +320,6 @@ async def check_wallet(
             error="service_unavailable",
         )
 
-
 @router.post("/check-token", response_model=ProtectionResponse)
 async def check_token(
     request: TokenCheckRequest,
@@ -405,7 +389,6 @@ async def check_token(
             error="service_unavailable",
         )
 
-
 @router.get("/domains")
 async def get_domains() -> dict | dict[str, list]:
     """Return the blocklist JSON for extension download."""
@@ -470,7 +453,6 @@ async def get_domains() -> dict | dict[str, list]:
     except Exception as e:
         logger.error(f"Failed to load blocklist: {e}", exc_info=True)
         return {"domains": [], "count": 0}
-
 
 @router.get("/health")
 async def protection_health() -> Any:

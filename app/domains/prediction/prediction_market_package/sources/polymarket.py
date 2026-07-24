@@ -2,6 +2,7 @@
 Prediction Market — Polymarket Source
 Uses Gamma API (search/discovery), CLOB API (prices), and Data API (trades).
 """
+from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -16,7 +17,6 @@ logger = get_logger("prediction_market.polymarket")
 
 POLYMARKET_GAMMA = "https://gamma-api.polymarket.com"
 POLYMARKET_CLOB = "https://clob.polymarket.com"
-
 
 async def search(http_client: Any, query: str) -> list[PredictionMarket]:
     """Search Polymarket Gamma API."""
@@ -39,7 +39,6 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
         logger.warning(f"Polymarket search error: {e}")
         return []
 
-
 async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
     """Get trending Polymarket events by volume."""
     try:
@@ -61,7 +60,6 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
         logger.debug("trending_error", exc_info=True)
         logger.warning(f"Polymarket trending error: {e}")
         return []
-
 
 async def detail(http_client: Any, slug: str) -> PredictionMarket | None:
     """Get detailed Polymarket market data including CLOB prices."""
@@ -91,7 +89,6 @@ async def detail(http_client: Any, slug: str) -> PredictionMarket | None:
         logger.debug("detail_error", exc_info=True)
         logger.warning(f"Polymarket detail error for {slug}: {e}")
         return None
-
 
 def _parse_market(m: dict, event: dict | None = None) -> PredictionMarket | None:
     try:
@@ -124,7 +121,6 @@ def _parse_market(m: dict, event: dict | None = None) -> PredictionMarket | None
         logger.debug("_parse_market_error", exc_info=True)
         logger.warning(f"Failed to parse Polymarket market: {e}")
         return None
-
 
 def _parse_json_field(val) -> Any:
     if isinstance(val, str):

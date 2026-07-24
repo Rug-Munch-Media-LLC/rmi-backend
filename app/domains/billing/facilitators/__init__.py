@@ -26,6 +26,7 @@ Supported Facilitators:
         - Satoshi (api.satoshi.dev) - OFFLINE
 """
 
+from __future__ import annotations
 from app.domains.billing.facilitators.base import (
     Facilitator,
     FacilitatorRegistry,

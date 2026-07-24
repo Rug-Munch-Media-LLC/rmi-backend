@@ -18,11 +18,9 @@ logger = get_logger("labels.lookup")
 
 router = APIRouter(prefix="/api/v1/labels", tags=["wallet-labels"])
 
-
 class LabelLookupRequest(BaseModel):
     addresses: list[str] = Field(..., min_items=1, max_items=10)
     chain: str = Field(default="ethereum")
-
 
 @router.post("/lookup")
 async def lookup_labels(req: LabelLookupRequest) -> dict:

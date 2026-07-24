@@ -20,6 +20,7 @@ Sources:
 Returns a unified label report with deduplication and confidence scoring.
 """
 
+from __future__ import annotations
 import json
 import os
 from typing import Any
@@ -36,7 +37,6 @@ logger = get_logger("wallet_memory.labels")
 _ROLODETH_CACHE: dict[str, list[dict]] | None = None
 _ROLODETH_LAST_FETCH: float = 0.0
 _ROLODETH_TTL = 3600  # 1 hour
-
 
 class LabelService:
     """Unified label resolution across static + live + built-in sources."""
@@ -57,7 +57,6 @@ class LabelService:
                     self._builtin_cex[addr.lower()] = label
         except (AttributeError, ImportError):
             pass
-
 
     @staticmethod
     def _build_static_label(label_data: dict, chain: str) -> dict:
@@ -456,11 +455,9 @@ class LabelService:
 
         return max(0, min(40, score))
 
-
 # ── Global singleton ────────────────────────────────────────────
 
 _label_service: LabelService | None = None
-
 
 def get_label_service() -> LabelService:
     global _label_service

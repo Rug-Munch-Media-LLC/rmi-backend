@@ -8,9 +8,10 @@ Uses sentence-transformers CrossEncoder for batched scoring and combines
 cross-encoder relevance with original vector similarity.
 """
 
+from __future__ import annotations
+
 import asyncio
 import time
-from typing import Optional
 
 from sentence_transformers import CrossEncoder
 
@@ -26,11 +27,9 @@ _INFERENCE_TIMEOUT_SECS = 10
 _CROSS_ENCODER_WEIGHT = 0.6
 _VECTOR_SIM_WEIGHT = 0.4
 
-
 # ---------------------------------------------------------------------------
 # Normalization helpers
 # ---------------------------------------------------------------------------
-
 
 def _min_max_normalize(scores: list[float]) -> list[float]:
     """Min-max normalize a list of floats to [0, 1].
@@ -47,11 +46,9 @@ def _min_max_normalize(scores: list[float]) -> list[float]:
         return [0.5] * len(scores)
     return [(s - min_s) / rng for s in scores]
 
-
 # ---------------------------------------------------------------------------
 # CrossEncoderReranker - singleton
 # ---------------------------------------------------------------------------
-
 
 class CrossEncoderReranker:
     """Cross-encoder reranker powered by BAAI/bge-reranker-v2-m3.
@@ -60,7 +57,7 @@ class CrossEncoderReranker:
     Use ``get_reranker()`` to obtain the singleton instance.
     """
 
-    _instance: "CrossEncoderReranker" | None = None
+    _instance: CrossEncoderReranker | None = None
     _lock = asyncio.Lock()
 
     def __init__(self) -> None:
@@ -78,7 +75,7 @@ class CrossEncoderReranker:
     # -----------------------------------------------------------------------
 
     @classmethod
-    async def get_reranker(cls) -> "CrossEncoderReranker":
+    async def get_reranker(cls) -> CrossEncoderReranker:
         """Return the singleton ``CrossEncoderReranker``, creating it if needed."""
         if cls._instance is None:
             async with cls._lock:
@@ -408,11 +405,9 @@ class CrossEncoderReranker:
         paired.sort(key=lambda t: t[1], reverse=True)
         return [t for t, _ in paired[:top_k]]
 
-
 # ---------------------------------------------------------------------------
 # Module-level convenience (optional thin wrappers)
 # ---------------------------------------------------------------------------
-
 
 async def get_reranker() -> CrossEncoderReranker:
     """Async convenience function to obtain the singleton reranker."""

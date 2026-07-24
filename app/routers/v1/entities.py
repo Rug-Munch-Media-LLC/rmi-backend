@@ -11,7 +11,6 @@ from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/entities", tags=["entities-v1"])
 
-
 @router.post("/resolve")
 async def resolve_entity(addresses: list[str], chain: str = "ethereum") -> None:
     """Resolve wallet addresses to entities (clusters of related wallets).
@@ -22,14 +21,12 @@ async def resolve_entity(addresses: list[str], chain: str = "ethereum") -> None:
         "Entity resolution — planned: POST /api/v1/entities/resolve — see roadmap",
     )
 
-
 @router.get("/{entity_id}")
 async def get_entity(entity_id: str) -> None:
     """Get entity details and member wallets."""
     raise ServiceUnavailableError(
         "Entity details endpoint — planned: GET /api/v1/entities/{entity_id} — see roadmap",
     )
-
 
 @router.get("/search")
 async def search_entities(

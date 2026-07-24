@@ -12,7 +12,6 @@ from app.domains.analysis.liquidation.fetcher import SUPPORTED_CHAINS
 
 logger = get_logger(__name__)
 
-
 async def main_async() -> None:
     """CLI entry point."""
     import argparse
@@ -42,11 +41,9 @@ async def main_async() -> None:
     else:
         logger.info(result.report())
 
-
 def main() -> None:
     """CLI entry point (synchronous wrapper)."""
     asyncio.run(main_async())
-
 
 if __name__ == "__main__":
     main()

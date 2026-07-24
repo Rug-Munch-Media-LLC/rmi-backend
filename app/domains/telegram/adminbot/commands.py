@@ -4,6 +4,7 @@ Admin Bot - Command Handlers
 All /command handler functions for the RMI Admin Bot.
 """
 
+from __future__ import annotations
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
@@ -39,11 +40,9 @@ try:
 except ImportError:
     admin_deploy = None
 
-
 # ═══════════════════════════════════════════════════════════════════
 # START / HELP
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -66,16 +65,13 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
     )
 
-
 @owner_only
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await cmd_start(update, ctx)
 
-
 # ═══════════════════════════════════════════════════════════════════
 # STATUS
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -94,11 +90,9 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ),
     )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # DOCKER
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -108,11 +102,9 @@ async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
     )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # SHELL
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -142,11 +134,9 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
     )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # SERVICES
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -176,11 +166,9 @@ async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=back_button("services"),
         )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # BACKUP
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -217,11 +205,9 @@ async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.MARKDOWN,
         )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # DEPLOY
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -251,11 +237,9 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=back_button("deploy"),
     )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # LOGS
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -288,11 +272,9 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=back_button("logs_menu"),
         )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # ALERTS / HEALTH
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -311,11 +293,9 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ),
     )
 
-
 # ═══════════════════════════════════════════════════════════════════
 # QUICK OPS
 # ═══════════════════════════════════════════════════════════════════
-
 
 @owner_only
 async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

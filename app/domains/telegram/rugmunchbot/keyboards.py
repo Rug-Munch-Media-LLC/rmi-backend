@@ -4,6 +4,7 @@ RugMunchBot -- Keyboard builders.
 
 All inline keyboard markup generators in one place.
 """
+from __future__ import annotations
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -19,7 +20,6 @@ from app.domains.telegram.rugmunchbot.config import (
     WEBSITE_URL,
 )
 from app.domains.telegram.rugmunchbot.formatters import dex_buttons, web_scan_button
-
 
 def main_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -51,7 +51,6 @@ def main_menu_kb() -> InlineKeyboardMarkup:
         ]
     )
 
-
 def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
     rows = [
         [web_scan_button(address, chain)],
@@ -65,7 +64,6 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
         rows.append(dex_btns[i : i + 2])
     rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
-
 
 def pricing_kb() -> InlineKeyboardMarkup:
     rows = []
@@ -81,7 +79,6 @@ def pricing_kb() -> InlineKeyboardMarkup:
     rows.append([InlineKeyboardButton("\U0001f4e7 Enterprise", url=f"mailto:{SUPPORT_EMAIL}")])
     rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Back", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
-
 
 def topup_kb() -> InlineKeyboardMarkup:
     rows = []
@@ -107,7 +104,6 @@ def topup_kb() -> InlineKeyboardMarkup:
     rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Back", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
 
-
 def buy_stars_kb() -> InlineKeyboardMarkup:
     rows = []
     for key, pack in BUY_STARS_PACKS.items():
@@ -120,7 +116,6 @@ def buy_stars_kb() -> InlineKeyboardMarkup:
     rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Back", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
 
-
 def scamschool_kb() -> InlineKeyboardMarkup:
     rows = []
     for key, topic in SCAM_SCHOOL_TOPICS.items():
@@ -128,10 +123,8 @@ def scamschool_kb() -> InlineKeyboardMarkup:
     rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Back", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
 
-
 def back_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")]])
-
 
 def social_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -146,7 +139,6 @@ def social_kb() -> InlineKeyboardMarkup:
             ],
         ]
     )
-
 
 def paywall_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(

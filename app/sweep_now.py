@@ -2,6 +2,7 @@
 """One-shot sweep - no interactive prompt. For cron/automation.
 Usage: docker exec rmi_backend python3 /app/app/sweep_now.py [--chain sol|eth] [--to ADDR] [--min 1.00]
 """
+from __future__ import annotations
 
 import argparse
 import asyncio

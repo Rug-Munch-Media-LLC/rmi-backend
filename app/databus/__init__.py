@@ -48,6 +48,7 @@ Usage:
     report = databus.capacity_report()
 """
 
+from __future__ import annotations
 from app.databus.access_control import AccessController, ConsumerType, access_controller
 from app.databus.core import DataBus, databus
 from app.databus.key_affinity import KeyAffinitySelector, key_affinity

@@ -4,6 +4,7 @@ Model Registry - Quality Standards & Content Review
 Forbidden word lists, quality review prompts, and automated content review.
 """
 
+from __future__ import annotations
 import json
 import re
 
@@ -61,7 +62,6 @@ SLOP_PATTERNS = [
     (r"as we (have|can) seen", "AI-slop: 'as we have seen'"),
     (r"plays? a (crucial|vital|key|important) role", "AI-slop: 'plays a X role'"),
 ]
-
 
 async def review_content(content: str, content_type: str = "article") -> dict:
     """Review content against quality standards. Returns pass/fail with fixes."""

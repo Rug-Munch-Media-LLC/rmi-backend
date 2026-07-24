@@ -9,6 +9,7 @@ Tier: Premium ($0.15)
 Endpoint: POST /api/v1/x402-tools/wash_trade_detect
 """
 
+from __future__ import annotations
 import re
 from typing import Any
 
@@ -25,11 +26,9 @@ HELIUS_RPC = "https://mainnet.helius-rpc.com"
 # ── URL safety check ──────────────────────────────────────────────
 _URL_SAFE = re.compile(r"^https?://[a-zA-Z0-9.-]+(?::\d+)?(?:/.*)?$")
 
-
 def _validate_url(url: str) -> bool:
     """Basic URL validation to prevent SSRF / injection."""
     return bool(_URL_SAFE.match(url))
-
 
 async def _fetch(url: str, timeout: int = 10) -> dict | None:
     """Single URL fetch with aiohttp. Rejects malformed URLs."""
@@ -51,7 +50,6 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
         logger.debug(f"Unexpected fetch error: {url[:60]} - {e}")
     return None
 
-
 async def _rpc_call(chain: str, method: str, params: list) -> Any:
     """Call into the x402_tools RPC fallback system."""
     try:
@@ -61,7 +59,6 @@ async def _rpc_call(chain: str, method: str, params: list) -> Any:
     except Exception as e:
         logger.debug(f"RPC call failed: {e}")
         return None
-
 
 async def _post_json(url: str, payload: dict, timeout: int = 10) -> dict | None:
     """POST JSON to URL and return parsed response."""
@@ -84,7 +81,6 @@ async def _post_json(url: str, payload: dict, timeout: int = 10) -> dict | None:
     except Exception as e:
         logger.debug(f"Unexpected POST error: {url[:60]} - {e}")
     return None
-
 
 def _compute_wash_score(
     volume_tx_ratio: float,
@@ -139,7 +135,6 @@ def _compute_wash_score(
 
     return round(min(score, 100), 1)
 
-
 def _classify_wash_risk(score: float) -> str:
     """Classify wash trading risk intensity."""
     if score >= 75:
@@ -151,7 +146,6 @@ def _classify_wash_risk(score: float) -> str:
     elif score >= 15:
         return "low"
     return "none"
-
 
 def _generate_recommendation(score: float, confidence: float) -> str:
     """Generate human-readable recommendation with confidence context."""
@@ -185,7 +179,6 @@ def _generate_recommendation(score: float, confidence: float) -> str:
     if confidence > 0:
         return base + conf_note
     return base
-
 
 async def detect_wash_trading(token_address: str, chain: str) -> dict:
     """

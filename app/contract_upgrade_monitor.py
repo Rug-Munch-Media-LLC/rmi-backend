@@ -91,9 +91,7 @@ _cache: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 300  # 5 minutes
 _MAX_STALE_TTL = 1800  # 30 minutes
 
-
 # ── Data Models ───────────────────────────────────────────────────
-
 
 @dataclass
 class ProxyInfo:
@@ -110,7 +108,6 @@ class ProxyInfo:
     confidence: float = 0.0  # 0.0 - 1.0
     detected_selectors: list[str] = field(default_factory=list)
 
-
 @dataclass
 class UpgradeEvent:
     """Record of a proxy upgrade event."""
@@ -122,7 +119,6 @@ class UpgradeEvent:
     new_implementation: str | None = None
     triggered_by: str | None = None  # address that triggered the upgrade
     function_selector: str | None = None
-
 
 @dataclass
 class ContractUpgradeReport:
@@ -142,19 +138,14 @@ class ContractUpgradeReport:
     implementation_age_days: int | None = None
     summary: str = ""
 
-
 # ── Address Validation ────────────────────────────────────────────
-
-
 
 def is_valid_evm_address(address: str) -> bool:
     """Validate an EVM address format with optional EIP-55 checksum."""
     from app.core.shared_utils import is_evm_address
     return is_evm_address(address)
 
-
 # ── HTTP Client ───────────────────────────────────────────────────
-
 
 async def _fetch_url(url: str, headers: dict | None = None, timeout: float = 15.0) -> dict | None:
     """Fetch JSON from a URL with caching."""
@@ -192,7 +183,6 @@ async def _fetch_url(url: str, headers: dict | None = None, timeout: float = 15.
         logger.debug("Fetch error for %s: %s", url[:50], e)
         return _cache.get(cache_key, (0, None))[1]
 
-
 async def _background_refresh(
     url: str, headers: dict | None, timeout: float, cache_key: str
 ) -> None:
@@ -205,9 +195,7 @@ async def _background_refresh(
     except (httpx.HTTPError):
         pass
 
-
 # ── RPC Storage Slot Reader ──────────────────────────────────────
-
 
 async def read_storage_slot(
     address: str, slot: str, chain: str, client: httpx.AsyncClient | None = None
@@ -268,9 +256,7 @@ async def read_storage_slot(
         logger.debug("RPC read failed for %s slot %s: %s", address[:10], slot[:10], e)
         return None
 
-
 # ── Proxy Detection ──────────────────────────────────────────────
-
 
 async def detect_proxy(
     address: str, chain: str, client: httpx.AsyncClient | None = None
@@ -354,7 +340,6 @@ async def detect_proxy(
         if close_client:
             await c.__aexit__(None, None, None)
 
-
 def _detect_proxy_selectors(abi_json: str) -> list[str]:
     """Detect proxy-related function selectors from contract ABI JSON string."""
     detected = []
@@ -376,9 +361,7 @@ def _detect_proxy_selectors(abi_json: str) -> list[str]:
         pass
     return detected
 
-
 # ── Source Code Fetcher ──────────────────────────────────────────
-
 
 async def _fetch_source_code(address: str, chain: str) -> dict | None:
     """Fetch contract source code and ABI from block explorer."""
@@ -401,9 +384,7 @@ async def _fetch_source_code(address: str, chain: str) -> dict | None:
         return result
     return None
 
-
 # ── Upgrade History ──────────────────────────────────────────────
-
 
 async def fetch_upgrade_history(
     address: str,
@@ -466,7 +447,6 @@ async def fetch_upgrade_history(
 
     return events
 
-
 def _parse_upgrade_log(log: dict, address: str, chain: str) -> UpgradeEvent | None:
     """Parse an upgrade event log entry."""
     try:
@@ -510,9 +490,7 @@ def _parse_upgrade_log(log: dict, address: str, chain: str) -> UpgradeEvent | No
         logger.debug("Failed to parse upgrade log: %s", e)
         return None
 
-
 # ── Timelock Detection ──────────────────────────────────────────
-
 
 async def check_timelock(address: str, chain: str) -> str | None:
     """Check if the proxy or its admin is behind a timelock.
@@ -548,9 +526,7 @@ async def check_timelock(address: str, chain: str) -> str | None:
 
     return "no_timelock"
 
-
 # ── Risk Assessment ──────────────────────────────────────────────
-
 
 def _assess_risk(
     proxy_info: ProxyInfo,
@@ -618,9 +594,7 @@ def _assess_risk(
     risk = max(0.0, min(100.0, risk))
     return round(risk, 1), factors
 
-
 # ── Main Analyzer ────────────────────────────────────────────────
-
 
 class ContractUpgradeAnalyzer:
     """Main analyzer for contract upgrade monitoring."""
@@ -704,9 +678,7 @@ class ContractUpgradeAnalyzer:
 
         return report
 
-
 # ── Formatter ────────────────────────────────────────────────────
-
 
 def format_upgrade_report(report: ContractUpgradeReport) -> str:
     """Format the upgrade monitoring report for human-readable output."""
@@ -775,11 +747,9 @@ def format_upgrade_report(report: ContractUpgradeReport) -> str:
     lines.append("=" * 60)
     return "\n".join(lines)
 
-
 # ── Singleton factory ────────────────────────────────────────────
 
 _analyzer_instance: ContractUpgradeAnalyzer | None = None
-
 
 def get_upgrade_analyzer() -> ContractUpgradeAnalyzer:
     """Get or create a singleton ContractUpgradeAnalyzer instance."""

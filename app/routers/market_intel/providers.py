@@ -4,6 +4,7 @@ HTTP clients for CoinGecko, DexScreener, Polymarket, alternative.me, Binance, Hy
 All endpoints have in-memory caching and graceful fallbacks.
 """
 
+from __future__ import annotations
 import json
 from typing import Any
 
@@ -21,7 +22,6 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 # ── HTTP helpers ───────────────────────────────────────────
 async def _aget(url: str, params=None, headers=None, timeout: int = 10) -> Any | None:
     """Async HTTP GET with error handling."""
@@ -33,7 +33,6 @@ async def _aget(url: str, params=None, headers=None, timeout: int = 10) -> Any |
     except Exception as e:
         logger.warning(f"HTTP GET {url} failed: {e}")
     return None
-
 
 # ── CoinGecko ─────────────────────────────────────────────
 async def _cg(path: str, params=None, ttl: int = 120) -> Any:
@@ -50,7 +49,6 @@ async def _cg(path: str, params=None, ttl: int = 120) -> Any:
         _cset(key, data)
     return data
 
-
 # ── Alternative.me Fear & Greed ───────────────────────────
 async def _fng(ttl: int = 300) -> Any:
     """Fetch Fear & Greed Index."""
@@ -61,7 +59,6 @@ async def _fng(ttl: int = 300) -> Any:
     if data:
         _cset("fng", data)
     return data
-
 
 # ── Polymarket ────────────────────────────────────────────
 async def _polymarket(limit: int = 6, ttl: int = 300) -> Any:
@@ -77,7 +74,6 @@ async def _polymarket(limit: int = 6, ttl: int = 300) -> Any:
         _cset("pm", data)
     return data
 
-
 # ── DexScreener ───────────────────────────────────────────
 async def _ds(path: str, params=None, ttl: int = 60) -> Any:
     """Fetch from DexScreener with caching."""
@@ -90,7 +86,6 @@ async def _ds(path: str, params=None, ttl: int = 60) -> Any:
         _cset(key, data)
     return data
 
-
 # ── Binance ────────────────────────────────────────────────
 async def _binance_funding(ttl: int = 120) -> Any:
     """Fetch Binance futures funding rates."""
@@ -101,7 +96,6 @@ async def _binance_funding(ttl: int = 120) -> Any:
     if data:
         _cset("bn_funding", data)
     return data
-
 
 # ── Hyperliquid ────────────────────────────────────────────
 async def _hyperliquid_markets(limit: int = 50, ttl: int = 120) -> list:
@@ -144,7 +138,6 @@ async def _hyperliquid_markets(limit: int = 50, ttl: int = 120) -> list:
         logger.warning(f"Hyperliquid markets fetch failed: {e}")
     return []
 
-
 async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict:
     """Hyperliquid 'Gain/Loss Porn': Biggest movers and funding squeezes."""
     cached = _cget("hl_action", ttl)
@@ -173,7 +166,6 @@ async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict:
     }
     _cset("hl_action", action_data)
     return action_data
-
 
 async def _hyperliquid_funding(limit: int = 10, ttl: int = 120) -> list:
     """Top Hyperliquid funding rates (highest absolute)."""

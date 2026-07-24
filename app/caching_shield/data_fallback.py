@@ -19,6 +19,7 @@ Every call: cache check → rate limiter → try primary → on fail try next �
 No single provider outage blocks any feature.
 """
 
+from __future__ import annotations
 import os
 import time
 from collections.abc import Callable
@@ -33,7 +34,6 @@ logger = get_logger("data_fallback")
 # DATA FALLBACK CHAINS
 # ═══════════════════════════════════════════════════════════════════════════
 
-
 @dataclass
 class DataSource:
     """A single data source in the fallback chain."""
@@ -46,7 +46,6 @@ class DataSource:
     weight: float = 1.0  # Higher = preferred
     is_local: bool = False  # Our own data, no rate limit
 
-
 class DataQueryType(Enum):
     TOKEN_PRICE = "token_price"
     TOKEN_META = "token_metadata"
@@ -56,7 +55,6 @@ class DataQueryType(Enum):
     RISK_SCAN = "risk_scan"
     FUNDING_SOURCE = "funding_source"
     SOLANA_FUNDING = "solana_funding"
-
 
 class UnifiedDataEngine:
     """Single entry point for ALL data queries with automatic fallback.
@@ -640,10 +638,8 @@ class UnifiedDataEngine:
             "chains": chains_info,
         }
 
-
 # Singleton
 _engine: UnifiedDataEngine | None = None
-
 
 def get_data_engine() -> UnifiedDataEngine:
     global _engine

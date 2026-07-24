@@ -1,6 +1,7 @@
 """Mistral AI provider for DataBus - Free tier: 1B tokens/month, 1 req/sec.
 Credit-conserving: uses Small 4 for bulk, Medium 3.5 only when needed."""
 
+from __future__ import annotations
 import os
 
 import httpx
@@ -24,7 +25,6 @@ MODELS = {
 # ⚠️ Deprecated - do NOT use
 # mistral-small-2506 → deprecated, retiring July 2026
 # mistral-medium-2508 → deprecated, retiring Aug 2026
-
 
 async def mistral_chat(
     prompt: str,
@@ -69,7 +69,6 @@ async def mistral_chat(
         logger.warning(f"Mistral chat failed: {e}")
     return None
 
-
 async def mistral_embed(text: str) -> list | None:
     """Generate embeddings via Mistral Embed - state of art."""
     if not MISTRAL_KEY:
@@ -86,7 +85,6 @@ async def mistral_embed(text: str) -> list | None:
     except Exception as e:
         logger.warning(f"Mistral embed failed: {e}")
     return None
-
 
 async def mistral_moderate(text: str) -> dict | None:
     """Content moderation - jailbreak, toxicity, PII detection."""

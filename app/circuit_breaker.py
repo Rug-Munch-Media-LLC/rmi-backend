@@ -3,6 +3,7 @@ Lightweight Redis-backed Circuit Breaker for external API calls.
 Prevents cascading failures when external services (Helius, OpenRouter, etc.) go down.
 """
 
+from __future__ import annotations
 import os
 import time
 
@@ -12,7 +13,6 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 def _get_redis() -> redis.Redis:
     return redis.Redis(
         host=os.getenv("REDIS_HOST", "localhost"),
@@ -21,7 +21,6 @@ def _get_redis() -> redis.Redis:
         decode_responses=True,
         socket_timeout=2,
     )
-
 
 async def check_circuit(service: str) -> bool:
     """
@@ -45,7 +44,6 @@ async def check_circuit(service: str) -> bool:
         logger.error(f"Circuit breaker check failed for {service}: {e}")
         return False  # Fail open if Redis is down
 
-
 async def record_success(service: str) -> None:
     try:
         r = _get_redis()
@@ -53,7 +51,6 @@ async def record_success(service: str) -> None:
         r.delete(f"circuit:{service}:failures")
     except Exception as e:
         logger.error(f"Circuit breaker success record failed for {service}: {e}")
-
 
 async def record_failure(service: str) -> None:
     try:

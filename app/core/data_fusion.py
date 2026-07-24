@@ -36,6 +36,7 @@ Usage:
     })
 """
 
+from __future__ import annotations
 import datetime
 import statistics
 import time
@@ -104,9 +105,7 @@ SOURCE_TTL: dict[str, int] = {
     "wallet_memory_bank": 3600,
 }
 
-
 # ── Response Envelope ──────────────────────────────────────────────
-
 
 def envelope(
     data: Any,
@@ -135,9 +134,7 @@ def envelope(
         },
     }
 
-
 # ── Weighted Voter / Fusion Core ──────────────────────────────────
-
 
 @dataclass
 class WeightedVote:
@@ -149,7 +146,6 @@ class WeightedVote:
     weight: float = 0.25
     freshness: float = 1.0  # 1.0 = now, 0.0 = completely stale
     metadata: dict = field(default_factory=dict)
-
 
 class DataFusion:
     """Combine multiple data sources for highest quality output.
@@ -840,7 +836,6 @@ class DataFusion:
     def stats(self) -> dict:
         """Return fusion engine statistics."""
         return dict(self._stats)
-
 
 # ── Module-level singleton ─────────────────────────────────────────
 

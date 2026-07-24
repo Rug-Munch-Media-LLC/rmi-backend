@@ -1,9 +1,9 @@
 """Base agent class with Instructor structured output support."""
 
+from __future__ import annotations
 import instructor
 from openai import OpenAI
 from typing import Any
-
 
 class BaseAgent:
     """Unified agent base with Instructor for structured outputs.

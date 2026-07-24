@@ -10,6 +10,7 @@ Features:
 - Live backend status monitoring
 """
 
+from __future__ import annotations
 import os
 import subprocess
 import time
@@ -20,7 +21,6 @@ import httpx
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 # Terminal colors
 class Colors:
@@ -34,14 +34,11 @@ class Colors:
     BOLD = "\033[1m"
     RESET = "\033[0m"
 
-
 # ─── UI UTILITIES ──────────────────────────────────────────────────
-
 
 def clear_screen() -> None:
     """Clear terminal screen."""
     subprocess.run(["clear"] if os.name == "posix" else ["cls"])
-
 
 def print_header(title: str) -> None:
     """Print centered header."""
@@ -51,7 +48,6 @@ def print_header(title: str) -> None:
         f"{Colors.BLUE}║{Colors.RESET}{Colors.BOLD}{title.center(width - 2)}{Colors.RESET}{Colors.BLUE}║{Colors.RESET}"
     )
     logger.info(f"{Colors.BLUE}{'=' * width}{Colors.RESET}\n")
-
 
 def print_box(title: str, content: str, color=Colors.WHITE) -> None:
     """Print content in a box."""
@@ -68,9 +64,7 @@ def print_box(title: str, content: str, color=Colors.WHITE) -> None:
         logger.info(f"{color}│{Colors.RESET} {line.ljust(width - 2)} {color}│{Colors.RESET}")
     logger.info(f"{color}└{'─' * width}┘{Colors.RESET}\n")
 
-
 # ─── STATUS MONITOR ────────────────────────────────────────────────
-
 
 def get_backend_status(url: str = "http://127.0.0.1:8010") -> dict[str, Any]:
     """Get backend health status."""
@@ -81,7 +75,6 @@ def get_backend_status(url: str = "http://127.0.0.1:8010") -> dict[str, Any]:
     except (httpx.HTTPError):
         pass
     return {"error": "Backend not reachable"}
-
 
 def get_redis_status() -> dict[str, Any]:
     """Get Redis connection status."""
@@ -101,9 +94,7 @@ def get_redis_status() -> dict[str, Any]:
         pass
     return {"error": "Redis not reachable"}
 
-
 # ─── DASHBOARD UI ──────────────────────────────────────────────────
-
 
 class Dashboard:
     """Interactive TUI Dashboard."""
@@ -351,9 +342,7 @@ class Dashboard:
             else:
                 logger.info(f"{Colors.RED}Invalid option{Colors.RESET}")
 
-
 # ─── SINGLETON LAUNCHER ────────────────────────────────────────────
-
 
 def launch_dashboard() -> None:
     """Launch the interactive dashboard."""
@@ -364,7 +353,6 @@ def launch_dashboard() -> None:
         pass
     except Exception as e:
         logger.warning(f"{Colors.RED}Dashboard error: {e}{Colors.RESET}")
-
 
 # ─── CLI ENTRY POINT ───────────────────────────────────────────────
 

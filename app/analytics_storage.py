@@ -11,6 +11,7 @@ Provides persistent storage for:
 Uses Redis for fast-access cache and optional PostgreSQL for long-term storage.
 """
 
+from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -22,9 +23,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 # ─── PERSISTENT MODELS ────────────────────────────────────────────────
-
 
 class TransactionRecord(BaseModel):
     """Represents a transaction record."""
@@ -42,7 +41,6 @@ class TransactionRecord(BaseModel):
     function_name: str = ""
     token_transfers: list[dict[str, Any]] = Field(default_factory=list)
 
-
 class WalletHistory(BaseModel):
     """Complete transaction history for a wallet."""
 
@@ -54,7 +52,6 @@ class WalletHistory(BaseModel):
     total_tx_count: int = 0
     total_volume: float = 0.0
     unique_interactions: int = 0
-
 
 class EntityAlertRecord(BaseModel):
     """Record of an alert for an entity."""
@@ -68,9 +65,7 @@ class EntityAlertRecord(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     resolved: bool = False
 
-
 # ─── REDIS STORAGE ────────────────────────────────────────────────────
-
 
 class RedisStorage:
     """Redis-backed storage for historical data."""
@@ -271,9 +266,7 @@ class RedisStorage:
         # Update transaction count
         history.total_tx_count = len(history.transactions) + 1
 
-
 # ─── DATABASE WRAPPER ─────────────────────────────────────────────────
-
 
 class AnalyticsDatabase:
     """Database wrapper for analytics queries."""
@@ -393,11 +386,9 @@ class AnalyticsDatabase:
 
         return network
 
-
 # ─── SINGLETON INSTANCE ───────────────────────────────────────────────
 
 _db_instance: AnalyticsDatabase | None = None
-
 
 def get_analytics_database(
     redis_host: str | None = None, redis_port: int | None = None, redis_db: int | None = None
@@ -414,9 +405,7 @@ def get_analytics_database(
 
     return _db_instance
 
-
 # ─── INITIAL DATA IMPORT ──────────────────────────────────────────────
-
 
 def initialize_analytics() -> None:
     """Initialize analytics storage with default data."""
@@ -426,7 +415,6 @@ def initialize_analytics() -> None:
     # db.redis.client.flushdb()
 
     logger.info("Analytics database initialized")
-
 
 if __name__ == "__main__":
     # Test the analytics database

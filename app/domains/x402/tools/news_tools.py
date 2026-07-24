@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 async def get_news(token: str, chain: str = "solana") -> dict[str, Any]:
     """Get news mentions for a token."""
     return {
@@ -14,7 +13,6 @@ async def get_news(token: str, chain: str = "solana") -> dict[str, Any]:
         "count": 0,
     }
 
-
 async def get_news_sentiment(token: str, chain: str = "solana") -> dict[str, Any]:
     """Get news sentiment analysis."""
     return {
@@ -23,7 +21,6 @@ async def get_news_sentiment(token: str, chain: str = "solana") -> dict[str, Any
         "sentiment": "neutral",
         "articles": 0,
     }
-
 
 async def social_signal(query: str) -> dict[str, Any]:
     """Get social signal."""

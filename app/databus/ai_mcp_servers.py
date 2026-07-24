@@ -9,6 +9,7 @@ dolphin-mistral:7b - creative/uncensored tasks
 smollm2:1.7b - ultra-fast simple tasks
 """
 
+from __future__ import annotations
 import json
 import os
 
@@ -16,7 +17,6 @@ import httpx as req
 from typing import Any
 
 OLLAMA = "http://ollama:11434/api/generate"
-
 
 def gredis() -> Any:
     from dotenv import load_dotenv
@@ -28,7 +28,6 @@ def gredis() -> Any:
         host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True
     )
 
-
 def trial(fp: str, tool: str, limit: int = 5) -> dict:
     # Premium AI tools - lower free tier, costs us CPU
     r, k = gredis(), f"mcp:trial:{tool}:{fp}"
@@ -38,7 +37,6 @@ def trial(fp: str, tool: str, limit: int = 5) -> dict:
         r.expire(k, 86400)
         return {"tier": "free", "remaining": limit - c - 1}
     return {"tier": "free_exhausted", "upgrade": "$0.05-0.15/call via x402. Pays for our compute."}
-
 
 def ask(prompt: str, model: str = "qwen2.5-coder:7b", tokens: int = 250) -> str:
     try:
@@ -57,7 +55,6 @@ def ask(prompt: str, model: str = "qwen2.5-coder:7b", tokens: int = 250) -> str:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     return ""
-
 
 # ═══════════════════════════════════════════════════
 # MCP #1: CONTRACT EXPLAINER - AI explains smart contracts
@@ -92,7 +89,6 @@ Explain: 1) What this contract does 2) Any risks 3) Key functions. Be concise.""
     result["auth"] = auth
     result["mcp"] = "rmi-contract-explain"
     return result
-
 
 # ═══════════════════════════════════════════════════
 # MCP #2: TX FORENSICS NARRATOR - AI narrates wallet activity
@@ -132,7 +128,6 @@ Narrate: What is this wallet doing? Trading? Accumulating? Laundering? Be specif
     result["mcp"] = "rmi-wallet-narrator"
     return result
 
-
 # ═══════════════════════════════════════════════════
 # MCP #3: RUG PULL PREDICTOR - AI predicts rug risk
 # ═══════════════════════════════════════════════════
@@ -169,7 +164,6 @@ def predict_rug(address: str, chain: str = "ethereum", fp: str = "anon") -> dict
     result["mcp"] = "rmi-rug-predictor"
     return result
 
-
 # ═══════════════════════════════════════════════════
 # MCP #4: NEWS TL;DR - AI summarizes crypto news
 # ═══════════════════════════════════════════════════
@@ -197,7 +191,6 @@ def news_tldr(topic: str = "", fp: str = "anon") -> dict:
         "mcp": "rmi-news-tldr",
     }
 
-
 # ═══════════════════════════════════════════════════
 # MCP #5: WALLET PROFILER - AI profiles wallet identity
 # ═══════════════════════════════════════════════════
@@ -224,7 +217,6 @@ def profile_wallet(address: str, fp: str = "anon") -> dict:
     result["mcp"] = "rmi-wallet-profiler"
     return result
 
-
 # ═══════════════════════════════════════════════════
 # MCP #6: CODE AUDITOR - AI reviews Solidity for bugs
 # ═══════════════════════════════════════════════════
@@ -242,7 +234,6 @@ def audit_code(code: str, fp: str = "anon") -> dict:
         "auth": auth,
         "mcp": "rmi-code-auditor",
     }
-
 
 # ═══════════════════════════════════════════════════
 # MCP #7: SENTIMENT ORACLE - AI market sentiment
@@ -270,7 +261,6 @@ def sentiment_oracle(token: str = "bitcoin", fp: str = "anon") -> dict:
         "mcp": "rmi-sentiment-oracle",
     }
 
-
 # ═══════════════════════════════════════════════════
 # MCP #8: CROSS-CHAIN STORY - AI traces multi-chain flows
 # ═══════════════════════════════════════════════════
@@ -295,7 +285,6 @@ def trace_story(address: str, fp: str = "anon") -> dict:
     result["auth"] = auth
     result["mcp"] = "rmi-chain-story"
     return result
-
 
 AI_MCP = {
     "rmi-contract-explain": explain_contract,

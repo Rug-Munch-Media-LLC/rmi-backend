@@ -4,6 +4,7 @@ Oracle Manipulation Detector — Main Detection Engine
 OracleManipulationDetector class with all detection methods.
 """
 
+from __future__ import annotations
 import json
 import math
 import random
@@ -31,7 +32,6 @@ from .models import (
 )
 
 logger = get_logger(__name__)
-
 
 class OracleManipulationDetector:
     """Main detector for oracle price manipulation attacks."""
@@ -563,6 +563,5 @@ class OracleManipulationDetector:
             )
 
         return None
-
 
 __all__ = ["OracleManipulationDetector"]

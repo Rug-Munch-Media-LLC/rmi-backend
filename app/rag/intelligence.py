@@ -29,9 +29,7 @@ from app.rag.retrieval import ContextBuilder, HybridRetriever, ScoredHit
 
 log = get_logger(__name__)
 
-
 # ── Data types ────────────────────────────────────────────────────────────
-
 
 @dataclass
 class RAGContext:
@@ -57,7 +55,6 @@ class RAGContext:
     query_id: str = ""
     error: str = ""
 
-
 # ── Scam similarity collections (in priority order) ───────────────────────
 
 SCAM_COLLECTIONS: list[str] = [
@@ -76,9 +73,7 @@ MARKET_COLLECTIONS: list[str] = [
     "research",     # Research posts (app.rag.ingestion.ingest_research_post)
 ]
 
-
 # ── RAGIntelligenceEnricher ───────────────────────────────────────────────
-
 
 class RAGIntelligenceEnricher:
     """Query RAG to enrich scanner results, wallet profiles, and market queries.
@@ -409,11 +404,9 @@ class RAGIntelligenceEnricher:
 
         return "\n".join(lines)
 
-
 # ── Convenience singleton ─────────────────────────────────────────────────
 
 _default_enricher: RAGIntelligenceEnricher | None = None
-
 
 def get_enricher() -> RAGIntelligenceEnricher:
     """Get the default RAGIntelligenceEnricher singleton."""
@@ -421,7 +414,6 @@ def get_enricher() -> RAGIntelligenceEnricher:
     if _default_enricher is None:
         _default_enricher = RAGIntelligenceEnricher()
     return _default_enricher
-
 
 __all__ = [
     "RAGContext",

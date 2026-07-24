@@ -4,13 +4,13 @@ Bundler Detector - Data Models
 Data models, enums, and constants for supply manipulation detection.
 """
 
+from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
 from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE
-
 
 # ── Constants ──────────────────────────────────────────────────
 
@@ -27,9 +27,7 @@ SOLANA_RPC = "https://api.mainnet-beta.solana.com"
 BIRDEYE_PUBLIC = "https://public-api.birdeye.so"
 KNOWN_BUNDLER_SEEDS: set[str] = set()
 
-
 # ── Risk Levels ────────────────────────────────────────────────
-
 
 class BundlerRisk(Enum):
     CRITICAL = "critical"
@@ -38,9 +36,7 @@ class BundlerRisk(Enum):
     LOW = "low"
     NONE = "none"
 
-
 # ── Data Models ────────────────────────────────────────────────
-
 
 @dataclass
 class BundledBuy:
@@ -65,7 +61,6 @@ class BundledBuy:
             "is_sniper": self.is_sniper,
         }
 
-
 @dataclass
 class HolderCluster:
     """A cluster of wallets suspected to be controlled by one entity."""
@@ -85,7 +80,6 @@ class HolderCluster:
             "buy_time_similarity": round(self.buy_time_similarity, 3),
             "common_funding_source": self.common_funding_source,
         }
-
 
 @dataclass
 class BundlerReport:
@@ -161,7 +155,6 @@ class BundlerReport:
             f"{self.estimated_unique_entities} entities estimated"
             f"{flag_str}"
         )
-
 
 # ── Scoring Weights ────────────────────────────────────────────
 

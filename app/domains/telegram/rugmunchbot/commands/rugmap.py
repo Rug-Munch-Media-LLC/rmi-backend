@@ -4,13 +4,13 @@
 Visualize wallet connections and fund flow clusters for a token.
 """
 
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER
 
 logger = get_logger("rmi.rugmap")
-
 
 async def cmd_rugmap(update, ctx) -> None:
     """Handle /rugmap command - visualize wallet clusters."""

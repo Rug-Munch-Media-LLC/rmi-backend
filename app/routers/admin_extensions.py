@@ -28,7 +28,6 @@ from typing import Any
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-extensions"])
 
-
 # ── Auth helper ──
 async def _verify_admin(request: Request) -> bool:
     """Verify admin access with API key."""
@@ -40,11 +39,9 @@ async def _verify_admin(request: Request) -> bool:
         raise HTTPException(status_code=401, detail="Invalid admin key")
     return True
 
-
 # ═══════════════════════════════════════════════════════════════
 # TELEGRAM BOT
 # ═══════════════════════════════════════════════════════════════
-
 
 @router.get("/telegram/stats")
 async def telegram_stats(request: Request, _=Depends(_verify_admin)) -> Any:
@@ -86,7 +83,6 @@ async def telegram_stats(request: Request, _=Depends(_verify_admin)) -> Any:
 
     return stats
 
-
 @router.get("/telegram/users")
 async def telegram_users(
     request: Request, _=Depends(_verify_admin), limit: int = Query(50, le=200)
@@ -113,7 +109,6 @@ async def telegram_users(
         "status": "no_data" if not users else "available",
     }
 
-
 @router.get("/telegram/messages")
 async def telegram_messages(
     request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)
@@ -131,11 +126,9 @@ async def telegram_messages(
 
     return {"messages": messages, "total": len(messages)}
 
-
 class TelegramSendRequest(BaseModel):
     chat_id: str
     message: str
-
 
 @router.post("/telegram/send")
 async def telegram_send(request: Request, req: TelegramSendRequest, _=Depends(_verify_admin)) -> dict[str, str]:
@@ -160,10 +153,8 @@ async def telegram_send(request: Request, req: TelegramSendRequest, _=Depends(_v
         logger.warning(f"error: {e}")
         return {"status": "failed", "error": str(e)}
 
-
 class TelegramBroadcastRequest(BaseModel):
     message: str
-
 
 @router.post("/telegram/broadcast")
 async def telegram_broadcast(
@@ -217,11 +208,9 @@ async def telegram_broadcast(
 
     return {"status": "completed", "sent": sent, "failed": failed, "total": len(chat_ids)}
 
-
 # ═══════════════════════════════════════════════════════════════
 # GHOST CMS EXTENSIONS
 # ═══════════════════════════════════════════════════════════════
-
 
 @router.get("/content/drafts")
 async def ghost_drafts(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)) -> dict[str, list] | dict:
@@ -268,7 +257,6 @@ async def ghost_drafts(request: Request, _=Depends(_verify_admin), limit: int = 
         logger.warning(f"error: {e}")
         return {"posts": [], "error": str(e)}
 
-
 @router.get("/content/tags")
 async def ghost_tags(request: Request, _=Depends(_verify_admin)) -> dict[str, list] | dict:
     """Get Ghost tags."""
@@ -307,7 +295,6 @@ async def ghost_tags(request: Request, _=Depends(_verify_admin)) -> dict[str, li
     except (ValueError, ConnectionError, RuntimeError) as e:
         logger.warning(f"error: {e}")
         return {"tags": [], "error": str(e)}
-
 
 @router.get("/content/analytics")
 async def ghost_analytics(request: Request, _=Depends(_verify_admin)) -> dict | dict[str, str]:
@@ -368,7 +355,6 @@ async def ghost_analytics(request: Request, _=Depends(_verify_admin)) -> dict | 
         logger.warning(f"error: {e}")
         return {"error": str(e)}
 
-
 @router.post("/content/post/{post_id}/publish")
 async def ghost_publish(request: Request, post_id: str, _=Depends(_verify_admin)) -> dict[str, str] | dict[str, bool]:
     """Publish a Ghost draft post."""
@@ -403,11 +389,9 @@ async def ghost_publish(request: Request, post_id: str, _=Depends(_verify_admin)
         logger.warning(f"error: {e}")
         return {"error": str(e)}
 
-
 # ═══════════════════════════════════════════════════════════════
 # CRON JOB MANAGEMENT (Hermes cron system)
 # ═══════════════════════════════════════════════════════════════
-
 
 @router.get("/cron/jobs")
 async def cron_jobs(request: Request, _=Depends(_verify_admin)) -> dict:
@@ -477,7 +461,6 @@ async def cron_jobs(request: Request, _=Depends(_verify_admin)) -> dict:
 
     return {"jobs": jobs, "total": len(jobs)}
 
-
 @router.get("/cron/logs")
 async def cron_logs(request: Request, _=Depends(_verify_admin), limit: int = Query(50, le=200)) -> dict:
     """Get cron execution logs."""
@@ -498,29 +481,24 @@ async def cron_logs(request: Request, _=Depends(_verify_admin), limit: int = Que
 
     return {"logs": logs, "total": len(logs)}
 
-
 @router.post("/cron/{job_id}/run")
 async def cron_run(request: Request, job_id: str, _=Depends(_verify_admin)) -> dict[str, str]:
     """Trigger a cron job manually."""
     return {"status": "queued", "job_id": job_id, "message": "Job execution queued"}
-
 
 @router.post("/cron/{job_id}/pause")
 async def cron_pause(request: Request, job_id: str, _=Depends(_verify_admin)) -> dict[str, str]:
     """Pause a cron job."""
     return {"status": "paused", "job_id": job_id}
 
-
 @router.post("/cron/{job_id}/resume")
 async def cron_resume(request: Request, job_id: str, _=Depends(_verify_admin)) -> dict[str, str]:
     """Resume a cron job."""
     return {"status": "resumed", "job_id": job_id}
 
-
 # ═══════════════════════════════════════════════════════════════
 # DIFY AI ADVISOR PROXY
 # ═══════════════════════════════════════════════════════════════
-
 
 def _get_brightdata_proxy() -> dict:
     """Return Bright Data residential proxy config for Dify access."""
@@ -533,7 +511,6 @@ def _get_brightdata_proxy() -> dict:
         "proxy": proxy_url,
         "proxy_auth": None,  # auth is embedded in the URL
     }
-
 
 def _brightdata_client(timeout: int = 30) -> Any:
     """Create an httpx client routed through Bright Data residential proxy."""
@@ -552,7 +529,6 @@ def _brightdata_client(timeout: int = 30) -> Any:
         # The previous verify=False was a workaround for expired/resolving
         # Bright Data proxy certs. TLS termination is now verified properly.
     )
-
 
 @router.get("/dify/status")
 async def dify_status(request: Request, _=Depends(_verify_admin)) -> dict[str, str] | Any:
@@ -605,7 +581,6 @@ async def dify_status(request: Request, _=Depends(_verify_admin)) -> dict[str, s
         "connected": False,
     }
 
-
 @router.get("/dify/conversations")
 async def dify_conversations(
     request: Request,
@@ -648,7 +623,6 @@ async def dify_conversations(
             return await dify_conversations(request, _, limit, use_proxy=True)
         return {"conversations": [], "error": str(e), "proxy": use_proxy}
 
-
 @router.get("/dify/apps")
 async def dify_apps(request: Request, _=Depends(_verify_admin), use_proxy: bool = False) -> dict[str, list] | dict[str, Any | None] | Any:
     """Get Dify apps. Auto-fallback to Bright Data proxy."""
@@ -679,7 +653,6 @@ async def dify_apps(request: Request, _=Depends(_verify_admin), use_proxy: bool 
         if not use_proxy:
             return await dify_apps(request, _, use_proxy=True)
         return {"apps": [], "error": str(e), "proxy": use_proxy}
-
 
 @router.get("/dify/conversations/{conversation_id}/messages")
 async def dify_messages(
@@ -716,12 +689,10 @@ async def dify_messages(
             return await dify_messages(request, conversation_id, _, use_proxy=True)
         return {"messages": [], "error": str(e), "proxy": use_proxy}
 
-
 class DifyChatRequest(BaseModel):
     message: str
     conversation_id: str | None = None
     app_id: str | None = None
-
 
 @router.post("/dify/chat")
 async def dify_chat(request: Request, req: DifyChatRequest, _=Depends(_verify_admin)) -> dict[str, str] | dict[str, Any | None] | Any | dict:
@@ -770,11 +741,9 @@ async def dify_chat(request: Request, req: DifyChatRequest, _=Depends(_verify_ad
         logger.warning(f"error: {e}")
         return {"error": str(e)[:300]}
 
-
 # ═══════════════════════════════════════════════════════════════
 # SERVER METRICS DEEP-DIVE
 # ═══════════════════════════════════════════════════════════════
-
 
 @router.get("/processes")
 async def admin_processes(request: Request, _=Depends(_verify_admin)) -> dict | dict[str, str]:
@@ -809,7 +778,6 @@ async def admin_processes(request: Request, _=Depends(_verify_admin)) -> dict | 
     processes.sort(key=lambda x: x.get("memory_mb", 0), reverse=True)
     return {"processes": processes[:50], "total": len(processes)}
 
-
 @router.get("/disk")
 async def admin_disk(request: Request, _=Depends(_verify_admin)) -> dict | dict[str, str]:
     """Get detailed disk usage."""
@@ -837,7 +805,6 @@ async def admin_disk(request: Request, _=Depends(_verify_admin)) -> dict | dict[
 
     return {"disks": disks}
 
-
 @router.get("/network")
 async def admin_network(request: Request, _=Depends(_verify_admin)) -> dict | dict[str, str]:
     """Get network interface stats."""
@@ -864,11 +831,9 @@ async def admin_network(request: Request, _=Depends(_verify_admin)) -> dict | di
 
     return {"interfaces": interfaces}
 
-
 # ═══════════════════════════════════════════════════════════════
 # WEBMAIL FOLDERS
 # ═══════════════════════════════════════════════════════════════
-
 
 @router.get("/mail/sent")
 async def mail_sent(request: Request, _=Depends(_verify_admin), limit: int = Query(20, le=100)) -> dict[str, list]:
@@ -880,7 +845,6 @@ async def mail_sent(request: Request, _=Depends(_verify_admin), limit: int = Que
         "status": "unavailable",
         "note": "Sent folder requires SMTP sent tracking",
     }
-
 
 @router.get("/mail/folders")
 async def mail_folders(request: Request, _=Depends(_verify_admin)) -> dict[str, list[dict[str, str]]]:
@@ -894,7 +858,6 @@ async def mail_folders(request: Request, _=Depends(_verify_admin)) -> dict[str, 
             {"name": "Trash", "count": 0, "unread": 0},
         ]
     }
-
 
 @router.delete("/mail/{msg_id}")
 async def mail_delete(request: Request, msg_id: str, _=Depends(_verify_admin)) -> dict[str, str]:

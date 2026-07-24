@@ -13,6 +13,7 @@ Graphics Types:
 - Pricing tier graphics
 """
 
+from __future__ import annotations
 import hashlib
 import os
 from datetime import UTC, datetime
@@ -382,7 +383,6 @@ FEATURE_LIST = [
 
 # ── Graphics Generation Functions ────────────────────────────
 
-
 def create_placeholder_marketing_template(template_name: str, config: dict) -> Image.Image:
     """Create a placeholder marketing template."""
     img = Image.new("RGB", config["size"], color=BRAND_COLORS["background"])
@@ -428,7 +428,6 @@ def create_placeholder_marketing_template(template_name: str, config: dict) -> I
     logger.info(f"Created marketing template: {template_path}")
 
     return img
-
 
 def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> dict:
     """
@@ -498,14 +497,11 @@ def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> d
         logger.error(f"Marketing graphic generation failed: {e}")
         return {"status": "error", "error": str(e)}
 
-
 # ── Convenience Functions ────────────────────────────────────
-
 
 async def generate_platform_banner(data: dict | None = None) -> dict:
     """Generate platform banner (wide format)."""
     return generate_marketing_graphic("platform_banner_wide", data)
-
 
 async def generate_feature_card(feature_name: str, description: str, stat: str) -> dict:
     """Generate feature showcase card."""
@@ -516,7 +512,6 @@ async def generate_feature_card(feature_name: str, description: str, stat: str) 
     }
     return generate_marketing_graphic("feature_card", data)
 
-
 async def generate_all_feature_cards() -> list[dict]:
     """Generate cards for all features."""
     results = []
@@ -524,7 +519,6 @@ async def generate_all_feature_cards() -> list[dict]:
         result = await generate_feature_card(feature["name"], feature["desc"], feature["stat"])
         results.append(result)
     return results
-
 
 async def generate_stats_card(stat_value: str, stat_label: str, context: str = "") -> dict:
     """Generate stats/metrics card."""
@@ -535,7 +529,6 @@ async def generate_stats_card(stat_value: str, stat_label: str, context: str = "
     }
     return generate_marketing_graphic("stats_card", data)
 
-
 async def generate_pricing_card(tier_name: str, price: float, features: list[str]) -> dict:
     """Generate pricing tier card."""
     data = {
@@ -545,7 +538,6 @@ async def generate_pricing_card(tier_name: str, price: float, features: list[str
     }
     return generate_marketing_graphic("pricing_card", data)
 
-
 async def generate_launch_announcement(headline: str, subheadline: str) -> dict:
     """Generate launch announcement graphic."""
     data = {
@@ -553,7 +545,6 @@ async def generate_launch_announcement(headline: str, subheadline: str) -> dict:
         "subheadline": subheadline,
     }
     return generate_marketing_graphic("launch_announcement", data)
-
 
 async def generate_testimonial_card(quote: str, author: str, title: str) -> dict:
     """Generate testimonial card."""
@@ -564,9 +555,7 @@ async def generate_testimonial_card(quote: str, author: str, title: str) -> dict
     }
     return generate_marketing_graphic("testimonial_card", data)
 
-
 # ── Template Management ──────────────────────────────────────
-
 
 def list_marketing_templates() -> list[dict]:
     """List available marketing graphic templates."""
@@ -580,7 +569,6 @@ def list_marketing_templates() -> list[dict]:
         }
         for key, config in MARKETING_TEMPLATES.items()
     ]
-
 
 def create_all_marketing_templates() -> None:
     """Create all placeholder marketing templates."""

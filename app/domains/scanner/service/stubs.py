@@ -1,5 +1,6 @@
 """Scanner service — stub check functions returning unavailable status."""
 
+from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger

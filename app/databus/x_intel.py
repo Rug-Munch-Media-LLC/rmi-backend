@@ -7,6 +7,7 @@ Multi-method access: xurl (OAuth), cookie scraping, Groq AI analysis.
 Algorithm: engagement-weighted, diversity-scored, entity-resolved.
 """
 
+from __future__ import annotations
 import html
 import json
 import os
@@ -282,7 +283,6 @@ GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 
 # ── Multi-Method X Access ─────────────────────────────────────────
 
-
 async def _xurl_search(query: str, count: int = 20) -> list[dict]:
     """Search X via xurl CLI (OAuth)."""
     try:
@@ -311,7 +311,6 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict]:
     except Exception as e:  # noqa: BLE001
         logger.debug(f"xurl search failed: {e}")
         return []
-
 
 async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
     """Get recent posts from a specific user via xurl."""
@@ -369,7 +368,6 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
         logger.debug(f"xurl timeline failed for @{handle}: {e}")
         return []
 
-
 async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
     """Attempt cookie-based scraping via saved browser session.
 
@@ -423,7 +421,6 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"Cookie scrape failed: {e}")
         return []
-
 
 async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[dict]:
     """Fallback: Web scrape X via DuckDuckGo search + embed extraction."""
@@ -483,7 +480,6 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
 
     return posts
 
-
 async def _grok_summarize(posts: list[dict]) -> str:
     """Use Groq (free tier) to generate a CT Rundown summary."""
     if not GROQ_KEY or not posts:
@@ -522,7 +518,6 @@ async def _grok_summarize(posts: list[dict]) -> str:
     # Fallback: simple keyword extraction
     return _simple_rundown(posts)
 
-
 def _simple_rundown(posts: list[dict]) -> str:
     """Fallback: extract top stories by keyword frequency."""
     words = Counter()
@@ -540,9 +535,7 @@ def _simple_rundown(posts: list[dict]) -> str:
 
     return "Top themes: " + ", ".join(top_words[:8])
 
-
 # ── CT Rundown Algorithm ───────────────────────────────────────────
-
 
 def score_ct_post(post: dict, account: dict) -> float:
     """Score a CT post for the rundown. Higher = more important.
@@ -589,7 +582,6 @@ def score_ct_post(post: dict, account: dict) -> float:
     # (applied at selection time, not here)
 
     return score
-
 
 async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
     """THE method. Fetch, score, and rank CT posts for the daily rundown.
@@ -735,7 +727,6 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
         "generated_at": datetime.now(UTC).isoformat(),
         "source": "ct_rundown",
     }
-
 
 async def track_ct_accounts(**kw) -> dict:
     """Return the curated CT account list with stats."""

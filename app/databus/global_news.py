@@ -3,6 +3,7 @@ RMI GLOBAL NEWS v4 - Google News, Bing, Reuters, NYT, BBC, Bloomberg, CNBC, WSJ,
 Every major news organization's crypto coverage. The biggest on the internet.
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import logging
@@ -112,7 +113,6 @@ MAJOR_NEWS = [
     ("scmp-crypto", "https://www.scmp.com/rss/91/feed"),
 ]
 
-
 def fetch_rss(source, url, limit=30) -> Any:
     """Fetch RSS and return articles."""
     results = []
@@ -201,7 +201,6 @@ def fetch_rss(source, url, limit=30) -> Any:
         logger.debug(f"  {source}: {str(e)[:80]}")
     return results
 
-
 def fetch_all_global() -> dict[str, int] | dict[str, str]:
     """Fetch all global news sources."""
     all_articles = []
@@ -281,7 +280,6 @@ def fetch_all_global() -> dict[str, int] | dict[str, str]:
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return {"error": str(e), "collected": len(all_articles)}
     return {"collected": 0}
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [global] %(message)s")

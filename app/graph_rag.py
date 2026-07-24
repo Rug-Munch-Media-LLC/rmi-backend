@@ -11,6 +11,7 @@ Produces structured community reports that answer:
   "Show me the cluster this address belongs to"
 """
 
+from __future__ import annotations
 import json
 from collections import defaultdict
 from typing import Any
@@ -18,7 +19,6 @@ from typing import Any
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 async def detect_communities(
     max_communities: int = 20,
@@ -157,7 +157,6 @@ async def detect_communities(
 
     return result
 
-
 async def build_community_narrative(
     community: dict[str, Any],
     max_chars: int = 2000,
@@ -217,7 +216,6 @@ What is the risk profile? Limit to 3 sentences."""
         pass
 
     return heuristic
-
 
 async def graph_rag_search(
     query: str,

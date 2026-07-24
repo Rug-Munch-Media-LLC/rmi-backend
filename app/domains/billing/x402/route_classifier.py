@@ -66,11 +66,9 @@ SCANNER_AGENTS: list[str] = [
 
 TOOL_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
 
-
 def is_x402_tool_path(path: str) -> bool:
     """Check if a request path is targeting the x402 paid-tool surface."""
     return path.startswith("/api/v1/x402-tools/")
-
 
 def is_free_path(path: str, method: str = "GET") -> bool:
     """Determine if a path is exempt from payment enforcement.
@@ -89,7 +87,6 @@ def is_free_path(path: str, method: str = "GET") -> bool:
         return True
     return False
 
-
 def extract_tool_id(path: str) -> str | None:
     """Extract the tool identifier from a request path.
 
@@ -100,11 +97,9 @@ def extract_tool_id(path: str) -> str | None:
         return parts[-1]
     return None
 
-
 def validate_tool_id(tool_id: str) -> bool:
     """Check that a tool ID contains only allowed characters."""
     return bool(TOOL_ID_PATTERN.match(tool_id))
-
 
 def is_scanner(user_agent: str) -> bool:
     """Check if the User-Agent header matches known scanners/bots."""

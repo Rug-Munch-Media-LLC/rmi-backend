@@ -18,6 +18,7 @@ Tier: Premium ($0.05-0.08)
 Endpoint: POST /api/v1/x402-tools/deployer_history
 """
 
+from __future__ import annotations
 import asyncio
 import re
 import time
@@ -49,7 +50,6 @@ BSCSCAN_TXLIST = (
 _RATE_LIMITERS: dict[str, float] = {}
 _RATE_LIMIT_WINDOW = 0.5  # 500ms between requests to same host
 
-
 async def _rate_limit_host(host: str) -> None:
     """Simple per-host rate limiter to avoid being rate-limited by APIs."""
     now = time.time()
@@ -58,7 +58,6 @@ async def _rate_limit_host(host: str) -> None:
     if wait > 0:
         await asyncio.sleep(wait)
     _RATE_LIMITERS[host] = time.time()
-
 
 # Contract creation function signatures
 CREATE2_SIG = "0x60806040"  # Common contract creation prefix
@@ -97,7 +96,6 @@ SCAM_PATTERNS = {
     },
 }
 
-
 def _validate_url(url: str) -> bool:
     """Validate URL using urlparse to prevent SSRF and injection."""
     try:
@@ -106,7 +104,6 @@ def _validate_url(url: str) -> bool:
         return all([result.scheme in ("http", "https"), result.netloc, result.path])
     except (ConnectionError, OSError, TimeoutError):
         return False
-
 
 @dataclass
 class DeployedToken:
@@ -132,7 +129,6 @@ class DeployedToken:
     age_days: float = 0.0
     max_holder_pct: float = 0.0
 
-
 @dataclass
 class DeployerProfile:
     """Complete deployer analysis result."""
@@ -155,9 +151,7 @@ class DeployerProfile:
     recommendation: str = ""
     errors: list[str] = field(default_factory=list)
 
-
 # ── Core scoring engine ─────────────────────────────────────────
-
 
 def _compute_deployer_risk(profile: DeployerProfile) -> float:
     """
@@ -206,7 +200,6 @@ def _compute_deployer_risk(profile: DeployerProfile) -> float:
     raw = rug_score + honey_score + volume_score + lifespan_score + pattern_score
     return min(raw, 100.0)
 
-
 def _classify_deployer_risk(score: float) -> str:
     """Classify score into risk category."""
     if score >= 70:
@@ -218,7 +211,6 @@ def _classify_deployer_risk(score: float) -> str:
     if score >= 10:
         return "low"
     return "safe"
-
 
 def _generate_recommendation(profile: DeployerProfile, score: float) -> str:
     """Generate human-readable recommendation based on deployer analysis."""
@@ -256,9 +248,7 @@ def _generate_recommendation(profile: DeployerProfile, score: float) -> str:
         f"{profile.total_tokens_deployed} with healthy lifespans."
     )
 
-
 # ── Data fetching helpers ───────────────────────────────────────
-
 
 async def _fetch_json(url: str, timeout: int = 15) -> dict[str, Any] | list[Any] | None:
     """Fetch JSON from URL with timeout, rate limiting, and error handling."""
@@ -300,7 +290,6 @@ async def _fetch_json(url: str, timeout: int = 15) -> dict[str, Any] | list[Any]
         logger.debug(f"Error fetching {url[:80]}: {e}")
         return None
 
-
 async def _fetch_dexscreener_pairs(address: str) -> list[dict[str, Any]]:
     """Fetch pairs from DexScreener associated with an address."""
     url = DEXSCREENER_SEARCH.format(quote(address))
@@ -309,7 +298,6 @@ async def _fetch_dexscreener_pairs(address: str) -> list[dict[str, Any]]:
         return []
     pairs: list[dict[str, Any]] = data.get("pairs", []) or []
     return pairs
-
 
 async def _fetch_etherscan_txs(address: str, api_url: str) -> list[dict[str, Any]]:
     """Fetch transactions from block explorer to find contract creations."""
@@ -320,7 +308,6 @@ async def _fetch_etherscan_txs(address: str, api_url: str) -> list[dict[str, Any
     txs: list[dict[str, Any]] = data.get("result", []) or []
     return txs
 
-
 def _is_contract_creation(tx: dict[str, Any]) -> bool:
     """Check if a transaction is a contract creation."""
     # Contract creation has 'contractAddress' set
@@ -328,7 +315,6 @@ def _is_contract_creation(tx: dict[str, Any]) -> bool:
         return True
     # Also check if 'to' is empty (another creation indicator)
     return bool(not tx.get("to") or tx.get("to") == "")
-
 
 def _extract_token_from_pair(pair: dict[str, Any], deployer_address: str) -> DeployedToken | None:
     """
@@ -393,7 +379,6 @@ def _extract_token_from_pair(pair: dict[str, Any], deployer_address: str) -> Dep
 
     return deployed
 
-
 async def _analyze_deployer_evm(
     address: str, tokens: list[DeployedToken]
 ) -> tuple[list[DeployedToken], list[str]]:
@@ -454,9 +439,7 @@ async def _analyze_deployer_evm(
 
     return tokens, patterns
 
-
 # ── Chain detection ─────────────────────────────────────────────
-
 
 def _detect_chain_from_address(address: str) -> list[str]:
     """Detect possible chains from address format."""
@@ -469,9 +452,7 @@ def _detect_chain_from_address(address: str) -> list[str]:
         chains = ["unknown"]
     return chains
 
-
 # ── Main analyzer class ─────────────────────────────────────────
-
 
 class DeployerHistoryAnalyzer:
     """Analyzes the complete deployment history of a token creator address."""

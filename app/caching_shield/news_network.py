@@ -7,6 +7,7 @@ Architecture:
 Sources: 25+ trusted crypto news outlets, newsletters, blogs, and mirrors.
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import re
@@ -187,7 +188,6 @@ NEWS_SOURCES = [
     {"name": "Uniswap Blog", "url": "https://blog.uniswap.org/feed", "tier": 8},
 ]
 
-
 # Extended category detection with 12 categories
 CATEGORY_KEYWORDS = {
     "Bitcoin": ["bitcoin", "btc", "satoshi", "halving", "ordinals", "lightning network", "taproot"],
@@ -223,7 +223,6 @@ CATEGORY_KEYWORDS = {
     "Privacy": ["privacy", "zk", "zero knowledge", "mixer", "tornado", "monero", "zec"],
 }
 
-
 SENTIMENT_DICT = {
     "surge": 0.8,
     "soar": 0.9,
@@ -255,7 +254,6 @@ SENTIMENT_DICT = {
     "liquidation": -0.8,
 }
 
-
 @dataclass
 class Article:
     id: str
@@ -276,9 +274,7 @@ class Article:
     comments: list[dict] = field(default_factory=list)
     bookmarks: int = 0
 
-
 _db: dict[str, Article] = {}
-
 
 async def fetch_all(max_per_source: int = 8) -> list[Article]:
     """Fetch from all 30 sources in parallel."""
@@ -359,7 +355,6 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
     await asyncio.gather(*[fetch_source(s) for s in NEWS_SOURCES])
     return new_articles
 
-
 def get_feed(
     category: str | None = None,
     sentiment: str | None = None,
@@ -438,7 +433,6 @@ def get_feed(
         },
     }
 
-
 def vote_article(article_id: str, direction: str) -> dict:
     a = _db.get(article_id)
     if not a:
@@ -448,7 +442,6 @@ def vote_article(article_id: str, direction: str) -> dict:
     elif direction == "down":
         a.votes_down += 1
     return {"id": article_id, "votes_up": a.votes_up, "votes_down": a.votes_down}
-
 
 def add_comment(article_id: str, user: str, text: str) -> dict:
     a = _db.get(article_id)
@@ -464,11 +457,9 @@ def add_comment(article_id: str, user: str, text: str) -> dict:
     a.comments.append(comment)
     return comment
 
-
 def get_comments(article_id: str) -> list[dict]:
     a = _db.get(article_id)
     return sorted(a.comments, key=lambda c: c.get("votes", 0), reverse=True) if a else []
-
 
 def bookmark(article_id: str) -> dict:
     a = _db.get(article_id)
@@ -476,7 +467,6 @@ def bookmark(article_id: str) -> dict:
         a.bookmarks += 1
         return {"id": article_id, "bookmarks": a.bookmarks}
     return {"error": "Not found"}
-
 
 def get_categories() -> list:
     cats = set()
@@ -499,7 +489,6 @@ def get_categories() -> list:
         "General": "📰",
     }
     return [{"name": c, "icon": icons.get(c, "📌")} for c in sorted(cats)]
-
 
 def search_articles(query: str, limit: int = 20) -> list:
     q = query.lower()

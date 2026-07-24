@@ -3,6 +3,7 @@ RugCharts Intel — Rug Pattern Matcher.
 RAG-powered similarity to known rug pulls.
 """
 
+from __future__ import annotations
 import json
 import time
 
@@ -75,7 +76,6 @@ RUG_PATTERNS = [
         "description": "Flash loan used to manipulate price and drain LP.",
     },
 ]
-
 
 async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Match token characteristics against known rug pull patterns.

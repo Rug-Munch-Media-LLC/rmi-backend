@@ -20,13 +20,13 @@ Citations add credibility:
     is way more credible than "suspicious activity detected."
 """
 
+from __future__ import annotations
 import asyncio
 from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger("rag_citations")
-
 
 # ── Citation relevance map: scanner topic → RAG collections to query ──
 
@@ -69,7 +69,6 @@ SCANNER_COLLECTIONS = {
         "secondary": ["scam_patterns", "wallet_profiles"],
     },
 }
-
 
 async def query_rag_citations(
     topic: str,
@@ -166,7 +165,6 @@ async def query_rag_citations(
 
     return unique[:max_citations]
 
-
 async def query_address_rag(
     address: str,
     chain: str = "ethereum",
@@ -202,7 +200,6 @@ async def query_address_rag(
         logger.debug("query_address_rag_error", exc_info=True)
         logger.debug(f"Address RAG query failed for {address[:10]}...: {e}")
         return []
-
 
 def _format_citation(raw: dict[str, Any], tier: str) -> dict[str, Any] | None:
     """Turn a RAG search result into a clean citation dict."""
@@ -262,7 +259,6 @@ def _format_citation(raw: dict[str, Any], tier: str) -> dict[str, Any] | None:
         "reference": reference,
         "tier": tier,
     }
-
 
 def build_citation_string(citations: list[dict[str, Any]], finding: str) -> str:
     """Build a natural-language citation string for a finding.

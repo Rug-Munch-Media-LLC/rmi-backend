@@ -5,6 +5,7 @@ Base URL: https://api.arkhamintelligence.com
 Auth header: API-Key (from /root/.secrets/arkham_api_key or ARKHAM_API_KEY env var)
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -38,7 +39,6 @@ if not ARKHAM_API_KEY:
 
 BASE_URL = "https://api.arkhamintelligence.com"
 
-
 # ── Simple TTL Cache ────────────────────────────────────────────────────────
 class _TTLCache:
     """In-memory cache with per-key TTL for rate-limited API responses."""
@@ -63,7 +63,6 @@ class _TTLCache:
 
     def clear(self) -> None:
         self._store.clear()
-
 
 # ── Client ───────────────────────────────────────────────────────────────────
 class ArkhamClient:

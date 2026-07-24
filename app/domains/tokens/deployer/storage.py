@@ -1,5 +1,6 @@
 """Deployment storage (Redis + Supabase)."""
 
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
@@ -8,7 +9,6 @@ from app.core.logging import get_logger
 from app.domains.tokens.deployer.models import TokenDeployment
 
 logger = get_logger("darkroom_token_deployer.storage")
-
 
 class DeploymentStorage:
     """Store and retrieve deployment records. Uses Redis as primary, Supabase as backup."""

@@ -4,6 +4,7 @@ Model Registry - Provider API Callers & AI Routing
 Direct API callers for OpenRouter, Groq, Mistral and the ai_call router.
 """
 
+from __future__ import annotations
 import os
 
 import httpx
@@ -21,7 +22,6 @@ MISTRAL_KEY = os.getenv("MISTRAL_API_KEY", "")
 OR_URL = "https://openrouter.ai/api/v1/chat/completions"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
-
 
 async def _call_openrouter(
     model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5
@@ -62,7 +62,6 @@ async def _call_openrouter(
         logger.warning(f"OpenRouter error {model_id}: {e}")
         return ""
 
-
 async def _call_groq(
     model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5
 ) -> str:
@@ -93,7 +92,6 @@ async def _call_groq(
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Groq error: {e}")
         return ""
-
 
 async def _call_mistral(
     model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5
@@ -129,7 +127,6 @@ async def _call_mistral(
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Mistral error: {e}")
         return ""
-
 
 async def ai_call(
     task_type: str,

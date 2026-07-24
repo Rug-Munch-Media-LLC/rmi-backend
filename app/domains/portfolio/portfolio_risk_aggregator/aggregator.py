@@ -1,4 +1,5 @@
 """Main portfolio risk aggregator."""
+from __future__ import annotations
 import asyncio
 import logging
 import sys
@@ -10,7 +11,6 @@ from .connectors import EVMConnector, SolanaConnector, ChainConnector
 from .scorers import TokenRiskScorer, PriceOracle
 
 logger = get_logger(__name__)
-
 
 class PortfolioRiskAggregator:
     def __init__(self, chains: list[str] | None = None) -> None:
@@ -145,7 +145,6 @@ class PortfolioRiskAggregator:
             findings.append("Portfolio looks clean - no high-risk tokens detected")
         return findings
 
-
 async def main() -> None:
     import argparse
     parser = argparse.ArgumentParser(description="Cross-Chain Portfolio Risk Aggregator")
@@ -168,7 +167,6 @@ async def main() -> None:
     print(f"   Chains: {', '.join(aggregator.chains)}")
     profile = await aggregator.analyze(args.wallet)
     print(profile.report(format=args.format))
-
 
 if __name__ == "__main__":
     asyncio.run(main())

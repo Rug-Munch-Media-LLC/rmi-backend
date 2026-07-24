@@ -1,5 +1,6 @@
 """DataBus Router sub-module. Batch_Cache endpoints."""
 
+from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from typing import Any
 from app.core.logging import get_logger

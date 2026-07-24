@@ -12,7 +12,6 @@ log = get_logger(__name__)
 
 CSV_PATH = "/home/dev/rmi/backend/data/wallet-labels-clean/wallet_labels_solana.csv"
 
-
 async def query_solana_labels_csv(address: str, chain: str = "solana") -> list[Label]:
     """Query the Solana wallet labels CSV via DuckDB.
 

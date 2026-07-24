@@ -5,6 +5,7 @@ The central continuous ingestion engine. Orchestrates feed sources
 through the ingestion pipeline on configurable cadences.
 """
 
+from __future__ import annotations
 import asyncio
 import contextlib
 import logging
@@ -19,7 +20,6 @@ from app.rag_firehose.pipeline import IngestionPipeline
 from app.rag_firehose.sources import FeedSources
 
 logger = get_logger("rag.firehose")
-
 
 class FirehoseEngine:
     """The central continuous ingestion engine."""
@@ -182,18 +182,15 @@ class FirehoseEngine:
             "sources": self.stats.sources,
         }
 
-
 # ── Singleton ──────────────────────────────────────────────────
 
 _firehose: FirehoseEngine | None = None
-
 
 def get_firehose() -> FirehoseEngine:
     global _firehose
     if _firehose is None:
         _firehose = FirehoseEngine()
     return _firehose
-
 
 # Backward compatibility alias for rag_scam_check.py
 RagFirehose = FirehoseEngine

@@ -9,6 +9,7 @@ Usage:
     from app.rag_firehose import IngestionPipeline, FeedSources
 """
 
+from __future__ import annotations
 from app.rag_firehose.engine import (
     FirehoseEngine,
     RagFirehose,

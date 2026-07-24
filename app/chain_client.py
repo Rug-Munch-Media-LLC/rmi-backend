@@ -4,6 +4,7 @@ Helius (primary) → Birdeye → QuickNode → DexScreener.
 Free tier: ~5 req/sec. Caching layer in unified_provider.
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -37,7 +38,6 @@ QUICKNODE_KEY = os.getenv("QUICKNODE_KEY", "")
 
 # ── Rate Limiter ───────────────────────────────────────────
 
-
 class TokenBucket:
     def __init__(self, rate: float = 5.0, burst: int = 10) -> None:
         self.rate = rate
@@ -58,7 +58,6 @@ class TokenBucket:
             wait = (1.0 - self.tokens) / self.rate
             self.tokens = 0.0
             return wait
-
 
 class ChainClient:
     """Rate-limited Solana RPC with Helius primary + QuickNode fallback."""
@@ -179,10 +178,8 @@ class ChainClient:
             await _chain_cb.record_failure(is_server_error=True)
         return None
 
-
 # Singleton
 _client: ChainClient | None = None
-
 
 def get_chain_client() -> ChainClient:
     global _client

@@ -9,13 +9,13 @@ References:
 - HNUT: 78% early activity was bundled transactions
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 @dataclass
 class BundleDetection:
@@ -46,7 +46,6 @@ class BundleDetection:
     holder_count: int = 0
 
     risk_label: str = "unknown"  # critical, high, medium, low
-
 
 class BundleDetector:
     """Multi-signal bundle detection for Solana tokens."""
@@ -270,10 +269,8 @@ class BundleDetector:
             return "medium"
         return "low"
 
-
 # Singleton
 _detector: BundleDetector | None = None
-
 
 def get_bundle_detector() -> BundleDetector:
     global _detector

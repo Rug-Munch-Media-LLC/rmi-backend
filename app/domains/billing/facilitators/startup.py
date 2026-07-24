@@ -9,10 +9,10 @@ Usage (in main.py):
     await register_all_facilitators()
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 
 logger = get_logger("facilitator.startup")
-
 
 async def register_all_facilitators() -> None:
     """

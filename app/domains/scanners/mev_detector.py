@@ -10,6 +10,7 @@ Known MEV bot databases:
   EVM: Flashbots builder labels, bloXroute, Eden, BuildAI
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
@@ -72,7 +73,6 @@ EVM_MEV_BUILDERS = {
     },
 }
 
-
 @dataclass
 class SandwichAttack:
     """A single detected sandwich attack."""
@@ -89,7 +89,6 @@ class SandwichAttack:
     timestamp: int = 0
     evidence: list[str] = field(default_factory=list)
 
-
 @dataclass
 class MEVBotActivity:
     """Known MEV bot detected in token transactions."""
@@ -104,7 +103,6 @@ class MEVBotActivity:
     attack_types: list[str] = field(
         default_factory=list
     )  # "sandwich", "front_run", "back_run", "just_in_time"
-
 
 @dataclass
 class MEVReport:
@@ -123,7 +121,6 @@ class MEVReport:
     risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
     warnings: list[str] = field(default_factory=list)
     scanned_tx_count: int = 0
-
 
 class MEVDetector:
     """Detects MEV/sandwich attacks on token trades."""

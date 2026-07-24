@@ -21,7 +21,6 @@ from app.domains.wallet.monitor.watchlist import WatchlistManager
 
 logger = get_logger(__name__)
 
-
 class WalletMonitor:
     """Per-chain real-time wallet monitor with WebSocket connection."""
 

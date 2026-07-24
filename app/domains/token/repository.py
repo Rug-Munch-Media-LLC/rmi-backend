@@ -13,7 +13,6 @@ from app.domains.token.models import (
 
 log = get_logger(__name__)
 
-
 class TokenRepository:
     """Async data access for token info via Databus."""
 

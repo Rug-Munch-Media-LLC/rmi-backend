@@ -11,7 +11,6 @@ from typing import Any
 
 router = APIRouter(tags=["version-v1"])
 
-
 @router.get("/version")
 async def version_v1() -> Any:
     """Version info (redirect to root /version)."""

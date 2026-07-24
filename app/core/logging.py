@@ -51,9 +51,7 @@ __all__ = [
     "setup_logging",
 ]
 
-
 # ── Public helpers ────────────────────────────────────────────────────
-
 
 def bind_request_id(request_id: str | None = None) -> str:
     """Inject ``request_id`` into the current structlog context var.
@@ -66,7 +64,6 @@ def bind_request_id(request_id: str | None = None) -> str:
         request_id = generate_request_id()
     structlog.contextvars.bind_contextvars(request_id=request_id)
     return request_id
-
 
 def bind_trace_context(
     *,
@@ -89,7 +86,6 @@ def bind_trace_context(
     structlog.contextvars.bind_contextvars(**ctx)
     return trace_id
 
-
 def reset_context() -> None:
     """Clear all structlog context vars for the current async context.
 
@@ -97,7 +93,6 @@ def reset_context() -> None:
     leaking request/trace IDs between jobs.
     """
     structlog.contextvars.clear_contextvars()
-
 
 def quiet_noisy_loggers() -> None:
     """Suppress chatty third-party loggers so they don't drown signal."""
@@ -122,11 +117,9 @@ def quiet_noisy_loggers() -> None:
     # Uvicorn access logs are duplicated by our own middleware
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
-
 # ── Log sampler ───────────────────────────────────────────────────────
 
 _SAMPLE_RATES: dict[str, float] = {}  # logger name prefix → rate
-
 
 def set_sample_rate(name: str, rate: float) -> None:
     """Configure structlog sample *rate* (0.0 - 1.0) for *name*.
@@ -135,7 +128,6 @@ def set_sample_rate(name: str, rate: float) -> None:
     directly by ``RateLimitedLogger`` (stdlib path).
     """
     _SAMPLE_RATES[name] = max(0.0, min(1.0, rate))
-
 
 def _sample_check(name: str) -> bool:
     """Return True if this record should pass (not be sampled out)."""
@@ -150,7 +142,6 @@ def _sample_check(name: str) -> bool:
     window = int(time.time()) // 60
     h = hash(f"{name}:{window}") & 0xFFFF
     return h < int(rate * 65536)
-
 
 class LogSampler:
     """Structlog processor that drops DEBUG entries for sampled loggers.
@@ -187,9 +178,7 @@ class LogSampler:
                     break
         return event_dict
 
-
 # ── Setup ─────────────────────────────────────────────────────────────
-
 
 def setup_logging(level: str = "INFO") -> None:
     """Configure structlog with JSON output for production, console for dev.
@@ -238,7 +227,6 @@ def setup_logging(level: str = "INFO") -> None:
         level=getattr(logging, level.upper(), logging.INFO),
     )
     quiet_noisy_loggers()
-
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Get a structlog logger for a module.

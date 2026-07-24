@@ -1,8 +1,8 @@
 """Data structures for insider detection reports."""
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-
 
 class InsiderType:
     """Type classification for insider detection methods."""
@@ -13,13 +13,11 @@ class InsiderType:
     PUMP_FUN_GRADUATION = "pump_fun_graduate_frontrunner"
     SNIPER = "first_block_sniper"
 
-
 class Confidence:
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
-
 
 @dataclass
 class InsiderEvidence:
@@ -50,7 +48,6 @@ class InsiderEvidence:
             "evidence": self.evidence,
             "confidence": self.confidence,
         }
-
 
 @dataclass
 class InsiderReport:
@@ -91,7 +88,6 @@ class InsiderReport:
                 for level in [Confidence.CRITICAL, Confidence.HIGH, Confidence.MEDIUM, Confidence.LOW]
             },
         }
-
 
 def _ts_human(ts: float) -> str:
     """Format a Unix timestamp to a human-readable UTC string."""

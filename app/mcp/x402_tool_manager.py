@@ -1,5 +1,6 @@
 """x402 tool manager - loads and exposes tool bundles across free/trial/premium tiers."""
 
+from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.logging import get_logger
@@ -7,7 +8,6 @@ from app.core.logging import get_logger
 from .x402_bundles import X402Bundle
 
 logger = get_logger("x402_tool_manager")
-
 
 @dataclass
 class X402ToolManager:

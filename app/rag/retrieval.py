@@ -35,9 +35,7 @@ from app.rag.config import (
 
 log = get_logger(__name__)
 
-
 # ── Data types ───────────────────────────────────────────────────────
-
 
 @dataclass
 class ScoredHit:
@@ -52,7 +50,6 @@ class ScoredHit:
     position_bonus: float = 0.0
     final_score: float = 0.0
 
-
 @dataclass
 class ContextWindow:
     """Assembled context ready for LLM consumption."""
@@ -63,9 +60,7 @@ class ContextWindow:
     sources: list[str] = field(default_factory=list)
     took_ms: int = 0
 
-
 # ── QueryExpander ────────────────────────────────────────────────────
-
 
 # Simple crypto/security synonym map for query expansion.
 _QUERY_SYNONYMS: dict[str, list[str]] = {
@@ -89,7 +84,6 @@ _QUERY_VARIANTS: dict[str, list[str]] = {
     "dex": ["dex", "decentralized_exchange", "amm"],
     "cex": ["cex", "centralized_exchange"],
 }
-
 
 class QueryExpander:
     """Expand a user query with synonyms and related terms for better recall.
@@ -131,9 +125,7 @@ class QueryExpander:
         """Expand multiple queries in batch."""
         return [self.expand(q) for q in queries]
 
-
 # ── RelevanceScorer ──────────────────────────────────────────────────
-
 
 class RelevanceScorer:
     """Post-hoc relevance scoring with text-feature signals.
@@ -205,9 +197,7 @@ class RelevanceScorer:
         overlap = len(query_terms & content_terms) / max(len(query_terms), 1)
         return min(1.0, overlap)
 
-
 # ── HybridRetriever ──────────────────────────────────────────────────
-
 
 class HybridRetriever:
     """Weighted fusion of ANN vector search and BM25-lite keyword search.
@@ -313,13 +303,10 @@ class HybridRetriever:
 
         return results
 
-
 # ── ContextBuilder ───────────────────────────────────────────────────
-
 
 # Estimate: 1 token ≈ 4 characters for English text
 _CHARS_PER_TOKEN: int = 4
-
 
 class ContextBuilder:
     """Assemble retrieved chunks into structured LLM context.
@@ -420,14 +407,12 @@ class ContextBuilder:
         parts.append(f"Question: {question}")
         return "\n\n".join(parts)
 
-
 # ── Convenience instance ─────────────────────────────────────────────
 
 _default_retriever = HybridRetriever()
 _default_scorer = RelevanceScorer()
 _default_expander = QueryExpander()
 _default_builder = ContextBuilder()
-
 
 async def search(
     query: str,
@@ -441,11 +426,9 @@ async def search(
         top_k=top_k,
     )
 
-
 def expand_query(query: str) -> str:
     """Quick query expansion (uses default expander)."""
     return _default_expander.expand(query)
-
 
 def build_context(
     hits: list[ScoredHit] | list[dict],

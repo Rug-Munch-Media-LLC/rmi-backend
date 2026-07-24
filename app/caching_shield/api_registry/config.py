@@ -4,12 +4,12 @@ API Registry - Provider Configuration
 ProviderConfig dataclass and the full PROVIDER_REGISTRY definition.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.core.logging import get_logger
 
 logger = get_logger("api_registry")
-
 
 @dataclass
 class ProviderConfig:
@@ -26,7 +26,6 @@ class ProviderConfig:
     auth_in_query: str = ""
     fallback_providers: list[str] = field(default_factory=list)
     notes: str = ""
-
 
 PROVIDER_REGISTRY: dict[str, ProviderConfig] = {
     # ═══ Solana RPC ═══

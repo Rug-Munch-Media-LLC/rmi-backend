@@ -11,6 +11,7 @@ Pricing: $0.02-0.05 USDC. Free trials: 2-5 calls.
 All powered by local Ollama - no external API costs.
 """
 
+from __future__ import annotations
 import json
 import time
 
@@ -21,7 +22,6 @@ logger = get_logger("rmi.news.ai")
 # Ollama endpoint
 OLLAMA_URL = "http://ollama:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5-coder:7b"  # Fast, good quality
-
 
 def news_sentiment_analysis(query: str = "", limit: int = 20) -> dict:
     """AI-powered sentiment analysis across 500+ crypto news sources."""
@@ -54,7 +54,6 @@ Respond in JSON format: {{"sentiment": "...", "confidence": ..., "top_stories": 
         "model": OLLAMA_MODEL,
         "attribution": "RMI - rugmunch.io",
     }
-
 
 # ── TOOL 2: Market Sentiment Summary ──
 def market_sentiment_summary() -> dict:
@@ -89,7 +88,6 @@ Respond in JSON: {{"mood_summary": "...", "bullish_themes": ["...","...","..."],
         "attribution": "RMI - rugmunch.io",
     }
 
-
 # ── TOOL 3: Trending Narratives ──
 def trending_narratives(min_mentions: int = 3) -> dict:
     """AI-identified trending crypto narratives from 500+ sources."""
@@ -121,7 +119,6 @@ Respond in JSON: {{"narratives": [{{"name": "...", "mentions": ..., "summary": "
         "model": OLLAMA_MODEL,
         "attribution": "RMI - rugmunch.io",
     }
-
 
 # ── TOOL 4: News Impact Analysis ──
 def news_impact_analysis(token: str) -> dict:
@@ -159,7 +156,6 @@ Respond in JSON: {{"token": "{token}", "impact": "POSITIVE/NEGATIVE/NEUTRAL", "c
         "model": OLLAMA_MODEL,
         "attribution": "RMI - rugmunch.io",
     }
-
 
 # ── TOOL 5: Daily Intel Brief ──
 def daily_intel_brief() -> dict:

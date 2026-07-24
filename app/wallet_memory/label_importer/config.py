@@ -1,11 +1,16 @@
 """Static label importer config — paths, specs, constants."""
 
-import os
+from __future__ import annotations
 
-DATA_DIR = os.getenv("RMI_DATA_DIR", "/app/data")
-LABELS_DIR = os.path.join(DATA_DIR, "wallet-labels")
-ETHERSCAN_COMBINED = os.path.join(DATA_DIR, "etherscan_combined_labels.csv")
-ETHERSCAN_PHISH_HACK = os.path.join(DATA_DIR, "etherscan_phish_hack.csv")
+import os
+from pathlib import Path
+from typing import Final
+
+DATA_DIR: Final = Path(os.getenv("RMI_DATA_DIR", "/app/data"))
+LABELS_DIR: Final = DATA_DIR / "wallet-labels"
+ETHERSCAN_COMBINED: Final = DATA_DIR / "etherscan_combined_labels.csv"
+ETHERSCAN_PHISH_HACK: Final = DATA_DIR / "etherscan_phish_hack.csv"
+CLEAN_DIR: Final = DATA_DIR / "wallet-labels-clean"
 
 SOLANA_LABELS_REPO = (
     "https://raw.githubusercontent.com/ImMike/"
