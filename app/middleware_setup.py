@@ -68,7 +68,7 @@ def _try_register_slow_query_logging(app: FastAPI) -> None:
                 if elapsed_ms > slow_threshold_ms:
                     path = request.url.path
                     method = request.method
-                    qs = request.url.query.decode() if request.url.query else ""
+                    qs = request.url.query or ""
                     log.warning(
                         "slow_request method=%s path=%s qs=%s elapsed_ms=%.0f threshold_ms=%.0f",
                         method,

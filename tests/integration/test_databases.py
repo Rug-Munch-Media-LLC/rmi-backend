@@ -84,7 +84,7 @@ def _qdrant_search_points(
     qdrant_filter: dict | None = None,
 ) -> list[dict]:
     """Search points in a Qdrant collection via REST API."""
-    body: dict = {"vector": vector, "limit": limit}
+    body: dict = {"vector": vector, "limit": limit, "with_payload": True}
     if qdrant_filter is not None:
         body["filter"] = qdrant_filter
     resp = client.post(f"/collections/{name}/points/search", json=body)
