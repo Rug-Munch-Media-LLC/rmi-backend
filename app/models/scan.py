@@ -65,4 +65,7 @@ class ScanResult(Base, TimestampMixin):
     __table_args__ = (
         Index("ix_scan_result_token_chain", "token_address", "chain"),
         Index("ix_scan_result_scanned_at", "scanned_at"),
+        Index("ix_scan_result_risk_level", "risk_level"),
+        Index("ix_scan_result_chain_risk", "chain", "risk_level"),
+        Index("ix_scan_result_tier", "tier_required"),
     )

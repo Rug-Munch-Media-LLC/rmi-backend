@@ -43,4 +43,7 @@ class Token(Base, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("chain", "address", name="uq_token_chain_address"),
         Index("ix_token_symbol", "symbol"),
+        Index("ix_token_verified", "verified"),
+        Index("ix_token_chain_verified", "chain", "verified"),
+        Index("ix_token_chain_risk", "chain", "risk_level"),
     )

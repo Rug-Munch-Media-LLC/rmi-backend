@@ -6,21 +6,26 @@ Batch create alerts for multiple tokens in a single call.
 Accepts 1-50 tokens and 1+ alert types, creates alert configs
 in Redis, and returns the list of created alert IDs.
 
-Rate limit: 1 bulk call per 60 seconds per client.
+Dependency injection: Redis, ChainClient, and EVMClient are
+injected via ``Depends()`` for testability.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.core.dependencies import get_chain_client, get_evm_client, get_redis
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from app.chain_client import ChainClient
+    from app.evm_connector import EVMClient
 
 logger = get_logger(__name__)
 
@@ -44,35 +49,15 @@ VALID_ALERT_TYPES = [
     "rug_indicator",
 ]
 
-# ── Redis helper ─────────────────────────────────────────────────────
+# ── Rate limiting ──────────────────────────────────────────────────
 
 
-async def _get_redis() -> Any | None:
-    """Get async Redis connection."""
-    try:
-        import redis.asyncio as aioredis
-
-        redis_url = os.getenv("REDIS_URL", "")
-        if redis_url and "://" in redis_url:
-            return aioredis.from_url(redis_url, decode_responses=True)
-
-        host = os.getenv("REDIS_HOST", "rmi-redis")
-        port = int(os.getenv("REDIS_PORT", "6379"))
-        pw = os.getenv("REDIS_PASSWORD", "")
-        if pw:
-            return aioredis.Redis(host=host, port=port, password=pw, decode_responses=True)
-        return aioredis.Redis(host=host, port=port, decode_responses=True)
-    except Exception as exc:
-        logger.warning("redis_connection_failed: %s", exc)
-        return None
-
-
-async def _check_rate_limit(client_key: str) -> bool:
+async def _check_rate_limit(client_key: str, r: Any | None) -> bool:
     """Check and increment rate limit counter for a client.
 
     Returns True if allowed, False if rate limited.
+    Uses Redis when available; falls open when Redis is down.
     """
-    r = await _get_redis()
     if not r:
         return True  # Allow if Redis is down (fail open)
     try:
@@ -80,14 +65,12 @@ async def _check_rate_limit(client_key: str) -> bool:
         now = time.time()
         window_start = now - _RATE_LIMIT_SECONDS
 
-        # Clean old entries and add current
         pipe = r.pipeline()
         pipe.zremrangebyscore(key, 0, window_start)
         pipe.zadd(key, {str(now): now})
         pipe.expire(key, _RATE_LIMIT_SECONDS + 10)
         await pipe.execute()
 
-        # Count calls in current window
         count = await r.zcard(key)
         return count <= 1  # 1 call per 60s window
     except Exception as exc:
@@ -95,7 +78,15 @@ async def _check_rate_limit(client_key: str) -> bool:
         return True  # Allow on Redis failure
 
 
-async def _validate_token_exists(token: str, chain: str) -> bool:
+# ── Token validation ──────────────────────────────────────────────────
+
+
+async def _validate_token_exists(
+    token: str,
+    chain: str,
+    chain_client: ChainClient | None = None,
+    evm_client: EVMClient | None = None,
+) -> bool:
     """Quick validation that a token address might exist.
 
     Does a format check + optional lightweight probe.
@@ -103,17 +94,9 @@ async def _validate_token_exists(token: str, chain: str) -> bool:
     """
     addr = token.lower().strip()
 
-    # Format validation
     evm_chains = {
-        "ethereum",
-        "base",
-        "bsc",
-        "arbitrum",
-        "polygon",
-        "optimism",
-        "avalanche",
-        "fantom",
-        "linea",
+        "ethereum", "base", "bsc", "arbitrum", "polygon",
+        "optimism", "avalanche", "fantom", "linea",
     }
     if chain in evm_chains and (not addr.startswith("0x") or len(addr) != 42):
         return False
@@ -122,27 +105,21 @@ async def _validate_token_exists(token: str, chain: str) -> bool:
 
     # Optional: try a quick balance probe (non-blocking)
     try:
-        if chain == "solana":
-            from app.chain_client import get_chain_client
-
-            client = get_chain_client()
-            supply = await client.get_token_supply(addr)
-            if supply is not None and int(supply) > 0:
+        if chain == "solana" and chain_client is not None:
+            supply = await chain_client.rpc_call("getTokenSupply", [addr])
+            if supply is not None:
                 return True
-            # If no supply data, still accept based on format
-            return True
-        elif chain in ("ethereum", "base", "arbitrum"):
-            from app.evm_connector import get_evm_client
-
-            client = get_evm_client(chain)
-            if client:
-                code = await client.eth_get_code(addr)
+            return True  # Accept on format if probe fails
+        elif chain in ("ethereum", "base", "arbitrum") and evm_client is not None:
+            try:
+                code = evm_client.w3.eth.get_code(addr)
                 if code and code != "0x":
                     return True
+            except Exception:
+                pass
             return True  # Accept on format if client unavailable
     except Exception as exc:
         logger.debug("token_validation_probe_failed %s: %s", addr[:12], exc)
-        # Accept on format check alone if probe fails
         return True
 
     return True
@@ -175,7 +152,13 @@ class BulkAlertResponse(BaseModel):
 
 
 @router.post("/bulk")
-async def create_bulk_alerts(request: BulkAlertRequest, http_request: Request) -> dict[str, Any]:
+async def create_bulk_alerts(
+    request: BulkAlertRequest,
+    http_request: Request,
+    r: Any | None = Depends(get_redis),
+    chain_client: ChainClient | None = Depends(get_chain_client),
+    evm_client: EVMClient | None = Depends(get_evm_client),
+) -> dict[str, Any]:
     """Create alerts for multiple tokens in a single call.
 
     Accepts 1-50 tokens and 1+ alert types. Validates each token's
@@ -186,7 +169,7 @@ async def create_bulk_alerts(request: BulkAlertRequest, http_request: Request) -
     """
     # ── Rate limit ────────────────────────────────────────────────
     client_ip = http_request.client.host if http_request.client else "unknown"
-    if not await _check_rate_limit(client_ip):
+    if not await _check_rate_limit(client_ip, r):
         raise HTTPException(
             status_code=429,
             detail=f"Rate limit exceeded. Maximum 1 bulk call per {_RATE_LIMIT_SECONDS} seconds.",
@@ -210,17 +193,19 @@ async def create_bulk_alerts(request: BulkAlertRequest, http_request: Request) -
     # ── Validate tokens ───────────────────────────────────────────
     chain = request.chain.lower().strip()
     valid_tokens: list[str] = []
-    invalid_tokens: list[str] = []
     errors: list[dict[str, str]] = []
     skipped: list[dict[str, str]] = []
 
     for token in request.tokens:
         try:
-            exists = await _validate_token_exists(token, chain)
+            exists = await _validate_token_exists(
+                token, chain,
+                chain_client=chain_client if chain == "solana" else None,
+                evm_client=evm_client if chain in ("ethereum", "base", "arbitrum") else None,
+            )
             if exists:
                 valid_tokens.append(token.lower().strip())
             else:
-                invalid_tokens.append(token)
                 errors.append({"token": token, "reason": "Invalid format or non-existent"})
         except Exception as exc:
             logger.debug("token_validation_error %s: %s", token[:12], exc)
@@ -233,12 +218,10 @@ async def create_bulk_alerts(request: BulkAlertRequest, http_request: Request) -
         )
 
     # ── Create alerts ─────────────────────────────────────────────
-    r = await _get_redis()
     created_ids: list[str] = []
     created_count = 0
     failed_count = 0
 
-    # Build config key prefix
     config_prefix = f"rmi:alert_config:{chain}"
 
     for token in valid_tokens:
@@ -258,7 +241,6 @@ async def create_bulk_alerts(request: BulkAlertRequest, http_request: Request) -
 
                 if r:
                     await r.hset(f"{config_prefix}:{token}", alert_type, json.dumps(config))
-                    # Also add to a global set for listing
                     await r.sadd(f"{config_prefix}:tokens", token)
 
                 created_ids.append(alert_id)
@@ -269,9 +251,6 @@ async def create_bulk_alerts(request: BulkAlertRequest, http_request: Request) -
                 )
                 errors.append({"token": token, "alert_type": alert_type, "reason": str(exc)[:100]})
                 failed_count += 1
-
-    if r:
-        await r.connection_pool.disconnect()
 
     logger.info(
         "bulk_alerts_created count=%d failed=%d chain=%s",
@@ -284,7 +263,7 @@ async def create_bulk_alerts(request: BulkAlertRequest, http_request: Request) -
         "created": created_count,
         "failed": failed_count,
         "alert_ids": created_ids,
-        "errors": errors[:10],  # Cap error reporting
+        "errors": errors[:10],
         "skipped": skipped[:10],
     }
 

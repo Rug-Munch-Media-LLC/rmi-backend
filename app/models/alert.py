@@ -39,6 +39,13 @@ class Alert(Base, TimestampMixin):
         index=True,
     )
 
+    __table_args__ = (
+        Index("ix_alert_alert_type", "alert_type"),
+        Index("ix_alert_severity", "severity"),
+        Index("ix_alert_token_chain_type", "token_address", "chain", "alert_type"),
+        Index("ix_alert_fired_at", "fired_at"),
+    )
+
 
 class AlertSubscription(Base, TimestampMixin):
     __tablename__ = "alert_subscriptions"

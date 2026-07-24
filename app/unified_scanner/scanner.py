@@ -13,24 +13,25 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.unified_scanner.models import CHAINS, WalletRiskFactors
+from app.core.http import get_http_client
 from app.unified_scanner.cache import _cache_get, _cache_set
 from app.unified_scanner.helius import (
+    _fetch_etherscan_wallet,
     _fetch_helius_wallet,
     _fetch_moralis_wallet,
-    _fetch_etherscan_wallet,
 )
+from app.unified_scanner.models import WalletRiskFactors
 from app.unified_scanner.providers import (
-    _fetch_sentinel_labels,
-    _fetch_wallet_memory,
-    _scan_held_tokens,
+    _calculate_basic_pnl,
     _check_hapi_risk,
     _check_misttrack_light,
     _check_trm_sanctions_wallet,
-    _trace_funding_source,
-    _resolve_entity_free,
-    _calculate_basic_pnl,
     _close_data_flywheel,
+    _fetch_sentinel_labels,
+    _fetch_wallet_memory,
+    _resolve_entity_free,
+    _scan_held_tokens,
+    _trace_funding_source,
 )
 
 
@@ -59,22 +60,22 @@ async def scan_wallet(
         onchain = await _fetch_helius_wallet(wallet_address)
         if not onchain:
             try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.post(
-                        "https://api.mainnet-beta.solana.com",
-                        json={
-                            "jsonrpc": "2.0",
-                            "id": 1,
-                            "method": "getBalance",
-                            "params": [wallet_address],
-                        },
-                    )
-                    if resp.status_code == 200:
-                        bal = resp.json().get("result", {}).get("value", 0)
-                        onchain = {
-                            "sol_balance": bal / 1e9 if bal else 0,
-                            "data_sources": ["solana_public"],
-                        }
+                client = await get_http_client()
+                resp = await client.post(
+                    "https://api.mainnet-beta.solana.com",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getBalance",
+                        "params": [wallet_address],
+                    },
+                )
+                if resp.status_code == 200:
+                    bal = resp.json().get("result", {}).get("value", 0)
+                    onchain = {
+                        "sol_balance": bal / 1e9 if bal else 0,
+                        "data_sources": ["solana_public"],
+                    }
             except (httpx.HTTPError, TimeoutError, OSError):
                 pass
     else:
@@ -98,31 +99,31 @@ async def scan_wallet(
                 factors.days_since_last_tx = int((datetime.now(UTC).timestamp() - last_ts) / 86400)
         data_sources.extend(onchain.get("data_sources", []))
 
-    # ── DexScreener volume + labels ──
+    # ── DexScreener volume + labels (shared httpx client) ──
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(
-                "https://api.dexscreener.com/latest/dex/search", params={"q": wallet_address}
-            )
-            if resp.status_code == 200:
-                pairs = resp.json().get("pairs", [])
-                if pairs:
-                    factors.total_volume_usd = sum(
-                        float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs
-                    )
-                    factors.dex_swaps = len(pairs)
-                    factors.token_launches_participated = sum(
-                        1
-                        for p in pairs
-                        if p.get("pairCreatedAt")
-                        and (
-                            datetime.now(UTC)
-                            - datetime.fromtimestamp(p.get("pairCreatedAt", 0) / 1000, tz=UTC)
-                        ).total_seconds()
-                        / 3600
-                        < 24
-                    )
-                    data_sources.append("dexscreener")
+        client = await get_http_client()
+        resp = await client.get(
+            "https://api.dexscreener.com/latest/dex/search", params={"q": wallet_address}
+        )
+        if resp.status_code == 200:
+            pairs = resp.json().get("pairs", [])
+            if pairs:
+                factors.total_volume_usd = sum(
+                    float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs
+                )
+                factors.dex_swaps = len(pairs)
+                factors.token_launches_participated = sum(
+                    1
+                    for p in pairs
+                    if p.get("pairCreatedAt")
+                    and (
+                        datetime.now(UTC)
+                        - datetime.fromtimestamp(p.get("pairCreatedAt", 0) / 1000, tz=UTC)
+                    ).total_seconds()
+                    / 3600
+                    < 24
+                )
+                data_sources.append("dexscreener")
     except (httpx.HTTPError, TimeoutError, OSError):
         pass
 
@@ -385,10 +386,14 @@ async def scan_wallet(
 
     factors.total_risk_score = min(100, max(0, risk))
     factors.risk_category = (
-        "critical" if risk >= 80
-        else "high_risk" if risk >= 60
-        else "medium" if risk >= 35
-        else "low_risk" if risk >= 15
+        "critical"
+        if risk >= 80
+        else "high_risk"
+        if risk >= 60
+        else "medium"
+        if risk >= 35
+        else "low_risk"
+        if risk >= 15
         else "safe"
     )
 
@@ -410,10 +415,20 @@ async def scan_wallet(
     for src in data_sources:
         modules_run.append({"module": src, "status": "ok"})
     attempted_modules = [
-        "helius_wallet", "moralis_wallet", "etherscan_wallet", "dexscreener",
-        "rugcheck", "goplus_security", "wallet_labels", "wallet_memory",
-        "sentinel_risk", "gmgn", "funding_trace", "free_entity",
-        "jupiter_pnl", "entity_clustering",
+        "helius_wallet",
+        "moralis_wallet",
+        "etherscan_wallet",
+        "dexscreener",
+        "rugcheck",
+        "goplus_security",
+        "wallet_labels",
+        "wallet_memory",
+        "sentinel_risk",
+        "gmgn",
+        "funding_trace",
+        "free_entity",
+        "jupiter_pnl",
+        "entity_clustering",
     ]
     succeeded_set = set(data_sources)
     for mod in attempted_modules:

@@ -7,8 +7,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-import httpx
-
+from app.core.http import get_http_client
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -44,13 +43,13 @@ class DatabusQueryResult:
 async def databus_get(
     chain: str, endpoint: str, params: dict | None = None, tier: str = "free"
 ) -> DatabusQueryResult:
-    """Single-chain DataBus query with tier-appropriate caching."""
+    """Single-chain DataBus query with tier-appropriate caching (shared httpx client)."""
     t0 = time.monotonic()
     url = f"{DATABUS_BASE}/{chain}/{endpoint}"
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(url, params=params or {})
-        resp.raise_for_status()
-        data = resp.json()
+    client = await get_http_client()
+    resp = await client.get(url, params=params or {})
+    resp.raise_for_status()
+    data = resp.json()
     elapsed = (time.monotonic() - t0) * 1000
     return DatabusQueryResult(
         chain=chain,
@@ -81,12 +80,12 @@ async def databus_cross_chain(
 
 
 async def verify_x402_payment(signature: str, payload: str, chain: str = "solana") -> bool:
-    """Verify x402 micropayment signature."""
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(
-            X402_VERIFY_URL, json={"sig": signature, "payload": payload, "chain": chain}
-        )
-        return resp.status_code == 200 and resp.json().get("valid", False)
+    """Verify x402 micropayment signature (shared httpx client)."""
+    client = await get_http_client()
+    resp = await client.post(
+        X402_VERIFY_URL, json={"sig": signature, "payload": payload, "chain": chain}
+    )
+    return resp.status_code == 200 and resp.json().get("valid", False)
 
 
 def generate_api_key() -> str:
