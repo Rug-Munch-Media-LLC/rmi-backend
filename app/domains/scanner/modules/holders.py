@@ -62,7 +62,7 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
                     result["concentration_pct"] = top_holders[0]["percentage"]
                 result["source"] = "solana_rpc"
                 return result
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("solana_holders_failed", error=str(e))
     else:
         # EVM: try DexScreener for holder estimate + explorer for deployer
@@ -99,7 +99,7 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
                     )
                     result["top_holders"] = top_holders
                     result["source"] = "blockscout"
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("evm_holders_failed", error=str(e))
 
     return result
@@ -154,7 +154,7 @@ async def _check_liquidity_lock_multi(
             return result
     except ImportError:
         pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.debug("honeypot_liquidity_failed", error=str(e))
 
     # Fallback: direct DexScreener check
@@ -214,7 +214,7 @@ async def _check_liquidity_lock_multi(
             if liquidity < 100:
                 result["liquidity_locked_pct"] = 0
             result["source"] = "dexscreener"
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("liquidity_fallback_failed", error=str(e))
 
     return result
@@ -283,7 +283,7 @@ async def _check_lp_concentration(token_address: str, chain: str) -> dict[str, A
             result["risk_level"] = "low"
             result["risk_score"] = 0
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("lp_concentration_failed", error=str(e)[:80])
         result["result"] = "error"
         result["error"] = str(e)[:60]

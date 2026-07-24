@@ -463,7 +463,7 @@ async def analyze_volume_authenticity(
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     signals = []
@@ -502,7 +502,7 @@ async def analyze_volume_authenticity(
                         tx_count = len(sigs)
                         timestamps = [s.get("blockTime", 0) for s in sigs if s.get("blockTime")]
                         # Estimate trade sizes from slot/confirmation data
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug(f"Tx fetch failed: {e}")
 
     # ── Layer 1: Statistical ──
@@ -560,7 +560,7 @@ async def analyze_volume_authenticity(
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL, json.dumps(output, default=str))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return output

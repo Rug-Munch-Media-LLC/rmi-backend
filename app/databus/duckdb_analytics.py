@@ -122,7 +122,7 @@ def _load_real_cats(con, base_dir: str) -> dict:
             )
             count = con.execute("SELECT changes()").fetchone()[0]
             stats[label_type] += count if count else 0
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Fallback: try with first column as address
             try:
                 con.execute(
@@ -135,7 +135,7 @@ def _load_real_cats(con, base_dir: str) -> dict:
                     [chain, label_type, fpath],
                 )
                 stats[label_type] += 1
-            except Exception as e2:
+            except Exception as e2:  # noqa: BLE001
                 stats["errors"].append(f"{fname}: {e2}")
 
     # Also load Identifier.tsv for address mapping
@@ -188,7 +188,7 @@ def _load_mbal(con, base_dir: str) -> dict:
             ).fetchone()[0]
             stats["loaded"] = count
             stats["time_s"] = round(elapsed, 1)
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Try simpler approach - just grab first column as address
             try:
                 con.execute(
@@ -213,7 +213,7 @@ def _load_mbal(con, base_dir: str) -> dict:
                     "SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-10m'"
                 ).fetchone()[0]
                 stats["loaded"] = count
-            except Exception as e2:
+            except Exception as e2:  # noqa: BLE001
                 stats["errors"].append(f"mbal-10m: {e2}")
 
     # Training/test splits (smaller, faster)
@@ -244,7 +244,7 @@ def _load_mbal(con, base_dir: str) -> dict:
             )
             c = con.execute("SELECT COUNT(*) FROM mbal_labels WHERE source=?").fetchone()[0]
             stats["loaded"] += c
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
     return stats
@@ -303,13 +303,13 @@ def _build_index(con) -> None:
     try:
         con.execute("DROP INDEX IF EXISTS idx_address")
         con.execute("CREATE INDEX idx_address ON address_index (address)")
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     try:
         con.execute("DROP INDEX IF EXISTS idx_chain")
         con.execute("CREATE INDEX idx_chain ON address_index (chain)")
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
 
@@ -354,7 +354,7 @@ class DuckDBAnalytics:
                             "index": count,
                         },
                     }
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # Create schema
@@ -569,7 +569,7 @@ class DuckDBAnalytics:
                 if os.path.exists(self.db_path)
                 else 0,
             }
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError) as e:
             return {"error": str(e), "initialized": self._loaded}
 
     def execute_query(self, sql: str, params: list | None = None) -> list[tuple]:
@@ -656,7 +656,7 @@ async def _duckdb_query(sql: str = "", **kwargs) -> dict | None:
     try:
         rows = engine.execute_query(sql)
         return {"sql": sql, "rows": len(rows), "data": rows[:100], "truncated": len(rows) > 100}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
 

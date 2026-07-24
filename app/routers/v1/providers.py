@@ -278,7 +278,7 @@ def _format_timestamp(ts: float) -> str:
     """Format a Unix timestamp to ISO 8601 string."""
     try:
         return datetime.datetime.fromtimestamp(ts, tz=datetime.UTC).isoformat()
-    except Exception:
+    except (ValueError, TypeError, OSError):
         return str(ts)
 
 

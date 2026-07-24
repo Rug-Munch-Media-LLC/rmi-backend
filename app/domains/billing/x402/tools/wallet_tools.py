@@ -50,7 +50,7 @@ async def _profile_wallet(address: str, chain: str) -> dict:
             if balance is not None:
                 result["balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_rpc")
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         # Get recent transactions
@@ -72,7 +72,7 @@ async def _profile_wallet(address: str, chain: str) -> dict:
                         time_span = max(times) - min(times)
                         if time_span > 0:
                             result["tx_frequency"] = len(sigs) / (time_span / 86400)  # per day
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
         # Get token accounts
@@ -89,7 +89,7 @@ async def _profile_wallet(address: str, chain: str) -> dict:
             if token_accounts and token_accounts.get("value"):
                 result["token_count"] = len(token_accounts["value"])
                 result["sources_used"].append("solana_tokens")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     # Layer 2: DexScreener - check if wallet has interacted with known tokens
@@ -143,7 +143,7 @@ async def wallet_profiler(req: WalletRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -177,7 +177,7 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
                 for p in trending
             ]
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 2: DefiLlama - top protocols by TVL change
@@ -191,7 +191,7 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
                 {"name": p.get("name"), "tvl": p.get("tvl")} for p in protocols
             ]
             result["sources_used"].append("defillama")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 3: CoinGecko - top gainers
@@ -203,7 +203,7 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
                 for c in data["coins"][:limit]
             ]
             result["sources_used"].append("coingecko")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 4: Pump.fun - new launches with high volume
@@ -225,7 +225,7 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
                     if c.get("usdMarketCap", 0) > threshold
                 ]
                 result["sources_used"].append("pumpfun")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     return result
@@ -244,7 +244,7 @@ async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0,
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -283,12 +283,12 @@ async def _cluster_analysis(address: str, chain: str, depth: int) -> dict:
                                 addr = acc.get("pubkey") if isinstance(acc, dict) else acc
                                 if addr and addr != address:
                                     counterparties.add(addr)
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                         pass
 
                 result["counterparties"] = list(counterparties)[:50]
                 result["cluster_size"] = len(counterparties)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     # Layer 2: DexScreener - check if address is a known deployer
@@ -308,7 +308,7 @@ async def _cluster_analysis(address: str, chain: str, depth: int) -> dict:
                 if data and data.get("result"):
                     result["tx_count"] = len(data["result"])
                     result["sources_used"].append(f"{chain}_explorer")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     # Layer 4: Compute cluster metrics
@@ -336,7 +336,7 @@ async def cluster_detection(req: ClusterRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -356,7 +356,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
             if balance is not None:
                 result["sol_balance"] = balance / 1e9
                 result["sources_used"].append("solana_rpc")
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         try:
@@ -382,7 +382,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
                         }
                     )
                 result["sources_used"].append("solana_rpc_tokens")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     # EVM chain balance
@@ -393,7 +393,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
                 result["native_balance_wei"] = balance
                 result["native_balance_eth"] = int(balance, 16) / 1e18
                 result["sources_used"].append(f"{chain}_rpc")
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
     # DexScreener for recent activity
@@ -404,7 +404,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
         if data and data.get("pairs"):
             result["recent_pairs"] = len(data["pairs"])
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Persona detection
@@ -448,7 +448,7 @@ async def whale_decoder(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -471,7 +471,7 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
                 if balance is not None:
                     wallet_data["sol_balance"] = balance / 1e9
                     result["sources_used"].append("solana_rpc")
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # EVM balance
@@ -481,7 +481,7 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
                 if balance:
                     wallet_data["native_balance"] = int(balance, 16) / 1e18
                     result["sources_used"].append(f"{chain}_rpc")
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         result["wallets"].append(wallet_data)
@@ -503,7 +503,7 @@ async def portfolio_tracker(req: WalletListRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -533,7 +533,7 @@ async def _copy_trade_finder(chain: str) -> dict:
                 for p in gainers
             ]
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     result["smart_wallets"] = []  # Would need on-chain analysis for this
@@ -555,5 +555,5 @@ async def copy_trade_finder(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e

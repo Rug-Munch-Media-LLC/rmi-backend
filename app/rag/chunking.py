@@ -149,7 +149,7 @@ def is_duplicate(content_hash: str, collection: str) -> bool:
     """Has this exact content already been ingested into the collection?"""
     try:
         return bool(_get_redis().sismember(f"rag:hashes:{collection}", content_hash))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.debug("dedup_check_failed: %s", e)
         return False
 
@@ -158,5 +158,5 @@ def mark_ingested(content_hash: str, collection: str) -> None:
     """Record that this content hash is now in the collection."""
     try:
         _get_redis().sadd(f"rag:hashes:{collection}", content_hash)
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError) as e:
         log.debug("dedup_mark_failed: %s", e)

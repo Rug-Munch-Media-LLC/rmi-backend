@@ -35,10 +35,6 @@ Security:
 """
 
 
-
-
-
-
 # ── DataBus Integration ─────────────────────────────────────────
 
 # ── x402 Pricing - matches TOOL_PRICES schema exactly ─────────────
@@ -877,7 +873,8 @@ async def _get_trial_redis() -> Any | None:
         )
         await r.ping()
         return r
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError) as e:
+        logger.warning(f"Trial Redis unavailable: {e}")
         return None
 
 
@@ -925,9 +922,8 @@ async def consume_trial(identifier: str, tool_id: str) -> bool:
         pipe.expire(key, TRIAL_WINDOW_SECONDS)
         await pipe.execute()
         return True
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError, ValueError) as e:
+        logger.debug(f"Trial consume failed: {e}")
         return False
     finally:
         await r.close()
-
-

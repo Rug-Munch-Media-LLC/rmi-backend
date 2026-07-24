@@ -49,7 +49,7 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
                 result_data = resp_json.get("result", [])
                 if result_data and isinstance(result_data, list):
                     deployer_addr = result_data[0].get("contractCreator", "")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("explorer_deployer_failed", error=str(e))
 
     # Fallback: try HoneypotDetector which gathers creator from DexScreener
@@ -65,7 +65,7 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
                 result["token_symbol"] = pair.get("baseToken", {}).get("symbol", "")
                 result["liquidity_usd"] = float(pair.get("liquidity", {}).get("usd", 0) or 0)
                 result["price_usd"] = float(pair.get("priceUsd", 0) or 0)
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("dexscreener_deployer_fallback_failed", error=str(e))
 
     result["deployer_address"] = deployer_addr or "unknown"
@@ -86,7 +86,7 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
             result["signals"] = scoring_result.get("signals_found", [])
             result["mitigations"] = scoring_result.get("mitigations", [])
             result["fingerprint_match"] = scoring_result.get("fingerprint_match")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("deployer_scoring_failed", error=str(e))
             result["reputation_score"] = 50
             result["reputation_label"] = "UNKNOWN"
@@ -140,7 +140,7 @@ async def _deep_deployer_check(deployer_addr: str, chain: str) -> dict[str, Any]
                 if resp_json and resp_json.get("status") == "1":
                     txs = resp_json.get("result", [])
                     tx_count = len(txs) if isinstance(txs, list) else 0
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.debug("deployer_tx_fetch_failed", error=str(e))
 
         # Score with whatever data we have
@@ -154,7 +154,7 @@ async def _deep_deployer_check(deployer_addr: str, chain: str) -> dict[str, Any]
         logger.warning("deployer_reputation_module_not_available")
         result["risk_score"] = 50
         result["risk_label"] = "UNKNOWN"
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("deep_deployer_failed", error=str(e))
         result["risk_score"] = 50
         result["risk_label"] = "ERROR"

@@ -35,7 +35,7 @@ def _gmgn(args: list[str], timeout: int = 15) -> dict[str, Any]:
         return {"error": "gmgn-cli timed out"}
     except json.JSONDecodeError:
         return {"error": f"Invalid JSON: {result.stdout[:200]}"}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
 

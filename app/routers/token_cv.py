@@ -2,19 +2,22 @@
 """#5 - On-Chain CV for Tokens. One-page report: age, holders, liquidity, contract risks,
 social signals, price history. Shareable permalink."""
 
-import os
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.config import settings
 from app.core.errors import ExternalAPIError
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/token-cv", tags=["token-cv"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 
 
 class TokenCV(BaseModel):
@@ -133,8 +136,8 @@ async def compare_tokens(
                 )
                 if resp.status_code == 200:
                     return resp.json()
-            except Exception:
-                pass
+            except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+                logger.warning(f"Token CV scan failed: {e}")
             return {"error": "unavailable"}
 
         import asyncio

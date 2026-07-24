@@ -10,9 +10,11 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
 from typing import Any
 
+from app.config import settings
+
 router = APIRouter(prefix="/api/v1/whale-alerts", tags=["whale-alerts"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 TG_BOT = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 # In-memory subscription store (Redis in prod)
@@ -105,8 +107,8 @@ async def _send_telegram_alert(chat_id: str, text: str) -> None:
                 f"https://api.telegram.org/bot{TG_BOT}/sendMessage",
                 json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
             )
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError) as e:
+        logger.warning(f"Telegram alert send failed: {e}")
 
 
 @router.post("/scan")
@@ -138,7 +140,8 @@ async def scan_whale_activity(background_tasks: BackgroundTasks) -> dict:
                                 f"<b>Tx:</b> {tx.get('hash', '?')[:20]}..."
                             )
                             background_tasks.add_task(_send_telegram_alert, uid, text)
-            except Exception:
+            except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+                logger.debug(f"Whale scan failed for {sub['address']}: {e}")
                 continue
     return {
         "alerts_fired": alerts_fired,

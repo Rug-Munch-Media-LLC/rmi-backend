@@ -205,7 +205,7 @@ def fetch_all_feeds(db=None) -> dict:
                 count += 1
 
             logger.info(f"  {source}: {count} articles")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             errors.append(f"{source}: {str(e)[:80]}")
 
     # Store in Redis for hot access
@@ -280,10 +280,10 @@ def fetch_all_feeds(db=None) -> dict:
             cur.close()
             pg.close()
             stats["in_postgres"] = len(results)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             stats["postgres_error"] = str(e)[:100]
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError) as e:
         stats = {"total_fetched": len(results), "redis_error": str(e)[:100]}
 
     return stats

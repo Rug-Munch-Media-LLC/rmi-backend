@@ -132,7 +132,7 @@ class PrimevFacilitator(Facilitator):
             return self._format_error("Primev verification timed out")
         except aiohttp.ClientError as e:
             return self._format_error(f"Primev connection error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Primev verify error: {e}")
             return self._format_error(f"Primev internal error: {e}")
 
@@ -148,7 +148,7 @@ class PrimevFacilitator(Facilitator):
                     headers=headers,
                 ) as resp:
                     return resp.status < 500
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Primev health check failed: {e}")
             return False
 
@@ -190,7 +190,7 @@ class PrimevFacilitator(Facilitator):
                         reason=f"Primev settle failed: {data.get('error', 'HTTP ' + str(resp.status))}",
                         facilitator=self.name,
                     )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False,
                 reason=f"Primev settlement error: {e}",

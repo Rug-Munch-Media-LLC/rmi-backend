@@ -59,7 +59,7 @@ async def _fetch_prices_batch(addresses: list[str]) -> dict[str, float]:
                     price = float(pair.get("priceUsd", 0))
                     if addr and price > 0 and addr not in prices:
                         prices[addr] = price
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Batch price fetch error: {e}")
     return prices
 
@@ -156,7 +156,7 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
                 disable_web_page_preview=True,
             )
             sent_count += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"Failed to send alert to user {user_id}: {e}")
             continue
 
@@ -227,7 +227,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     ts = a["alert_triggered_at"]
                     if "T" in ts:
                         ts_str = f" \u2014 {ts[:10]}"
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
             text += f"  \u2022 <b>{a.get('symbol', '???')}</b> \U0001f514 {fmt_number(a['alert_price'])}{ts_str}\n"
         if len(triggered_alerts) > 5:

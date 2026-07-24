@@ -44,7 +44,7 @@ async def get_sol_price() -> float:
                 if price_str:
                     _sol_price = float(price_str)
                     _sol_price_ts = now
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Failed to fetch SOL price: {e}")
     return _sol_price
 

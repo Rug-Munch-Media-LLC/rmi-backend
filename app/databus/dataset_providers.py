@@ -112,7 +112,7 @@ def _load_real_cats() -> dict:
                         else:
                             result["benign"].append(entry)
 
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Real-CATS: failed to parse {filepath}: {e}")
 
     result["stats"] = {
@@ -290,6 +290,6 @@ async def fetch_mbal(
             ],
         }
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"MBAL query failed: {e}")
         return {"error": str(e), "source": "MBAL"}

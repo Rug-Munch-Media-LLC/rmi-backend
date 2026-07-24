@@ -102,7 +102,7 @@ class XTwitterProvider:
             self._oauth2_refresh = result.stdout.strip()
             self._loaded = True
             logger.info("X/Twitter credentials loaded from vault")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to load X credentials from vault: {e}")
             raise
 
@@ -159,7 +159,7 @@ class XTwitterProvider:
         except httpx.HTTPStatusError as e:
             logger.error(f"X API error: {e.response.status_code} {e.response.text[:200]}")
             return None
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"X API call failed: {e}")
             return None
 

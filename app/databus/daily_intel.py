@@ -74,7 +74,7 @@ async def _openrouter_chat(
             else:
                 logger.warning(f"OpenRouter {model}: {r.status_code} {r.text[:200]}")
                 return ""
-    except Exception as e:
+    except (httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"OpenRouter error: {e}")
         return ""
 
@@ -95,7 +95,7 @@ async def _gather_all_data() -> dict:
         from app.databus.news_provider import get_market_brief
 
         data["market"] = await get_market_brief()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # News intel
@@ -103,7 +103,7 @@ async def _gather_all_data() -> dict:
         from app.databus.news_intel import aggregate_all_news
 
         data["news"] = await aggregate_all_news(limit=20)
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # CT Rundown
@@ -111,7 +111,7 @@ async def _gather_all_data() -> dict:
         from app.databus.x_intel import fetch_ct_rundown
 
         data["ct"] = await fetch_ct_rundown(limit=15)
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # Social metrics
@@ -119,7 +119,7 @@ async def _gather_all_data() -> dict:
         from app.databus.social_intel import get_social_metrics
 
         data["social"] = await get_social_metrics()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # Fear & Greed
@@ -127,7 +127,7 @@ async def _gather_all_data() -> dict:
         from app.databus.news_provider import get_fear_greed
 
         data["fear_greed"] = await get_fear_greed()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # Prediction markets
@@ -135,7 +135,7 @@ async def _gather_all_data() -> dict:
         from app.databus.news_provider import get_prediction_markets
 
         data["prediction_markets"] = await get_prediction_markets(limit=5)
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return data
@@ -410,7 +410,7 @@ async def _publish_to_x(report: str, date_str: str) -> dict:
             return {"status": "posted", "platform": "x", "length": len(tweet_text)}
         else:
             return {"status": "failed", "platform": "x", "error": result.stderr[:200]}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"status": "error", "platform": "x", "error": str(e)[:200]}
 
 
@@ -451,7 +451,7 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict:
                 return {"status": "published", "platform": "ghost"}
             else:
                 return {"status": "failed", "platform": "ghost", "error": r.text[:200]}
-    except Exception as e:
+    except (httpx.HTTPError, httpx.TimeoutException) as e:
         return {"status": "error", "platform": "ghost", "error": str(e)[:200]}
 
 
@@ -494,7 +494,7 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict:
                 return {"status": "sent", "platform": "telegram"}
             else:
                 return {"status": "failed", "platform": "telegram", "error": r.text[:200]}
-    except Exception as e:
+    except (httpx.HTTPError, httpx.TimeoutException, telegram.error.TelegramError) as e:
         return {"status": "error", "platform": "telegram", "error": str(e)[:200]}
 
 

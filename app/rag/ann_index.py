@@ -97,7 +97,7 @@ class ANNIndex:
         try:
             r = _get_redis()
             raw = r.hgetall(self._key_docs())
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.warning("ann_load_failed collection=%s err=%s", self.collection, e)
             raw = {}
 
@@ -117,7 +117,7 @@ class ANNIndex:
                     "metadata": entry.get("metadata", {}),
                     "text": entry.get("text", ""),
                 }
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 log.debug("ann_skip doc=%s err=%s", doc_id, e)
         if vecs:
             self._matrix = np.asarray(vecs, dtype=np.float32)
@@ -183,7 +183,7 @@ class ANNIndex:
         try:
             r = _get_redis()
             r.delete(self._key_docs(), self._key_meta())
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             log.warning("ann_clear_failed: %s", e)
 
     # ── Search ────────────────────────────────────────────────────────

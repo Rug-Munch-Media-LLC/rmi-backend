@@ -58,7 +58,7 @@ def check_idempotency(key: str, ttl: int = 86400) -> bool:
         if not r:
             return True
         return bool(r.set(key, "1", ex=ttl, nx=True))
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return True
 
 
@@ -81,7 +81,7 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
                 return payload
         except (MemoryError, KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         if stripped.startswith("x402 "):
@@ -95,7 +95,7 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
             return json.loads(payload_str)
 
         return None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"Failed to parse payment header: {e}")
         return None
 
@@ -243,7 +243,7 @@ async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
 
     except ImportError:
         logger.debug("Facilitator router not available - falling back to old verifier")
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Router verification error: {e} - falling back to old verifier")
 
     return await verify_payment(payload)
@@ -428,7 +428,7 @@ async def self_verify_evm_usdc(
                     status="fulfilled",
                 )
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         logger.info(
@@ -444,6 +444,6 @@ async def self_verify_evm_usdc(
             "method": "blockscout-verify",
         }
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Self-verify error: {e}")
         return {"verified": False, "reason": f"Verification error: {str(e)[:100]}"}

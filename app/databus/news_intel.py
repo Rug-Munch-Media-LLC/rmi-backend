@@ -490,7 +490,7 @@ async def _fetch_rss(url: str, source_name: str, timeout: int = 15) -> list[dict
                     }
                 )
             return articles
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"RSS fetch failed for {source_name}: {e}")
         return []
 
@@ -529,7 +529,7 @@ async def _fetch_cryptopanic() -> list[dict]:
                     }
                 )
             return articles
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"CryptoPanic failed: {e}")
         return []
 
@@ -581,7 +581,7 @@ async def _fetch_x_crypto() -> list[dict]:
                             }
                         )
         return articles
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"X fetch failed: {e}")
         return []
 
@@ -621,7 +621,7 @@ async def aggregate_all_news(limit: int = 50, **kw) -> dict:
         from app.domains.news.news_service import fetch_all_news
 
         tasks.append(fetch_all_news())
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # X/Twitter

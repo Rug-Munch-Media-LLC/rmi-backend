@@ -13,6 +13,8 @@ import time
 from datetime import UTC, datetime
 
 import aiohttp
+
+from app.config import settings
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -421,7 +423,7 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    "http://localhost:8000/api/v1/x402-tools/reputation_score",
+                    f"{settings.x402_tools_base}/reputation_score",
                     json={"address": addr, "chain": chain},
                     timeout=aiohttp.ClientTimeout(total=15),
                 ) as resp,
@@ -464,7 +466,7 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    "http://localhost:8000/api/v1/x402-tools/forensics",
+                    f"{settings.x402_tools_base}/forensics",
                     json={"address": addr, "chain": chain},
                     timeout=aiohttp.ClientTimeout(total=20),
                 ) as resp,

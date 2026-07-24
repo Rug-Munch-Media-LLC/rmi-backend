@@ -74,7 +74,7 @@ async def cmd_admin_broadcast(update: Update, ctx) -> None:
             await ctx.bot.send_message(u["user_id"], msg_text, parse_mode=ParseMode.HTML)
             sent += 1
             await asyncio.sleep(0.05)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug(f"Broadcast failed for user {u['user_id']}: {e}")
             failed += 1
     await update.message.reply_text(f"\U0001f4e2 Broadcast complete.\n\u2705 Sent: {sent}\n\u274c Failed: {failed}")

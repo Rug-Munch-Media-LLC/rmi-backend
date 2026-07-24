@@ -38,7 +38,7 @@ async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) 
                         "error": data.get("message", "No data"),
                         "source": "BscScan",
                     }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"BSC fetch failed: {e}")
     return None
 
@@ -72,6 +72,6 @@ async def _fetch_polygon_data(address: str = "", action: str = "balance", **kwar
                         "error": data.get("message", "No data"),
                         "source": "PolygonScan",
                     }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Polygon fetch failed: {e}")
     return None

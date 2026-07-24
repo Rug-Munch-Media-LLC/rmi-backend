@@ -165,7 +165,7 @@ async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None
                                 "timestamp": sig.get("blockTime", 0),
                             }
                         )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("bundle_tx_fetch_failed", error=str(e))
 
         bundle_result = await detector.detect(
@@ -192,7 +192,7 @@ async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None
         }
     except ImportError:
         logger.warning("bundle_detector_not_available")
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("bundle_check_failed", error=str(e))
 
     return {"check": "bundle", "result": "error", "error": "Bundle detection unavailable"}
@@ -233,7 +233,7 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
                     result["compiler_version"] = source_info.get("CompilerVersion", "")
                     result["optimization"] = source_info.get("OptimizationUsed", "0")
                     return result
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("explorer_verification_failed", error=str(e))
 
     # Fallback: Sourcify API
@@ -249,7 +249,7 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
                         result["is_verified"] = True
                         result["source"] = "sourcify"
                         return result
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.debug("sourcify_check_failed", error=str(e))
 
             # Try Blockscout as another fallback
@@ -264,9 +264,9 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
                             result["is_verified"] = True
                             result["source"] = "blockscout"
                             return result
-                except Exception as e:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                     logger.debug("blockscout_check_failed", error=str(e))
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("sourcify_verification_failed", error=str(e))
 
     return result
@@ -332,7 +332,7 @@ async def _check_social_sentiment(
 
     except ImportError:
         logger.debug("lunarcrush_connector_not_available")
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("social_sentiment_failed", error=str(e)[:80])
 
     # Fallback: try RMI news sentiment endpoint for signal
@@ -347,7 +347,7 @@ async def _check_social_sentiment(
                 result["source"] = "news_fallback"
         except ImportError:
             pass
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("news_sentiment_fallback_failed", error=str(e)[:60])
 
     # Score: suspicious activity adds risk
@@ -421,7 +421,7 @@ async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | N
                     result["risk_level"] = "low"
                     result["risk_score"] = 0
                 return result
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("token_age_dexscreener_failed", error=str(e)[:60])
 
     # Fallback: GoPlus has creation info for some tokens
@@ -454,7 +454,7 @@ async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | N
                         result["risk_level"] = "low"
                         result["risk_score"] = 0
                     return result
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("token_age_goplus_failed", error=str(e)[:60])
 
     # No data available
@@ -498,7 +498,7 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
                 result["is_proxy"] = token_data.get("is_proxy") == "1"
                 result["source"] = "goplus"
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("ownership_goplus_failed", error=str(e)[:60])
 
     # ── Source 2: Solana — check mint authority ──
@@ -519,7 +519,7 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
                         result["ownership_renounced"] = is_renounced
                         result["owner_address"] = str(mint_auth) if mint_auth else ""
                         result["source"] = "solana_rpc"
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("ownership_solana_failed", error=str(e)[:60])
 
     # ── Source 3: HoneypotDetector fallback ──
@@ -537,7 +537,7 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
                 result["source"] = "honeypot_detector"
         except ImportError:
             pass
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("ownership_honeypot_failed", error=str(e)[:60])
 
     # ── Risk scoring ──

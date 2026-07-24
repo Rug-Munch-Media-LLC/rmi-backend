@@ -46,7 +46,7 @@ async def _solana_get_mint_info(token_address: str) -> dict[str, Any]:
                             result["decimals"] = info.get("decimals")
                             result["supply"] = info.get("supply")
                             break
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning("solana_rpc_failed", url=rpc_url, error=str(e))
     return result
 
@@ -62,7 +62,7 @@ async def _dexscreener_lookup(
             data = resp.json()
             pairs = data.get("pairs")
             return pairs if isinstance(pairs, list) else None
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("dexscreener_lookup_failed", token=token_address, chain=chain, error=str(e))
     return None
 

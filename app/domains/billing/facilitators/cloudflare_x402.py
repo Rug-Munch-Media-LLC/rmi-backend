@@ -129,7 +129,7 @@ class CloudflareX402Facilitator(Facilitator):
         except aiohttp.ClientError as e:
             logger.error(f"Cloudflare x402 HTTP error: {e}")
             return self._format_error(f"Cloudflare x402 connection error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Unexpected error in Cloudflare x402 verify: {e}")
             return self._format_error(f"Cloudflare x402 internal error: {e}")
 
@@ -150,7 +150,7 @@ class CloudflareX402Facilitator(Facilitator):
                     return True
                 logger.warning(f"Cloudflare x402 health check failed: HTTP {resp.status}")
                 return False
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Cloudflare x402 health check error: {e}")
             return False
 
@@ -193,7 +193,7 @@ class CloudflareX402Facilitator(Facilitator):
                 reason="Cloudflare x402 settlement timed out",
                 facilitator=self.name,
             )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False,
                 reason=f"Cloudflare x402 settlement error: {e}",

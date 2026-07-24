@@ -78,7 +78,7 @@ def import_legacy_wallets(manager: object) -> int:
                     manager._wallets[wallet_id] = wallet
                 imported += 1
                 logger.info(f"Imported legacy wallet: {chain_key} -> {wallet_id}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"Legacy import error ({path}): {e}")
 
     if imported > 0 and hasattr(manager, "_save_vault"):

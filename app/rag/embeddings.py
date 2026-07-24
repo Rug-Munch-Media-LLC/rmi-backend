@@ -91,7 +91,7 @@ def _ollama_embed(text: str, dim: int = EMBEDDING_DIM) -> list[float] | None:
             if not vec or not isinstance(vec, list):
                 return None
             return _resize(vec, dim)
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         log.debug("ollama_embed_failed: %s", e)
         return None
 
@@ -117,7 +117,7 @@ def _openrouter_embed(text: str, dim: int = EMBEDDING_DIM) -> list[float] | None
             if not vec:
                 return None
             return _resize(vec, dim)
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         log.debug("openrouter_embed_failed: %s", e)
         return None
 

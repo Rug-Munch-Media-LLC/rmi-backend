@@ -3,7 +3,6 @@
 Surfaces snipeable launches across all chains with safety filtering."""
 
 import json
-import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -11,6 +10,7 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/mev-sniper", tags=["mev-sniper"])
 
 DEXSCREENER = "https://api.dexscreener.com/latest/dex/search"
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 CHAINS = ["solana", "ethereum", "bsc", "base", "arbitrum", "polygon", "avalanche"]
 
 

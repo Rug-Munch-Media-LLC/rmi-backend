@@ -198,7 +198,7 @@ async def human_execute(req: Any) -> dict[str, Any]:
                     "pay_to": expected_pay_to,
                     "result": result_data,
                 }
-    except Exception as e:
+    except (httpx.HTTPError, httpx.TimeoutException) as e:
         return {"success": False, "error": f"Tool execution failed: {e!s}"}
 
 
@@ -294,7 +294,7 @@ async def comprehensive_audit(req: AuditRequest) -> Any:
         await record_payment("comprehensive_audit", "0.15", req.address)
         return result
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -383,7 +383,7 @@ async def smart_money_alpha(req: SmartMoneyAlphaRequest) -> Any:
         await record_payment("smart_money_alpha", "0.25", req.wallet)
         return result
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -480,5 +480,5 @@ async def meme_vibe_score(req: MemeVibeRequest) -> Any:
         await record_payment("meme_vibe_score", "0.01", req.token)
         return result
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

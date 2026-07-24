@@ -585,7 +585,7 @@ async def _call_openrouter(
             else:
                 logger.warning(f"OpenRouter {model_id}: {r.status_code}")
                 return ""
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"OpenRouter error {model_id}: {e}")
         return ""
 
@@ -617,7 +617,7 @@ async def _call_groq(
             else:
                 logger.warning(f"Groq {model_id}: {r.status_code} {r.text[:200]}")
                 return ""
-    except Exception as e:
+    except (httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Groq error: {e}")
         return ""
 
@@ -653,7 +653,7 @@ async def _call_mistral(
             else:
                 logger.warning(f"Mistral {model_id}: {r.status_code}")
                 return ""
-    except Exception as e:
+    except (httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Mistral error: {e}")
         return ""
 
@@ -871,9 +871,9 @@ async def review_content(content: str, content_type: str = "article") -> dict:
                             "issues": issues,
                             "fixed_version": review_data.get("fixed_version", content),
                         }
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     # Fix if needed
@@ -895,7 +895,7 @@ ORIGINAL:
             )
             if not fixed:
                 fixed = content
-        except Exception:
+        except Exception:  # noqa: BLE001
             fixed = content
 
     return {

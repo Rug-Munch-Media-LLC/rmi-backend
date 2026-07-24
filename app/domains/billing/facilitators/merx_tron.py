@@ -158,7 +158,7 @@ class MerxTronFacilitator(Facilitator):
             return self._format_error("MERX TRON verification timed out")
         except aiohttp.ClientError as e:
             return self._format_error(f"MERX TRON connection error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"MERX TRON verify error: {e}")
             return self._format_error(f"MERX TRON internal error: {e}")
 
@@ -204,7 +204,7 @@ class MerxTronFacilitator(Facilitator):
                     reason=f"MERX TRON settle failed: {data.get('error', 'HTTP ' + str(resp.status))}",
                     facilitator=self.name,
                 )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False, reason=f"MERX TRON settlement error: {e}", facilitator=self.name
             )

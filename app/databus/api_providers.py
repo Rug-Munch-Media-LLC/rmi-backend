@@ -64,7 +64,7 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
                 "source": "CoinStats",
             }
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"CoinStats fetch failed: {e}")
         return {"error": str(e), "source": "CoinStats"}
 
@@ -115,7 +115,7 @@ async def fetch_mobula_market(
 
             return {"error": f"Mobula returned {resp.status}", "source": "Mobula"}
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Mobula fetch failed: {e}")
         return {"error": str(e), "source": "Mobula"}
 
@@ -151,7 +151,7 @@ async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dic
                 "source": "Mobula",
             }
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Mobula wallet fetch failed: {e}")
         return {"error": str(e), "source": "Mobula"}
 
@@ -206,6 +206,6 @@ async def fetch_crypto_news(
 
             return {"error": f"CryptoNews returned {resp.status}", "source": "cryptocurrency.cv"}
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"CryptoNews fetch failed: {e}")
         return {"error": str(e), "source": "cryptocurrency.cv"}

@@ -148,7 +148,7 @@ def fetch_generic_feeds(feed_list, prefix="", label="generic") -> Any:
                         }
                     )
             logger.info(f"  {prefix}{source}: {len(results)} articles")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug(f"  {prefix}{source}: {str(e)[:60]}")
     return results
 
@@ -215,7 +215,7 @@ def store_all() -> dict[str, int] | dict[str, str]:
             pg.commit()
             cur.close()
             pg.close()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Postgres: {e}")
 
         return {
@@ -225,7 +225,7 @@ def store_all() -> dict[str, int] | dict[str, str]:
             "research": len(RESEARCH_FEEDS),
             "new_articles": count,
         }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Store failed: {e}")
         return {"error": str(e), "articles_collected": len(all_articles)}
 

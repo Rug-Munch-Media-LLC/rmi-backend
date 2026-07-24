@@ -75,7 +75,7 @@ async def _solana_rpc_call(method: str, params: list[Any]) -> dict[str, Any] | N
                 logger.debug("solana_rpc_error", url=rpc_url.split("/")[2], status=resp.status_code)
         except httpx.TimeoutException:
             logger.debug("solana_rpc_timeout", url=rpc_url.split("/")[2])
-        except Exception as e:
+        except (httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("solana_rpc_failed", url=rpc_url.split("/")[2], error=str(e)[:50])
     return None
 
@@ -99,7 +99,7 @@ async def _fetch_json(
             if resp.status_code == 200:
                 return resp.json()
             logger.debug("http_error", url=url, status=resp.status_code)
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("http_failed", url=url, error=str(e))
     return None
 
@@ -118,7 +118,7 @@ async def _fetch_with_fallback(
                     if json_mode:
                         return resp.json(), url
                     return resp.text, url
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.debug(f"failed {url}: {e}")
                 continue
     return {}, ""

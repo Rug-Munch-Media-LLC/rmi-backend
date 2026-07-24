@@ -68,7 +68,7 @@ def whale_alert(
                                 "estimated_usd": val * 3000,
                             }
                         )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
     result["auth"] = auth
     result["mcp"] = "rmi-whale-alert"
@@ -100,7 +100,7 @@ def token_launch_scanner(
                             "chain": "solana",
                         }
                     )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
     result["auth"] = auth
     result["mcp"] = "rmi-launch-scanner"
@@ -166,7 +166,7 @@ def mev_detector(address: str = "", chain: str = "ethereum", fingerprint: str = 
                 result["mev_exposure"] = min(
                     1.0, sum(1 for v in blocks.values() if v > 2) / max(len(blocks), 1)
                 )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["auth"] = auth
     result["mcp"] = "rmi-mev-detector"
@@ -224,7 +224,7 @@ def arbitrage_scanner(token: str = "ETH", fingerprint: str = "anon") -> dict:
                 price = pair.get("priceUsd", "0")
                 chain = pair.get("chainId", "unknown")
                 prices[f"{dex}_{chain}"] = float(price)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     if prices:
         pvals = [v for v in prices.values() if v > 0]
@@ -271,7 +271,7 @@ def quick_audit(address: str, chain: str = "ethereum", fingerprint: str = "anon"
             result["verdict"] = (
                 "SAFE" if red_flags == 0 else ("CAUTION" if red_flags == 1 else "DANGER")
             )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["auth"] = auth
     result["mcp"] = "rmi-quick-audit"
@@ -303,7 +303,7 @@ def portfolio_risk(address: str, fingerprint: str = "anon") -> dict:
         if resp.status_code == 200 and len(resp.json().get("reports", [])) > 0:
             risk["risk_factors"].append("community_reported")
             risk["risk_score"] += 20
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     risk["risk_level"] = (
         "LOW" if risk["risk_score"] < 20 else ("MEDIUM" if risk["risk_score"] < 50 else "HIGH")

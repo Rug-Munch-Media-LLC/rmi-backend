@@ -2,17 +2,19 @@
 """#9 - Token Laundry Matcher. Finds copycat tokens by code similarity, deployer patterns,
 liquidity profile, marketing tactics. Spots scams before they launch."""
 
-import os
-
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/laundry-matcher", tags=["laundry-matcher"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 
 
 class LaundryMatch(BaseModel):
@@ -45,7 +47,8 @@ async def _fetch_token_pairs(chain: str, max_pairs: int = 50) -> list[dict]:
             if resp.status_code != 200:
                 return []
             return resp.json().get("pairs", [])[:max_pairs]
-    except Exception:
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"DexScreener pair fetch failed: {e}")
         return []
 
 

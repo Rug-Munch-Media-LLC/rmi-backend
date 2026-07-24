@@ -3,13 +3,13 @@
 txs from deployer. Builds trace graph of stolen funds. Premium: notify affected addresses."""
 
 import json
-import os
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 
@@ -17,8 +17,8 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/rug-recovery", tags=["rug-recovery"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
-DATABUS = os.environ.get("DATABUS_URL", "http://localhost:8000/api/v1/databus")
+BACKEND = settings.backend_url
+DATABUS = settings.databus_url
 
 
 class RugTraceResult(BaseModel):

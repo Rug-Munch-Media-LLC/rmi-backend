@@ -264,7 +264,7 @@ async def mcp_proxy(req: Any) -> dict[str, Any]:
                     "status": "success" if resp.status < 400 else "error",
                     "data": data,
                 }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         return {
             "service": svc,
             "tool": tool,
@@ -502,7 +502,7 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
                     result = resp.json()
                 except (json.JSONDecodeError, ValueError):
                     result = {"data": resp.text, "status": resp.status_code}
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=500, detail=f"Tool execution failed: {e!s}") from e
 
     if isinstance(result, dict):
@@ -514,7 +514,7 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
 
     try:
         result = await enrich_response(tool_id, result, body, request)
-    except (ImportError, Exception):
+    except (ImportError, Exception):  # noqa: BLE001
         pass
 
     return JSONResponse(content=result, status_code=200)
@@ -559,10 +559,10 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
                         result["chain"] = injected_chain
                 try:
                     result = await enrich_response(tool_id, result, body, request)
-                except (ImportError, Exception):
+                except (ImportError, Exception):  # noqa: BLE001
                     pass
                 return JSONResponse(content=result, status_code=200)
-        except (ImportError, Exception):
+        except (ImportError, Exception):  # noqa: BLE001
             pass
         raise HTTPException(
             status_code=404,
@@ -628,7 +628,7 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
 
     try:
         result = await enrich_response(tool_id, result, body, request)
-    except (ImportError, Exception):
+    except (ImportError, Exception):  # noqa: BLE001
         pass
 
     return JSONResponse(content=result, status_code=resp.status_code, headers=rh)

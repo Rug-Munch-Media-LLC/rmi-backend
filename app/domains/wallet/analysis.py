@@ -205,7 +205,7 @@ class WalletAnalysisMixin:
                     })
                     continue
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"sweep_to_owner error for {wallet.wallet_id}: {e}")
                 result["errors"].append({
                     "wallet_id": wallet.wallet_id,

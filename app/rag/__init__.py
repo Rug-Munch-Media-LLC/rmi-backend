@@ -29,7 +29,7 @@ async def _health_check() -> DomainHealth:
                 "total_docs": stats.get("total_docs", 0),
             },
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return DomainHealth(name="rag", healthy=False, error=str(e))
 
 

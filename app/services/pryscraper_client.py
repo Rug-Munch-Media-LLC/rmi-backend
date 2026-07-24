@@ -268,7 +268,7 @@ class PryscraperClient:
                 if pid:
                     self._x402_payments[pid] = time.time() + 3600
                     return True
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             logger.warning("x402 offline payment attempt failed", exc_info=True)
 
         return False
@@ -416,7 +416,7 @@ class PryscraperClient:
             )
             if body.get("success"):
                 return body
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
         # Fallback: use scrape + parse pattern for news search

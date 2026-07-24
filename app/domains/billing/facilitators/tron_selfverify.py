@@ -135,7 +135,7 @@ class TronSelfVerifyFacilitator(Facilitator):
             return self._format_error("TRON: TronGrid API timeout")
         except aiohttp.ClientError as e:
             return self._format_error(f"TRON: TronGrid API error: {e}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.exception(f"TRON verify error: {e}")
             return self._format_error(f"TRON: {e}")
 
@@ -353,7 +353,7 @@ class TronSelfVerifyFacilitator(Facilitator):
                 url = f"{self._api_base}/v1/accounts/{self._tron_pay_to or 'TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8'}"
                 async with session.get(url) as resp:
                     return resp.status == 200
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             return False
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:

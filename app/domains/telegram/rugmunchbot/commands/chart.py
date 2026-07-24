@@ -120,7 +120,7 @@ async def _fetch_cg_price_history(
         if not raw or len(raw) < 2:
             return None
         return [p[1] for p in raw]  # {timestamp, price}[]
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("CoinGecko price history failed: %s", exc)
         return None
 
@@ -161,7 +161,7 @@ async def cmd_chart(update, ctx) -> None:
                     parse_mode="HTML",
                 )
                 return
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error("DexScreener fetch failed: %s", e)
             await msg.reply_text(
                 "❌ Error fetching token data. Try again later.",

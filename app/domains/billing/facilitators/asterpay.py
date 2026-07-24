@@ -129,7 +129,7 @@ class AsterPayFacilitator(Facilitator):
             return self._format_error("AsterPay verification timed out")
         except aiohttp.ClientError as e:
             return self._format_error(f"AsterPay connection error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"AsterPay verify error: {e}")
             return self._format_error(f"AsterPay internal error: {e}")
 
@@ -143,7 +143,7 @@ class AsterPayFacilitator(Facilitator):
                     headers=headers,
                 ) as resp:
                     return resp.status < 500
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"AsterPay health check failed: {e}")
             return False
 
@@ -186,7 +186,7 @@ class AsterPayFacilitator(Facilitator):
                     reason=f"AsterPay settle failed: {data.get('error', 'HTTP ' + str(resp.status))}",
                     facilitator=self.name,
                 )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False, reason=f"AsterPay settlement error: {e}", facilitator=self.name
             )

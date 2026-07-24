@@ -150,7 +150,7 @@ class L2RedisCache:
             self._available = True
             logger.info("DataBus Cache: Redis connected")
             return True
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"DataBus Cache: Redis unavailable ({e}), L2 disabled")
             self._available = False
             return False
@@ -166,7 +166,7 @@ class L2RedisCache:
                 return json.loads(raw)
             self.misses += 1
             return None
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             self._available = False
             self.misses += 1
             return None
@@ -176,7 +176,7 @@ class L2RedisCache:
             return
         try:
             await self._redis.setex(f"{self._prefix}{key}", ttl, json.dumps(value, default=str))
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._available = False
 
     async def delete(self, key: str) -> None:
@@ -191,7 +191,7 @@ class L2RedisCache:
         try:
             async for key in self._redis.scan_iter(f"{self._prefix}*"):
                 await self._redis.delete(key)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     def stats(self) -> dict:
@@ -325,7 +325,7 @@ class CacheLayer:
             if is_stale and self.stale_refresh_callback:
                 try:  # noqa: SIM105
                     asyncio.create_task(self.stale_refresh_callback(key))
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass  # Best-effort refresh
             return val, is_stale
         # L2 (no SWR - Redis handles its own TTL)

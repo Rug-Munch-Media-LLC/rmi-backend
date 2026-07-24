@@ -189,7 +189,7 @@ async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
                     labels[addr] = label
                     break
         r.close()
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"Label enrichment failed: {e}")
     return labels
 
@@ -217,7 +217,7 @@ async def enrich_with_arkham(address: str) -> dict | None:
                     "chain": data.get("chain", ""),
                     "is_contract": data.get("contract", False),
                 }
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     return None
 
@@ -563,7 +563,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # First, check known entities
@@ -575,7 +575,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
         from app.databus.rugcharts_intel import instant_token_report
 
         base_report = await instant_token_report(address, chain, **kw)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         base_report = {"error": str(e), "sections": {}}
 
     if not base_report:
@@ -646,7 +646,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
         r = _r()
         r.setex(cache_key, 300, json.dumps(base_report, default=str))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return base_report

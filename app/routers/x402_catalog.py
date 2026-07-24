@@ -275,7 +275,7 @@ def discover_route_tools() -> list[dict]:
     # Load authoritative pricing/categories from TOOL_PRICES
     try:
         from app.routers.x402_enforcement import TOOL_PRICES
-    except Exception:
+    except ImportError:
         TOOL_PRICES = {}
 
     for fname in ["x402_tools.py", "x402_forensic_tools.py"]:

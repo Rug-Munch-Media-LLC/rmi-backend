@@ -54,7 +54,7 @@ def ask(prompt: str, model: str = "qwen2.5-coder:7b", tokens: int = 250) -> str:
         )
         if r.status_code == 200:
             return r.json().get("response", "").strip()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     return ""
 
@@ -87,7 +87,7 @@ Explain: 1) What this contract does 2) Any risks 3) Key functions. Be concise.""
                 )
                 result["explanation"] = explanation
                 result["ai_model"] = "qwen2.5-coder:7b"
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["auth"] = auth
     result["mcp"] = "rmi-contract-explain"
@@ -126,7 +126,7 @@ Narrate: What is this wallet doing? Trading? Accumulating? Laundering? Be specif
             result["narrative"] = narrative
             result["transactions_analyzed"] = len(txs)
             result["ai_model"] = "qwen2.5-coder:7b"
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["auth"] = auth
     result["mcp"] = "rmi-wallet-narrator"
@@ -158,7 +158,7 @@ def predict_rug(address: str, chain: str = "ethereum", fp: str = "anon") -> dict
                 f"Open source: {d.get('is_open_source', '0')}",
                 f"Owner renounced: {d.get('is_owner_renounced', '0')}",
             ]
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     prompt = f"""Token security scan results:\n{chr(10).join(signals)}\n\nBased on these signals, rate rug pull risk 0-100 and explain in 2 sentences."""
     prediction = ask(prompt, "qwen2.5-coder:7b", 150)

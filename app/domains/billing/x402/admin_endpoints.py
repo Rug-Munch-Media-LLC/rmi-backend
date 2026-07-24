@@ -225,7 +225,7 @@ async def get_trial_status(request: Request) -> dict[str, Any]:
             if r:
                 try:
                     used = int(r.get(f"x402:trial:{client_id}:{tool_id}") or 0)
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     used = 0
             else:
                 used = 0
@@ -310,7 +310,7 @@ async def get_revenue(request: Any = None) -> JSONResponse:
                 },
             }
         )
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Revenue read error: {e}")
         return JSONResponse(
             status_code=500,
@@ -395,7 +395,7 @@ async def get_pricing_suggestions() -> JSONResponse:
                 ),
             }
         )
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Pricing suggestions error: {e}")
         return JSONResponse(
             status_code=500,
@@ -563,7 +563,7 @@ async def request_refund(request: Request) -> JSONResponse:
             "estimated_processing": "24-48 hours",
         }
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Refund request error: {e}")
         return JSONResponse(
             status_code=500,

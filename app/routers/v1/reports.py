@@ -177,8 +177,8 @@ async def _section_transactions(subject_id: str, chain: str) -> dict[str, Any]:
                         for t in txs[:10]
                     ],
                 }
-            except Exception:
-                logger.debug("tx_unified_provider_failed")
+            except (ImportError, Exception) as e:
+                logger.debug(f"tx_unified_provider_failed: {e}")
 
         # Try Supabase service
         try:

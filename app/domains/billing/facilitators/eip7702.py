@@ -197,7 +197,7 @@ class EIP7702Facilitator(Facilitator):
             return self._format_error(f"EIP-7702: RPC timeout for {chain_key}")
         except aiohttp.ClientError as e:
             return self._format_error(f"EIP-7702: RPC error for {chain_key}: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"EIP-7702 verify error: {e}")
             return self._format_error(f"EIP-7702: {e}")
 
@@ -330,7 +330,7 @@ class EIP7702Facilitator(Facilitator):
                 ):
                     if resp.status == 200:
                         return True
-            except Exception:
+            except (httpx.HTTPError, httpx.TimeoutException):
                 continue
         return False
 

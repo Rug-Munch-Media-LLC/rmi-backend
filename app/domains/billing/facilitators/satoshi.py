@@ -157,7 +157,7 @@ class SatoshiFacilitator(Facilitator):
             return self._format_error("Satoshi verification timed out (BTC takes longer)")
         except aiohttp.ClientError as e:
             return self._format_error(f"Satoshi connection error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Satoshi verify error: {e}")
             return self._format_error(f"Satoshi internal error: {e}")
 
@@ -222,7 +222,7 @@ class SatoshiFacilitator(Facilitator):
                     reason=f"Satoshi settle failed: {data.get('error', 'HTTP ' + str(resp.status))}",
                     facilitator=self.name,
                 )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False,
                 reason=f"Satoshi settlement error: {e}",

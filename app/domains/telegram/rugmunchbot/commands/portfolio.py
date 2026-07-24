@@ -34,7 +34,7 @@ async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> di
             result["top_tokens"] = data.get("top_tokens", [])
             result["tx_count"] = data.get("tx_count", 0)
             return result
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("Backend portfolio failed for %s: %s", address, exc)
 
     return result
@@ -58,7 +58,7 @@ async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict:
             result["balance_usd"] = float(data.get("balance_usd", 0))
             result["top_tokens"] = data.get("top_tokens", [])
             result["tx_count"] = data.get("tx_count", 0)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("Backend EVM portfolio failed for %s: %s", address, exc)
 
     return result
@@ -193,7 +193,7 @@ async def cmd_portfolio(update, ctx) -> None:
                     disable_web_page_preview=True,
                 )
 
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.error("Portfolio failed for %s: %s", address, e)
                 await msg.reply_text(
                     f"❌ Could not scan <code>{short_addr(address)}</code>. "

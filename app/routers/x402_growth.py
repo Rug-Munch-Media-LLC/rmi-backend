@@ -94,8 +94,8 @@ async def fire_payment_webhook(
             if "payment.confirmed" in hook.get("events", []) and status == "confirmed":
                 try:
                     await c.post(hook["url"], json=event)
-                except Exception:
-                    logger.warning(f"Webhook delivery failed: {hook['url']}")
+                except (aiohttp.ClientError, TimeoutError) as e:
+                    logger.warning(f"Webhook delivery failed for {hook['url']}: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════

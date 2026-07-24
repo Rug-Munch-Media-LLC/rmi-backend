@@ -183,7 +183,7 @@ class UnifiedTokenScanner:
             # ── Score ──
             self._compute_score(result)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Scan failed for {address}: {e}")
             result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
 
@@ -210,7 +210,7 @@ class UnifiedTokenScanner:
             except TimeoutError:
                 logger.warning(f"DataBus chain '{chain_name}' timed out after {timeout}s")
                 return chain_name, None
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"DataBus chain '{chain_name}' failed: {e}")
                 return chain_name, None
 

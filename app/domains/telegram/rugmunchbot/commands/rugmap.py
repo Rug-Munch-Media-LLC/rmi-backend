@@ -52,7 +52,7 @@ async def cmd_rugmap(update, ctx) -> None:
                     fresh_wallet_pct = data.get("fresh_wallet_pct", 0)
                     smart_money = data.get("smart_money", [])
                     top_holders = data.get("top_holders", [])
-            except Exception as exc:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
                 logger.debug("RMI backend call failed: %s", exc)
 
             # DexScreener for basic info
@@ -65,7 +65,7 @@ async def cmd_rugmap(update, ctx) -> None:
                         symbol = p.get("baseToken", {}).get("symbol", "???")
                         name = p.get("baseToken", {}).get("name", "Unknown")
                         liquidity = float(p.get("liquidity", {}).get("usd", 0))
-            except Exception as exc:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
                 logger.debug("DexScreener fallback failed: %s", exc)
 
         lines = [
@@ -124,6 +124,6 @@ async def cmd_rugmap(update, ctx) -> None:
         text = "\n".join(lines)
         await msg.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"RugMap failed: {e}")
         await msg.reply_text("❌ Could not generate rug map. Try again later.", parse_mode="HTML")

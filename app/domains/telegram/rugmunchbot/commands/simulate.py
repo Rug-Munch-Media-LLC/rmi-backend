@@ -101,6 +101,6 @@ async def cmd_simulate(update, ctx) -> None:
 
             await msg.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Simulate failed: {e}")
         await msg.reply_text("❌ Simulation error. Try again later.", parse_mode="HTML")

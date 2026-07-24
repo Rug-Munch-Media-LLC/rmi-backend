@@ -61,7 +61,8 @@ async def lookup_labels(req: LabelLookupRequest) -> dict:
                         "sanctioned": bool(row[4]),
                     }
                 )
-        except Exception:
+        except (ImportError, ConnectionError, TimeoutError, OSError) as e:
+            logger.debug(f"ClickHouse labels failed, falling back to Redis: {e}")
             # Fallback to Redis
             try:
                 import redis as _redis
@@ -78,8 +79,8 @@ async def lookup_labels(req: LabelLookupRequest) -> dict:
                     if cached:
                         data = json.loads(cached)
                         labels[addr] = data.get("labels", [])
-            except Exception:
-                pass
+            except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+                logger.debug(f"Redis label fallback failed: {e}")
 
         # Count labeled addresses
         labeled = sum(1 for v in labels.values() if v)

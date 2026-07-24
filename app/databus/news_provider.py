@@ -81,7 +81,7 @@ async def get_market_prices(coins: str = "bitcoin,ethereum,solana", **kw) -> dic
                 }
                 _cache_set(cache_key, result)
                 return result
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"CoinGecko failed: {e}")
     return None
 
@@ -117,7 +117,7 @@ async def get_trending_coins(**kw) -> dict | None:
                 }
                 _cache_set(cache_key, result)
                 return result
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Trending failed: {e}")
     return None
 
@@ -163,7 +163,7 @@ async def get_fear_greed(**kw) -> dict | None:
                 }
                 _cache_set(cache_key, result)
                 return result
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Fear & Greed failed: {e}")
     return None
 
@@ -203,7 +203,7 @@ async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> d
                 }
                 _cache_set(cache_key, result)
                 return result
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Polymarket failed: {e}")
     return None
 
@@ -272,7 +272,7 @@ async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict
                 "free": True,
             }
             return result
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"News aggregation failed: {e}")
     return None
 

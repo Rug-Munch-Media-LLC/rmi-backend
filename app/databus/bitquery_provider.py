@@ -106,7 +106,7 @@ class BitqueryProvider:
                 self._api_key = key
             self._loaded = True
             logger.info(f"Bitquery creds from vault (key={'✓' if self._api_key else '✗'})")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to load Bitquery credentials: {e}")
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -185,7 +185,7 @@ class BitqueryProvider:
         except httpx.HTTPStatusError as e:
             logger.error(f"Bitquery HTTP error: {e.response.status_code}")
             return {"error": f"HTTP {e.response.status_code}", "code": e.response.status_code}
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"Bitquery query failed: {e}")
             return {"error": str(e)}
 

@@ -26,13 +26,14 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 from typing import Any
 
 logger = get_logger(__name__)
 
-BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 OLLAMA_URL = "https://ollama.com/v1/chat/completions"
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
 MODEL = "deepseek-v4-flash"

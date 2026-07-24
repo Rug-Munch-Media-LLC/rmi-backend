@@ -51,5 +51,5 @@ async def _rag_search_provider(**kwargs) -> dict | None:
             "source": "RMI RAG Engine (Qdrant + Ollama embeddings + Redis cache)",
             "model": "nomic-embed-text (768d)",
         }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         return {"error": str(e), "source": "RMI RAG Engine"}

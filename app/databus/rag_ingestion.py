@@ -53,7 +53,7 @@ async def nightly_rag_index(**kw) -> dict:
         indexed["total_docs"] += indexed["collections"]["news_articles"]
         logger.info(f"RAG indexed {indexed['collections']['news_articles']} news articles")
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         indexed["errors"].append(f"news: {str(e)[:100]}")
 
     try:
@@ -84,7 +84,7 @@ async def nightly_rag_index(**kw) -> dict:
         indexed["total_docs"] += indexed["collections"]["ct_rundown"]
         logger.info(f"RAG indexed {indexed['collections']['ct_rundown']} CT stories")
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         indexed["errors"].append(f"ct: {str(e)[:100]}")
 
     try:
@@ -107,7 +107,7 @@ async def nightly_rag_index(**kw) -> dict:
         indexed["collections"]["market_intel"] = await _embed_batch([market_doc], "market_intel")
         indexed["total_docs"] += indexed["collections"]["market_intel"]
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         indexed["errors"].append(f"market: {str(e)[:100]}")
 
     try:
@@ -128,7 +128,7 @@ async def nightly_rag_index(**kw) -> dict:
         indexed["collections"]["social_intel"] = await _embed_batch([social_doc], "social_intel")
         indexed["total_docs"] += indexed["collections"]["social_intel"]
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         indexed["errors"].append(f"social: {str(e)[:100]}")
 
     indexed["completed_at"] = datetime.now(UTC).isoformat()
@@ -176,7 +176,7 @@ async def _embed_batch(docs: list[dict], collection: str) -> int:
         r.close()
         return embedded
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Embed batch failed for {collection}: {e}")
         return 0
 
@@ -228,5 +228,5 @@ async def rag_health_check(**kw) -> dict:
             "source": "rag_health",
         }
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"status": "error", "error": str(e)[:200], "source": "rag_health"}

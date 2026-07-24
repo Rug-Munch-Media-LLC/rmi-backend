@@ -97,7 +97,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
         r = get_redis()
         # Pull all doc texts for this collection's ANN store
         raw = r.hgetall(f"rag:ann:{collection}:docs")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.debug("keyword_search_redis_failed: %s", e)
         return []
 
@@ -305,7 +305,7 @@ async def bulk_ingest(
                 counts["duplicate"] += 1
             elif r["status"] == "empty":
                 counts["empty"] += 1
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             log.warning("bulk_ingest_item_failed: %s", e)
             counts["errors"] += 1
     return counts

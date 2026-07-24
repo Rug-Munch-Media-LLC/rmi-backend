@@ -2,15 +2,15 @@
 """#14 - Honeypot Network Map. Maps all known honeypot contracts, clusters by deployer,
 fund flows. Interactive graph showing the honeypot factory network."""
 
-import os
-
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.config import settings
+
 router = APIRouter(prefix="/api/v1/honeypot-map", tags=["honeypot-map"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 
 
 class HoneypotNode(BaseModel):

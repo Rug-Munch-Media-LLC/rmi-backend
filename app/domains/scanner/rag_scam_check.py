@@ -153,7 +153,7 @@ async def check_scam(
                 result["vector_avg_relevance"] = round(avg_score, 4)
     except ImportError:
         logger.debug("rag_firehose_not_available")
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("vector_search_failed", error=str(e))
 
     # ── Phase 2: Pattern matching on name/symbol ──
@@ -179,7 +179,7 @@ async def check_scam(
                 result["source"] = "deployer_check"
         except ImportError:
             logger.debug("spam_registry_not_available")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("deployer_spam_check_failed", error=str(e))
 
     return result

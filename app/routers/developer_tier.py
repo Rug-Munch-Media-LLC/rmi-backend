@@ -51,7 +51,7 @@ def verify_evm_signature(address: str, message: str, signature: str) -> bool:
     except ImportError:
         # eth_account not available - fail closed
         return False
-    except Exception:
+    except ValueError:
         return False
 
 
@@ -71,7 +71,7 @@ def verify_solana_signature(address: str, message: str, signature: str) -> bool:
         return True
     except ImportError:
         return False
-    except Exception:
+    except ValueError:
         return False
 
 

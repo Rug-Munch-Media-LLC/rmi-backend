@@ -2,15 +2,15 @@
 """#15 - Chain Comparability Index. Compare tokens across chains: price, liquidity,
 volume, tx count. Detect arbitrage and inflated-volume scams."""
 
-import os
-
 import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.config import settings
+
 router = APIRouter(prefix="/api/v1/chain-compare", tags=["chain-comparability"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 DEXSCREENER = "https://api.dexscreener.com/latest/dex/search"
 
 CHAINS = ["ethereum", "bsc", "base", "arbitrum", "polygon", "avalanche", "optimism", "solana"]
@@ -53,8 +53,8 @@ async def _get_token_chain_listings(symbol: str) -> list[dict]:
                             "pair_created": p.get("pairCreatedAt", 0),
                         }
                     )
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Chain listing fetch failed: {e}")
     return listings
 
 

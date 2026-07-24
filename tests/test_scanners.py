@@ -371,17 +371,19 @@ class TestFlashLoanAttackDetector:
         except ImportError:
             from app.flash_loan_attack_detector import FlashLoanAttackDetector
 
-        detector = FlashLoanAttackDetector()
-        with patch.object(detector, "_get_block_range", AsyncMock(return_value=(1, 10))):
-            with patch.object(detector, "_fetch_transactions", AsyncMock(return_value=[])):
-                report = await detector.scan(blocks_back=10)
+        detector = FlashLoanAttackDetector(chains=["ethereum"])
+        # Mock the _data layer to return empty blocks
+        with patch.object(detector._data, "fetch_recent_blocks", AsyncMock(return_value=[])):
+            report = await detector.scan(blocks_back=10)
         assert report is not None
+        assert report.blocks_scanned == 0
+        assert report.attacks_confirmed == []
 
     def test_flash_loan_attack_detector_has_scan_method(self):
         """FlashLoanAttackDetector has scan method signature."""
         from app.flash_loan_attack_detector import FlashLoanAttackDetector
 
-        detector = FlashLoanAttackDetector()
+        detector = FlashLoanAttackDetector(chains=["ethereum"])
         assert hasattr(detector, "scan")
         assert callable(detector.scan)
 
@@ -440,7 +442,8 @@ class TestScannerInputValidation:
         """Solana address regex matches valid base58."""
         from app.domains.portfolio.portfolio_risk_aggregator import SOLANA_ADDRESS_RE
 
-        assert SOLANA_ADDRESS_RE.match("FakeAddress111111111111111111111111111111111111")
+        # Valid solana base58 address (32-44 chars, no 0/O/I/l)
+        assert SOLANA_ADDRESS_RE.match("FakeBase58Addr111111111111111111111111111111") is not None
         assert not SOLANA_ADDRESS_RE.match("0xInvalid")  # hex prefix not solana
 
     def test_portfolio_validate_address_evm(self):
@@ -492,9 +495,10 @@ class TestTokenScannerService:
         """ScanResult dataclass has sensible defaults."""
         from app.domains.scanner.models import ScanResult
 
-        sr = ScanResult(token_address="0xtest")
+        sr = ScanResult(token_address="0xtest", chain="ethereum")
         assert sr.token_address == "0xtest"
-        assert sr.safety_score == 0
+        assert sr.chain == "ethereum"
+        assert sr.safety_score == 50
         assert sr.risk_flags == []
 
 

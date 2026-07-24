@@ -47,7 +47,7 @@ def _time_ago(dt_iso: str | None) -> str:
         if total_secs < 86400:
             return f"{int(total_secs / 3600)}h ago"
         return f"{diff.days}d ago"
-    except Exception:
+    except Exception:  # noqa: BLE001
         return ""
 
 
@@ -72,7 +72,7 @@ async def _fetch_cg_trending_news() -> list[dict] | None:
                     "score": item.get("score", 0) or 0,
                 })
             return items
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("CoinGecko trending fallback failed: %s", exc)
         return None
 
@@ -139,7 +139,7 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         pairs = tr.json().get("pairs", [])
                         if pairs:
                             enriched[addr] = pairs[0]
-                except Exception as e:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                     logger.debug(f"Trending enrichment failed for {addr}: {e}")
 
             lines = ["\U0001f525 <b>Trending Tokens</b>", sep(), thin_sep()]
@@ -177,7 +177,7 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 reply_markup=trending_kb,
                 disable_web_page_preview=True,
             )
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"cmd_trending failed: {e}")
         await msg.edit_text(
             "\u274c <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again later.",
@@ -196,7 +196,7 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             if r.status_code == 200:
                 body = r.json()
                 articles = body.get("items", [])
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("cmd_news backend fetch failed: %s", e)
 
     if not articles:
