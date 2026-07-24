@@ -40,7 +40,7 @@ class Colors:
 
 def clear_screen() -> None:
     """Clear terminal screen."""
-    os.system("clear" if os.name == "posix" else "cls")  # nosec B605
+      subprocess.run(["clear"] if os.name == "posix" else ["cls"], shell=False)  #605
 
 
 def print_header(title: str) -> None:

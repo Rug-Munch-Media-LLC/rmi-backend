@@ -302,15 +302,17 @@ async def three_pillar_search(
             pillar2_results = await _sparse_text_search(query, collections, limit=limit * 2)
             for r in pillar2_results:
                 r["pillar"] = "sparse"
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.debug(f"Sparse text search failed: {e}")
             pass
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.debug(f"SPLADE search failed: {e}")
         try:
             pillar2_results = await _sparse_text_search(query, collections, limit=limit * 2)
             for r in pillar2_results:
                 r["pillar"] = "sparse"
-        except Exception:
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e2:
+            logger.debug(f"Sparse text search fallback failed: {e2}")
 
     # ── Pillar 3: Entity exact-match + KG expansion ──
     pillar3_results: list[dict[str, Any]] = []
@@ -328,8 +330,8 @@ async def three_pillar_search(
                     for m in matches:
                         m["pillar"] = "entity"
                     pillar3_results.extend(matches)
-                except Exception:
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.debug(f"Entity lookup failed: {e}")
             if use_kg:
                 try:
                     from app.knowledge_graph import get_knowledge_graph
@@ -342,14 +344,14 @@ async def three_pillar_search(
                         for r in kg_results:
                             r["pillar"] = "entity+kg"
                         pillar3_results.extend(kg_results)
-                except Exception:
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.debug(f"KG expansion failed: {e}")
         for r in pillar3_results:
             did = r.get("doc_id") or r.get("id")
             if did:
                 entity_doc_ids.add(did)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Entity extraction failed: {e}")
 
     # ── RRF fusion ──
     query_type = _classify_query(query)
