@@ -17,12 +17,12 @@ from app.bundler_detect.fetchers import (
 )
 from app.bundler_detect.models import (
     BUNDLER_SCORE_WEIGHTS,
+    EVM_CHAINS,
+    SUPPORTED_CHAINS,
     BundledBuy,
     BundlerReport,
     BundlerRisk,
-    EVM_CHAINS,
     HolderCluster,
-    SUPPORTED_CHAINS,
 )
 from app.bundler_detect.scoring import (
     entropy,
@@ -40,13 +40,13 @@ from app.bundler_detect.scoring_methods import (
 
 __all__ = [
     "BUNDLER_SCORE_WEIGHTS",
+    "EVM_CHAINS",
+    "SUPPORTED_CHAINS",
     "BundledBuy",
     "BundlerDetector",
     "BundlerReport",
     "BundlerRisk",
-    "EVM_CHAINS",
     "HolderCluster",
-    "SUPPORTED_CHAINS",
     "compute_bundler_score",
     "entropy",
     "fetch_buys",

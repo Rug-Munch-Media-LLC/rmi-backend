@@ -71,10 +71,12 @@ class PortfolioRiskAggregator:
         try:
             native_balance = await connector.get_native_balance(wallet)
         except Exception:
+            logger.debug("native_balance_fetch_failed %s on %s", wallet[:12], chain)
             native_balance = 0.0
         try:
             token_data = await connector.get_token_balances(wallet)
         except Exception:
+            logger.debug("token_balance_fetch_failed %s on %s", wallet[:12], chain)
             token_data = []
         native_price = self.price_oracle.estimate_native_price(chain)
         native_value = native_balance * native_price

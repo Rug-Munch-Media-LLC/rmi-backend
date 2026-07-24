@@ -18,11 +18,10 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, Request
-
-from app.core.errors import RateLimitError, ValidationError
 from pydantic import BaseModel, Field
 
 from app.core.dependencies import get_chain_client, get_evm_client, get_redis
+from app.core.errors import RateLimitError, ValidationError
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:

@@ -165,7 +165,7 @@ class BGE_M3_Embedder(EmbedderProtocol):
                     raise RuntimeError("bge-m3 returned empty embeddings list")
                 self._validate(vectors)
                 return vectors
-            except (httpx.HTTPError, OSError, RuntimeError) as exc:
+            except (httpx.HTTPError, OSError, RuntimeError, json.JSONDecodeError) as exc:
                 last_exc = exc
                 log.warning("bge_m3_attempt_failed attempt=%d error=%s", attempt, exc)
                 if attempt < self._max_retries:
@@ -236,58 +236,52 @@ class OllamaEmbedder(EmbedderProtocol):
         if not texts:
             return []
 
-        # Try native batch first (most Ollama models support this)
-        try:
-            resp = await self._http.post(
-                f"{self._url}/api/embeddings",
-                json={"model": self._model, "prompt": texts},
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        # Ollama /api/embeddings does NOT support native batch (prompt
+        # is a single string).  We use concurrent single-text requests
+        # with a semaphore to avoid flooding Ollama.
+        sem = asyncio.Semaphore(4)
 
-            # Ollama returns {"embedding": [[...]]} for batch
-            # or {"embedding": [...]} for single
-            raw = data.get("embedding")
-            if raw is None:
-                raise RuntimeError(f"Ollama response missing 'embedding': {list(data.keys())}")
+        async def _embed_one(text: str) -> list[float]:
+            async with sem:
+                for attempt in range(3):
+                    try:
+                        resp = await self._http.post(
+                            f"{self._url}/api/embeddings",
+                            json={"model": self._model, "prompt": text},
+                        )
+                        resp.raise_for_status()
+                        vec = resp.json().get("embedding")
+                        if not vec or not isinstance(vec, list):
+                            log.warning("ollama_empty_embedding text_len=%d", len(text))
+                            return [0.0] * self._dim
+                        return vec
+                    except (httpx.HTTPError, OSError) as exc:
+                        if attempt < 2:
+                            await asyncio.sleep(0.3 * (attempt + 1))
+                            continue
+                        raise RuntimeError(
+                            f"Ollama embed failed after 3 attempts: {exc}"
+                        ) from exc
+                    except json.JSONDecodeError:
+                        raise RuntimeError("Ollama returned non-JSON response")
 
-            if raw and isinstance(raw[0], list):
-                vectors: list[list[float]] = raw
+        tasks = [_embed_one(t) for t in texts]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        vectors: list[list[float]] = []
+        errors: list[str] = []
+        for i, r in enumerate(results):
+            if isinstance(r, Exception):
+                errors.append(f"text[{i}]: {r}")
+                vectors.append([0.0] * self._dim)
             else:
-                vectors = [raw]
+                vectors.append(r)
 
-            self._validate(vectors, texts)
-            return vectors
+        if errors:
+            log.warning("ollama_embed_partial_failure count=%d errors=%s", len(errors), errors[:3])
 
-        except (httpx.HTTPError, OSError, RuntimeError) as exc:
-            log.warning(
-                "ollama_batch_embed_failed model=%s error=%s",
-                self._model, exc,
-            )
-            return await self._embed_sequential(texts)
-
-    async def _embed_sequential(self, texts: list[str]) -> list[list[float]]:
-        """Fallback: embed one text at a time via Ollama."""
-        results: list[list[float]] = []
-        for i, text in enumerate(texts):
-            try:
-                resp = await self._http.post(
-                    f"{self._url}/api/embeddings",
-                    json={"model": self._model, "prompt": text},
-                )
-                resp.raise_for_status()
-                vec = resp.json().get("embedding")
-                if not vec or not isinstance(vec, list):
-                    log.warning("ollama_empty_embedding index=%d", i)
-                    vec = [0.0] * self._dim
-                results.append(vec)
-            except (httpx.HTTPError, OSError) as exc:
-                raise RuntimeError(
-                    f"Ollama embed failed on text[{i}]: {exc}"
-                ) from exc
-
-        self._validate(results, texts)
-        return results
+        self._validate(vectors, texts)
+        return vectors
 
     def _validate(self, vectors: list[list[float]], texts: list[str]) -> None:
         if len(vectors) != len(texts):
@@ -509,7 +503,7 @@ class FallbackEmbedder(EmbedderProtocol):
     async def embed(self, texts: list[str]) -> list[list[float]]:
         try:
             return await self._primary.embed(texts)
-        except (RuntimeError, httpx.HTTPError, OSError) as exc:
+        except (RuntimeError, httpx.HTTPError, OSError, json.JSONDecodeError) as exc:
             log.warning(
                 "fallback_embedder_primary_failed primary=%s error=%s",
                 self._primary.name,
@@ -519,7 +513,7 @@ class FallbackEmbedder(EmbedderProtocol):
         # Fallback: secondary may have a different dimension
         try:
             vectors = await self._secondary.embed(texts)
-        except (RuntimeError, httpx.HTTPError, OSError) as exc:
+        except (RuntimeError, httpx.HTTPError, OSError, json.JSONDecodeError) as exc:
             raise RuntimeError(
                 f"FallbackEmbedder: both primary ({self._primary.name}) and "
                 f"secondary ({self._secondary.name}) failed. Last error: {exc}"

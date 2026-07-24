@@ -35,7 +35,7 @@ class TokenRiskScorer:
                 if result:
                     return {"risk_score": result.get("safety_score", 50), "risk_flags": result.get("risk_flags", []), "reason": "Scanner"}
             except Exception:
-                pass
+                logger.debug("scanner_fetch_failed %s %s", chain, address[:12])
         return self._heuristic_score(chain, address, symbol)
 
     def _heuristic_score(self, chain: str, address: str, symbol: str) -> dict[str, Any]:
@@ -89,7 +89,7 @@ class PriceOracle:
                             self._cache[upper] = float(price)
                             return float(price)
         except Exception:
-            pass
+            logger.debug("coingecko_price_fetch_failed %s", symbol)
         return 0.0
 
     def estimate_native_price(self, chain: str) -> float:
