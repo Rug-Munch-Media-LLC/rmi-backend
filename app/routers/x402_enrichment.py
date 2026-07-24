@@ -494,8 +494,7 @@ def enrich_tool_response(
 
         from app.rag_service import detect_scam_patterns
 
-        for addr in addresses[:
-            5]:
+        for addr in addresses[:5]:
             try:
                 result = asyncio.run(
                     detect_scam_patterns({"address": addr, "chain": "ethereum"}, 0.65)
