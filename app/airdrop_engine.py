@@ -276,7 +276,7 @@ class SnapshotEngine:
 
                 balances[from_addr] = balances.get(from_addr, 0) - amount
                 balances[to_addr] = balances.get(to_addr, 0) + amount
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 continue
 
         # Filter for positive balances above minimum
@@ -350,7 +350,7 @@ class SnapshotEngine:
                         )
                     )
                     total_supply += amount
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 continue
 
         snapshot = AirdropSnapshot(

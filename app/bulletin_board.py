@@ -857,7 +857,7 @@ async def get_user_badges(user_id: str) -> list:
         ids = await r.smembers(f"bb:badges:{user_id}")
         await r.close()
         return [{"id": bid, **BADGES[bid]} for bid in ids if bid in BADGES]
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return []
 
 
@@ -869,7 +869,7 @@ async def award_badge(user_id: str, badge_id: str) -> bool:
         ok = await r.sadd(f"bb:badges:{user_id}", badge_id)
         await r.close()
         return ok > 0
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return False
 
 
@@ -883,7 +883,7 @@ async def get_user_reputation(user_id: str) -> dict:
         rep, bc, pc = await p.execute()
         await r.close()
         return {"reputation": int(rep or 0), "badge_count": bc or 0, "post_count": int(pc or 0)}
-    except Exception:
+    except (ConnectionError, OSError):
         return {"reputation": 0, "badge_count": 0, "post_count": 0}
 
 
@@ -900,5 +900,5 @@ async def verify_x402_bot(tx_hash: str, bot_addr: str) -> bool:
         await r.setex(f"bb:x402:bot:{bot_addr}", 2592000, "1")  # 30 day auth
         await r.close()
         return True
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return False

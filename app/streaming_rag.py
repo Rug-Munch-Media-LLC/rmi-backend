@@ -210,7 +210,7 @@ async def _publish_to_redis(watch_id: str, watch: dict[str, Any]) -> None:
             ),
         )
         await r.close()
-    except Exception:
+    except (json.JSONDecodeError):
         pass
 
 

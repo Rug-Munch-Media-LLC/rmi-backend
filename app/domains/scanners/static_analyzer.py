@@ -511,7 +511,7 @@ class StaticAnalyzer:
                     tmp_parent = os.path.dirname(sol_path)
                     if tmp_parent.startswith("/tmp/"):
                         shutil.rmtree(tmp_parent, ignore_errors=True)
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError):
                     pass
 
             elif not report.used_heimdall_fallback:
@@ -548,7 +548,7 @@ class StaticAnalyzer:
             for i, w in enumerate(report.warnings):
                 if rag_cits:
                     report.warnings[i] = build_citation_string(rag_cits, w)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         return report

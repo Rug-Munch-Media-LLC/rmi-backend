@@ -207,7 +207,7 @@ class EntityRegistry:
                                             entity_type=ENTITY_TYPE_KNOWN_SCAM,
                                             source="local_labels",
                                         )
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 pass
 
     def classify_address(self, address: str) -> EntityMatch | None:

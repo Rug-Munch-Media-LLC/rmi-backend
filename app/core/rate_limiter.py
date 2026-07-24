@@ -378,7 +378,7 @@ class UnifiedRateLimiter:
                 r, headers = await self._acquire_redis(redis, key, _rate, _burst, tokens)
                 wait = float(headers.get("Retry-After", 0))
                 return (r, wait)
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 pass
         r, headers = await self._acquire_memory(key, _rate, _burst, tokens)
         wait = float(headers.get("Retry-After", 0))
@@ -623,7 +623,7 @@ def get_user_tier(user_id: str) -> Tier:
         tier = r.get(f"rmi:user_tier:{_hash_identifier(user_id)}")
         if tier:
             return Tier(tier)
-    except Exception:
+    except (ConnectionError, OSError):
         pass
     return Tier.FREE
 
@@ -690,7 +690,7 @@ async def my_tier(x_api_key: str = Header(None)) -> dict[str, Any]:
         hashed = _hash_identifier(user_id)
         day_count = int(r.get(f"rmi:ratelimit:{hashed}:{today}:total") or 0)
         minute_count = int(r.get(f"rmi:ratelimit:{hashed}:{today}:minute") or 0)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         day_count = 0
         minute_count = 0
 
@@ -720,7 +720,7 @@ async def upgrade_tier(req: UpgradeRequest) -> dict[str, Any]:
     try:
         r = _get_tier_redis()
         r.set(f"rmi:user_tier:{_hash_identifier(req.user_id)}", req.tier.value)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return {

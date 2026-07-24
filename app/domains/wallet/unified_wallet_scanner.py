@@ -163,7 +163,7 @@ class UnifiedWalletScanner:
                 return c, await asyncio.wait_for(
                     databus.fetch(c, admin_key=admin_key, **params), timeout
                 )
-            except Exception:  # noqa: BLE001
+            except (AttributeError, ImportError):  # noqa: BLE001
                 return c, None
 
         results = await asyncio.gather(*[_one(c) for c in chains])
@@ -374,7 +374,7 @@ class UnifiedWalletScanner:
             resp = urlopen(req, timeout=5)
             r.risk_forecast = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
             r.modules_run.append("ai_forecast")
-        except Exception:  # noqa: BLE001
+        except (json.JSONDecodeError):  # noqa: BLE001
             r.risk_forecast = "Unable to forecast"
 
     def _compute_risk(self, r) -> None:

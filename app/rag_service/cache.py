@@ -20,7 +20,7 @@ async def _get_redis() -> any:
     if _redis_pool is not None:
         try:
             await _redis_pool.ping()
-        except Exception:
+        except (ConnectionError, OSError):
             _redis_pool = None
     if _redis_pool is None:
         _redis_pool = redis.Redis(

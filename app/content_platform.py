@@ -266,7 +266,7 @@ async def generate_briefing() -> dict[str, Any]:
                     snippet = (r.get("content") or "")[:300]
                     if snippet:
                         content_parts.append(f"- {snippet}")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         content_parts.append("\n*Automated briefing - full RAG analysis pending*")
 
     content = "\n".join(content_parts)
@@ -303,7 +303,7 @@ async def generate_newsletter() -> dict[str, Any]:
                     snippet = (r.get("content") or "")[:400]
                     if snippet:
                         content_parts.append(f"- {snippet}")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         content_parts.append("\n*Full RAG analysis in next edition*")
 
     content = "\n".join(content_parts)

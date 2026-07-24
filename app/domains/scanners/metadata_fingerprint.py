@@ -58,7 +58,7 @@ def extract_html_structure(html: str) -> str:
     extractor = _TagStructureExtractor()
     try:
         extractor.feed(html)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         logger.debug("HTML parse error, returning raw stripped content")
         return re.sub(r"\s+", " ", html).strip()
     return "".join(extractor.tags)
@@ -474,7 +474,7 @@ class MetadataFingerprinter:
             parts = domain.split(".")
             # Return last two parts (e.g. twitter.com)
             return ".".join(parts[-2:]) if len(parts) >= 2 else domain
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return ""
 
     def _extract_domains(self, links: list[str]) -> list[str]:
@@ -621,7 +621,7 @@ class MetadataFingerprinter:
                 resp = await self.dexscreener_client.get(website_url, follow_redirects=True)
                 if resp.status_code == 200 and resp.text:
                     meta.website_html = resp.text
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 logger.debug(f"Could not fetch website HTML for {token_address}")
 
         return meta

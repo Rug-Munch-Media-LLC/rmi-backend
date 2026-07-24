@@ -431,7 +431,7 @@ Common tokens: {", ".join(cluster.get("common_tokens", [])[:5])}."""
     # Embed the cluster description
     try:
         cluster_semantic = await embedder._semantic_embed_one(cluster_desc, "semantic")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         cluster_semantic = embedder._hash_embed(cluster_desc)
 
     # Compare to each label template
@@ -443,7 +443,7 @@ Common tokens: {", ".join(cluster.get("common_tokens", [])[:5])}."""
         )
         try:
             template_semantic = await embedder._semantic_embed_one(template_text, "semantic")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             template_semantic = embedder._hash_embed(template_text)
 
         # Semantic similarity
@@ -574,7 +574,7 @@ async def search_clusters_by_description(
                     r.get("metadata", {}).get("vector", []),
                 )
                 r["metadata"]["auto_label"] = labeling
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 pass
 
     return results
@@ -703,7 +703,7 @@ async def backfill_label_templates() -> Any:
 
         try:
             vec = await embedder._semantic_embed_one(content, "semantic")
-        except Exception:
+        except (AttributeError, ImportError):
             vec = embedder._hash_embed(content)
 
         await store.insert(

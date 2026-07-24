@@ -60,7 +60,8 @@ class FallbackCache:
             data["cache_age_hours"] = round(age / 3600, 1)
             data["is_cached"] = True
             return data
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.debug(f"Cache get failed: {e}")
             return None
 
     async def set(self, key: str, data: dict, ttl: int = 86400) -> None:
@@ -70,8 +71,8 @@ class FallbackCache:
         try:
             data["cached_at"] = time.time()
             await self.redis.set(f"x402:cache:{key}", json.dumps(data), ex=ttl)
-        except Exception:
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.debug(f"Cache set failed: {e}")
 
     def make_key(self, tool: str, **params) -> str:
         """Create a cache key from tool name and parameters."""
@@ -319,7 +320,7 @@ async def fetch_dexlab(address: str) -> dict:
                     },
                     "source": "dexlab",
                 }
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
 
@@ -339,7 +340,7 @@ async def fetch_step_finance(address: str) -> dict:
             if resp.status == 200:
                 data = await resp.json()
                 return {"step_finance": data, "source": "step_finance"}
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
 
@@ -359,7 +360,7 @@ async def fetch_moonrank(address: str) -> dict:
             if resp.status == 200:
                 data = await resp.json()
                 return {"moonrank": data, "source": "moonrank"}
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
 
@@ -379,7 +380,7 @@ async def fetch_unchained(address: str) -> dict:
             if resp.status == 200:
                 data = await resp.json()
                 return {"unchained": data, "source": "unchained"}
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
 
@@ -402,7 +403,7 @@ async def fetch_jito_search(address: str) -> dict:
             if resp.status == 200:
                 data = await resp.json()
                 return {"jito_bundles": data, "source": "jito"}
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
 
@@ -422,7 +423,7 @@ async def fetch_orca_pools(address: str) -> dict:
             if resp.status == 200:
                 data = await resp.json()
                 return {"orca_pools": data, "source": "orca"}
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
 
@@ -442,7 +443,7 @@ async def fetch_raydium_pools(address: str) -> dict:
             if resp.status == 200:
                 data = await resp.json()
                 return {"raydium_pools": data, "source": "raydium"}
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
 
@@ -472,7 +473,7 @@ async def scrape_twitter_search(token: str) -> dict:
                 tweets = re.findall(r'"text":"([^"]*)"', text)
                 result["mentions"] = tweets[:10]
                 result["mention_count"] = len(tweets)
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return result
 
@@ -501,7 +502,7 @@ async def scrape_reddit_search(token: str) -> dict:
                     for p in posts[:10]
                 ]
                 result["post_count"] = len(result["posts"])
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return result
 
@@ -536,9 +537,9 @@ async def fetch_crypto_news_feeds(token: str = "") -> dict:
                             # Extract titles
                             titles = re.findall(r"<title>(.*?)</title>", text)
                             result["articles"] = titles[1:11]  # Skip feed title
-                except Exception:
+                except (aiohttp.ClientError, TimeoutError, OSError):
                     continue
-    except Exception:
+    except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return result
 
@@ -569,7 +570,7 @@ async def ai_web_search(query: str) -> dict:
                 # Extract result snippets
                 snippets = re.findall(r'<a class="result__url"[^>]*>(.*?)</a>', text)
                 result["results"] = snippets[:5]
-    except Exception as e:
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
         logger.debug(f"AI web search failed: {e}")
     return result
 
@@ -592,7 +593,7 @@ async def fetch_bigquery_public(address: str) -> dict:
         cached = await r.get(f"x402:bigquery:{address[:10]}")
         if cached:
             result["cached_data"] = json.loads(cached)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
     return result
 

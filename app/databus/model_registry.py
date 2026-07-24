@@ -895,7 +895,7 @@ ORIGINAL:
             )
             if not fixed:
                 fixed = content
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             fixed = content
 
     return {

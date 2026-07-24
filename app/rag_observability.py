@@ -81,7 +81,7 @@ async def _save_local_metrics() -> None:
         }
         await r.setex("rag:metrics", 3600, json.dumps(data))
         await r.close()
-    except Exception:
+    except (json.JSONDecodeError):
         pass
 
 

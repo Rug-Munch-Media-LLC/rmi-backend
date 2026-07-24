@@ -566,7 +566,7 @@ class GasTraceAnalyzer:
                             tz=UTC,
                         )
                         result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError):
                         pass
 
             # Get transaction count (first page gives us an idea)
@@ -584,7 +584,7 @@ class GasTraceAnalyzer:
                             try:
                                 dt = datetime.fromtimestamp(int(bt), tz=UTC)
                                 result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-                            except Exception:
+                            except (ConnectionError, OSError, TimeoutError):
                                 pass
 
             # Also check transfers to get a more complete picture
@@ -641,7 +641,7 @@ class GasTraceAnalyzer:
                             try:
                                 dt = datetime.fromtimestamp(ts, tz=UTC)
                                 result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-                            except Exception:
+                            except (ConnectionError, OSError, TimeoutError):
                                 pass
         except Exception as e:
             logger.warning(f"EVM wallet info error for {address}: {e}")

@@ -275,7 +275,7 @@ class MEVDetector:
                 "getSignaturesForAddress", [address, {"limit": limit}]
             )
             return result if isinstance(result, list) else []
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return []
 
     async def _detect_jito_bundles(self, signatures: list[dict]) -> list[dict]:

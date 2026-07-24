@@ -35,7 +35,7 @@ async def _preembed_scam_patterns() -> None:
                     model=cached["model"], head=cached.get("head", "scam_pattern"),
                 )
                 continue
-        except Exception:
+        except (json.JSONDecodeError):
             pass
 
         try:
@@ -51,7 +51,7 @@ async def _preembed_scam_patterns() -> None:
                     "vector": result.vector, "dims": result.dims,
                     "model": result.model, "head": result.head,
                 }))
-            except Exception:
+            except (json.JSONDecodeError):
                 pass
             logger.info(f"Pre-embedded scam pattern: {pattern_name}")
         except Exception as e:
@@ -130,7 +130,7 @@ async def ingest_document(
         from app.ann_index import get_ann_index
         ann = get_ann_index()
         await ann.bump_version(collection)
-    except Exception:
+    except (json.JSONDecodeError):
         pass
 
     # BM25 index invalidation
@@ -138,7 +138,7 @@ async def ingest_document(
         from app.splade_bm25 import _bm25_built_at, _bm25_index
         if _bm25_index is not None:
             _bm25_built_at = 0
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
     # Entity extraction + indexing
@@ -149,7 +149,7 @@ async def ingest_document(
             lookup = EntityLookup.get_instance()
             for entity in entities.all_entities():
                 await lookup.index_entity(entity["type"], entity["value"], doc_id, metadata={**metadata, "collection": collection})
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
     # Knowledge Graph edge creation
@@ -157,7 +157,7 @@ async def ingest_document(
         from app.knowledge_graph import get_knowledge_graph
         kg = await get_knowledge_graph()
         await kg.ingest_rag_document(collection, doc_id, content, metadata)
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
     logger.info(f"Ingested {collection}/{doc_id}: {content[:60]}...")

@@ -19,7 +19,6 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
-_ = os.environ.get  # noqa  # rm hardcoded default GMGN key
 GMGN_ENV = {"GMGN_API_KEY": GMGN_API_KEY, "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin")}
 
 

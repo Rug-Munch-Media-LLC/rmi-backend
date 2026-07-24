@@ -201,7 +201,7 @@ async def _background_refresh(
             resp = await client.get(url, headers=headers or {})
             if resp.status_code == 200:
                 _cache[cache_key] = (time.time(), resp.json())
-    except Exception:
+    except (httpx.HTTPError):
         pass
 
 
@@ -542,7 +542,7 @@ async def check_timelock(address: str, chain: str) -> str | None:
         result = await read_storage_slot(admin, delay_slot, chain)
         if result and int(result, 16) > 0:
             return "active"
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return "no_timelock"

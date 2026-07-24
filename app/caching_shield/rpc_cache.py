@@ -364,13 +364,13 @@ class RpcCacheClient:
                                 ):
                                     await redis.delete(key_str)
                                     deleted += 1
-                        except Exception:
+                        except (ConnectionError, OSError, json.JSONDecodeError):
                             pass
                     if cursor == 0:
                         break
                 if deleted:
                     logger.debug(f"Invalidated {deleted} cache entries for {address[:12]}...")
-            except Exception:
+            except (ConnectionError, OSError, json.JSONDecodeError):
                 pass
 
     # ── Health ──────────────────────────────────────────────────────────
@@ -382,7 +382,7 @@ class RpcCacheClient:
             try:
                 await redis.ping()
                 redis_ok = True
-            except Exception:
+            except (ConnectionError, OSError):
                 pass
         async with self._l1_lock:
             l1_size = len(self._l1)

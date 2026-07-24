@@ -412,7 +412,7 @@ class DataBusVault:
                     val = result.stdout.strip()
                     if val and val not in ("", "None", "***"):
                         return val
-            except Exception:  # noqa: BLE001
+            except (subprocess.TimeoutExpired):  # noqa: BLE001
                 pass  # Vault unavailable, fall back to env
 
         # Fallback to env var

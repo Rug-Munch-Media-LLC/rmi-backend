@@ -256,7 +256,7 @@ async def scan_known_scams(limit: int = 3) -> int:
                         ) / 3600
                         if age_h < 24:
                             recent_count += 1
-                except Exception:
+                except (json.JSONDecodeError):
                     pass
 
         await r.close()

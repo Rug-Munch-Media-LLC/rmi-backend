@@ -114,7 +114,7 @@ async def _get_redis() -> Any:
                 db=int(os.getenv("REDIS_DB", "0")),
                 decode_responses=True,
             )
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError):  # noqa: BLE001
             _redis = None
     return _redis
 
@@ -926,7 +926,7 @@ class WalletMonitor:
                         await cb(alert_dict)
                     else:
                         cb(alert_dict)
-                except Exception:  # noqa: BLE001
+                except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
                     pass
 
         if label_suggestion:

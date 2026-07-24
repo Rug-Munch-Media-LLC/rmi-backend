@@ -416,7 +416,7 @@ class CatalogService:
                 cached = await self._redis.get(cache_key)
                 if cached:
                     return json.loads(cached)
-            except Exception:
+            except (ConnectionError, OSError, json.JSONDecodeError):
                 pass
 
         token = await self.get_token(chain, address)

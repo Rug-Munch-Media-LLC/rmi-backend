@@ -135,7 +135,7 @@ class DegenSecurityScanner:
                     if report.decimals
                     else float(supply_raw)
                 )
-            except Exception:  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
                 report.total_supply = 0
             report.created_at = token_data.get("createdTime")
         else:

@@ -33,7 +33,7 @@ try:
     )
     _redis.ping()
     REDIS_AVAILABLE = True
-except Exception:
+except (ConnectionError, OSError):
     pass
 
 
@@ -41,7 +41,7 @@ def _cache_get(key: str) -> str | None:
     if REDIS_AVAILABLE:
         try:
             return _redis.get(f"rmi:ai:{key}")
-        except Exception:
+        except (ConnectionError, OSError):
             pass
     return None
 

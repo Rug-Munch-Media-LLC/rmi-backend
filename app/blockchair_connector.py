@@ -90,7 +90,7 @@ class BlockchairClient:
         try:
             response = httpx.get(f"{BLOCKCHAIR_API}/bitcoin/stats", timeout=5)
             return response.status_code == 200
-        except Exception:
+        except (httpx.HTTPError):
             return False
 
     def _extract(self, data: Any, *keys: str) -> Any:

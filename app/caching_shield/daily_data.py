@@ -55,7 +55,7 @@ async def get_fear_greed() -> dict:
                         "classification": current.get("value_classification", "Neutral"),
                         "timestamp": current.get("timestamp", ""),
                     }
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
     return {"value": 50, "classification": "Neutral"}
 
@@ -76,7 +76,7 @@ async def get_top_movers() -> dict:
                     "trending": [c.get("item", {}).get("name") for c in coins[:5]],
                     "trending_score": [c.get("item", {}).get("market_cap_rank") for c in coins[:5]],
                 }
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
     return {"trending": [], "trending_score": []}
 
@@ -101,7 +101,7 @@ async def get_security_alerts() -> dict:
                                 "date": h.get("date", ""),
                             }
                         )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     try:
@@ -116,7 +116,7 @@ async def get_security_alerts() -> dict:
                         "recent_scans": len(rug_data) if isinstance(rug_data, list) else 0,
                     }
                 )
-    except Exception:
+    except (httpx.HTTPError):
         pass
 
     return {"alerts": alerts, "count": len(alerts)}
@@ -134,7 +134,7 @@ async def get_whale_activity() -> dict:
         if trending:
             high_volume = list(trending.get("data", trending.get("tokens", []))[:5])
             return {"trending_high_volume": len(high_volume), "chains": ["solana"]}
-    except Exception:
+    except (AttributeError, ImportError):
         pass
     return {"trending_high_volume": 0}
 
@@ -158,7 +158,7 @@ async def get_prediction_markets() -> dict:
                         }
                     )
                 return {"active_markets": len(markets), "top_markets": markets}
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
     return {"active_markets": 0, "top_markets": []}
 

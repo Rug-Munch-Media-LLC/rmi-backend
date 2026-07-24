@@ -90,5 +90,5 @@ def _parse_date(s: str | None) -> datetime:
     try:
         # Format: '2024-06-30 21:58:54'
         return datetime.fromisoformat(s).replace(tzinfo=UTC)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return datetime.now(UTC)

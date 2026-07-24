@@ -125,7 +125,8 @@ async def snapshot_all() -> Any:
 
         redis = await _get_redis()
         has_redis = True
-    except Exception:
+    except (ImportError, AttributeError):
+        logger.debug("RAG service unavailable")
         COLLECTIONS = []
         has_redis = False
 
@@ -151,8 +152,8 @@ async def snapshot_all() -> Any:
                     if raw:
                         doc = json.loads(raw) if isinstance(raw, str) else raw
                         items.append(doc)
-                except Exception:
-                    pass
+                except (ConnectionError, OSError, TimeoutError):
+                    logger.debug("Redis doc get failed")
 
             # Upload in chunks if payload is large (R2 REST limit ~5GB but we chunk at 5MB)
             MAX_CHUNK_SIZE = 5 * 1024 * 1024  # 5MB per chunk
@@ -246,7 +247,8 @@ async def restore_all() -> Any | dict[str, str]:
         from app.rag_service import COLLECTIONS, _get_redis
 
         redis = await _get_redis()
-    except Exception:
+    except (ImportError, AttributeError) as e:
+        logger.warning(f"RAG service unavailable: {e}")
         return {"error": "Cannot connect to RAG service"}
 
     results = {}
@@ -293,8 +295,8 @@ async def restore_all() -> Any | dict[str, str]:
                     await redis.set(f"rag:{name}:{doc_id}", json.dumps(item, default=str))
                     await redis.sadd(f"rag:idx:{name}", doc_id)
                     restored += 1
-                except Exception:
-                    pass
+                except (ConnectionError, OSError, TimeoutError):
+                    logger.debug("Redis doc get failed")
 
             results[name] = {
                 "collection": name,
@@ -323,7 +325,7 @@ async def nightly_cycle() -> dict[str, dict]:
             if datetime.fromtimestamp(f.stat().st_mtime, tz=UTC) < cutoff:
                 f.unlink()
                 cleaned += 1
-        except Exception:
+        except OSError:
             pass
 
     return {
@@ -342,7 +344,8 @@ async def r2_stats() -> dict[str, dict]:
 
         redis = await _get_redis()
         has_redis = True
-    except Exception:
+    except (ImportError, AttributeError):
+        logger.debug("RAG service unavailable")
         COLLECTIONS = []
         has_redis = False
 
@@ -366,7 +369,7 @@ async def r2_stats() -> dict[str, dict]:
             try:
                 count = await redis.scard(f"rag:idx:{name}")
                 coll_info[name] = count
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 coll_info[name] = 0
 
     return {

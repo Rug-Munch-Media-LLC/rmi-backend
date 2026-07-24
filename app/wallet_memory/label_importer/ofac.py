@@ -48,7 +48,7 @@ async def _load_ofac_sanctions(storage) -> int:
         os.makedirs(LABELS_DIR, exist_ok=True)
         with open(local_ofac, "w", encoding="utf-8") as f:
             json.dump(sanctions, f)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     count = 0

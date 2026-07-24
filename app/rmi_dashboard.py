@@ -40,7 +40,7 @@ class Colors:
 
 def clear_screen() -> None:
     """Clear terminal screen."""
-      subprocess.run(["clear"] if os.name == "posix" else ["cls"], shell=False)  #605
+    subprocess.run(["clear"] if os.name == "posix" else ["cls"])
 
 
 def print_header(title: str) -> None:
@@ -78,7 +78,7 @@ def get_backend_status(url: str = "http://127.0.0.1:8010") -> dict[str, Any]:
         response = httpx.get(f"{url}/health", timeout=2)
         if response.status_code == 200:
             return response.json()
-    except Exception:
+    except (httpx.HTTPError):
         pass
     return {"error": "Backend not reachable"}
 
@@ -97,7 +97,7 @@ def get_redis_status() -> dict[str, Any]:
                 "memory_used": info.get("used_memory_human", "unknown"),
                 "connections": info.get("connected_clients", 0),
             }
-    except Exception:
+    except (ConnectionError, OSError):
         pass
     return {"error": "Redis not reachable"}
 
@@ -200,7 +200,7 @@ class Dashboard:
             )
             if result.stdout.strip():
                 return int(result.stdout.strip())
-        except Exception:
+        except (subprocess.TimeoutExpired):
             pass
         return None
 
@@ -309,7 +309,7 @@ class Dashboard:
                 full_url = f"{url}{path}" if path else url
                 response = httpx.get(full_url, timeout=3)
                 status = f"{Colors.GREEN}✓ OK{Colors.RESET} ({response.status_code})"
-            except Exception:
+            except (ConnectionError, TimeoutError, httpx.HTTPError):
                 status = f"{Colors.RED}✗ Failed{Colors.RESET}"
 
             logger.info(f"  {name:<20} {status}")

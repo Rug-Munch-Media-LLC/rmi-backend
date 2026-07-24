@@ -115,7 +115,7 @@ class MultiChainSnapshotEngine:
 
                 balances[from_addr] = balances.get(from_addr, 0) - amount
                 balances[to_addr] = balances.get(to_addr, 0) + amount
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 continue
 
         # Filter by minimum holdings
@@ -156,7 +156,7 @@ class MultiChainSnapshotEngine:
                         if source.max_holdings:
                             amount = min(amount, int(source.max_holdings))
                         holders[owner] = str(amount)
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError):
                     continue
 
             return holders

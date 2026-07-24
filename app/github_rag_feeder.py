@@ -109,7 +109,7 @@ def ensure_cloned(repo: str) -> str | None:
             timeout=60,
         )
         return path if os.path.exists(path) else None
-    except Exception:
+    except (subprocess.TimeoutExpired):
         return None
 
 
@@ -159,7 +159,7 @@ def extract_from_repo(source: dict) -> list[dict]:
                 try:
                     data = json.loads(content)
                     text = f"Dataset: {title}\n\n{json.dumps(data, indent=2)[:3000]}"
-                except Exception:
+                except (json.JSONDecodeError):
                     text = f"Data File: {title}\n\n{content[:2000]}"
             elif fpath.endswith(".csv"):
                 lines = content.split("\n")[:50]
@@ -176,7 +176,7 @@ def extract_from_repo(source: dict) -> list[dict]:
                     "tags": source.get("tags", []),
                 }
             )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     logger.info("  %s: %d docs from %d files", source["repo"], len(docs), len(files[:max_files]))
@@ -206,7 +206,7 @@ async def ingest_repo(source: dict) -> Any | int:
                 if r.status_code == 200:
                     n = r.json().get("ingested", 0)
                     total += n
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 pass
     return total
 

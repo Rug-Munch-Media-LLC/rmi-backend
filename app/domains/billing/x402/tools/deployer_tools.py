@@ -65,7 +65,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
             if balance is not None:
                 result["creator_balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_balance")
-        except Exception:  # noqa: BLE001
+        except (httpx.HTTPError):  # noqa: BLE001
             pass
 
         try:
@@ -73,7 +73,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
             if sigs:
                 result["recent_txs"] = len(sigs)
                 result["sources_used"].append("solana_txs")
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
 
     # Layer 3: Etherscan/BaseScan

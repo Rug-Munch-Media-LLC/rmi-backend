@@ -144,7 +144,7 @@ def daily_briefing() -> str:
         )
         resp = urllib.request.urlopen(req, timeout=15)
         return json.loads(resp.read())["choices"][0]["message"]["content"].strip()
-    except Exception:
+    except (json.JSONDecodeError):
         return f"Daily briefing: {topics} are trending in crypto news today."
 
 

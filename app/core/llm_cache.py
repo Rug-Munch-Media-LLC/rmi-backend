@@ -21,7 +21,7 @@ def get_cached(prompt: str, model: str) -> dict | None:
         data = r.get(_cache_key(prompt, model))
         if data:
             return json.loads(data)
-    except Exception:
+    except (ConnectionError, OSError, json.JSONDecodeError):
         pass
     return None
 
@@ -33,7 +33,7 @@ def set_cached(prompt: str, model: str, result: dict, ttl: int = CACHE_TTL) -> N
     try:
         r = redis.from_url(REDIS_URL, decode_responses=True)
         r.setex(_cache_key(prompt, model), ttl, json.dumps(result))
-    except Exception:
+    except (ConnectionError, OSError, json.JSONDecodeError):
         pass
 
 
@@ -45,5 +45,5 @@ def get_cache_stats() -> dict:
         r = redis.from_url(REDIS_URL, decode_responses=True)
         keys = r.keys("llm_cache:*")
         return {"cached_prompts": len(keys)}
-    except Exception:
+    except (ConnectionError, OSError, json.JSONDecodeError):
         return {"cached_prompts": 0, "error": "redis unavailable"}

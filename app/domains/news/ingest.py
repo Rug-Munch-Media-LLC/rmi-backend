@@ -219,7 +219,7 @@ async def ingest_all(
                                 r["qdrant_point_id"],
                                 ni.news_id,
                             )
-                    except Exception:
+                    except (ConnectionError, OSError):
                         pass
         except Exception as e:
             log.warning("ingest_rag_fail: %s", e)

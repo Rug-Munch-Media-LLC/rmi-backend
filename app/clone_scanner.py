@@ -627,7 +627,7 @@ class CloneScanner:
                     source_code = source[0].get("SourceCode", "")
                     return not bool(source_code and source_code.strip())
             return True  # Assume unverified on error
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return True
 
     async def _fetch_deployer(self, address: str, chain: str) -> str | None:
@@ -648,7 +648,7 @@ class CloneScanner:
                 if isinstance(txs, list) and txs:
                     return txs[0].get("from", None)
             return None
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return None
 
     async def _check_deployer_history(self, address: str, chain: str) -> dict[str, Any]:
@@ -675,7 +675,7 @@ class CloneScanner:
                 result["other_tokens"] = len(tokens)
                 # Flag if deployer created > 20 tokens
                 result["clone_deployer"] = len(tokens) > 20
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         return result

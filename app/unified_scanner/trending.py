@@ -86,7 +86,7 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                         }
                     )
                 sources_used.append("geckoterminal")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         try:
@@ -108,7 +108,7 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                         }
                     )
                 sources_used.append("coingecko")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     seen = set()
@@ -167,7 +167,7 @@ async def get_new_launches(chain: str = "solana", since_seconds: int = 300) -> d
                                 "dex": pair.get("dexId", ""),
                             }
                         )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     chain_key = chain or "all"

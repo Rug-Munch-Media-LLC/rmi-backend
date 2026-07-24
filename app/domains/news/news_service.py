@@ -550,7 +550,8 @@ class NewsService:
                         continue
                     else:
                         return []
-            except Exception:
+            except (httpx.HTTPError, TimeoutError, OSError) as e:
+                logger.debug(f"RSS fetch failed: {e}")
                 if needs_proxy and attempt < 2:
                     await asyncio.sleep(0.5)
                     continue
@@ -560,7 +561,8 @@ class NewsService:
 
         try:
             feed = feedparser.parse(resp.text)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Feed parse failed: {e}")
             return []
 
         articles = []
@@ -599,7 +601,8 @@ class NewsService:
                         "tier": "news",
                     }
                 )
-            except Exception:
+            except Exception as e:
+                logger.debug(f"RSS entry processing failed: {e}")
                 continue
 
         if articles:
@@ -678,7 +681,8 @@ class NewsService:
             if articles:
                 logger.info(f"Reddit r/{subreddit}: {len(articles)} posts")
             return articles
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Feed parse failed: {e}")
             return []
 
     async def _fetch_all_reddit(self) -> list[dict[str, Any]]:
@@ -716,7 +720,7 @@ class NewsService:
                 self.seen_hashes.add(content_hash)
                 try:
                     published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
-                except Exception:
+                except (ValueError, TypeError):
                     published = datetime.now(UTC).isoformat()
 
                 articles.append(
@@ -734,7 +738,8 @@ class NewsService:
                     }
                 )
             return articles
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Feed parse failed: {e}")
             return []
 
     async def _fetch_cryptopanic(self, limit: int = 15) -> list[dict[str, Any]]:
@@ -769,7 +774,7 @@ class NewsService:
                 self.seen_hashes.add(content_hash)
                 try:
                     published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
-                except Exception:
+                except (ValueError, TypeError):
                     published = datetime.now(UTC).isoformat()
 
                 votes = item.get("votes", {})
@@ -793,7 +798,8 @@ class NewsService:
                     }
                 )
             return articles
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Feed parse failed: {e}")
             return []
 
     # ─── RMI INTERNAL ─────────────────────────────────────────────
@@ -894,7 +900,8 @@ class NewsService:
                     }
                 )
             return articles
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Feed parse failed: {e}")
             return []
 
     async def _fetch_ghost(self, limit: int = 5) -> list[dict[str, Any]]:
@@ -929,7 +936,8 @@ class NewsService:
                     }
                     for p in posts
                 ]
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Feed parse failed: {e}")
             return []
 
     # ─── MAIN AGGREGATOR ──────────────────────────────────────────
@@ -996,7 +1004,7 @@ class NewsService:
                 return datetime.fromisoformat(
                     a.get("published_at", "2020-01-01").replace("Z", "+00:00")
                 )
-            except Exception:
+            except (ValueError, TypeError):
                 return datetime(2020, 1, 1, tzinfo=UTC)
 
         unique.sort(key=parse_ts, reverse=True)

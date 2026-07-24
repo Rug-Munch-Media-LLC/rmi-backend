@@ -25,7 +25,7 @@ async def _run_query(query: str, params: dict | None = None) -> list:
         )
         if r.status_code == 200:
             return r.json().get("data", [])
-    except Exception:
+    except (httpx.HTTPError):
         pass
     return []
 

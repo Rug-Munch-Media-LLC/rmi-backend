@@ -88,7 +88,7 @@ class NansenClient:
                 timeout=5,
             )
             return response.status_code == 200
-        except Exception:
+        except (httpx.HTTPError):
             return False
 
     # ── request helpers ───────────────────────────────────────────

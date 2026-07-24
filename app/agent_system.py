@@ -424,7 +424,7 @@ async def check_cache(msg: str, agent_id: str) -> str | None:
         if cached:
             logger.info(f"Cache hit for {agent_id}: {cache_key}")
             return cached
-    except Exception:
+    except (ConnectionError, OSError):
         pass
     return None
 
@@ -445,7 +445,7 @@ async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600) -
         # Only cache if response is substantive (>200 chars)
         if len(response) > 200:
             r.setex(cache_key, ttl, response[:4000])  # Cap stored size
-    except Exception:
+    except (ConnectionError, OSError):
         pass
 
 
@@ -536,7 +536,7 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                                     if txt:
                                         full_response += txt
                                         yield {"type": "token", "text": txt}
-                                except Exception:
+                                except (json.JSONDecodeError):
                                     pass
                         if full_response:
                             await store_cache(msg, agent_id, full_response)
@@ -608,7 +608,7 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                                     if txt:
                                         full_response += txt
                                         yield {"type": "token", "text": txt}
-                                except Exception:
+                                except (json.JSONDecodeError):
                                     pass
                         if full_response:
                             await store_cache(msg, agent_id, full_response)

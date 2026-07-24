@@ -207,7 +207,7 @@ class ContractDiffAnalyzer:
             try:
                 if pattern.lower() in raw:
                     found.append(pattern.decode(errors="replace"))
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 pass
         return found
 
@@ -376,7 +376,7 @@ class ContractDiffAnalyzer:
                 if report.citations and report.warnings:
                     cit_str = build_citation_string(report.citations)
                     report.warnings[-1] += f" {cit_str}"
-            except Exception:
+            except (AttributeError, ImportError):
                 pass
 
         except Exception as e:

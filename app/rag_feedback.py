@@ -92,7 +92,7 @@ async def record_scanner_result(
                         if doc and address.lower() in doc.lower():
                             doc_id = key.split(":")[-1]
                             doc_ids.add(doc_id)
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError):
                         pass
                 if cursor == 0:
                     break
@@ -112,7 +112,7 @@ async def record_scanner_result(
                             if matching_flags >= 2:  # At least 2 flags match
                                 doc_id = key.split(":")[-1]
                                 doc_ids.add(doc_id)
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError):
                         pass
                 if cursor == 0:
                     break
@@ -193,7 +193,7 @@ async def get_document_weight(doc_id: str) -> float:
         weight = await r.get(f"rag:weight:{doc_id}")
         await r.aclose()
         return float(weight) if weight else 1.0
-    except Exception:
+    except (ConnectionError, OSError):
         return 1.0
 
 
@@ -226,7 +226,7 @@ async def get_feedback_stats() -> dict[str, Any]:
                     if w:
                         weight_keys += 1
                         total_weight += float(w)
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError):
                     pass
             if cursor == 0:
                 break

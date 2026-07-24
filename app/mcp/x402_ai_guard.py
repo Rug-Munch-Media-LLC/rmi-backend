@@ -66,7 +66,7 @@ class AIGuardWrapper:
                 for pattern in self.blocked_patterns:
                     if pattern in body_str:
                         return False, f"Malicious pattern detected: {pattern}"
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 pass
 
         return True, None

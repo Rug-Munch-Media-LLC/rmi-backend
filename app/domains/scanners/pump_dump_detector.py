@@ -453,7 +453,7 @@ class PumpDumpDetector:
             for i, w in enumerate(report.warnings):
                 if rag_cits:
                     report.warnings[i] = build_citation_string(rag_cits, w)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         return report

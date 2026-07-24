@@ -518,7 +518,7 @@ def _get_pay_to_address(chain: str) -> str:
         for w in mgr._wallets.values():
             if w.chain == chain and w.x402_enabled and w.status == "active":
                 return w.address
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):  # noqa: BLE001
         pass
     if chain == "eth":
         return os.getenv("X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9")

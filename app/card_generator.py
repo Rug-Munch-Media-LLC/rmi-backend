@@ -351,7 +351,7 @@ def generate_card(card_type: str, data: dict) -> dict:
         try:
             font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
             base_font = ImageFont.truetype(font_path, 32)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             base_font = ImageFont.load_default()
 
         # Overlay text fields
@@ -367,7 +367,7 @@ def generate_card(card_type: str, data: dict) -> dict:
                             value = format_wallet_short(str(value))
                         else:
                             value = field_config["format"].format(**{field_name: value, **data})
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError):
                         pass
 
                 # Draw text
@@ -377,7 +377,7 @@ def generate_card(card_type: str, data: dict) -> dict:
 
                 try:
                     font = ImageFont.truetype(font_path, font_size)
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError):
                     font = base_font
 
                 draw.text(position, str(value), fill=color, font=font)

@@ -413,8 +413,8 @@ async def three_pillar_search(
                 top_k=limit * 3,
             )
             mmr_applied = True
-        except Exception:
-            pass
+        except (ImportError, ConnectionError, OSError) as e:
+            logger.debug(f"MMR dedup failed: {e}")
 
     # ── Cross-encoder reranking ──
     reranker_applied = False
@@ -427,8 +427,8 @@ async def three_pillar_search(
             reranker = await get_reranker()
             fused = await reranker.rerank(query, fused, top_k=limit * 3)
             reranker_applied = True
-        except Exception:
-            pass
+        except (ImportError, ConnectionError, OSError) as e:
+            logger.debug(f"Reranker failed: {e}")
 
     # ── Parent-child context expansion ──
     parent_child_applied = False
@@ -449,16 +449,16 @@ async def three_pillar_search(
                             r["parent_content"] = pdoc.get("content", "")[:2000]
                             r["parent_id"] = parent_id
                             parent_child_applied = True
-                    except Exception:
-                        pass
+                    except (ConnectionError, OSError, TimeoutError, json.JSONDecodeError) as e:
+                        logger.debug(f"Parent fetch failed: {e}")
                 if content and len(content) < 800:
                     r["chunk_type"] = "child"
                     r["retrieval_note"] = "Short chunk - consider parent context for generation"
                 expanded_results.append(r)
             if expanded_results:
                 fused = expanded_results
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Parent-child expansion failed: {e}")
 
     final_results = fused[:limit]
 
@@ -469,8 +469,8 @@ async def three_pillar_search(
 
         entity_list = list(entity_doc_ids)[:5] if entity_doc_ids else []
         confidence = score_confidence(final_results, query=query, entity_matches=entity_list)
-    except Exception:
-        pass
+    except (ImportError, ConnectionError, OSError) as e:
+        logger.debug(f"Confidence scoring failed: {e}")
 
     return {
         "results": final_results,
@@ -523,8 +523,8 @@ async def search_with_transform(
             )
             if results:
                 all_result_lists.append(results)
-        except Exception:
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.debug(f"Query transform search failed: {e}")
 
     if len(all_result_lists) <= 1:
         results = all_result_lists[0] if all_result_lists else []
@@ -614,7 +614,7 @@ async def _sparse_text_search(
                         "collection": coll,
                     }
                 )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
     results.sort(key=lambda x: x["text_score"], reverse=True)
     return results[:limit]

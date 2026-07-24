@@ -48,7 +48,7 @@ def _load_key(filename: str) -> str:
     try:
         with open(f"/root/.secrets/{filename}") as f:
             return f.read().strip()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return ""
 
 

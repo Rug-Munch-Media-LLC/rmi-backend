@@ -137,7 +137,7 @@ class CryptoEmbedder:
                 self._cache_hits += 1
                 return json.loads(data)
             self._cache_misses += 1
-        except Exception:
+        except (json.JSONDecodeError):
             pass
         return None
 
@@ -145,7 +145,7 @@ class CryptoEmbedder:
         try:
             r = await self._get_redis()
             await r.setex(key, ttl, json.dumps(vector))
-        except Exception:
+        except (json.JSONDecodeError):
             pass
 
     # ─── SPECIALIZED EMBED METHODS ──────────────────────────────
@@ -310,7 +310,7 @@ Code patterns: {'; '.join(code_snippets or [])[:3000]}"""
                 if isinstance(doc_vec, str):
                     try:
                         doc_vec = json.loads(doc_vec)
-                    except Exception:
+                    except (ConnectionError, OSError, json.JSONDecodeError):
                         continue
                 if not doc_vec or not isinstance(doc_vec, list):
                     continue

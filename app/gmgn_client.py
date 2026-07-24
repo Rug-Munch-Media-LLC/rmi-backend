@@ -625,7 +625,7 @@ class GMGNClient:
                 if isinstance(result, dict)
                 else False
             )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return False
 
     async def close(self) -> None:

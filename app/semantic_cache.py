@@ -228,7 +228,7 @@ class SemanticCache:
                 count += len(keys)
                 if cursor == 0:
                     break
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             count = -1
 
         return {

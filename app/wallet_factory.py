@@ -584,7 +584,7 @@ class WalletFactory:
             sha = hashlib.sha256(pub).digest()
             try:
                 ripe = hashlib.new("ripemd160", sha).digest()
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 ripe = hashlib.sha256(sha).digest()[:20]  # fallback
 
             addr_bytes = b"\x00" + ripe
@@ -699,7 +699,7 @@ class WalletFactory:
         sha = hashlib.sha256(pub if isinstance(pub, bytes) else bytes.fromhex(pub)).digest()
         try:
             ripe = hashlib.new("ripemd160", sha).digest()
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             ripe = sha[:20]
 
         addr_bytes = bytes([prefix]) + ripe

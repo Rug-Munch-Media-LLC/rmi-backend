@@ -17,7 +17,7 @@ async def get_stats() -> dict[str, Any]:
         from app.ann_index import get_ann_index
         ann = get_ann_index()
         ann_stats = ann.stats()
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
     collection_sizes = {}
@@ -29,7 +29,7 @@ async def get_stats() -> dict[str, Any]:
             try:
                 size = await r.scard(f"rag:idx:{coll}")
                 collection_sizes[coll] = size
-            except Exception:
+            except (AttributeError, ImportError):
                 collection_sizes[coll] = 0
 
     cache_stats = {}
@@ -37,7 +37,7 @@ async def get_stats() -> dict[str, Any]:
         from app.semantic_cache import get_semantic_cache
         cache = get_semantic_cache()
         cache_stats = await cache.stats()
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
     return {

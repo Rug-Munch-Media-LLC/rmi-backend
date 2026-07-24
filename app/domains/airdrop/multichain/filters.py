@@ -97,7 +97,7 @@ class CrossChainIdentityResolver:
             data = await r.get(key)
             if data:
                 return json.loads(data)
-        except Exception:
+        except (ConnectionError, OSError, json.JSONDecodeError):
             pass
 
         return {}

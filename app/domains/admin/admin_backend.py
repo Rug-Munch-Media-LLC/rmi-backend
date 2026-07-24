@@ -783,7 +783,7 @@ class AdminUserStore:
                 if supabase_url and supabase_key:
                     client = create_client(supabase_url, supabase_key)
                     client.table("admin_users").upsert(admin).execute()
-            except Exception:
+            except (ConnectionError, OSError, json.JSONDecodeError):
                 pass
 
             return True

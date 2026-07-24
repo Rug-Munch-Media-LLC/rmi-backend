@@ -242,7 +242,7 @@ class OHLCVEngine:
                 try:
                     c = json.loads(item)
                     candles.append(c)
-                except Exception:  # noqa: BLE001
+                except (httpx.HTTPError, json.JSONDecodeError):  # noqa: BLE001
                     pass
 
             # Sort by timestamp ascending

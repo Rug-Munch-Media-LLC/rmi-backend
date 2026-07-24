@@ -465,7 +465,7 @@ class RpcCache:
             try:
                 key_count = await self._redis.dbsize()
                 result["l2_size"] = key_count
-            except Exception:
+            except (ConnectionError, OSError):
                 result["l2_size"] = -1
         result["redis_available"] = self._redis_available
         result["l1_max"] = self._l1_max
@@ -526,7 +526,7 @@ class RpcCache:
             try:
                 await self._redis.ping()
                 status["l2_ok"] = True
-            except Exception:
+            except (ConnectionError, OSError):
                 status["l2_ok"] = False
         return status
 

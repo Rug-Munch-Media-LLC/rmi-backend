@@ -316,7 +316,7 @@ class EtherscanConnector:
         result = await self._get(network, {"module": "proxy", "action": "eth_blockNumber"})
         try:
             return int(result, 16) if result and result.startswith("0x") else int(result or 0)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return 0
 
     async def get_block_reward(self, block_number: int, network: str = "eth") -> dict:

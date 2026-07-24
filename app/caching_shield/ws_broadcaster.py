@@ -169,7 +169,7 @@ class WsClientManager:
                 await redis.zadd("rmi:alerts:recent", {payload: score})
                 await redis.zremrangebyrank("rmi:alerts:recent", 0, -(501))
                 self.broadcasts_sent += 1
-            except Exception:
+            except (ConnectionError, OSError, json.JSONDecodeError):
                 self.broadcasts_failed += 1
 
     async def broadcast_price(self, token: str, price: float, chain: str = "solana") -> None:
@@ -191,7 +191,7 @@ class WsClientManager:
             if redis:
                 await redis.ping()
                 redis_ok = True
-        except Exception:
+        except (ConnectionError, OSError):
             pass
 
         async with self._lock:

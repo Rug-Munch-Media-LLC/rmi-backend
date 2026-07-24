@@ -209,7 +209,7 @@ class OracleManipulationDetector:
             result = await self._eth_call(registry_addr, "0xdc6b4a08", chain)
             if result and result != "0x" and result != "0x0":
                 return True, registry_addr
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         # Check contract source for Chainlink imports
@@ -431,7 +431,7 @@ class OracleManipulationDetector:
             for i, w in enumerate(report.warnings):
                 if rag_cits:
                     report.warnings[i] = build_citation_string(rag_cits, w)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         return report

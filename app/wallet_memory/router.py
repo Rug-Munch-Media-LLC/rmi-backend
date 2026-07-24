@@ -277,7 +277,7 @@ async def get_wallet_labels(
             profile = await engine.get_wallet_profile(address, ch, depth=0)
             if profile and profile.get("labels"):
                 labels.extend(profile["labels"])
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             continue
 
     # Also check threat actor database
@@ -321,7 +321,7 @@ async def batch_label_lookup(request: dict) -> dict[str, int]:
                 "labels": profile.get("labels", []) if profile else [],
                 "risk_score": profile.get("risk_score", 0) if profile else 0,
             }
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             results[addr] = {"labels": [], "risk_score": 0}
 
     return {

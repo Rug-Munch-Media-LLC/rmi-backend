@@ -329,7 +329,7 @@ def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
                     registry.mark_healthy(name)
                 else:
                     registry.mark_down(name)
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
 
@@ -339,7 +339,7 @@ def _get_degradation_section() -> dict[str, Any]:
         from app.core.degradation import get_degradation_health
 
         return {"degradation": get_degradation_health()}
-    except Exception:
+    except (AttributeError, ImportError):
         return {}
 
 

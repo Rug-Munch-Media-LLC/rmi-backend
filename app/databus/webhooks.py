@@ -125,7 +125,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
             ),
         )
         r.close()
-    except Exception:  # noqa: BLE001
+    except (json.JSONDecodeError):  # noqa: BLE001
         pass
 
     # ── 4. Index in RAG for intelligence ──
@@ -188,7 +188,7 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
     try:
         expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
         return False
 
 

@@ -25,7 +25,7 @@ def _mark_degraded(store: str) -> None:
         from app.core.degradation import get_registry
 
         get_registry().mark_down(store)
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
 

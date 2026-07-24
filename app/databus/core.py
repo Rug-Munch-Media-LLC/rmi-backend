@@ -265,7 +265,7 @@ class DataBus:
 
                         ws = get_ws_manager()
                         await ws.broadcast_data(data_type, result)
-                    except Exception:  # noqa: BLE001
+                    except (AttributeError, ImportError):  # noqa: BLE001
                         pass
         except (ConnectionError, OSError, TimeoutError) as e:
             logger.debug(f"SWR refresh failed for {data_type}: {e}")
@@ -410,7 +410,7 @@ class DataBus:
             try:
                 result = await asyncio.wait_for(future, timeout=30)
                 return result
-            except Exception:  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
                 pass
 
         # ── 5.5 LOCAL PRECHECK - RAG / Scanner / Labels / Redis (FREE) ──
@@ -475,7 +475,7 @@ class DataBus:
                     text=json.dumps(result["data"], default=str)[:2000],
                     metadata={"data_type": data_type, "source": source, "tier": tier},
                 )
-            except Exception:  # noqa: BLE001
+            except (AttributeError, ImportError, json.JSONDecodeError):  # noqa: BLE001
                 pass
 
         # ── 10. WEBSOCKET BROADCAST (optional) ──
@@ -492,7 +492,7 @@ class DataBus:
                 from app.databus.ws_stream import databus_ws_broadcast
 
                 await databus_ws_broadcast(data_type, result)
-            except Exception:  # noqa: BLE001
+            except (AttributeError, ImportError):  # noqa: BLE001
                 pass
 
         # ── 11. RESOLVE DEDUP ──

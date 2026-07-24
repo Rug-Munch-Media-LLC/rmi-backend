@@ -112,5 +112,5 @@ async def broadcast_ws_update(address: str, update: dict) -> None:
                 "timestamp": datetime.now(UTC).isoformat(),
             },
         )
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):  # noqa: BLE001
         pass

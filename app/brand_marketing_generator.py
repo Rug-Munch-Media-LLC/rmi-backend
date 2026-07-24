@@ -148,7 +148,7 @@ def add_text_centered(img, text, position, font_size, color, font_path=None) -> 
         font = ImageFont.truetype(
             font_path or "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
         )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         font = ImageFont.load_default()
 
     bbox = draw.textbbox((0, 0), text, font=font)

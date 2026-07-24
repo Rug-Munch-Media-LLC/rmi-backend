@@ -70,7 +70,7 @@ def _try_mark_healthy(store: str) -> None:
         from app.core.degradation import get_registry
 
         get_registry().mark_healthy(store)
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
 
@@ -79,7 +79,7 @@ def _try_mark_down(store: str) -> None:
         from app.core.degradation import get_registry
 
         get_registry().mark_down(store)
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
 

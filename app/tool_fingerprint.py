@@ -554,7 +554,7 @@ class ToolFingerprinter:
                 risk += 50
                 prev_scams = 1
                 flags.append("KNOWN_SCAMMER: Previously identified in scam database")
-        except Exception:
+        except (AttributeError, ImportError):
             pass
 
         # Determine funding type

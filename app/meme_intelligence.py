@@ -268,7 +268,7 @@ async def monitor_social_sentiment(token_address: str) -> dict:
             "mentions_24h": sentiment.get("mentions_24h"),
             "mentions_change_24h": sentiment.get("mentions_change_24h"),
         }
-    except Exception:
+    except (AttributeError, ImportError):
         return {"error": "LunarCrush not available"}
 
 

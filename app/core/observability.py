@@ -164,5 +164,5 @@ def flush_sentry(timeout: float = 2.0) -> None:
         import sentry_sdk
 
         sentry_sdk.flush(timeout=timeout)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass

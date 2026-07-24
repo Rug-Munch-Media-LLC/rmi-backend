@@ -388,7 +388,7 @@ class OnChainScanner:
                 if resp.status_code == 200:
                     data = resp.json()
                     return data.get("result", {}).get(address.lower(), {})
-        except Exception:
+        except (httpx.HTTPError):
             pass
         return {}
 
@@ -546,9 +546,9 @@ class IntelPipeline:
                             if doc.get("stored_at", "") < old_cutoff:
                                 await r.delete(f"rag:{coll}:{did}")
                                 await r.srem(f"rag:idx:{coll}", did)
-                        except Exception:
+                        except (json.JSONDecodeError):
                             pass
-        except Exception:
+        except (json.JSONDecodeError):
             pass
 
         return {
@@ -594,7 +594,7 @@ class IntelPipeline:
                                 "stored_at": doc.get("stored_at", ""),
                             }
                         )
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError):
                         pass
 
         results.sort(key=lambda x: x.get("stored_at", ""), reverse=True)

@@ -55,7 +55,7 @@ class LabelService:
             for _chain, wallets in CEX_HOT_WALLETS.items():
                 for addr, label in wallets.items():
                     self._builtin_cex[addr.lower()] = label
-        except Exception:  # noqa: S110
+        except (AttributeError, ImportError):
             pass
 
     async def resolve(self, address: str, chain: str) -> dict[str, Any] | None:
@@ -281,7 +281,7 @@ class LabelService:
                         }
                     )
             return labels
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return []
 
     async def _query_rolodeth(self, address: str) -> list[dict]:
@@ -298,7 +298,7 @@ class LabelService:
                 if resp.status_code == 200:
                     _ROLODETH_CACHE = resp.json()
                     _ROLODETH_LAST_FETCH = now
-            except Exception:  # noqa: S110
+            except (ConnectionError, OSError, TimeoutError):
                 pass
 
         if not _ROLODETH_CACHE:
@@ -340,7 +340,7 @@ class LabelService:
                         }
                     )
             return labels
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return []
 
     async def _query_bluepages(self, address: str) -> list[dict]:
@@ -362,7 +362,7 @@ class LabelService:
                     }
                 )
             return labels
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return []
 
     # ── Helpers ──────────────────────────────────────────────────

@@ -104,7 +104,7 @@ def _validate_url(url: str) -> bool:
         result = urlparse(url)
         # Ensure the URL has a scheme, network location, and a path
         return all([result.scheme in ("http", "https"), result.netloc, result.path])
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return False
 
 

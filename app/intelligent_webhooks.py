@@ -98,7 +98,7 @@ class IntelligentWebhookProcessor:
                 labels = await cache.get("wallet_labels", wallet)
                 if labels:
                     enriched["labels"] = labels if isinstance(labels, list) else [labels]
-            except Exception:
+            except (AttributeError, ImportError):
                 pass
 
             # Entity registry check
@@ -110,7 +110,7 @@ class IntelligentWebhookProcessor:
                 if match and match.entity_name:
                     enriched["is_exchange"] = match.entity_type in ("cex", "defi")
                     enriched["labels"].append(f"{match.entity_type}:{match.entity_name}")
-            except Exception:
+            except (AttributeError, ImportError):
                 pass
 
         except Exception as e:
@@ -131,7 +131,7 @@ class IntelligentWebhookProcessor:
                 if cluster_id:
                     self._cluster_cache[wallet] = cluster_id
                     return cluster_id
-        except Exception:
+        except (AttributeError, ImportError):
             pass
         return None
 
@@ -144,7 +144,7 @@ class IntelligentWebhookProcessor:
             sr = get_spam_registry()
             if wallet in sr._scam_addresses:
                 return True
-        except Exception:
+        except (AttributeError, ImportError):
             pass
 
         # Threat feeds
@@ -155,7 +155,7 @@ class IntelligentWebhookProcessor:
             result = await feeds.check_cryptoscamdb(wallet)
             if result and result.get("is_scam"):
                 return True
-        except Exception:
+        except (AttributeError, ImportError):
             pass
 
         return False

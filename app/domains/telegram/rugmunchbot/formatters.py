@@ -105,7 +105,7 @@ def social_proof_text() -> str:
         users_str = f"{total_users:,}" if total_users else "1,000+"
         scans_str = f"{total_scans:,}" if total_scans else "50,000+"
         return f"\U0001f465 {users_str} users | \U0001f50d {scans_str} scans completed"
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError):  # noqa: BLE001
         return "\U0001f465 1,000+ users | \U0001f50d 50,000+ scans completed"
 
 
@@ -165,7 +165,7 @@ def format_scan_report(r: dict) -> str:
                 age_str = f" | Age: {age.days}d"
             else:
                 age_str = f" | Age: {age.seconds // 3600}h"
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
     chain_str = fmt_chain(r["chain"])
     lines = [

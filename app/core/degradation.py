@@ -599,7 +599,7 @@ def degradable(
             if stale_cache_key_fn:
                 try:
                     cache_key = stale_cache_key_fn(*args, **kwargs)
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError):
                     pass
 
             result = await chain.execute(

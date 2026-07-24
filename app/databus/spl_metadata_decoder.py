@@ -408,7 +408,7 @@ async def decode_spl_token_metadata(mint: str, rpc_urls: list[str] | None = None
                     meta = await fetch_metaplex_metadata(mint, rpc_url)
                     if meta:
                         result["metadata"] = meta
-                except Exception:  # noqa: BLE001
+                except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
                     pass  # Metadata is optional
 
                 return result

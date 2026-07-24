@@ -22,7 +22,7 @@ async def _cache_get(key: str) -> dict | None:
         await r.close()
         if cached:
             return json.loads(cached)
-    except Exception:
+    except (ConnectionError, OSError, json.JSONDecodeError):
         logger.debug("wallet cache get failed", exc_info=True)
     return None
 
@@ -41,5 +41,5 @@ async def _cache_set(key: str, data: dict, ttl: int = 3600) -> None:
         )
         await r.setex(f"rmi:wallet_cache:{key}", ttl, json.dumps(data))
         await r.close()
-    except Exception:
+    except (ConnectionError, OSError, json.JSONDecodeError):
         logger.debug("wallet cache set failed", exc_info=True)

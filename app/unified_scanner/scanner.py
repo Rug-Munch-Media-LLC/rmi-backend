@@ -75,7 +75,7 @@ async def scan_wallet(
                             "sol_balance": bal / 1e9 if bal else 0,
                             "data_sources": ["solana_public"],
                         }
-            except Exception:
+            except (httpx.HTTPError, TimeoutError, OSError):
                 pass
     else:
         onchain = await _fetch_moralis_wallet(wallet_address, chain)
@@ -123,7 +123,7 @@ async def scan_wallet(
                         < 24
                     )
                     data_sources.append("dexscreener")
-    except Exception:
+    except (httpx.HTTPError, TimeoutError, OSError):
         pass
 
     # ── SENTINEL address labels ──
@@ -206,7 +206,7 @@ async def scan_wallet(
                 factors.unrealized_pnl_usd = float(pnl.get("unrealized", 0))
                 factors.win_rate = float(intel.get("win_rate", 0))
                 data_sources.append("gmgn")
-        except Exception:
+        except (ImportError, AttributeError, httpx.HTTPError):
             pass
 
         try:
@@ -221,7 +221,7 @@ async def scan_wallet(
                 factors.linked_wallets_count = max(
                     factors.linked_wallets_count, cluster.get("member_count", 0)
                 )
-        except Exception:
+        except (ImportError, AttributeError):
             pass
 
     # ── FREE: Token portfolio risk scan ──
@@ -272,7 +272,7 @@ async def scan_wallet(
             anomaly = await detect_wallet_anomaly(wallet_address, chain)
             if anomaly:
                 factors.sybil_score = anomaly.get("sybil_score", 0)
-        except Exception:
+        except (ImportError, AttributeError):
             pass
 
         try:
@@ -287,7 +287,7 @@ async def scan_wallet(
                 factors.stablecoin_ratio = portfolio.get("stablecoin_pct", 0)
                 factors.bluechip_ratio = portfolio.get("bluechip_pct", 0)
                 factors.memecoin_ratio = portfolio.get("memecoin_pct", 0)
-        except Exception:
+        except (ImportError, AttributeError):
             pass
 
     # ═══════════════════════════════════════════

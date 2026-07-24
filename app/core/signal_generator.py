@@ -111,7 +111,7 @@ async def publish_signal(signal: dict) -> None:
                 json={"records": [{"value": json.dumps(signal), "key": signal["address"]}]},
                 headers={"Content-Type": "application/vnd.kafka.json.v2+json"},
             )
-    except Exception:
+    except (httpx.HTTPError, json.JSONDecodeError):
         pass
 
 

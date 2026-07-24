@@ -91,7 +91,7 @@ class WalletDBMixin:
             try:
                 with open(self.KEYSTORE_PATH) as f:
                     keystore = json.load(f)
-            except Exception:  # noqa: BLE001
+            except (AttributeError, ImportError):  # noqa: BLE001
                 pass
 
         keystore[wallet_id] = {
@@ -114,7 +114,7 @@ class WalletDBMixin:
         try:
             with open(self.KEYSTORE_PATH) as f:
                 keystore = json.load(f)
-        except Exception:  # noqa: BLE001
+        except (AttributeError, ImportError):  # noqa: BLE001
             return None
 
         entry = keystore.get(wallet_id)

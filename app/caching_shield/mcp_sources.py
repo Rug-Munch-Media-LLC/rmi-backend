@@ -86,7 +86,7 @@ class MCPDataSources:
                 if result:
                     try:
                         parsed = json.loads(result)
-                    except Exception:
+                    except (json.JSONDecodeError):
                         parsed = {"value": str(result)[:500]}
                     _l1[cache_key] = (time.monotonic() + ttl, parsed)
                     return parsed
