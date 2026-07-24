@@ -1,0 +1,48 @@
+"""
+Canonical Tool Prices — Security, Analysis, and DeFi categories.
+"""
+
+SECURITY_ANALYSIS_TOOLS = {
+    # ── security ──
+    "anomaly": {"price_usd": 0.08, "price_atoms": "80000", "category": "security", "trial_free": 0, "description": "anomaly"},
+    "audit": {"price_usd": 0.05, "price_atoms": "50000", "category": "security", "trial_free": 1, "description": "audit"},
+    "bridge_security": {"price_usd": 0.08, "price_atoms": "80000", "category": "security", "trial_free": 0, "description": "bridge_security"},
+    "bridge_health": {"price_usd": 0.10, "price_atoms": "100000", "category": "security", "trial_free": 2, "description": "Cross-Chain Bridge Health & Exploit Monitor - real-time TVL tracking, anomaly detection, trust model scoring, and exploit signal detection across 12 major bridges"},
+    "clone_detect": {"price_usd": 0.02, "price_atoms": "20000", "category": "security", "trial_free": 3, "description": "clone_detect"},
+    "comprehensive_audit": {"price_usd": 0.5, "price_atoms": "500000", "category": "security", "trial_free": 1, "description": "comprehensive_audit"},
+    "contract_scan": {"price_usd": 0.08, "price_atoms": "80000", "category": "premium", "trial_free": 1, "description": "Deep contract audit - static analysis, honeypot detection, vulnerability scan"},
+    "deployer_history": {"price_usd": 0.05, "price_atoms": "50000", "category": "security", "trial_free": 2, "description": "deployer_history"},
+    "fresh_pair": {"price_usd": 0.03, "price_atoms": "30000", "category": "security", "trial_free": 3, "description": "fresh_pair"},
+    "honeypot_check": {"price_usd": 0.05, "price_atoms": "50000", "category": "security", "trial_free": 2, "description": "honeypot_check"},
+    "launch_fairness": {"price_usd": 0.10, "price_atoms": "100000", "category": "security", "trial_free": 2, "description": "Launch fairness & bot activity analyzer - sniped distributions, bundled launches, LP manipulation, bot activity, presale concentration with 0-100 fairness score"},
+    "liquidity_migration": {"price_usd": 0.05, "price_atoms": "50000", "category": "security", "trial_free": 2, "description": "liquidity_migration"},
+    "mev_alert": {"price_usd": 0.08, "price_atoms": "80000", "category": "security", "trial_free": 1, "description": "mev_alert"},
+    "mev_detect": {"price_usd": 0.15, "price_atoms": "150000", "category": "security", "trial_free": 2, "description": "MEV/Sandwich attack detection - sandwich attacks, frontrunning, arbitrage extraction, MEV bot identification"},
+    "mev_protection": {"price_usd": 0.08, "price_atoms": "80000", "category": "security", "trial_free": 0, "description": "mev_protection"},
+    "profile_flip": {"price_usd": 0.03, "price_atoms": "30000", "category": "security", "trial_free": 3, "description": "profile_flip"},
+    "protocol_risk": {"price_usd": 0.08, "price_atoms": "80000", "category": "security", "trial_free": 1, "description": "protocol_risk"},
+    "risk_monitor": {"price_usd": 0.05, "price_atoms": "50000", "category": "security", "trial_free": 1, "description": "risk_monitor"},
+    "rug_pull_predictor": {"price_usd": 0.1, "price_atoms": "100000", "category": "security", "trial_free": 0, "description": "rug_pull_predictor"},
+    "rug_imminence": {"price_usd": 0.20, "price_atoms": "200000", "category": "security", "trial_free": 1, "description": "Rug Pull Imminence Predictor - AI-powered early warning system fusing 7 signals to predict imminent rug pulls before they happen"},
+    "rugshield": {"price_usd": 0.02, "price_atoms": "20000", "category": "security", "trial_free": 3, "description": "rugshield"},
+    "scam_database": {"price_usd": 0.03, "price_atoms": "30000", "category": "security", "trial_free": 3, "description": "scam_database"},
+    "token_age": {"price_usd": 0.01, "price_atoms": "10000", "category": "security", "trial_free": 5, "description": "token_age"},
+    "urlcheck": {"price_usd": 0.01, "price_atoms": "10000", "category": "security", "trial_free": 3, "description": "urlcheck"},
+    "wash_trade_detect": {"price_usd": 0.15, "price_atoms": "150000", "category": "security", "trial_free": 2, "description": "Wash Trading & Insider Detection - artificial volume, coordinated buying, insider accumulation patterns"},
+    "wash_trading": {"price_usd": 0.08, "price_atoms": "80000", "category": "security", "trial_free": 1, "description": "wash_trading"},
+    # ── analysis ──
+    "forensics": {"price_usd": 0.1, "price_atoms": "100000", "category": "analysis", "trial_free": 1, "description": "forensics"},
+    "history": {"price_usd": 0.08, "price_atoms": "80000", "category": "analysis", "trial_free": 2, "description": "Historical scanner time-series - risk/liquidity/volume/price trends over hours"},
+    "nft_wash_detector": {"price_usd": 0.1, "price_atoms": "100000", "category": "analysis", "trial_free": 1, "description": "nft_wash_detector"},
+    "portfolio_aggregate": {"price_usd": 0.1, "price_atoms": "100000", "category": "analysis", "trial_free": 1, "description": "portfolio_aggregate"},
+    "token_comparison": {"price_usd": 0.08, "price_atoms": "80000", "category": "analysis", "trial_free": 0, "description": "token_comparison"},
+    "token_deep_dive": {"price_usd": 0.1, "price_atoms": "100000", "category": "analysis", "trial_free": 0, "description": "token_deep_dive"},
+    "wallet": {"price_usd": 0.05, "price_atoms": "50000", "category": "analysis", "trial_free": 1, "description": "wallet"},
+    "wallet_pnl": {"price_usd": 0.1, "price_atoms": "100000", "category": "analysis", "trial_free": 0, "description": "wallet_pnl"},
+    "portfolio_tracker": {"price_usd": 0.1, "price_atoms": "100000", "category": "analysis", "trial_free": 0, "description": "portfolio_tracker"},
+    # ── defi ──
+    "defi_position": {"price_usd": 0.15, "price_atoms": "150000", "category": "defi", "trial_free": 1, "description": "DeFi position analyzer - LP holdings, impermanent loss estimation, yield sustainability, protocol risk"},
+    "liquidation_cascade": {"price_usd": 0.15, "price_atoms": "150000", "category": "defi", "trial_free": 1, "description": "Liquidation Cascade Risk Analyzer - cross-chain DeFi position monitoring, health factor computation, and cascade scenario simulation for Aave/Compound positions"},
+}
+
+__all__ = ["SECURITY_ANALYSIS_TOOLS"]
