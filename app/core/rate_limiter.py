@@ -46,6 +46,13 @@ DEFAULT_RATE_LIMITS: dict[str, tuple[int, float]] = {
     "public": (100, 0.25),  # 100/min,   burst 25
     "mcp": (30, 0.25),  # 30/min,    burst 7
     "admin": (10, 0.2),  # 10/min,    burst 2
+    "degenfeed:farcaster": (30, 0.25),  # 30/min, burst 7
+    "degenfeed:lens": (30, 0.25),  # 30/min, burst 7
+    "degenfeed:twitter": (15, 0.2),  # 15/min, burst 3
+    "degenfeed:bluesky": (30, 0.25),  # 30/min, burst 7
+    "degenfeed:mastodon": (60, 0.25),  # 60/min, burst 15
+    "degenfeed:nostr": (60, 0.25),  # 60/min, burst 15
+    "degenfeed:cross-post": (10, 0.3),  # 10/min, burst 3
     "default": (60, 0.25),  # 60/min,    burst 15
 }
 
@@ -86,6 +93,13 @@ PATH_CATEGORIES: dict[str, str] = {
     "/api/v1/wallet": "public",
     "/api/v1/labels": "public",
     "/mcp": "mcp",
+    "/api/v1/degenfeed/farcaster": "degenfeed:farcaster",
+    "/api/v1/degenfeed/lens": "degenfeed:lens",
+    "/api/v1/degenfeed/twitter": "degenfeed:twitter",
+    "/api/v1/degenfeed/bluesky": "degenfeed:bluesky",
+    "/api/v1/degenfeed/mastodon": "degenfeed:mastodon",
+    "/api/v1/degenfeed/nostr": "degenfeed:nostr",
+    "/api/v1/degenfeed": "degenfeed:farcaster",
     "/api/v1/admin": "admin",
     "/api/v1/_test": "admin",
 }

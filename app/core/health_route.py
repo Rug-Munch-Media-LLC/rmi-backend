@@ -297,6 +297,23 @@ async def _check_reth() -> dict[str, Any]:
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
 
+
+async def _check_degenfeed() -> dict[str, Any]:
+    """Probe DegenFeed proxy health."""
+    try:
+        import httpx
+        base_url = os.getenv("DEGENFEED_URL", "http://127.0.0.1:8200")
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{base_url.rstrip(chr(47))}/health")
+            data = resp.json() if resp.status_code == 200 else {}
+            protocols = data.get("protocols", []) if isinstance(data.get("protocols"), list) else list(data.get("protocols", {}).keys()) if isinstance(data.get("protocols"), dict) else []
+            return {
+                "healthy": resp.status_code == 200,
+                "details": {"protocols": protocols, "status_code": resp.status_code},
+            }
+    except Exception as e:
+        return {"healthy": False, "error": str(e)[:200]}
+
 def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
     """Win #14: Sync health check results to the degradation registry."""
     try:
@@ -324,6 +341,7 @@ def _get_degradation_section() -> dict[str, Any]:
 # ── Endpoints ───────────────────────────────────────────────────
 
 @router.get("/live", response_model=LivenessResponse, summary="Liveness", description="Kubernetes-style liveness probe. Returns 200 if the process is alive. No dependency checks.")
+
 async def liveness() -> LivenessResponse:
     return LivenessResponse(status="alive")
 
@@ -350,6 +368,7 @@ async def health() -> HealthResponse:
         ),
         "minio": asyncio.wait_for(_check_store("minio", _check_minio()), timeout=5.0),
         "eth_rpc": asyncio.wait_for(_check_store("eth_rpc", _check_reth()), timeout=5.0),
+        "degenfeed": asyncio.wait_for(_check_store("degenfeed", _check_degenfeed()), timeout=5.0),
     }
     results = await asyncio.gather(*store_checks.values(), return_exceptions=True)
     stores = {}

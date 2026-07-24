@@ -206,6 +206,10 @@ ROUTER_MODULES: Final[list[str]] = [
     # Pryscraper integration — mounted 2026-07-23
     "app.routers.pryscraper_bridge",  # /api/v1/scrape, /api/v1/extract, /api/v1/news/search, /api/v1/pryscraper/*
     #
+    # DegenFeed protocol proxy — mounted 2026-07-24
+    "app.routers.degenfeed_proxy",  # /api/v1/degenfeed/* (proxy, cache, rate limits)
+    "app.routers.degenfeed_health",  # /api/v1/degenfeed/status (protocol health)
+    #
     # NOT YET MOUNTED (deferred):
     #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict
     #     with app.api.v1.mcp (already mounted at /mcp). Needs reconciliation.
