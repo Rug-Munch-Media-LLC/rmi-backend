@@ -490,3 +490,49 @@ Architecture Decision Records are maintained in [`docs/adr/`](adr/).
 7. **Observability by default** — Every request gets an ID, timing header, and Prometheus metric. Errors always reach Sentry. Langfuse traces LLM calls.
 
 8. **Read-only by default** — Containers run with `read_only: true`, all capabilities dropped. Writes go to explicit tmpfs mounts.
+
+---
+
+## 13. Design Patterns
+
+Design Patterns and conventions are documented in [`DESIGN_PATTERNS.md`](DESIGN_PATTERNS.md).
+
+### Key additions (2026-07-24)
+
+| Pattern | Module | Purpose |
+|---------|--------|---------|
+| **Event Bus** | `app/core/events.py` | Async pub/sub for decoupled service communication. Standard events: `ScanCompleted`, `WalletUpdated`, `NewsIngested`, `AlertTriggered`, `PaymentReceived`. Backed by Redis pub/sub with in-process subscriber fallback. |
+| **CQRS** | `app/core/cqrs.py` | Command/Query separation for complex operations. Commands return result/error, queries return data. Mediator pattern dispatches to registered handlers. |
+| **Repository** | `domains/*/repository.py` | All data access through repositories. No raw SQL in routers. Repositories return domain models, not raw dicts. |
+| **Service Layer** | `core/base_service.py` | Standard CRUD interface (`list`, `get`, `create`, `update`, `delete`) with typed error helpers. All domain services inherit from `BaseService[T]`. |
+
+### Cross-domain communication flow
+
+```mermaid
+sequenceDiagram
+    participant Router
+    participant Service
+    participant Repository
+    participant EventBus
+    participant Subscriber
+
+    Router->>Service: POST /scan
+    Service->>Repository: get_detail(address, chain)
+    Repository-->>Service: TokenDetail
+    Service->>Repository: get_holders(address, chain)
+    Repository-->>Service: list[TokenHolder]
+    Service->>Service: compute_risk()
+    Service->>EventBus: publish(ScanCompleted)
+    EventBus-->>Subscriber: on_scan_completed(event)
+    Service-->>Router: TokenScanResult
+```
+
+### Identified cross-domain violations
+
+The following modules have inverted dependencies (domain importing from routers).
+These SHOULD be refactored per the plan in `DESIGN_PATTERNS.md §3.3`:
+
+- `domains/billing/x402/` imports from `routers.x402_enforcement`
+- `domains/billing/x402/` imports from `routers.x402_dashboard`
+- `domains/x402/middleware.py` imports from `routers.x402_enforcement`
+- `domains/billing/x402/` imports from `routers._expanded_tools`

@@ -28,6 +28,7 @@ from app.liquidation_cascade_analyzer import (
     _estimate_asset_ltv,
     _estimate_asset_price,
     _resolve_asset_symbol,
+    _validate_address,
 )
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -36,29 +37,26 @@ from app.liquidation_cascade_analyzer import (
 
 
 class TestAddressValidation:
-    def setup_method(self):
-        self.analyzer = LiquidationCascadeAnalyzer()
-
     def test_valid_evm_address(self):
-        assert self.analyzer._validate_address("0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18")
+        assert _validate_address("0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18")
 
     def test_valid_evm_address_lowercase(self):
-        assert self.analyzer._validate_address("0x742d35cc6634c0532925a3b844bc9e7595f2bd18")
+        assert _validate_address("0x742d35cc6634c0532925a3b844bc9e7595f2bd18")
 
     def test_valid_solana_address(self):
-        assert self.analyzer._validate_address("7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLrH")
+        assert _validate_address("7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLrH")
 
     def test_invalid_address_too_short(self):
-        assert not self.analyzer._validate_address("0x1234")
+        assert not _validate_address("0x1234")
 
     def test_invalid_address_bad_prefix(self):
-        assert not self.analyzer._validate_address("1x742d35Cc6634C0532925a3b844Bc9e7595f2bD18")
+        assert not _validate_address("1x742d35Cc6634C0532925a3b844Bc9e7595f2bD18")
 
     def test_invalid_address_empty(self):
-        assert not self.analyzer._validate_address("")
+        assert not _validate_address("")
 
     def test_invalid_address_random_string(self):
-        assert not self.analyzer._validate_address("not-an-address")
+        assert not _validate_address("not-an-address")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -425,9 +423,8 @@ class TestLiquidationAnalysis:
         assert "Web3 unavailable" in report
 
     def test_invalid_address_analysis(self):
-        """Verify the analyzer's _validate_address rejects bad addresses."""
-        analyzer = LiquidationCascadeAnalyzer()
-        assert not analyzer._validate_address("invalid-address")
+        """Verify _validate_address rejects bad addresses."""
+        assert not _validate_address("invalid-address")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -474,14 +471,13 @@ class TestHelperFunctions:
 
     def test_validate_address_solana_variants(self):
         """Test various valid Solana address formats."""
-        analyzer = LiquidationCascadeAnalyzer()
         valid_addresses = [
             "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLrH",
             "DpRueBHHhrqMATHrYgvKQzFJFynfMFVPMgfzJgrXqKnQ",
             "So11111111111111111111111111111111111111112",
         ]
         for addr in valid_addresses:
-            assert analyzer._validate_address(addr), f"Expected valid: {addr}"
+            assert _validate_address(addr), f"Expected valid: {addr}"
 
 
 # ══════════════════════════════════════════════════════════════════════════

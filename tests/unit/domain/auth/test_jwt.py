@@ -20,7 +20,7 @@ class TestCreateJWT:
         from app.domains.auth.__init__ import _create_jwt
 
         with patch(
-            "app.domains.auth.__init__.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
+            "app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
         ):
             token = _create_jwt(
                 user_id="user_123", email="test@example.com", tier="FREE", role="USER"
@@ -34,7 +34,7 @@ class TestCreateJWT:
         from app.domains.auth.__init__ import _create_jwt
 
         secret = "test-secret-key-32-chars-long-enough!!"
-        with patch("app.domains.auth.__init__.JWT_SECRET", secret):
+        with patch("app.domains.auth.jwt.JWT_SECRET", secret):
             token = _create_jwt(
                 user_id="user_456", email="alice@example.com", tier="PRO", role="ADMIN"
             )
@@ -49,7 +49,7 @@ class TestCreateJWT:
         from app.domains.auth.__init__ import _create_jwt
 
         secret = "test-secret-key-32-chars-long-enough!!"
-        with patch("app.domains.auth.__init__.JWT_SECRET", secret):
+        with patch("app.domains.auth.jwt.JWT_SECRET", secret):
             token = _create_jwt(
                 user_id="user_789",
                 email="bob@example.com",
@@ -66,7 +66,7 @@ class TestCreateJWT:
 
         secret = "test-secret-key-32-chars-long-enough!!"
         with (
-            patch("app.domains.auth.__init__.JWT_SECRET", secret),
+            patch("app.domains.auth.jwt.JWT_SECRET", secret),
             patch("app.domains.auth.__init__.datetime") as mock_dt,
         ):
             fixed_now = datetime(2026, 7, 14, 12, 0, 0)
@@ -86,7 +86,7 @@ class TestVerifyJWT:
         from app.domains.auth.__init__ import _create_jwt, _verify_jwt
 
         secret = "test-secret-key-32-chars-long-enough!!"
-        with patch("app.domains.auth.__init__.JWT_SECRET", secret):
+        with patch("app.domains.auth.jwt.JWT_SECRET", secret):
             token = _create_jwt(user_id="user_111", email="verify@example.com")
             payload = _verify_jwt(token)
             assert payload is not None
@@ -98,7 +98,7 @@ class TestVerifyJWT:
         from app.domains.auth.__init__ import _verify_jwt
 
         with patch(
-            "app.domains.auth.__init__.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
+            "app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
         ):
             result = _verify_jwt("invalid.token.here")
             assert result is None
@@ -108,7 +108,7 @@ class TestVerifyJWT:
         from app.domains.auth.__init__ import _verify_jwt
 
         secret = "test-secret-key-32-chars-long-enough!!"
-        with patch("app.domains.auth.__init__.JWT_SECRET", secret):
+        with patch("app.domains.auth.jwt.JWT_SECRET", secret):
             expired_token = pyjwt.encode(
                 {
                     "sub": "user_expired",
@@ -126,10 +126,10 @@ class TestVerifyJWT:
         """Token signed with different secret should not verify."""
         from app.domains.auth.__init__ import _create_jwt, _verify_jwt
 
-        with patch("app.domains.auth.__init__.JWT_SECRET", "correct-secret-32-chars-long!!!!"):
+        with patch("app.domains.auth.jwt.JWT_SECRET", "correct-secret-32-chars-long!!!!"):
             token = _create_jwt(user_id="u1", email="u@example.com")
 
-        with patch("app.domains.auth.__init__.JWT_SECRET", "different-secret-32-chars-long!!"):
+        with patch("app.domains.auth.jwt.JWT_SECRET", "different-secret-32-chars-long!!"):
             result = _verify_jwt(token)
             assert result is None
 
@@ -138,7 +138,7 @@ class TestVerifyJWT:
         from app.domains.auth.__init__ import _verify_jwt
 
         with patch(
-            "app.domains.auth.__init__.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
+            "app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"
         ):
             assert _verify_jwt("") is None
 

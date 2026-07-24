@@ -372,11 +372,13 @@ class TestGetMarketContext:
     """Fear & Greed index fetching."""
 
     def test_successful_fetch(self) -> None:
+        from unittest.mock import MagicMock
+
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
+        mock_response.json = MagicMock(return_value={
             "data": [{"value": "42", "value_classification": "Fear", "timestamp": "1234567890"}]
-        }
+        })
 
         mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
@@ -441,7 +443,7 @@ class TestContextualizeScore:
         """Extreme Greed increases pressure -> lower contextualized score."""
         context = {"fear_greed_value": 90, "fear_greed_classification": "Extreme Greed"}
         result = contextualize_score(70, context)
-        assert result["contextualized_safety"] == 53  # 70 / 1.3 ≈ 53.8 -> round=54  wait
+        assert result["contextualized_safety"] == 54  # 70 / 1.3 ≈ 53.8 rounded
         # Let me recalculate: 70 / 1.3 = 53.846 -> round -> 54
         # Actually: max(0, min(100, round(70 / 1.3))) = round(53.846) = 54
         assert result["market_pressure"] == 1.3
