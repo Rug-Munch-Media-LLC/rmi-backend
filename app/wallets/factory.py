@@ -96,9 +96,12 @@ class WalletFactory:
 
         key = f"{wallet.chain}:{wallet.address[:12]}"
         vault[key] = wallet.to_full_dict()
+
+        # Count wallet entries (exclude _meta)
+        wallet_count = sum(1 for k in vault if not k.startswith("_"))
         vault["_meta"] = {
             "updated": datetime.now(UTC).isoformat(),
-            "total_wallets": len(vault) - 1,
+            "total_wallets": wallet_count,
             "encrypted": self._encrypt,
         }
 
@@ -130,6 +133,7 @@ class WalletFactory:
     def decrypt_key(self, encrypted: str) -> str:
         """Decrypt an AES-256-GCM encrypted private key."""
         from app.wallets.crypto import decrypt_key as _decrypt
+
         return _decrypt(encrypted, self._password)
 
     # ── Stats ───────────────────────────────────────────────────

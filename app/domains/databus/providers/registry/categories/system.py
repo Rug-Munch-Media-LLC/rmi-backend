@@ -2,7 +2,7 @@
 System provider chains.
 """
 
-from ..base import Provider, ProviderChain, ProviderTier
+from ...base import Provider, ProviderChain, ProviderTier
 
 
 def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
@@ -23,7 +23,6 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     except ImportError:
         nightly_rag_index = rag_health_check = None
 
-
     chains["alerts"] = ProviderChain(
         data_type="alerts",
         description="Active threat alerts from scanner pipeline",
@@ -31,7 +30,6 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider("rmi_alerts", ProviderTier.LOCAL, _g["_passthrough_alerts"], weight=10.0),
         ],
     )
-
 
     chains["dev_activity"] = ProviderChain(
         data_type="dev_activity",
@@ -50,7 +48,6 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
-
     chains["mcp_bridge"] = ProviderChain(
         data_type="mcp_bridge",
         description="Universal MCP bridge - calls any local/remote MCP server tool",
@@ -59,109 +56,109 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
-
     chains["webhook_handler"] = ProviderChain(
-            "webhook_handler",
-            description="Intelligent webhook receiver - Arkham, Helius, Moralis, Alchemy + custom",
-            providers=[
-                Provider(
-                    "webhook_processor",
-                    ProviderTier.LOCAL,
-                    lambda **kw: handle_webhook(
-                        kw.get("service", ""),
-                        kw.get("payload", {}),
-                        kw.get("headers", {}),
-                        kw.get("raw_body", b""),
-                    ),
-                    weight=10.0,
-                )
-            ],
-        )
+        "webhook_handler",
+        description="Intelligent webhook receiver - Arkham, Helius, Moralis, Alchemy + custom",
+        providers=[
+            Provider(
+                "webhook_processor",
+                ProviderTier.LOCAL,
+                lambda **kw: handle_webhook(
+                    kw.get("service", ""),
+                    kw.get("payload", {}),
+                    kw.get("headers", {}),
+                    kw.get("raw_body", b""),
+                ),
+                weight=10.0,
+            )
+        ],
+    )
 
     chains["ai_task"] = ProviderChain(
-            "ai_task",
-            description="AI task execution - smart routing across free models (research/writing/coding/review/fast)",
-            providers=[
-                Provider(
-                    "ai_runner",
-                    ProviderTier.LOCAL,
-                    lambda **kw: ai_call(
-                        kw.get("task_type", "fast"),
-                        kw.get("system", ""),
-                        kw.get("user", ""),
-                        kw.get("max_tokens", 1000),
-                        kw.get("temperature", 0.5),
-                    ),
-                    weight=10.0,
-                    rate_limit_rps=5.0,
-                )
-            ],
-        )
+        "ai_task",
+        description="AI task execution - smart routing across free models (research/writing/coding/review/fast)",
+        providers=[
+            Provider(
+                "ai_runner",
+                ProviderTier.LOCAL,
+                lambda **kw: ai_call(
+                    kw.get("task_type", "fast"),
+                    kw.get("system", ""),
+                    kw.get("user", ""),
+                    kw.get("max_tokens", 1000),
+                    kw.get("temperature", 0.5),
+                ),
+                weight=10.0,
+                rate_limit_rps=5.0,
+            )
+        ],
+    )
 
     chains["content_review"] = ProviderChain(
-            "content_review",
-            description="Content quality review - checks for AI-slop, forbidden words, human voice",
-            providers=[
-                Provider(
-                    "quality_reviewer",
-                    ProviderTier.LOCAL,
-                    review_content,
-                    weight=5.0,
-                    rate_limit_rps=10.0,
-                )
-            ],
-        )
+        "content_review",
+        description="Content quality review - checks for AI-slop, forbidden words, human voice",
+        providers=[
+            Provider(
+                "quality_reviewer",
+                ProviderTier.LOCAL,
+                review_content,
+                weight=5.0,
+                rate_limit_rps=10.0,
+            )
+        ],
+    )
 
     chains["ai_usage"] = ProviderChain(
-            "ai_usage",
-            description="AI model usage statistics - track free tier consumption",
-            providers=[
-                Provider(
-                    "usage_tracker",
-                    ProviderTier.LOCAL,
-                    get_usage_stats,
-                    weight=1.0,
-                    rate_limit_rps=60.0,
-                )
-            ],
-        )
+        "ai_usage",
+        description="AI model usage statistics - track free tier consumption",
+        providers=[
+            Provider(
+                "usage_tracker",
+                ProviderTier.LOCAL,
+                get_usage_stats,
+                weight=1.0,
+                rate_limit_rps=60.0,
+            )
+        ],
+    )
 
     chains["rag_nightly"] = ProviderChain(
-            "rag_nightly",
-            description="Nightly RAG indexing - embeds news, CT, market, social data into vector store",
-            providers=[
-                Provider(
-                    "rag_indexer",
-                    ProviderTier.LOCAL,
-                    nightly_rag_index,
-                    weight=10.0,
-                    rate_limit_rps=1.0,
-                )
-            ],
-        )
+        "rag_nightly",
+        description="Nightly RAG indexing - embeds news, CT, market, social data into vector store",
+        providers=[
+            Provider(
+                "rag_indexer",
+                ProviderTier.LOCAL,
+                nightly_rag_index,
+                weight=10.0,
+                rate_limit_rps=1.0,
+            )
+        ],
+    )
 
     chains["rag_health"] = ProviderChain(
-            "rag_health",
-            description="RAG system health - collection stats, doc counts, embedder status",
-            providers=[
-                Provider(
-                    "rag_checker",
-                    ProviderTier.LOCAL,
-                    rag_health_check,
-                    weight=5.0,
-                    rate_limit_rps=30.0,
-                )
-            ],
-        )
+        "rag_health",
+        description="RAG system health - collection stats, doc counts, embedder status",
+        providers=[
+            Provider(
+                "rag_checker",
+                ProviderTier.LOCAL,
+                rag_health_check,
+                weight=5.0,
+                rate_limit_rps=30.0,
+            )
+        ],
+    )
 
     chains["hyperliquid"] = ProviderChain(
         data_type="hyperliquid",
         description="Hyperliquid perp markets and funding rates",
         providers=[
-            Provider("rmi_hyperliquid", ProviderTier.LOCAL, _g["_passthrough_hyperliquid"], weight=10.0),
+            Provider(
+                "rmi_hyperliquid", ProviderTier.LOCAL, _g["_passthrough_hyperliquid"], weight=10.0
+            ),
         ],
     )
-
 
     chains["hyperliquid_action"] = ProviderChain(
         data_type="hyperliquid_action",
@@ -176,7 +173,6 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
-
     chains["insider_wallets"] = ProviderChain(
         data_type="insider_wallets",
         description="Likely insider trader wallets to watch (Premium)",
@@ -190,7 +186,6 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
-
     chains["prediction_signals"] = ProviderChain(
         data_type="prediction_signals",
         description="Prediction market intelligence signals (Polymarket, Kalshi, etc.)",
@@ -203,8 +198,6 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             ),
         ],
     )
-
-
 
     # ── Full News Feed ──
     try:

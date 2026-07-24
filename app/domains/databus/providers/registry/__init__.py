@@ -10,6 +10,7 @@ Every data source in the system is organized into fallback chains:
 Split from registry.py into categories/: market, security, wallet, intel, social, system.
 """
 
+import importlib
 from typing import Any
 
 import httpx
@@ -90,21 +91,38 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _moralis_wallet_tokens,
         _moralis_wallet_transactions,
     )
-    from .categories.intel import build_intel_chains
 
     # ── Build chains by category ──
-    from .categories.market import build_market_chains
-    from .categories.security import build_security_chains
-    from .categories.social import build_social_chains
-    from .categories.system import build_system_chains
-    from .categories.wallet import build_wallet_chains
+    _builders: list[tuple[str, str]] = [
+        ("market", ".categories.market"),
+        ("security", ".categories.security"),
+        ("wallet", ".categories.wallet"),
+        ("intel", ".categories.intel"),
+        ("social", ".categories.social"),
+        ("system", ".categories.system"),
+    ]
+    for name, mod_path in _builders:
+        try:
+            mod = importlib.import_module(mod_path, __package__)
+            builder = getattr(mod, f"build_{name}_chains", None)
+            if builder:
+                chains.update(builder(locals()))
+        except Exception as exc:
+            logger.warning(f"Chain builder '{name}' failed: {exc}")
 
-    chains.update(build_market_chains(locals()))
-    chains.update(build_security_chains(locals()))
-    chains.update(build_wallet_chains(locals()))
-    chains.update(build_intel_chains(locals()))
-    chains.update(build_social_chains(locals()))
-    chains.update(build_system_chains(locals()))
+    # ── Generated / optional chains ──
+    for _builder_module in (
+        "app.domains.databus._generated.chains.bitquery",
+        "app.domains.databus._generated.chains.premium",
+    ):
+        try:
+            mod = importlib.import_module(_builder_module)
+            builder_name = f"build_{_builder_module.rsplit('.', 1)[-1]}_chains"
+            builder = getattr(mod, builder_name, None)
+            if builder:
+                builder(chains)
+        except Exception:
+            logger.debug(f"Optional chain builder {_builder_module} not available")
 
     # ── Initialize circuit breakers and rate limiters ──
     for chain in chains.values():

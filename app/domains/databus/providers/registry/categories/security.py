@@ -2,62 +2,22 @@
 Security provider chains.
 """
 
-from ..base import Provider, ProviderChain, ProviderTier
+from ...base import Provider, ProviderChain, ProviderTier
 
 
 def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
-    """Build security provider chains."""
+    """Build security provider chains.
+
+    NOTE: Premium scanner, volume_authenticity, token_security, and
+    rugcharts_intel chains are registered in _generated/chains/premium.py
+    (via ``build_premium_chains``).  This function only registers the core
+    security chains.  The rest are wrapped in try/except for optional
+    module availability.
+    """
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict
-    # ── Conditional imports for optional databus modules ──
-    try:
-        from app.databus.premium_scanner import (
-            run_bot_farm_detect,
-            run_bundle_scan,
-            run_cluster_map,
-            run_copy_trade_detect,
-            run_dev_finder,
-            run_fresh_wallet_analysis,
-            run_insider_detect,
-            run_mev_detect,
-            run_sniper_detect,
-            run_wash_trade_detect,
-        )
-    except ImportError:
-        run_bundle_scan = run_cluster_map = run_dev_finder = run_sniper_detect = None
-        run_bot_farm_detect = run_copy_trade_detect = run_insider_detect = None
-        run_wash_trade_detect = run_mev_detect = run_fresh_wallet_analysis = None
-    try:
-        from app.databus.volume_authenticity import analyze_volume_authenticity
-    except ImportError:
-        analyze_volume_authenticity = None
-    try:
-        from app.databus.token_security import get_check_matrix_endpoint, run_full_scan
-    except ImportError:
-        get_check_matrix_endpoint = run_full_scan = None
-    try:
-        from app.databus.rugcharts_intel import (
-            analyze_liquidity_risk,
-            check_holder_health,
-            detect_insiders,
-            detect_rug_patterns,
-            get_dev_reputation,
-            get_enhanced_token_report,
-            get_smart_money,
-            get_token_launches,
-            get_whale_alerts,
-            track_cross_chain_entity,
-        )
-    except ImportError:
-        get_smart_money = get_whale_alerts = get_token_launches = detect_insiders = None
-        analyze_liquidity_risk = check_holder_health = track_cross_chain_entity = None
-        detect_rug_patterns = get_dev_reputation = get_enhanced_token_report = None
-    try:
-        from app.databus.data_quality import get_tier_comparison
-    except ImportError:
-        get_tier_comparison = None
 
-
+    # ── Core security chains (always available) ──
     chains["url_security_scan"] = ProviderChain(
         data_type="url_security_scan",
         description="Phishing and malware scan for token websites (VirusTotal free tier)",
@@ -75,7 +35,6 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
-
     chains["scanner"] = ProviderChain(
         data_type="scanner",
         description="Token security scan via SENTINEL (rug pull, honeypot, risk score)",
@@ -90,10 +49,9 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
-
     chains["spl_token_metadata"] = ProviderChain(
         data_type="spl_token_metadata",
-        description="Raw SPL token metadata decoder: mint authority, freeze authority, decimals, supply, and Token-2022 extensions",
+        description="Raw SPL token metadata decoder",
         providers=[
             Provider(
                 "spl_metadata_decoder",
@@ -105,70 +63,15 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── Optional security chains (silent skip if unavailable) ──
+    # These are duplicated in _generated/chains/premium.py; kept here
+    # for backward compat until the registry is fully deduplicated.
+    try:
+        from app.databus.volume_authenticity import analyze_volume_authenticity
 
-    chains["bundle_detect"] = ProviderChain(
-            "bundle_detect",
-            description="Coordinated wallet bundle detection (RugMaps-style cluster analysis)",
-            providers=[_premium_provider("bundle_scanner", detect_bundles)],
-        )
-
-    chains["cluster_map"] = ProviderChain(
-            "cluster_map",
-            description="Full wallet cluster mapping - funders, recipients, counterparties (graph-ready)",
-            providers=[_premium_provider("cluster_mapper", map_clusters, rps=1.0)],
-        )
-
-    chains["dev_finder"] = ProviderChain(
-            "dev_finder",
-            description="Find developer/creator wallets behind tokens (deployer→funder→team)",
-            providers=[_premium_provider("dev_finder_scanner", find_dev_wallets)],
-        )
-
-    chains["sniper_detect"] = ProviderChain(
-            "sniper_detect",
-            description="Sniper detection - first-block buyers with fast dump patterns",
-            providers=[_premium_provider("sniper_scanner", detect_snipers)],
-        )
-
-    chains["bot_farm_detect"] = ProviderChain(
-            "bot_farm_detect",
-            description="Bot farm detection - identical behavior patterns across wallets",
-            providers=[_premium_provider("bot_farm_scanner", detect_bot_farms)],
-        )
-
-    chains["copy_trade_detect"] = ProviderChain(
-            "copy_trade_detect",
-            description="Copy trading pattern detection - wallets mirroring trades with delay",
-            providers=[_premium_provider("copy_trade_scanner", detect_copy_trading)],
-        )
-
-    chains["insider_detect"] = ProviderChain(
-            "insider_detect",
-            description="Insider trading signals - large buys before major announcements",
-            providers=[_premium_provider("insider_scanner", detect_insider_signals)],
-        )
-
-    chains["wash_trade_detect"] = ProviderChain(
-            "wash_trade_detect",
-            description="Wash trading detection - circular transactions, self-trading",
-            providers=[_premium_provider("wash_trade_scanner", detect_wash_trading)],
-        )
-
-    chains["mev_detect"] = ProviderChain(
-            "mev_detect",
-            description="MEV sandwich attack detection - frontrun/backrun patterns",
-            providers=[_premium_provider("mev_scanner", detect_mev_sandwich)],
-        )
-
-    chains["fresh_wallet_analysis"] = ProviderChain(
-            "fresh_wallet_analysis",
-            description="Fresh wallet concentration analysis - high new-wallet % = rug risk",
-            providers=[_premium_provider("fresh_wallet_scanner", detect_fresh_wallets, rps=2.0)],
-        )
-
-    chains["volume_authenticity"] = ProviderChain(
+        chains["volume_authenticity"] = ProviderChain(
             "volume_authenticity",
-            description="Fake volume detection - 4-layer analysis (statistical, graph, heuristic, ML) with bootstrap CI",
+            description="Fake volume detection",
             providers=[
                 Provider(
                     "volume_auth_scorer",
@@ -179,10 +82,15 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 )
             ],
         )
+    except ImportError:
+        pass
 
-    chains["token_security"] = ProviderChain(
+    try:
+        from app.databus.token_security import get_check_matrix_endpoint, run_full_scan
+
+        chains["token_security"] = ProviderChain(
             "token_security",
-            description="37+ security checks - GoPlus, honeypot, contract, liquidity, holders, deployer, tokenomics, rug pull",
+            description="37+ security checks",
             providers=[
                 Provider(
                     "security_scanner",
@@ -200,150 +108,171 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 ),
             ],
         )
+    except ImportError:
+        pass
 
-    chains["smart_money"] = ProviderChain(
+    try:
+        from app.databus.rugcharts_intel import (
+            analyze_liquidity_risk,
+            check_holder_health,
+            detect_insiders,
+            detect_rug_patterns,
+            get_dev_reputation,
+            get_enhanced_token_report,
+            get_smart_money,
+            get_token_launches,
+            get_whale_alerts,
+            track_cross_chain_entity,
+        )
+
+        chains["smart_money"] = ProviderChain(
             "smart_money",
-            description="Smart money feed - what profitable wallets are buying right now",
+            description="Smart money feed",
             providers=[
                 Provider(
                     "smart_money_tracker",
                     ProviderTier.LOCAL,
-                    smart_money_feed,
+                    get_smart_money,
                     weight=10.0,
                     rate_limit_rps=5.0,
                 )
             ],
         )
 
-    chains["whale_alerts"] = ProviderChain(
+        chains["whale_alerts"] = ProviderChain(
             "whale_alerts",
-            description="Real-time whale transaction detection - large transfers across chains",
+            description="Real-time whale transaction detection",
             providers=[
                 Provider(
                     "whale_detector",
                     ProviderTier.LOCAL,
-                    whale_alert_stream,
+                    get_whale_alerts,
                     weight=10.0,
                     rate_limit_rps=10.0,
                 )
             ],
         )
 
-    chains["token_launches"] = ProviderChain(
+        chains["token_launches"] = ProviderChain(
             "token_launches",
-            description="New token launch scanner with instant risk scoring (by age)",
+            description="New token launch scanner",
             providers=[
                 Provider(
                     "launch_scanner",
                     ProviderTier.LOCAL,
-                    token_launch_scanner,
+                    get_token_launches,
                     weight=10.0,
                     rate_limit_rps=5.0,
                 )
             ],
         )
 
-    chains["insider_detection"] = ProviderChain(
+        chains["insider_detection"] = ProviderChain(
             "insider_detection",
-            description="Pre-pump accumulation pattern detection - volume spikes before price moves",
+            description="Pre-pump accumulation pattern detection",
             providers=[
                 Provider(
                     "insider_detector",
                     ProviderTier.LOCAL,
-                    insider_pattern_detector,
+                    detect_insiders,
                     weight=10.0,
                     rate_limit_rps=5.0,
                 )
             ],
         )
 
-    chains["liquidity_risk"] = ProviderChain(
+        chains["liquidity_risk"] = ProviderChain(
             "liquidity_risk",
-            description="LP health monitor - concentration, lock status, removal risk",
+            description="LP health monitor",
             providers=[
                 Provider(
                     "liquidity_monitor",
                     ProviderTier.LOCAL,
-                    liquidity_risk_monitor,
+                    analyze_liquidity_risk,
                     weight=10.0,
                     rate_limit_rps=10.0,
                 )
             ],
         )
 
-    chains["holder_health"] = ProviderChain(
+        chains["holder_health"] = ProviderChain(
             "holder_health",
-            description="Holder distribution analysis - Gini, concentration, decentralization score",
+            description="Holder distribution analysis",
             providers=[
                 Provider(
                     "holder_analyzer",
                     ProviderTier.LOCAL,
-                    holder_health_score,
+                    check_holder_health,
                     weight=10.0,
                     rate_limit_rps=10.0,
                 )
             ],
         )
 
-    chains["cross_chain_entity"] = ProviderChain(
+        chains["cross_chain_entity"] = ProviderChain(
             "cross_chain_entity",
-            description="Cross-chain entity resolution via Arkham - trace wallets across all chains",
+            description="Cross-chain entity resolution",
             providers=[
                 Provider(
                     "entity_tracer",
                     ProviderTier.LOCAL,
-                    cross_chain_entity,
+                    track_cross_chain_entity,
                     weight=10.0,
                     rate_limit_rps=5.0,
                 )
             ],
         )
 
-    chains["rug_patterns"] = ProviderChain(
+        chains["rug_patterns"] = ProviderChain(
             "rug_patterns",
-            description="Rug pull pattern matcher - similarity scoring against 10 known scam patterns",
+            description="Rug pull pattern matcher",
             providers=[
                 Provider(
                     "rug_matcher",
                     ProviderTier.LOCAL,
-                    rug_pattern_matcher,
+                    detect_rug_patterns,
                     weight=10.0,
                     rate_limit_rps=10.0,
                 )
             ],
         )
 
-    chains["dev_reputation"] = ProviderChain(
+        chains["dev_reputation"] = ProviderChain(
             "dev_reputation",
-            description="Developer reputation - deployer history, token count, entity resolution",
+            description="Developer reputation",
             providers=[
                 Provider(
-                    "dev_reputation",
+                    "dev_reputation_api",
                     ProviderTier.LOCAL,
-                    developer_reputation,
+                    get_dev_reputation,
                     weight=10.0,
                     rate_limit_rps=5.0,
                 )
             ],
         )
 
-    chains["token_report"] = ProviderChain(
+        chains["token_report"] = ProviderChain(
             "token_report",
-            description="ONE-CALL enhanced token report - smart verdicts, entity enrichment, trust adjustments, tier-aware",
+            description="Enhanced token report",
             providers=[
                 Provider(
                     "report_generator",
                     ProviderTier.LOCAL,
-                    enhanced_token_report,
+                    get_enhanced_token_report,
                     weight=15.0,
                     rate_limit_rps=3.0,
                 )
             ],
         )
+    except ImportError:
+        pass
 
-    chains["tier_comparison"] = ProviderChain(
+    try:
+        from app.databus.data_quality import get_tier_comparison
+
+        chains["tier_comparison"] = ProviderChain(
             "tier_comparison",
-            description="Competitive tier comparison - RugCharts vs DexScreener vs Nansen vs GMGN",
+            description="Competitive tier comparison",
             providers=[
                 Provider(
                     "tier_compare",
@@ -354,5 +283,7 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 )
             ],
         )
+    except ImportError:
+        pass
 
     return chains
