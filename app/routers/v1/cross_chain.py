@@ -5,7 +5,9 @@ Cross-chain wallet tracking, balance aggregation, and fund flow tracing.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+
+from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/cross-chain", tags=["cross-chain-v1"])
 
@@ -17,16 +19,14 @@ async def cross_chain_profile(address: str) -> None:
     Aggregates balances, activity, and labels across all supported chains
     via app.cross_chain and app.cross_chain_correlator.
     """
-    raise HTTPException(
-        status_code=503,
-        detail="Cross-chain profile — planned: GET /api/v1/cross-chain/{address} — see roadmap",
+    raise ServiceUnavailableError(
+        "Cross-chain profile — planned: GET /api/v1/cross-chain/{address} — see roadmap",
     )
 
 
 @router.post("/trace")
 async def cross_chain_trace(addresses: list[str]) -> None:
     """Trace fund flows across chains."""
-    raise HTTPException(
-        status_code=503,
-        detail="Cross-chain fund tracing — planned: POST /api/v1/cross-chain/trace — see roadmap",
+    raise ServiceUnavailableError(
+        "Cross-chain fund tracing — planned: POST /api/v1/cross-chain/trace — see roadmap",
     )

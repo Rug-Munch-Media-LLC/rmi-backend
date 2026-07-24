@@ -6,8 +6,10 @@ import json
 import os
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from pydantic import BaseModel
+
+from app.core.errors import PaymentRequiredError
 from app.core.logging import get_logger
 
 logger = get_logger("x402_databus_payment")
@@ -78,10 +80,9 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
                 }
 
         # Return 402 Payment Required
-        raise HTTPException(
-            status_code=402,
-            detail={
-                "error": "payment_required",
+        raise PaymentRequiredError(
+            "payment_required",
+            context={
                 "tool_id": tool_id,
                 "price_usd": price_usd,
                 "payment_required": {
@@ -117,8 +118,6 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
     # Payment header present - check idempotency first to prevent double-charging
     idempotency_key = request.headers.get("X-Idempotency-Key", "")
     if idempotency_key:
-
-
         r = redis_lib.Redis(
             host=os.getenv("REDIS_HOST", "localhost"),
             port=int(os.getenv("REDIS_PORT", "6379")),
@@ -133,15 +132,12 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
 
     # Verify via x402 enforcement
     try:
-
         result = await verify_payment(request, tool_id, price_usd)
         if result.get("verified"):
             payment_info = {"paid": True, "tx": result.get("tx_hash", ""), "amount": price_usd}
 
             # Cache successful payment for idempotency (24h TTL)
             if idempotency_key:
-
-
                 r = redis_lib.Redis(
                     host=os.getenv("REDIS_HOST", "localhost"),
                     port=int(os.getenv("REDIS_PORT", "6379")),
@@ -158,8 +154,7 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
         # In production, this would be stricter
         return {"paid": True, "tx": "x402_verified", "amount": price_usd}
 
-    raise HTTPException(status_code=402, detail={"error": "payment_verification_failed"})
-
+    raise PaymentRequiredError("payment_verification_failed")
 
 
 # ── Request Models ───────────────────────────────────────────────
@@ -197,5 +192,3 @@ class GenericDataRequest(BaseModel):
     chain_id: str = "1"
     admin_key: str = ""
     force_fresh: bool = False
-
-

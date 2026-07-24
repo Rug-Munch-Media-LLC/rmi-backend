@@ -17,7 +17,9 @@ import json
 import time
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
+
+from app.core.errors import RateLimitError, ValidationError
 from pydantic import BaseModel, Field
 
 from app.core.dependencies import get_chain_client, get_evm_client, get_redis
@@ -95,8 +97,15 @@ async def _validate_token_exists(
     addr = token.lower().strip()
 
     evm_chains = {
-        "ethereum", "base", "bsc", "arbitrum", "polygon",
-        "optimism", "avalanche", "fantom", "linea",
+        "ethereum",
+        "base",
+        "bsc",
+        "arbitrum",
+        "polygon",
+        "optimism",
+        "avalanche",
+        "fantom",
+        "linea",
     }
     if chain in evm_chains and (not addr.startswith("0x") or len(addr) != 42):
         return False
@@ -170,24 +179,21 @@ async def create_bulk_alerts(
     # ── Rate limit ────────────────────────────────────────────────
     client_ip = http_request.client.host if http_request.client else "unknown"
     if not await _check_rate_limit(client_ip, r):
-        raise HTTPException(
-            status_code=429,
-            detail=f"Rate limit exceeded. Maximum 1 bulk call per {_RATE_LIMIT_SECONDS} seconds.",
+        raise RateLimitError(
+            f"Rate limit exceeded. Maximum 1 bulk call per {_RATE_LIMIT_SECONDS} seconds.",
         )
 
     # ── Validate alert types ──────────────────────────────────────
     invalid_types = [t for t in request.alert_types if t not in VALID_ALERT_TYPES]
     if invalid_types:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Invalid alert types: {invalid_types}. Valid types: {VALID_ALERT_TYPES}",
+        raise ValidationError(
+            f"Invalid alert types: {invalid_types}. Valid types: {VALID_ALERT_TYPES}",
         )
 
     # ── Validate at least one notification target ─────────────────
     if not request.webhook_url and not request.email:
-        raise HTTPException(
-            status_code=422,
-            detail="At least one notification target required: webhook_url or email",
+        raise ValidationError(
+            "At least one notification target required: webhook_url or email",
         )
 
     # ── Validate tokens ───────────────────────────────────────────
@@ -199,7 +205,8 @@ async def create_bulk_alerts(
     for token in request.tokens:
         try:
             exists = await _validate_token_exists(
-                token, chain,
+                token,
+                chain,
                 chain_client=chain_client if chain == "solana" else None,
                 evm_client=evm_client if chain in ("ethereum", "base", "arbitrum") else None,
             )
@@ -212,9 +219,8 @@ async def create_bulk_alerts(
             skipped.append({"token": token, "reason": f"Validation error: {str(exc)[:100]}"})
 
     if not valid_tokens:
-        raise HTTPException(
-            status_code=422,
-            detail="No valid tokens provided. All tokens failed validation.",
+        raise ValidationError(
+            "No valid tokens provided. All tokens failed validation.",
         )
 
     # ── Create alerts ─────────────────────────────────────────────

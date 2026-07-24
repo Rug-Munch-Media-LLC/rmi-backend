@@ -4,15 +4,21 @@ RugMap, contract scanning, threat intelligence, entity resolution,
 RAG knowledge search, and the universal /fetch endpoint.
 Mixed BASIC, PREMIUM, and ELITE tier pricing.
 """
+
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
+
+from app.core.errors import UpstreamError, ValidationError
 
 from app.core.logging import get_logger
 from app.databus import databus
 from app.routers.x402_databus_tools.pricing import X402_TOOL_PRICING
 from app.routers.x402_databus_tools.models import (
-    AddressRequest, AddressDepthRequest, QueryRequest, GenericDataRequest,
+    AddressRequest,
+    AddressDepthRequest,
+    QueryRequest,
+    GenericDataRequest,
 )
 from app.routers.x402_databus_tools.auth import _clean_response, verify_x402_payment
 from app.routers.x402_databus_tools.router import router
@@ -153,8 +159,7 @@ async def x402_universal_fetch(req: GenericDataRequest, request: Request) -> Any
     """
     data_type = req.data_type
     if data_type not in X402_TOOL_PRICING:
-        raise HTTPException(
-            400,
+        raise ValidationError(
             f"Unknown data_type: {data_type}. Available: {', '.join(sorted(X402_TOOL_PRICING.keys()))}",
         )
 
@@ -180,7 +185,7 @@ async def x402_universal_fetch(req: GenericDataRequest, request: Request) -> Any
     )
 
     if result is None:
-        raise HTTPException(502, f"No data available for {data_type}")
+        raise UpstreamError(f"No data available for {data_type}")
 
     # Add payment metadata
     result["x402"] = {

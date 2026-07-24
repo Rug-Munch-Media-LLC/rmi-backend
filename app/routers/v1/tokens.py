@@ -5,8 +5,10 @@ Token information, risk scoring, and analysis.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
+
+from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/tokens", tags=["tokens-v1"])
 
@@ -28,16 +30,14 @@ async def get_token_info(address: str, chain: str = "ethereum") -> None:
     NOTE: Full implementation delegates to app.api.v1.public.token.
     This stub will be replaced with real handler wiring.
     """
-    raise HTTPException(
-        status_code=503,
-        detail="Token info endpoint — planned: GET /api/v1/token/{address} — see roadmap",
+    raise ServiceUnavailableError(
+        "Token info endpoint — planned: GET /api/v1/token/{address} — see roadmap",
     )
 
 
 @router.get("/{address}/risk")
 async def get_token_risk(address: str, chain: str = "ethereum") -> None:
     """Get token risk assessment."""
-    raise HTTPException(
-        status_code=503,
-        detail="Token risk endpoint — planned: GET /api/v1/token/{address}/risk — see roadmap",
+    raise ServiceUnavailableError(
+        "Token risk endpoint — planned: GET /api/v1/token/{address}/risk — see roadmap",
     )

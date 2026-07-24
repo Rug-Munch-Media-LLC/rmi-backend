@@ -3,11 +3,14 @@
 Every endpoint routes through app.databus.fetch() with full access control.
 No raw HTTP calls. No backdoors. Consumer type is always x402_paid.
 """
+
 import json
 import os
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
+
+from app.core.errors import PaymentRequiredError
 
 from app.core.logging import get_logger
 from app.routers.x402_databus_tools.pricing import X402_TOOL_PRICING
@@ -78,10 +81,9 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
                 }
 
         # Return 402 Payment Required
-        raise HTTPException(
-            status_code=402,
-            detail={
-                "error": "payment_required",
+        raise PaymentRequiredError(
+            "payment_required",
+            context={
                 "tool_id": tool_id,
                 "price_usd": price_usd,
                 "payment_required": {
@@ -164,4 +166,4 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
         # In production, this would be stricter
         return {"paid": True, "tx": "x402_verified", "amount": price_usd}
 
-    raise HTTPException(status_code=402, detail={"error": "payment_verification_failed"})
+    raise PaymentRequiredError("payment_verification_failed")

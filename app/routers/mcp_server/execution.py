@@ -2,8 +2,10 @@
 
 import json
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+
+from app.core.errors import NotFoundError, UpstreamError
 
 from typing import Any
 
@@ -21,9 +23,8 @@ async def mcp_call_tool(tool_id: str, request: Request) -> Any:
 
     data = _get_tools()
     if tool_id not in data["prices"] and tool_id not in ("list", "tools", "catalog"):
-        raise HTTPException(
-            status_code=404,
-            detail=f"Tool '{tool_id}' not found. {len(data['prices'])} tools available -- see /mcp/tools",
+        raise NotFoundError(
+            f"Tool '{tool_id}' not found. {len(data['prices'])} tools available -- see /mcp/tools",
         )
 
     try:
@@ -88,7 +89,7 @@ async def mcp_call_tool(tool_id: str, request: Request) -> Any:
                 else JSONResponse(content=result, status_code=resp.status_code)
             )
     except httpx.ConnectError:
-        raise HTTPException(status_code=502, detail="Backend unavailable") from None
+        raise UpstreamError("Backend unavailable") from None
     except Exception as e:
         logger.error(f"MCP tool failed: {tool_id}: {e}")
-        raise HTTPException(status_code=502, detail=f"Tool execution failed: {str(e)[:200]}") from e
+        raise UpstreamError(f"Tool execution failed: {str(e)[:200]}") from e
