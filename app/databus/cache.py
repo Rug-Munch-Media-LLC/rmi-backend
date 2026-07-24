@@ -27,14 +27,12 @@ import time
 from collections import OrderedDict, defaultdict
 from typing import TYPE_CHECKING, Any
 
-from dotenv import load_dotenv
+import httpx
 
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-load_dotenv("/app/.env", override=True)
 
 logger = get_logger("databus.cache")
 
@@ -340,7 +338,9 @@ class CacheLayer:
         self._type_stats[dtype]["misses"] += 1
         return None, False
 
-    async def set(self, key: str, value: Any, ttl: int | None = None, data_type: str = "default") -> None:
+    async def set(
+        self, key: str, value: Any, ttl: int | None = None, data_type: str = "default"
+    ) -> None:
         """Set in cache. Writes to L1 + L2."""
         if ttl is None:
             ttl = self.ttl_config.get(data_type, 60)

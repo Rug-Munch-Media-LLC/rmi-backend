@@ -13,13 +13,9 @@ Integrations:
 """
 
 import os
-
-from dotenv import load_dotenv
+from datetime import UTC, datetime, timedelta
 
 from app.core.logging import get_logger
-
-load_dotenv("/app/.env", override=True)
-from datetime import UTC, datetime, timedelta  # noqa: E402
 
 logger = get_logger(__name__)
 
