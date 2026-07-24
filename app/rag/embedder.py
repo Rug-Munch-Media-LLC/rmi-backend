@@ -147,9 +147,15 @@ class BGE_M3_Embedder(EmbedderProtocol):
     def name(self) -> str:
         return "bge-m3"
 
+    MAX_CHUNK_SIZE: int = 32
+
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
+
+        # Split large batches into chunks to avoid gateway timeouts.
+        if len(texts) > self.MAX_CHUNK_SIZE:
+            return await self._embed_chunked(texts)
 
         last_exc: Exception | None = None
         for attempt in range(self._max_retries + 1):
@@ -174,6 +180,45 @@ class BGE_M3_Embedder(EmbedderProtocol):
         raise RuntimeError(
             f"bge-m3 embed failed after {self._max_retries + 1} attempts"
         ) from last_exc
+
+    async def _embed_chunked(self, texts: list[str]) -> list[list[float]]:
+        """Split large batches into chunks and embed concurrently."""
+        chunks = [texts[i:i + self.MAX_CHUNK_SIZE] for i in range(0, len(texts), self.MAX_CHUNK_SIZE)]
+        sem = asyncio.Semaphore(2)  # max 2 concurrent chunk requests
+
+        async def _do(chunk: list[str]) -> list[list[float]]:
+            async with sem:
+                for attempt in range(self._max_retries + 1):
+                    try:
+                        resp = await self._http.post(
+                            f"{self._url}/embed",
+                            json={"texts": chunk},
+                        )
+                        resp.raise_for_status()
+                        data = resp.json()
+                        vecs: list[list[float]] | None = data.get("embeddings")
+                        if not vecs:
+                            raise RuntimeError("empty embeddings")
+                        if len(vecs) != len(chunk):
+                            raise RuntimeError(
+                                f"expected {len(chunk)} vectors, got {len(vecs)}"
+                            )
+                        self._validate(vecs)
+                        return vecs
+                    except (httpx.HTTPError, OSError, RuntimeError, json.JSONDecodeError) as exc:
+                        if attempt < self._max_retries:
+                            await asyncio.sleep(0.5 * (attempt + 1))
+                        else:
+                            raise
+
+        tasks = [_do(c) for c in chunks]
+        chunk_results = await asyncio.gather(*tasks)
+
+        # Flatten
+        result: list[list[float]] = []
+        for cr in chunk_results:
+            result.extend(cr)
+        return result
 
     def _validate(self, vectors: list[list[float]]) -> None:
         for i, vec in enumerate(vectors):
@@ -629,12 +674,12 @@ async def shutdown_embedder() -> None:
 
     # Unwrap to find the inner HTTP clients
     inner = _embedder
+    # Unwrap CachedEmbedder to reach the FallbackEmbedder / raw embedder
     if isinstance(inner, CachedEmbedder):
-        # Access _inner via name-mangled attribute
-        inner = inner._CachedEmbedder__inner  # type: ignore[attr-defined]
+        inner = inner._inner  # type: ignore[attr-defined]
 
     if isinstance(inner, FallbackEmbedder):
-        for sub in [inner._FallbackEmbedder__primary, inner._FallbackEmbedder__secondary]:  # type: ignore[attr-defined]
+        for sub in [inner._primary, inner._secondary]:  # type: ignore[attr-defined]
             if hasattr(sub, "close"):
                 await sub.close()
     elif hasattr(inner, "close"):
