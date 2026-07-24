@@ -13,7 +13,11 @@ def get_internal_key() -> str:
     """Retrieve the internal API key from the environment.
     Raises RuntimeError if not set — prevents silent fallback to a default value.
     """
-    key = os.getenv("RMI_INTERNAL_KEY")
+    try:
+        from app.config import settings as _s
+        key = _s.rmi_internal_key or os.getenv("RMI_INTERNAL_KEY")
+    except Exception:
+        key = os.getenv("RMI_INTERNAL_KEY")
     if not key:
         raise RuntimeError(
             "RMI_INTERNAL_KEY environment variable is required. "
@@ -35,7 +39,11 @@ def get_internal_key_or_none() -> str | None:
 
 # Module-level singleton — returns a dev-safe default, logs warning if unset,
 # so routers that import this at module level don't blow up in dev environments.
-_INTERNAL_KEY = os.getenv("RMI_INTERNAL_KEY")
+try:
+    from app.config import settings as _s
+    _INTERNAL_KEY = _s.rmi_internal_key or os.getenv("RMI_INTERNAL_KEY")
+except Exception:
+    _INTERNAL_KEY = os.getenv("RMI_INTERNAL_KEY")
 if not _INTERNAL_KEY:
     log.warning("RMI_INTERNAL_KEY not set — using dev placeholder. Set this env var in production.")
     _INTERNAL_KEY = "dev-internal-key-placeholder"

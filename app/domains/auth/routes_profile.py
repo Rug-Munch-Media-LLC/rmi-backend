@@ -1,6 +1,8 @@
 """User profile and auth cookie/logout endpoints."""
 
 
+from __future__ import annotations
+
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 

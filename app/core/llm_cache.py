@@ -4,8 +4,16 @@ import hashlib
 import json
 import os
 
-REDIS_URL = os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
-CACHE_TTL = int(os.getenv("LLM_CACHE_TTL", "3600"))
+_redis_cache_url = None
+_cache_ttl = None
+try:
+    from app.config import settings as _s
+    _redis_cache_url = _s.redis_cache_url
+    _cache_ttl = _s.llm_cache_ttl
+except Exception:
+    pass
+REDIS_URL = _redis_cache_url or os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
+CACHE_TTL = _cache_ttl or int(os.getenv("LLM_CACHE_TTL", "3600"))
 
 
 def _cache_key(prompt: str, model: str) -> str:

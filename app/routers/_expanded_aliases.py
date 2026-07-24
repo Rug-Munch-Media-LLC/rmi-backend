@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Expanded tool aliases - maps 44 new specialized tools + 80 per-chain variants
 to their closest real handler endpoint.
 

@@ -22,6 +22,8 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from http import HTTPStatus
+
 from app.core.logging import get_logger
 
 logger = get_logger("wallet_drain_scanner")

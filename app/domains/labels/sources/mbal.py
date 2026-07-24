@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 MBAL query adapter for the federated label API.
 
 Implements the MBAL source API for the federated label system.

@@ -1,5 +1,7 @@
 """x402 market tools - get_market_overview, get_trending."""
 
+from __future__ import annotations
+
 from typing import Any
 
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """#6 - Portfolio Impersonation Detector. Scans for hidden wallets, proxy contracts,
+from __future__ import annotations
+
 suspicious approvals. Reveals what an address controls beyond its obvious wallet."""
 
 from typing import Any

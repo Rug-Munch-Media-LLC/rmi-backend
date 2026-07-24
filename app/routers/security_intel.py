@@ -23,7 +23,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-_lazy_cache = {}
+_lazy_cache: dict[str, object] = {}
 
 
 def _L(module_path) -> Any:

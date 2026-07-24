@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 from sdks.python.x402_frameworks.autogen_adapter import logger  # noqa: F821  -- added by codemod
 Expanded MCP Catalog - Free Open-Source Tools from GitHub
 ============================================================

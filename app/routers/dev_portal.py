@@ -1,5 +1,7 @@
 """API Developer Portal - self-service key management, docs, usage tracking."""
 
+from __future__ import annotations
+
 import hashlib
 import os
 from datetime import UTC, datetime

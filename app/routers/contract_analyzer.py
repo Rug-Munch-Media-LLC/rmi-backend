@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """#19 - Smart Contract Function Analyzer. Extends SENTINEL to decompile and analyze
+from __future__ import annotations
+
 bytecode. Returns human-readable "what this contract actually does."
 
 Dependency injection: Settings and HTTP client are injected via ``Depends()``

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """#16 - DeFiLlama Protocol Mismatch Detector. Compares DeFiLlama TVL against
+from __future__ import annotations
+
 actual on-chain balances. Flags inflated TVL or impending rug."""
 
 import asyncio

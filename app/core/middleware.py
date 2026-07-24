@@ -76,10 +76,15 @@ async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
     try:
         import redis.asyncio as redis_lib
 
+        try:
+            from app.config import settings as _s
+            _host, _port, _pass = _s.redis_host, _s.redis_port, _s.redis_password
+        except Exception:
+            _host, _port, _pass = "localhost", 6379, ""
         r = redis_lib.Redis(
-            host=os.getenv("REDIS_HOST", "localhost"),
-            port=int(os.getenv("REDIS_PORT", "6379")),
-            password=os.getenv("REDIS_PASSWORD", ""),
+            host=_host,
+            port=_port,
+            password=_pass,
             decode_responses=True,
         )
         is_locked = await r.exists("rmi:emergency_lockdown")

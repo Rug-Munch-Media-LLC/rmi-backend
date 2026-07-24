@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """#2 - Cross-Chain Address Profiler. Input one address, get activity across all chains.
+from __future__ import annotations
+
 Shows portfolio, active chains, protocol usage, risk score. Uses DataBus + eth-labels."""
 
 import asyncio

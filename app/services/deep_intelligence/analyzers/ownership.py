@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Ownership Theater Detector
 ===========================
 Detect fake renunciation: hidden admin roles, upgradeable proxies,

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Intelligence Router - Market, Premium, and Security Intelligence.
 Receives data from n8n workflows, provides query endpoints for users.
 """

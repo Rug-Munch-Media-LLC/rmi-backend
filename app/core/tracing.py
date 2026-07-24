@@ -8,7 +8,11 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from starlette.responses import Response
 
-TRACING_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
+try:
+    from app.config import settings as _s
+    TRACING_ENABLED = _s.otel_enabled or os.getenv("OTEL_ENABLED", "false").lower() == "true"
+except Exception:
+    TRACING_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
 
 
 def setup_tracing(app: FastAPI) -> None:

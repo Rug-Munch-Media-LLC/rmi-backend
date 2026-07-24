@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Funding Source Tracer
 ======================
 Trace where a wallet got its initial ETH/SOL from.

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Deployer Reputation Score (DRS)
 ================================
 Track every token a deployer wallet has created across all chains.

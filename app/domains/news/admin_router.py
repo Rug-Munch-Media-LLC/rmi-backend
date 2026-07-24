@@ -1,5 +1,7 @@
 """T28 RSS Ingest HTTP endpoint."""
 
+from __future__ import annotations
+
 from fastapi import APIRouter
 
 from app.domains.news.ingest import ingest_all

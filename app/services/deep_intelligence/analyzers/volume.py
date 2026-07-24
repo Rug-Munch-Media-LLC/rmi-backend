@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Volume Authenticity Engine
 ===========================
 Detect wash trading, fake volume, bot vs organic trading.

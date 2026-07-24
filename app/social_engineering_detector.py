@@ -65,6 +65,33 @@ _FLAG_REGISTRARS = {
 # Suspicious TLDs for crypto projects
 _FLAG_TLDS = {".xyz", ".top", ".vip", ".cc", ".work", ".click", ".loan", ".date"}
 
+# ── Scoring weights and thresholds ─────────────────────────
+SOCIAL_ENG_SCORE_CRITICAL = 75
+SOCIAL_ENG_SCORE_HIGH = 55
+SOCIAL_ENG_SCORE_MEDIUM = 35
+
+# Analysis component weights
+DOMAIN_WEIGHT = 0.15
+SOCIAL_WEIGHT = 0.25
+WHITEPAPER_WEIGHT = 0.20
+TEAM_OVERALL_WEIGHT = 0.25
+TEAM_IDENTITY_WEIGHT = 0.6
+TEAM_PHOTO_WEIGHT = 0.4
+
+# Social signals weights
+SOCIAL_WEIGHT_NEW_ACCOUNT = 15
+SOCIAL_WEIGHT_NO_VERIFICATION = 10
+SOCIAL_WEIGHT_LOW_FOLLOWERS = 8
+SOCIAL_WEIGHT_AI_CONTENT = 20
+SOCIAL_WEIGHT_SUSPICIOUS_DOMAIN = 12
+SOCIAL_WEIGHT_FLAG_REGISTRAR = 10
+SOCIAL_WEIGHT_NO_TEAM_LINKEDIN = 8
+SOCIAL_WEIGHT_SUSPICIOUS_TLD = 5
+
+# Serial creator detection
+SERIAL_CREATOR_THRESHOLD = 20
+SOCIAL_SERIAL_CREATOR_PENALTY = 10
+
 # Signs of AI-generated content
 _AI_CONTENT_PATTERNS = [
     re.compile(r"\bas an AI\b", re.I),
@@ -445,19 +472,19 @@ async def detect_social_engineering(
     # ── 1. Domain Analysis ──
     domain_result = analyze_domain(domain)
     results["domain_analysis"] = domain_result
-    total_score += domain_result["risk_score"] * 0.15  # 15% weight
+    total_score += domain_result["risk_score"] * DOMAIN_WEIGHT
     all_flags.extend(domain_result["flags"])
 
     # ── 2. Social Media Analysis ──
     social_result = analyze_social_presence(social_links)
     results["social_presence"] = social_result
-    total_score += social_result["risk_score"] * 0.25  # 25% weight
+    total_score += social_result["risk_score"] * SOCIAL_WEIGHT
     all_flags.extend(social_result["flags"])
 
     # ── 3. Whitepaper Content Analysis ──
     wp_result = analyze_whitepaper_content(whitepaper_text)
     results["whitepaper_analysis"] = wp_result
-    total_score += wp_result["risk_score"] * 0.20  # 20% weight
+    total_score += wp_result["risk_score"] * WHITEPAPER_WEIGHT
     all_flags.extend(wp_result["flags"])
 
     # ── 4. Team Analysis ──
@@ -483,7 +510,7 @@ async def detect_social_engineering(
             if team_results
             else 0
         )
-        team_combined = avg_team_score * 0.6 + avg_photo_score * 0.4
+        team_combined = avg_team_score * TEAM_IDENTITY_WEIGHT + avg_photo_score * TEAM_PHOTO_WEIGHT
         results["team_analysis"] = {
             "members_analyzed": len(team_results),
             "average_identity_risk": round(avg_team_score, 1),
@@ -491,7 +518,7 @@ async def detect_social_engineering(
             "combined_risk": round(team_combined, 1),
             "members": team_results,
         }
-        total_score += team_combined * 0.25  # 25% weight
+        total_score += team_combined * TEAM_OVERALL_WEIGHT
         for m in team_results:
             all_flags.extend(m["flags"])
             all_flags.extend(m.get("photo_analysis", {}).get("flags", []))
@@ -500,7 +527,7 @@ async def detect_social_engineering(
             "members_analyzed": 0,
             "note": "No team data provided - cannot assess identity authenticity",
         }
-        total_score += 25 * 0.25  # Default medium risk for unknown team
+        total_score += SOCIAL_ENG_SCORE_MEDIUM * TEAM_OVERALL_WEIGHT
 
     # ── 5. Token-specific heuristics ──
     try:
@@ -525,8 +552,8 @@ async def detect_social_engineering(
                             creator = token_data.get("creator", {})
                             if isinstance(creator, dict):
                                 creator_tokens = creator.get("created_count", 0)
-                                if creator_tokens and creator_tokens > 20:
-                                    total_score += 10
+                                if creator_tokens and creator_tokens > SERIAL_CREATOR_THRESHOLD:
+                                    total_score += SOCIAL_SERIAL_CREATOR_PENALTY
                                     all_flags.append(
                                         f"Creator has launched {creator_tokens}+ tokens - "
                                         "serial deployer pattern, high impersonation risk"
@@ -540,11 +567,11 @@ async def detect_social_engineering(
     final_score = min(100, round(total_score))
     risk_level = (
         "CRITICAL"
-        if final_score >= 75
+        if final_score >= SOCIAL_ENG_SCORE_CRITICAL
         else "HIGH"
-        if final_score >= 55
+        if final_score >= SOCIAL_ENG_SCORE_HIGH
         else "MODERATE"
-        if final_score >= 35
+        if final_score >= SOCIAL_ENG_SCORE_MEDIUM
         else "LOW"
     )
 

@@ -1,5 +1,7 @@
 """Telegram authentication route."""
 
+from __future__ import annotations
+
 import hashlib
 import hmac
 import json

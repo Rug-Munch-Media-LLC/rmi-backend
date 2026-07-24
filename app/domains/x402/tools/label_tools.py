@@ -1,5 +1,7 @@
 """x402 label tools - get_wallet_labels, get_entity_labels."""
 
+from __future__ import annotations
+
 from typing import Any
 
 

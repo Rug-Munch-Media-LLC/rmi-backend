@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Intelligence Panel Router
 =========================
 Endpoints for the intelligence feed panel on rugmunch.io/intelligence

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Composite Deep Intelligence Report
 ===================================
 Run ALL 12+ features and produce a composite report.

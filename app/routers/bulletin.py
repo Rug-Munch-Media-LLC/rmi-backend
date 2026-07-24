@@ -6,23 +6,20 @@ Includes bot registration, fee tracking, and bot-specific endpoints.
 Uses direct Supabase REST API via httpx (no supabase-py dependency issues).
 """
 
+from __future__ import annotations
+
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, Query, Request
-
-from app.core.errors import AppError, AuthorizationError, NotFoundError, ValidationError
 from pydantic import BaseModel
 
+from app.core.errors import AppError, AuthorizationError, NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.core.secrets import get_secret_or_none
-
-logger = get_logger(__name__)
-
-import contextlib  # noqa: E402
-
-from app.services.supabase_service import (  # noqa: E402
+from app.services.supabase_service import (
     award_badge,
     create_alert,
     create_bulletin_post,
@@ -33,7 +30,10 @@ from app.services.supabase_service import (  # noqa: E402
     get_user_badges,
     vote_post,
 )
-from typing import Any
+
+logger = get_logger(__name__)
+
+import contextlib  # noqa: E402
 
 
 # Lazy auth dependency - avoids importing jose+bcrypt at module load

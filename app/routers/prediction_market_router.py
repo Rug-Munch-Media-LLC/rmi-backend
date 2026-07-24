@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI Prediction Market Router
 ==============================
 FastAPI router exposing prediction market data for crypto security intelligence.

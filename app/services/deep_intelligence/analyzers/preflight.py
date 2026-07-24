@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Pre-Flight Transaction Simulator
 =================================
 Simulate a buy AND sell to show real costs, slippage, taxes, and net P&L.

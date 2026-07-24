@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Exit Liquidity Calculator
 ==========================
 Can you actually sell? Depth-at-price analysis, sell cascade simulation,

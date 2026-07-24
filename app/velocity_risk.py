@@ -21,6 +21,59 @@ logger = get_logger("sentinel.velocity")
 _series_cache: dict[str, list] = defaultdict(list)
 MAX_SERIES_LENGTH = 10  # Keep last 10 snapshots per token
 
+# ── Velocity thresholds for risk scoring ─────────────────────
+# Holder concentration velocity thresholds (delta % per hour)
+HOLDER_CONCENTRATION_SURGE_THRESHOLD = 20.0
+HOLDER_CONCENTRATION_FAST_THRESHOLD = 10.0
+HOLDER_CONCENTRATION_RISING_THRESHOLD = 5.0
+
+# LP depth velocity thresholds (change % per hour)
+LP_DRAINING_RAPIDLY_THRESHOLD = -30.0
+LP_DECREASING_FAST_THRESHOLD = -15.0
+LP_DECREASING_THRESHOLD = -5.0
+
+# Volume/liquidity ratio thresholds
+VOLUME_LIQ_RATIO_SPIKE_THRESHOLD = 10.0
+VOLUME_LIQ_RATIO_RISING_THRESHOLD = 5.0
+
+# Price velocity thresholds (change % per hour)
+PRICE_CRASH_THRESHOLD = -50.0
+PRICE_PUMP_ABNORMAL_THRESHOLD = 500.0
+
+# Transaction count velocity threshold (tx per hour)
+TX_VOLUME_SURGE_THRESHOLD = 1000
+
+# Risk score weights
+RISK_HOLDER_CONCENTRATION_SURGE = 25
+RISK_HOLDER_CONCENTRATION_FAST = 15
+RISK_HOLDER_CONCENTRATION_RISING = 8
+RISK_LP_DRAINING_RAPIDLY = 30
+RISK_LP_DECREASING_FAST = 20
+RISK_LP_DECREASING = 10
+RISK_VOLUME_SPIKE = 15
+RISK_VOLUME_RISING = 8
+RISK_PRICE_CRASH = 20
+RISK_PRICE_PUMP = 12
+RISK_TX_VOLUME_SURGE = 10
+
+# Risk level thresholds
+RISK_CRITICAL_THRESHOLD = 60
+RISK_HIGH_THRESHOLD = 30
+RISK_MEDIUM_THRESHOLD = 10
+
+# Market context thresholds
+FNG_EXTREME_GREED_THRESHOLD = 75
+FNG_GREED_THRESHOLD = 60
+FNG_EXTREME_FEAR_THRESHOLD = 25
+FNG_FEAR_THRESHOLD = 40
+
+# Market pressure factors
+PRESSURE_EXTREME_GREED = 1.3
+PRESSURE_GREED = 1.15
+PRESSURE_EXTREME_FEAR = 0.85
+PRESSURE_FEAR = 0.95
+PRESSURE_NEUTRAL = 1.0
+
 
 def record_snapshot(chain: str, address: str, metrics: dict[str, float]) -> None:
     """Record a metrics snapshot for velocity tracking."""
@@ -73,15 +126,15 @@ def analyze_velocity(
         holder_velocity = holder_delta / hours
         velocities["holder_concentration_delta_per_hour"] = round(holder_velocity, 2)
 
-        if holder_velocity > 20:
+        if holder_velocity > HOLDER_CONCENTRATION_SURGE_THRESHOLD:
             flags.append("HOLDER_CONCENTRATION_SURGING")
-            risk_score += 25
-        elif holder_velocity > 10:
+            risk_score += RISK_HOLDER_CONCENTRATION_SURGE
+        elif holder_velocity > HOLDER_CONCENTRATION_FAST_THRESHOLD:
             flags.append("HOLDER_CONCENTRATION_RISING_FAST")
-            risk_score += 15
-        elif holder_velocity > 5:
+            risk_score += RISK_HOLDER_CONCENTRATION_FAST
+        elif holder_velocity > HOLDER_CONCENTRATION_RISING_THRESHOLD:
             flags.append("HOLDER_CONCENTRATION_RISING")
-            risk_score += 8
+            risk_score += RISK_HOLDER_CONCENTRATION_RISING
 
     # LP depth velocity
     if "liquidity_usd" in oldest and "liquidity_usd" in newest:
@@ -91,15 +144,15 @@ def analyze_velocity(
         lp_velocity = lp_delta_pct / hours
         velocities["lp_depth_change_pct_per_hour"] = round(lp_velocity, 2)
 
-        if lp_velocity < -30:
+        if lp_velocity < LP_DRAINING_RAPIDLY_THRESHOLD:
             flags.append("LP_DRAINING_RAPIDLY")
-            risk_score += 30
-        elif lp_velocity < -15:
+            risk_score += RISK_LP_DRAINING_RAPIDLY
+        elif lp_velocity < LP_DECREASING_FAST_THRESHOLD:
             flags.append("LP_DECREASING_FAST")
-            risk_score += 20
-        elif lp_velocity < -5:
+            risk_score += RISK_LP_DECREASING_FAST
+        elif lp_velocity < LP_DECREASING_THRESHOLD:
             flags.append("LP_DECREASING")
-            risk_score += 10
+            risk_score += RISK_LP_DECREASING
 
     # Volume/liquidity ratio acceleration
     if all(k in oldest and k in newest for k in ["volume_24h", "liquidity_usd"]):
@@ -108,12 +161,12 @@ def analyze_velocity(
         ratio_delta = new_ratio - old_ratio
         velocities["volume_liquidity_ratio_change"] = round(ratio_delta, 3)
 
-        if ratio_delta > 10:
+        if ratio_delta > VOLUME_LIQ_RATIO_SPIKE_THRESHOLD:
             flags.append("VOLUME_SPIKE_VS_LIQUIDITY")
-            risk_score += 15
-        elif ratio_delta > 5:
+            risk_score += RISK_VOLUME_SPIKE
+        elif ratio_delta > VOLUME_LIQ_RATIO_RISING_THRESHOLD:
             flags.append("VOLUME_RISING_VS_LIQUIDITY")
-            risk_score += 8
+            risk_score += RISK_VOLUME_RISING
 
     # Price velocity
     if "price_usd" in oldest and "price_usd" in newest:
@@ -123,12 +176,12 @@ def analyze_velocity(
         price_velocity = price_delta_pct / hours
         velocities["price_change_pct_per_hour"] = round(price_velocity, 2)
 
-        if price_velocity < -50:
+        if price_velocity < PRICE_CRASH_THRESHOLD:
             flags.append("PRICE_CRASHING")
-            risk_score += 20
-        elif price_velocity > 500:
+            risk_score += RISK_PRICE_CRASH
+        elif price_velocity > PRICE_PUMP_ABNORMAL_THRESHOLD:
             flags.append("PRICE_PUMPING_ABNORMALLY")
-            risk_score += 12
+            risk_score += RISK_PRICE_PUMP
 
     # Tx count velocity
     if "tx_count" in oldest and "tx_count" in newest:
@@ -136,9 +189,9 @@ def analyze_velocity(
         tx_velocity = tx_delta / hours
         velocities["tx_count_change_per_hour"] = round(tx_velocity, 1)
 
-        if tx_velocity > 1000:
+        if tx_velocity > TX_VOLUME_SURGE_THRESHOLD:
             flags.append("TX_VOLUME_SURGING")
-            risk_score += 10
+            risk_score += RISK_TX_VOLUME_SURGE
 
     return {
         "status": "ok",
@@ -147,12 +200,9 @@ def analyze_velocity(
         "velocities": velocities,
         "flags": flags,
         "velocity_risk_score": min(risk_score, 100),
-        "risk_level": "critical"
-        if risk_score > 60
-        else "high"
-        if risk_score > 30
-        else "medium"
-        if risk_score > 10
+        "risk_level": "critical" if risk_score > RISK_CRITICAL_THRESHOLD
+        else "high" if risk_score > RISK_HIGH_THRESHOLD
+        else "medium" if risk_score > RISK_MEDIUM_THRESHOLD
         else "low",
     }
 
@@ -192,20 +242,20 @@ def contextualize_score(base_safety: int, market_context: dict[str, Any]) -> dic
     fng = market_context.get("fear_greed_value", 50)
 
     # Market pressure: how much to adjust
-    if fng > 75:  # Extreme Greed - more scams
-        pressure = 1.3
+    if fng > FNG_EXTREME_GREED_THRESHOLD:  # Extreme Greed - more scams
+        pressure = PRESSURE_EXTREME_GREED
         context = "Scam alert elevated - market in Extreme Greed"
-    elif fng > 60:  # Greed
-        pressure = 1.15
+    elif fng > FNG_GREED_THRESHOLD:  # Greed
+        pressure = PRESSURE_GREED
         context = "Elevated scam risk - market in Greed"
-    elif fng < 25:  # Extreme Fear - fewer new scams
-        pressure = 0.85
+    elif fng < FNG_EXTREME_FEAR_THRESHOLD:  # Extreme Fear - fewer new scams
+        pressure = PRESSURE_EXTREME_FEAR
         context = "Reduced scam activity - market in Extreme Fear"
-    elif fng < 40:  # Fear
-        pressure = 0.95
+    elif fng < FNG_FEAR_THRESHOLD:  # Fear
+        pressure = PRESSURE_FEAR
         context = "Slightly reduced risk - market in Fear"
     else:  # Neutral
-        pressure = 1.0
+        pressure = PRESSURE_NEUTRAL
         context = "Normal market conditions"
 
     adjusted = max(0, min(100, round(base_safety / pressure)))

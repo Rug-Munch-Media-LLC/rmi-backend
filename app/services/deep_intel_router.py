@@ -1,5 +1,7 @@
 """Deep Intelligence Router - 12 Unaccounted Features API
 
+from __future__ import annotations
+
 Endpoints for:
 1. Deployer Reputation Score
 2. Pre-flight Transaction Simulator

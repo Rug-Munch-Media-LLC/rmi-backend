@@ -1,5 +1,7 @@
 """x402 report tools - generate_report, get_report."""
 
+from __future__ import annotations
+
 from typing import Any
 
 

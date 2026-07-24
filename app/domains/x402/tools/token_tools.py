@@ -1,5 +1,7 @@
 """x402 token tools - get_token_risk, get_token_info, deep_contract_audit."""
 
+from __future__ import annotations
+
 from typing import Any
 
 

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Prediction Market Intelligence Signals
 ========================================
 Signal detection layer on top of prediction market data.

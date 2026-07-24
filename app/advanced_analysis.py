@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from http import HTTPStatus
+
 import httpx
 
 from app.core.logging import get_logger
@@ -73,7 +75,7 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
                     "id": 1,
                 },
             )
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 data = resp.json()
                 if data.get("result"):
                     result["native_balance"] = int(data["result"], 16) / 1e18
@@ -88,7 +90,7 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
             resp = await client.get(
                 "https://api.dexscreener.com/latest/dex/search", params={"q": address}
             )
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 pairs = resp.json().get("pairs", [])
                 tokens = {}
                 for pair in pairs:
@@ -124,7 +126,7 @@ async def get_transaction_history(
                 "https://api.dexscreener.com/latest/dex/search",
                 params={"q": address, "limit": limit},
             )
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 pairs = resp.json().get("pairs", [])
                 txs = []
                 for pair in pairs:
@@ -216,10 +218,98 @@ def _match_label(address: str, chain: str) -> str | None:
     return None
 
 
+
+async def _trace_solana_hop(
+    client: httpx.AsyncClient, address: str, chain: str, visited: set[str]
+) -> FundingHop | None:
+    """Trace one hop back for a Solana address using Solscan API."""
+    try:
+        resp = await client.get(
+            "https://public-api.solscan.io/account/transactions",
+            params={"account": address, "limit": 20},
+        )
+        if resp.status_code != 200:
+            return None
+
+        txs = resp.json()
+        for tx in txs[:5]:
+            signer = tx.get("signer", [""])[0]
+            if signer.lower() not in visited:
+                hop = FundingHop(
+                    address=signer,
+                    chain=chain,
+                    amount_usd=float(tx.get("amount", 0)),
+                    tx_hash=tx.get("txHash", ""),
+                    timestamp=datetime.fromtimestamp(
+                        tx.get("blockTime", 0), tz=UTC
+                    ).isoformat()
+                    if tx.get("blockTime")
+                    else None,
+                )
+                label = _match_label(signer, chain)
+                if label:
+                    hop.label = label
+                    hop.is_cex = label not in ("mixer",)
+                    hop.is_mixer = label == "mixer"
+                return hop
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("Solana hop trace failed")
+    return None
+
+
+async def _trace_evm_hop(
+    client: httpx.AsyncClient, address: str, chain: str, visited: set[str]
+) -> list[FundingHop]:
+    """Trace one hop back for an EVM address using DexScreener."""
+    hops: list[FundingHop] = []
+    try:
+        resp = await client.get(
+            "https://api.dexscreener.com/latest/dex/search",
+            params={"q": address, "limit": 20},
+        )
+        if resp.status_code != 200:
+            return hops
+
+        pairs = resp.json().get("pairs", [])
+        pair_addrs = set()
+        for pair in pairs:
+            pair_addr = pair.get("pairAddress", "")
+            if pair_addr and pair_addr.lower() not in visited:
+                pair_addrs.add(pair_addr)
+
+        for pa in list(pair_addrs)[:5]:
+            label = _match_label(pa, chain)
+            hop = FundingHop(
+                address=pa,
+                chain=chain,
+                amount_usd=float(pairs[0].get("liquidity", {}).get("usd", 0)),
+            )
+            if label:
+                hop.label = label
+                hop.is_cex = label not in ("mixer",)
+                hop.is_mixer = label == "mixer"
+            hops.append(hop)
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("EVM hop trace failed")
+    return hops
 async def trace_funding(
     address: str, chain: str, max_hops: int = 5, max_depth: int = 3
 ) -> dict[str, Any]:
-    """Trace funding source hop-by-hop."""
+    """Trace funding source hop-by-hop.
+
+    Walks back through transaction history to identify the ultimate
+    funding source (CEX, mixer, or external wallet). Uses multiple
+    explorer APIs with cross-chain fallback.
+
+    Args:
+        address: Starting wallet address to trace from.
+        chain: Blockchain identifier (ethereum, solana, base, etc.).
+        max_hops: Maximum number of funding hops to follow.
+        max_depth: Maximum trace depth before stopping.
+
+    Returns:
+        Dict with hops list, funding_source classification, and risk_level.
+    """
     hops: list[FundingHop] = []
     visited = {address.lower()}
     current_address = address
@@ -232,73 +322,18 @@ async def trace_funding(
             explorer_api = EXPLORER_APIS.get(current_chain)
 
             if not explorer_api and current_chain == "solana":
-                # Use Solscan for Solana
-                try:
-                    resp = await client.get(
-                        "https://public-api.solscan.io/account/transactions",
-                        params={"account": current_address, "limit": 20},
-                    )
-                    if resp.status_code == 200:
-                        txs = resp.json()
-                        # Find earliest incoming transfers
-                        for tx in txs[:5]:
-                            signer = tx.get("signer", [""])[0]
-                            if signer.lower() not in visited:
-                                hop = FundingHop(
-                                    address=signer,
-                                    chain=current_chain,
-                                    amount_usd=float(tx.get("amount", 0)),
-                                    tx_hash=tx.get("txHash", ""),
-                                    timestamp=datetime.fromtimestamp(
-                                        tx.get("blockTime", 0), tz=UTC
-                                    ).isoformat()
-                                    if tx.get("blockTime")
-                                    else None,
-                                )
-                                label = _match_label(signer, current_chain)
-                                if label:
-                                    hop.label = label
-                                    hop.is_cex = label not in ("mixer",)
-                                    hop.is_mixer = label == "mixer"
-                                hops.append(hop)
-                                visited.add(signer.lower())
-                                current_address = signer
-                                break
-                except (ValueError, ConnectionError, TimeoutError, RuntimeError):
-                    logger.warning("error")
+                hop = await _trace_solana_hop(client, current_address, current_chain, visited)
+                if hop:
+                    hops.append(hop)
+                    visited.add(hop.address.lower())
+                    current_address = hop.address
+                else:
                     break
             else:
-                # EVM chains - use DexScreener pairs as proxy
-                try:
-                    resp = await client.get(
-                        "https://api.dexscreener.com/latest/dex/search",
-                        params={"q": current_address, "limit": 20},
-                    )
-                    if resp.status_code == 200:
-                        pairs = resp.json().get("pairs", [])
-                        pair_addrs = set()
-                        for pair in pairs:
-                            pair_addr = pair.get("pairAddress", "")
-                            if pair_addr and pair_addr.lower() not in visited:
-                                pair_addrs.add(pair_addr)
-
-                        if pair_addrs:
-                            # Check if any pair creator matches known labels
-                            for pa in list(pair_addrs)[:5]:
-                                label = _match_label(pa, current_chain)
-                                hop = FundingHop(
-                                    address=pa,
-                                    chain=current_chain,
-                                    amount_usd=float(pairs[0].get("liquidity", {}).get("usd", 0)),
-                                )
-                                if label:
-                                    hop.label = label
-                                    hop.is_cex = label not in ("mixer",)
-                                    hop.is_mixer = label == "mixer"
-                                hops.append(hop)
-                                visited.add(pa.lower())
-                except (ValueError, ConnectionError, TimeoutError, RuntimeError):
-                    logger.warning("error")
+                new_hops = await _trace_evm_hop(client, current_address, current_chain, visited)
+                hops.extend(new_hops)
+                for h in new_hops:
+                    visited.add(h.address.lower())
 
             depth += 1
 
@@ -480,7 +515,7 @@ async def analyze_contract_rug_risk(
             resp = await client.get(
                 f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
             )
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 data = resp.json()
                 pairs = data.get("pairs", [])
                 if pairs:
@@ -592,7 +627,7 @@ async def analyze_contract_rug_risk(
                 f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}",
                 params={"contract_addresses": token_address},
             )
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 goplus = resp.json().get("result", {}).get(token_address.lower(), {})
                 if goplus:
                     # Contract factors
@@ -698,7 +733,7 @@ async def analyze_contract_rug_risk(
             resp = await client.get(
                 f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
             )
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 pairs = resp.json().get("pairs", [])
                 if pairs:
                     # Get tx counts for wash trading detection
@@ -726,7 +761,7 @@ async def analyze_contract_rug_risk(
                 "https://public-api.birdeye.so/public/token_security",
                 params={"address": token_address},
             )
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 birdeye = resp.json()
                 if birdeye.get("success"):
                     data = birdeye.get("data", {})

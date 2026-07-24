@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI x402 Bridge Health Monitor - Pay-per-call API endpoint
 ===========================================================
 Wraps BridgeHealthMonitor from bridge_health_monitor.py with:

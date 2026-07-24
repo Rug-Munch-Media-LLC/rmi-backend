@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Post-Purchase Monitor
 ======================
 Detect changes AFTER buying: contract modifications, new admin functions,

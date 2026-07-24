@@ -10,6 +10,7 @@ import base64
 import hashlib
 import logging
 import time
+from http import HTTPStatus
 from typing import Any
 
 import cloudscraper
@@ -19,6 +20,17 @@ from app.core.circuit_breaker import CircuitBreakerOpenError, SimpleCircuitBreak
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Default request configuration
+REQUEST_TIMEOUT = 15  # Seconds
+DEFAULT_RETRIES = 3  # Number of retry attempts
+RETRY_BASE_DELAY = 2  # Base seconds for exponential backoff
+RETRY_ERROR_DELAY = 1  # Seconds between retries on errors
+PAGE_SIZE_DEFAULT = 40  # Default page size for paginated endpoints
+PAGE_SIZE_TRANSFERS = 100  # Page size for transfer endpoints
+PAGE_SIZE_HOLDERS = 200  # Page size for holder endpoints
+PAGE_SIZE_TOKENS = 500  # Page size for token listing endpoints
+BALANCE_DECIMALS = 1e9  # Solana lamports divisor
 
 # Circuit breaker for Solscan API (sync — reverse-engineered, unreliable API)
 _solscan_cb = SimpleCircuitBreaker(
@@ -61,7 +73,7 @@ def _headers() -> dict[str, str]:
 # ─── Core Request Handler ─────────────────────────────────────────────────────
 
 
-def _request(endpoint: str, params: dict | None = None, retries: int = 3) -> Any:
+def _request(endpoint: str, params: dict | None = None, retries: int = DEFAULT_RETRIES) -> Any:
     """Make authenticated request to Solscan API with retries and circuit breaker."""
     # Circuit breaker check — serve stale cache if OPEN
     if not _solscan_cb.can_call():
@@ -77,19 +89,19 @@ def _request(endpoint: str, params: dict | None = None, retries: int = 3) -> Any
     url = f"{BASE_URL}{endpoint}"
     for attempt in range(retries):
         try:
-            response = _scraper.get(url, headers=_headers(), params=params or {}, timeout=15)
-            if response.status_code == 200:
+            response = _scraper.get(url, headers=_headers(), params=params or {}, timeout=REQUEST_TIMEOUT)
+            if response.status_code == HTTPStatus.OK:
                 data = response.json()
                 result = data.get("data") if isinstance(data, dict) and "data" in data else data
                 _solscan_cb.set_stale_result(result)
                 _solscan_cb.record_success()
                 return result
-            elif response.status_code == 429:
-                wait = 2**attempt
+            elif response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+                wait = RETRY_BASE_DELAY**attempt
                 logger.warning(f"Rate limited, waiting {wait}s...")
                 _solscan_cb.record_failure(is_server_error=False)
                 time.sleep(wait)
-            elif response.status_code >= 500:
+            elif response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
                 logger.warning(f"HTTP {response.status_code} on {endpoint}")
                 _solscan_cb.record_failure(is_server_error=True)
                 if attempt == retries - 1:
@@ -104,7 +116,7 @@ def _request(endpoint: str, params: dict | None = None, retries: int = 3) -> Any
             _solscan_cb.record_failure(is_server_error=True)
             if attempt == retries - 1:
                 return None
-            time.sleep(1)
+            time.sleep(RETRY_ERROR_DELAY)
     return None
 
 

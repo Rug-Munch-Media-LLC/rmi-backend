@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Slow Rug Detector
 ==================
 Detect gradual LP removal, fee increases, slow ownership transfers.

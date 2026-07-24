@@ -10,20 +10,16 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.base_service import BaseService
 from app.core.logging import get_logger
 from app.domains.alerts.broadcaster import AlertBroadcaster
-from app.domains.alerts.models import (
-    AlertEvent,
-    AlertSubscription,
-    AlertType,
-    CreateAlertRequest,
-)
+from app.domains.alerts.models import AlertEvent, AlertSubscription, AlertType, CreateAlertRequest
 from app.domains.alerts.repository import AlertRepository
 
 log = get_logger(__name__)
 
 
-class AlertService:
+class AlertService(BaseService[AlertSubscription]):
     """Orchestrates subscription CRUD and event firing."""
 
     def __init__(
@@ -34,13 +30,24 @@ class AlertService:
         self._repo = repo or AlertRepository()
         self._broadcaster = broadcaster or AlertBroadcaster()
 
-    async def create_subscription(
-        self,
-        req: CreateAlertRequest,
-        owner_id: str | None = None,
-    ) -> AlertSubscription:
+    # ── CRUD ──────────────────────────────────────────────────────────
+
+    async def list(self, **filters: Any) -> list[AlertSubscription]:
+        """List subscriptions. If owner_id given, filter to that user."""
+        owner_id = filters.get("owner_id")
+        all_subs = await self._repo.list_all()
+        if owner_id is None:
+            return all_subs
+        return [s for s in all_subs if s.owner_id == owner_id]
+
+    async def get(self, id_: str, **kwargs: Any) -> AlertSubscription | None:
+        """Get a subscription by ID."""
+        return await self._repo.get(id_)
+
+    async def create(self, data: Any, **kwargs: Any) -> AlertSubscription:
         """Create a new subscription, persist it, return the saved record."""
-        # Use provided types, or the model default if not given.
+        req = data if isinstance(data, CreateAlertRequest) else CreateAlertRequest.model_validate(data)
+        owner_id = kwargs.get("owner_id")
         types = req.alert_types or [
             AlertType.LIQUIDITY_REMOVE,
             AlertType.MINT,
@@ -63,27 +70,23 @@ class AlertService:
         )
         return sub
 
-    async def list_subscriptions(self, owner_id: str | None = None) -> list[AlertSubscription]:
-        """List subscriptions. If owner_id given, filter to that user."""
-        all_subs = await self._repo.list_all()
-        if owner_id is None:
-            return all_subs
-        return [s for s in all_subs if s.owner_id == owner_id]
-
-    async def cancel_subscription(self, alert_id: str, owner_id: str | None = None) -> bool:
-        """Cancel (delete) a subscription. Returns True if removed."""
-        sub = await self._repo.get(alert_id)
+    async def delete(self, id_: str, **kwargs: Any) -> bool:
+        """Delete a subscription by ID. Optionally verify ownership."""
+        owner_id = kwargs.get("owner_id")
+        sub = await self._repo.get(id_)
         if sub is None:
             return False
         if owner_id is not None and sub.owner_id != owner_id:
             log.warning(
                 "alert_cancel_unauthorized",
-                alert_id=alert_id,
+                alert_id=id_,
                 owner=owner_id,
                 actual_owner=sub.owner_id,
             )
             return False
-        return await self._repo.delete(alert_id)
+        return await self._repo.delete(id_)
+
+    # ── Domain-specific ───────────────────────────────────────────────
 
     async def fire_event(
         self,
@@ -91,15 +94,9 @@ class AlertService:
         event_type: AlertType,
         payload: dict[str, Any] | None = None,
     ) -> list[AlertEvent]:
-        """Fire an event for a token. Returns the events that were broadcast.
-
-        Looks up all active subscriptions matching this token + event_type,
-        creates an AlertEvent for each, and broadcasts via the broadcaster.
-        """
+        """Fire an event for a token. Returns the events that were broadcast."""
         subs = await self._repo.list_by_token(token_address)
-        matching = [
-            s for s in subs if s.active and (event_type.value in [t.value for t in s.alert_types])
-        ]
+        matching = [s for s in subs if s.active and (event_type.value in [t.value for t in s.alert_types])]
         if not matching:
             return []
 

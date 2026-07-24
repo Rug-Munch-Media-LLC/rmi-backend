@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RugCharts Backend Router
 ========================
 Real OHLCV candles via GeckoTerminal, volume authenticity, dev reputation,

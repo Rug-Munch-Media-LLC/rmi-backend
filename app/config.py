@@ -2,6 +2,11 @@
 
 Pydantic-settings reads from environment variables (and .env in dev).
 Import: `from app.config import settings`
+
+CONSOLIDATION NOTICE (2026-07-24):
+  All configuration values must live here. Do NOT use os.getenv() in
+  non-config files. Import `settings` from this module and use the
+  typed attribute. See `app/core/secrets.py` for secrets (gopass).
 """
 
 from __future__ import annotations
@@ -24,17 +29,55 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── Runtime ──────────────────────────────────────────────────────
-    environment: Literal["dev", "staging", "prod"] = "prod"
+    # ── Runtime ──────────────────────────────────────────────────────────
+    environment: Literal["dev", "staging", "prod", "development"] = "prod"
     log_level: str = "INFO"
     port: int = 8000
+    backend_url: str = Field(
+        default="http://localhost:8000",
+        description="Self-referencing URL for internal API calls. Set BACKEND_URL env var.",
+    )
+    frontend_url: str = Field(
+        default="https://rugmunch.io",
+        description="Frontend URL for OAuth redirects and CORS. Set FRONTEND_URL env var.",
+    )
 
-    # ── Database / Cache ────────────────────────────────────────────
+    # ── Database / Cache ────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://rmi:rmi@localhost/rmi"
     redis_url: str = "redis://localhost:6379/0"
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_password: str = ""
+    redis_cache_url: str = Field(
+        default="redis://localhost:6379/1",
+        description="Separate Redis DB for LLM cache. Set REDIS_CACHE_URL env var.",
+    )
+    llm_cache_ttl: int = 3600
 
-    # ── Auth ────────────────────────────────────────────────────────
-    jwt_secret: str = Field(  # required, no default, fail-fast in prod
+    # ── ClickHouse (analytics / cost logging) ────────────────────────────
+    clickhouse_host: str = "rmi-clickhouse"
+    clickhouse_port: int = 9000
+    clickhouse_user: str = "rmi"
+    clickhouse_password: str = ""
+
+    # ── Neo4j / Memgraph (graph storage) ─────────────────────────────────
+    neo4j_uri: str = ""
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = ""
+    memgraph_uri: str = Field(
+        default="bolt://localhost:7687",
+        description="Memgraph URI for knowledge graph. Set MEMGRAPH_URI env var.",
+    )
+    memgraph_user: str = ""
+    memgraph_password: str = ""
+
+    # ── Supabase ─────────────────────────────────────────────────────────
+    supabase_url: str = ""
+    supabase_key: str = ""
+    supabase_service_key: str = ""
+
+    # ── Auth ────────────────────────────────────────────────────────────
+    jwt_secret: str = Field(
         default="dev-secret-please-set-JWT_SECRET-env-var-32chars",
         min_length=32,
         description=(
@@ -63,8 +106,6 @@ class Settings(BaseSettings):
         ),
     )
     jwt_expire_minutes: int = 60 * 24
-
-    # API key for X-API-Key header authentication
     rmi_auth_token: str = Field(
         default="",
         description=(
@@ -73,8 +114,10 @@ class Settings(BaseSettings):
             "Set via RMI_AUTH_TOKEN env var or .env file."
         ),
     )
-
-    # Dev bypass flag — must be explicitly set to bypass auth in dev
+    rmi_internal_key: str = Field(
+        default="",
+        description="Internal service-to-service API key. Set RMI_INTERNAL_KEY env var.",
+    )
     dev_bypass_auth: bool = Field(
         default=False,
         description=(
@@ -82,67 +125,53 @@ class Settings(BaseSettings):
             "Set DEV_BYPASS_AUTH=true in .env. NEVER set in production."
         ),
     )
+    totp_issuer: str = "RugMunch Intelligence"
 
-    # ── CORS ────────────────────────────────────────────────────────
+    # ── OAuth ────────────────────────────────────────────────────────────
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "https://rugmunch.io/api/v1/auth/google/callback"
+
+    # ── Telegram ─────────────────────────────────────────────────────────
+    telegram_bot_token: str = ""
+    telegram_allowed_users: str = "7075336557"
+
+    # ── CORS ────────────────────────────────────────────────────────────
     cors_origins: list[str] = Field(
         default=[],
-        description=(
-            "List of allowed CORS origins. Must be set explicitly. "
-            "In production, empty list or ['*'] will raise an error. "
-            "Example: ['https://app.rugmunch.io', 'https://rugmunch.io']"
-        ),
+        description="List of allowed CORS origins. Must be set explicitly.",
     )
 
-    # ── Rate limiting ───────────────────────────────────────────────
+    # ── Rate limiting ───────────────────────────────────────────────────
     rate_limit_per_minute: int = 100
+    rate_limiter_redis_db: int = Field(
+        default=4,
+        description="Redis database index for rate limiter state. Set RATE_LIMITER_REDIS_DB.",
+    )
+    rate_limit_salt: str = Field(
+        default="",
+        description="Salt for rate limit key hashing. Set RATE_LIMIT_SALT env var.",
+    )
 
-    # ── AI providers ────────────────────────────────────────────────
+    # ── AI providers ────────────────────────────────────────────────────
     ollama_url: str = "http://localhost:11434"
     openrouter_api_key: str = ""
     huggingface_token: str = ""
-
-    # ── Backend self-reference ──────────────────────────────────
-    backend_url: str = Field(
-        default="http://localhost:8000",
-        description=(
-            "Self-referencing URL for internal API calls to this backend. Set BACKEND_URL env var."
-        ),
-    )
-
-    # ── LLM proxy ─────────────────────────────────────────────────
     litellm_api_base: str = Field(
         default="http://localhost:4000/v1",
-        description=("LiteLLM / OpenAI-compatible proxy base URL. Set LITELLM_API_BASE env var."),
+        description="LiteLLM / OpenAI-compatible proxy base URL. Set LITELLM_API_BASE env var.",
     )
 
-    # ── Solscan API ──────────────────────────────────────────────
-    solscan_url: str = Field(
-        default="https://api-v2.solscan.io/v2",
-        description=(
-            "Solscan API base URL for reverse-engineered client. Set SOLSCAN_URL env var."
-        ),
-    )
-
-    # ── Pricing / Upsell ─────────────────────────────────────────
-    pricing_url: str = Field(
-        default="https://rugmunch.io/pricing",
-        description=("Public pricing page URL shown in upsell messages. Set PRICING_URL env var."),
-    )
-
-    # ── GCloud ───────────────────────────────────────────────────
-    gcloud_sa_vault_path: str = Field(
-        default="/root/.secrets/google-sa-cryptorugmunch.json",
-        description=(
-            "Path to Google service account JSON key in vault. Set GCLOUD_SA_VAULT_PATH env var."
-        ),
-    )
-
-    # ── Langfuse v4 (observability) ─────────────────────────────────
+    # ── Observability ──────────────────────────────────────────────────
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_host: str = "http://localhost:3002"
+    sentry_dsn: str = ""
+    glitchtip_dsn: str = ""
+    otel_enabled: bool = False
+    sentry_traces_sample_rate: float = 0.1
 
-    # ── External APIs ───────────────────────────────────────────────
+    # ── External APIs ───────────────────────────────────────────────────
     coingecko_api_key: str = ""
     etherscan_api_key: str = ""
     birdeye_api_key: str = ""
@@ -151,33 +180,73 @@ class Settings(BaseSettings):
         default="",
         description="Helius API key for Solana RPC access. Set via HELIUS_API_KEY env var.",
     )
+    apify_api_token: str = ""
+    basescan_api_key: str = ""
+    moralis_api_key: str = ""
+    bitquery_api_key: str = ""
+    lunarcrush_api_key: str = ""
+    chainabuse_api_key: str = ""
+    webacy_api_key: str = ""
+    gmgn_api_key: str = ""
 
-    # ── Pryscraper ──────────────────────────────────────────────────
+    # ── Blockchain RPC ──────────────────────────────────────────────────
+    reth_url: str = "https://ethereum-rpc.publicnode.com"
+    alchemy_key: str = ""
+    bscscan_key: str = ""
+
+    # ── Solscan ──────────────────────────────────────────────────────────
+    solscan_url: str = Field(
+        default="https://api-v2.solscan.io/v2",
+        description="Solscan API base URL. Set SOLSCAN_URL env var.",
+    )
+
+    # ── Redpanda ────────────────────────────────────────────────────────
+    redpanda_broker: str = "rmi-redpanda:9092"
+
+    # ── Pricing / Upsell ────────────────────────────────────────────────
+    pricing_url: str = Field(
+        default="https://rugmunch.io/pricing",
+        description="Public pricing page URL shown in upsell messages. Set PRICING_URL env var.",
+    )
+
+    # ── GCloud ──────────────────────────────────────────────────────────
+    gcloud_sa_vault_path: str = Field(
+        default="/root/.secrets/google-sa-cryptorugmunch.json",
+        description="Path to Google service account JSON key in vault. Set GCLOUD_SA_VAULT_PATH.",
+    )
+
+    # ── Prompts ├───────────────────────────────────────────────────────
+    prompts_dir: str = Field(
+        default="",
+        description="Path to prompts directory. Auto-detected if empty.",
+    )
+
+    # ── Data paths ──────────────────────────────────────────────────────
+    spam_data_dir: str = "/app/data/spam"
+    real_cats_path: str = Field(
+        default="",
+        description="Path to Real-CATS dataset JSON. Auto-detected if empty.",
+    )
+
+    # ── Pryscraper ──────────────────────────────────────────────────────
     pryscraper_url: str = Field(
         default="http://pry:8002",
-        description=(
-            "Pryscraper base URL. Defaults to the `pry` container on rmi_network "
-            "at port 8002. Override with PRYSCRAPER_URL env var."
-        ),
+        description="Pryscraper base URL. Defaults to the `pry` container on rmi_network.",
     )
     pry_api_key: str = Field(
         default="",
-        description=(
-            "API key for Pryscraper authentication. "
-            "Must match the PRY_API_KEY set in the pry container. "
-            "Set via PRY_API_KEY env var."
-        ),
+        description="API key for Pryscraper authentication. Set PRY_API_KEY env var.",
     )
     pry_x402_offline: bool = Field(
         default=False,
-        description=(
-            "Enable offline x402 payment mode for internal use. "
-            "When True, paid Pry endpoints (scrape, extract) auto-verify "
-            "without on-chain transactions. Set PRY_X402_OFFLINE=true."
-        ),
+        description="Enable offline x402 payment mode for internal use.",
+    )
+    x402_verify_url: str = Field(
+        default="http://localhost:8000/api/v1/x402/verify",
+        description="URL for x402 payment verification. Set X402_VERIFY_URL env var.",
     )
 
-    # ── RMI-specific ────────────────────────────────────────────────
+    # ── RMI-specific ────────────────────────────────────────────────────
     rag_collections: list[str] = [
         "scam_intel",
         "deployer_history",
@@ -185,34 +254,43 @@ class Settings(BaseSettings):
         "contract_audit",
         "phishing_db",
     ]
+    free_scan_limit: int = 5
+    pro_scan_limit: int = 100
+    elite_scan_limit: int = 0  # 0 = unlimited
+    rag_embedding_dim: int = 0  # 0 = auto-detect
+    wallet_vault_password: str = ""
+    databus_url: str = Field(
+        default="",
+        description="DataBus URL for internal API calls. Auto-derived if empty.",
+    )
+    eth_labels_url: str = Field(
+        default="",
+        description="Ethereum labels API URL. Auto-derived if empty.",
+    )
+    llama_rag_enabled: bool = Field(
+        default=False,
+        description="Enable LlamaIndex-based RAG pipeline. Set LLAMA_RAG_ENABLED env var.",
+    )
+
+    # ── Validators ──────────────────────────────────────────────────────
 
     @field_validator("cors_origins")
     @classmethod
     def _cors_origins_must_be_safe(cls, v: list[str]) -> list[str]:
-        """Reject dangerous CORS configurations.
-
-        In production, empty or wildcard origins are not allowed.
-        In dev/staging, warn but allow (for local development convenience).
-        """
+        """Reject dangerous CORS configurations."""
         env = os.getenv("ENVIRONMENT", "dev")
         if v == ["*"] or not v:
             if env == "prod":
                 raise ValueError(
                     "cors_origins must be an explicit non-empty list of origins in production. "
-                    "Set CORS_ORIGINS env var, e.g. "
-                    'CORS_ORIGINS=\'["https://app.rugmunch.io","https://rugmunch.io"]\'. '
-                    "Wildcard '*' and empty list are rejected in production."
+                    "Set CORS_ORIGINS env var."
                 )
         return v
 
     @field_validator("jwt_secret")
     @classmethod
     def _jwt_secret_must_be_set_in_prod(cls, v: str) -> str:
-        """Reject the dev default in production.
-
-        Pydantic-settings binds v from env (or rejects via min_length above).
-        Here we only enforce the dev placeholder cannot leak into a prod boot.
-        """
+        """Reject the dev default in production."""
         if v == "dev-secret-CHANGE-ME" and os.getenv("ENVIRONMENT", "dev") == "prod":
             raise ValueError(
                 "jwt_secret must be set to a non-default value in production. "

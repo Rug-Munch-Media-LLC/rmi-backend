@@ -1,5 +1,7 @@
 """Password hashing and verification."""
 
+from __future__ import annotations
+
 import bcrypt
 
 

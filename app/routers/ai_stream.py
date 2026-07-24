@@ -1,5 +1,7 @@
 """SSE Response Streaming - real-time token streaming for AI endpoints."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 

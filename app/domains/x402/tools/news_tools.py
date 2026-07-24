@@ -1,5 +1,7 @@
 """x402 news tools - get_news, get_news_sentiment."""
 
+from __future__ import annotations
+
 from typing import Any
 
 
