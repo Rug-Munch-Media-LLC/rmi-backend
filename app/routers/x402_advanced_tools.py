@@ -17,7 +17,8 @@ import time
 from datetime import UTC, datetime
 
 import aiohttp
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+from app.core.errors import AppError
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -577,7 +578,7 @@ async def rug_probability(req: AddressRequest) -> Any:
 
     except Exception as e:
         logger.error(f"Rug probability failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -721,7 +722,7 @@ async def token_history(req: HistoryRequest) -> Any:
 
     except Exception as e:
         logger.error(f"Token history failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -891,7 +892,7 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
 
     except Exception as e:
         logger.error(f"Narrative engine failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════

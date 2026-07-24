@@ -13,7 +13,7 @@ Includes:
 
 import re
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.logging import get_logger
 
@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 ADDRESS_PATTERN = re.compile(r"^(0x)?[0-9a-fA-F]{38,64}$")
 HASH_PATTERN = re.compile(r"^(0x)?[0-9a-fA-F]{64}$")
 WALLET_PATTERN = re.compile(r"^(0x)?[0-9a-fA-F]{38,64}$")
-CHAIN_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9-]+$")
+CHAIN_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9-]*$")
 
 MIN_ADDRESS_LENGTH = 38  # 0x + 38 hex chars = 20 bytes (EVM)
 MAX_ADDRESS_LENGTH = 66  # 0x + 66 hex chars = 32 bytes (some chains)
@@ -69,8 +69,9 @@ class WalletRequest(BaseModel):
     )
     chain: str = Field(default="ethereum", description="Blockchain network name")
 
-    @validator("address")
-    def validate_address(self, v: str) -> str:
+    @field_validator("address")
+    @classmethod
+    def validate_address(cls, v: str) -> str:
         """Validate wallet address format."""
         if not v.startswith("0x"):
             v = "0x" + v
@@ -78,8 +79,9 @@ class WalletRequest(BaseModel):
             raise ValueError(f"Invalid address format: {v}")
         return v.lower()
 
-    @validator("chain")
-    def validate_chain(self, v: str) -> str:
+    @field_validator("chain")
+    @classmethod
+    def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
         if v not in VALID_CHAINS:
             logger.warning(f"Unknown chain '{v}', allowing anyway for flexibility")
@@ -94,17 +96,22 @@ class BatchWalletRequest(BaseModel):
     )
     chain: str = Field(default="ethereum", description="Blockchain network")
 
-    @validator("addresses", each_item=True)
-    def validate_address(self, v: str) -> str:
+    @field_validator("addresses")
+    @classmethod
+    def validate_addresses(cls, v: list[str]) -> list[str]:
         """Validate each address in batch."""
-        if not v.startswith("0x"):
-            v = "0x" + v
-        if not ADDRESS_PATTERN.match(v):
-            raise ValueError(f"Invalid address format: {v}")
-        return v.lower()
+        validated: list[str] = []
+        for addr in v:
+            if not addr.startswith("0x"):
+                addr = "0x" + addr
+            if not ADDRESS_PATTERN.match(addr):
+                raise ValueError(f"Invalid address format: {addr}")
+            validated.append(addr.lower())
+        return validated
 
-    @validator("chain")
-    def validate_chain(self, v: str) -> str:
+    @field_validator("chain")
+    @classmethod
+    def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
         if v not in VALID_CHAINS:
             logger.warning(f"Unknown chain '{v}', allowing anyway")

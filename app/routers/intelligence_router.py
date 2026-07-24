@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Query
+from app.core.errors import AuthError, AppError, ServiceUnavailableError, ValidationError
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
@@ -167,7 +168,7 @@ class IntelligenceQuery(BaseModel):
 async def receive_market_update(update: MarketUpdate) -> dict[str, str]:
     """Receive market intelligence update from n8n workflow."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     try:
         workflow = update.workflow
@@ -245,7 +246,7 @@ async def receive_market_update(update: MarketUpdate) -> dict[str, str]:
 async def receive_security_update(update: MarketUpdate) -> dict[str, str]:
     """Receive security intelligence update from n8n workflow."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     try:
         workflow = update.workflow
@@ -312,7 +313,7 @@ async def get_trending_tokens(
 ) -> dict:
     """Get trending tokens."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     result = await _supabase_request(
         "GET",
@@ -336,7 +337,7 @@ async def get_whale_movements(
 ) -> dict:
     """Get recent whale movements."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     result = await _supabase_request(
         "GET",
@@ -361,7 +362,7 @@ async def get_volume_spikes(
 ) -> dict:
     """Get volume spike alerts."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     result = await _supabase_request(
         "GET",
@@ -389,7 +390,7 @@ async def get_smart_money_activities(
 ) -> dict:
     """Get smart money activities (premium feature)."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     params: dict[str, str] = {
         "select": "*",
@@ -413,7 +414,7 @@ async def get_exchange_flows(
 ) -> dict:
     """Get exchange flow analysis (premium feature)."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     params: dict[str, str] = {
         "select": "*",
@@ -441,7 +442,7 @@ async def get_scam_alerts(
 ) -> dict:
     """Get scam alerts."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     params: dict[str, str] = {
         "select": "*",
@@ -464,7 +465,7 @@ async def get_rugpull_alerts(
 ) -> dict:
     """Get rugpull alerts (real-time)."""
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     result = await _supabase_request(
         "GET",
@@ -492,10 +493,10 @@ async def get_my_alerts(
     """Get my intelligence alerts."""
     user_id = await _get_current_user_id(authorization)
     if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise AuthError("Not authenticated")
 
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     params: dict[str, str] = {
         "select": "*",
@@ -536,10 +537,10 @@ async def dismiss_alert(
     """Dismiss an intelligence alert."""
     user_id = await _get_current_user_id(authorization)
     if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise AuthError("Not authenticated")
 
     if not _supabase_is_configured():
-        raise HTTPException(status_code=503, detail="Supabase not configured")
+        raise ServiceUnavailableError("Supabase not configured")
 
     result = await _supabase_request(
         "PATCH",
@@ -606,16 +607,16 @@ async def generate_card(card_type: str, data: dict) -> Any:
 
         generator = generators.get(card_type)
         if not generator:
-            raise HTTPException(status_code=400, detail=f"Unknown card type: {card_type}")
+            raise ValidationError(f"Unknown card type: {card_type}")
 
         result = await generator(**data)
         return result
 
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
         logger.error("Card generation failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e
 
 
 @router.get("/cards/templates")
@@ -636,7 +637,7 @@ async def get_card_templates() -> dict[str, list[dict]]:
             ]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e
 
 
 # ── Marketing Graphics Endpoints ─────────────────────────────
@@ -650,7 +651,7 @@ async def list_marketing_templates_endpoint() -> dict:
 
         return {"templates": list_marketing_templates()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e
 
 
 @router.post("/marketing/generate")
@@ -662,15 +663,15 @@ async def generate_marketing_graphic(graphic_type: str, data: dict | None = None
         result = generate_marketing_graphic(graphic_type, data)
 
         if result.get("status") == "error":
-            raise HTTPException(status_code=500, detail=result.get("error"))
+            raise AppError(message=result.get("error"))
 
         return result
 
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
         logger.error("Marketing graphic generation failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e
 
 
 @router.post("/marketing/generate/feature-cards")
@@ -682,7 +683,7 @@ async def generate_all_feature_cards_endpoint() -> dict:
         results = await generate_all_feature_cards()
         return {"cards": results, "count": len(results)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e
 
 
 @router.post("/marketing/generate/stats")
@@ -694,14 +695,14 @@ async def generate_stats_graphic(stat_value: str, stat_label: str, context: str 
         result = await generate_stats_card(stat_value, stat_label, context)
 
         if result.get("status") == "error":
-            raise HTTPException(status_code=500, detail=result.get("error"))
+            raise AppError(message=result.get("error"))
 
         return result
 
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e
 
 
 @router.post("/marketing/generate/pricing")
@@ -713,11 +714,11 @@ async def generate_pricing_graphic(tier_name: str, price: float, features: list[
         result = await generate_pricing_card(tier_name, price, features)
 
         if result.get("status") == "error":
-            raise HTTPException(status_code=500, detail=result.get("error"))
+            raise AppError(message=result.get("error"))
 
         return result
 
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e
