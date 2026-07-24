@@ -202,9 +202,13 @@ class UnifiedRateLimiter:
     BURST_PREFIX = "rmi:unified_burst:"
     TTL_SECONDS = 120
 
+    # Retry connection after this many seconds of being in failed state
+    _REDIS_RETRY_INTERVAL = 30.0
+
     def __init__(self) -> None:
         self._redis: Any = None
         self._redis_failed = False
+        self._redis_failed_at: float = 0.0
         self._init_lock = asyncio.Lock()
         self._mem_buckets: dict[str, tuple[float, float]] = {}
         self._mem_lock = asyncio.Lock()
@@ -214,7 +218,11 @@ class UnifiedRateLimiter:
         if self._redis is not None:
             return self._redis
         if self._redis_failed:
-            return None
+            # Retry after interval — prevents permanent stuck-in-memory mode
+            if _time.monotonic() - self._redis_failed_at < self._REDIS_RETRY_INTERVAL:
+                return None
+            # Time to retry: reset the flag so we attempt connection
+            self._redis_failed = False
         async with self._init_lock:
             if self._redis is not None:
                 return self._redis
@@ -240,6 +248,7 @@ class UnifiedRateLimiter:
                     "UnifiedRateLimiter: Redis unavailable (%s), using in-memory fallback", exc
                 )
                 self._redis_failed = True
+                self._redis_failed_at = _time.monotonic()
                 return None
 
     # ── Core acquire ──────────────────────────────────────────────────
@@ -255,13 +264,22 @@ class UnifiedRateLimiter:
 
         Returns (allowed, headers_dict) where headers_dict has:
             X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+
+        Resilience: Falls back to in-memory token bucket if Redis is down.
+        Sets _redis_failed flag and nulls connection so next call retries.
         """
         redis = await self._ensure_redis()
         if redis:
             try:
                 return await self._acquire_redis(redis, key, rate, burst, tokens)
             except Exception as exc:
-                logger.debug("Redis acquire failed (%s), falling back to memory", exc)
+                logger.warning(
+                    "Redis acquire failed — rate limiter using in-memory fallback: %s", exc
+                )
+                # Null the stale connection so _ensure_redis retries next time
+                self._redis = None
+                self._redis_failed = True
+                self._redis_failed_at = _time.monotonic()
         return await self._acquire_memory(key, rate, burst, tokens)
 
     async def _acquire_redis(
