@@ -167,9 +167,9 @@ class AntiSniperProtection:
                 tx = await deployer.blacklist_add(contract_address, addr)
                 results["tx_hashes"].append(tx)
                 results["blacklist_applied"] += 1
-                logger.info(f"Anti-sniper: blacklisted {addr}")
+                logger.info("Anti-sniper: blacklisted %s", addr)
             except Exception as e:
-                logger.warning(f"Failed to blacklist {addr}: {e}")
+                logger.warning("Failed to blacklist %s: %s", addr, e)
 
         # 2. Disable trading initially (if supported)
         try:
@@ -180,7 +180,7 @@ class AntiSniperProtection:
                 f"Anti-sniper: trading disabled, will enable after {trading_delay_blocks} blocks"
             )
         except Exception as e:
-            logger.warning(f"Trading disable not supported or failed: {e}")
+            logger.warning("Trading disable not supported or failed: %s", e)
 
         # 3. Set max wallet limit (if percent provided)
         if max_wallet_percent > 0:
@@ -190,9 +190,9 @@ class AntiSniperProtection:
                 tx = await deployer.set_max_wallet(contract_address, max_wallet)
                 results["tx_hashes"].append(tx)
                 results["max_wallet_set"] = True
-                logger.info(f"Anti-sniper: max wallet set to {max_wallet_percent}% ({max_wallet})")
+                logger.info("Anti-sniper: max wallet set to %s% (%s)", max_wallet_percent, max_wallet)
             except Exception as e:
-                logger.warning(f"Max wallet set failed: {e}")
+                logger.warning("Max wallet set failed: %s", e)
 
         # 4. Set max tx limit (if percent provided)
         if max_tx_percent > 0:
@@ -202,9 +202,9 @@ class AntiSniperProtection:
                 tx = await deployer.set_max_tx(contract_address, max_tx)
                 results["tx_hashes"].append(tx)
                 results["max_tx_set"] = True
-                logger.info(f"Anti-sniper: max tx set to {max_tx_percent}% ({max_tx})")
+                logger.info("Anti-sniper: max tx set to %s% (%s)", max_tx_percent, max_tx)
             except Exception as e:
-                logger.warning(f"Max tx set failed: {e}")
+                logger.warning("Max tx set failed: %s", e)
 
         return results
 
@@ -218,7 +218,7 @@ class AntiSniperProtection:
     ) -> str:
         """Enable trading after block delay."""
         target_block = current_block + delay_blocks
-        logger.info(f"Anti-sniper: trading will enable at block {target_block}")
+        logger.info("Anti-sniper: trading will enable at block %s", target_block)
 
         # This would be called by a cron job or background task
         # For now, return the target block
@@ -408,11 +408,11 @@ class AirdropDistributor:
                     recipient.claimed_at = datetime.now(UTC).isoformat()
                     results["successful"] += 1
                     results["tx_hashes"].append(tx)
-                    logger.info(f"Airdropped {recipient.amount} to {recipient.address}")
+                    logger.info("Airdropped %s to %s", recipient.amount, recipient.address)
                 except Exception as e:
                     results["failed"] += 1
                     results["errors"].append({"address": recipient.address, "error": str(e)})
-                    logger.error(f"Airdrop failed for {recipient.address}: {e}")
+                    logger.error("Airdrop failed for %s: %s", recipient.address, e)
         else:
             # Batch via multicall or distributor contract
             # For now, chunk into batches
@@ -429,7 +429,7 @@ class AirdropDistributor:
                     results["tx_hashes"].append(tx)
                 except Exception as e:
                     results["failed"] += len(batch)
-                    logger.error(f"Batch airdrop failed: {e}")
+                    logger.error("Batch airdrop failed: %s", e)
 
         return results
 
@@ -442,7 +442,7 @@ class AirdropDistributor:
         """Batch mint via multicall or custom contract."""
         # This would use a deployed MerkleDistributor or Multicall contract
         # For now, return a placeholder
-        logger.info(f"Batch mint of {len(recipients)} recipients")
+        logger.info("Batch mint of %s recipients", len(recipients))
         return "batch_tx_placeholder"
 
     @staticmethod
@@ -472,7 +472,7 @@ class AirdropDistributor:
                 results["tx_hashes"].append(tx)
             except Exception as e:
                 results["failed"] += 1
-                logger.error(f"Solana airdrop failed for {recipient.address}: {e}")
+                logger.error("Solana airdrop failed for %s: %s", recipient.address, e)
 
         return results
 
@@ -564,7 +564,7 @@ class TeamAllocation:
                 results["total_allocated"] += amount
 
             except Exception as e:
-                logger.error(f"Team allocation failed for {alloc}: {e}")
+                logger.error("Team allocation failed for %s: %s", alloc, e)
 
         return results
 
@@ -604,7 +604,7 @@ class AirdropStorage:
 
             return True
         except Exception as e:
-            logger.error(f"Save snapshot failed: {e}")
+            logger.error("Save snapshot failed: %s", e)
             return False
 
     @staticmethod
@@ -622,7 +622,7 @@ class AirdropStorage:
 
             return True
         except Exception as e:
-            logger.error(f"Save campaign failed: {e}")
+            logger.error("Save campaign failed: %s", e)
             return False
 
     @staticmethod
@@ -640,7 +640,7 @@ class AirdropStorage:
 
             return True
         except Exception as e:
-            logger.error(f"Save vesting failed: {e}")
+            logger.error("Save vesting failed: %s", e)
             return False
 
     @staticmethod
@@ -659,7 +659,7 @@ class AirdropStorage:
 
             return None
         except Exception as e:
-            logger.error(f"Get campaign failed: {e}")
+            logger.error("Get campaign failed: %s", e)
             return None
 
 
@@ -780,6 +780,6 @@ async def create_full_token_with_protection(
         return results
 
     except Exception as e:
-        logger.error(f"Full token launch failed: {e}")
+        logger.error("Full token launch failed: %s", e)
         results["errors"].append(str(e))
         raise

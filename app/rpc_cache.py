@@ -202,11 +202,11 @@ class RpcCache:
                     health_check_interval=30,
                 )
                 self._redis_available = True
-                logger.info(f"RpcCache: L2 Redis connected (prefix={self.REDIS_PREFIX})")
+                logger.info("RpcCache: L2 Redis connected (prefix=%s)", self.REDIS_PREFIX)
             except ImportError:
                 logger.warning("RpcCache: redis package not installed, L2 disabled")
             except Exception as e:
-                logger.warning(f"RpcCache: Redis connection failed ({e}), L2 disabled")
+                logger.warning("RpcCache: Redis connection failed (%s), L2 disabled", e)
         else:
             logger.info("RpcCache: No REDIS_URL set, L1-only mode")
 
@@ -255,7 +255,7 @@ class RpcCache:
                         self._evict_l1_if_needed()
                     return value
             except Exception as e:
-                logger.debug(f"Redis get error for {key}: {e}")
+                logger.debug("Redis get error for %s: %s", key, e)
 
         # 3. Miss
         async with self._lock:
@@ -306,7 +306,7 @@ class RpcCache:
                     # Permanent - no expiry
                     await self._redis.set(redis_key, raw)
             except Exception as e:
-                logger.debug(f"Redis set error for {key}: {e}")
+                logger.debug("Redis set error for %s: %s", key, e)
 
     async def get_or_fetch(
         self,
@@ -345,7 +345,7 @@ class RpcCache:
                 await self.set(data_type, chain, address, value, ttl_override)
             return value
         except Exception as e:
-            logger.warning(f"Factory fetch failed for {data_type}:{chain}:{address}: {e}")
+            logger.warning("Factory fetch failed for %s:%s:%s: %s", data_type, chain, address, e)
             return None
 
     async def invalidate(self, key_pattern: str) -> int:
@@ -392,13 +392,13 @@ class RpcCache:
                     if cursor == 0:
                         break
                 count += l2_count
-                logger.debug(f"Invalidated {l2_count} L2 entries matching '{key_pattern}'")
+                logger.debug("Invalidated %s L2 entries matching '%s'", l2_count, key_pattern)
             except Exception as e:
-                logger.warning(f"Redis invalidation error for pattern '{key_pattern}': {e}")
+                logger.warning("Redis invalidation error for pattern '%s': %s", key_pattern, e)
 
         async with self._lock:
             self._stats.invalidations += count
-        logger.info(f"Cache invalidation: {count} entries removed (pattern='{key_pattern}')")
+        logger.info("Cache invalidation: %s entries removed (pattern='%s')", count, key_pattern)
         return count
 
     async def invalidate_address(
@@ -426,7 +426,7 @@ class RpcCache:
                 if deleted:
                     found = True
             except Exception as e:
-                logger.debug(f"Redis delete error for {key}: {e}")
+                logger.debug("Redis delete error for %s: %s", key, e)
 
         return found
 
@@ -449,9 +449,9 @@ class RpcCache:
                     await self._redis.delete(*keys)
                 count += len(keys)
             except Exception as e:
-                logger.warning(f"Redis clear error: {e}")
+                logger.warning("Redis clear error: %s", e)
 
-        logger.info(f"Cache cleared: {count} entries removed")
+        logger.info("Cache cleared: %s entries removed", count)
         return count
 
     # ── Stats ────────────────────────────────────────────────────────────
@@ -482,7 +482,7 @@ class RpcCache:
                 self._redis_available = False
                 logger.info("RpcCache: Redis connection closed")
             except Exception as e:
-                logger.debug(f"Redis close error: {e}")
+                logger.debug("Redis close error: %s", e)
 
     # ── Internal Helpers ──────────────────────────────────────────────────
 
@@ -494,7 +494,7 @@ class RpcCache:
             # Use a custom encoder for special types
             return json.dumps(value, default=str, ensure_ascii=False).encode("utf-8")
         except (TypeError, ValueError) as e:
-            logger.warning(f"Serialization fallback for {type(value)}: {e}")
+            logger.warning("Serialization fallback for %s: %s", type(value), e)
             return json.dumps({"__serialized__": str(value)}).encode("utf-8")
 
     def _deserialize(self, raw: bytes) -> Any:
@@ -504,7 +504,7 @@ class RpcCache:
         try:
             return json.loads(raw.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            logger.warning(f"Deserialization error: {e}")
+            logger.warning("Deserialization error: %s", e)
             return None
 
     def _evict_l1_if_needed(self) -> None:

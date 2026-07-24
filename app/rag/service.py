@@ -39,9 +39,16 @@ class RAGService:
             query_len=len(req.query),
         )
         start = time.monotonic()
+        # Expand query with crypto/security synonyms for better recall
+        try:
+            from app.rag.retrieval import QueryExpander
+            expanded_query = QueryExpander().expand(req.query)
+        except Exception:
+            expanded_query = req.query  # Fall through on expansion failure
+
         try:
             raw = await engine_three_pillar_search(
-                query=req.query,
+                query=expanded_query,
                 collection=req.collection,
                 top_k=req.top_k,
                 min_similarity=req.min_similarity,

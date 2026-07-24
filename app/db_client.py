@@ -27,7 +27,7 @@ try:
 except ImportError as _imp_err:
     create_client = None
     Client = None
-    logger.warning(f"[DB] supabase client not installed: {_imp_err}")
+    logger.warning("[DB] supabase client not installed: %s", _imp_err)
 
 try:
     import redis.asyncio as redis
@@ -662,7 +662,7 @@ async def _get_redis() -> Any | None:
         db = int(os.getenv("REDIS_DB", "0"))
         return redis.Redis(host=host, port=port, password=password, db=db, decode_responses=True)
     except Exception as exc:
-        logger.warning(f"[DB] Redis init failed: {exc}")
+        logger.warning("[DB] Redis init failed: %s", exc)
         return None
 
 
@@ -673,7 +673,7 @@ async def cache_set(key: str, value: Any, ttl: int = _CACHE_TTL) -> None:
     try:
         await r.set(key, json.dumps(value), ex=ttl)
     except Exception as exc:
-        logger.warning(f"[DB] cache_set failed: {exc}")
+        logger.warning("[DB] cache_set failed: %s", exc)
 
 
 async def cache_get(key: str) -> Any | None:
@@ -684,7 +684,7 @@ async def cache_get(key: str) -> Any | None:
         raw = await r.get(key)
         return json.loads(raw) if raw else None
     except Exception as exc:
-        logger.warning(f"[DB] cache_get failed: {exc}")
+        logger.warning("[DB] cache_get failed: %s", exc)
         return None
 
 
@@ -695,7 +695,7 @@ async def cache_delete(key: str) -> None:
     try:
         await r.delete(key)
     except Exception as exc:
-        logger.warning(f"[DB] cache_delete failed: {exc}")
+        logger.warning("[DB] cache_delete failed: %s", exc)
 
 
 async def cache_hash_set(hash_name: str, field: str, value: Any) -> None:
@@ -705,7 +705,7 @@ async def cache_hash_set(hash_name: str, field: str, value: Any) -> None:
     try:
         await r.hset(hash_name, field, json.dumps(value))
     except Exception as exc:
-        logger.warning(f"[DB] cache_hash_set failed: {exc}")
+        logger.warning("[DB] cache_hash_set failed: %s", exc)
 
 
 async def cache_hash_get_all(hash_name: str) -> dict[str, Any]:
@@ -716,7 +716,7 @@ async def cache_hash_get_all(hash_name: str) -> dict[str, Any]:
         raw = await r.hgetall(hash_name)
         return {k: json.loads(v) for k, v in raw.items()}
     except Exception as exc:
-        logger.warning(f"[DB] cache_hash_get_all failed: {exc}")
+        logger.warning("[DB] cache_hash_get_all failed: %s", exc)
         return {}
 
 
@@ -759,9 +759,9 @@ async def sync_redis_to_supabase() -> dict[str, int]:
                 await db.cases.create(case)
                 counts["cases"] += 1
             except Exception as exc:
-                logger.warning(f"[DB] Failed to migrate case: {exc}")
+                logger.warning("[DB] Failed to migrate case: %s", exc)
     except Exception as exc:
-        logger.warning(f"[DB] Cases migration error: {exc}")
+        logger.warning("[DB] Cases migration error: %s", exc)
 
     # ── Trenches Posts ──
     try:
@@ -783,9 +783,9 @@ async def sync_redis_to_supabase() -> dict[str, int]:
                 await db.trenches_posts.create(post)
                 counts["trenches_posts"] += 1
             except Exception as exc:
-                logger.warning(f"[DB] Failed to migrate post: {exc}")
+                logger.warning("[DB] Failed to migrate post: %s", exc)
     except Exception as exc:
-        logger.warning(f"[DB] Posts migration error: {exc}")
+        logger.warning("[DB] Posts migration error: %s", exc)
 
     # ── Alerts ──
     try:
@@ -804,9 +804,9 @@ async def sync_redis_to_supabase() -> dict[str, int]:
                 await db.alerts.create(alert)
                 counts["alerts"] += 1
             except Exception as exc:
-                logger.warning(f"[DB] Failed to migrate alert: {exc}")
+                logger.warning("[DB] Failed to migrate alert: %s", exc)
     except Exception as exc:
-        logger.warning(f"[DB] Alerts migration error: {exc}")
+        logger.warning("[DB] Alerts migration error: %s", exc)
 
     # ── Tasks (migrate as cases with type=task for traceability) ──
     try:
@@ -832,11 +832,11 @@ async def sync_redis_to_supabase() -> dict[str, int]:
                 await db.cases.create(case)
                 counts["tasks"] += 1
             except Exception as exc:
-                logger.warning(f"[DB] Failed to migrate task: {exc}")
+                logger.warning("[DB] Failed to migrate task: %s", exc)
     except Exception as exc:
-        logger.warning(f"[DB] Tasks migration error: {exc}")
+        logger.warning("[DB] Tasks migration error: %s", exc)
 
-    logger.info(f"[DB] Migration complete: {counts}")
+    logger.info("[DB] Migration complete: %s", counts)
     return counts
 
 
