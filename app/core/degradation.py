@@ -125,7 +125,7 @@ class InProcessLRU:
     """
 
     def __init__(self, maxsize: int = 1024, ttl_seconds: int = 300) -> None:
-        self._cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+        self._cache: Ordereddict[str, tuple[float, Any]] = OrderedDict()
         self._maxsize = maxsize
         self._ttl_seconds = ttl_seconds
         self._lock = threading.RLock()

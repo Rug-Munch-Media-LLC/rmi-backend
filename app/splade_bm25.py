@@ -357,7 +357,7 @@ class BM25Index:
         logger.info(f"BM25 index persisted to {path} ({os.path.getsize(path) / 1024 / 1024:.1f}MB)")
 
     @classmethod
-    def load(cls, path: str) -> Optional["BM25Index"]:
+    def load(cls, path: str) -> "BM25Index" | None:
         """Load BM25 index from disk."""
         import os
         import pickle

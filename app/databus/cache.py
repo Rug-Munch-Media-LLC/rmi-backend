@@ -54,7 +54,7 @@ class L1Cache:
     def __init__(self, max_keys: int = 4096, stale_multiplier: float = 2.5) -> None:
         self._max = max_keys
         self._stale_mult = stale_multiplier
-        self._store: OrderedDict[str, tuple[Any, float, float]] = OrderedDict()
+        self._store: Ordereddict[str, tuple[Any, float, float]] = OrderedDict()
         # (value, fresh_expiry, stale_expiry)
         self.hits = 0
         self.stale_hits = 0

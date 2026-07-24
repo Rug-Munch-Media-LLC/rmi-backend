@@ -59,7 +59,7 @@ class ANNIndex:
         results = idx.search(query_embedding, "scam_patterns", limit=10)
     """
 
-    _instance: Optional["ANNIndex"] = None
+    _instance: "ANNIndex" | None = None
 
     def __init__(self) -> None:
         self._indexes: dict[str, Any] = {}  # collection -> faiss index

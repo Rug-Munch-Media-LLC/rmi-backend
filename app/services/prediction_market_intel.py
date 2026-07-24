@@ -90,7 +90,7 @@ class PredictionMarketIntel:
         self._svc = get_prediction_market_service()
         # In-memory cache (Redis unavailable in current env)
         self._fear_cache: tuple | None = None  # (timestamp, CryptoFearIndex)
-        self._signals_cache: tuple | None = None  # (timestamp, List[IntelSignal])
+        self._signals_cache: tuple | None = None  # (timestamp, list[IntelSignal])
         self._fear_cache_ttl = 300  # 5 minutes
         self._signals_cache_ttl = 120  # 2 minutes
 

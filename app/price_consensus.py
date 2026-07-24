@@ -48,7 +48,7 @@ class PriceSource:
 
     name: str
     weight: float  # Reliability score 0-1
-    fetcher: Any = None  # Async callable: (address, chain) → Optional[float]
+    fetcher: Any = None  # Async callable: (address, chain) → float | None
     last_price: float = 0.0
     last_latency: float = 0.0
     error_count: int = 0

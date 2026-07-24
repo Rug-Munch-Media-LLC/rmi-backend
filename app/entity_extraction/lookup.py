@@ -32,7 +32,7 @@ class EntityLookup:
     the entity (caller-supplied, defaults vary by type).
     """
 
-    _instance: Optional["EntityLookup"] = None
+    _instance: "EntityLookup" | None = None
     _lock = threading.Lock()
 
     def __init__(

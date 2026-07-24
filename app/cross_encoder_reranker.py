@@ -60,7 +60,7 @@ class CrossEncoderReranker:
     Use ``get_reranker()`` to obtain the singleton instance.
     """
 
-    _instance: Optional["CrossEncoderReranker"] = None
+    _instance: "CrossEncoderReranker" | None = None
     _lock = asyncio.Lock()
 
     def __init__(self) -> None:
@@ -262,7 +262,7 @@ class CrossEncoderReranker:
 
         Returns
         -------
-        List[Dict]
+        list[Dict]
             Documents sorted by combined score (descending), each augmented
             with ``"cross_score"``, ``"cross_score_normalized"``, and
             ``"combined_score"`` keys.  A ``"reasoning"`` key describes why
@@ -373,7 +373,7 @@ class CrossEncoderReranker:
 
         Returns
         -------
-        List[str]
+        list[str]
             Texts sorted by cross-encoder score (descending), truncated to
             *top_k*.
         """

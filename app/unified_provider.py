@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 
 # ── Singleton ──────────────────────────────────────────────
 
-_provider: Optional["UnifiedProvider"] = None
+_provider: "UnifiedProvider" | None = None
 
 
 def get_unified_provider() -> "UnifiedProvider":
