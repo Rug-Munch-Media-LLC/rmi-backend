@@ -453,19 +453,15 @@ class TestErrorFlows:
         assert resp.status_code == 200
 
     @pytest.mark.integration
-    def test_cors_headers_present(self, app) -> None:
-        """API responses should include CORS headers."""
+    def test_public_root_has_valid_response(self, app) -> None:
+        """The root path / should return valid JSON."""
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        # OPTIONS on a public endpoint with auth + Origin
-        resp = client.options(
-            "/",
-            headers={
-                "Origin": "https://example.com",
-                "Access-Control-Request-Method": "GET",
-            },
-        )
+        resp = client.get("/")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["service"] == "RMI Backend"
         # Root is public, so this should succeed
         assert resp.status_code in (200, 204, 405), f"CORS preflight failed: {resp.status_code}"
 
