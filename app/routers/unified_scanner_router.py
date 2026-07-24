@@ -35,7 +35,7 @@ def _get_admin_key(request) -> Any | None:
     return request.headers.get("X-Admin-Key") or request.headers.get("X-RMI-Key")
 
 
-@router.post("/token/scan")
+@router.post("/token/scan", summary="Scan Token", description="Comprehensive token scan across 50+ security modules. Returns safety score, risk flags, green flags, and detailed module results.")
 async def scan_token(request: Request, body: TokenScanRequest) -> dict[str, Any]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
@@ -68,7 +68,7 @@ async def scan_token(request: Request, body: TokenScanRequest) -> dict[str, Any]
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
 
 
-@router.post("/wallet/scan")
+@router.post("/wallet/scan", summary="Scan Wallet", description="Comprehensive wallet scan with entity clustering, risk scoring, behavioral analysis, and RAG-based threat intelligence matching.")
 async def scan_wallet(request: Request, body: WalletScanRequest) -> dict[str, Any]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)

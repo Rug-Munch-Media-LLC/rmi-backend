@@ -118,7 +118,7 @@ async def untrack_lp(lp_id: str) -> dict:
     return {"id": lp_id, "status": "removed"}
 
 
-@router.get("/tracked")
+@router.get("/tracked", summary="List Tracked LPs", description="List all liquidity pools currently being monitored for health changes.")
 async def list_tracked() -> dict[str, list]:
     return {"tracked": list(_tracked_lps.values()), "count": len(_tracked_lps)}
 

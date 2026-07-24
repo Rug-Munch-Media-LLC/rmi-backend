@@ -346,12 +346,12 @@ def _get_degradation_section() -> dict[str, Any]:
 # ── Endpoints ───────────────────────────────────────────────────
 
 
-@router.get("/live", response_model=LivenessResponse)
+@router.get("/live", response_model=LivenessResponse, summary="Liveness", description="Kubernetes-style liveness probe. Returns 200 if the process is alive. No dependency checks.")
 async def liveness() -> LivenessResponse:
     return LivenessResponse(status="alive")
 
 
-@router.get("/ready", response_model=ReadinessResponse)
+@router.get("/ready", response_model=ReadinessResponse, summary="Readiness", description="Kubernetes-style readiness probe. Checks critical dependencies (Redis, PostgreSQL). Returns 200 only when all critical stores are reachable.")
 async def readiness() -> ReadinessResponse:
     r1 = await _check_store("redis", _check_redis())
     r2 = await _check_store("postgres", _check_postgres())

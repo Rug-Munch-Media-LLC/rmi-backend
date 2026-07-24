@@ -131,6 +131,6 @@ async def get_snipe_signals(
     return {"chain": chain, "count": len(signals[:limit]), "signals": signals[:limit]}
 
 
-@router.get("/chains")
+@router.get("/chains", summary="List Sniper Chains", description="List all supported blockchain networks available for MEV sniper signal detection.")
 async def list_sniper_chains() -> dict:
     return {"chains": CHAINS}

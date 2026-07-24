@@ -9,6 +9,32 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     """Build security provider chains."""
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict
+    # ── Conditional imports for optional databus modules ──
+    try:
+        from app.databus.premium_scanner import run_bundle_scan, run_cluster_map, run_dev_finder, run_sniper_detect, run_bot_farm_detect, run_copy_trade_detect, run_insider_detect, run_wash_trade_detect, run_mev_detect, run_fresh_wallet_analysis
+    except ImportError:
+        run_bundle_scan = run_cluster_map = run_dev_finder = run_sniper_detect = None
+        run_bot_farm_detect = run_copy_trade_detect = run_insider_detect = None
+        run_wash_trade_detect = run_mev_detect = run_fresh_wallet_analysis = None
+    try:
+        from app.databus.volume_authenticity import analyze_volume_authenticity
+    except ImportError:
+        analyze_volume_authenticity = None
+    try:
+        from app.databus.token_security import get_check_matrix_endpoint, run_full_scan
+    except ImportError:
+        get_check_matrix_endpoint = run_full_scan = None
+    try:
+        from app.databus.rugcharts_intel import get_smart_money, get_whale_alerts, get_token_launches, detect_insiders, analyze_liquidity_risk, check_holder_health, track_cross_chain_entity, detect_rug_patterns, get_dev_reputation, get_enhanced_token_report
+    except ImportError:
+        get_smart_money = get_whale_alerts = get_token_launches = detect_insiders = None
+        analyze_liquidity_risk = check_holder_health = track_cross_chain_entity = None
+        detect_rug_patterns = get_dev_reputation = get_enhanced_token_report = None
+    try:
+        from app.databus.data_quality import get_tier_comparison
+    except ImportError:
+        get_tier_comparison = None
+
 
     chains["url_security_scan"] = ProviderChain(
         data_type="url_security_scan",
@@ -17,7 +43,7 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "virustotal_scan",
                 ProviderTier.FREEMIUM,
-                _virustotal_url_scan,
+                _g["_virustotal_url_scan"],
                 weight=10.0,
                 rate_limit_rps=0.5,
                 requires_key=True,
@@ -35,7 +61,7 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "sentinel_scanner",
                 ProviderTier.LOCAL,
-                _passthrough_scanner,
+                _g["_passthrough_scanner"],
                 weight=10.0,
                 rate_limit_rps=2.0,
             ),
@@ -50,7 +76,7 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "spl_metadata_decoder",
                 ProviderTier.FREE_API,
-                _spl_metadata_decoder_provider,
+                _g["_spl_metadata_decoder_provider"],
                 weight=10.0,
                 rate_limit_rps=3.0,
             ),

@@ -5,10 +5,10 @@ import os
 
 import httpx
 from fastapi import FastAPI
-
-from app.core.logging import get_logger
-from app.core.secrets import get_secret_or_none
 from typing import Any
+
+from app.core.logging import bind_trace_context, get_logger
+from app.core.secrets import get_secret_or_none
 
 logger = get_logger(__name__)
 
@@ -17,6 +17,9 @@ logger = get_logger(__name__)
 
 async def lifespan(app: FastAPI) -> Any:
     """Application lifespan: startup checks, background tasks, graceful shutdown."""
+    # Bind permanent service-level trace context for background tasks
+    bind_trace_context(service="rmi-backend")
+
     vault_pw = os.getenv("WALLET_VAULT_PASSWORD", "").strip()
     if not vault_pw:
         raise RuntimeError(

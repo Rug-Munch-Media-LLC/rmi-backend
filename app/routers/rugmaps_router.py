@@ -74,7 +74,7 @@ async def get_entity_info(address: str) -> dict:
     return {"address": address, "entity": info, "risk_score": risk, "risk_level": level}
 
 
-@router.get("/health")
+@router.get("/health", summary="Rugmaps Health", description="Health check for the RugMaps visualization engine.")
 async def rugmaps_health() -> dict[str, str]:
     return {"status": "ok", "service": "rugmaps-engine"}
 

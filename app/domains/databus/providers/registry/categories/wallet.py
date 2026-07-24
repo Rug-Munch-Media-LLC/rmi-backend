@@ -14,11 +14,11 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="wallet_labels",
         description="Address labels and entity identification (190K local + external)",
         providers=[
-            Provider("wallet_memory_bank", ProviderTier.LOCAL, _local_wallet_labels, weight=10.0),
+            Provider("wallet_memory_bank", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0),
             Provider(
                 "nansen_labels",
                 ProviderTier.PAID,
-                _moralis_price,
+                _g["_moralis_price"],
                 weight=5.0,
                 requires_key=True,
                 key_env="NANSEN_API_KEY",
@@ -34,7 +34,7 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "alchemy_balances",
                 ProviderTier.FREEMIUM,
-                _alchemy_token_balances,
+                _g["_alchemy_token_balances"],
                 weight=10.0,
                 rate_limit_rps=5.0,
                 requires_key=True,
@@ -44,7 +44,7 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "moralis_tokens",
                 ProviderTier.FREEMIUM,
-                _moralis_wallet_tokens,
+                _g["_moralis_wallet_tokens"],
                 weight=5.0,
                 rate_limit_rps=3.0,
                 requires_key=True,
@@ -60,14 +60,14 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "dexscreener_meta",
                 ProviderTier.FREE_API,
-                _dexscreener_token_metadata,
+                _g["_dexscreener_token_metadata"],
                 weight=10.0,
                 rate_limit_rps=3.0,
             ),
             Provider(
                 "alchemy_metadata",
                 ProviderTier.FREEMIUM,
-                _alchemy_token_metadata,
+                _g["_alchemy_token_metadata"],
                 weight=5.0,
                 rate_limit_rps=10.0,
                 requires_key=True,
@@ -84,7 +84,7 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "moralis_nfts",
                 ProviderTier.FREEMIUM,
-                _moralis_wallet_nfts,
+                _g["_moralis_wallet_nfts"],
                 weight=5.0,
                 rate_limit_rps=1.0,
                 requires_key=True,
@@ -101,14 +101,14 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "etherscan_wallet",
                 ProviderTier.FREE_API,
-                _etherscan_tx_trace,
+                _g["_etherscan_tx_trace"],
                 weight=10.0,
                 rate_limit_rps=3.0,
             ),
             Provider(
                 "moralis_txns",
                 ProviderTier.FREEMIUM,
-                _moralis_wallet_transactions,
+                _g["_moralis_wallet_transactions"],
                 weight=5.0,
                 rate_limit_rps=3.0,
                 requires_key=True,
@@ -124,7 +124,7 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "moralis_net_worth",
                 ProviderTier.FREEMIUM,
-                _moralis_wallet_net_worth,
+                _g["_moralis_wallet_net_worth"],
                 weight=10.0,
                 rate_limit_rps=2.0,
                 requires_key=True,
@@ -140,7 +140,7 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "moralis_search",
                 ProviderTier.FREEMIUM,
-                _moralis_search_tokens,
+                _g["_moralis_search_tokens"],
                 weight=10.0,
                 rate_limit_rps=5.0,
                 requires_key=True,

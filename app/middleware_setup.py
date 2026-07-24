@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import FastAPI
 
-from app.core.logging import get_logger
+from app.core.logging import bind_request_id, get_logger
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -42,6 +42,7 @@ def register_middleware(app: FastAPI) -> None:
     _try_register_degradation_header(app)
     _try_register_deprecation_header(app)
     _try_register_slowapi(app)
+    _try_register_rate_limit_middleware(app)
     _try_register_csrf(app)
 
 
@@ -49,7 +50,10 @@ def _try_register_request_id(app: FastAPI) -> None:
     """Always-on request ID + response-time headers (Win #11 from fleet audit).
 
     Sets ``X-Request-ID`` and ``X-Response-Time-Ms`` on every response.
-    Also populates ``request.state.request_id`` for error handlers.
+    Also populates ``request.state.request_id`` for error handlers, and
+    **injects the request ID into structlog context vars** so every log
+    entry during this request automatically carries the correlation ID.
+
     Enabled independently of OTEL tracing so error responses always carry
     a correlation ID.
     """
@@ -60,6 +64,10 @@ def _try_register_request_id(app: FastAPI) -> None:
             async def dispatch(self, request: Request, call_next: Any) -> Response:
                 request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
                 request.state.request_id = request_id
+
+                # ── Inject into structlog context for log correlation ──
+                bind_request_id(request_id)
+
                 start = time.perf_counter()
 
                 response = cast("Response", await call_next(request))
@@ -171,6 +179,16 @@ def _try_register_deprecation_header(app: FastAPI) -> None:
         log.warning("middleware_skipped name=deprecation_header err=%s", exc)
 
 
+def _try_register_rate_limit_middleware(app: FastAPI) -> None:
+    """T28b — Unified token-bucket rate limiting for all paths."""
+    try:
+        from app.core.rate_limiter import get_rate_limiter, RateLimitMiddleware
+        limiter = get_rate_limiter()
+        app.add_middleware(RateLimitMiddleware, limiter=limiter)
+        log.info("middleware_registered name=rate_limit_middleware")
+    except Exception as exc:
+        log.warning("middleware_skipped name=rate_limit_middleware err=%s", exc)
+
 def _try_register_slowapi(app: FastAPI) -> None:
     """T28 - slowapi rate limiting per PATH_CATEGORIES + decorators."""
     try:
@@ -206,6 +224,7 @@ def _try_register_cors(app: FastAPI) -> None:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.cors_origins,
+            allow_origin_regex=r"https://.*\.rugmunch\.io",
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             allow_headers=[

@@ -180,7 +180,7 @@ async def scan_all() -> Any:
     )
 
 
-@router.get("/health")
+@router.get("/health", summary="Clustering Health", description="Health check for the wallet clustering engine. Returns status of clustering models and data sources.")
 async def clustering_health() -> dict[str, str]:
     cache_stats = {}
     gnn_status = {}

@@ -9,16 +9,36 @@ def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     """Build social provider chains."""
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict
+    # ── Conditional imports for optional databus modules ──
+    try:
+        from app.databus.news_intel import fetch_news_intel, get_weekly_best, get_academic_papers, get_social_feed, get_article_reactions, get_article_comments, post_bb_article
+    except ImportError:
+        fetch_news_intel = get_weekly_best = get_academic_papers = get_social_feed = None
+        get_article_reactions = get_article_comments = post_bb_article = None
+    try:
+        from app.databus.x_intel import fetch_ct_rundown, track_ct_accounts
+    except ImportError:
+        fetch_ct_rundown = track_ct_accounts = None
+    try:
+        from app.databus.daily_intel import generate_daily_intel
+    except ImportError:
+        generate_daily_intel = None
+    try:
+        from app.databus.social_intel import track_kol, get_kol_profile, get_kol_leaderboard, detect_shill_patterns, monitor_scam_campaigns, get_social_metrics
+    except ImportError:
+        track_kol = get_kol_profile = get_kol_leaderboard = detect_shill_patterns = None
+        monitor_scam_campaigns = get_social_metrics = None
+
 
     chains["news"] = ProviderChain(
         data_type="news",
         description="Real-time crypto news from 30+ sources + Messari + CoinDesk institutional feeds",
         providers=[
-            Provider("rmi_news", ProviderTier.LOCAL, _passthrough_news, weight=10.0),
+            Provider("rmi_news", ProviderTier.LOCAL, _g["_passthrough_news"], weight=10.0),
             Provider(
                 "messari_news",
                 ProviderTier.FREEMIUM,
-                _messari_news,
+                _g["_messari_news"],
                 weight=8.0,
                 rate_limit_rps=2.0,
                 requires_key=True,
@@ -28,7 +48,7 @@ def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             Provider(
                 "coindesk_news",
                 ProviderTier.FREEMIUM,
-                _coindesk_news,
+                _g["_coindesk_news"],
                 weight=8.0,
                 rate_limit_rps=2.0,
                 requires_key=True,

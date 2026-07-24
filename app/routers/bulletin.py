@@ -41,7 +41,7 @@ async def _require_public_profile(request: Request) -> Any:
     return await require_public_profile(request)
 
 
-router = APIRouter(prefix="/api/v1/bulletin")
+router = APIRouter(prefix="/api/v1/bulletin", tags=["bulletin"])
 
 # ── Supabase REST helpers ──────────────────────────────────────
 
@@ -129,7 +129,7 @@ class BotRegistrationIn(BaseModel):
 # ── Bulletin Posts ──────────────────────────────────────────
 
 
-@router.get("/latest")
+@router.get("/latest", summary="Latest Posts", description="Fetch the latest bulletin board posts with optional category filtering and sorting.")
 async def latest_posts(
     category: str = Query(None),
     sort: str = Query("created_at.desc"),
@@ -155,7 +155,7 @@ async def latest_posts(
     return {"posts": posts, "total": len(posts)}
 
 
-@router.post("/posts")
+@router.post("/posts", summary="Create Post", description="Create a new bulletin board post. Requires an authenticated user profile.")
 async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public_profile)) -> Any:
     result = await create_bulletin_post(
         title=post.title,
@@ -177,7 +177,7 @@ async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public
     return result
 
 
-@router.post("/posts/{post_id}/vote")
+@router.post("/posts/{post_id}/vote", summary="Vote", description="Upvote or downvote a bulletin board post.")
 async def vote(post_id: int, vote_type: str = Query(..., pattern="^(up|down)$")) -> dict[str, str]:
     ok = await vote_post(post_id, vote_type)
     if not ok:
@@ -521,18 +521,18 @@ async def moderation_log(limit: int = Query(50)) -> dict:
 # ── Badges ──────────────────────────────────────────────────
 
 
-@router.get("/badges")
+@router.get("/badges", summary="List Badges", description="List all available achievement badges.")
 async def list_badges(rarity: str = Query(None)) -> Any:
     return await get_badges(rarity=rarity)
 
 
-@router.get("/badges/{user_id}")
+@router.get("/badges/{user_id}", summary="User Badges", description="Get all badges earned by a specific user.")
 async def user_badges(user_id: str) -> Any:
     badges = await get_user_badges(user_id)
     return badges
 
 
-@router.post("/badges/award")
+@router.post("/badges/award", summary="Award Badge", description="Award a badge to a user. Requires moderator privileges.")
 async def award(badge_id: str, user_id: str, earned_via: str = "auto") -> Any:
     result = await award_badge(user_id, badge_id, earned_via)
     if not result:
@@ -543,13 +543,13 @@ async def award(badge_id: str, user_id: str, earned_via: str = "auto") -> Any:
 # ── Alerts ──────────────────────────────────────────────────
 
 
-@router.get("/alerts")
+@router.get("/alerts", summary="List Alerts", description="List all active bulletin board alerts and announcements.")
 async def list_alerts(severity: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
     alerts = await get_alerts(severity=severity, limit=limit)
     return {"alerts": alerts, "total": len(alerts)}
 
 
-@router.post("/alerts")
+@router.post("/alerts", summary="Submit Alert", description="Submit a new bulletin board alert. Requires moderator privileges.")
 async def submit_alert(alert: AlertIn) -> Any:
     result = await create_alert(
         title=alert.title,

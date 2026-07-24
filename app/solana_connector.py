@@ -264,3 +264,17 @@ def check_solana_connection() -> bool:
         return client.get_health()
     except Exception:
         return False
+
+# ─── CIRCUIT BREAKER ──────────────────────────────────────────────
+# Prevents cascading failures when Solana RPC endpoints are degraded.
+# Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
+
+from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+
+_solana_rpc_cb = AsyncCircuitBreaker(
+    name="solana_rpc",
+    failure_threshold=5,
+    failure_window=60.0,
+    recovery_timeout=30.0,
+    half_open_max=1,
+)
