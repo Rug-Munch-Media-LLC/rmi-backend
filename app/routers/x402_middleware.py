@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
+from app.core.errors import NotFoundError, AppError, ServiceUnavailableError, ValidationError
 from fastapi.responses import JSONResponse
 
 from app.core.logging import get_logger
@@ -354,7 +355,7 @@ async def verify_receipt_public(receipt_id: str) -> dict:
 
         receipt_data = await r.get(f"x402:receipt:{receipt_id}")
         if not receipt_data:
-            raise HTTPException(status_code=404, detail="Receipt not found")
+            raise NotFoundError("Receipt not found")
 
         receipt = json.loads(receipt_data)
 
@@ -394,10 +395,10 @@ async def verify_receipt_public(receipt_id: str) -> dict:
             },
         }
 
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ── Public Payment Ledger ─────────────────────────────────────
@@ -471,7 +472,7 @@ async def payment_ledger(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ── Transparency Dashboard ────────────────────────────────────
@@ -587,7 +588,7 @@ async def transparency_dashboard(hours: int = 24) -> dict:
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ── Payment Verification Endpoint (for gateway use) ────────────
@@ -625,7 +626,7 @@ async def verify_payment_endpoint(
         amount = body.get("amount")
 
         if not x402_payload:
-            raise HTTPException(status_code=400, detail="Missing x402 payload")
+            raise ValidationError("Missing x402 payload")
 
         result = await _verifier.verify_payment(
             x402_payload,
@@ -660,11 +661,11 @@ async def verify_payment_endpoint(
 
         return result
 
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
         logger.error(f"Payment verification error: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ── Receipt Storage Endpoint (called by x402 Workers after payment) ────
@@ -807,27 +808,23 @@ async def store_receipt(request: Request) -> Any | dict[str, bool]:
             # Redis unavailable — the receipt cannot be persisted.
             # Return 503 so the Worker can retry with backoff.
             logger.warning(f"Redis unavailable, receipt not stored: {receipt_id}")
-            raise HTTPException(
-                status_code=503,
-                detail={
+            raise ServiceUnavailableError(
+                "Receipt storage unavailable — Redis is down",
+                context={
                     "error": "storage_unavailable",
                     "receipt_id": receipt_id,
                     "stored": False,
-                    "message": "Receipt storage unavailable — Redis is down",
                 },
             )
 
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
         logger.error(f"Receipt store error: {e}")
         # Return 500 so the Worker can retry instead of silently dropping.
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "receipt_storage_failed",
-                "message": str(e)[:200],
-            },
+        raise AppError(
+            message=f"Receipt store error: {str(e)[:200]}",
+            context={"error": "receipt_storage_failed"},
         )
 
 
@@ -893,4 +890,4 @@ async def fallback_status() -> dict[str, str]:
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e

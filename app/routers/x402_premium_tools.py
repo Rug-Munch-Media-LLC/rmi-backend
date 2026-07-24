@@ -16,6 +16,7 @@ import aiohttp
 
 from app.config import settings
 from fastapi import APIRouter, HTTPException
+from app.core.errors import AppError, ValidationError
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
@@ -278,7 +279,7 @@ async def reputation_score(req: AddressRequest) -> dict[str, str]:
         }
     except Exception as e:
         logger.error(f"Reputation score failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -309,9 +310,8 @@ async def webhook_register(req: WebhookRegisterRequest) -> dict[str, str]:
         events = [e for e in req.events if e in valid_events]
 
         if not events:
-            raise HTTPException(
-                status_code=400,
-                detail=f"No valid events. Choose from: {', '.join(sorted(valid_events))}",
+            raise ValidationError(
+                f"No valid events. Choose from: {', '.join(sorted(valid_events))}",
             )
 
         # Store in Redis
@@ -355,11 +355,11 @@ async def webhook_register(req: WebhookRegisterRequest) -> dict[str, str]:
             },
             "guarantee": "Webhook delivery guaranteed or payment refunded",
         }
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
         logger.error(f"Webhook register failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 @router.get("/webhook_list")
@@ -390,7 +390,7 @@ async def webhook_list(address: str | None = None) -> dict:
             "count": len(webhooks),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════
@@ -563,11 +563,11 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
             "price_usd": "0.25",
             "guarantee": "Comprehensive report or full refund",
         }
-    except HTTPException:
+    except (HTTPException, AppError):
         raise
     except Exception as e:
         logger.error(f"Investigation report failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppError(message=str(e)) from e
 
 
 # ═══════════════════════════════════════════════════════════

@@ -20,6 +20,9 @@ from app.pump_dump_manipulation_detector import (
     PumpDumpDetector,
     VolumeAnomaly,
     WashTradeCluster,
+    calculate_risk_score,
+    estimate_traders,
+    score_to_level,
 )
 
 
@@ -210,15 +213,14 @@ def test_pump_dump_analysis_result_with_error() -> None:
 
 def test_score_to_level() -> None:
     """Test risk score to level mapping."""
-    detector = PumpDumpDetector()
-    assert detector._score_to_level(0) == "low"
-    assert detector._score_to_level(19) == "low"
-    assert detector._score_to_level(20) == "medium"
-    assert detector._score_to_level(39) == "medium"
-    assert detector._score_to_level(40) == "high"
-    assert detector._score_to_level(69) == "high"
-    assert detector._score_to_level(70) == "critical"
-    assert detector._score_to_level(100) == "critical"
+    assert score_to_level(0) == "low"
+    assert score_to_level(19) == "low"
+    assert score_to_level(20) == "medium"
+    assert score_to_level(39) == "medium"
+    assert score_to_level(40) == "high"
+    assert score_to_level(69) == "high"
+    assert score_to_level(70) == "critical"
+    assert score_to_level(100) == "critical"
 
 
 def test_risk_score_calculation() -> None:
@@ -240,16 +242,14 @@ def test_risk_score_calculation() -> None:
             description="Medium finding",
         ),
     ]
-    detector = PumpDumpDetector()
-    score = detector._calculate_risk_score(findings)
+    score = calculate_risk_score(findings)
     # 35 (critical) + 20 (high) + 10 (medium) = 65
     assert score == 65.0
 
 
 def test_empty_findings_score() -> None:
     """Test risk score with no findings."""
-    detector = PumpDumpDetector()
-    score = detector._calculate_risk_score([])
+    score = calculate_risk_score([])
     assert score == 0.0
 
 
@@ -261,8 +261,7 @@ def test_max_score_cap() -> None:
         )
         for i, t in enumerate([ManipulationType.COORDINATED_PUMP] * 4)
     ]
-    detector = PumpDumpDetector()
-    score = detector._calculate_risk_score(findings)
+    score = calculate_risk_score(findings)
     assert score == 100.0  # 4 * 35 = 140, capped at 100
 
 
@@ -417,16 +416,14 @@ def test_trader_estimate() -> None:
             }
         ]
     }
-    detector = PumpDumpDetector()
-    traders = detector._estimate_traders(pairs_data)
+    traders = estimate_traders(pairs_data)
     assert traders == 270
 
 
 def test_trader_estimate_empty() -> None:
     """Test trader estimation with no data."""
-    detector = PumpDumpDetector()
-    assert detector._estimate_traders({}) == 0
-    assert detector._estimate_traders({"pairs": []}) == 0
+    assert estimate_traders({}) == 0
+    assert estimate_traders({"pairs": []}) == 0
 
 
 def test_lifecycle_pattern_young_pair() -> None:

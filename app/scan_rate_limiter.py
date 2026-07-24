@@ -24,6 +24,42 @@ logger = get_logger(__name__)
 
 # ── Configuration ──
 
+# ── In-memory fallback (used when Redis is unavailable) ──
+_mem_usage: dict[str, tuple[int, float]] = {}
+
+
+def _check_memory_fallback(identity: str, daily_limit: int) -> dict:
+    """In-memory rate limit check — never fails open."""
+    from time import monotonic
+    now = monotonic()
+    count, win_start = _mem_usage.get(identity, (0, now))
+    if now - win_start > 86400:
+        count = 0
+        win_start = now
+    if count >= daily_limit:
+        return {
+            "allowed": False,
+            "remaining": 0,
+            "limit": daily_limit,
+            "upsell": {
+                "title": "Scan limit reached (in-memory fallback)",
+                "message": f"Free limit of {daily_limit} scans/day reached.",
+                "upgrade_url": "/api/v1/x402-tools/upgrade",
+                "scans_used": count,
+                "daily_limit": daily_limit,
+            },
+        }
+    count += 1
+    _mem_usage[identity] = (count, win_start)
+    return {
+        "allowed": True,
+        "remaining": daily_limit - count,
+        "limit": daily_limit,
+        "upsell": None,
+    }
+
+
+
 FREE_DAILY_LIMIT = int(os.getenv("FREE_SCAN_LIMIT", "5"))
 PRO_DAILY_LIMIT = int(os.getenv("PRO_SCAN_LIMIT", "100"))
 ELITE_DAILY_LIMIT = int(os.getenv("ELITE_SCAN_LIMIT", "0"))  # 0 = unlimited
@@ -256,14 +292,9 @@ async def check_scan_limit(
         }
 
     except Exception as e:
-        logger.error(f"Rate limit check failed: {e}")
-        # On Redis failure, allow the scan (fail open, not closed)
-        return {
-            "allowed": True,
-            "remaining": FREE_DAILY_LIMIT,
-            "limit": FREE_DAILY_LIMIT,
-            "upsell": None,
-        }
+        logger.error(f"Rate limit check failed: {e}, using in-memory fallback")
+        # On Redis failure, fall back to in-memory counter instead of failing open
+        return _check_memory_fallback(identity, daily_limit)
 
 
 async def increment_scan_usage(

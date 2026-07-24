@@ -4,7 +4,8 @@ Self-contained engine, no RugMaps - no external API dependency.
 Connects to /api/v1/rugmaps/*
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+from app.core.errors import AppError, ServiceUnavailableError, ValidationError
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
@@ -27,7 +28,7 @@ def _get_rm() -> Any:
 
         return get_rugmaps_engine()
     except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Module unavailable: {e}") from e
+        raise ServiceUnavailableError(f"Module unavailable: {e}") from e
 
 
 @router.post("/map")
@@ -40,9 +41,9 @@ async def generate_rug_map(req: RugMapsRequest) -> dict:
         )
         return result.to_dict()
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise ValidationError(str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500]) from e
+        raise AppError(message=str(e)[:500]) from e
 
 
 @router.get("/analyze/{address}")
@@ -74,7 +75,11 @@ async def get_entity_info(address: str) -> dict:
     return {"address": address, "entity": info, "risk_score": risk, "risk_level": level}
 
 
-@router.get("/health", summary="Rugmaps Health", description="Health check for the RugMaps visualization engine.")
+@router.get(
+    "/health",
+    summary="Rugmaps Health",
+    description="Health check for the RugMaps visualization engine.",
+)
 async def rugmaps_health() -> dict[str, str]:
     return {"status": "ok", "service": "rugmaps-engine"}
 
@@ -114,9 +119,7 @@ async def token_holder_graph(
         result = await rm.generate_map(center_wallet=token_address, depth=3, min_strength=0.05)
         d = result.to_dict()
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Graph generation failed: {str(e)[:200]}"
-        ) from e
+        raise AppError(message=f"Graph generation failed: {str(e)[:200]}") from e
 
     nodes = d.get("nodes", [])
     links = d.get("links", [])
@@ -255,7 +258,7 @@ async def auto_label_wallet(request: dict) -> dict[str, str]:
             "count": len(all_labels),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e
 
 
 @router.get("/auto-label/stats")
@@ -267,4 +270,4 @@ async def auto_label_stats() -> dict[str, str]:
         labeler = get_auto_labeler()
         return {"status": "ok", **labeler.get_stats()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
+        raise AppError(message=str(e)[:200]) from e

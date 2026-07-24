@@ -4,6 +4,7 @@ Pump & Dump / Coordinated Market Manipulation Detector
 This file has been modularized into app/domains/detectors/pump_dump_detector_package/ package.
 This stub re-exports everything for backward compatibility.
 """
+
 from app.domains.detectors.pump_dump_detector_package import *  # noqa: F403
 
 __all__ = [
@@ -11,6 +12,7 @@ __all__ = [
     "FindingSeverity",
     "ManipulationFinding",
     "ManipulationType",
+    "PUMP_DUMP_THRESHOLDS",
     "PrePumpAccumulation",
     "PricePumpSignal",
     "PumpDumpAnalysisResult",
@@ -19,4 +21,7 @@ __all__ = [
     "WashTradeCluster",
     "analyze_token",
     "analyze_token_sync",
+    "calculate_risk_score",
+    "estimate_traders",
+    "score_to_level",
 ]
