@@ -12,13 +12,14 @@ Architecture:
   - Tracks version counter in Redis key rag:idx_version:{collection}
   - Invalidate on new ingestion (version bump)
 """
+from __future__ import annotations
 
 import asyncio
 import json
 import os
 import pickle
 import time
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -44,7 +45,6 @@ IVF_NPROBE = 16
 # Minimum docs to use IVFFlat/HNSW; below this, flat search is fine
 MIN_DOCS_FOR_ANN = 50
 
-
 class ANNIndex:
     """
     FAISS-backed approximate nearest-neighbor index manager.
@@ -59,7 +59,7 @@ class ANNIndex:
         results = idx.search(query_embedding, "scam_patterns", limit=10)
     """
 
-    _instance: "ANNIndex" | None = None
+    _instance: ANNIndex | None = None
 
     def __init__(self) -> None:
         self._indexes: dict[str, Any] = {}  # collection -> faiss index
@@ -68,7 +68,7 @@ class ANNIndex:
         self._redis = None
 
     @classmethod
-    def get_instance(cls) -> "ANNIndex":
+    def get_instance(cls) -> ANNIndex:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -401,13 +401,11 @@ class ANNIndex:
         self._meta.pop(collection, None)
         logger.info(f"Invalidated ANN index for {collection}")
 
-
 # ══════════════════════════════════════════════════════════════════════
 # Singleton accessor
 # ══════════════════════════════════════════════════════════════════════
 
 _ann_index: ANNIndex | None = None
-
 
 def get_ann_index() -> ANNIndex:
     """Return the singleton ANNIndex instance."""

@@ -4,22 +4,20 @@ Wallet Entity Resolution — chain lookups, address validation, ownership verifi
 Extracted from manager.py during god-file split (2026-07-23).
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.domains.wallet.crypto import ZKAddressVerifier  # re-exported for convenience
 from app.domains.wallet.models import CHAIN_REGISTRY, ChainMeta
 
 logger = get_logger("wallet_entities")
 
-
 def get_chain_meta(chain: str) -> ChainMeta | None:
     """Get chain metadata by key."""
     return CHAIN_REGISTRY.get(chain)
 
-
 def list_chains() -> list[str]:
     """List all supported chain keys."""
     return sorted(CHAIN_REGISTRY.keys())
-
 
 def get_chains_by_group() -> dict[str, list[str]]:
     """Get chains grouped by ecosystem."""
@@ -46,7 +44,6 @@ def get_chains_by_group() -> dict[str, list[str]]:
     }
     return groups
 
-
 def resolve_chain_address(chain: str, address: str) -> bool:
     """
     Validate that an address matches the expected pattern for a chain.
@@ -59,7 +56,6 @@ def resolve_chain_address(chain: str, address: str) -> bool:
     if not meta or not meta.address_pattern:
         return True
     return bool(re.match(meta.address_pattern, address))
-
 
 __all__ = [
     "ZKAddressVerifier",

@@ -12,6 +12,7 @@ coordinated pump-and-dump campaigns:
 Uses direct API calls: DexScreener, Birdeye, Solscan, Helius.
 """
 
+from __future__ import annotations
 import os
 import time
 from collections import defaultdict
@@ -27,9 +28,7 @@ from app.domains.scanners.rag_citations import build_citation_string, query_rag_
 
 logger = get_logger("pump_dump_detector")
 
-
 # ── Dataclasses ──────────────────────────────────────────────────────
-
 
 @dataclass
 class CoordinatedBuyGroup:
@@ -40,7 +39,6 @@ class CoordinatedBuyGroup:
     total_buy_usd: float
     fresh_wallet_count: int
     block_number: int | None = None
-
 
 @dataclass
 class PumpDumpReport:
@@ -58,9 +56,7 @@ class PumpDumpReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
-
 # ── Detector Class ──────────────────────────────────────────────────
-
 
 class PumpDumpDetector:
     """Detects pump-and-dump and coordinated shill campaigns.

@@ -9,6 +9,7 @@ Core features:
 - Cross-chain correlation (link wallets across chains)
 """
 
+from __future__ import annotations
 import hashlib
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -20,14 +21,11 @@ from app.solana_connector import SolanaClient
 
 logger = get_logger(__name__)
 
-
 # ─── CLUSTERING ALGORITHMS ──────────────────────────────────────────────
-
 
 def hash_address(address: str) -> str:
     """Generate a consistent hash for an address."""
     return hashlib.sha256(address.lower().encode()).hexdigest()[:16]
-
 
 class WalletCluster:
     """Represents a cluster of related wallets."""
@@ -69,7 +67,6 @@ class WalletCluster:
             "labels": list(self.labels),
             "metadata": self.metadata,
         }
-
 
 class EntityGraph:
     """Graph-based wallet entity mapping."""
@@ -137,9 +134,7 @@ class EntityGraph:
             "edges": self.edges,
         }
 
-
 # ─── CLUSTERING STRATEGIES ──────────────────────────────────────────────
-
 
 class ClusteringStrategy:
     """Base class for clustering strategies."""
@@ -187,9 +182,7 @@ class ClusteringStrategy:
 
         return dict(clusters)
 
-
 # ─── MAIN CLUSTERING ENGINE ─────────────────────────────────────────────
-
 
 class EntityClusteringEngine:
     """Main entity clustering engine."""
@@ -286,9 +279,7 @@ class EntityClusteringEngine:
 
         return dict(entity_map)
 
-
 # ─── API EXPORTS ────────────────────────────────────────────────────────
-
 
 def get_clustering_engine() -> EntityClusteringEngine:
     """Get a configured clustering engine instance."""

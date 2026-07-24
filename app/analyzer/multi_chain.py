@@ -3,13 +3,13 @@ Multi-chain portfolio scanner.
 Scans the same wallet address across all supported chains.
 """
 
+from __future__ import annotations
 import time
 
 from app.adapters.binance_web3 import CHAIN_IDS, CHAIN_NAMES, get_wallet_holdings
 from app.analyzer.portfolio import build_portfolio
 
 SCAN_DELAY = 0.3  # seconds between chain requests
-
 
 def scan_all_chains(address: str) -> dict:
     """

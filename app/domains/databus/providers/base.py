@@ -5,6 +5,7 @@ Defines the core types: ProviderTier, Provider, and ProviderChain
 with the smart fallback fetch logic.
 """
 
+from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -14,7 +15,6 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.providers")
 
-
 class ProviderTier(Enum):
     """Cost tier classification for a data provider."""
 
@@ -22,7 +22,6 @@ class ProviderTier(Enum):
     FREE_API = "free_api"  # Free external API — no key needed
     FREEMIUM = "freemium"  # Free tier with key — limited credits
     PAID = "paid"  # Paid API — precious credits
-
 
 @dataclass
 class Provider:
@@ -41,7 +40,6 @@ class Provider:
     description: str = ""  # Human-readable description
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
-
 
 @dataclass
 class ProviderChain:

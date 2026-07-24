@@ -5,6 +5,7 @@ Designed to attract agents to spend via x402 micropayments.
 Each package solves a specific agent need with compelling value.
 """
 
+from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
@@ -282,7 +283,6 @@ AGENT_SDK_INFO = {
 # ═══════════════════════════════════════════════════════════════════════════
 # MEMBERSHIP CATALOG - Everything available for purchase
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 def get_membership_catalog() -> dict:
     """Return the full membership catalog for agents."""

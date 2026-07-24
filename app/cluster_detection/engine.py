@@ -5,6 +5,7 @@ Orchestrator that runs all detection methods, merges results,
 and provides the public API. Singleton management.
 """
 
+from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -30,7 +31,6 @@ from app.cluster_detection.scoring import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 class ClusterDetectionPro:
     """
@@ -157,10 +157,8 @@ class ClusterDetectionPro:
 
         return None
 
-
 # Global instance
 _cluster_pro = None
-
 
 def get_cluster_detection_pro() -> ClusterDetectionPro:
     """Get global ClusterDetectionPro instance."""
@@ -168,7 +166,6 @@ def get_cluster_detection_pro() -> ClusterDetectionPro:
     if _cluster_pro is None:
         _cluster_pro = ClusterDetectionPro()
     return _cluster_pro
-
 
 # Alias for backward compatibility with code importing get_cluster_detector
 get_cluster_detector = get_cluster_detection_pro

@@ -9,6 +9,7 @@ Provides real-time notification via WebSocket for:
 - New wallet discoveries
 """
 
+from __future__ import annotations
 import asyncio
 import json
 from collections import defaultdict
@@ -21,9 +22,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 # ─── REAL-TIME ALERT TYPES ──────────────────────────────────────────────
-
 
 class AlertType:
     """Supported alert types."""
@@ -36,7 +35,6 @@ class AlertType:
     RATE_LIMIT = "rate_limit_exceeded"
     SYSTEM_STATUS = "system_status"
 
-
 class AlertSeverity:
     """Alert severity levels."""
 
@@ -44,7 +42,6 @@ class AlertSeverity:
     WARNING = "warning"
     HIGH = "high"
     CRITICAL = "critical"
-
 
 class RealTimeAlert:
     """Represents a real-time alert."""
@@ -87,9 +84,7 @@ class RealTimeAlert:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
 
-
 # ─── ALERT BROADCASTER ────────────────────────────────────────────────
-
 
 class AlertBroadcaster:
     """Broadcasts alerts to connected WebSocket clients."""
@@ -211,9 +206,7 @@ class AlertBroadcaster:
         """Get alerts of a specific type."""
         return [alert.to_dict() for alert in self.alert_queue if alert.alert_type == alert_type]
 
-
 # ─── WEBSOCKET HANDLER ────────────────────────────────────────────────
-
 
 class WebSocketManager:
     """Manages WebSocket connections and events."""
@@ -285,23 +278,19 @@ class WebSocketManager:
         """Broadcast cross-chain movement."""
         await self.broadcaster.broadcast_cross_chain(from_chain, to_chain, wallet)
 
-
 # ─── FastAPI Integration ──────────────────────────────────────────────
 
 # Global instance
 ws_manager = WebSocketManager()
-
 
 async def start_websocket_handler() -> Any:
     """Start the WebSocket manager."""
     logger.info("WebSocket manager started")
     return ws_manager
 
-
 def get_websocket_manager() -> WebSocketManager:
     """Get the global WebSocket manager instance."""
     return ws_manager
-
 
 async def websocket_alert_endpoint(websocket: WebSocket, client_id: str = "default") -> None:
     """WebSocket endpoint for real-time alerts."""
@@ -317,9 +306,7 @@ async def websocket_alert_endpoint(websocket: WebSocket, client_id: str = "defau
         logger.error(f"WebSocket error: {e}")
         await ws_manager.disconnect(client_id)
 
-
 # ─── TEST HELPER ──────────────────────────────────────────────────────
-
 
 async def test_websocket_alerts() -> None:
     """Test the WebSocket alert system."""
@@ -347,7 +334,6 @@ async def test_websocket_alerts() -> None:
 
     # Run test
     await mock_client()
-
 
 if __name__ == "__main__":
     import asyncio

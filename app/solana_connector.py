@@ -6,6 +6,7 @@ Uses solana-py (the "solana" python package) for reliable Solana interactions.
 This package provides a high-level synchronous API.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -23,7 +24,6 @@ except ImportError as e:
     logger.warning(f"solana-py SDK not available: {e}")
     SOLANA_AVAILABLE = False
 
-
 # ─── RPC CONFIGURATION ────────────────────────────────────────────
 
 SOLANA_RPC_URLS = {
@@ -33,9 +33,7 @@ SOLANA_RPC_URLS = {
     "localnet": "http://localhost:8899",
 }
 
-
 # ─── DATA MODELS ──────────────────────────────────────────────────
-
 
 @dataclass
 class SolanaAccount:
@@ -47,7 +45,6 @@ class SolanaAccount:
     executable: bool
     rent_epoch: int
     data: str | None = None
-
 
 @dataclass
 class SolanaTransaction:
@@ -61,9 +58,7 @@ class SolanaTransaction:
     pre_balances: list[int]
     post_balances: list[int]
 
-
 # ─── SOLANA CLIENT ────────────────────────────────────────────────
-
 
 class SolanaClient:
     """High-level Solana client wrapper."""
@@ -240,11 +235,9 @@ class SolanaClient:
             post_balances=[],
         )
 
-
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _default_client: SolanaClient | None = None
-
 
 def get_solana_client(network: str = "mainnet") -> SolanaClient:
     """Get or create Solana client instance."""
@@ -252,7 +245,6 @@ def get_solana_client(network: str = "mainnet") -> SolanaClient:
     if _default_client is None:
         _default_client = SolanaClient(network=network)
     return _default_client
-
 
 def check_solana_connection() -> bool:
     """Quick check if Solana RPC is accessible."""

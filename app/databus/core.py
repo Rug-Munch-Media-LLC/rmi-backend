@@ -24,6 +24,7 @@ Usage:
     capacity = databus.capacity_report()
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import json
@@ -39,7 +40,6 @@ from app.databus.security import security
 from app.databus.vault import DataBusVault, get_vault
 
 logger = get_logger("databus.core")
-
 
 class RequestDeduplicator:
     """Deduplicate in-flight requests for the same data.
@@ -87,7 +87,6 @@ class RequestDeduplicator:
             "dedup_hits": self._dedup_hits,
             "saved_api_calls": self._dedup_saved_calls,
         }
-
 
 class ProviderHealthTracker:
     """Track per-provider health: success/failure rates, latency, availability."""
@@ -161,7 +160,6 @@ class ProviderHealthTracker:
                 else 0,
             }
         return result
-
 
 class DataBus:
     """
@@ -778,7 +776,6 @@ class DataBus:
     def get_stats(self) -> dict:
         """Return fetch statistics."""
         return dict(self._stats)
-
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
 

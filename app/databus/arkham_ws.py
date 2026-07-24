@@ -7,6 +7,7 @@ Auto-reconnects, caches through DataBus, triggers premium scanner.
 WS Key: from ARKHAM_WS_KEY env var (set in /etc/secrets or docker env)
 """
 
+from __future__ import annotations
 import os
 from datetime import UTC, datetime
 
@@ -21,7 +22,6 @@ ARKHAM_WS_URL = "wss://api.arkhamintelligence.com/ws"
 # Track active subscriptions
 _subscriptions: dict[str, dict] = {}
 _connected = False
-
 
 async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw) -> dict | None:
     """Subscribe to real-time updates for an address via Arkham WebSocket.
@@ -92,7 +92,6 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
         }
 
     return {"status": "no_action", "source": "arkham_ws"}
-
 
 async def broadcast_ws_update(address: str, update: dict) -> None:
     """Called when Arkham WS pushes an update - route through DataBus."""

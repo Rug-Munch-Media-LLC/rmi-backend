@@ -4,11 +4,11 @@ Cluster Detection Pro - Data Models
 Shared dataclasses and enums used across the cluster detection modules.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
-
 
 class ClusterType(Enum):
     """Types of wallet clusters."""
@@ -23,7 +23,6 @@ class ClusterType(Enum):
     MIXER = "mixer"  # Tumbler/mixer users
     UNKNOWN = "unknown"
 
-
 class ClusterConfidence(Enum):
     """Confidence level in cluster detection."""
 
@@ -33,7 +32,6 @@ class ClusterConfidence(Enum):
     LOW = 0.40  # Weak evidence
     SUSPECTED = 0.20  # Single indicator
 
-
 @dataclass
 class ClusterSignal:
     """A single clustering signal."""
@@ -42,7 +40,6 @@ class ClusterSignal:
     strength: float  # 0-1
     evidence: dict[str, Any]
     description: str
-
 
 @dataclass
 class WalletCluster:
@@ -117,7 +114,6 @@ class WalletCluster:
             },
             "risk": {"score": self.risk_score, "associated_scams": self.associated_scams},
         }
-
 
 @dataclass
 class FundingPath:

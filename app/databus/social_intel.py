@@ -11,6 +11,7 @@ Features:
   - Daily Intel Report - Groq-powered market briefing
 """
 
+from __future__ import annotations
 import hashlib
 import os
 import time
@@ -31,10 +32,8 @@ GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 
 KOL_DATABASE: dict[str, dict] = {}  # handle → {calls: [...], metrics: {...}}
 
-
 def _kol_key(handle: str) -> str:
     return f"kol:{handle.lower().lstrip('@')}"
-
 
 async def track_kol_call(
     handle: str,
@@ -84,7 +83,6 @@ async def track_kol_call(
 
     return {"status": "tracked", "call": call}
 
-
 async def get_kol_profile(handle: str, **kw) -> dict:
     """Get a KOL's performance profile - call history, success rate, risk score."""
     key = _kol_key(handle)
@@ -115,7 +113,6 @@ async def get_kol_profile(handle: str, **kw) -> dict:
         "source": "kol_tracker",
     }
 
-
 async def get_kol_leaderboard(limit: int = 20, **kw) -> dict:
     """Leaderboard of top KOLs by trust score and call accuracy."""
     kols = []
@@ -138,7 +135,6 @@ async def get_kol_leaderboard(limit: int = 20, **kw) -> dict:
         "total_tracked": len(kols),
         "source": "kol_leaderboard",
     }
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # SHILL CAMPAIGN DETECTION
@@ -173,7 +169,6 @@ SHILL_PATTERNS = {
 }
 
 DETECTED_CAMPAIGNS: list[dict] = []
-
 
 async def detect_shill_campaigns(posts: list[dict] | None = None, **kw) -> dict:
     """Scan recent posts for coordinated shill campaigns.
@@ -226,7 +221,6 @@ async def detect_shill_campaigns(posts: list[dict] | None = None, **kw) -> dict:
         "source": "shill_detector",
     }
 
-
 async def get_shill_alerts(**kw) -> dict:
     """Get recent shill campaign alerts."""
     return {
@@ -235,7 +229,6 @@ async def get_shill_alerts(**kw) -> dict:
         "high_severity": sum(1 for c in DETECTED_CAMPAIGNS if c.get("severity") == "CRITICAL"),
         "source": "shill_alerts",
     }
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # SCAM CHANNEL MONITOR (Telegram/Discord)
@@ -267,7 +260,6 @@ SCAM_INDICATORS = [
     "launching in",
 ]
 
-
 async def scan_scam_channels(**kw) -> dict:
     """Scan known scam channels for active campaigns.
 
@@ -282,11 +274,9 @@ async def scan_scam_channels(**kw) -> dict:
         "source": "scam_monitor",
     }
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # DAILY INTELLIGENCE REPORT - Groq-powered
 # ═══════════════════════════════════════════════════════════════════════
-
 
 async def generate_daily_intel(**kw) -> dict:
     """Generate a comprehensive Daily Intelligence Report using Groq AI.
@@ -399,11 +389,9 @@ BOTTOM LINE: Data-driven. No AI available for narrative synthesis."""
         "source": "daily_intel_report",
     }
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # SOCIAL METRICS AGGREGATOR
 # ═══════════════════════════════════════════════════════════════════════
-
 
 async def get_social_metrics(**kw) -> dict:
     """Aggregate social metrics across platforms.

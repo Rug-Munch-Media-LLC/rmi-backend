@@ -2,6 +2,7 @@
 Prediction Market — Limitless Source
 REST API /markets (Base chain, crypto-native).
 """
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
@@ -14,7 +15,6 @@ from app.domains.prediction.prediction_market_package.models import (
 logger = get_logger("prediction_market.limitless")
 
 LIMITLESS_BASE = "https://api.limitless.exchange"
-
 
 async def search(http_client: Any, query: str) -> list[PredictionMarket]:
     try:
@@ -40,7 +40,6 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
         logger.warning(f"Limitless search error: {e}")
         return []
 
-
 async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
     try:
         limit = min(limit, 25)
@@ -55,7 +54,6 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
         logger.debug("trending_error", exc_info=True)
         logger.warning(f"Limitless trending error: {e}")
         return []
-
 
 def _parse_market(m: dict) -> PredictionMarket | None:
     try:

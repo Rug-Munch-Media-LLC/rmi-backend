@@ -4,6 +4,7 @@ SENTINEL - Pipeline Orchestrator & Standalone Module Runners
 Main run_sentinel_scan orchestrator plus dynamically-generated standalone runners.
 """
 
+from __future__ import annotations
 import asyncio
 from functools import partial
 from typing import Any
@@ -74,11 +75,9 @@ try:
 except ImportError:
     _WALLET_MEMORY_AVAILABLE_LOCAL = False
 
-
 # ═══════════════════════════════════════════════════════════════════
 # MAIN PIPELINE
 # ═══════════════════════════════════════════════════════════════════
-
 
 async def run_sentinel_scan(
     token_address: str,
@@ -248,7 +247,6 @@ async def run_sentinel_scan(
 
     return report
 
-
 # ═══════════════════════════════════════════════════════════════════
 # DYNAMIC STANDALONE RUNNERS
 # ═══════════════════════════════════════════════════════════════════
@@ -279,7 +277,6 @@ _RUNNER_SPEC = [
     ("run_contract_diff", "contract_diff", None, None),
 ]
 
-
 def _get_analyzer_map() -> dict[str, Any]:
     """Build analyzer map lazily, ensuring modules are initialized first."""
     _ensure_modules()
@@ -307,7 +304,6 @@ def _get_analyzer_map() -> dict[str, Any]:
         "contract_diff": _contract_diff.analyze,
     }
 
-
 # Special runners that don't fit the standard 2-arg pattern
 async def run_dev_reputation(
     dev_wallet: str, chains: list[str] | None = None, config: SentinelConfig | None = None
@@ -315,13 +311,11 @@ async def run_dev_reputation(
     _ensure_modules(config)
     return dataclass_to_dict(await _dev_reputation.analyze(dev_wallet, chains))
 
-
 async def run_pumpfun_analysis(
     token_address: str, config: SentinelConfig | None = None
 ) -> dict[str, Any]:
     _ensure_modules(config)
     return dataclass_to_dict(await _pumpfun_analyzer.analyze(token_address))
-
 
 async def _run_standalone(
     module_key: str, token_address: str, chain: str, config=None
@@ -331,7 +325,6 @@ async def _run_standalone(
     fn = _get_analyzer_map()[module_key]
     result = await fn(token_address, chain)
     return dataclass_to_dict(result)
-
 
 # Dynamically generate all standard 2-arg runner functions
 def _make_runner(module_key: str, doc: str = ""):
@@ -347,7 +340,6 @@ def _make_runner(module_key: str, doc: str = ""):
     runner.__qualname__ = runner.__name__
     runner.__doc__ = doc or f"Run {module_key} only, return dict."
     return runner
-
 
 # Create all standard runners
 run_holder_analysis = _make_runner("holder_analysis")

@@ -8,6 +8,7 @@ BitqueryProvider dependency.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
+from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
@@ -18,7 +19,6 @@ from app.databus.provider_implementations import (
 )
 
 logger = get_logger("databus.providers.chains.bitquery")
-
 
 def build_bitquery_chains(chains: dict[str, ProviderChain]) -> None:
     """Build Bitquery-backed chains (holder_data, tx_trace, cross_chain).

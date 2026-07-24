@@ -12,6 +12,7 @@ Features:
   - External links open in new tab
 """
 
+from __future__ import annotations
 import hashlib
 import os
 import time
@@ -109,7 +110,6 @@ CATEGORY_PATTERNS = {
     "Memecoins": ["meme", "dogecoin", "shiba", "pepe", "bonk", "wojak"],
 }
 
-
 @dataclass
 class NewsArticle:
     id: str
@@ -126,7 +126,6 @@ class NewsArticle:
     votes_down: int = 0
     comments: list[dict] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SENTIMENT ANALYSIS
@@ -172,7 +171,6 @@ SENTIMENT_LEXICON = {
     "halt": -0.6,
 }
 
-
 def analyze_sentiment(text: str) -> dict:
     """Algorithmic sentiment analysis using lexicon matching."""
     text_lower = text.lower()
@@ -193,7 +191,6 @@ def analyze_sentiment(text: str) -> dict:
 
     return {"score": round(avg_score, 2), "label": label, "confidence": round(confidence, 2)}
 
-
 def classify_article(title: str, summary: str) -> str:
     """Auto-classify article into categories."""
     text = (title + " " + summary).lower()
@@ -205,7 +202,6 @@ def classify_article(title: str, summary: str) -> str:
         return "General"
     return max(scores, key=scores.get)
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # IN-MEMORY STORAGE (replace with Redis/DB for production)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -213,7 +209,6 @@ def classify_article(title: str, summary: str) -> str:
 _articles: dict[str, NewsArticle] = {}
 _market_summary: dict = {"text": "", "generated": "", "sentiment": {}}
 _summary_cache: dict = {"text": "", "generated": 0, "ttl": 86400}
-
 
 async def fetch_all_news() -> list[NewsArticle]:
     """Fetch news from all sources."""
@@ -255,7 +250,6 @@ async def fetch_all_news() -> list[NewsArticle]:
                 logger.debug(f"Failed to fetch {source['name']}: {e}")
 
     return sorted(articles, key=lambda a: a.published, reverse=True)
-
 
 async def get_articles(
     category: str | None = None,
@@ -304,7 +298,6 @@ async def get_articles(
         "sources": sorted({a.source for a in articles}),
     }
 
-
 async def vote(article_id: str, direction: str) -> dict:
     """Vote up or down on an article."""
     article = _articles.get(article_id)
@@ -319,7 +312,6 @@ async def vote(article_id: str, direction: str) -> dict:
         return {"error": "Invalid direction"}
 
     return {"id": article_id, "votes_up": article.votes_up, "votes_down": article.votes_down}
-
 
 async def comment(article_id: str, user: str, text: str) -> dict:
     """Add a comment to an article."""
@@ -336,12 +328,10 @@ async def comment(article_id: str, user: str, text: str) -> dict:
     article.comments.append(comment)
     return comment
 
-
 async def get_comments(article_id: str) -> list[dict]:
     """Get comments for an article."""
     article = _articles.get(article_id)
     return article.comments if article else []
-
 
 async def generate_market_summary(force: bool = False) -> dict:
     """Generate AI market summary using DeepSeek V4 Pro (cached 24h)."""
@@ -400,17 +390,14 @@ async def generate_market_summary(force: bool = False) -> dict:
     fallback = f"Market sentiment today: {sentiment_counts['bullish']} bullish, {sentiment_counts['bearish']} bearish, {sentiment_counts['neutral']} neutral signals across {articles.get('total', 0)} articles from {len(articles.get('sources', []))} sources."
     return {"summary": fallback, "cached": False, "sentiment": sentiment_counts, "fallback": True}
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # CATEGORIES & SOURCES
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 def get_categories() -> list:
     return [{"name": c, "icon": _category_icon(c)} for c in sorted(CATEGORY_PATTERNS.keys())] + [
         {"name": "General", "icon": "📰"}
     ]
-
 
 def _category_icon(cat: str) -> str:
     return {
@@ -425,7 +412,6 @@ def _category_icon(cat: str) -> str:
         "Stablecoins": "💵",
         "Memecoins": "🐸",
     }.get(cat, "📰")
-
 
 def get_sources() -> list:
     return [s["name"] for s in CRYPTO_NEWS_SOURCES]

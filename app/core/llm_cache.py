@@ -1,5 +1,6 @@
 """Semantic LLM Cache for DataBus - caches identical + similar prompts. Redis-backed."""
 
+from __future__ import annotations
 import hashlib
 import json
 import os
@@ -15,10 +16,8 @@ except Exception:
 REDIS_URL = _redis_cache_url or os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
 CACHE_TTL = _cache_ttl or int(os.getenv("LLM_CACHE_TTL", "3600"))
 
-
 def _cache_key(prompt: str, model: str) -> str:
     return f"llm_cache:{hashlib.sha256(f'{model}:{prompt}'.encode()).hexdigest()[:16]}"
-
 
 def get_cached(prompt: str, model: str) -> dict | None:
     """Check if prompt+model result is cached."""
@@ -33,7 +32,6 @@ def get_cached(prompt: str, model: str) -> dict | None:
         pass
     return None
 
-
 def set_cached(prompt: str, model: str, result: dict, ttl: int = CACHE_TTL) -> None:
     """Cache a prompt result."""
     import redis
@@ -43,7 +41,6 @@ def set_cached(prompt: str, model: str, result: dict, ttl: int = CACHE_TTL) -> N
         r.setex(_cache_key(prompt, model), ttl, json.dumps(result))
     except (ConnectionError, OSError, json.JSONDecodeError):
         pass
-
 
 def get_cache_stats() -> dict:
     """Get cache statistics."""

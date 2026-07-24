@@ -5,6 +5,7 @@ Tracks wallet connections across multiple token projects.
 Proves CRM ↔ SOSANA ↔ PBTC ↔ SHIFT AI connections.
 """
 
+from __future__ import annotations
 import asyncio
 import contextlib
 import logging
@@ -36,7 +37,6 @@ PROJECT_TOKENS = {
     "SHIFT_AI": "ShiftAITokenAddressPlaceholder123456",
 }
 
-
 @dataclass
 class TokenAffiliation:
     """Represents a wallet's affiliation with a token project."""
@@ -49,7 +49,6 @@ class TokenAffiliation:
     acquisition_method: str = "unknown"  # prebond, purchase, airdrop, transfer
     evidence_strength: str = "unverified"  # confirmed, strong, circumstantial
 
-
 @dataclass
 class CrossProjectConnection:
     """Represents a connection between projects via shared wallets."""
@@ -59,7 +58,6 @@ class CrossProjectConnection:
     connection_type: str  # holder, deployer, funder, bridge
     evidence_tier: str
     notes: str = ""
-
 
 class CrossTokenAffiliationTracker:
     """
@@ -325,13 +323,11 @@ class CrossTokenAffiliationTracker:
             if conn.evidence_tier == "tier_1_direct" or "SMOKING_GUN" in conn.notes.upper()
         ]
 
-
 # === SYNC WRAPPERS ===
 def track_wallet(wallet: str) -> list[TokenAffiliation]:
     """Synchronous wrapper for tracking wallet affiliations."""
     tracker = CrossTokenAffiliationTracker()
     return asyncio.run(tracker.track_wallet_affiliations(wallet))
-
 
 def find_cross_project_wallets(
     projects: list[str], min_projects: int = 2
@@ -339,7 +335,6 @@ def find_cross_project_wallets(
     """Synchronous wrapper for finding cross-project wallets."""
     tracker = CrossTokenAffiliationTracker()
     return asyncio.run(tracker.find_cross_project_wallets(projects, min_projects))
-
 
 if __name__ == "__main__":
     # Test the tracker

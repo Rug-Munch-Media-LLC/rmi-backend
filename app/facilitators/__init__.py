@@ -9,6 +9,7 @@ MIGRATION: replace `from app.facilitators.base import ...` with
 `from app.domains.billing.facilitators.base import ...`.
 """
 
+from __future__ import annotations
 import importlib as _importlib
 import sys as _sys
 

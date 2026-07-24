@@ -13,6 +13,7 @@ Uses direct API calls: Etherscan (contract source, bytecode), RPC (eth_call),
 Helius (Solana program info), DexScreener.
 """
 
+from __future__ import annotations
 import hashlib
 import os
 from dataclasses import dataclass, field
@@ -26,7 +27,6 @@ from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("proxy_detector")
-
 
 # ── Constants ───────────────────────────────────────────────────────
 
@@ -68,9 +68,7 @@ TIMELOCK_GRACE_SELECTOR = "0x048ef6db"  # GRACE_PERIOD()
 OWNER_SELECTOR = "0x8da5cb5b"  # owner()
 PENDING_OWNER_SELECTOR = "0xe302bc02"  # pendingOwner()
 
-
 # ── Dataclasses ──────────────────────────────────────────────────────
-
 
 @dataclass
 class ProxyReport:
@@ -92,9 +90,7 @@ class ProxyReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
-
 # ── Detector Class ──────────────────────────────────────────────────
-
 
 class ProxyDetector:
     """Resolves proxy contracts and assesses upgrade risk.

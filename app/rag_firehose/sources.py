@@ -6,6 +6,7 @@ a different API/data source and returns formatted documents ready for
 the ingestion pipeline.
 """
 
+from __future__ import annotations
 import csv
 import os
 from datetime import UTC, datetime
@@ -16,7 +17,6 @@ import httpx
 from app.core.logging import get_logger
 
 logger = get_logger("rag.firehose")
-
 
 class FeedSources:
     """All data sources the firehose can pull from."""

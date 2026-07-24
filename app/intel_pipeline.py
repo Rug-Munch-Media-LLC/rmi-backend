@@ -5,6 +5,7 @@ Unified intelligence service: scam classification (HF models),
 wallet labeling via RAG pattern matching, Supabase hybrid storage.
 """
 
+from __future__ import annotations
 import hashlib
 import os
 from datetime import UTC, datetime
@@ -20,10 +21,8 @@ logger = get_logger(__name__)
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_API = "https://api-inference.huggingface.co/models"
 
-
 def _get_url() -> Any:
     return os.getenv("SUPABASE_URL", "")
-
 
 def _get_key() -> Any:
     """Get Supabase service key for full CRUD access to intel tables."""
@@ -33,7 +32,6 @@ def _get_key() -> Any:
         or ""
     )
 
-
 def _get_headers() -> dict:
     key = _get_key()
     return {
@@ -41,7 +39,6 @@ def _get_headers() -> dict:
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
-
 
 # ── HF Models (Paywalled - using local fallback) ──────
 # HF Inference API now requires PRO subscription ($9/mo).
@@ -79,7 +76,6 @@ SCAM_KEYWORDS = {
     ],
     "insider": ["insider", "team wallet", "dev wallet", "pre-sale", "unlocked tokens", "vesting"],
 }
-
 
 async def classify_scam_risk(text: str) -> dict:
     """Classify scam risk using local pattern matching (HF paywalled)."""
@@ -128,7 +124,6 @@ async def classify_scam_risk(text: str) -> dict:
         "risk_level": "high" if (is_scam and top_score > 0.5) else "medium" if is_scam else "low",
     }
 
-
 async def generate_embedding(text: str) -> list[float] | None:
     """Generate embedding vector for RAG storage using HF free tier."""
     if not HF_TOKEN:
@@ -151,7 +146,6 @@ async def generate_embedding(text: str) -> list[float] | None:
             return result
         logger.warning(f"HF embedding failed: {r.status_code}")
         return None
-
 
 # ── Wallet Labeling via Pattern Memory ──────────────────
 
@@ -206,7 +200,6 @@ WALLET_PATTERNS = {
     ],
 }
 
-
 async def label_wallet(wallet_data: dict) -> dict:
     """Label a wallet based on behavioral patterns and RAG memory."""
     labels = []
@@ -259,9 +252,7 @@ async def label_wallet(wallet_data: dict) -> dict:
         "analyzed_at": datetime.now(UTC).isoformat(),
     }
 
-
 # ── Supabase Hybrid Storage ────────────────────────────
-
 
 async def sync_to_supabase(collection: str, document: dict) -> dict:
     """Sync RAG document to Supabase for persistent hybrid storage."""
@@ -289,9 +280,7 @@ async def sync_to_supabase(collection: str, document: dict) -> dict:
             return {"status": "synced", "doc_id": doc_id, "supabase_status": r.status_code}
         return {"status": "failed", "error": r.text[:200]}
 
-
 # ── Batch Processing ───────────────────────────────────
-
 
 async def run_intelligence_cycle() -> dict:
     """Run a full intelligence cycle: classify, label, embed, sync."""

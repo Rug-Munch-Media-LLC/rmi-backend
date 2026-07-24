@@ -1,9 +1,9 @@
 """Alchemy API providers for DataBus."""
 
+from __future__ import annotations
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
-
 
 async def _alchemy_token_balances(
     address: str = "", network: str = "eth-mainnet", **kw
@@ -29,7 +29,6 @@ async def _alchemy_token_balances(
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _alchemy_token_metadata(
     contract: str = "", network: str = "eth-mainnet", **kw

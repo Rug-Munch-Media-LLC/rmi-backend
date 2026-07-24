@@ -11,6 +11,7 @@ Golden test set: 20 known crypto scam/intel queries with expected answers.
 Runs weekly. Alerts on regression > 10% from baseline.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 from datetime import UTC, datetime
@@ -334,7 +335,6 @@ GOLDEN_TESTS = [
     },
 ]
 
-
 async def evaluate_single(test: dict) -> dict:
     """Run a single test query and score it."""
     query = test["query"]
@@ -385,7 +385,6 @@ async def evaluate_single(test: dict) -> dict:
     except Exception as e:
         return {"query": query[:60], "error": str(e)[:200], "score": 0}
 
-
 async def run_evaluation() -> dict:
     """Run full evaluation against golden test set."""
     results = []
@@ -408,7 +407,6 @@ async def run_evaluation() -> dict:
         "results": results,
         "timestamp": datetime.now(UTC).isoformat(),
     }
-
 
 if __name__ == "__main__":
     result = asyncio.run(run_evaluation())

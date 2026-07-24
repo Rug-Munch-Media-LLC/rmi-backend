@@ -17,9 +17,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("deep_intel")
 
-
 # ── Configuration ──────────────────────────────────────────────────────────
-
 
 class DeepIntelConfig:
     HELIUS_KEY: str = os.getenv("HELIUS_API_KEY", "")
@@ -60,12 +58,9 @@ class DeepIntelConfig:
         "avax": "avalanche",
     }
 
-
 cfg = DeepIntelConfig()
 
-
 # ── Data Clients ───────────────────────────────────────────────────────────
-
 
 class MultiChainClient:
     """Unified client for on-chain data across all chains"""
@@ -321,7 +316,6 @@ class MultiChainClient:
         except (ValueError, ConnectionError, RuntimeError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
-
 
 # ── Module-level instance ──
 

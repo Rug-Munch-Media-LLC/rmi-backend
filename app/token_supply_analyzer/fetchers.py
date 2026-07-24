@@ -4,6 +4,7 @@ Token Supply Analyzer — API fetch helpers and data-parsing functions.
 Handles DexScreener and Birdeye API calls with rate limiting and URL validation.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import time
@@ -36,7 +37,6 @@ BSCSCAN_TOKEN = "https://api.bscscan.com/api?module=account&action=tokeninfo&con
 _RATE_LIMITERS: dict[str, float] = {}
 _RATE_LIMIT_WINDOW = 0.5
 
-
 async def _rate_limit_host(host: str) -> None:
     """Simple per-host rate limiter."""
     now = time.time()
@@ -45,7 +45,6 @@ async def _rate_limit_host(host: str) -> None:
     if wait > 0:
         await asyncio.sleep(wait)
     _RATE_LIMITERS[host] = time.time()
-
 
 async def _fetch_json(url: str, source: str) -> dict[str, Any]:
     """Fetch JSON from a URL with rate limiting."""
@@ -82,7 +81,6 @@ async def _fetch_json(url: str, source: str) -> dict[str, Any]:
         logger.warning("Error fetching from %s: %s", source, e)
         return {}
 
-
 async def _fetch_dexscreener(token_address: str, chain: str) -> dict[str, Any]:
     """Fetch token data from DexScreener API."""
     url = DEXSCREENER_TOKENS.format(token_addr=token_address)
@@ -91,7 +89,6 @@ async def _fetch_dexscreener(token_address: str, chain: str) -> dict[str, Any]:
         return {}
     return await _fetch_json(url, "DexScreener")
 
-
 async def _fetch_birdeye(token_address: str) -> dict[str, Any]:
     """Fetch token data from Birdeye API."""
     url = BIRDEYE_TOKEN.format(token_addr=token_address)
@@ -99,7 +96,6 @@ async def _fetch_birdeye(token_address: str) -> dict[str, Any]:
         logger.warning("Invalid Birdeye URL for %s", token_address[:16])
         return {}
     return await _fetch_json(url, "Birdeye")
-
 
 def _compute_pair_age_days(created_at_unix: int) -> float:
     """Compute pair age in days from Unix timestamp (ms)."""
@@ -111,7 +107,6 @@ def _compute_pair_age_days(created_at_unix: int) -> float:
         return max(0.0, (now - created).total_seconds() / 86400)
     except (ValueError, OSError):
         return 0.0
-
 
 async def parse_dexscreener_data(profile: TokenSupplyProfile, dexscreener_data: dict) -> None:
     """Parse DexScreener data into the profile."""
@@ -138,7 +133,6 @@ async def parse_dexscreener_data(profile: TokenSupplyProfile, dexscreener_data: 
             if _normalize_address(h.get("address", "")) in (norm_owner, norm_addr):
                 profile.lp_token_pct_held_by_deployer = float(h.get("percent", 0))
                 break
-
 
 async def parse_birdeye_data(profile: TokenSupplyProfile, birdeye_data: dict) -> None:
     """Parse Birdeye data into the profile."""
@@ -207,7 +201,6 @@ async def parse_birdeye_data(profile: TokenSupplyProfile, birdeye_data: dict) ->
     profile.has_dynamic_tax = birdeye_data.get("dynamicTax", False)
     profile.has_blacklist = birdeye_data.get("blacklist", False)
     profile.has_max_wallet_limit = birdeye_data.get("maxWallet", False)
-
 
 __all__ = [
     "DEXSCREENER_TOKENS",

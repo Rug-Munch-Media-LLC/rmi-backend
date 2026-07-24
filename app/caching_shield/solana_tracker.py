@@ -6,6 +6,7 @@ Keys configured via env vars: SOLANA_TRACKER_PRIMARY_HOST, SOLANA_TRACKER_SECOND
 Load balancing: round-robin with 429 fallback to next key
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import json
@@ -47,7 +48,6 @@ TTL_SEARCH = 45
 TTL_LATEST = 10
 TTL_TRENDING = 180
 TTL_HOLDERS = 60
-
 
 @dataclass
 class KeyState:
@@ -97,7 +97,6 @@ class KeyState:
     def mark_success(self) -> None:
         self.consecutive_429s = 0
         self.rate_limited_until = 0.0
-
 
 class SolanaTrackerClient:
     """Multi-key load balanced client for Solana Tracker Data API.
@@ -296,9 +295,7 @@ class SolanaTrackerClient:
 
         return _get()
 
-
 _client: SolanaTrackerClient | None = None
-
 
 def get_solana_tracker() -> SolanaTrackerClient:
     global _client

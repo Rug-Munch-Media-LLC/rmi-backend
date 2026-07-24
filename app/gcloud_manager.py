@@ -17,6 +17,7 @@ Available services:
   - Cloud Run (2M req/mo free) - optional hosting
 """
 
+from __future__ import annotations
 import json
 import os
 
@@ -30,7 +31,6 @@ logger = get_logger("gcloud")
 # Module-level shared httpx client to avoid connection pool fragmentation
 _gcloud_client: httpx.AsyncClient | None = None
 
-
 async def _get_client() -> httpx.AsyncClient:
     """Get or create a shared httpx client for GCloud API calls."""
     global _gcloud_client
@@ -42,10 +42,8 @@ async def _get_client() -> httpx.AsyncClient:
         )
     return _gcloud_client
 
-
 SA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "cryptorugmunch-sa.json")
 VAULT_PATH = settings.gcloud_sa_vault_path
-
 
 class GoogleCloudManager:
     """Manages Google Cloud credentials and service access."""
@@ -356,9 +354,7 @@ class GoogleCloudManager:
         except Exception as e:
             return {"authenticated": False, "error": str(e)}
 
-
 _gcloud: GoogleCloudManager | None = None
-
 
 def get_gcloud() -> GoogleCloudManager:
     global _gcloud

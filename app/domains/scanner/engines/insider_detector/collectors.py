@@ -1,5 +1,6 @@
 """Phase 1 Data Collection — token metadata, traders, events."""
 
+from __future__ import annotations
 import asyncio
 from typing import Any
 
@@ -12,7 +13,6 @@ from .config import DEXSCREENER_BOOSTS, DEXSCREENER_PROFILES, DEXSCREENER_SEARCH
 from .helpers import _parse_timestamp
 
 logger = get_logger(__name__)
-
 
 async def _collect_token_meta(
     token_address: str, chain: str, deployer: str | None = None
@@ -65,7 +65,6 @@ async def _collect_token_meta(
 
     await asyncio.gather(_from_dexscreener(), _from_gmgn(), _from_deployer(), return_exceptions=True)
     return symbol, deployer_addr, created_at
-
 
 async def _get_token_traders(
     token_address: str, chain: str, max_traders: int = 100
@@ -153,7 +152,6 @@ async def _get_token_traders(
 
     traders.sort(key=lambda x: x["total_bought_usd"], reverse=True)
     return traders[:max_traders]
-
 
 async def _gather_events(
     token_address: str, chain: str, deployer: str | None,

@@ -26,6 +26,7 @@ What elevates RAG from "search tool" to "intelligence analyst":
 5. STREAMING RESPONSE - Progressive disclosure
    - Stream findings as they're discovered
 """
+from __future__ import annotations
 
 import json
 import os
@@ -53,11 +54,9 @@ AI_BASE = LLM_BASE_URL if LLM_API_KEY else "https://openrouter.ai/api/v1/chat/co
 RERANK_MODEL = os.getenv("RAG_RERANK_MODEL", os.getenv("LLM_MODEL", "deepseek-v4-flash"))
 ANALYSIS_MODEL = os.getenv("RAG_ANALYSIS_MODEL", os.getenv("LLM_MODEL", "deepseek-v4-flash"))
 
-
 # ══════════════════════════════════════════════════════════════════════
 # LLM RERANKER
 # ══════════════════════════════════════════════════════════════════════
-
 
 class LLMReranker:
     """
@@ -171,11 +170,9 @@ Return a JSON list sorted by score descending. Only return the JSON, nothing els
         # Fallback: return top-K by vector similarity
         return sorted(documents, key=lambda x: x.get("similarity", 0), reverse=True)[:top_k]
 
-
 # ══════════════════════════════════════════════════════════════════════
 # MULTI-HOP RETRIEVAL AGENT
 # ══════════════════════════════════════════════════════════════════════
-
 
 class MultiHopRetrievalAgent:
     """
@@ -471,11 +468,9 @@ Return as JSON. Be precise and evidence-based."""
             "error": "Synthesis failed",
         }
 
-
 # ══════════════════════════════════════════════════════════════════════
 # STREAMING SEARCH (for real-time UX)
 # ══════════════════════════════════════════════════════════════════════
-
 
 async def stream_rag_search(
     query: str,
@@ -540,11 +535,9 @@ async def stream_rag_search(
             + "\n"
         )
 
-
 # ══════════════════════════════════════════════════════════════════════
 # REAL-TIME TOKEN MONITOR
 # ══════════════════════════════════════════════════════════════════════
-
 
 class RealTimeTokenMonitor:
     """
@@ -623,7 +616,6 @@ class RealTimeTokenMonitor:
     def get_recent_alerts(self, limit: int = 20) -> list[dict]:
         return self.alerts[-limit:]
 
-
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETONS
 # ══════════════════════════════════════════════════════════════════════
@@ -632,20 +624,17 @@ _reranker: LLMReranker | None = None
 _agent: MultiHopRetrievalAgent | None = None
 _monitor: RealTimeTokenMonitor | None = None
 
-
 def get_reranker() -> LLMReranker:
     global _reranker
     if _reranker is None:
         _reranker = LLMReranker()
     return _reranker
 
-
 def get_agent() -> MultiHopRetrievalAgent:
     global _agent
     if _agent is None:
         _agent = MultiHopRetrievalAgent()
     return _agent
-
 
 def get_monitor() -> RealTimeTokenMonitor:
     global _monitor

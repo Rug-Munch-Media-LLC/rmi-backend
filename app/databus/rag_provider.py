@@ -2,10 +2,10 @@
 DataBus RAG Provider - wire the world-class RAG engine into DataBus.
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 
 logger = get_logger("databus.rag_provider")
-
 
 async def _rag_search_provider(**kwargs) -> dict | None:
     """DataBus provider for hybrid RAG search across all collections."""

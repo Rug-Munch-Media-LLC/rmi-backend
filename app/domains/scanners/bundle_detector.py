@@ -17,6 +17,7 @@ Uses direct API calls: Helius (transaction/signature data),
 DexScreener (pairs/trades), Solscan (account transfers, transaction detail).
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -30,7 +31,6 @@ from app.free_solscan_client import FreeSolscanClient
 
 logger = get_logger("bundle_detector")
 
-
 @dataclass
 class FundingStep:
     address: str
@@ -38,7 +38,6 @@ class FundingStep:
     token: str  # "SOL", "ETH", etc.
     timestamp: int  # unix ms
     tx_signature: str = ""
-
 
 @dataclass
 class BundledWallet:
@@ -50,7 +49,6 @@ class BundledWallet:
     confidence: str = "MEDIUM"  # LOW, MEDIUM, HIGH, VERY_HIGH
     evidence: list[str] = field(default_factory=list)
 
-
 @dataclass
 class SameBlockSniper:
     address: str
@@ -60,14 +58,12 @@ class SameBlockSniper:
     priority_fee: float = 0.0
     is_jito: bool = False
 
-
 @dataclass
 class BehaviorCluster:
     wallets: list[str]
     pattern: str  # "same_size", "same_time", "same_dex"
     combined_percentage: float
     confidence: float
-
 
 @dataclass
 class BundleReport:
@@ -85,7 +81,6 @@ class BundleReport:
     risk_score: int = 0  # 0-100
     risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
     warnings: list[str] = field(default_factory=list)
-
 
 class BundleDetector:
     """Enhanced bundle and sniper detection with funding chain analysis.
@@ -489,10 +484,8 @@ class BundleDetector:
             warnings=warnings,
         )
 
-
 # Type alias for early buyer data placeholder
 from dataclasses import dataclass as _dataclass  # noqa: E402
-
 
 @_dataclass
 class _EarlyBuyer:

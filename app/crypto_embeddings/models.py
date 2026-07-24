@@ -1,5 +1,6 @@
 """Embedding configuration and data models."""
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -34,7 +35,6 @@ COLLECTIONS = [
     "market_intel", "contract_audits", "known_scams", "news_articles",
     "transaction_patterns", "defi_hacks", "rug_timeline", "vuln_patterns", "crime_reports",
 ]
-
 
 @dataclass
 class EmbeddingResult:

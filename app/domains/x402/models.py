@@ -6,7 +6,6 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 class X402Tier(StrEnum):
     """x402 payment tier - maps to scanner tiers."""
 
@@ -14,7 +13,6 @@ class X402Tier(StrEnum):
     PRO = "pro"
     ELITE = "elite"
     INTERNAL = "internal"
-
 
 class ToolPricing(BaseModel):
     """Per-tool pricing in x402."""
@@ -29,7 +27,6 @@ class ToolPricing(BaseModel):
     )
     tier_required: X402Tier = X402Tier.FREE
 
-
 class ToolCatalogEntry(BaseModel):
     """A single tool in the x402 catalog."""
 
@@ -41,7 +38,6 @@ class ToolCatalogEntry(BaseModel):
     endpoint: str = ""
     enabled: bool = True
 
-
 class ToolCatalog(BaseModel):
     """Full x402 tool catalog."""
 
@@ -49,7 +45,6 @@ class ToolCatalog(BaseModel):
     total: int = 0
     categories: list[str] = Field(default_factory=list)
     fetched_at: str = ""
-
 
 class PaymentFacilitator(BaseModel):
     """x402 payment facilitator info."""
@@ -59,7 +54,6 @@ class PaymentFacilitator(BaseModel):
     enabled: bool = True
     chains: list[str] = Field(default_factory=list)
     health: str = "unknown"
-
 
 class PaymentRequest(BaseModel):
     """x402 payment request."""
@@ -74,7 +68,6 @@ class PaymentRequest(BaseModel):
     @classmethod
     def _chain_lowercase(cls, v: str) -> str:
         return v.lower().strip()
-
 
 class PaymentReceipt(BaseModel):
     """x402 payment receipt."""

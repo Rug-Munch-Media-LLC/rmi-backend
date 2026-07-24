@@ -27,6 +27,7 @@ Author: RMI Platform Team
 Date: 2026-05-31
 """
 
+from __future__ import annotations
 import importlib
 import importlib.util
 import os
@@ -41,9 +42,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("rmi_plugin_system")
 
-
 # ── Enums ─────────────────────────────────────────────────────
-
 
 class PluginType(StrEnum):
     CONNECTOR = "connector"
@@ -57,7 +56,6 @@ class PluginType(StrEnum):
     SECURITY = "security"
     ANALYTICS = "analytics"
 
-
 class PluginStatus(StrEnum):
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -65,9 +63,7 @@ class PluginStatus(StrEnum):
     LOADING = "loading"
     DEPRECATED = "deprecated"
 
-
 # ── Base Plugin Interface ─────────────────────────────────────
-
 
 class Plugin(ABC):
     """Base class for all plugins."""
@@ -141,9 +137,7 @@ class Plugin(ABC):
             "health": self.health_check(),
         }
 
-
 # ── Plugin Registry ───────────────────────────────────────────
-
 
 class PluginRegistry:
     """
@@ -277,9 +271,7 @@ class PluginRegistry:
                 logger.error(f"Hook error for {event}: {e}")
         return results
 
-
 # ── Built-in Plugin Examples ──────────────────────────────────
-
 
 class PrometheusExporterPlugin(Plugin):
     """Export metrics to Prometheus."""
@@ -309,7 +301,6 @@ class PrometheusExporterPlugin(Plugin):
             lines.append(f"# TYPE {prom_name} gauge")
             lines.append(f"{prom_name} {value}")
         return "\n".join(lines)
-
 
 class WebhookNotifierPlugin(Plugin):
     """Send notifications via webhook."""
@@ -360,7 +351,6 @@ class WebhookNotifierPlugin(Plugin):
             self.error_count += 1
             return False
 
-
 class RedisCachePlugin(Plugin):
     """Redis caching plugin."""
 
@@ -399,11 +389,9 @@ class RedisCachePlugin(Plugin):
     async def publish(self, channel: str, message: str) -> None:
         await self.redis.publish(channel, message)
 
-
 # ── Singleton ─────────────────────────────────────────────────
 
 _plugin_registry: PluginRegistry | None = None
-
 
 def get_plugin_registry() -> PluginRegistry:
     """Get or create plugin registry."""

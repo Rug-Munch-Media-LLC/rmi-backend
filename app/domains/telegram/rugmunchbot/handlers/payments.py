@@ -4,6 +4,7 @@ RugMunchBot -- Payment handlers.
 
 Telegram Stars payment pre-checkout and successful payment routing.
 """
+from __future__ import annotations
 
 import time
 
@@ -26,7 +27,6 @@ logger = get_logger("rmi_bot")
 
 _SEP = "\u2501" * 28
 
-
 async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.pre_checkout_query
     payload = query.invoice_payload
@@ -36,7 +36,6 @@ async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         logger.warning("Unknown invoice payload: %s", payload)
         await query.answer(ok=False, error_message="Invalid invoice.")
-
 
 async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     payment = update.message.successful_payment

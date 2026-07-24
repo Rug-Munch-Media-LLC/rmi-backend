@@ -15,6 +15,7 @@ Usage:
     result = await client.call("boar", "eth_getBalance", {"address": "0x..."})
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import json
@@ -27,7 +28,6 @@ from app.core.logging import get_logger
 logger = get_logger("local_mcp")
 
 MCP_HOME = Path("/root/.hermes/mcp-servers")
-
 
 class LocalMCPClient:
     """Pulls MCP servers from GitHub, runs them locally via stdio, caches results."""
@@ -221,16 +221,13 @@ class LocalMCPClient:
     def stats(self) -> dict:
         return {"servers": len(self._servers), "cache_entries": len(self._l1)}
 
-
 _mcp_client: LocalMCPClient | None = None
-
 
 def get_local_mcp() -> LocalMCPClient:
     global _mcp_client
     if _mcp_client is None:
         _mcp_client = LocalMCPClient()
     return _mcp_client
-
 
 # Curated list of free, open-source MCPs to clone and expose.
 # These were vetted for: non-overlap with RMI native, MIT/Apache/AGPL license,
@@ -266,7 +263,6 @@ EXPANDED_MCP_REPOS = {
     },
 }
 
-
 async def install_curated_mcps() -> dict:
     """Install all curated free MCPs from GitHub and discover their tools.
 
@@ -296,7 +292,6 @@ async def install_curated_mcps() -> dict:
             }
 
     return results
-
 
 async def call_expanded_tool(
     service: str, tool_name: str, args: dict | None = None, ttl: int = 60

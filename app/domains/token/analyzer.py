@@ -9,7 +9,6 @@ from app.domains.token.models import (
     TokenRisk,
 )
 
-
 class TokenAnalyzer:
     """Pure logic - given holders + liquidity + flags, return risk."""
 

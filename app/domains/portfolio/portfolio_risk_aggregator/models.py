@@ -1,10 +1,10 @@
 """Data models for portfolio risk aggregation."""
+from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
-
 
 class RiskLevel(Enum):
     SAFE = "safe"
@@ -20,7 +20,6 @@ class RiskLevel(Enum):
         if score >= 40: return cls.MEDIUM
         if score >= 20: return cls.HIGH
         return cls.CRITICAL
-
 
 @dataclass
 class TokenHolding:
@@ -42,7 +41,6 @@ class TokenHolding:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
 
 @dataclass
 class ChainPortfolio:
@@ -66,7 +64,6 @@ class ChainPortfolio:
             "holdings": [h.to_dict() for h in self.holdings],
             "scan_error": self.scan_error,
         }
-
 
 @dataclass
 class PortfolioRiskProfile:

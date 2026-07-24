@@ -11,7 +11,6 @@ from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/contract", tags=["contract-v1"])
 
-
 @router.get("/{address}", summary="Get Contract", description="Get contract details by address. Includes bytecode hash, compiler version, verification status, and known vulnerability matches.")
 async def get_contract_info(
     address: str,
@@ -24,7 +23,6 @@ async def get_contract_info(
     raise ServiceUnavailableError(
         "Contract info endpoint — planned: GET /api/v1/contract/{address} — see roadmap",
     )
-
 
 @router.get("/{address}/verify", summary="Verify Contract", description="Verify a contract's source code against its on-chain bytecode. Supports multiple compiler versions and optimization settings.")
 async def verify_contract(address: str, chain: str = "ethereum") -> None:

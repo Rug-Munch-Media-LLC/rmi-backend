@@ -9,6 +9,7 @@ Adds the endpoints that make agents choose us over competitors:
   /mcp/trials      - Check remaining free trials
 """
 
+from __future__ import annotations
 import time
 from datetime import UTC, datetime
 
@@ -16,7 +17,6 @@ from fastapi import APIRouter, Request
 
 router = APIRouter(tags=["mcp-quality"])
 _start_time = time.time()
-
 
 @router.get("/mcp/health")
 async def mcp_health(request: Request) -> dict[str, str]:
@@ -29,7 +29,6 @@ async def mcp_health(request: Request) -> dict[str, str]:
         "version": "3.3.0",
         "timestamp": datetime.now(UTC).isoformat(),
     }
-
 
 @router.get("/mcp/status")
 async def mcp_status() -> dict[str, int]:
@@ -49,7 +48,6 @@ async def mcp_status() -> dict[str, int]:
         "providers": {name: pool.stats() for name, pool in mgr.pools.items()},
         "timestamp": datetime.now(UTC).isoformat(),
     }
-
 
 @router.get("/mcp/changelog")
 async def mcp_changelog() -> dict[str, str]:
@@ -100,7 +98,6 @@ async def mcp_changelog() -> dict[str, str]:
         ],
     }
 
-
 @router.get("/mcp/sdk")
 async def mcp_sdk() -> dict[str, dict[str, str]]:
     """Quick-start code examples for Python, TypeScript, and curl."""
@@ -143,7 +140,6 @@ console.log(`Risk score: ${result.data.score}`);""",
 }""",
         },
     }
-
 
 @router.get("/mcp/trials")
 async def mcp_trials(request: Request) -> dict[str, int | float]:

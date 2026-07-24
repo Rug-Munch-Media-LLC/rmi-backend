@@ -4,6 +4,7 @@ Wallet Analysis Mixin — statistics, alerts, sweeping, and revenue status.
 Extracted from manager.py during god-file split (2026-07-23).
 """
 
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
@@ -17,7 +18,6 @@ from app.domains.wallet.models import (
 )
 
 logger = get_logger("wallet_analysis")
-
 
 class WalletAnalysisMixin:
     """
@@ -482,6 +482,5 @@ class WalletAnalysisMixin:
             "sweep_threshold_usd": sweep_threshold,
             "wallets": wallets,
         }
-
 
 __all__ = ["WalletAnalysisMixin"]

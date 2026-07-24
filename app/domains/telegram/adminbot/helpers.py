@@ -4,6 +4,7 @@ Admin Bot - Helper Utilities
 Owner gating, message editing, keyboard builders for the admin bot.
 """
 
+from __future__ import annotations
 from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -12,11 +13,9 @@ from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot.config import OWNER_IDS
 
-
 def is_owner(update: Update) -> bool:
     """Check if the user is a known owner."""
     return update.effective_user.id in OWNER_IDS
-
 
 def owner_only(func) -> Any | None:
     """Decorator: reject non-owners immediately."""
@@ -28,7 +27,6 @@ def owner_only(func) -> Any | None:
         return await func(update, ctx)
 
     return wrapper
-
 
 async def edit_or_reply(
     update: Update,
@@ -49,7 +47,6 @@ async def edit_or_reply(
             )
     else:
         await update.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
-
 
 def main_menu_keyboard() -> Any:
     """Main menu inline keyboard."""
@@ -75,11 +72,9 @@ def main_menu_keyboard() -> Any:
         ]
     )
 
-
 def back_button(data: str = "main") -> Any:
     """Simple back button keyboard."""
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data=data)]])
-
 
 def docker_menu() -> Any:
     """Docker management keyboard."""
@@ -101,7 +96,6 @@ def docker_menu() -> Any:
         ]
     )
 
-
 def service_action_keyboard(svc: str = "") -> Any:
     """Service control action buttons."""
     buttons = []
@@ -115,7 +109,6 @@ def service_action_keyboard(svc: str = "") -> Any:
         )
     buttons.append([InlineKeyboardButton("⬅️ Main Menu", callback_data="main")])
     return InlineKeyboardMarkup(buttons)
-
 
 def logs_menu() -> Any:
     """Logs service selection keyboard."""

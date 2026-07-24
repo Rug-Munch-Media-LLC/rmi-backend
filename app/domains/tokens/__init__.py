@@ -7,6 +7,7 @@ lives in app.tokens.deployer (moved verbatim from app.token_deployer on
 2026-07-07).
 """
 
+from __future__ import annotations
 from app.domains.tokens.deployer import (  # noqa: F401
     ChainDeployer,
     DeploymentStorage,

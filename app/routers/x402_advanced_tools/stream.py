@@ -5,6 +5,7 @@ Emits rug_pull, whale_move, price_crash events as JSON over SSE.
 Reads from Redis alert queues.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -18,7 +19,6 @@ from fastapi.responses import StreamingResponse
 from app.core.logging import get_logger
 
 logger = get_logger("x402.stream")
-
 
 async def sse_alert_stream(
     events: str = Query(
@@ -92,6 +92,5 @@ async def sse_alert_stream(
             "Access-Control-Allow-Origin": "*",
         },
     )
-
 
 __all__ = ["sse_alert_stream"]

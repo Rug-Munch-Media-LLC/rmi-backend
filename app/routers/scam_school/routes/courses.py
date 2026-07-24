@@ -2,6 +2,7 @@
 Scam School — course content delivery endpoints.
 """
 
+from __future__ import annotations
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
@@ -14,7 +15,6 @@ from app.routers.scam_school.progress import ACHIEVEMENTS, BADGES, LEVELS
 from typing import Any
 
 courses_router = APIRouter(tags=["scam-school"])
-
 
 @courses_router.get("/scam-school/courses")
 async def list_courses() -> dict:
@@ -48,7 +48,6 @@ async def list_courses() -> dict:
         ]
     }
 
-
 @courses_router.get("/scam-school/courses/{course_id}")
 async def get_course(course_id: str) -> Any:
     """Get full course content including all lesson slides."""
@@ -56,7 +55,6 @@ async def get_course(course_id: str) -> Any:
     if not course:
         raise NotFoundError("Course not found")
     return course
-
 
 @courses_router.get("/scam-school/courses/{course_id}/modules/{module_id}")
 async def get_module(course_id: str, module_id: str) -> Any:
@@ -69,24 +67,20 @@ async def get_module(course_id: str, module_id: str) -> Any:
         raise NotFoundError("Module not found")
     return module
 
-
 @courses_router.get("/scam-school/badges")
 async def list_badges() -> dict:
     """List all available badges."""
     return {"badges": BADGES}
-
 
 @courses_router.get("/scam-school/achievements")
 async def list_achievements() -> dict:
     """List all achievements."""
     return {"achievements": ACHIEVEMENTS}
 
-
 @courses_router.get("/scam-school/levels")
 async def list_levels() -> dict:
     """List level progression."""
     return {"levels": LEVELS}
-
 
 @courses_router.get("/scam-school/verify-cert/{cert_id}")
 async def verify_certificate(cert_id: str) -> dict:

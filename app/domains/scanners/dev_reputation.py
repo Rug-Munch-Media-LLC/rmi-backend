@@ -18,6 +18,7 @@ Data sources (direct API calls - no self.api_base):
   Moralis: Cross-chain wallet token history
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -80,13 +81,11 @@ DEXSCREENER_CHAIN_MAP = {
     "solana": "solana",
 }
 
-
 class ReputationLevel(Enum):
     TRUSTED = "trusted"  # score >= 70
     NEUTRAL = "neutral"  # score 40-69
     SUSPICIOUS = "suspicious"  # score 20-39
     DANGEROUS = "dangerous"  # score < 20
-
 
 @dataclass
 class TokenLaunch:
@@ -101,7 +100,6 @@ class TokenLaunch:
     dev_holds_percentage: float = 0.0  # Dev's holding at time of outcome
     is_renounced: bool = False  # Did dev renounce ownership?
     has_locked_liquidity: bool = False
-
 
 @dataclass
 class DevReputationReport:
@@ -121,7 +119,6 @@ class DevReputationReport:
     reputation_level: ReputationLevel = ReputationLevel.NEUTRAL
     confidence: str = "LOW"  # LOW, MEDIUM, HIGH
     warnings: list[str] = field(default_factory=list)
-
 
 class DevReputationEngine:
     """Calculates developer reputation based on launch history and patterns.

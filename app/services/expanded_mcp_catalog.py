@@ -77,7 +77,6 @@ FEAR_GREED_TOOLS = [
     },
 ]
 
-
 # ════════════════════════════════════════════════════════════
 # 2. Crypto Technical Indicators (kukapay/crypto-indicators-mcp)
 #    Source: Local computation, no API key
@@ -225,7 +224,6 @@ CRYPTO_INDICATORS_TOOLS = [
         ],
     },
 ]
-
 
 # ════════════════════════════════════════════════════════════
 # 3. OpenZeppelin Contracts Wizard (OpenZeppelin/contracts-wizard)
@@ -397,7 +395,6 @@ CONTRACTS_WIZARD_TOOLS = [
     },
 ]
 
-
 # ════════════════════════════════════════════════════════════
 # 4. Web3 Research MCP (aaronjmars/web3-research-mcp)
 #    Source: CoinGecko + DefiLlama + web search
@@ -529,7 +526,6 @@ WEB3_RESEARCH_TOOLS = [
     },
 ]
 
-
 # ════════════════════════════════════════════════════════════
 # Master list - all expanded MCP tools
 # ════════════════════════════════════════════════════════════
@@ -537,7 +533,6 @@ WEB3_RESEARCH_TOOLS = [
 EXTERNAL_MCP_TOOLS = (
     FEAR_GREED_TOOLS + CRYPTO_INDICATORS_TOOLS + CONTRACTS_WIZARD_TOOLS + WEB3_RESEARCH_TOOLS
 )
-
 
 # ════════════════════════════════════════════════════════════
 # Service-level metadata for the catalog UI
@@ -589,7 +584,6 @@ EXTERNAL_MCP_SERVICES = [
         "local_clone": "/root/.hermes/mcp-servers/web3-research-mcp",
     },
 ]
-
 
 if __name__ == "__main__":
     logger.info(f"Total external MCP tools: {len(EXTERNAL_MCP_TOOLS)}")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue

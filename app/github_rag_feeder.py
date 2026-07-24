@@ -16,6 +16,7 @@ Config format (add to SOURCES list):
 }
 """
 
+from __future__ import annotations
 import asyncio
 import glob
 import json
@@ -94,7 +95,6 @@ SOURCES = [
 
 CLONE_DIR = "/tmp/rag_sources"
 
-
 def ensure_cloned(repo: str) -> str | None:
     """Clone repo if not already present. Returns path or None."""
     name = repo.split("/")[-1]
@@ -111,7 +111,6 @@ def ensure_cloned(repo: str) -> str | None:
         return path if os.path.exists(path) else None
     except (subprocess.TimeoutExpired):
         return None
-
 
 def extract_from_repo(source: dict) -> list[dict]:
     """Extract documents from a cloned GitHub repo."""
@@ -182,7 +181,6 @@ def extract_from_repo(source: dict) -> list[dict]:
     logger.info("  %s: %d docs from %d files", source["repo"], len(docs), len(files[:max_files]))
     return docs
 
-
 async def ingest_repo(source: dict) -> Any | int:
     """Clone, extract, and ingest a single repo."""
     docs = extract_from_repo(source)
@@ -210,7 +208,6 @@ async def ingest_repo(source: dict) -> Any | int:
                 pass
     return total
 
-
 async def ingest_all() -> Any:
     """Run all enabled sources."""
     logger.info("=== RAG GitHub Feeder v2 ===\n")
@@ -228,7 +225,6 @@ async def ingest_all() -> Any:
 
     logger.info("Total: %d docs across %d sources", total, len(results))
     return results
-
 
 if __name__ == "__main__":
     asyncio.run(ingest_all())

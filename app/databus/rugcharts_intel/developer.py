@@ -3,6 +3,7 @@ RugCharts Intel — Developer Reputation.
 Deployer history tracking.
 """
 
+from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
@@ -12,7 +13,6 @@ from app.core.logging import get_logger
 from .cache import _r, CACHE_TTL, HELIUS_KEY, ARKHAM_KEY
 
 logger = get_logger("rugcharts_intel")
-
 
 async def developer_reputation(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Track deployer wallet history across all tokens they've created.

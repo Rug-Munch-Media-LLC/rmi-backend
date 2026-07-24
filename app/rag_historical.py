@@ -16,6 +16,7 @@ Collections fed:
 Runs: weekly (Sunday 2am) for historical sources.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import re
@@ -101,9 +102,7 @@ SOURCES = {
     },
 }
 
-
 # ── Scraper Functions ──
-
 
 async def scrape_rekt_db() -> list[dict]:
     """
@@ -144,7 +143,6 @@ async def scrape_rekt_db() -> list[dict]:
 
     logger.info("Rekt DB: %s hacks scraped", len(docs))
     return docs
-
 
 async def scrape_chainabuse() -> list[dict]:
     """
@@ -189,7 +187,6 @@ async def scrape_chainabuse() -> list[dict]:
     logger.info("Chainabuse: %s reports scraped", len(docs))
     return docs
 
-
 async def scrape_slowmist() -> list[dict]:
     """Scrape SlowMist Hacked Archive for detailed exploit analysis."""
     docs = []
@@ -224,7 +221,6 @@ async def scrape_slowmist() -> list[dict]:
 
     logger.info("SlowMist: %s analyses scraped", len(docs))
     return docs
-
 
 async def scrape_rekt_news() -> list[dict]:
     """Scrape Rekt News for in-depth exploit post-mortems."""
@@ -262,7 +258,6 @@ async def scrape_rekt_news() -> list[dict]:
 
     logger.info("Rekt News: %s articles scraped", len(docs))
     return docs
-
 
 async def ingest_trm_report() -> list[dict]:
     """
@@ -309,9 +304,7 @@ async def ingest_trm_report() -> list[dict]:
     logger.info("TRM Report: %s sections ingested", len(docs))
     return docs
 
-
 # ── Master Ingestion Orchestrator ──
-
 
 async def ingest_historical_source(source_id: str) -> dict:
     """Ingest a single historical source into RAG."""
@@ -381,7 +374,6 @@ async def ingest_historical_source(source_id: str) -> dict:
         "status": "ok" if ingested > 0 else "partial",
     }
 
-
 async def ingest_all_historical() -> dict:
     """Run full historical ingestion across all sources."""
     results = {}
@@ -403,7 +395,6 @@ async def ingest_all_historical() -> dict:
         "sources": results,
         "timestamp": datetime.now(UTC).isoformat(),
     }
-
 
 # ── CLI Entry Point ──
 if __name__ == "__main__":

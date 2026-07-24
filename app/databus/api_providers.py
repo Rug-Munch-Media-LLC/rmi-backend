@@ -8,6 +8,7 @@ Three free/freemium API providers for enhanced crypto intelligence.
 3. CryptoNews - Free unlimited news API (no key needed)
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 
 logger = get_logger("databus.api_providers")
@@ -18,7 +19,6 @@ logger = get_logger("databus.api_providers")
 # ═══════════════════════════════════════════════════════════════
 
 COINSTATS_BASE = "https://openapiv1.coinstats.app"
-
 
 async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
     """Resolve a wallet's complete DeFi position - collateral, borrows, LPs, rewards."""
@@ -68,14 +68,12 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
         logger.warning(f"CoinStats fetch failed: {e}")
         return {"error": str(e), "source": "CoinStats"}
 
-
 # ═══════════════════════════════════════════════════════════════
 # 2. MOBULA - Long-tail DEX Token Pricing
 # Free tier: 10,000 credits/month, no rate limit
 # ═══════════════════════════════════════════════════════════════
 
 MOBULA_BASE = "https://api.mobula.io/api/1"
-
 
 async def fetch_mobula_market(
     asset: str | None = None, blockchain: str | None = None, limit: int = 20
@@ -119,7 +117,6 @@ async def fetch_mobula_market(
         logger.warning(f"Mobula fetch failed: {e}")
         return {"error": str(e), "source": "Mobula"}
 
-
 async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dict:
     """Fetch wallet portfolio via Mobula - balances, tokens, transaction history."""
     import aiohttp
@@ -155,14 +152,12 @@ async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dic
         logger.warning(f"Mobula wallet fetch failed: {e}")
         return {"error": str(e), "source": "Mobula"}
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. CRYPTONEWS (cryptocurrency.cv) - Free unlimited news API
 # No API key, no rate limits, REST + RSS
 # ═══════════════════════════════════════════════════════════════
 
 CRYPTONEWS_BASE = "https://cryptocurrency.cv/api"
-
 
 async def fetch_crypto_news(
     category: str | None = None, source: str | None = None, limit: int = 20

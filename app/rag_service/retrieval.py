@@ -1,5 +1,6 @@
 """Search and retrieval pipeline for RAG."""
 
+from __future__ import annotations
 import asyncio
 import json
 import re
@@ -11,7 +12,6 @@ from app.crypto_embeddings import COLLECTIONS, get_embedder
 from app.rag_service.cache import _get_redis
 
 logger = get_logger(__name__)
-
 
 async def search_similar(
     query: str,
@@ -89,7 +89,6 @@ async def search_similar(
 
     return results
 
-
 async def _enrich_ann_results(
     collection: str, ann_results: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -122,7 +121,6 @@ async def _enrich_ann_results(
             enriched.append(ar)
     return enriched
 
-
 async def search_multi_collection(
     query: str,
     collections: list[str] | None = None,
@@ -151,7 +149,6 @@ async def search_multi_collection(
     all_results.sort(key=lambda x: x["similarity"], reverse=True)
     return all_results[:limit]
 
-
 def _classify_query(query: str) -> str:
     """Classify query into entity_heavy, keyword_heavy, semantic_heavy, or balanced."""
     q = query.lower().strip()
@@ -179,7 +176,6 @@ def _classify_query(query: str) -> str:
     ):
         return "semantic_heavy"
     return "balanced"
-
 
 def _rrf_fuse(
     ranked_lists: list[list[dict[str, Any]]],
@@ -216,7 +212,6 @@ def _rrf_fuse(
         entry["entity_match"] = doc_id in entity_doc_ids
         results.append(entry)
     return results
-
 
 async def three_pillar_search(
     query: str,
@@ -504,7 +499,6 @@ async def three_pillar_search(
         "confidence": confidence,
     }
 
-
 async def search_with_transform(
     query: str,
     collection: str = "wallet_profiles",
@@ -566,7 +560,6 @@ async def search_with_transform(
         "transformed_queries": transformed.transformed_queries,
         "metadata": transformed.metadata,
     }
-
 
 async def _sparse_text_search(
     query: str, collections: list[str], limit: int = 20

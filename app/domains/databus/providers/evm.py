@@ -13,6 +13,7 @@ Providers:
 - _etherscan_tx_trace
 """
 
+from __future__ import annotations
 from app.databus.providers import (  # noqa: F401
     _alchemy_token_balances,
     _alchemy_token_metadata,

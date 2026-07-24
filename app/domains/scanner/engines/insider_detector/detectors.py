@@ -1,5 +1,6 @@
 """Phase 2 Detection Methods — All insider detection algorithms."""
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.domains.scanner.engines import gmgn_client as gmgn
 from app.domains.scanner.engines.known_entities import label_wallet
@@ -20,7 +21,6 @@ from .models import Confidence, InsiderEvidence, InsiderType
 from .utils import _ts_human
 
 logger = get_logger(__name__)
-
 
 async def _detect_pre_trending(
     token_address: str, chain: str, traders: list[dict], events: dict,
@@ -63,7 +63,6 @@ async def _detect_pre_trending(
         ))
     return results
 
-
 async def _detect_pre_kol(
     token_address: str, chain: str, traders: list[dict], events: dict,
 ) -> list[InsiderEvidence]:
@@ -99,7 +98,6 @@ async def _detect_pre_kol(
             confidence=confidence,
         ))
     return results
-
 
 async def _detect_dev_insider(
     token_address: str, chain: str, traders: list[dict],
@@ -162,7 +160,6 @@ async def _detect_dev_insider(
         ))
     return results
 
-
 async def _detect_cex_frontrun(
     token_address: str, chain: str, traders: list[dict], events: dict,
 ) -> list[InsiderEvidence]:
@@ -201,7 +198,6 @@ async def _detect_cex_frontrun(
             ))
     return results
 
-
 async def _detect_pumpfun_graduation(
     token_address: str, chain: str, traders: list[dict], events: dict,
 ) -> list[InsiderEvidence]:
@@ -234,7 +230,6 @@ async def _detect_pumpfun_graduation(
             confidence=confidence,
         ))
     return results
-
 
 async def _detect_snipers(
     token_address: str, chain: str, traders: list[dict],

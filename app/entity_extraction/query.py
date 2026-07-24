@@ -8,6 +8,7 @@ When a query contains an address, symbol, hash, or other exact entity,
 pure cosine similarity will almost never surface the right document.
 """
 
+from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -16,7 +17,6 @@ from app.entity_extraction.extractor import extract_entities
 from app.entity_extraction.lookup import EntityLookup
 
 logger = logging.getLogger(__name__)
-
 
 def reciprocal_rank_fusion(
     *ranked_lists: list[dict[str, Any]],
@@ -57,7 +57,6 @@ def reciprocal_rank_fusion(
         results.append(entry)
 
     return results
-
 
 async def hybrid_query(
     query: str,
@@ -141,7 +140,6 @@ async def hybrid_query(
         "entity_docs": entity_docs,
         "vector_docs": vector_docs[:limit],
     }
-
 
 def get_entity_lookup() -> EntityLookup:
     """Return the singleton EntityLookup instance."""

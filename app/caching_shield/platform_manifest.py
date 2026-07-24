@@ -7,13 +7,13 @@ directory listings, READMEs, Smithery, Glama, mcp.so, Open WebUI.
 Update ONCE here, everything else auto-syncs.
 """
 
+from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.caching_shield.agent_skills_extended import get_all_agent_skills
 from app.caching_shield.membership_plans import get_membership_catalog
 from app.caching_shield.tool_registry import TOOL_COUNTS
 from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES
-
 
 def get_platform_manifest() -> dict:
     """The ONE source of truth. Every platform surface reads from this."""
@@ -147,9 +147,7 @@ def get_platform_manifest() -> dict:
         },
     }
 
-
 # ═══ AUTO-SYNC ═══
-
 
 def sync_to_mcp_discovery() -> dict:
     """Generate the MCP discovery JSON fragment that should be merged into _build_discovery()."""
@@ -164,12 +162,10 @@ def sync_to_mcp_discovery() -> dict:
         "skills_endpoint": m["endpoints"]["skills"],
     }
 
-
 def sync_to_readme() -> str:
     """Generate a README.md section."""
     m = get_platform_manifest()
     return m["descriptions"]["long"]
-
 
 def sync_to_directory_listing() -> dict:
     """Generate fields for Smithery/Glama/mcp.so listings."""

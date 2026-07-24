@@ -4,6 +4,7 @@ API Registry - Key Discovery & Key Pool Load Balancer
 ApiKey dataclass, discover_keys environment scanner, and KeyPool.
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -14,7 +15,6 @@ from app.core.logging import get_logger
 from .config import PROVIDER_REGISTRY
 
 logger = get_logger("api_registry")
-
 
 @dataclass
 class ApiKey:
@@ -41,7 +41,6 @@ class ApiKey:
         burst = cfg.burst if cfg else 15
         self.tokens = float(burst)
         self.last_refill = time.monotonic()
-
 
 def discover_keys() -> dict[str, list[ApiKey]]:
     """Scan environment variables and build key pools per provider."""
@@ -108,7 +107,6 @@ def discover_keys() -> dict[str, list[ApiKey]]:
             logger.info(f"API Registry: {prov_name} -> {len(keys)} key(s)")
 
     return pools
-
 
 class KeyPool:
     """Round-robin key pool with health tracking and rate limiting."""

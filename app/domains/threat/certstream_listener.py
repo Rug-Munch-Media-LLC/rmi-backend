@@ -33,10 +33,8 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 # ── Brand patterns (loaded once at import) ──────────────────────────
 _BRAND_PATTERNS_PATH = Path(__file__).parent / "brand_patterns.json"
-
 
 def load_brand_patterns() -> list[str]:
     """Load brand pattern list. Returns lowercased list for matching."""
@@ -51,9 +49,7 @@ def load_brand_patterns() -> list[str]:
         logger.warning("certstream_brands_load_failed err=%s", exc)
         return []
 
-
 _BRAND_PATTERNS: list[str] = load_brand_patterns()
-
 
 # ── Domain matching ────────────────────────────────────────────────
 def match_brand(domain: str, brands: list[str] | None = None) -> str | None:
@@ -88,7 +84,6 @@ def match_brand(domain: str, brands: list[str] | None = None) -> str | None:
             return brand
     return None
 
-
 # ── Telegram alert (best-effort, never blocks) ─────────────────────
 async def _telegram_alert(domain: str, brand: str, issuer: str) -> bool:
     """Send a Telegram alert. Returns True on success. Never raises."""
@@ -117,7 +112,6 @@ async def _telegram_alert(domain: str, brand: str, issuer: str) -> bool:
         logger.debug("telegram_alert_skipped err=%s", exc)
         return False
 
-
 # ── Postgres persistence (lazy import) ──────────────────────────────
 _THREAT_DOMAINS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS threat_domains (
@@ -133,7 +127,6 @@ CREATE INDEX IF NOT EXISTS threat_domains_first_seen_idx
 CREATE INDEX IF NOT EXISTS threat_domains_brand_idx
   ON threat_domains (brand_matched);
 """
-
 
 async def _ensure_schema() -> bool:
     try:
@@ -153,7 +146,6 @@ async def _ensure_schema() -> bool:
         logger.debug("_ensure_schema_error", exc_info=True)
         logger.warning("threat_domains_schema_failed err=%s", exc)
         return False
-
 
 async def _persist_domain(domain: str, brand: str, issued_at: datetime | None, issuer: str) -> bool:
     try:
@@ -184,11 +176,9 @@ async def _persist_domain(domain: str, brand: str, issued_at: datetime | None, i
         logger.debug("threat_domains_persist_failed domain=%s err=%s", domain, exc)
         return False
 
-
 # ── CertStream WebSocket listener ──────────────────────────────────
 # Public CertStream (CaliDog) - the canonical free CT feed.
 CERTSTREAM_URL = os.getenv("CERTSTREAM_URL", "wss://certstream.calidog.io/")
-
 
 async def _process_message(msg: dict) -> int:
     """Process one CertStream message. Returns # of threats found (0 or 1+)."""
@@ -236,7 +226,6 @@ async def _process_message(msg: dict) -> int:
             await _telegram_alert(d, brand, issuer)
     return threats
 
-
 async def _run_listener(stop_event: asyncio.Event) -> None:
     """Connect to CertStream and consume messages until stop_event."""
     try:
@@ -274,7 +263,6 @@ async def _run_listener(stop_event: asyncio.Event) -> None:
                 await asyncio.wait_for(stop_event.wait(), timeout=backoff)
             backoff = min(backoff * 2, 60.0)
 
-
 # ── Public API ─────────────────────────────────────────────────────
 async def start_listener() -> asyncio.Task | None:
     """Start the CertStream listener as a background task.
@@ -299,7 +287,6 @@ async def start_listener() -> asyncio.Task | None:
     task._rmi_stop_event = stop_event  # type: ignore[attr-defined]
     return task
 
-
 async def stop_listener(task: asyncio.Task | None) -> None:
     """Stop a running CertStream listener task."""
     if task is None or task.done():
@@ -310,7 +297,6 @@ async def stop_listener(task: asyncio.Task | None) -> None:
     task.cancel()
     with suppress(asyncio.CancelledError, Exception):
         await asyncio.wait_for(task, timeout=5.0)
-
 
 # ── CLI for ad-hoc testing ─────────────────────────────────────────
 def _cli() -> None:
@@ -346,10 +332,8 @@ def _cli() -> None:
     except KeyboardInterrupt:
         print("\n[cli] stopped", file=sys.stderr)
 
-
 if __name__ == "__main__":
     _cli()
-
 
 __all__ = [
     "CERTSTREAM_URL",

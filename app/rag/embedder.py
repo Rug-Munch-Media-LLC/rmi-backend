@@ -40,11 +40,9 @@ KNOWN_DIMS: dict[str, int] = {
     "text-embedding-3-large": 3072,
 }
 
-
 def lookup_dim(model_name: str) -> int:
     """Look up or default to 1024 for unknown models."""
     return KNOWN_DIMS.get(model_name, 1024)
-
 
 def normalize_dim(vec: list[float], target_dim: int) -> list[float]:
     """Pad/truncate *vec* to *target_dim*, then L2-normalize.
@@ -63,7 +61,6 @@ def normalize_dim(vec: list[float], target_dim: int) -> list[float]:
     if norm > 0:
         arr = arr / norm
     return arr.tolist()
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Protocol
@@ -96,7 +93,6 @@ class EmbedderProtocol(ABC):
         if not results:
             raise RuntimeError(f"{self.name} returned empty result for single text")
         return results[0]
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # BGE-M3  (Docker container HTTP API)
@@ -229,7 +225,6 @@ class BGE_M3_Embedder(EmbedderProtocol):
                     f"expected {self._dim}d"
                 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Ollama  (Ollama /api/embeddings)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -350,7 +345,6 @@ class OllamaEmbedder(EmbedderProtocol):
                         f"for text[{i}], expected {self._dim}d"
                     )
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # CachedEmbedder  (in-memory LRU + optional Redis)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -395,7 +389,6 @@ class _MemoryCache:
             "misses": self._misses,
             "hit_rate": round(self._hits / total * 100, 1) if total > 0 else 0.0,
         }
-
 
 class CachedEmbedder(EmbedderProtocol):
     """Wraps any ``EmbedderProtocol`` with an in-memory LRU cache.
@@ -514,7 +507,6 @@ class CachedEmbedder(EmbedderProtocol):
     def stats(self) -> dict[str, Any]:
         return {"memory": self._mem.stats, "redis_ok": self._redis_ok}
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # FallbackEmbedder  (primary -> secondary with dimension normalization)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -575,7 +567,6 @@ class FallbackEmbedder(EmbedderProtocol):
 
         return vectors
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Factory
 # ═══════════════════════════════════════════════════════════════════════════
@@ -583,10 +574,8 @@ class FallbackEmbedder(EmbedderProtocol):
 def _create_bge_m3() -> BGE_M3_Embedder:
     return BGE_M3_Embedder(url=settings.bge_m3_url, dim=1024)
 
-
 def _create_ollama(model: str | None = None) -> OllamaEmbedder:
     return OllamaEmbedder(model=model or settings.embedder_fallback)
-
 
 def get_embedder(
     primary: str | None = None,
@@ -646,13 +635,11 @@ def get_embedder(
 
     return chain
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Singleton for application-wide use
 # ═══════════════════════════════════════════════════════════════════════════
 
 _embedder: EmbedderProtocol | None = None
-
 
 def get_default_embedder() -> EmbedderProtocol:
     """Lazily-initialized singleton embedder.
@@ -664,7 +651,6 @@ def get_default_embedder() -> EmbedderProtocol:
     if _embedder is None:
         _embedder = get_embedder()
     return _embedder
-
 
 async def shutdown_embedder() -> None:
     """Close pooled connections. Call during app shutdown."""

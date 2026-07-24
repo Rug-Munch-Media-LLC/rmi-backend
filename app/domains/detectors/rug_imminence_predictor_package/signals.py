@@ -4,11 +4,11 @@ Extracted signal analysis logic from RugImminencePredictor.
 Each function operates on a RIPResult and updates one signal category.
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.domains.detectors.rug_imminence_predictor_package.types import RIPResult
 
 logger = get_logger(__name__)
-
 
 async def analyze_lp_health(result: RIPResult) -> None:
     """Signal 1: LP Health (25% weight)."""
@@ -108,7 +108,6 @@ async def analyze_lp_health(result: RIPResult) -> None:
         sig.confidence = 0.1
         result.sources_failed.append("lp_health_analysis")
 
-
 async def analyze_deployer_risk(result: RIPResult) -> None:
     """Signal 2: Deployer Risk (20% weight)."""
     sig = result.signals["deployer_risk"]
@@ -171,7 +170,6 @@ async def analyze_deployer_risk(result: RIPResult) -> None:
         sig.confidence = 0.2
         result.sources_failed.append("deployer_risk_analysis")
 
-
 async def analyze_smart_money_flow(result: RIPResult) -> None:
     """Signal 3: Smart Money Flow (15% weight)."""
     sig = result.signals["smart_money_flow"]
@@ -230,7 +228,6 @@ async def analyze_smart_money_flow(result: RIPResult) -> None:
         sig.confidence = 0.15
         result.sources_failed.append("smart_money_flow_analysis")
 
-
 async def analyze_bundle_pattern(result: RIPResult) -> None:
     """Signal 4: Bundle Pattern (15% weight)."""
     sig = result.signals["bundle_pattern"]
@@ -267,7 +264,6 @@ async def analyze_bundle_pattern(result: RIPResult) -> None:
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.2
         result.sources_failed.append("bundle_pattern_analysis")
-
 
 async def analyze_social_velocity(result: RIPResult) -> None:
     """Signal 5: Social Velocity (10% weight)."""
@@ -322,7 +318,6 @@ async def analyze_social_velocity(result: RIPResult) -> None:
         sig.confidence = 0.15
         result.sources_failed.append("social_velocity_analysis")
 
-
 async def analyze_contract_risk(result: RIPResult) -> None:
     """Signal 6: Contract Risk (10% weight)."""
     sig = result.signals["contract_risk"]
@@ -373,7 +368,6 @@ async def analyze_contract_risk(result: RIPResult) -> None:
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.2
         result.sources_failed.append("contract_risk_analysis")
-
 
 async def analyze_liquidity_migration(result: RIPResult) -> None:
     """Signal 7: Liquidity Migration (5% weight)."""
@@ -431,7 +425,6 @@ async def analyze_liquidity_migration(result: RIPResult) -> None:
         sig.confidence = 0.15
         result.sources_failed.append("liquidity_migration_analysis")
 
-
 # Flag-to-warning/recommendation maps
 FLAG_WARNINGS = {
     "honeypot": "⚠️ HONEYPOT: Token cannot be sold - users are trapped",
@@ -474,7 +467,6 @@ FLAG_RECOMMENDATIONS = {
 
 PRIORITY_FLAGS = ["honeypot", "lp_removed", "unlocked_liquidity", "deployer_cashing_out"]
 
-
 def generate_warnings(result: RIPResult) -> None:
     """Generate human-readable warnings from flags."""
     seen = set()
@@ -488,7 +480,6 @@ def generate_warnings(result: RIPResult) -> None:
             result.warnings.append("✅ No imminent rug indicators detected")
         else:
             result.warnings.append("🔍 Some risk signals present - monitor closely")
-
 
 def generate_recommendations(result: RIPResult) -> None:
     """Generate actionable recommendations from flags."""

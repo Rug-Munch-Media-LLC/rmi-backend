@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-
 class LabelSource(StrEnum):
     """Which source a label came from. Used for provenance + dedup."""
 
@@ -26,7 +25,6 @@ class LabelSource(StrEnum):
     CHAINBASE = "chainbase"  # Chainbase API (TBD, needs key)
     INTERNAL = "internal"  # our own growing set
     MBAL = "mbal"  # Multi-blockchain Anti-Laundering source
-
 
 @dataclass
 class Label:

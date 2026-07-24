@@ -26,7 +26,6 @@ from app.rag.models import (
 
 log = get_logger(__name__)
 
-
 class RAGService:
     """Async facade over the v3 RAG engine (M3 deliverable)."""
 
@@ -156,7 +155,6 @@ class RAGService:
             collection=getattr(raw, "collection", collection),
             doc_id=getattr(raw, "id", ""),
         )
-
 
 async def init_rag() -> None:
     """Initialize the RAG system. Called from app.core.lifespan.

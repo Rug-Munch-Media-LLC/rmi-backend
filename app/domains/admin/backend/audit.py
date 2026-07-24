@@ -16,7 +16,6 @@ from app.domains.admin.backend.models import AuditLogEntry
 
 logger = get_logger("rmi_admin_backend")
 
-
 class AuditLogger:
     """Immutable audit logging system."""
 

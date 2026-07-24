@@ -35,7 +35,6 @@ logger = get_logger("x402_middleware")
 
 router = APIRouter(prefix="/api/v1/x402", tags=["x402-payment-middleware"])
 
-
 # ── x402 SDK Integration ──────────────────────────────────────
 
 # Import x402 SDK components
@@ -55,7 +54,6 @@ try:
 except ImportError as e:
     X402_SDK_AVAILABLE = False
     logger.warning(f"x402 SDK not available: {e}")
-
 
 # ── Payment Verification Engine ────────────────────────────────
 
@@ -90,7 +88,6 @@ FACILITATOR_CONFIGS = {
         "url": "https://facilitator.payai.network",
     },
 }
-
 
 class PaymentVerifier:
     """
@@ -336,13 +333,10 @@ class PaymentVerifier:
 
         return await self._verify_via_payai(payload_data, requirements_data)
 
-
 # Global verifier instance
 _verifier = PaymentVerifier()
 
-
 # ── Public Receipt Verification ───────────────────────────────
-
 
 @router.get("/receipt/{receipt_id}/verify")
 async def verify_receipt_public(receipt_id: str) -> dict:
@@ -403,9 +397,7 @@ async def verify_receipt_public(receipt_id: str) -> dict:
     except Exception as e:
         raise AppError(message=str(e)) from e
 
-
 # ── Public Payment Ledger ─────────────────────────────────────
-
 
 @router.get("/ledger")
 async def payment_ledger(
@@ -477,9 +469,7 @@ async def payment_ledger(
     except Exception as e:
         raise AppError(message=str(e)) from e
 
-
 # ── Transparency Dashboard ────────────────────────────────────
-
 
 @router.get("/transparency")
 async def transparency_dashboard(hours: int = 24) -> dict:
@@ -593,9 +583,7 @@ async def transparency_dashboard(hours: int = 24) -> dict:
     except Exception as e:
         raise AppError(message=str(e)) from e
 
-
 # ── Payment Verification Endpoint (for gateway use) ────────────
-
 
 @router.post("/verify")
 async def verify_payment_endpoint(
@@ -670,9 +658,7 @@ async def verify_payment_endpoint(
         logger.error(f"Payment verification error: {e}")
         raise AppError(message=str(e)) from e
 
-
 # ── Receipt Storage Endpoint (called by x402 Workers after payment) ────
-
 
 @router.post("/receipt")
 async def store_receipt(request: Request) -> Any | dict[str, bool]:
@@ -830,9 +816,7 @@ async def store_receipt(request: Request) -> Any | dict[str, bool]:
             context={"error": "receipt_storage_failed"},
         )
 
-
 # ── Fallback System Status ────────────────────────────────────
-
 
 @router.get("/fallback/status")
 async def fallback_status() -> dict[str, str]:

@@ -21,10 +21,8 @@ import httpx
 
 from app.core.secrets import get_secret_or_none
 
-
 def _get_url() -> str:
     return os.environ.get("SUPABASE_URL", "")
-
 
 def _get_key() -> str:
     """Get Supabase service key — required for full backend CRUD access.
@@ -48,7 +46,6 @@ def _get_key() -> str:
         return key
     return ""
 
-
 def _get_headers() -> dict:
     key = _get_key()
     return {
@@ -57,10 +54,8 @@ def _get_headers() -> dict:
         "Content-Type": "application/json",
     }
 
-
 def _url(table: str) -> str:
     return f"{_get_url()}/rest/v1/{table}"
-
 
 async def _get(
     table: str,
@@ -87,7 +82,6 @@ async def _get(
             return r.json()
         return []
 
-
 async def _get_in(table: str, field: str, values: list, select: str = "*") -> list:
     """GET with IN filter."""
     vals = ",".join(str(v) for v in values)
@@ -95,7 +89,6 @@ async def _get_in(table: str, field: str, values: list, select: str = "*") -> li
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(url, headers=_get_headers())
         return r.json() if r.status_code == 200 else []
-
 
 async def _post(table: str, data: dict) -> dict:
     """Insert a row."""
@@ -108,7 +101,6 @@ async def _post(table: str, data: dict) -> dict:
             return r.json()[0] if r.json() else {}
         return None
 
-
 async def _patch(table: str, match: dict, data: dict) -> bool:
     """Update row(s)."""
     url = _url(table)
@@ -117,7 +109,6 @@ async def _patch(table: str, match: dict, data: dict) -> bool:
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.patch(url, json=data, headers=_get_headers())
         return r.status_code in (200, 204)
-
 
 async def _delete(table: str, match: dict) -> bool:
     """Delete row(s)."""
@@ -128,7 +119,6 @@ async def _delete(table: str, match: dict) -> bool:
         r = await c.delete(url, headers=_get_headers())
         return r.status_code in (200, 204)
 
-
 async def _rpc(fn: str, params: dict | None = None) -> dict:
     """Call a stored procedure."""
     url = f"{_get_url()}/rest/v1/rpc/{fn}"
@@ -137,11 +127,9 @@ async def _rpc(fn: str, params: dict | None = None) -> dict:
         r = await c.post(url, json=params or {}, headers=headers)
         return r.json() if r.status_code == 200 else None
 
-
 # ═════════════════════════════════════════════════════════
 # ALERTS
 # ═════════════════════════════════════════════════════════
-
 
 async def get_alerts(
     severity: str | None = None,
@@ -167,7 +155,6 @@ async def get_alerts(
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(url, headers=_get_headers())
         return r.json() if r.status_code == 200 else []
-
 
 async def create_alert(
     title: str,
@@ -206,15 +193,12 @@ async def create_alert(
 
     return await _post("alerts", data)
 
-
 async def acknowledge_alert(alert_id: str) -> bool:
     return await _patch("alerts", {"id": alert_id}, {"acknowledged": True, "is_read": True})
-
 
 # ═════════════════════════════════════════════════════════
 # WALLETS
 # ═════════════════════════════════════════════════════════
-
 
 async def get_wallets(
     chain: str | None = None,
@@ -236,14 +220,12 @@ async def get_wallets(
         r = await c.get(url, headers=_get_headers())
         return r.json() if r.status_code == 200 else []
 
-
 async def get_wallet(address: str, chain: str = "ethereum") -> dict:
     url = f"{_url('wallets')}?select=*&address=eq.{address}&chain=eq.{chain}&limit=1"
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(url, headers=_get_headers())
         data = r.json() if r.status_code == 200 else []
         return data[0] if data else None
-
 
 async def upsert_wallet(address: str, chain: str, **fields) -> dict:
     data = {"address": address, "chain": chain, **fields}
@@ -254,11 +236,9 @@ async def upsert_wallet(address: str, chain: str, **fields) -> dict:
         r = await c.post(url, json=data, headers=headers)
         return r.json()[0] if r.status_code in (200, 201) and r.json() else None
 
-
 # ═════════════════════════════════════════════════════════
 # WALLET INTEL (analysis results)
 # ═════════════════════════════════════════════════════════
-
 
 async def get_wallet_intel(
     address: str | None = None, chain: str | None = None, limit: int = 100
@@ -275,7 +255,6 @@ async def get_wallet_intel(
         r = await c.get(url, headers=_get_headers())
         return r.json() if r.status_code == 200 else []
 
-
 async def get_wallet_connections(address: str) -> list:
     """Find all wallets connected to this address."""
     url = f"{_url('wallet_intel')}?select=*&related_addresses=cs.{{'{address}'}}&limit=50"
@@ -283,11 +262,9 @@ async def get_wallet_connections(address: str) -> list:
         r = await c.get(url, headers=_get_headers())
         return r.json() if r.status_code == 200 else []
 
-
 # ═════════════════════════════════════════════════════════
 # SYNDICATE WALLETS
 # ═════════════════════════════════════════════════════════
-
 
 async def get_syndicate_wallets(
     status: str | None = None, chain: str | None = None, limit: int = 200
@@ -304,15 +281,12 @@ async def get_syndicate_wallets(
         r = await c.get(url, headers=_get_headers())
         return r.json() if r.status_code == 200 else []
 
-
 # ═════════════════════════════════════════════════════════
 # WATCHLIST
 # ═════════════════════════════════════════════════════════
 
-
 async def get_watchlist(user_id: str) -> list:
     return await _get("watchlist", {"user_id": user_id}, order="created_at.desc")
-
 
 async def add_to_watchlist(
     user_id: str,
@@ -333,7 +307,6 @@ async def add_to_watchlist(
         },
     )
 
-
 async def remove_from_watchlist(user_id: str, address: str, chain: str = "ethereum") -> bool:
     return await _delete(
         "watchlist",
@@ -344,11 +317,9 @@ async def remove_from_watchlist(user_id: str, address: str, chain: str = "ethere
         },
     )
 
-
 # ═════════════════════════════════════════════════════════
 # TOKENS
 # ═════════════════════════════════════════════════════════
-
 
 async def get_tokens(
     chain: str | None = None, limit: int = 50, order_by: str = "volume_24h.desc"
@@ -358,11 +329,9 @@ async def get_tokens(
         params["chain"] = chain
     return await _get("tokens", params, order=order_by, limit=limit)
 
-
 async def get_token(address: str, chain: str = "ethereum") -> dict:
     data = await _get("tokens", {"address": address, "chain": chain}, limit=1)
     return data[0] if data else None
-
 
 async def upsert_token(address: str, chain: str, **fields) -> dict:
     data = {
@@ -378,11 +347,9 @@ async def upsert_token(address: str, chain: str, **fields) -> dict:
         r = await c.post(url, json=data, headers=headers)
         return r.json()[0] if r.status_code in (200, 201) and r.json() else None
 
-
 # ═════════════════════════════════════════════════════════
 # BULLETIN BOARD
 # ═════════════════════════════════════════════════════════
-
 
 async def get_bulletin_posts(
     category: str | None = None, sort: str = "created_at.desc", limit: int = 20
@@ -391,7 +358,6 @@ async def get_bulletin_posts(
     if category and category != "all":
         params["category"] = category
     return await _get("bulletin_posts", params, order=sort, limit=limit)
-
 
 async def create_bulletin_post(
     title: str,
@@ -421,7 +387,6 @@ async def create_bulletin_post(
 
     return await _post("bulletin_posts", data)
 
-
 async def vote_post(post_id: int, vote_type: str) -> bool:
     """vote_type: 'up' or 'down'"""
     field = "upvotes" if vote_type == "up" else "downvotes"
@@ -432,18 +397,15 @@ async def vote_post(post_id: int, vote_type: str) -> bool:
     current = posts[0].get(field, 0) or 0
     return await _patch("bulletin_posts", {"id": post_id}, {field: current + 1})
 
-
 # ═════════════════════════════════════════════════════════
 # BADGES
 # ═════════════════════════════════════════════════════════
-
 
 async def get_badges(rarity: str | None = None) -> list:
     params = {}
     if rarity:
         params["rarity"] = rarity
     return await _get("badges", params, order="rarity.asc")
-
 
 async def get_user_badges(user_id: str) -> list:
     """Get user's earned badges with full badge details."""
@@ -462,7 +424,6 @@ async def get_user_badges(user_id: str) -> list:
             result.append({**ub, "badge_detail": badge})
     return result
 
-
 async def award_badge(user_id: str, badge_id: str, earned_via: str = "auto") -> dict:
     return await _post(
         "user_badges",
@@ -474,30 +435,24 @@ async def award_badge(user_id: str, badge_id: str, earned_via: str = "auto") -> 
         },
     )
 
-
 # ═════════════════════════════════════════════════════════
 # PROFILES
 # ═════════════════════════════════════════════════════════
-
 
 async def get_profile(user_id: str) -> dict:
     data = await _get("profiles", {"id": user_id}, limit=1)
     return data[0] if data else None
 
-
 async def update_profile(user_id: str, **fields) -> bool:
     return await _patch("profiles", {"id": user_id}, fields)
-
 
 # ═════════════════════════════════════════════════════════
 # CONTRACT ANALYSES
 # ═════════════════════════════════════════════════════════
 
-
 async def get_contract_analysis(address: str, chain: str = "ethereum") -> dict:
     data = await _get("contract_analyses", {"address": address, "chain": chain}, limit=1)
     return data[0] if data else None
-
 
 async def upsert_contract_analysis(address: str, chain: str, **fields) -> dict:
     data = {
@@ -513,15 +468,12 @@ async def upsert_contract_analysis(address: str, chain: str, **fields) -> dict:
         r = await c.post(url, json=data, headers=headers)
         return r.json()[0] if r.status_code in (200, 201) and r.json() else None
 
-
 # ═════════════════════════════════════════════════════════
 # ENTITY CLUSTERS
 # ═════════════════════════════════════════════════════════
 
-
 async def get_entity_clusters(limit: int = 50) -> list:
     return await _get("entity_clusters", order="created_at.desc", limit=limit)
-
 
 async def get_cluster_wallets(cluster_id: str) -> list:
     clusters = await _get("entity_clusters", {"cluster_id": cluster_id}, limit=1)
@@ -530,11 +482,9 @@ async def get_cluster_wallets(cluster_id: str) -> list:
     addresses = clusters[0].get("addresses", [])
     return addresses
 
-
 # ═════════════════════════════════════════════════════════
 # TRANSACTIONS
 # ═════════════════════════════════════════════════════════
-
 
 async def get_transactions(wallet_address: str, chain: str | None = None, limit: int = 50) -> list:
     params = {"wallet_address": wallet_address}
@@ -542,18 +492,15 @@ async def get_transactions(wallet_address: str, chain: str | None = None, limit:
         params["chain"] = chain
     return await _get("wallet_transactions", params, order="timestamp.desc", limit=limit)
 
-
 # ═════════════════════════════════════════════════════════
 # MARKET DATA
 # ═════════════════════════════════════════════════════════
-
 
 async def get_market_data(data_type: str | None = None, limit: int = 10) -> list:
     params = {}
     if data_type:
         params["data_type"] = data_type
     return await _get("market_data", params, order="fetched_at.desc", limit=limit)
-
 
 async def store_market_data(source: str, data_type: str, data: dict) -> dict:
     return await _post(
@@ -566,21 +513,17 @@ async def store_market_data(source: str, data_type: str, data: dict) -> dict:
         },
     )
 
-
 # ═════════════════════════════════════════════════════════
 # SUBSCRIPTIONS
 # ═════════════════════════════════════════════════════════
-
 
 async def get_subscription(user_id: str) -> dict:
     data = await _get("subscriptions", {"user_id": user_id}, limit=1)
     return data[0] if data else None
 
-
 # ═════════════════════════════════════════════════════════
 # ANALYTICS
 # ═════════════════════════════════════════════════════════
-
 
 async def track_event(
     event_type: str,
@@ -600,11 +543,9 @@ async def track_event(
         },
     )
 
-
 # ═════════════════════════════════════════════════════════
 # HEALTH CHECK
 # ═════════════════════════════════════════════════════════
-
 
 async def check_health() -> dict:
     """Verify Supabase connectivity."""
@@ -619,11 +560,9 @@ async def check_health() -> dict:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         return {"status": "unreachable", "error": str(e)}
 
-
 # ═════════════════════════════════════════════════════════
 # X402 PAYMENTS (Supabase persistence layer)
 # ═════════════════════════════════════════════════════════
-
 
 async def record_x402_payment_supabase(
     tool: str,
@@ -647,7 +586,6 @@ async def record_x402_payment_supabase(
         },
     )
 
-
 async def get_x402_payments(
     tool: str | None = None,
     chain: str | None = None,
@@ -667,12 +605,10 @@ async def get_x402_payments(
         params["status"] = status
     return await _get("x402_payments", params, order="created_at.desc", limit=limit)
 
-
 async def get_x402_payment_by_tx(tx_hash: str) -> dict:
     """Get a specific payment by tx_hash."""
     data = await _get("x402_payments", {"tx_hash": tx_hash}, limit=1)
     return data[0] if data else None
-
 
 async def get_x402_earnings_summary() -> dict:
     """Get earnings summary from Supabase.
@@ -719,7 +655,6 @@ async def get_x402_earnings_summary() -> dict:
             "by_day_usdc": {},
             "record_count": 0,
         }
-
 
 async def ensure_x402_payments_table() -> bool:
     """Create x402_payments table in Supabase if it doesn't exist."""

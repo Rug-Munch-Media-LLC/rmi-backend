@@ -33,7 +33,6 @@ T = TypeVar("T")
 
 log = get_logger(__name__)
 
-
 class BaseService(Generic[T]):
     """Standard async service interface.
 

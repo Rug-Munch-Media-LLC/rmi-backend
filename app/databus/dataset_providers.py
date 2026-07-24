@@ -13,6 +13,7 @@ Two massive free datasets for AML detection and address labeling.
    NOTE: Requires manual Kaggle download. Place files in ~/rmi/mbal/
 """
 
+from __future__ import annotations
 import csv
 import os
 
@@ -43,13 +44,11 @@ REAL_CATS_FILE_LABELS = {
     "Identifier.tsv": "mixed",  # Identifier mappings
 }
 
-
 def _find_real_cats_dir() -> str | None:
     for p in REAL_CATS_PATHS:
         if os.path.isdir(p) and any(f.endswith(".tsv") for f in os.listdir(p)):
             return p
     return None
-
 
 def _load_real_cats() -> dict:
     """Load Real-CATS dataset into memory."""
@@ -129,7 +128,6 @@ def _load_real_cats() -> dict:
 
     return result
 
-
 async def fetch_real_cats(
     address: str | None = None, category: str = "all", limit: int = 50
 ) -> dict:
@@ -166,7 +164,6 @@ async def fetch_real_cats(
         "source": "Real-CATS",
     }
 
-
 # ═══════════════════════════════════════════════════════════════
 # 2. MBAL - 10 Million Annotated Crypto Addresses
 # ═══════════════════════════════════════════════════════════════
@@ -192,17 +189,14 @@ Chains: Bitcoin, Ethereum, BNB Chain, Polygon, Avalanche
 Categories: 62 distinct classifications
 """
 
-
 def _find_mbal_dir() -> str | None:
     for p in MBAL_PATHS:
         if os.path.isdir(p) and os.listdir(p):
             return p
     return None
 
-
 def _get_mbal_install_instructions() -> str:
     return MBAL_README
-
 
 async def fetch_mbal(
     address: str | None = None,

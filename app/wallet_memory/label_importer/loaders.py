@@ -1,5 +1,6 @@
 """Shared CSV loading and storage helper functions."""
 
+from __future__ import annotations
 import csv
 import json
 from datetime import UTC, datetime
@@ -9,13 +10,11 @@ from .config import WALLET_LABELS_DDL
 
 logger = get_logger("wallet_memory.label_importer")
 
-
 def _normalize_chain(chain: str) -> str:
     """Normalize chain name to canonical form - delegates to shared_utils."""
     from app.core.shared_utils import normalize_chain
     result = normalize_chain(chain)
     return result or "ethereum"
-
 
 async def _flush_batch(
     storage,
@@ -47,7 +46,6 @@ async def _flush_batch(
             )
         except Exception as e:
             logger.warning(f"ClickHouse batch insert failed: {e}")
-
 
 async def _load_csv_labels(
     storage,
@@ -131,9 +129,7 @@ async def _load_csv_labels(
     logger.info(f"Loaded {count} labels from {src} (chain={chain})")
     return count
 
-
 import os  # noqa: E402 (used in _load_csv_labels)
-
 
 async def _ensure_wallet_labels_table(storage) -> None:
     """Create the wallet_labels table in ClickHouse if it doesn't exist."""

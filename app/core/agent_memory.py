@@ -1,6 +1,7 @@
 """#9 - Agent Memory Layer. Stores conversation history in Memgraph for long-term agent memory.
 Enables agents to remember past interactions across sessions."""
 
+from __future__ import annotations
 import os
 from datetime import UTC, datetime
 
@@ -12,7 +13,6 @@ MEMGRAPH_USER = os.getenv("MEMGRAPH_USER", "")
 MEMGRAPH_PASS = os.getenv("MEMGRAPH_PASSWORD", "")
 
 router = APIRouter(prefix="/api/v1/memory", tags=["agent-memory"])
-
 
 async def _run_query(query: str, params: dict | None = None) -> list:
     """Run a Cypher query against Memgraph."""
@@ -28,7 +28,6 @@ async def _run_query(query: str, params: dict | None = None) -> list:
     except (httpx.HTTPError):
         pass
     return []
-
 
 @router.post("/conversation")
 async def store_conversation(user_id: str, agent_id: str, message: str, role: str = "user") -> bool:
@@ -62,7 +61,6 @@ async def store_conversation(user_id: str, agent_id: str, message: str, role: st
     )
     return {"stored": True, "conversation_id": conv_id}
 
-
 @router.get("/conversation/{user_id}/{agent_id}")
 async def get_conversation(user_id: str, agent_id: str, limit: int = 20) -> dict:
     """Retrieve conversation history for an agent."""
@@ -81,7 +79,6 @@ async def get_conversation(user_id: str, agent_id: str, limit: int = 20) -> dict
         else [],
         "count": len(rows) if rows else 0,
     }
-
 
 @router.get("/context/{user_id}")
 async def get_user_context(user_id: str) -> dict:

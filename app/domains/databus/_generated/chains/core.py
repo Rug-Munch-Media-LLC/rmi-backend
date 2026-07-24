@@ -8,6 +8,7 @@ developer activity, and URL security scanning.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 from app.databus.provider_implementations import (
@@ -31,7 +32,6 @@ from app.databus.provider_implementations import (
 )
 
 logger = get_logger("databus.providers.chains.core")
-
 
 def build_core_chains(chains: dict[str, ProviderChain]) -> None:
     """Build core pricing, trading, market, and security chains."""

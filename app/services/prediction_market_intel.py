@@ -37,7 +37,6 @@ from app.domains.prediction.prediction_market_service import (
 
 logger = get_logger("prediction_market_intel")
 
-
 @dataclass
 class IntelSignal:
     """A single intelligence signal from prediction market analysis."""
@@ -52,7 +51,6 @@ class IntelSignal:
     generated_at: str
     source_markets: list[str] = field(default_factory=list)  # market slugs referenced
 
-
 @dataclass
 class CryptoFearIndex:
     """Aggregated risk index derived from prediction markets."""
@@ -64,7 +62,6 @@ class CryptoFearIndex:
     exchange_risk: float  # 0-100
     components: list[dict]  # Individual markets contributing
     generated_at: str
-
 
 class PredictionMarketIntel:
     """Detects intelligence signals from prediction market data."""
@@ -408,11 +405,9 @@ class PredictionMarketIntel:
             "is_crypto_relevant": m.is_crypto_relevant,
         }
 
-
 # ── Singleton ───────────────────────────────────────────────
 
 _intel: PredictionMarketIntel | None = None
-
 
 def get_prediction_market_intel() -> PredictionMarketIntel:
     global _intel

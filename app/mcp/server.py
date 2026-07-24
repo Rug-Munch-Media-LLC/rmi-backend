@@ -406,7 +406,6 @@ TOOL_CATALOG: list[dict[str, Any]] = [
     },
 ]
 
-
 # ── Tool versioning + deprecation registry ───────────────────────
 TOOL_VERSIONS: dict[str, str] = {
     "get_token_risk": "1.2.0",
@@ -430,7 +429,6 @@ TOOL_SUCCESSORS: dict[str, str] = {}  # empty - no successor mappings yet
 # Server version (single source of truth for /mcp/info)
 MCP_SERVER_VERSION = "5.0.0"
 MCP_PROTOCOL_VERSION = "2024-11-05"
-
 
 # ── Tool implementations ──────────────────────────────────────────
 async def call_tool(name: str, arguments: dict) -> dict:
@@ -681,7 +679,6 @@ async def call_tool(name: str, arguments: dict) -> dict:
         return {"result": health}
 
     return {"error": f"unknown tool: {name}"}
-
 
 def _tier_from_score(score: int) -> str:
     if score < 25:

@@ -46,7 +46,6 @@ R2_REMOTE = os.getenv("R2_REMOTE", "r2-rmi-crypt")
 R2_BUCKET = os.getenv("R2_BUCKET", "rmi-backups")
 R2_PATH_PREFIX = os.getenv("R2_PATH_PREFIX", "chain-data")
 
-
 def _read_last_backup() -> dict[str, Any] | None:
     """Read the last_backup.json marker written by chain-backup.sh."""
     try:
@@ -56,7 +55,6 @@ def _read_last_backup() -> dict[str, Any] | None:
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("Failed to read last_backup.json: %s", exc)
     return None
-
 
 def _get_backup_directory_stats() -> dict[str, Any]:
     """Get disk usage stats for the backup directory."""
@@ -100,7 +98,6 @@ def _get_backup_directory_stats() -> dict[str, Any]:
 
     return stats
 
-
 def _check_rclone_connectivity() -> dict[str, Any]:
     """Check that rclone can list the R2 backup remote."""
     try:
@@ -135,7 +132,6 @@ def _check_rclone_connectivity() -> dict[str, Any]:
     except Exception as exc:
         return {"reachable": False, "error": str(exc)[:200]}
 
-
 def _check_last_backup_log() -> dict[str, Any] | None:
     """Parse the last few lines of the backup log for recent status."""
     try:
@@ -156,7 +152,6 @@ def _check_last_backup_log() -> dict[str, Any] | None:
         logger.warning("Failed to read backup log: %s", exc)
     return None
 
-
 def _get_recent_archives(limit: int = 5) -> list[dict[str, Any]]:
     """List the most recent backup archives in the backup dir."""
     try:
@@ -175,7 +170,6 @@ def _get_recent_archives(limit: int = 5) -> list[dict[str, Any]]:
     except OSError:
         return []
 
-
 def _human_bytes(b: int) -> str:
     """Format bytes to human-readable string."""
     for unit in ("B", "KB", "MB", "GB", "TB"):
@@ -184,9 +178,7 @@ def _human_bytes(b: int) -> str:
         b /= 1024
     return f"{b:.1f} PB"
 
-
 # ── Endpoints ────────────────────────────────────────────────
-
 
 @router.get("/backup-status")
 async def backup_status() -> JSONResponse:
@@ -240,7 +232,6 @@ async def backup_status() -> JSONResponse:
             "timestamp": datetime.now(UTC).isoformat(),
         }
     )
-
 
 @router.get("/backup-config")
 async def backup_config() -> JSONResponse:

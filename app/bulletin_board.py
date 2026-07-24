@@ -41,9 +41,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("rmi_bulletin_board")
 
-
 # ── Enums ─────────────────────────────────────────────────────
-
 
 class PostStatus(StrEnum):
     DRAFT = "draft"
@@ -51,7 +49,6 @@ class PostStatus(StrEnum):
     PUBLISHED = "published"
     ARCHIVED = "archived"
     SCHEDULED = "scheduled"
-
 
 class PostCategory(StrEnum):
     NEWS = "news"  # Platform news
@@ -63,7 +60,6 @@ class PostCategory(StrEnum):
     ANNOUNCEMENT = "announcement"  # General announcements
     TUTORIAL = "tutorial"  # Guides/how-tos
 
-
 class TargetAudience(StrEnum):
     ALL = "all"
     FREE = "free"
@@ -73,16 +69,13 @@ class TargetAudience(StrEnum):
     ADMINS = "admins"
     MODERATORS = "moderators"
 
-
 class Priority(StrEnum):
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
     CRITICAL = "critical"
 
-
 # ── Data Models ─────────────────────────────────────────────
-
 
 @dataclass
 class Post:
@@ -155,7 +148,6 @@ class Post:
             "comments_count": self.comments_count,
         }
 
-
 @dataclass
 class Comment:
     """Comment on a post."""
@@ -176,9 +168,7 @@ class Comment:
     def to_dict(self) -> dict:
         return asdict(self)
 
-
 # ── Content Sanitizer ───────────────────────────────────────
-
 
 class ContentSanitizer:
     """Sanitize user-generated content to prevent XSS."""
@@ -262,9 +252,7 @@ class ContentSanitizer:
             text = text[:max_length].rsplit(" ", 1)[0] + "..."
         return text
 
-
 # ── Bulletin Board Manager ────────────────────────────────────
-
 
 class BulletinBoardManager:
     """
@@ -758,7 +746,6 @@ class BulletinBoardManager:
         await r.hset("rmi:bulletin_posts", post_id, json.dumps(post_dict))
         return True
 
-
 # ═══════════════════════════════════════════════════════════
 # BADGES & X402 BOT PAYMENTS
 # ═══════════════════════════════════════════════════════════
@@ -850,7 +837,6 @@ BADGES = {
 }
 BADGE_TIERS = {"bronze": "#CD7F32", "silver": "#C0C0C0", "gold": "#FFD700", "diamond": "#B9F2FF"}
 
-
 async def get_user_badges(user_id: str) -> list:
     try:
         r = await BulletinBoardManager._get_redis()
@@ -859,7 +845,6 @@ async def get_user_badges(user_id: str) -> list:
         return [{"id": bid, **BADGES[bid]} for bid in ids if bid in BADGES]
     except (ConnectionError, OSError, TimeoutError):
         return []
-
 
 async def award_badge(user_id: str, badge_id: str) -> bool:
     if badge_id not in BADGES:
@@ -871,7 +856,6 @@ async def award_badge(user_id: str, badge_id: str) -> bool:
         return ok > 0
     except (ConnectionError, OSError, TimeoutError):
         return False
-
 
 async def get_user_reputation(user_id: str) -> dict:
     try:
@@ -886,9 +870,7 @@ async def get_user_reputation(user_id: str) -> dict:
     except (ConnectionError, OSError):
         return {"reputation": 0, "badge_count": 0, "post_count": 0}
 
-
 X402_BB_POST_PRICE = "$1.00"
-
 
 async def verify_x402_bot(tx_hash: str, bot_addr: str) -> bool:
     try:
@@ -903,9 +885,7 @@ async def verify_x402_bot(tx_hash: str, bot_addr: str) -> bool:
     except (ConnectionError, OSError, TimeoutError):
         return False
 
-
 # ── RAG ingestion hook ───────────────────────────────────────────────
-
 
 async def ingest_post_to_rag(post: Post) -> dict:
     """Ingest a published bulletin board post into the RAG ``research`` collection.

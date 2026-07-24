@@ -23,12 +23,10 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import Response
 
-
 # ── CSRF-protected methods ───────────────────────────────────────────
 _CSRF_METHODS: tuple[str, ...] = ("POST", "PUT", "DELETE", "PATCH")
 
 log = get_logger(__name__)
-
 
 def register_middleware(app: FastAPI) -> None:
     """Register all middleware. Each registration is isolated."""
@@ -46,7 +44,6 @@ def register_middleware(app: FastAPI) -> None:
     _try_register_slow_query_logging(app)
     _try_register_content_type_enforcement(app)
     _try_register_csrf(app)
-
 
 def _try_register_slow_query_logging(app: FastAPI) -> None:
     """Log warnings for endpoints that take > 500ms.
@@ -83,7 +80,6 @@ def _try_register_slow_query_logging(app: FastAPI) -> None:
         log.info("middleware_registered name=slow_query_logging")
     except Exception as exc:
         log.warning("middleware_skipped name=slow_query_logging err=%s", exc)
-
 
 def _try_register_request_id(app: FastAPI) -> None:
     """Always-on request ID + response-time headers (Win #11 from fleet audit).
@@ -123,7 +119,6 @@ def _try_register_request_id(app: FastAPI) -> None:
     except Exception as exc:
         log.warning("middleware_skipped name=request_id_timing err=%s", exc)
 
-
 def _try_register_degradation_header(app: FastAPI) -> None:
     """Win #14 — inject X-Degraded-Stores header on every response."""
     try:
@@ -146,7 +141,6 @@ def _try_register_degradation_header(app: FastAPI) -> None:
         log.info("middleware_registered name=degradation_header")
     except Exception as exc:
         log.warning("middleware_skipped name=degradation_header err=%s", exc)
-
 
 def _try_register_deprecation_header(app: FastAPI) -> None:
     """Win #19 — inject Deprecation + Sunset headers on root-level routes.
@@ -217,7 +211,6 @@ def _try_register_deprecation_header(app: FastAPI) -> None:
     except Exception as exc:
         log.warning("middleware_skipped name=deprecation_header err=%s", exc)
 
-
 def _try_register_rate_limit_middleware(app: FastAPI) -> None:
     """T28b — Unified token-bucket rate limiting for all paths."""
     try:
@@ -228,7 +221,6 @@ def _try_register_rate_limit_middleware(app: FastAPI) -> None:
         log.info("middleware_registered name=rate_limit_middleware")
     except Exception as exc:
         log.warning("middleware_skipped name=rate_limit_middleware err=%s", exc)
-
 
 def _try_register_slowapi(app: FastAPI) -> None:
     """T28 - slowapi rate limiting per PATH_CATEGORIES + decorators."""
@@ -244,7 +236,6 @@ def _try_register_slowapi(app: FastAPI) -> None:
         log.info("middleware_registered name=slowapi")
     except Exception as exc:
         log.warning("middleware_skipped name=slowapi err=%s", exc)
-
 
 def _try_register_cors(app: FastAPI) -> None:
     """T19 - CORS hardening with strict allowlist."""
@@ -280,7 +271,6 @@ def _try_register_cors(app: FastAPI) -> None:
     except Exception as exc:
         log.warning("middleware_skipped name=cors err=%s", exc)
 
-
 def _try_register_auth(app: FastAPI) -> None:
     """API key authentication via X-API-Key header."""
     try:
@@ -290,7 +280,6 @@ def _try_register_auth(app: FastAPI) -> None:
         log.info("middleware_registered name=auth")
     except Exception as exc:
         log.warning("middleware_skipped name=auth err=%s", exc)
-
 
 def _try_register_security_headers(app: FastAPI) -> None:
     """T20 - Security headers on every response."""
@@ -323,7 +312,6 @@ def _try_register_security_headers(app: FastAPI) -> None:
     except Exception as exc:
         log.warning("middleware_skipped name=security_headers err=%s", exc)
 
-
 def _try_register_prometheus(app: FastAPI) -> None:
     """Prometheus metrics middleware. Records every request."""
     try:
@@ -334,7 +322,6 @@ def _try_register_prometheus(app: FastAPI) -> None:
     except Exception as exc:
         log.warning("middleware_skipped name=prometheus err=%s", exc)
 
-
 def _try_register_cost_tracking(app: FastAPI) -> None:
     """M7 - per-tenant/per-route cost tracking."""
     try:
@@ -344,7 +331,6 @@ def _try_register_cost_tracking(app: FastAPI) -> None:
         log.info("middleware_registered name=cost_tracking")
     except Exception as exc:
         log.warning("middleware_skipped name=cost_tracking err=%s", exc)
-
 
 def _try_register_tracing(app: FastAPI) -> None:
     """OpenTelemetry tracing (gated by OTEL_ENABLED env var).
@@ -360,7 +346,6 @@ def _try_register_tracing(app: FastAPI) -> None:
         log.info("middleware_registered name=tracing")
     except Exception as exc:
         log.warning("middleware_skipped name=tracing err=%s", exc)
-
 
 def _try_register_content_type_enforcement(app: FastAPI) -> None:
     """PEN-TEST: Reject non-JSON Content-Type on write endpoints.
@@ -423,7 +408,6 @@ def _try_register_content_type_enforcement(app: FastAPI) -> None:
         log.info("middleware_registered name=content_type_enforcement")
     except Exception as exc:
         log.warning("middleware_skipped name=content_type_enforcement err=%s", exc)
-
 
 def _try_register_csrf(app: FastAPI) -> None:
     """Win #12 — Double-submit cookie CSRF protection.

@@ -2,6 +2,7 @@
 Portfolio Risk — Chain Connectors
 EVM (web3.py) and Solana (solana-py) blockchain connectors.
 """
+from __future__ import annotations
 import asyncio
 from typing import Any
 
@@ -32,14 +33,12 @@ except ImportError:
     SOLANA_AVAILABLE = False
     SolanaClient = None
 
-
 class ChainConnector:
     """Abstract chain connector base."""
     async def get_native_balance(self, address: str) -> float:
         raise NotImplementedError
     async def get_token_balances(self, address: str) -> list[dict[str, Any]]:
         raise NotImplementedError
-
 
 class EVMConnector(ChainConnector):
     def __init__(self, chain_name: str, config: dict[str, Any]) -> None:
@@ -119,7 +118,6 @@ class EVMConnector(ChainConnector):
             logger.debug("get_token_balances_error", exc_info=True)
             logger.debug(f"{self.chain_name} event scan error: {e}")
         return results
-
 
 class SolanaConnector(ChainConnector):
     def __init__(self) -> None:

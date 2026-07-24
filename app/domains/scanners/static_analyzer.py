@@ -13,6 +13,7 @@ For EVM tokens:
 For Solana / non-Solidity: return gracefully with low-risk defaults.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -88,9 +89,7 @@ DANGEROUS_FUNCTION_PATTERNS = [
     "ownerWithdraw",
 ]
 
-
 # ── Report dataclass ─────────────────────────────────────────────────
-
 
 @dataclass
 class StaticAnalysisReport:
@@ -121,9 +120,7 @@ class StaticAnalysisReport:
     red_flags: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
-
 # ── Analyzer class ────────────────────────────────────────────────────
-
 
 class StaticAnalyzer:
     """Run Slither static analysis + Forta alerts + SmartCheck for EVM contracts."""

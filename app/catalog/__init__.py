@@ -26,7 +26,6 @@ from __future__ import annotations
 from app.core import health as health_mod
 from app.core.health import DomainHealth
 
-
 async def _health_check() -> DomainHealth:
     """Catalog health: which stores are reachable + how many entities."""
     try:
@@ -46,9 +45,7 @@ async def _health_check() -> DomainHealth:
     except Exception as e:
         return DomainHealth(name="catalog", healthy=False, error=str(e))
 
-
 health_mod.register_health_check("catalog", _health_check)
-
 
 # Public API
 from app.catalog.models import (  # noqa: E402

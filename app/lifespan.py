@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Wire cross-cutting at startup. Failures are logged, never fatal."""

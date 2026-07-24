@@ -5,6 +5,7 @@ RMI GMGN AI Agent Integration + Original Intelligence Features
 Cross-reference engine, smart money narrative, sniper detection,
 degen score, trending deep dive - powered by GMGN + Birdeye + AI.
 """
+from __future__ import annotations
 
 import asyncio
 import os
@@ -15,7 +16,6 @@ import httpx
 from app.birdeye_client import BirdeyeClient
 
 GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
-
 
 class GMGNClient:
     """GMGN AI Agent API Client - query-only (no trading without private key)"""

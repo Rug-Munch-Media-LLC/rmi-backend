@@ -4,13 +4,13 @@
 Detect smart money wallet activity for a given token.
 """
 
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER
 
 logger = get_logger("rmi.smartmoney")
-
 
 async def cmd_smartmoney(update, ctx) -> None:
     """Handle /smartmoney command - detect smart money wallets."""

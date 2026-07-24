@@ -8,6 +8,7 @@ Fast changes = higher risk than static bad metrics.
 Premium feature: Catches rugs mid-flight, not just at launch.
 """
 
+from __future__ import annotations
 import time
 from collections import defaultdict
 from typing import Any
@@ -74,14 +75,12 @@ PRESSURE_EXTREME_FEAR = 0.85
 PRESSURE_FEAR = 0.95
 PRESSURE_NEUTRAL = 1.0
 
-
 def record_snapshot(chain: str, address: str, metrics: dict[str, float]) -> None:
     """Record a metrics snapshot for velocity tracking."""
     key = f"{chain}:{address.lower()}"
     _series_cache[key].append((time.time(), metrics))
     if len(_series_cache[key]) > MAX_SERIES_LENGTH:
         _series_cache[key] = _series_cache[key][-MAX_SERIES_LENGTH:]
-
 
 def analyze_velocity(
     chain: str, address: str, current: dict[str, float], window_seconds: int = 3600
@@ -206,7 +205,6 @@ def analyze_velocity(
         else "low",
     }
 
-
 def get_market_context() -> dict[str, Any]:
     """Get current market conditions for contextualized scoring."""
     try:
@@ -231,7 +229,6 @@ def get_market_context() -> dict[str, Any]:
     except Exception as e:
         logger.warning("Failed to fetch market context: %s", e)
         return {"fear_greed_value": 50, "fear_greed_classification": "Unknown"}
-
 
 def contextualize_score(base_safety: int, market_context: dict[str, Any]) -> dict[str, Any]:
     """Adjust safety score based on market conditions.

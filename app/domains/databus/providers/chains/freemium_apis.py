@@ -5,16 +5,14 @@ Includes: Birdeye, Solana Tracker, Messari, CoinDesk, Santiment,
 VirusTotal, Dune Analytics.
 """
 
-
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.freemium_apis")
 
-
 # ── Birdeye (freemium, free tier available) ──
-
 
 async def _birdeye_overview(address: str = "", **kw) -> dict | None:
     """Birdeye — token overview, liquidity, holder stats (Solana/EVM)."""
@@ -33,7 +31,6 @@ async def _birdeye_overview(address: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _birdeye_price(address: str = "", **kw) -> dict | None:
     """Birdeye — real-time token price."""
     api_key = kw.get("api_key", "")
@@ -51,9 +48,7 @@ async def _birdeye_price(address: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 # ── Solana Tracker (freemium, 5K/mo free quota) ──
-
 
 async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
     """Solana Tracker — token price."""
@@ -72,7 +67,6 @@ async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
     """Solana Tracker — token detail (holders, top holders, markets)."""
     api_key = kw.get("api_key", "")
@@ -89,7 +83,6 @@ async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _solana_tracker_trending(**kw) -> dict | None:
     """Solana Tracker — trending tokens."""
@@ -108,9 +101,7 @@ async def _solana_tracker_trending(**kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 # ── Messari (freemium, 200 req/min) ──
-
 
 async def _messari_news(limit: int = 20, **kw) -> dict | None:
     """Messari — crypto news with institutional quality."""
@@ -130,9 +121,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 # ── CoinDesk (freemium, high-quality news) ──
-
 
 async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
     """CoinDesk — professional crypto journalism."""
@@ -152,9 +141,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 # ── Santiment (freemium, dev activity & social) ──
-
 
 async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict | None:
     """Santiment — GitHub developer activity."""
@@ -189,9 +176,7 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict |
         logger.warning("provider error")
     return None
 
-
 # ── VirusTotal (free, 500 req/day) ──
-
 
 async def _virustotal_url_scan(url: str, **kw) -> dict | None:
     """VirusTotal — URL security scan for phishing/malware."""
@@ -211,9 +196,7 @@ async def _virustotal_url_scan(url: str, **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 # ── Dune Analytics (free tier: 10K CU/mo + fallback) ──
-
 
 async def _dune_early_buyers(
     token_address: str = "", chain: str = "ethereum", **kw

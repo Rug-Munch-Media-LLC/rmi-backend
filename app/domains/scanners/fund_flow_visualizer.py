@@ -13,6 +13,7 @@ Renders SVG inline (no external layout library) with top-to-bottom
 layout, color-coded roles, and edge thickness proportional to amount.
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass
 from typing import Any
@@ -28,13 +29,10 @@ logger = get_logger("fund_flow_visualizer")
 
 SVG_OUTPUT_DIR = "/root/backend/data/fund_flows"
 
-
 def _ensure_output_dir() -> None:
     os.makedirs(SVG_OUTPUT_DIR, exist_ok=True)
 
-
 # ─── Address shortener ──────────────────────────────────────────────
-
 
 def shorten_address(addr: str) -> str:
     """Shorten address for display: 0x1234...abcd or So1a...2b3c."""
@@ -45,9 +43,7 @@ def shorten_address(addr: str) -> str:
         return addr
     return f"{addr[:6]}...{addr[-4:]}"
 
-
 # ─── Report dataclass ────────────────────────────────────────────────
-
 
 @dataclass
 class FundFlowNode:
@@ -55,13 +51,11 @@ class FundFlowNode:
     role: str  # creator, funder, lp, seller, other
     amount_usd: float
 
-
 @dataclass
 class FundFlowEdge:
     from_addr: str
     to_addr: str
     amount_usd: float
-
 
 @dataclass
 class FundFlowReport:
@@ -73,9 +67,7 @@ class FundFlowReport:
     risk_score: int  # 0-100
     risk_level: str  # low / moderate / high / critical
 
-
 # ─── API Fetchers ────────────────────────────────────────────────────
-
 
 async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
     """Fetch key wallets for an EVM token using block explorer APIs."""
@@ -201,7 +193,6 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
 
     return result
 
-
 async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
     """Fetch key wallets for a Solana token using Helius/Solscan."""
     result: dict[str, Any] = {
@@ -321,9 +312,7 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
 
     return result
 
-
 # ─── Graph builder ───────────────────────────────────────────────────
-
 
 def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple:
     """Build node list and edge list from wallet data.
@@ -464,7 +453,6 @@ def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple:
 
     return nodes, edges, risk_flags
 
-
 # ─── SVG generation ─────────────────────────────────────────────────
 
 # Color scheme for node roles
@@ -483,7 +471,6 @@ ROLE_LABELS = {
     "seller": "Early Seller",
     "other": "Other Holder",
 }
-
 
 def _generate_svg(
     nodes: list[FundFlowNode],
@@ -708,9 +695,7 @@ def _generate_svg(
     lines.append("</svg>")
     return "\n".join(lines)
 
-
 # ─── Main scanner class ─────────────────────────────────────────────
-
 
 class FundFlowVisualizer:
     """Generate SVG fund flow visualization for a token."""

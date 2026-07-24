@@ -15,6 +15,7 @@ Logic:
 Pure computation module - no external API calls needed.
 """
 
+from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -22,7 +23,6 @@ from datetime import UTC, datetime
 from app.core.logging import get_logger
 
 logger = get_logger("sleep_cycle_scanner")
-
 
 # ── Region sleep windows (UTC) ──────────────────────────────────────────
 #
@@ -48,7 +48,6 @@ REGION_WINDOWS = {
 SLEEP_GAP_THRESHOLD_HOURS = 6  # minimum consecutive hours without deploy to count as "sleep"
 CRITICAL_ABNORMAL_PCT = 70  # % in 12am-5am UTC that triggers max score
 
-
 @dataclass
 class SleepCycleReport:
     """Report from SleepCycleAnalyzer.
@@ -68,7 +67,6 @@ class SleepCycleReport:
     abnormal_hours: list[int] = field(default_factory=list)
     normal_hours: list[int] = field(default_factory=list)
     risk_label: str = "LOW"
-
 
 class SleepCycleAnalyzer:
     """Analyzes deployment timestamp patterns to detect abnormal sleep cycles.

@@ -1,9 +1,9 @@
 """Passthrough/local providers — call our own backend endpoints."""
 
+from __future__ import annotations
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
-
 
 async def _passthrough_market_overview(**kwargs) -> dict | None:
     """Market overview from our own /api/v1/content/market-overview."""
@@ -15,7 +15,6 @@ async def _passthrough_market_overview(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _passthrough_trending(**kwargs) -> dict | None:
     """Trending tokens from our own /api/v1/tokens/trending."""
@@ -29,7 +28,6 @@ async def _passthrough_trending(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _passthrough_news(**kwargs) -> dict | None:
     """News from our own 30-source aggregator."""
     try:
@@ -42,7 +40,6 @@ async def _passthrough_news(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _passthrough_alerts(**kwargs) -> dict | None:
     """Alerts from our real alert pipeline."""
     try:
@@ -54,7 +51,6 @@ async def _passthrough_alerts(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return {"count": 0, "alerts": []}
-
 
 async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
     """Our 190K wallet labels from Redis - rmi:label:{chain}:{address} format."""
@@ -108,7 +104,6 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """SENTINEL scanner - our own token security analysis."""
     try:
@@ -122,7 +117,6 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict | None:
     """RAG search - our 17K+ document knowledge base."""

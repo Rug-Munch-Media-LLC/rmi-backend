@@ -56,7 +56,6 @@ GECKO_TIMEFRAMES = {
     "30d": ("day", 1),
 }
 
-
 def _r() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
@@ -65,7 +64,6 @@ def _r() -> Any:
         decode_responses=True,
         socket_connect_timeout=2,
     )
-
 
 async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]:
     """Fetch trending tokens from DexScreener with real price data."""
@@ -212,7 +210,6 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
 
     return tokens, fallback_used
 
-
 async def _fetch_ohlcv_gecko(
     pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100
 ) -> list[dict]:
@@ -276,7 +273,6 @@ async def _fetch_ohlcv_gecko(
             logger.debug(f"Redis OHLCV cache write failed: {e}")
 
     return candles
-
 
 async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
     """Fetch detailed pair info from GeckoTerminal."""
@@ -351,7 +347,6 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
             logger.debug(f"Redis pair cache write failed: {e}")
 
     return info
-
 
 def _compute_volume_authenticity(pair_info: dict, candles: list[dict]) -> dict:
     """Compute volume authenticity score from available data."""
@@ -442,7 +437,6 @@ def _compute_volume_authenticity(pair_info: dict, candles: list[dict]) -> dict:
         },
     }
 
-
 def _compute_rug_score(pair_info: dict, vol_auth: dict) -> dict:
     """Compute overall rug risk score."""
     score = 0
@@ -524,7 +518,6 @@ def _compute_rug_score(pair_info: dict, vol_auth: dict) -> dict:
 
     return {"score": score, "level": level, "color": color, "factors": factors}
 
-
 @router.get("/trending")
 async def rugcharts_trending(
     chain: str = Query("solana", description="Blockchain to query"),
@@ -565,7 +558,6 @@ async def rugcharts_trending(
         fallback_used=fallback_used,
         confidence=0.5 if not fallback_used else 0.25,
     )
-
 
 @router.get("/ohlcv/{chain}/{pair_address}")
 async def rugcharts_ohlcv(
@@ -652,7 +644,6 @@ async def rugcharts_ohlcv(
         fallback_used=not bool(candles),
         confidence=fused_price.get("confidence", 0.3),
     )
-
 
 @router.get("/intel/{chain}/{pair_address}")
 async def rugcharts_intel(

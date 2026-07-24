@@ -2,8 +2,8 @@
 MEV Detector — Heuristic Rules
 Pool vulnerability scoring and sandwich detection logic.
 """
+from __future__ import annotations
 from typing import Any
-
 
 def check_pool_vulnerability(pool: dict[str, Any]) -> list[str]:
     """Score a DEX pool for MEV vulnerability. Returns flags."""
@@ -23,7 +23,6 @@ def check_pool_vulnerability(pool: dict[str, Any]) -> list[str]:
         flags.append("high_fee_sandwich_vuln")
     return flags
 
-
 def estimate_mev_vulnerability_score(flags: list[str]) -> float:
     """Compute a 0.0-1.0 MEV vulnerability score from flags."""
     score = 0.0
@@ -31,7 +30,6 @@ def estimate_mev_vulnerability_score(flags: list[str]) -> float:
     for flag in flags:
         score += weights.get(flag, 0.1)
     return min(score, 1.0)
-
 
 def is_sandwich_pattern(frontrun: dict[str, Any], victim: dict[str, Any], backrun: dict[str, Any]) -> float:
     """Heuristic: are these three transactions a sandwich? Returns confidence 0.0-1.0."""

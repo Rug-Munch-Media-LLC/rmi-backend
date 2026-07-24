@@ -17,6 +17,7 @@ Tools:
 Built by Rug Munch Intelligence - rugmunch.io
 """
 
+from __future__ import annotations
 import json
 
 from fastmcp import FastMCP
@@ -25,7 +26,6 @@ from app.core.redis import get_redis
 
 # ── Server Setup ──
 mcp = FastMCP("rmi-intelligence")
-
 
 # ── Redis Helper ──
 def check_x402_payment(wallet: str | None = None, fingerprint: str | None = None) -> dict:
@@ -53,9 +53,7 @@ def check_x402_payment(wallet: str | None = None, fingerprint: str | None = None
         "error": "Free tier exhausted. Pay $0.01 USDC via x402 for unlimited access.",
     }
 
-
 # ── TOOLS ──
-
 
 @mcp.tool()
 def search_news(
@@ -113,7 +111,6 @@ def search_news(
         "attribution": "RMI - rugmunch.io",
     }
 
-
 @mcp.tool()
 def get_latest_news(
     limit: int = 20, wallet: str | None = None, fingerprint: str | None = None
@@ -142,7 +139,6 @@ def get_latest_news(
         "auth": auth,
         "powered_by": "RMI - rugmunch.io",
     }
-
 
 @mcp.tool()
 def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -> dict:
@@ -173,7 +169,6 @@ def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -
         "note": "Free tier - institutional grade",
     }
 
-
 @mcp.tool()
 def get_wallet_labels(
     address: str, wallet: str | None = None, fingerprint: str | None = None
@@ -196,7 +191,6 @@ def get_wallet_labels(
         "name_tag": label_data.get("name_tag"),
         "source": "RMI eth-labels (82K+)",
     }
-
 
 @mcp.tool()
 def get_trending_tickers(limit: int = 10) -> dict:
@@ -328,7 +322,6 @@ def get_trending_tickers(limit: int = 10) -> dict:
         "attribution": "RMI News Analytics",
     }
 
-
 @mcp.tool()
 def get_news_sentiment() -> dict:
     """Aggregated market sentiment across all news sources."""
@@ -355,12 +348,10 @@ def get_news_sentiment() -> dict:
         "attribution": "RMI - rugmunch.io",
     }
 
-
 @mcp.tool()
 def get_news_stats() -> dict:
     """Complete statistics about the RMI news aggregation platform."""
     return get_news_sentiment()
-
 
 @mcp.resource("news://latest")
 def news_latest_resource() -> str:
@@ -374,7 +365,6 @@ def news_latest_resource() -> str:
             a = json.loads(article)
             lines.append(f"[{a.get('source', '?')}] {a['title']}")
     return "\n".join(lines) + "\n\n---\nPowered by RMI - rugmunch.io | Free crypto intelligence"
-
 
 @mcp.resource("rmi://pricing")
 def pricing_resource() -> str:
@@ -397,7 +387,6 @@ Tools Available:
 All tools available via Model Context Protocol.
 Add to your AI agent: {"rmi-intelligence": {"url": "https://YOUR_SERVER/mcp/sse"}}
 """
-
 
 if __name__ == "__main__":
     # Run as SSE server on port 9020

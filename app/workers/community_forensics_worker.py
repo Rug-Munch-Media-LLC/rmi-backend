@@ -7,6 +7,7 @@ Background processing for:
 - Community reputation updates
 """
 
+from __future__ import annotations
 import asyncio
 import os
 from datetime import UTC, datetime
@@ -25,7 +26,6 @@ REDIS_DB = int(os.getenv("REDIS_DB", 0))
 BLOCKSCOUT_URL = os.getenv("BLOCKSCOUT_URL", "http://rmi-blockscout-backend:4000")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-
 
 class CommunityForensicsWorker:
     """Background worker for community forensics tasks."""
@@ -129,7 +129,6 @@ class CommunityForensicsWorker:
         await self.blockscout.aclose()
         logger.info("[OK] Community Forensics Worker stopped")
 
-
 async def main() -> None:
     worker = CommunityForensicsWorker()
 
@@ -137,7 +136,6 @@ async def main() -> None:
         await worker.run()
     except KeyboardInterrupt:
         await worker.shutdown()
-
 
 if __name__ == "__main__":
     asyncio.run(main())

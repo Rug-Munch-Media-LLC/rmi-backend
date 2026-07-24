@@ -33,7 +33,6 @@ _FACILITATOR_CONFIGS = None
 _TOKEN_METADATA = None
 _verifier_loaded = False
 
-
 def _ensure_verifier() -> None:
     global VERIFIER, _FACILITATOR_CONFIGS, _TOKEN_METADATA, _verifier_loaded
     if _verifier_loaded:
@@ -50,7 +49,6 @@ def _ensure_verifier() -> None:
         VERIFIER = None
         logger.warning(f"x402 enforcement: PaymentVerifier not available: {e}")
 
-
 def check_idempotency(key: str, ttl: int = 86400) -> bool:
     """Atomic SET NX check. Returns True if first call with this key."""
     try:
@@ -60,7 +58,6 @@ def check_idempotency(key: str, ttl: int = 86400) -> bool:
         return bool(r.set(key, "1", ex=ttl, nx=True))
     except (ConnectionError, OSError, TimeoutError):
         return True
-
 
 def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
     """Parse payment payload from x-pay / PAYMENT-SIGNATURE header.
@@ -100,7 +97,6 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
         logger.warning(f"Failed to parse payment header: {e}")
         return None
 
-
 def _detect_token_from_asset(asset_address: str, chain_cfg: dict[str, Any]) -> str:
     """Detect token symbol from asset address using chain config."""
     asset_lower = asset_address.lower()
@@ -123,7 +119,6 @@ def _detect_token_from_asset(asset_address: str, chain_cfg: dict[str, Any]) -> s
         return "BTC"
 
     return "USDC"
-
 
 async def verify_payment(payload: dict[str, Any]) -> dict[str, Any]:
     """Verify x402 payment payload against all supported chains (fallback)."""
@@ -156,7 +151,6 @@ async def verify_payment(payload: dict[str, Any]) -> dict[str, Any]:
         return await self_verify_evm_usdc(payload, chain_key or "", chain_cfg)
 
     return {"verified": False, "reason": f"Unknown verify method: {verify_method}"}
-
 
 async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
     """Verify x402 payment payload through the multi-facilitator smart router."""
@@ -248,7 +242,6 @@ async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
         logger.error(f"Router verification error: {e} - falling back to old verifier")
 
     return await verify_payment(payload)
-
 
 async def self_verify_evm_usdc(
     payload: dict[str, Any], chain_key: str, chain_cfg: dict[str, Any]

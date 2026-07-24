@@ -21,6 +21,7 @@ Sources aggregated:
   EXTERNAL:     GMGN patterns, Pump.fun, Birdeye, Jupiter
 """
 
+from __future__ import annotations
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -31,11 +32,9 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 # ══════════════════════════════════════════════════════════════════════
 # LABEL CONFIDENCE — Multi-source verification
 # ══════════════════════════════════════════════════════════════════════
-
 
 class LabelConfidence(Enum):
     """How confident are we in a wallet label?"""
@@ -45,7 +44,6 @@ class LabelConfidence(Enum):
     MEDIUM = "medium"  # 1 trusted source
     LOW = "low"  # 1 untrusted source or pattern match
     UNKNOWN = "unknown"  # No sources have a label
-
 
 @dataclass
 class AggregatedLabel:
@@ -72,7 +70,6 @@ class AggregatedLabel:
     @property
     def source_count(self) -> int:
         return len(self.sources)
-
 
 # ══════════════════════════════════════════════════════════════════════
 # ENTITY TYPES — Classification taxonomy
@@ -207,11 +204,9 @@ ENTITY_TYPES = {
     },
 }
 
-
 # ══════════════════════════════════════════════════════════════════════
 # TOKEN LAUNCH DETECTION — Cross-source verification
 # ══════════════════════════════════════════════════════════════════════
-
 
 @dataclass
 class TokenLaunch:
@@ -230,11 +225,9 @@ class TokenLaunch:
     risk_flags: list[str] = field(default_factory=list)
     pump_potential: float = 0.0  # 0-100 GMGN-style pump score
 
-
 # ══════════════════════════════════════════════════════════════════════
 # INTELLIGENCE AGGREGATION ENGINE
 # ══════════════════════════════════════════════════════════════════════
-
 
 class IntelligenceAggregationLayer:
     """
@@ -542,13 +535,11 @@ class IntelligenceAggregationLayer:
             "queries_served": dict(self._stats),
         }
 
-
 # ══════════════════════════════════════════════════════════════════════
 # GLOBAL INSTANCE
 # ══════════════════════════════════════════════════════════════════════
 
 _intel_layer: IntelligenceAggregationLayer | None = None
-
 
 def get_intel_layer() -> IntelligenceAggregationLayer:
     global _intel_layer
@@ -556,7 +547,6 @@ def get_intel_layer() -> IntelligenceAggregationLayer:
         _intel_layer = IntelligenceAggregationLayer()
         logger.info("IntelligenceAggregationLayer initialized")
     return _intel_layer
-
 
 logger.info(
     f"IntelligenceAggregationLayer module loaded: {len(ENTITY_TYPES)} entity types, 10 label sources, 5 launch sources"

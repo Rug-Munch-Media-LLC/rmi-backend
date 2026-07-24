@@ -22,6 +22,7 @@ Design principle: Tools change less frequently than tactics.
 A Smithii-bundled token has detectable on-chain fingerprints
 regardless of the scammer's chosen exit strategy.
 """
+from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
@@ -175,7 +176,6 @@ FIRST_BUYER_THRESHOLDS = {
     "coordinated_same_block": 5,  # 5+ wallets buying in same block = coordinated
 }
 
-
 @dataclass
 class ToolFingerprintResult:
     """Result from tool fingerprinting analysis."""
@@ -186,7 +186,6 @@ class ToolFingerprintResult:
     evidence: list[str]
     severity: int  # 0-100
     description: str
-
 
 @dataclass
 class FirstBuyerAnalysis:
@@ -205,7 +204,6 @@ class FirstBuyerAnalysis:
     risk_level: str  # critical, high, medium, low
     flags: list[str]
 
-
 @dataclass
 class DeployerProfile:
     """Profile of the token deployer wallet."""
@@ -222,11 +220,9 @@ class DeployerProfile:
     risk_score: int  # 0-100
     flags: list[str]
 
-
 # ══════════════════════════════════════════════════════════════════════
 # TOOL FINGERPRINTER
 # ══════════════════════════════════════════════════════════════════════
-
 
 class ToolFingerprinter:
     """
@@ -753,20 +749,17 @@ class ToolFingerprinter:
         results["scan_duration_ms"] = round((time.time() - start) * 1000)
         return results
 
-
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ══════════════════════════════════════════════════════════════════════
 
 _fingerprinter: ToolFingerprinter | None = None
 
-
 async def get_fingerprinter() -> ToolFingerprinter:
     global _fingerprinter
     if _fingerprinter is None:
         _fingerprinter = ToolFingerprinter()
     return _fingerprinter
-
 
 async def fingerprint_token(
     token_address: str,

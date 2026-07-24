@@ -5,11 +5,11 @@ Scoring methods extracted from BundlerDetector class.
 These are pure functions; the detector passes parameters explicitly.
 """
 
+from __future__ import annotations
 from typing import Any
 
 from app.bundler_detect.models import BUNDLER_SCORE_WEIGHTS, BundledBuy, BundlerReport, HolderCluster
 from app.bundler_detect.scoring import entropy, gini_coefficient
-
 
 def score_supply_concentration(holders: list[dict[str, Any]], top10_pct: float) -> float:
     """Score supply distribution risk (0-100)."""
@@ -40,7 +40,6 @@ def score_supply_concentration(holders: list[dict[str, Any]], top10_pct: float) 
 
     return min(score, 100)
 
-
 def score_sniper_clusters(clusters: list[HolderCluster], bundled_buys: list[BundledBuy]) -> float:
     """Score sniper cluster risk (0-100)."""
     score = 0.0
@@ -63,7 +62,6 @@ def score_sniper_clusters(clusters: list[HolderCluster], bundled_buys: list[Bund
         score += min(len(high_time) * 10, 25)
 
     return min(score, 100)
-
 
 def score_launch_timing(
     timing_info: dict[str, Any],
@@ -96,7 +94,6 @@ def score_launch_timing(
 
     return min(score, 100)
 
-
 def score_fund_flow(
     bundled_buys: list[BundledBuy],
     same_funding_count: int,
@@ -121,7 +118,6 @@ def score_fund_flow(
         score += avg_overlap * 20
 
     return min(score, 100)
-
 
 def compute_bundler_score(report: BundlerReport) -> float:
     """Weighted composite bundler score."""

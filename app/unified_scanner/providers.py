@@ -1,5 +1,6 @@
 """External data providers: SENTINEL, Wallet Memory, threat intel, token scanning, etc."""
 
+from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import Any
@@ -9,7 +10,6 @@ import httpx
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 # ═══════════════════════════════════════════
 # SENTINEL INTEGRATION - Labels + Intel
@@ -33,7 +33,6 @@ async def _fetch_sentinel_labels(address: str, chain: str) -> dict[str, Any]:
         logger.debug(f"SENTINEL labels failed for {address}: {e}")
     return {}
 
-
 async def _fetch_wallet_memory(address: str, chain: str) -> dict[str, Any]:
     """Cross-chain identity + cluster intel from Wallet Memory Bank."""
     try:
@@ -53,7 +52,6 @@ async def _fetch_wallet_memory(address: str, chain: str) -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"Wallet Memory Bank failed for {address}: {e}")
     return {}
-
 
 # ═══════════════════════════════════════════
 # TOKEN PORTFOLIO SCAN
@@ -145,7 +143,6 @@ async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
         "high_risk_count": sum(1 for r in risks if r["safety_score"] < 30),
     }
 
-
 # ═══════════════════════════════════════════
 # THREAT INTELLIGENCE
 # ═══════════════════════════════════════════
@@ -171,7 +168,6 @@ async def _check_hapi_risk(address: str, chain: str) -> dict[str, Any] | None:
         logger.debug(f"HAPI check failed: {e}")
     return None
 
-
 async def _check_misttrack_light(address: str, chain: str) -> dict[str, Any] | None:
     """Query SlowMist MistTrack Light - free wallet risk assessment."""
     try:
@@ -192,7 +188,6 @@ async def _check_misttrack_light(address: str, chain: str) -> dict[str, Any] | N
     except Exception as e:
         logger.debug(f"MistTrack check failed: {e}")
     return None
-
 
 async def _check_honeydb_ip(ip_address: str) -> dict[str, Any] | None:
     """Query HoneyDB for threat actor data on IP address."""
@@ -220,7 +215,6 @@ async def _check_honeydb_ip(ip_address: str) -> dict[str, Any] | None:
         logger.debug(f"HoneyDB check failed: {e}")
     return None
 
-
 async def _check_trm_sanctions_wallet(address: str) -> dict[str, Any] | None:
     """Screen wallet address against TRM Labs sanctions list."""
     try:
@@ -247,7 +241,6 @@ async def _check_trm_sanctions_wallet(address: str) -> dict[str, Any] | None:
     except Exception as e:
         logger.debug(f"TRM sanctions check failed: {e}")
     return None
-
 
 # ═══════════════════════════════════════════
 # FUNDING SOURCE TRACING & ENTITY RESOLUTION
@@ -298,7 +291,6 @@ async def _trace_funding_source(address: str, chain: str) -> dict[str, Any]:
     except (ConnectionError, OSError, TimeoutError):
         return {"source": "unknown", "hops": 0}
 
-
 async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
     """Basic cross-chain entity resolution - FREE tier."""
     try:
@@ -318,7 +310,6 @@ async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
         return {"label": "unknown", "source": "none", "chains": [chain]}
     except (AttributeError, ImportError):
         return {"label": "unknown", "source": "none", "chains": [chain]}
-
 
 async def _calculate_basic_pnl(
     address: str, chain: str, tokens: list, native_balance: float = 0
@@ -358,7 +349,6 @@ async def _calculate_basic_pnl(
             "token_count": len(tokens),
             "method": "native_only",
         }
-
 
 # ═══════════════════════════════════════════
 # DATA FLYWHEEL

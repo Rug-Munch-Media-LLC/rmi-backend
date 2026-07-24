@@ -20,7 +20,6 @@ from app.domains.x402.models import (
 
 log = get_logger(__name__)
 
-
 class X402Service:
     """Async facade over the x402 payment system."""
 

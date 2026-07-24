@@ -26,6 +26,7 @@ Data Sources (all free):
   - Historical MEV data from mev_sandwich_detector
 """
 
+from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -74,16 +75,13 @@ FALLBACK_RPCS = {
 
 # ── Risk Levels ──────────────────────────────────────────────────
 
-
 class MevRiskLevel(StrEnum):
     LOW = "low"
     MODERATE = "moderate"
     HIGH = "high"
     CRITICAL = "critical"
 
-
 # ── Data Models ──────────────────────────────────────────────────
-
 
 @dataclass
 class MevFactor:
@@ -92,7 +90,6 @@ class MevFactor:
     finding: str
     detail: str
     suggestion: str | None = None
-
 
 @dataclass
 class MevShieldResult:
@@ -123,7 +120,6 @@ class MevShieldResult:
             "timestamp": self.timestamp,
             "tx_params": self.tx_params,
         }
-
 
 # ── MEV Shield Analysis Engine ────────────────────────────────────
 async def _fetch_free_rpc(
@@ -157,7 +153,6 @@ async def _fetch_free_rpc(
             logger.debug(f"RPC {url} failed: {e}")
             continue
     return None
-
 
 async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> MevFactor:
     """
@@ -245,7 +240,6 @@ async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> Me
         suggestion=suggestion,
     )
 
-
 async def _check_slippage_risk(slippage_bps: int) -> MevFactor:
     """Assess how slippage tolerance exposes the transaction to MEV."""
     if slippage_bps >= HIGH_RISK_SLIPPAGE_BPS:
@@ -272,7 +266,6 @@ async def _check_slippage_risk(slippage_bps: int) -> MevFactor:
         suggestion=suggestion,
     )
 
-
 async def _check_gas_price_risk(gas_price_gwei: float) -> MevFactor:
     """Assess if gas price makes the transaction a target."""
     if gas_price_gwei >= HIGH_RISK_GAS_PRICE_GWEI:
@@ -298,7 +291,6 @@ async def _check_gas_price_risk(gas_price_gwei: float) -> MevFactor:
         detail=detail,
         suggestion=suggestion,
     )
-
 
 async def _check_pool_liquidity(pair_address: str | None, chain: str) -> MevFactor:
     """Check if pool liquidity is thin enough to enable sandwich attacks."""
@@ -356,7 +348,6 @@ async def _check_pool_liquidity(pair_address: str | None, chain: str) -> MevFact
         detail="Could not fetch pool data - conservative risk estimate applied",
         suggestion="Check manually on DexScreener or retry later",
     )
-
 
 async def _check_historical_mev(chain: str, token_address: str | None = None) -> MevFactor:
     """
@@ -417,7 +408,6 @@ async def _check_historical_mev(chain: str, token_address: str | None = None) ->
         suggestion="Check chain-specific MEV statistics for accurate assessment",
     )
 
-
 async def _check_timing_risk() -> MevFactor:
     """Assess if current time is a high-MEV period."""
     now = datetime.now(UTC)
@@ -455,7 +445,6 @@ async def _check_timing_risk() -> MevFactor:
         detail=detail,
         suggestion=suggestion,
     )
-
 
 def _compute_protection_strategies(
     risk_level: MevRiskLevel, factors: list[MevFactor], chain: str
@@ -506,7 +495,6 @@ def _compute_protection_strategies(
 
     return strategies
 
-
 def _compute_estimated_loss(risk_level: MevRiskLevel, factors: list[MevFactor]) -> int:
     """Estimate expected loss in basis points if MEV'd."""
     base_loss = {
@@ -528,7 +516,6 @@ def _compute_estimated_loss(risk_level: MevRiskLevel, factors: list[MevFactor]) 
 
     return min(loss, 500)  # Cap at 5% max estimated loss
 
-
 async def _resolve_chain_id(chain: str) -> str:
     """Normalize chain name to internal format."""
     chain_map = {
@@ -547,7 +534,6 @@ async def _resolve_chain_id(chain: str) -> str:
         "avalanche": "avalanche",
     }
     return chain_map.get(chain.lower(), chain.lower())
-
 
 async def analyze_transaction_risk(
     chain: str = "ethereum",
@@ -656,9 +642,7 @@ async def analyze_transaction_risk(
         },
     )
 
-
 # ── CLI Entry Point ──────────────────────────────────────────────
-
 
 def mev_shield_analysis(
     chain: str = "ethereum",
@@ -698,9 +682,7 @@ def mev_shield_analysis(
         )
     ).to_dict()
 
-
 # ── Main (standalone test) ───────────────────────────────────────
-
 
 async def main() -> None:
     """Run a sample MEV Shield analysis for demonstration."""
@@ -730,7 +712,6 @@ async def main() -> None:
         print(f"  • {s}")
 
     print(f"\nTimestamp: {result.timestamp}")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

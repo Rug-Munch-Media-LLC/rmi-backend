@@ -44,7 +44,6 @@ _CHAIN_MAP = {
     "polygon": 137,
 }
 
-
 async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]:
     """Query MetaSleuth for an address's entity info.
 
@@ -149,14 +148,12 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
 
     return labels
 
-
 def _first_category(data: dict[str, Any]) -> str | None:
     """Extract first category name from MetaSleuth response."""
     cats = data.get("main_entity_info", {}).get("categories", [])
     if cats and isinstance(cats[0], dict):
         return cats[0].get("name")
     return None
-
 
 def _extract_attributes(data: dict[str, Any]) -> dict[str, Any]:
     """Extract attributes from MetaSleuth response."""

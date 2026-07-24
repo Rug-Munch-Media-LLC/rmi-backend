@@ -1,10 +1,10 @@
 """Intelligent Model Router - auto-routes to best provider by task type, cost, latency.
 Priority: real-time → Cerebras (9ms), cheap → Ollama ($0), complex → DeepSeek, bulk → Mistral."""
 
+from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-
 
 class TaskType(Enum):
     FAST = "fast"  # < 100ms needed - Cerebras, Groq
@@ -14,7 +14,6 @@ class TaskType(Enum):
     VISION = "vision"  # image understanding - Gemini
     EMBED = "embed"  # embeddings - Mistral Embed
     CODE = "code"  # code generation - DeepSeek, qwen2.5-coder
-
 
 ROUTING_TABLE = {
     TaskType.FAST: [
@@ -47,7 +46,6 @@ ROUTING_TABLE = {
     ],
 }
 
-
 @dataclass
 class RoutingDecision:
     model: str
@@ -56,7 +54,6 @@ class RoutingDecision:
     cost_per_1m_input: float
     fallback_model: str | None = None
     fallback_provider: str | None = None
-
 
 def route_task(task_type: TaskType, prefer: str = "fast") -> RoutingDecision:
     """Route a task to the best model. Falls back to next on failure."""
@@ -79,7 +76,6 @@ def route_task(task_type: TaskType, prefer: str = "fast") -> RoutingDecision:
         fallback_provider=fallback[1] if fallback else None,
     )
 
-
 async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast", **kwargs) -> dict[str, str] | dict:
     """Auto-route a prompt to the best model. Returns response or falls back."""
     decision = route_task(TaskType(task_type), prefer)
@@ -98,7 +94,6 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
             return {**result, "routing": vars(decision), "fallback_used": True}
 
     return {"error": "All providers failed", "routing": vars(decision)}
-
 
 async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> None | Any | dict:
     """Call a specific provider. Returns dict or None."""

@@ -23,7 +23,6 @@ router = APIRouter(prefix="/api/v1/rug-recovery", tags=["rug-recovery"])
 BACKEND = settings.backend_url
 DATABUS = settings.databus_url
 
-
 class RugTraceResult(BaseModel):
     rug_token: str
     chain: str
@@ -35,7 +34,6 @@ class RugTraceResult(BaseModel):
     mixer_usage: list[dict]
     recovery_possible: bool
     trace_graph: dict[str, Any]
-
 
 async def _trace_outbound_txs(address: str, chain: str, max_hops: int = 3) -> list[dict]:
     """Trace outbound transactions from an address across hops."""
@@ -52,7 +50,6 @@ async def _trace_outbound_txs(address: str, chain: str, max_hops: int = 3) -> li
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning(f"Outbound txs failed for {address}: {e}")
     return txs
-
 
 async def _check_cex_deposit(address: str, chain: str) -> dict | None:
     """Check if an address is a known CEX deposit address."""
@@ -79,7 +76,6 @@ async def _check_cex_deposit(address: str, chain: str) -> dict | None:
         logger.warning(f"CEX deposit check failed for {address}: {e}")
     return None
 
-
 async def _check_mixer(address: str, chain: str) -> dict | None:
     """Check if an address is a known mixer/tumbler."""
     try:
@@ -93,7 +89,6 @@ async def _check_mixer(address: str, chain: str) -> dict | None:
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning(f"Mixer check failed for {address}: {e}")
     return None
-
 
 @router.get("/trace/{token_address}")
 async def trace_rug(
@@ -182,7 +177,6 @@ async def trace_rug(
             else "No CEX deposits detected yet. Monitor deployer wallet for future CEX transfers."
         ),
     }
-
 
 @router.get("/victims/{token_address}")
 async def get_affected_victims(token_address: str, chain: str = Query("ethereum")) -> dict:

@@ -2,6 +2,7 @@
 RIP — Main Predictor Class
 Orchestrates the 7 signal analyzers and produces the final RIP score.
 """
+from __future__ import annotations
 import asyncio
 import os
 import re
@@ -43,7 +44,6 @@ KNOWN_LP_LOCKERS_DEFAULT = [
     "0xD152f549545093347A162Dce210e7293f1452150",
 ]
 
-
 def _get_known_lp_lockers() -> list[str]:
     """Get configured LP lockers from env, or use well-known defaults."""
     global _KNOWN_LP_LOCKERS
@@ -57,7 +57,6 @@ def _get_known_lp_lockers() -> list[str]:
         _KNOWN_LP_LOCKERS = list(KNOWN_LP_LOCKERS_DEFAULT)
         logger.info("Using default LP lockers list")
     return _KNOWN_LP_LOCKERS
-
 
 class RugImminencePredictor:
     """Predicts imminent rug pulls by fusing 7 signal categories."""

@@ -12,7 +12,6 @@ log = get_logger(__name__)
 
 CSV_PATH = "/home/dev/rmi/backend/data/etherscan_combined_labels.csv"
 
-
 async def query_etherscan_csv(address: str, chain: str = "ethereum") -> list[Label]:
     """Query the Etherscan combined labels CSV via DuckDB.
 

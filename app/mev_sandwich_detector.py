@@ -10,6 +10,7 @@ Usage:
     from app.mev_sandwich_detector import MEVSandwichDetector
 """
 
+from __future__ import annotations
 import sys as _sys
 from app.domains.detectors.mev_sandwich_detector import *  # noqa: F401, F403
 

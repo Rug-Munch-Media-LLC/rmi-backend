@@ -27,7 +27,6 @@ log = get_logger(__name__)
 
 router = APIRouter(prefix="/labels", tags=["labels"])
 
-
 class LabelsResponse(BaseModel):
     """Response for GET /api/v1/labels/{address}."""
 
@@ -36,7 +35,6 @@ class LabelsResponse(BaseModel):
     labels: list[dict[str, Any]]
     sources_queried: list[str]
     total: int
-
 
 @router.get("/{address}", response_model=LabelsResponse)
 async def get_labels(

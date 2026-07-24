@@ -20,6 +20,7 @@ Usage:
     holdings = await das.get_wallet_tokens("7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV")
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import os
@@ -32,7 +33,6 @@ from app.core.logging import get_logger
 logger = get_logger("helius_das")
 
 DAS_BASE = "https://mainnet.helius-rpc.com"
-
 
 class HeliusDasClient:
     """Indexed Solana token data via Helius DAS API. Uses existing RPC keys."""
@@ -156,9 +156,7 @@ class HeliusDasClient:
             "total_rps": len(self._keys) * 25,
         }
 
-
 _das_client: HeliusDasClient | None = None
-
 
 def get_helius_das() -> HeliusDasClient:
     global _das_client

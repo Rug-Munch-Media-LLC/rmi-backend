@@ -3,6 +3,7 @@ RugCharts Intel — Liquidity Risk Monitor.
 LP health + pull detection.
 """
 
+from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
@@ -12,7 +13,6 @@ from app.core.logging import get_logger
 from .cache import _r, CACHE_TTL, HELIUS_KEY, ARKHAM_KEY
 
 logger = get_logger("rugcharts_intel")
-
 
 async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Monitor liquidity pool health: LP lock, concentration, removal risk.

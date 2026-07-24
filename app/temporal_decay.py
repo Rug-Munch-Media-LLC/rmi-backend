@@ -18,6 +18,7 @@ where lambda = ln(2) / half_life
 
 Also supports recency boosting for very fresh content (<24h).
 """
+from __future__ import annotations
 
 import math
 from datetime import UTC, datetime
@@ -65,12 +66,10 @@ COLLECTION_DOMAIN: dict[str, str] = {
     "cluster_labels": "scam_pattern",
 }
 
-
 def get_half_life(collection: str) -> float:
     """Get the half-life in days for a collection."""
     domain = COLLECTION_DOMAIN.get(collection, "default")
     return HALF_LIVES.get(domain, HALF_LIVES["default"])
-
 
 def compute_decay(age_days: float, half_life_days: float) -> float:
     """
@@ -89,7 +88,6 @@ def compute_decay(age_days: float, half_life_days: float) -> float:
     lam = math.log(2) / half_life_days
     return math.exp(-lam * age_days)
 
-
 def compute_recency_boost(
     age_days: float, boost_days: float = 1.0, boost_factor: float = 1.15
 ) -> float:
@@ -105,7 +103,6 @@ def compute_recency_boost(
         return boost_factor
     # Linear interpolation
     return 1.0 + (boost_factor - 1.0) * (1.0 - age_days / boost_days)
-
 
 def apply_temporal_decay(
     results: list[dict[str, Any]],
@@ -176,7 +173,6 @@ def apply_temporal_decay(
     # Re-sort by adjusted similarity
     results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
     return results
-
 
 def get_collection_freshness_summary(
     collection_stats: dict[str, int],

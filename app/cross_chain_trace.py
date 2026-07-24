@@ -17,6 +17,7 @@ Tier: Premium ($0.15)
 Endpoint: POST /api/v1/x402-tools/cross_chain_trace
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import re
@@ -29,7 +30,6 @@ from urllib.parse import urlparse
 from app.core.logging import get_logger
 from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE, is_valid_address
 
-
 logger = get_logger("cross_chain_trace")
 
 # ── Address validation patterns ────────────────────────────────────
@@ -40,7 +40,6 @@ def is_valid_tx_hash(tx_hash: str) -> bool:
     """Validate a transaction hash format."""
     tx_hash = tx_hash.strip()
     return bool(TX_HASH_EVM_RE.match(tx_hash) or TX_HASH_SOLANA_RE.match(tx_hash))
-
 
 # ── Rate limiter for async HTTP calls ───────────────────────────────
 _RATE_LIMITERS: dict[str, float] = {}
@@ -126,7 +125,6 @@ KNOWN_EXCHANGES: dict[str, list[str]] = {
     ],
 }
 
-
 class TraceHopType(Enum):
     BRIDGE = "bridge"
     MIXER = "mixer"
@@ -138,13 +136,11 @@ class TraceHopType(Enum):
     BURN = "burn"
     UNKNOWN = "unknown"
 
-
 class ConfidenceLevel(Enum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
     GUESS = "guess"
-
 
 @dataclass
 class TraceHop:
@@ -183,7 +179,6 @@ class TraceHop:
             "is_suspicious": self.is_suspicious,
             "tags": self.tags,
         }
-
 
 @dataclass
 class FundTraceResult:
@@ -226,14 +221,11 @@ class FundTraceResult:
             "sources_used": self.sources_used,
         }
 
-
 # ── Helpers ──────────────────────────────────────────────────────
-
 
 def _normalize_address(addr: str) -> str:
     """Normalize an address to lowercase."""
     return addr.strip().lower()
-
 
 def _detect_chain(address: str) -> str:
     """Detect likely blockchain from address format."""
@@ -256,7 +248,6 @@ def _detect_chain(address: str) -> str:
         return "cosmos"
     return "unknown"
 
-
 def _is_bridge(address: str) -> tuple[bool, str]:
     """Check if an address is a known bridge contract."""
     addr = _normalize_address(address)
@@ -264,7 +255,6 @@ def _is_bridge(address: str) -> tuple[bool, str]:
         if any(_normalize_address(a) == addr for a in addrs):
             return True, protocol
     return False, ""
-
 
 def _is_mixer(address: str) -> tuple[bool, str]:
     """Check if an address is a known mixer."""
@@ -274,7 +264,6 @@ def _is_mixer(address: str) -> tuple[bool, str]:
             return True, protocol
     return False, ""
 
-
 def _is_exchange(address: str) -> tuple[bool, str]:
     """Check if an address is a known exchange wallet."""
     addr = _normalize_address(address)
@@ -282,7 +271,6 @@ def _is_exchange(address: str) -> tuple[bool, str]:
         if any(_normalize_address(a) == addr for a in addrs):
             return True, exchange
     return False, ""
-
 
 def _is_burn_address(addr: str) -> bool:
     """Check if address is a known burn/zero address."""
@@ -295,7 +283,6 @@ def _is_burn_address(addr: str) -> bool:
         "0x0000000000000000000000000000000000000001",
     }
     return normalized in burn_addrs
-
 
 def _compute_confidence(hops: list[TraceHop]) -> float:
     """Compute overall confidence based on hop data quality."""
@@ -323,7 +310,6 @@ def _compute_confidence(hops: list[TraceHop]) -> float:
         scores.append(min(base, 1.0))
 
     return sum(scores) / len(scores)
-
 
 def _compute_suspiciousness(hops: list[TraceHop]) -> float:
     """Compute suspiciousness score 0-1."""
@@ -361,7 +347,6 @@ def _compute_suspiciousness(hops: list[TraceHop]) -> float:
 
     return min(score, 1.0)
 
-
 def _generate_summary(result: FundTraceResult) -> str:
     """Generate human-readable summary of the trace."""
     parts = []
@@ -395,9 +380,7 @@ def _generate_summary(result: FundTraceResult) -> str:
 
     return " | ".join(parts)
 
-
 # ── Async HTTP helpers with rate limiting ─────────────────────────
-
 
 async def fetch_data(
     url: str,
@@ -434,7 +417,6 @@ async def fetch_data(
         logger.debug("Fetch failed for %s: %s", url, e)
         return None
 
-
 async def fetch_with_fallback(
     urls: list[str],
     headers: dict[str, str] | None = None,
@@ -447,9 +429,7 @@ async def fetch_with_fallback(
             return data, url
     return None, None
 
-
 # ── Public API ───────────────────────────────────────────────────
-
 
 async def trace_funds(
     address: str,
@@ -621,9 +601,7 @@ async def trace_funds(
 
     return result.to_dict()
 
-
 # ── Interactive CLI ──────────────────────────────────────────────
-
 
 async def main() -> None:
     """Interactive CLI for testing the tracer."""
@@ -666,7 +644,6 @@ async def main() -> None:
             )
             if hop["tx_hash"]:
                 logger.info("     Tx: %s...", hop['tx_hash'][:20])
-
 
 if __name__ == "__main__":
     asyncio.run(main())

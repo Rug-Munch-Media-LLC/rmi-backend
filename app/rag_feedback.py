@@ -21,6 +21,7 @@ This creates a LEARNING LOOP: the more the scanner runs,
 the smarter the RAG gets.
 """
 
+from __future__ import annotations
 import contextlib
 from typing import Any
 
@@ -34,7 +35,6 @@ FALSE_POSITIVE_PENALTY = -0.2  # -20% weight for false positives
 SCANNER_HIT_BOOST = 0.05  # +5% per scanner hit on a document
 MAX_WEIGHT = 3.0  # Cap at 3x original weight
 MIN_WEIGHT = 0.1  # Floor at 10% original
-
 
 async def record_scanner_result(
     address: str,
@@ -173,7 +173,6 @@ async def record_scanner_result(
             await r.aclose()
         return {"status": "error", "detail": str(e)}
 
-
 async def get_document_weight(doc_id: str) -> float:
     """Get the current learned weight for a RAG document."""
     import os as _os
@@ -195,7 +194,6 @@ async def get_document_weight(doc_id: str) -> float:
         return float(weight) if weight else 1.0
     except (ConnectionError, OSError):
         return 1.0
-
 
 async def get_feedback_stats() -> dict[str, Any]:
     """Get feedback loop statistics."""

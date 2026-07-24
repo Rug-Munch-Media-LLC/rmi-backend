@@ -3,6 +3,7 @@ RugCharts Intel — Holder Health Score.
 Distribution analysis (Gini, concentration, freshness).
 """
 
+from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
@@ -12,7 +13,6 @@ from app.core.logging import get_logger
 from .cache import _r, CACHE_TTL, HELIUS_KEY
 
 logger = get_logger("rugcharts_intel")
-
 
 async def holder_health_score(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Analyze holder distribution for rug pull risk indicators.

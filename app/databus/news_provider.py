@@ -13,6 +13,7 @@ Wires ALL free data sources into DataBus:
 Every endpoint accessible via DataBus. Every response enriched.
 """
 
+from __future__ import annotations
 import os
 import time
 from datetime import UTC, datetime
@@ -33,7 +34,6 @@ COINGECKO_KEY = os.getenv("COINGECKO_API_KEY", "")
 CACHE = {}  # Simple in-memory cache with TTL
 CACHE_TTL = 60
 
-
 def _cached(key: str, ttl: int = 60) -> dict | None:
     if key in CACHE:
         data, ts = CACHE[key]
@@ -41,13 +41,10 @@ def _cached(key: str, ttl: int = 60) -> dict | None:
             return data
     return None
 
-
 def _cache_set(key: str, data: dict) -> None:
     CACHE[key] = (data, time.time())
 
-
 # ── 1. COINGECKO - Prices, trending, market data ───────────────────
-
 
 async def get_market_prices(coins: str = "bitcoin,ethereum,solana", **kw) -> dict | None:
     """Live crypto prices from CoinGecko. Free tier, no key needed."""
@@ -85,7 +82,6 @@ async def get_market_prices(coins: str = "bitcoin,ethereum,solana", **kw) -> dic
         logger.warning(f"CoinGecko failed: {e}")
     return None
 
-
 async def get_trending_coins(**kw) -> dict | None:
     """Trending coins from CoinGecko search."""
     cache_key = "trending"
@@ -121,9 +117,7 @@ async def get_trending_coins(**kw) -> dict | None:
         logger.warning(f"Trending failed: {e}")
     return None
 
-
 # ── 2. FEAR & GREED INDEX - Alternative.me ─────────────────────────
-
 
 async def get_fear_greed(**kw) -> dict | None:
     """Crypto Fear & Greed Index. Completely free, no key."""
@@ -167,9 +161,7 @@ async def get_fear_greed(**kw) -> dict | None:
         logger.warning(f"Fear & Greed failed: {e}")
     return None
 
-
 # ── 3. POLYMARKET - Prediction markets ─────────────────────────────
-
 
 async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> dict | None:
     """Prediction market events from Polymarket. Free, no key."""
@@ -207,9 +199,7 @@ async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> d
         logger.warning(f"Polymarket failed: {e}")
     return None
 
-
 # ── 4. COMBINED MARKET BRIEF - All sources in one call ─────────────
-
 
 async def get_market_brief(**kw) -> dict | None:
     """One-call market overview: prices + fear/greed + trending + prediction markets."""
@@ -247,9 +237,7 @@ async def get_market_brief(**kw) -> dict | None:
         "free": True,
     }
 
-
 # ── 5. NEWS AGGREGATION - from our existing 200+ feeds ─────────────
-
 
 async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict | None:
     """Pull news from our existing news_service.py aggregator."""
@@ -276,9 +264,7 @@ async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict
         logger.warning(f"News aggregation failed: {e}")
     return None
 
-
 # ── 6. COMBINED NEWS + MARKET - The full picture ───────────────────
-
 
 async def get_full_news_feed(limit: int = 15, **kw) -> dict | None:
     """Complete news page data: headlines + prices + fear/greed + trending + polymarket."""

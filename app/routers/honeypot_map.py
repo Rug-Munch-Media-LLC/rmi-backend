@@ -17,7 +17,6 @@ router = APIRouter(prefix="/api/v1/honeypot-map", tags=["honeypot-map"])
 
 BACKEND = settings.backend_url
 
-
 class HoneypotNode(BaseModel):
     id: str
     label: str
@@ -27,13 +26,11 @@ class HoneypotNode(BaseModel):
     total_stolen_usd: float = 0
     risk_score: int = 0
 
-
 class HoneypotEdge(BaseModel):
     source: str
     target: str
     relationship: str  # deployed, funded_by, stole_from
     amount_usd: float = 0
-
 
 @router.get("/deployer/{deployer_address}")
 async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ethereum")) -> dict:
@@ -92,7 +89,6 @@ async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ether
         "edges": edges,
         "total_contracts": len([n for n in nodes if n["type"] != "deployer"]),
     }
-
 
 @router.get("/network")
 async def get_honeypot_network(
@@ -158,7 +154,6 @@ async def get_honeypot_network(
         "total_deployers": len(seen_deployers),
         "total_contracts": len([n for n in nodes if n["type"] == "contract"]),
     }
-
 
 @router.get("/stats")
 async def get_honeypot_stats() -> dict[str, str]:

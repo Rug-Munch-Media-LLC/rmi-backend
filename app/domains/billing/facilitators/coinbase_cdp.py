@@ -12,6 +12,7 @@ Docs: https://docs.cdp.coinbase.com/x402/welcome
 npm:  @coinbase/x402
 """
 
+from __future__ import annotations
 from typing import Any
 
 import aiohttp
@@ -28,7 +29,6 @@ from app.domains.billing.facilitators.base import (
 from app.domains.billing.facilitators.config import get_config
 
 logger = get_logger("facilitator.coinbase_cdp")
-
 
 class CoinbaseCDPFacilitator(Facilitator):
     """
@@ -244,19 +244,15 @@ class CoinbaseCDPFacilitator(Facilitator):
                 settled=False, reason=f"CDP settlement error: {e}", facilitator=self.name
             )
 
-
 # ── Helpers ─────────────────────────────────────────────────
-
 
 def _env(key: str, default: str = "") -> str:
     import os
 
     return os.getenv(key, default)
 
-
 def _timeout() -> int:
     return int(_env("FACILITATOR_VERIFY_TIMEOUT", "15"))
-
 
 def _chain_from_network(network: str) -> str:
     """Map x402 network string to chain key."""

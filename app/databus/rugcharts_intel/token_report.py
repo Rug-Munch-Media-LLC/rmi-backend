@@ -3,6 +3,7 @@ RugCharts Intel — Instant Token Report.
 One-call comprehensive intel on any token.
 """
 
+from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
@@ -10,7 +11,6 @@ from app.core.logging import get_logger
 from .cache import _r, CACHE_TTL, HELIUS_KEY, ARKHAM_KEY
 
 logger = get_logger("rugcharts_intel")
-
 
 async def instant_token_report(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Generate a complete intelligence report for any token in a single call.
@@ -233,7 +233,6 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         logger.warning("error")
 
     return report
-
 
 def _extract_security_highlights(security: dict) -> list[str]:
     """Extract key security findings for the quick overview."""

@@ -1,11 +1,11 @@
 """
 Data models for rug imminence prediction.
 """
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
-
 
 class ImminenceLevel(Enum):
     LOW = "low"
@@ -21,7 +21,6 @@ class ImminenceLevel(Enum):
     def numeric(self) -> int:
         return {"low": 1, "medium": 2, "high": 3, "critical": 4}[self.value]
 
-
 @dataclass
 class SignalCategory:
     """A single signal category with weight, score, and evidence."""
@@ -34,7 +33,6 @@ class SignalCategory:
 
     def weighted_contribution(self) -> float:
         return self.score * self.weight
-
 
 @dataclass
 class RIPResult:

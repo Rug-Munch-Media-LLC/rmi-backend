@@ -1,10 +1,10 @@
 """Data models for the honeypot detector."""
+from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
-
 
 class FindingSeverity(Enum):
     CRITICAL = "critical"
@@ -12,7 +12,6 @@ class FindingSeverity(Enum):
     MEDIUM = "medium"
     LOW = "low"
     INFO = "info"
-
 
 class HoneypotType(Enum):
     SELL_RESTRICTION = "sell_restriction"
@@ -33,7 +32,6 @@ class HoneypotType(Enum):
     RUG_PULL = "rug_pull"
     UNKNOWN = "unknown"
 
-
 @dataclass
 class SecurityFinding:
     finding_type: HoneypotType
@@ -44,7 +42,6 @@ class SecurityFinding:
 
     def to_dict(self) -> dict[str, Any]:
         return {"type": self.finding_type.value, "severity": self.severity.value, "description": self.description, "detail": self.detail, "code_reference": self.code_reference}
-
 
 @dataclass
 class TokenInfo:
@@ -72,7 +69,6 @@ class TokenInfo:
 
     def to_dict(self) -> dict[str, Any]:
         return {"address": self.address, "chain": self.chain, "name": self.name, "symbol": self.symbol, "decimals": self.decimals, "total_supply": self.total_supply, "holder_count": self.holder_count, "creator": self.creator_address, "age": self.creation_timestamp, "verified": self.is_verified, "price_usd": self.price_usd, "liquidity_usd": self.liquidity_usd, "volume_24h": self.volume_24h_usd, "market_cap": self.market_cap_usd, "owner": self.owner_address, "ownership_renounced": self.ownership_renounced, "is_proxy": self.is_proxy, "implementation": self.implementation_address, "chain_data_sources": self.chain_data_sources}
-
 
 @dataclass
 class HoneypotAnalysisResult:

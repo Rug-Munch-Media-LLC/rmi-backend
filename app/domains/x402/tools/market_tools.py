@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 async def get_market_overview(chain: str = "solana") -> dict[str, Any]:
     """Get market overview for a chain."""
     return {
@@ -15,7 +14,6 @@ async def get_market_overview(chain: str = "solana") -> dict[str, Any]:
         "trending": [],
     }
 
-
 async def get_trending(chain: str = "solana") -> dict[str, Any]:
     """Get trending tokens."""
     return {
@@ -24,11 +22,9 @@ async def get_trending(chain: str = "solana") -> dict[str, Any]:
         "time_window": "24h",
     }
 
-
 async def market_overview(chain: str = "solana") -> dict[str, Any]:
     """Alias for get_market_overview."""
     return get_market_overview(chain)
-
 
 async def token_deep_dive(token_address: str, chain: str = "solana") -> dict[str, Any]:
     """Deep dive on a token."""

@@ -2,6 +2,7 @@
 Honeypot Detector — Constants
 Attack signatures, chain configurations, threshold definitions.
 """
+from __future__ import annotations
 from typing import Any
 
 from app.domains.detectors.honeypot_detector_package.models import HoneypotType

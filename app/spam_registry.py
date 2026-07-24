@@ -6,6 +6,7 @@ Paper ref: Article 4, Sections 4 & 17 - Free Blocklists and Datasets
 All sources are free, MIT/GPL/CC licensed, production-grade.
 """
 
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
@@ -21,7 +22,6 @@ logger = get_logger(__name__)
 
 SPAM_DATA_DIR = Path(os.getenv("SPAM_DATA_DIR", "/app/data/spam"))
 SPAM_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
 
 class SpamRegistry:
     """
@@ -259,9 +259,7 @@ class SpamRegistry:
             "updated": datetime.now(UTC).isoformat(),
         }
 
-
 # ── Seed data loader ──────────────────────────────────────
-
 
 def seed_spam_data() -> None:
     """Download and cache initial spam data from free sources."""
@@ -305,10 +303,8 @@ def seed_spam_data() -> None:
     except Exception as e:
         logger.warning(f"Spam data seed failed: {e}")
 
-
 # Singleton
 _registry: SpamRegistry | None = None
-
 
 def get_spam_registry() -> SpamRegistry:
     global _registry

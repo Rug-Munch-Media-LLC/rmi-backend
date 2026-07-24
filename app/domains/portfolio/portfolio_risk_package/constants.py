@@ -2,6 +2,7 @@
 Portfolio Risk — Constants
 Chain configurations, ERC20 ABI, address validation, and defaults.
 """
+from __future__ import annotations
 import json
 from typing import Any
 
@@ -21,12 +22,9 @@ ERC20_ABI = json.loads("""
 ]
 """)
 
-
-
 def validate_wallet_address(address: str) -> tuple[bool, str]:
     from app.core.shared_utils import validate_wallet_address as _check
     return _check(address)
-
 
 CHAIN_CONFIGS: dict[str, dict[str, Any]] = {
     "ethereum": {"rpc": "https://ethereum-rpc.publicnode.com", "chain_id": 1, "native_symbol": "ETH", "decimals": 18, "explorer": "https://etherscan.io", "type": "evm"},

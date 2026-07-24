@@ -23,7 +23,6 @@ from app.domains.labels.models import Label, LabelSource
 
 logger = get_logger(__name__)
 
-
 class MBALService:
     """MBAL API Integration for multi-blockchain wallet labels"""
 
@@ -273,10 +272,8 @@ class MBALService:
         except (httpx.HTTPError, ConnectionError, TimeoutError, OSError):
             return False
 
-
 # Global instance
 _mbalsy_instance: MBALService | None = None
-
 
 def get_mbalsy_service() -> MBALService:
     """Get the global MBAL service instance."""

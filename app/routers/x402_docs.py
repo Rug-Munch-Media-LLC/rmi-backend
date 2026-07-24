@@ -137,12 +137,10 @@ x402 - Rug Munch Media LLC · Wyoming, USA · MIT License
 </html>
 """
 
-
 @router.get("/x402/docs")
 async def x402_docs_page() -> Any:
     """HTML documentation for the x402 payment system."""
     return HTMLResponse(content=DOCS_PAGE)
-
 
 @router.post("/x402/sandbox/create-invoice")
 async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test")) -> Any:
@@ -161,7 +159,6 @@ async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test
             "Example: 0xSANDBOX_abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
         )
     return invoice
-
 
 @router.post("/x402/sandbox/verify")
 async def sandbox_verify_payment(

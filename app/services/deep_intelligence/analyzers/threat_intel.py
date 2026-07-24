@@ -11,7 +11,6 @@ from typing import Any
 
 from app.services.deep_intelligence.core import client
 
-
 async def threat_intel_check(address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Aggregate on-chain threat intelligence from GoPlus, Webacy, and Chainabuse.

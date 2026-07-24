@@ -20,6 +20,7 @@ Watch conditions supported:
   - rug_indicators:   Suspicious patterns detected (mint, ownership change, etc.)
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 import json
@@ -36,9 +37,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("token_watch")
 
-
 # ─── Data Models ──────────────────────────────────────────────────────
-
 
 class WatchCondition(StrEnum):
     LP_DROP_BELOW = "lp_drop_below"
@@ -46,7 +45,6 @@ class WatchCondition(StrEnum):
     PRICE_DROP = "price_drop"
     PRICE_CHANGE = "price_change"
     RUG_INDICATORS = "rug_indicators"
-
 
 @dataclass
 class TokenWatch:
@@ -76,7 +74,6 @@ class TokenWatch:
     def from_dict(cls, d: dict) -> "TokenWatch":
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
-
 @dataclass
 class WatchAlert:
     """An alert triggered by a watch condition."""
@@ -95,9 +92,7 @@ class WatchAlert:
     def to_dict(self) -> dict:
         return asdict(self)
 
-
 # ─── Token Watch Service ──────────────────────────────────────────────
-
 
 class TokenWatchService:
     """Manages token watches and periodic monitoring."""
@@ -495,11 +490,9 @@ class TokenWatchService:
 
         return sorted(alerts, key=lambda x: x.get("timestamp", ""), reverse=True)
 
-
 # ─── Singleton ────────────────────────────────────────────────────────
 
 _watch_service: TokenWatchService | None = None
-
 
 def get_token_watch_service() -> TokenWatchService:
     """Get the global TokenWatchService singleton."""

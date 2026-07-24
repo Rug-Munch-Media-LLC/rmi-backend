@@ -32,11 +32,9 @@ from .utils import (
 
 sub_router = APIRouter(tags=["x402-integration"])
 
-
 # ═══════════════════════════════════════════════════════════════
 # Framework Discovery & Format Endpoints
 # ═══════════════════════════════════════════════════════════════
-
 
 @sub_router.get("/discovery")
 async def tools_discovery() -> Any:
@@ -45,7 +43,6 @@ async def tools_discovery() -> Any:
 
     return get_human_catalog()
 
-
 @sub_router.get("/catalog")
 async def tools_catalog_bot() -> Any:
     """Bot-optimized tool catalog - flat list with IDs, pricing, chain support."""
@@ -53,14 +50,12 @@ async def tools_catalog_bot() -> Any:
 
     return get_bot_catalog()
 
-
 @sub_router.get("/openai-tools")
 async def openai_tools() -> dict[str, Any]:
     """Returns ALL 201+ tool definitions in OpenAI function calling format."""
     raw_tools = await build_tools_from_catalog()
     tools = [format_openai_tool(t) for t in raw_tools]
     return build_framework_base(tools, "tools", payment_required=True)
-
 
 @sub_router.get("/langchain-tools")
 async def langchain_tools() -> dict[str, Any]:
@@ -74,7 +69,6 @@ async def langchain_tools() -> dict[str, Any]:
         usage="pip install langchain && use with create_react_agent or LangGraph",
     )
 
-
 @sub_router.get("/anthropic-tools")
 async def anthropic_tools() -> dict[str, Any]:
     """Returns ALL 201+ tool definitions in Anthropic Claude API format."""
@@ -87,7 +81,6 @@ async def anthropic_tools() -> dict[str, Any]:
         usage="pip install anthropic && use with client.messages.create(tools=...)",
     )
 
-
 @sub_router.get("/gemini-tools")
 async def gemini_tools() -> dict[str, Any]:
     """Returns ALL 201+ tool definitions in Google Gemini function calling format."""
@@ -99,7 +92,6 @@ async def gemini_tools() -> dict[str, Any]:
         format="google_gemini",
         usage="pip install google-genai && use with model.generate_content(tools=...)",
     )
-
 
 @sub_router.get("/frameworks")
 async def framework_discovery() -> dict[str, Any]:
@@ -161,11 +153,9 @@ async def framework_discovery() -> dict[str, Any]:
         },
     }
 
-
 # ═══════════════════════════════════════════════════════════════
 # MCP Proxy — external MCP tool execution from workers
 # ═══════════════════════════════════════════════════════════════
-
 
 MCP_SERVICE_ROUTES: dict[str, str] = {
     "dexscreener": "https://api.dexscreener.com",
@@ -196,7 +186,6 @@ MCP_SERVICE_ROUTES: dict[str, str] = {
     "solscan": "https://public-api.solscan.io",
     "quicknode": "https://api.quicknode.com",
 }
-
 
 @sub_router.post("/mcp-proxy")
 async def mcp_proxy(req: Any) -> dict[str, Any]:
@@ -269,7 +258,6 @@ async def mcp_proxy(req: Any) -> dict[str, Any]:
             "note": "Direct external API calls failed — try REST endpoint for cached/fallback data",
         }
 
-
 # ═══════════════════════════════════════════════════════════════
 # Bundle Pricing Endpoints
 # ═══════════════════════════════════════════════════════════════
@@ -278,7 +266,6 @@ from app.domains.billing.x402.shared import (
     BUNDLES as _BUNDLES,
     BundleRequest,
 )
-
 
 @sub_router.get("/bundles")
 async def list_bundles() -> dict[str, dict]:
@@ -297,7 +284,6 @@ async def list_bundles() -> dict[str, dict]:
             for bid, b in _BUNDLES.items()
         }
     }
-
 
 @sub_router.post("/bundles/security_pack")
 async def bundle_security_pack(req: BundleRequest) -> dict[str, Any]:
@@ -348,7 +334,6 @@ async def bundle_security_pack(req: BundleRequest) -> dict[str, Any]:
         "guarantee": "Data delivered or auto-refund via x402 receipt",
     }
 
-
 @sub_router.post("/bundles/intelligence_pack")
 async def bundle_intelligence_pack(req: BundleRequest) -> dict[str, Any]:
     """Intelligence Pack: whale + smartmoney + cluster + insider at 29% discount."""
@@ -377,7 +362,6 @@ async def bundle_intelligence_pack(req: BundleRequest) -> dict[str, Any]:
         "guarantee": "Data delivered or auto-refund via x402 receipt",
     }
 
-
 @sub_router.post("/bundles/all_in_one")
 async def bundle_all_in_one(req: BundleRequest) -> dict[str, Any]:
     """All-in-One: comprehensive_audit + smart_money_alpha + meme_vibe_score at 30% discount."""
@@ -404,7 +388,6 @@ async def bundle_all_in_one(req: BundleRequest) -> dict[str, Any]:
         "savings": "30% vs individual calls",
         "guarantee": "Data delivered or auto-refund via x402 receipt",
     }
-
 
 @sub_router.post("/forensic_pack")
 async def bundle_forensic_pack(req: BundleRequest) -> dict[str, Any]:
@@ -433,11 +416,9 @@ async def bundle_forensic_pack(req: BundleRequest) -> dict[str, Any]:
         "guarantee": "Data delivered or auto-refund via x402 receipt",
     }
 
-
 # ═══════════════════════════════════════════════════════════════
 # Catch-All Tool Dispatchers
 # ═══════════════════════════════════════════════════════════════
-
 
 @sub_router.get("/{tool_id}")
 async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
@@ -515,7 +496,6 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
         pass
 
     return JSONResponse(content=result, status_code=200)
-
 
 @sub_router.post("/{tool_id}")
 async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:

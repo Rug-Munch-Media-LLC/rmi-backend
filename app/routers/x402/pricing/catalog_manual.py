@@ -3,6 +3,7 @@ Hand-curated x402 tool pricing entries.
 BASIC, PREMIUM, and ELITE tiers — manually curated with full descriptions.
 """
 
+from __future__ import annotations
 X402_TOOL_PRICING_MANUAL = {
     # ═══ BASIC TIER ($0.01-0.02) - Quick Scans & Lookups ═══
     "token_price": {

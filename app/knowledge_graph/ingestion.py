@@ -5,6 +5,7 @@ Auto-extract graph relationships from RAG document metadata during
 ingestion. Builds nodes and edges for wallets, tokens, scams, etc.
 """
 
+from __future__ import annotations
 import json
 import logging
 from typing import Any
@@ -13,7 +14,6 @@ from app.knowledge_graph.graph import KnowledgeGraph
 from app.knowledge_graph.models import EdgeType, NodeType
 
 logger = logging.getLogger(__name__)
-
 
 async def ingest_rag_document(
     kg: KnowledgeGraph,
@@ -177,7 +177,6 @@ async def ingest_rag_document(
 
     return edges_created
 
-
 async def expand_query_entities(
     kg: KnowledgeGraph,
     entities: list[dict[str, str]],
@@ -226,7 +225,6 @@ async def expand_query_entities(
                 })
 
     return expanded
-
 
 async def build_graph_from_rag(
     kg: KnowledgeGraph,

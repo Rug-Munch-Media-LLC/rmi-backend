@@ -5,6 +5,7 @@ Aggregates CryptoPanic, Reddit, and news sentiment into a narrative summary
 with confidence scoring and shill detection.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import time
@@ -19,7 +20,6 @@ from app.routers.x402_advanced_tools.confidence import compute_confidence
 from app.routers.x402_advanced_tools.models import NarrativeRequest
 
 logger = get_logger("x402.narrative")
-
 
 async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
     """What's the market saying about this token RIGHT NOW?."""
@@ -161,6 +161,5 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
     except Exception as e:
         logger.error(f"Narrative engine failed: {e}")
         raise AppError(message=str(e)) from e
-
 
 __all__ = ["narrative_engine"]

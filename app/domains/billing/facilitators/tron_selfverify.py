@@ -19,6 +19,7 @@ Tokens: USDT (TRC20), USDC (TRC20), USDD (TRC20)
 Settlement: Self-verified (instant)
 """
 
+from __future__ import annotations
 from typing import Any
 
 import aiohttp
@@ -48,7 +49,6 @@ CONTRACT_TO_SYMBOL = {v.lower(): k for k, v in TRC20_TOKENS.items()}
 
 # ERC-20 Transfer signature (same on TRC20)
 TRANSFER_METHOD_ID = "a9059cbb"
-
 
 class TronSelfVerifyFacilitator(Facilitator):
     """

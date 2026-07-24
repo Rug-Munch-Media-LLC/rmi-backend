@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 
 from app.services.deep_intelligence.core import client
 
-
 async def post_purchase_monitor(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Detect changes AFTER buying: contract modifications, new admin functions,

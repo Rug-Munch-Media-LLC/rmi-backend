@@ -43,5 +43,4 @@ router.include_router(report_tools, prefix=_X402_TOOLS_PREFIX)
 router.include_router(label_tools, prefix=_X402_TOOLS_PREFIX)
 router.include_router(integration_tools, prefix=_X402_TOOLS_PREFIX)
 
-
 __all__ = ["router"]

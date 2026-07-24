@@ -4,6 +4,7 @@ Model Registry - Model & Provider Definitions
 All AI model configurations, role definitions, and provider limits.
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 
 logger = get_logger("model_registry")

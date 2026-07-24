@@ -13,6 +13,7 @@ Cache strategy:
 Cron: Every 6 hours, discover new tweets, extract content, update metrics.
 """
 
+from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
@@ -29,7 +30,6 @@ CACHE_TTL_TWEET = 86400  # 24h - tweet text doesn't change
 CACHE_TTL_METRICS = 3600  # 1h - engagement changes
 CACHE_TTL_PROFILE = 86400  # 24h
 CACHE_TTL_DISCOVERY = 21600  # 6h - new tweet discovery
-
 
 class XWebScraper:
     """
@@ -285,7 +285,6 @@ class XWebScraper:
         }
 
         return report
-
 
 # Convenience function for cron jobs
 async def run_social_scan() -> dict[str, int]:

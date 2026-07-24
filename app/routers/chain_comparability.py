@@ -18,7 +18,6 @@ DEXSCREENER = "https://api.dexscreener.com/latest/dex/search"
 
 CHAINS = ["ethereum", "bsc", "base", "arbitrum", "polygon", "avalanche", "optimism", "solana"]
 
-
 class CrossChainListing(BaseModel):
     chain: str
     price_usd: float
@@ -30,7 +29,6 @@ class CrossChainListing(BaseModel):
     age_days: int = 0
     suspicious: bool = False
     suspicion_reason: str = ""
-
 
 async def _get_token_chain_listings(symbol: str) -> list[dict]:
     """Find the same token across multiple chains via DexScreener."""
@@ -59,7 +57,6 @@ async def _get_token_chain_listings(symbol: str) -> list[dict]:
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning(f"Chain listing fetch failed: {e}")
     return listings
-
 
 def _detect_suspicious(listings: list[dict]) -> list[dict]:
     """Flag suspicious listings: inflated volume, price disconnects."""
@@ -92,7 +89,6 @@ def _detect_suspicious(listings: list[dict]) -> list[dict]:
 
     return listings
 
-
 @router.get("/token/{symbol}")
 async def compare_token_chains(symbol: str) -> dict:
     """Compare a token's listings across all chains. Flags suspicious activity."""
@@ -113,7 +109,6 @@ async def compare_token_chains(symbol: str) -> dict:
             f"{len(suspicious)} listings show suspicious patterns."
         ),
     }
-
 
 @router.get("/arbitrage")
 async def find_arbitrage_opportunities(

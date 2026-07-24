@@ -11,6 +11,7 @@ Split from monolithic canonical_tools.py into category files:
   - intelligence_premium.py  intelligence, premium, elite, social, launchpad
 """
 
+from __future__ import annotations
 from app.canonical_tools.market_basic import MARKET_BASIC_TOOLS
 from app.canonical_tools.security_analysis import SECURITY_ANALYSIS_TOOLS
 from app.canonical_tools.intelligence_premium import INTELLIGENCE_PREMIUM_TOOLS

@@ -1,5 +1,6 @@
 """Exchange cluster, contract name, and exchange wallet label loaders."""
 
+from __future__ import annotations
 import csv
 import json
 from datetime import UTC, datetime
@@ -9,7 +10,6 @@ from .config import LABELS_DIR
 from .loaders import _flush_batch
 
 logger = get_logger("wallet_memory.label_importer")
-
 
 async def _load_exchange_clusters(storage) -> int:
     """Load exchange cluster entity labels. ~200 exchange addresses."""
@@ -56,7 +56,6 @@ async def _load_exchange_clusters(storage) -> int:
     logger.info(f"Loaded {count} exchange cluster labels")
     return count
 
-
 async def _load_contract_names(storage) -> int:
     """Load contract name labels from name_dict.txt. ~900 Ethereum contracts."""
     path = os.path.join(LABELS_DIR, "name_dict.txt")
@@ -101,7 +100,6 @@ async def _load_contract_names(storage) -> int:
 
     logger.info(f"Loaded {count} contract name labels")
     return count
-
 
 async def _load_exchange_wallets(storage) -> int:
     """Load exchange/dex/ico/mining wallet labels. ~350 labeled wallets."""

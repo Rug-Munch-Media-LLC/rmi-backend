@@ -6,6 +6,7 @@ risk labeling, data models, and fast_check surrogate.
 Network tests are skipped in offline mode.
 """
 
+from __future__ import annotations
 import os
 import sys
 import unittest
@@ -20,7 +21,6 @@ from app.clone_scanner import (
     name_similarity_score,
     string_similarity,
 )
-
 
 class TestStringHelpers(unittest.TestCase):
     """Core string similarity utilities."""
@@ -43,7 +43,6 @@ class TestStringHelpers(unittest.TestCase):
         assert string_similarity("", "Pepe") == 0.0
         assert string_similarity("Pepe", "") == 0.0
         assert string_similarity("", "") == 0.0
-
 
 class TestNameSimilarity(unittest.TestCase):
     """Name similarity scoring with clone patterns."""
@@ -68,7 +67,6 @@ class TestNameSimilarity(unittest.TestCase):
     def test_different_tokens(self) -> None:
         score = name_similarity_score("Bitcoin", "Pepe")
         assert score < 0.3
-
 
 class TestCloneReport(unittest.TestCase):
     """CloneReport data model and helpers."""
@@ -154,7 +152,6 @@ class TestCloneReport(unittest.TestCase):
         report.risk_label = scanner._label_risk(25.0)
         assert report.risk_label == "medium"
 
-
 class TestSimilarToken(unittest.TestCase):
     """SimilarToken helper properties."""
 
@@ -179,7 +176,6 @@ class TestSimilarToken(unittest.TestCase):
             symbol_similarity=0.95,
         )
         assert t.overall_similarity == 0.95
-
 
 class TestScannerScoring(unittest.TestCase):
     """Unit tests for scoring methods (no network)."""
@@ -291,7 +287,6 @@ class TestScannerScoring(unittest.TestCase):
 
     def test_invalid_address(self) -> None:
         assert not self.scanner._validate_address("not-an-address", "ethereum")
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

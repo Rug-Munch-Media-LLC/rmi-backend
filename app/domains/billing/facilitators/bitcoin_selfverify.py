@@ -21,6 +21,7 @@ Tokens: BTC
 Settlement: Self-verified (1 confirmation minimum)
 """
 
+from __future__ import annotations
 from typing import Any
 
 import aiohttp
@@ -45,7 +46,6 @@ BLOCKSTREAM_API = "https://blockstream.info/api"
 
 # Minimum confirmations for BTC (Bitcoin is slower, need at least 1)
 MIN_CONFIRMATIONS = 1
-
 
 class BitcoinSelfVerifyFacilitator(Facilitator):
     """

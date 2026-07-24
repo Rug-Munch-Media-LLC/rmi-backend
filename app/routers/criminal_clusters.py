@@ -20,7 +20,6 @@ router = APIRouter(prefix="/api/v1/criminal-clusters", tags=["criminal-clusters"
 BACKEND = settings.backend_url
 REAL_CATS_DB = os.environ.get("REAL_CATS_DB", str(Path.home() / "rmi/backend/data/real_cats.db"))
 
-
 class ClusterNode(BaseModel):
     id: str
     label: str
@@ -29,13 +28,11 @@ class ClusterNode(BaseModel):
     rug_count: int = 0
     risk_score: int = 0
 
-
 class ClusterEdge(BaseModel):
     source: str
     target: str
     relationship: str  # same_deployer, same_funder, code_similar, fund_flow
     strength: float = 1.0
-
 
 @router.get("/deployer/{deployer_address}")
 async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethereum")) -> dict:
@@ -70,7 +67,6 @@ async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethere
         "tokens": tokens,
         "risk_assessment": "HIGH" if any(t.get("risk", 0) > 50 for t in tokens) else "MEDIUM",
     }
-
 
 @router.get("/token/{token_address}")
 async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) -> dict:
@@ -144,7 +140,6 @@ async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) 
         raise HTTPException(502, f"Scanner unavailable: {e}") from e
 
     return {"nodes": nodes, "edges": edges, "total_nodes": len(nodes), "total_edges": len(edges)}
-
 
 @router.get("/search")
 async def search_clusters(q: str = Query(..., min_length=2), limit: int = Query(20, le=50)) -> dict:

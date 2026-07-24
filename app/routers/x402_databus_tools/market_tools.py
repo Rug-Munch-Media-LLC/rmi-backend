@@ -4,6 +4,7 @@ Catalog discovery, token pricing, trending, market overview,
 DeFi TVL, news, social feeds, DEX data, and prediction markets.
 All BASIC tier ($0.01-0.02/call).
 """
+from __future__ import annotations
 from typing import Any
 
 from fastapi import Request
@@ -19,9 +20,7 @@ from app.routers.x402_databus_tools.router import router
 
 logger = get_logger("x402_databus_tools")
 
-
 # ── x402 Catalog & Discovery ─────────────────────────────────────
-
 
 @router.get("/catalog")
 async def x402_catalog(request: Request) -> dict[str, str]:
@@ -90,7 +89,6 @@ async def x402_catalog(request: Request) -> dict[str, str]:
         "accepted_tokens": {"USDC": "All networks", "EUR": "SEPA"},
     }
 
-
 @router.get("/access-matrix")
 async def x402_access_matrix() -> dict:
     """Show which data types each x402 tier can access."""
@@ -102,7 +100,6 @@ async def x402_access_matrix() -> dict:
         "premium": access_controller.get_x402_allowed_types("premium"),
         "enterprise": "all (full access)",
     }
-
 
 @router.get("/trials/{identifier}")
 async def x402_trial_status(identifier: str) -> dict:
@@ -124,9 +121,7 @@ async def x402_trial_status(identifier: str) -> dict:
             }
     return {"identifier": identifier, "trials": trials}
 
-
 # ── BASIC TIER ENDPOINTS ($0.01-$0.02) ───────────────────────────
-
 
 @router.post("/token-price")
 async def x402_token_price(req: MintRequest, request: Request) -> Any:
@@ -144,7 +139,6 @@ async def x402_token_price(req: MintRequest, request: Request) -> Any:
         "message": "Price unavailable for this token",
     }
 
-
 @router.post("/token-detail")
 async def x402_token_detail(req: MintRequest, request: Request) -> Any:
     """Rich token intelligence report. $0.02/call."""
@@ -159,14 +153,12 @@ async def x402_token_detail(req: MintRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/trending")
 async def x402_trending(req: QueryRequest, request: Request) -> Any:
     """Trending tokens feed. $0.01/call."""
     await verify_x402_payment(request, "trending", 0.01)
     result = await databus.fetch("trending", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/market-overview")
 async def x402_market_overview(request: Request) -> Any:
@@ -175,14 +167,12 @@ async def x402_market_overview(request: Request) -> Any:
     result = await databus.fetch("market_overview", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/market-movers")
 async def x402_market_movers(request: Request) -> Any:
     """Top market movers. $0.01/call."""
     await verify_x402_payment(request, "market_movers", 0.01)
     result = await databus.fetch("market_movers", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/tvl")
 async def x402_tvl(req: QueryRequest, request: Request) -> Any:
@@ -196,7 +186,6 @@ async def x402_tvl(req: QueryRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/news")
 async def x402_news(req: QueryRequest, request: Request) -> Any:
     """Crypto news feed. $0.01/call."""
@@ -206,14 +195,12 @@ async def x402_news(req: QueryRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/social-feed")
 async def x402_social_feed(request: Request) -> Any:
     """Social intelligence feed. $0.01/call."""
     await verify_x402_payment(request, "social_feed", 0.01)
     result = await databus.fetch("social_feed", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/dex-data")
 async def x402_dex_data(req: MintRequest, request: Request) -> Any:
@@ -224,14 +211,12 @@ async def x402_dex_data(req: MintRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/defi-protocols")
 async def x402_defi_protocols(request: Request) -> Any:
     """DeFi protocol tracker. $0.01/call."""
     await verify_x402_payment(request, "defi_protocols", 0.01)
     result = await databus.fetch("defi_protocols", consumer_type="x402_paid", x402_tier="basic")
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/prediction-markets")
 async def x402_prediction_markets(req: QueryRequest, request: Request) -> Any:
@@ -245,7 +230,6 @@ async def x402_prediction_markets(req: QueryRequest, request: Request) -> Any:
         x402_tier="basic",
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/prediction-signals")
 async def x402_prediction_signals(request: Request) -> Any:

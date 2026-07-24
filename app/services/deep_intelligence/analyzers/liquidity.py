@@ -12,7 +12,6 @@ from typing import Any
 
 from app.services.deep_intelligence.core import client
 
-
 async def liquidity_lock_authenticity(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Not just "is it locked?" but meaningful analysis of the lock.

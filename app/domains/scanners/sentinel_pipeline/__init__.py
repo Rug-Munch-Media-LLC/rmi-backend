@@ -8,6 +8,7 @@ Package split into responsibility-focused modules:
   - runners:   run_sentinel_scan + all standalone module runners
 """
 
+from __future__ import annotations
 from .config import SentinelConfig, SentinelReport, dataclass_to_dict
 from .modules import (
     _address_labeler,

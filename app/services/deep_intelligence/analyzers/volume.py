@@ -11,7 +11,6 @@ from typing import Any
 
 from app.services.deep_intelligence.core import client
 
-
 async def volume_authenticity(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Detect wash trading, fake volume, bot vs organic trading.

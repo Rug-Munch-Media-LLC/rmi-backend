@@ -8,6 +8,7 @@ Sub-3-second confirmation for micropayments.
 Express middleware compatible.
 """
 
+from __future__ import annotations
 from typing import Any
 
 import aiohttp
@@ -24,7 +25,6 @@ from app.domains.billing.facilitators.base import (
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
 logger = get_logger("facilitator.merx_tron")
-
 
 class MerxTronFacilitator(Facilitator):
     """MERX x402 - TRON mainnet facilitator with sub-3s confirmation.

@@ -1,5 +1,6 @@
 """EVM token deployer (Ethereum, Base, BSC)."""
 
+from __future__ import annotations
 import os
 
 from app.core.logging import get_logger
@@ -7,7 +8,6 @@ from app.domains.tokens.deployer.base import ChainDeployer
 from app.domains.tokens.deployer.models import DeployParams, TokenDeployment
 
 logger = get_logger("darkroom_token_deployer.evm")
-
 
 class EVMDeployer(ChainDeployer):
     """Deploy ERC-20 tokens on EVM chains (Ethereum, Base, BSC)."""

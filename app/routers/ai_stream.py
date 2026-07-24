@@ -15,12 +15,10 @@ from typing import Any
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai-streaming"])
 
-
 class StreamRequest(BaseModel):
     prompt: str
     task: str = "fast"  # fast|cheap|complex|bulk|code
     prefer: str = "fast"  # fast|cheap
-
 
 async def _stream_ollama(prompt: str, model: str) -> Any:
     """Stream from Ollama."""
@@ -42,7 +40,6 @@ async def _stream_ollama(prompt: str, model: str) -> Any:
                     yield f"data: {json.dumps({'token': chunk.get('response', '')})}\n\n"
                 except json.JSONDecodeError:
                     continue
-
 
 @router.post("/stream")
 async def stream_ai(req: StreamRequest) -> Any:
@@ -78,7 +75,6 @@ async def stream_ai(req: StreamRequest) -> Any:
         headers={"X-Model": decision.model, "X-Provider": decision.provider},
     )
 
-
 @router.post("/route")
 async def ai_route(req: StreamRequest) -> Any:
     """Non-streaming: auto-route to best model, return complete response."""
@@ -86,7 +82,6 @@ async def ai_route(req: StreamRequest) -> Any:
 
     result = await smart_route(req.prompt, req.task, req.prefer)
     return result if result else {"error": "All providers failed"}
-
 
 @router.get("/providers")
 async def list_providers() -> dict[str, dict]:

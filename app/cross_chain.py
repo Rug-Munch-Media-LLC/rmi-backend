@@ -15,6 +15,7 @@ Input: Address on any chain
 Output: Linked addresses on other chains with confidence + evidence
 """
 
+from __future__ import annotations
 import re
 from typing import Any
 
@@ -44,17 +45,14 @@ for canonical, aliases in CHAIN_ALIASES.items():
     for alias in aliases:
         CHAIN_FROM_ALIAS[alias.lower()] = canonical
 
-
 def normalize_chain(chain: str) -> str:
     """Normalize chain name to canonical form - delegates to shared_utils."""
     from app.core.shared_utils import normalize_chain as _normalize
     return _normalize(chain)
 
-
 # ── Behavioral Fingerprint ───────────────────────────────────────
 # 8-dim vector: [tx_frequency, gas_volatility, contract_interaction_ratio,
 #                avg_tx_value, timezone_activity, dex_ratio, bridge_usage, age_days]
-
 
 def build_cross_chain_fingerprint(
     tx_frequency: float = 0,  # avg tx per day normalized 0-50
@@ -81,9 +79,7 @@ def build_cross_chain_fingerprint(
         dtype=np.float32,
     )
 
-
 # ── Funding Source Graph ─────────────────────────────────────────
-
 
 def analyze_funding_chain(
     address: str,
@@ -129,9 +125,7 @@ def analyze_funding_chain(
         else "low",
     }
 
-
 # ── Identity Resolution ──────────────────────────────────────────
-
 
 def resolve_cross_chain_identity(
     address: str,
@@ -221,9 +215,7 @@ def resolve_cross_chain_identity(
         ),
     }
 
-
 # ── Quick utility: detect chain from address format ──────────────
-
 
 def detect_chain(address: str) -> str | None:
     """Detect blockchain from address format."""

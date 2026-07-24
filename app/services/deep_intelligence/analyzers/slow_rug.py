@@ -12,7 +12,6 @@ from typing import Any
 
 from app.services.deep_intelligence.core import client
 
-
 async def slow_rug_detector(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Detect gradual LP removal, fee increases, slow ownership transfers.

@@ -6,6 +6,7 @@ Fallback: Random Forest 96% accuracy from MUDzain ethereum-fraud-detection.
 Paper ref: Article 3, Section 7 - Open-Source ML Models and GNN Frameworks
 """
 
+from __future__ import annotations
 import os
 import pickle
 from pathlib import Path
@@ -41,7 +42,6 @@ FRAUD_FEATURES = [
     "gas_price_std",
     "failed_tx_ratio",
 ]
-
 
 class FraudGNNDetector:
     """CPU-only GNN fraud detector using pre-trained sklearn models."""
@@ -204,10 +204,8 @@ class FraudGNNDetector:
             "model_dir": str(MODEL_DIR),
         }
 
-
 # Singleton
 _detector: FraudGNNDetector | None = None
-
 
 def get_fraud_gnn() -> FraudGNNDetector:
     global _detector

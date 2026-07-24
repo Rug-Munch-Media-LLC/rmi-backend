@@ -2,6 +2,7 @@
 Token Supply Analyzer — Data models, enums, and constants.
 """
 
+from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -24,7 +25,6 @@ _URL_SAFE = re.compile(
     r"^https?://[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*(?::\d{1,5})?(?:/[^\s\"<>]*)?$"
 )
 
-
 class SupplyRisk(Enum):
     SAFE = "safe"
     LOW = "low"
@@ -32,14 +32,12 @@ class SupplyRisk(Enum):
     HIGH = "high"
     CRITICAL = "critical"
 
-
 class LockStatus(Enum):
     LOCKED = "locked"
     PARTIALLY_LOCKED = "partially_locked"
     UNLOCKED = "unlocked"
     REMOVED = "removed"
     UNKNOWN = "unknown"
-
 
 @dataclass
 class TokenSupplyProfile:
@@ -103,11 +101,9 @@ class TokenSupplyProfile:
     patterns_detected: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
 
-
 def _validate_url(url: str) -> bool:
     """Basic URL validation to prevent SSRF."""
     return bool(_URL_SAFE.match(url))
-
 
 def _classify_risk(score: float) -> SupplyRisk:
     """Convert numeric score to risk level."""
@@ -122,7 +118,6 @@ def _classify_risk(score: float) -> SupplyRisk:
     else:
         return SupplyRisk.CRITICAL
 
-
 def _detect_chain(address: str) -> str:
     """Detect chain from address format."""
     addr = address.strip()
@@ -132,11 +127,9 @@ def _detect_chain(address: str) -> str:
         return "solana"
     return "unknown"
 
-
 def _normalize_address(address: str) -> str:
     """Normalize address to lowercase for comparison."""
     return address.lower().strip()
-
 
 __all__ = [
     "SupplyRisk",

@@ -4,6 +4,7 @@ Every endpoint routes through app.databus.fetch() with full access control.
 No raw HTTP calls. No backdoors. Consumer type is always x402_paid.
 """
 
+from __future__ import annotations
 import json
 import os
 from typing import Any
@@ -17,7 +18,6 @@ from app.routers.x402_databus_tools.pricing import X402_TOOL_PRICING
 from app.routers.x402_databus_tools.rate_limit import check_trial, consume_trial
 
 logger = get_logger("x402_databus_tools")
-
 
 def _clean_response(result: dict) -> dict:
     """Strip internal DataBus fields that reveal provider architecture.
@@ -36,7 +36,6 @@ def _clean_response(result: dict) -> dict:
         result["data"].pop("source", None)
         result["data"].pop("provider", None)
     return result
-
 
 async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) -> dict[str, Any]:
     """Verify x402 payment header. Returns payment info or 402 response.

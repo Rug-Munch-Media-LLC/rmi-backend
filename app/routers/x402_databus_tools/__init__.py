@@ -33,6 +33,7 @@ Security:
 
 # ── Re-export all public symbols for backward compatibility ─────
 
+from __future__ import annotations
 from app.routers.x402_databus_tools.pricing import X402_TOOL_PRICING
 from app.routers.x402_databus_tools.rate_limit import (
     TRIAL_REDIS_PREFIX,

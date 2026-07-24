@@ -18,6 +18,7 @@ Tier: Premium ($0.05)
 Endpoint: POST /api/v1/x402-tools/wallet_drain
 """
 
+from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -65,14 +66,11 @@ _URL_SAFE = re.compile(
     r"^https?://[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*(?::\d{1,5})?(?:/[^\s\"<>]*)?$"
 )
 
-
 def _validate_url(url: str) -> bool:
     """Basic URL validation to prevent SSRF / injection."""
     return bool(_URL_SAFE.match(url))
 
-
 # ── Core scoring engine ─────────────────────────────────────────
-
 
 def _compute_drain_score(
     unlimited_approvals: int,
@@ -103,7 +101,6 @@ def _compute_drain_score(
     raw = unlimited_score + drainer_score + permit_score + amount_score + nft_score + delegate_score
     return min(raw, 100.0)
 
-
 def _classify_drain_risk(score: float) -> str:
     """Classify score into risk category."""
     if score >= 70:
@@ -115,7 +112,6 @@ def _classify_drain_risk(score: float) -> str:
     if score >= 10:
         return "low"
     return "none"
-
 
 def _generate_recommendation(score: float, dangerous_approval_ratio: float) -> str:
     """Generate human-readable recommendation based on score and ratio."""
@@ -142,9 +138,7 @@ def _generate_recommendation(score: float, dangerous_approval_ratio: float) -> s
         )
     return "No drain risks detected. Wallet approval hygiene appears healthy."
 
-
 # ── Main detector class ─────────────────────────────────────────
-
 
 class WalletDrainScanner:
     """Scans a wallet address for dangerous approvals and drain vulnerabilities."""

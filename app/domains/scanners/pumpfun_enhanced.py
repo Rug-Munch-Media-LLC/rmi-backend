@@ -16,6 +16,7 @@ Data sources (direct API calls):
   - DexScreener: token pool metadata
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -34,7 +35,6 @@ EARLY_SELL_THRESHOLD_S = 60  # 60 seconds = insider flag
 BATCH_WINDOW_S = 2  # 2 second window for batch detection
 MIN_SIGNIFICANT_PROFIT_USD = 500  # minimum USD profit to flag
 
-
 @dataclass
 class WalletTrade:
     """Individual trade record for a wallet on a token."""
@@ -47,7 +47,6 @@ class WalletTrade:
     amount_usd: float = 0.0
     token_amount: float = 0.0
     price_usd: float = 0.0
-
 
 @dataclass
 class PnLAnalysis:
@@ -66,7 +65,6 @@ class PnLAnalysis:
     risk_score: int = 0
     risk_level: str = "unknown"
     signals: list[str] = field(default_factory=list)
-
 
 async def _fetch_helius_transactions(address: str, limit: int = 100) -> list[dict[str, Any]]:
     """Fetch recent transactions for a wallet via Helius."""
@@ -87,7 +85,6 @@ async def _fetch_helius_transactions(address: str, limit: int = 100) -> list[dic
         logger.debug("_fetch_helius_transactions_error", exc_info=True)
         logger.debug("helius_tx_error", error=str(e)[:60])
     return []
-
 
 async def analyze_wallet_pnl(
     token_address: str,
@@ -272,7 +269,6 @@ async def analyze_wallet_pnl(
     )
 
     return result
-
 
 async def check_pumpfun_enhanced(
     token_address: str, chain: str = "solana"

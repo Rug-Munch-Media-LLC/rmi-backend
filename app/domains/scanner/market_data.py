@@ -4,6 +4,7 @@ Provides market data and preliminary security checks used by the scanner domain.
 All functions are async and use httpx for HTTP transport with proper timeouts.
 """
 
+from __future__ import annotations
 from typing import Any
 
 import httpx
@@ -12,7 +13,6 @@ from app.core.logging import get_logger
 from app.domains.scanner.models import SOLANA_RPC_ENDPOINTS
 
 logger = get_logger(__name__)
-
 
 async def _solana_get_mint_info(token_address: str) -> dict[str, Any]:
     """Get mint info from Solana RPC."""
@@ -50,7 +50,6 @@ async def _solana_get_mint_info(token_address: str) -> dict[str, Any]:
             logger.warning("solana_rpc_failed", url=rpc_url, error=str(e))
     return result
 
-
 async def _dexscreener_lookup(
     token_address: str, chain: str, client: httpx.AsyncClient
 ) -> list[Any] | None:
@@ -65,7 +64,6 @@ async def _dexscreener_lookup(
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("dexscreener_lookup_failed", token=token_address, chain=chain, error=str(e))
     return None
-
 
 async def fetch_market_data(token_address: str, chain: str) -> dict[str, Any]:
     """Fetch market data from DexScreener and Solana RPC."""
@@ -82,25 +80,21 @@ async def fetch_market_data(token_address: str, chain: str) -> dict[str, Any]:
 
     return result
 
-
 async def _simulate_trade(token_address: str, chain: str) -> dict[str, Any] | None:
     """Simulate a trade to check for honeypot/mint issues."""
     # Placeholder - actual simulation logic would be in simulation.py
     logger.info("simulate_trade_started", token=token_address, chain=chain)
     return None
 
-
 async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if token is a honeypot using IS platform."""
     logger.info("check_honeypot_is", token=token_address, chain=chain)
     return {"check": "honeypot_is", "result": "pending"}
 
-
 async def _check_chainpatrol_asset(asset_type: str, asset_id: str) -> dict[str, Any] | None:
     """Check asset on ChainPatrol."""
     logger.info("check_chainpatrol", type=asset_type, id=asset_id)
     return {"check": "chainpatrol", "result": "pending"}
-
 
 async def _check_defi_scanner(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check token on DeFi Scanner."""

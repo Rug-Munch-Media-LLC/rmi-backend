@@ -5,6 +5,7 @@ Chain aggregation module. Imports builder functions from each sub-module
 and composes them into the master build_provider_chains() function.
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.databus.provider_core import (
     ProviderChain,
@@ -23,7 +24,6 @@ from app.domains.databus._generated.chains.premium import build_premium_chains
 from app.domains.databus._generated.chains.rugcharts import build_rugcharts_chains
 
 logger = get_logger("databus.providers.chains")
-
 
 def build_provider_chains() -> dict[str, ProviderChain]:
     """Build all fallback chains for every data type.

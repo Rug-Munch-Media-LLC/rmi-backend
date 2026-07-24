@@ -3,6 +3,7 @@ Auto-generated DataBus chain pricing catalog (L-Z).
 liquidity_risk through whale_alerts — generated DataBus entries.
 """
 
+from __future__ import annotations
 X402_TOOL_PRICING_AUTOGEN_2 = {
     "liquidity_risk": {
         "price_usd": 0.01,

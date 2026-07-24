@@ -4,13 +4,13 @@ Admin Bot - Terminal Mode
 Terminal mode handlers: enter, handle messages, exit.
 """
 
+from __future__ import annotations
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot import admin_terminal
 from app.domains.telegram.adminbot.helpers import is_owner, main_menu_keyboard, owner_only
-
 
 @owner_only
 async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -34,7 +34,6 @@ async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             ]
         ),
     )
-
 
 async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle messages in terminal mode."""

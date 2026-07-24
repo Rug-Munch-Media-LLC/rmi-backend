@@ -10,4 +10,5 @@ Usage:
     from app.prediction_market_service import PredictionMarketService
 """
 
+from __future__ import annotations
 from app.domains.prediction.prediction_market_service import *  # noqa: F401, F403

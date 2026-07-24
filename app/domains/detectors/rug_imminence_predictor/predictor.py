@@ -1,5 +1,6 @@
 """Main Rug Imminence Predictor class."""
 
+from __future__ import annotations
 import asyncio
 import os
 import re
@@ -22,7 +23,6 @@ from app.domains.detectors.rug_imminence_predictor.config import (
 )
 
 logger = get_logger(__name__)
-
 
 class RugImminencePredictor:
     """Predicts imminent rug pulls by fusing 7 signal categories."""
@@ -765,11 +765,9 @@ class RugImminencePredictor:
         """Fetch holder count and concentration data."""
         return None  # Placeholder - would call holder API
 
-
 # ═══════════════════════════════════════════════════════════════
 
 _instance: RugImminencePredictor | None = None
-
 
 def get_predictor(weights: dict[str, float] | None = None) -> RugImminencePredictor:
     """Get or create the singleton predictor instance."""

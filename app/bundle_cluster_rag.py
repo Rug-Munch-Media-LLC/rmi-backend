@@ -17,6 +17,7 @@ Flow:
   ClusterDetector → finds clusters → embed cluster behavior → semantic label → store
   User queries → embed query → ANN search → return labeled clusters with evidence
 """
+from __future__ import annotations
 
 import hashlib
 import json
@@ -28,11 +29,9 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 # ══════════════════════════════════════════════════════════════════════
 # BUNDLE BEHAVIORAL EMBEDDER
 # ══════════════════════════════════════════════════════════════════════
-
 
 def embed_bundle_profile(bundle: dict[str, Any]) -> list[float]:
     """
@@ -175,11 +174,9 @@ def embed_bundle_profile(bundle: dict[str, Any]) -> list[float]:
 
     return vec.tolist()
 
-
 # ══════════════════════════════════════════════════════════════════════
 # CLUSTER BEHAVIORAL EMBEDDER
 # ══════════════════════════════════════════════════════════════════════
-
 
 def embed_cluster_profile(cluster: dict[str, Any]) -> list[float]:
     """
@@ -311,7 +308,6 @@ def embed_cluster_profile(cluster: dict[str, Any]) -> list[float]:
 
     return vec.tolist()
 
-
 # ══════════════════════════════════════════════════════════════════════
 # SEMANTIC LABELING
 # ══════════════════════════════════════════════════════════════════════
@@ -405,7 +401,6 @@ CLUSTER_LABEL_TEMPLATES = [
     },
 ]
 
-
 async def auto_label_cluster(
     cluster: dict[str, Any],
     cluster_vector: list[float],
@@ -479,11 +474,9 @@ Common tokens: {", ".join(cluster.get("common_tokens", [])[:5])}."""
         "cluster_size": cluster.get("size", 0),
     }
 
-
 # ══════════════════════════════════════════════════════════════════════
 # CLUSTER SIMILARITY SEARCH
 # ══════════════════════════════════════════════════════════════════════
-
 
 async def find_similar_clusters(
     target_cluster: dict[str, Any],
@@ -511,7 +504,6 @@ async def find_similar_clusters(
 
     return results
 
-
 async def find_similar_bundles(
     target_bundle: dict[str, Any],
     min_similarity: float = 0.6,
@@ -529,11 +521,9 @@ async def find_similar_bundles(
         min_similarity=min_similarity,
     )
 
-
 # ══════════════════════════════════════════════════════════════════════
 # NL → CLUSTER SEARCH
 # ══════════════════════════════════════════════════════════════════════
-
 
 async def search_clusters_by_description(
     query: str,
@@ -579,11 +569,9 @@ async def search_clusters_by_description(
 
     return results
 
-
 # ══════════════════════════════════════════════════════════════════════
 # FULL BUNDLE/CLUSTER → RAG PIPELINE
 # ══════════════════════════════════════════════════════════════════════
-
 
 async def index_bundle_detection(bundle: dict[str, Any]) -> str:
     """
@@ -624,7 +612,6 @@ Top3 holder %: {bundle.get("top3_holder_percent", 0):.1f}%"""
 
     logger.info(f"Indexed bundle {bundle_id} for token {token}")
     return bundle_id
-
 
 async def index_cluster_detection(cluster: dict[str, Any]) -> dict[str, Any]:
     """
@@ -682,11 +669,9 @@ All labels: {json.dumps(labels["all_labels"])}"""
         **labels,
     }
 
-
 # ══════════════════════════════════════════════════════════════════════
 # BULK BACKFILL
 # ══════════════════════════════════════════════════════════════════════
-
 
 async def backfill_label_templates() -> Any:
     """Index all cluster label templates into pgvector for auto-labeling."""

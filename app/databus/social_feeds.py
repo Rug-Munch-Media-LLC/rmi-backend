@@ -2,6 +2,7 @@
 RMI Mega News v2 - Add Reddit + Twitter/Nitter RSS feeds
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import logging
@@ -53,7 +54,6 @@ TWITTER_ACCOUNTS = [
     ("twitter-duneanalytics", "DuneAnalytics"),
 ]
 
-
 def fetch_reddit(db_r=None) -> Any:
     """Fetch Reddit RSS feeds. Returns list of articles."""
     results = []
@@ -96,7 +96,6 @@ def fetch_reddit(db_r=None) -> Any:
             logger.warning(f"  {source}: {str(e)[:60]}")
     return results
 
-
 def fetch_nitter(db_r=None) -> Any:
     """Fetch Twitter via Nitter RSS. Returns list of articles."""
     results = []
@@ -138,7 +137,6 @@ def fetch_nitter(db_r=None) -> Any:
                 pass  # Try next instance
     return results
 
-
 def merge_into_redis(articles, prefix="rmi:news") -> Any | int:
     """Merge social articles into existing Redis news index."""
     try:
@@ -164,7 +162,6 @@ def merge_into_redis(articles, prefix="rmi:news") -> Any | int:
     except (ConnectionError, OSError, TimeoutError) as e:
         logger.error(f"Redis merge failed: {e}")
         return 0
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [social] %(message)s")

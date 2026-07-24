@@ -63,7 +63,6 @@ except ImportError:
 
 _redis: Any = None
 
-
 async def get_redis() -> Any:
     global _redis
     if _redis is None and redis_async is not None:

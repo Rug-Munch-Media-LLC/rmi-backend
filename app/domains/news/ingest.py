@@ -42,12 +42,10 @@ DEFAULT_FEEDS: list[dict[str, str]] = [
     {"name": "beincrypto", "url": "https://beincrypto.com/feed/"},
 ]
 
-
 def _stable_id(source: str, url: str) -> str:
     """Stable news_id from source + URL."""
     h = hashlib.sha256(f"{source}:{url}".encode()).hexdigest()[:24]
     return f"{source}:{h}"
-
 
 def _detect_chains(text: str) -> list[str]:
     """Heuristic chain detection from text content."""
@@ -69,13 +67,11 @@ def _detect_chains(text: str) -> list[str]:
             chains.append(chain)
     return chains
 
-
 def _extract_tickers(text: str) -> list[str]:
     """Extract $TICKER style mentions."""
     import re
 
     return list(set(re.findall(r"\$([A-Z]{2,6})\b", text)))
-
 
 async def fetch_feed(client: httpx.AsyncClient, feed: dict[str, str]) -> list[dict]:
     """Fetch and parse a single RSS feed."""
@@ -99,7 +95,6 @@ async def fetch_feed(client: httpx.AsyncClient, feed: dict[str, str]) -> list[di
         logger.debug("fetch_feed_error", exc_info=True)
         log.warning("feed_fetch_fail name=%s err=%s", feed["name"], e)
         return []
-
 
 async def ingest_all(
     feeds: list[dict[str, str]] | None = None,
@@ -230,7 +225,6 @@ async def ingest_all(
             log.warning("ingest_rag_fail: %s", e)
 
     return counts
-
 
 # ── CLI entry point ──────────────────────────────────────────────
 if __name__ == "__main__":

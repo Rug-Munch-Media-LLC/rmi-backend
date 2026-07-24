@@ -7,6 +7,7 @@ Usage:
     from app.domains.detectors.mev_sandwich_detector import MEVSandwichDetector
     report = await detector.scan()
 """
+from __future__ import annotations
 from app.domains.detectors.mev_detector_package.detector import MEVSandwichDetector
 from app.domains.detectors.mev_detector_package.models import (
     MEVAttackType,

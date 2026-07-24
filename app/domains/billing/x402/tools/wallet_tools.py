@@ -33,11 +33,9 @@ from app.domains.billing.x402.shared import (
 
 sub_router = APIRouter(tags=["x402-wallet-tools"])
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 2: Wallet Profiler ($0.75)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _profile_wallet(address: str, chain: str) -> dict:
     """Full wallet profile with persona detection and activity analysis."""
@@ -129,7 +127,6 @@ async def _profile_wallet(address: str, chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/wallet")
 async def wallet_profiler(req: WalletRequest) -> dict[str, str]:
     """Full wallet analysis - persona, activity, holdings, patterns."""
@@ -146,11 +143,9 @@ async def wallet_profiler(req: WalletRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 3: Smart Money Tracker ($1.00)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
     """Track whale movements and smart money patterns."""
@@ -230,7 +225,6 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
 
     return result
 
-
 @sub_router.get("/smartmoney")
 async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0, limit: int = 20) -> dict[str, str]:
     """Real-time whale/insider tracking across chains."""
@@ -247,11 +241,9 @@ async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0,
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 7: Cluster Detection ($1.00)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _cluster_analysis(address: str, chain: str, depth: int) -> dict:
     """Map wallet clusters and funding chains."""
@@ -322,7 +314,6 @@ async def _cluster_analysis(address: str, chain: str, depth: int) -> dict:
 
     return result
 
-
 @sub_router.post("/cluster")
 async def cluster_detection(req: ClusterRequest) -> dict[str, str]:
     """Wallet cluster mapping - sybil detection, hidden networks."""
@@ -339,11 +330,9 @@ async def cluster_detection(req: ClusterRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 15: Whale Decoder ($0.15)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _whale_decoder(address: str, chain: str) -> dict:
     """Advanced whale wallet analysis."""
@@ -433,7 +422,6 @@ async def _whale_decoder(address: str, chain: str) -> dict:
 
     return result
 
-
 @sub_router.post("/whale")
 async def whale_decoder(req: GenericRequest) -> dict[str, str]:
     """Whale wallet decoder and analysis."""
@@ -451,11 +439,9 @@ async def whale_decoder(req: GenericRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 23: Portfolio Tracker ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
     """Multi-wallet portfolio tracker."""
@@ -489,7 +475,6 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
     result["total_wallets"] = len(result["wallets"])
     return result
 
-
 @sub_router.post("/portfolio_tracker")
 async def portfolio_tracker(req: WalletListRequest) -> dict[str, str]:
     """Multi-wallet portfolio tracker."""
@@ -506,11 +491,9 @@ async def portfolio_tracker(req: WalletListRequest) -> dict[str, str]:
     except (ValueError, TypeError, KeyError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 24: Copy Trade Finder ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _copy_trade_finder(chain: str) -> dict:
     """Find profitable wallets to copy trade."""
@@ -540,7 +523,6 @@ async def _copy_trade_finder(chain: str) -> dict:
     result["copy_trades"] = []
 
     return result
-
 
 @sub_router.post("/copy_trade_finder")
 async def copy_trade_finder(req: GenericRequest) -> dict[str, str]:

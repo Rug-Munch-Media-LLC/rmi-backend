@@ -4,6 +4,7 @@ Token Supply Analyzer — Main analysis orchestration, batch analysis, and CLI.
 Entry point for the full token supply analysis pipeline.
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import time
@@ -31,7 +32,6 @@ from app.token_supply_analyzer.analyzers import (
 )
 
 logger = get_logger("token_supply_analyzer")
-
 
 async def analyze_token_supply(token_address: str, chain: str = "") -> TokenSupplyProfile:
     """
@@ -76,7 +76,6 @@ async def analyze_token_supply(token_address: str, chain: str = "") -> TokenSupp
 
     return profile
 
-
 async def analyze_multiple_tokens(addresses: list[str], chain: str = "") -> list[TokenSupplyProfile]:
     """Analyze multiple tokens concurrently."""
     tasks = [analyze_token_supply(addr, chain) for addr in addresses]
@@ -86,7 +85,6 @@ async def analyze_multiple_tokens(addresses: list[str], chain: str = "") -> list
         if isinstance(r, TokenSupplyProfile):
             valid.append(r)
     return valid
-
 
 async def main() -> None:
     """Run supply analysis from command line."""
@@ -157,7 +155,6 @@ async def main() -> None:
         for r in profile.recommendations:
             logger.info(f"  {r}")
         logger.info()
-
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,5 +1,6 @@
 """Scam pattern detection and external security analysis."""
 
+from __future__ import annotations
 import json
 from typing import Any
 
@@ -12,7 +13,6 @@ from app.rag_service.cache import _get_redis
 from app.rag_service.indexing import _preembed_scam_patterns
 
 logger = get_logger(__name__)
-
 
 async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dict[str, Any]:
     """Compare a token against all known scam patterns."""
@@ -109,7 +109,6 @@ async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dic
         "highest_threat": deep_matches[0]["pattern"] if deep_matches else "none",
         "threat_severity": deep_matches[0]["severity"] if deep_matches else "low",
     }
-
 
 async def get_goplus_analysis(token_address: str, chain: str = "1") -> dict[str, Any]:
     """Run GoPlus Security API token risk check."""

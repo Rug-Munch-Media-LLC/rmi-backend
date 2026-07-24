@@ -2,6 +2,7 @@
 Prediction Market — Data Models
 Unified dataclasses across all prediction market sources.
 """
+from __future__ import annotations
 from dataclasses import dataclass, field
 
 SECURITY_KEYWORDS = [
@@ -19,7 +20,6 @@ CRYPTO_KEYWORDS = [
     "rollup","bridge","polygon","arbitrum","optimism","avalanche","fantom",
     "chainlink","makerdao","lido","eigenlayer",
 ]
-
 
 @dataclass
 class PredictionMarket:
@@ -46,7 +46,6 @@ class PredictionMarket:
         self.is_security_relevant = any(kw in q_lower for kw in SECURITY_KEYWORDS)
         self.is_crypto_relevant = any(kw in q_lower for kw in CRYPTO_KEYWORDS)
 
-
 @dataclass
 class PredictionDigest:
     """Daily intelligence digest of security-relevant prediction markets."""
@@ -58,7 +57,6 @@ class PredictionDigest:
     token_specific_markets: list[PredictionMarket] = field(default_factory=list)
     ecosystem_risk_markets: list[PredictionMarket] = field(default_factory=list)
     regulatory_markets: list[PredictionMarket] = field(default_factory=list)
-
 
 # Token extraction helpers
 _COMMON_TOKENS = {
@@ -78,7 +76,6 @@ _COMMON_PROJECTS = {
     "orca","wormhole","layerzero","zksync","starknet","scroll","linea",
     "base","mantle","mode","blast",
 }
-
 
 def extract_token_symbols(text: str) -> list[str]:
     """Extract known token symbols and project names from text."""

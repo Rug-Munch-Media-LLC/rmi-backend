@@ -5,6 +5,7 @@ funding source tracing, cross-chain correlation, cluster analysis,
 and elite institutional endpoints (Arkham, Nansen, portfolio).
 Mixed BASIC, PREMIUM, and ELITE tier pricing.
 """
+from __future__ import annotations
 from typing import Any
 
 from fastapi import Request
@@ -17,9 +18,7 @@ from app.routers.x402_databus_tools.router import router
 
 logger = get_logger("x402_databus_tools")
 
-
 # ── BASIC TIER — Wallet Tools ────────────────────────────────────
-
 
 @router.post("/wallet-balance")
 async def x402_wallet_balance(req: AddressRequest, request: Request) -> Any:
@@ -29,7 +28,6 @@ async def x402_wallet_balance(req: AddressRequest, request: Request) -> Any:
         "wallet_balance", address=req.address, consumer_type="x402_paid", x402_tier="basic"
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/wallet-labels")
 async def x402_wallet_labels(req: AddressRequest, request: Request) -> Any:
@@ -44,7 +42,6 @@ async def x402_wallet_labels(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/socialfi-resolve")
 async def x402_socialfi_resolve(req: AddressRequest, request: Request) -> Any:
     """Social identity resolver. $0.01/call."""
@@ -54,9 +51,7 @@ async def x402_socialfi_resolve(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 # ── PREMIUM TIER — Wallet Intelligence ───────────────────────────
-
 
 @router.post("/wallet-profile")
 async def x402_wallet_profile(req: AddressRequest, request: Request) -> Any:
@@ -72,7 +67,6 @@ async def x402_wallet_profile(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/smart-money")
 async def x402_smart_money(req: QueryRequest, request: Request) -> Any:
     """Smart money tracker. $0.05/call."""
@@ -81,7 +75,6 @@ async def x402_smart_money(req: QueryRequest, request: Request) -> Any:
         "smart_money", consumer_type="x402_paid", x402_tier="premium", **payment
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/funding-source")
 async def x402_funding_source(req: AddressRequest, request: Request) -> Any:
@@ -106,7 +99,6 @@ async def x402_funding_source(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/cross-chain")
 async def x402_cross_chain(req: AddressRequest, request: Request) -> Any:
     """Cross-chain correlator. $0.08/call."""
@@ -121,7 +113,6 @@ async def x402_cross_chain(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/wallet-cluster")
 async def x402_wallet_cluster(req: AddressRequest, request: Request) -> Any:
     """Syndicate network mapper. $0.08/call."""
@@ -134,7 +125,6 @@ async def x402_wallet_cluster(req: AddressRequest, request: Request) -> Any:
         **payment,
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/bundle-detect")
 async def x402_bundle_detect(req: AddressRequest, request: Request) -> Any:
@@ -150,7 +140,6 @@ async def x402_bundle_detect(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/wallet-tokens")
 async def x402_wallet_tokens(req: AddressRequest, request: Request) -> Any:
     """Wallet token holdings. $0.05/call."""
@@ -164,7 +153,6 @@ async def x402_wallet_tokens(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/wallet-pnl")
 async def x402_wallet_pnl(req: AddressRequest, request: Request) -> Any:
     """Wallet PnL tracker. $0.05/call."""
@@ -174,9 +162,7 @@ async def x402_wallet_pnl(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 # ── ELITE TIER — Institutional Forensics ($0.15-$0.40) ───────────
-
 
 @router.post("/arkham-portfolio")
 async def x402_arkham_portfolio(req: AddressRequest, request: Request) -> Any:
@@ -192,7 +178,6 @@ async def x402_arkham_portfolio(req: AddressRequest, request: Request) -> Any:
         **payment,
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/arkham-transfers")
 async def x402_arkham_transfers(req: AddressRequest, request: Request) -> Any:
@@ -210,7 +195,6 @@ async def x402_arkham_transfers(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
-
 @router.post("/nansen-labels")
 async def x402_nansen_labels(req: AddressRequest, request: Request) -> Any:
     """Nansen label intelligence. $0.15/call."""
@@ -223,7 +207,6 @@ async def x402_nansen_labels(req: AddressRequest, request: Request) -> Any:
         **payment,
     )
     return _clean_response(result) or {"error": "no_data"}
-
 
 @router.post("/portfolio")
 async def x402_portfolio(req: AddressRequest, request: Request) -> Any:

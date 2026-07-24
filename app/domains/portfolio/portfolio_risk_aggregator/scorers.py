@@ -1,4 +1,5 @@
 """Token risk scoring and pricing."""
+from __future__ import annotations
 import importlib
 from typing import Any
 from app.core.logging import get_logger
@@ -11,7 +12,6 @@ try:
     HTTPX_AVAILABLE = True
 except ImportError:
     HTTPX_AVAILABLE = False
-
 
 class TokenRiskScorer:
     def __init__(self) -> None:
@@ -60,7 +60,6 @@ class TokenRiskScorer:
                 if known_addr.lower() == addr_lower:
                     return {"risk_score": 90, "risk_flags": [], "reason": "Known token"}
         return {"risk_score": max(0, min(100, score)), "risk_flags": flags, "reason": "Heuristic"}
-
 
 class PriceOracle:
     def __init__(self) -> None:

@@ -31,10 +31,8 @@ PROXY_REQUIRED_FEEDS = {
     "https://blockanalytica.substack.com/feed",
 }
 
-
 def _get_proxy() -> str | None:
     return random.choice(PROXY_LIST) if PROXY_LIST else None
-
 
 # ─── CONFIG ───────────────────────────────────────────────────────
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY", "").strip()
@@ -43,7 +41,6 @@ GHOST_URL = os.getenv("GHOST_URL", "http://172.19.0.3:2368")
 GHOST_CONTENT_KEY = os.getenv("GHOST_CONTENT_API_KEY", "")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 REDDIT_USER_AGENT = "RMI-News-Aggregator/3.0"
-
 
 # ─── RSS FEEDS ────────────────────────────────────────────────────
 RSS_FEEDS = [
@@ -222,7 +219,6 @@ RSS_FEEDS = [
     ("https://blog.tenderly.co/feed", "Tenderly"),
 ]
 
-
 # ─── REDDIT ───────────────────────────────────────────────────────
 REDDIT_SUBREDDITS = [
     "CryptoCurrency", "CryptoMarkets", "ethdev", "CryptoTechnology",
@@ -231,7 +227,6 @@ REDDIT_SUBREDDITS = [
     "NFT", "web3", "layer2", "CryptoGaming", "CryptoCurrencyTrading",
     "SatoshiStreetBets", "Crypto_General",
 ]
-
 
 # ─── SENTIMENT KEYWORDS ──────────────────────────────────────────
 BULLISH_WORDS = [
@@ -250,7 +245,6 @@ BEARISH_WORDS = [
     "attack", "stolen", "breach", "warning", "alert", "risk", "volatile",
     "uncertainty", "fear",
 ]
-
 
 CATEGORY_KEYWORDS = {
     "security": ["hack", "exploit", "vulnerability", "audit", "scam", "rug", "drain",

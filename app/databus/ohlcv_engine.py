@@ -8,6 +8,7 @@ Stored in Redis sorted sets for O(log N) range queries.
 Wired into DataBus as 'ohlcv' chain.
 """
 
+from __future__ import annotations
 import json
 import os
 import time
@@ -44,7 +45,6 @@ CACHE_TTL = {
 
 MAX_CANDLES = 500  # Max candles returned per query
 
-
 def _redis() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
@@ -54,11 +54,9 @@ def _redis() -> Any:
         socket_connect_timeout=2,
     )
 
-
 def _frame_key(token: str, chain: str, timeframe: str) -> str:
     """Redis sorted set key for OHLCV candles."""
     return f"ohlcv:{chain}:{token}:{timeframe}"
-
 
 def _candle_cache_key(
     token: str, chain: str, timeframe: str, limit: int, end_ts: int | None = None
@@ -66,7 +64,6 @@ def _candle_cache_key(
     """Cache key for bulk candle queries."""
     end = end_ts or int(time.time())
     return f"ohlcv_cache:{chain}:{token}:{timeframe}:{limit}:{end}"
-
 
 class Candle:
     """Single OHLCV candle."""
@@ -114,7 +111,6 @@ class Candle:
             round(self.volume, 2),
             self.trades,
         ]
-
 
 class OHLCVEngine:
     """Real-time OHLCV candle builder and query engine."""
@@ -305,14 +301,11 @@ class OHLCVEngine:
             "max_candles_per_query": MAX_CANDLES,
         }
 
-
 # ── Singleton ──────────────────────────────────────────────────────
 
 ohlcv_engine = OHLCVEngine()
 
-
 # ── DataBus Provider ────────────────────────────────────────────────
-
 
 async def fetch_ohlcv(
     token: str = "", chain: str = "ethereum", timeframe: str = "1h", limit: int = 100, **kw
@@ -375,7 +368,6 @@ async def fetch_ohlcv(
         "chain": chain,
         "source": "ohlcv_engine",
     }
-
 
 async def ingest_trade_data(
     token: str = "",

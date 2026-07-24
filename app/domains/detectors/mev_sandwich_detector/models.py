@@ -1,10 +1,10 @@
 """Data models for MEV sandwich detection."""
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 import re
-
 
 class MEVAttackType(Enum):
     SANDWICH = "sandwich"
@@ -15,14 +15,12 @@ class MEVAttackType(Enum):
     JIT_LIQUIDITY = "jit_liquidity"
     UNKNOWN = "unknown"
 
-
 class MEVSeverity(Enum):
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
     INFO = "info"
-
 
 class PoolDexType(Enum):
     UNISWAP_V2 = "uniswap_v2"
@@ -34,7 +32,6 @@ class PoolDexType(Enum):
     AERODROME = "aerodrome"
     CAMELOT = "camelot"
     UNKNOWN = "unknown"
-
 
 @dataclass
 class PoolInfo:
@@ -60,7 +57,6 @@ class PoolInfo:
         if self.volume_24h_usd < 0:
             raise ValueError(f"Negative volume: {self.volume_24h_usd}")
 
-
 @dataclass
 class MEVTransaction:
     tx_hash: str
@@ -81,7 +77,6 @@ class MEVTransaction:
         if self.gas_used < 0: raise ValueError(f"Negative gas used: {self.gas_used}")
         if self.block_number < 0: raise ValueError(f"Negative block number: {self.block_number}")
         if self.tx_index < 0: raise ValueError(f"Negative tx index: {self.tx_index}")
-
 
 @dataclass
 class SandwichAttack:
@@ -130,7 +125,6 @@ class SandwichAttack:
             "backrun_tx": self.backrun_tx.tx_hash,
         }
 
-
 @dataclass
 class MEVBotProfile:
     address: str
@@ -147,7 +141,6 @@ class MEVBotProfile:
     def summary(self) -> str:
         types = ", ".join(t.value for t in self.attack_types[:3])
         return f"{self.name or self.address[:12]} ({self.chain}) | ${self.total_extracted_usd:.0f} extracted | {self.attacks_detected} attacks | {types}"
-
 
 @dataclass
 class MEVScanReport:

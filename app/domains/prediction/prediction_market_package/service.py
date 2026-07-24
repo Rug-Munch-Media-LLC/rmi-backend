@@ -2,6 +2,7 @@
 Prediction Market — Main Service
 Multi-source prediction market data aggregation with parallel fetching + caching.
 """
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -41,7 +42,6 @@ SECURITY_QUERIES = [
 ]
 
 SOURCE_NAMES = ["polymarket", "kalshi", "limitless", "manifold"]
-
 
 class PredictionMarketService:
     """Multi-source prediction market data with parallel fetching + caching."""
@@ -190,10 +190,8 @@ class PredictionMarketService:
             return await kalshi_source.detail(self._http, market_id)
         return None
 
-
 # Singleton
 _service: PredictionMarketService | None = None
-
 
 def get_prediction_market_service() -> PredictionMarketService:
     global _service

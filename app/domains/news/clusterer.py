@@ -30,10 +30,8 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 # ── Tokenization ────────────────────────────────────────────────────
 _TOKEN_RE = re.compile(r"[a-z0-9]{3,}", re.IGNORECASE)
-
 
 def _shingles(text: str, k: int = 3) -> set[str]:
     """k-shingle set of lowercased alphanumeric tokens. For Jaccard."""
@@ -44,11 +42,9 @@ def _shingles(text: str, k: int = 3) -> set[str]:
         return set(toks)
     return {" ".join(toks[i : i + k]) for i in range(len(toks) - k + 1)}
 
-
 # ── MinHash ─────────────────────────────────────────────────────────
 _NUM_PERM = 128
 _MAX_HASH = (1 << 32) - 1
-
 
 def _minhash_signature(shingles: set[str], seed: int = 42) -> list[int]:
     """128-permutation MinHash signature of a shingle set.
@@ -70,13 +66,11 @@ def _minhash_signature(shingles: set[str], seed: int = 42) -> list[int]:
         sig.append(m)
     return sig
 
-
 def _jaccard_minhash(a: list[int], b: list[int]) -> float:
     """Estimate Jaccard similarity from two MinHash signatures."""
     if not a or not b or len(a) != len(b):
         return 0.0
     return sum(1 for x, y in zip(a, b, strict=False) if x == y) / len(a)
-
 
 # ── DBSCAN (pure-python, no sklearn dep) ────────────────────────────
 def _dbscan(
@@ -124,7 +118,6 @@ def _dbscan(
         cluster_id += 1
     return labels
 
-
 # ── Domain types ────────────────────────────────────────────────────
 @dataclass
 class NewsItem:
@@ -158,7 +151,6 @@ class NewsItem:
             sentiment=float(row.get("sentiment", 0.0) or 0.0),
         )
 
-
 @dataclass
 class StoryCluster:
     """One deduplicated story spanning 1+ source items."""
@@ -185,7 +177,6 @@ class StoryCluster:
             "sentiment_avg": round(self.sentiment_avg, 3),
             "item_ids": self.item_ids,
         }
-
 
 # ── Main entry point ────────────────────────────────────────────────
 def cluster_items(
@@ -280,7 +271,6 @@ def cluster_items(
     )
     return stories
 
-
 # ── DB persistence (optional, lazy import) ──────────────────────────
 _PG_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS news_clusters (
@@ -298,7 +288,6 @@ CREATE TABLE IF NOT EXISTS news_clusters (
 CREATE INDEX IF NOT EXISTS news_clusters_last_updated_idx
   ON news_clusters (last_updated DESC);
 """
-
 
 async def ensure_schema() -> bool:
     """Create news_clusters table if missing. Returns True on success."""
@@ -318,7 +307,6 @@ async def ensure_schema() -> bool:
         logger.debug("ensure_schema_error", exc_info=True)
         logger.warning("news_clusters_schema_failed err=%s", exc)
         return False
-
 
 async def persist_clusters(stories: list[StoryCluster]) -> int:
     """Upsert stories to Postgres. Returns rows affected."""
@@ -373,7 +361,6 @@ async def persist_clusters(stories: list[StoryCluster]) -> int:
         logger.warning("news_clusters_persist_failed err=%s", exc)
         return 0
 
-
 async def load_recent_clusters(limit: int = 50) -> list[dict]:
     """Load recent clusters from Postgres."""
     try:
@@ -409,7 +396,6 @@ async def load_recent_clusters(limit: int = 50) -> list[dict]:
         logger.debug("load_recent_clusters_error", exc_info=True)
         logger.warning("news_clusters_load_failed err=%s", exc)
         return []
-
 
 __all__ = [
     "NewsItem",

@@ -4,6 +4,7 @@ RugMunchBot -- Callback query handler.
 
 Handles all inline keyboard button presses.
 """
+from __future__ import annotations
 
 import secrets
 
@@ -42,7 +43,6 @@ from app.domains.telegram.rugmunchbot.keyboards import (
 )
 
 logger = get_logger("rmi_bot")
-
 
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query

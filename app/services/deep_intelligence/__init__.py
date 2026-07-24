@@ -10,6 +10,7 @@ Social-Onchain Correlation + Composite Report.
 Backward-compatible re-export layer — imports from sub-modules.
 """
 
+from __future__ import annotations
 from typing import Any
 
 # Core infrastructure (safe — no side-effect imports)
@@ -52,7 +53,6 @@ async def full_deep_intel(*args: Any, **kwargs: Any) -> dict[str, Any]:
     """Composite deep intelligence report — lazily imported."""
     from app.services.deep_intelligence.processors.composite import full_deep_intel as _impl  # noqa: PLC0415
     return await _impl(*args, **kwargs)
-
 
 __all__ = [
     # Core

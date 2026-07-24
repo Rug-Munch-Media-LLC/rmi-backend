@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Admin Bot configuration — loaded from environment with a strict startup guard."""
+from __future__ import annotations
 
 import logging
 import os
@@ -7,7 +8,6 @@ import subprocess
 import sys
 
 logger = logging.getLogger(__name__)
-
 
 def _get_admin_token() -> str:
     """Fetch admin bot token from gopass at runtime, falling back to env var."""
@@ -26,7 +26,6 @@ def _get_admin_token() -> str:
     except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         pass
     return os.environ.get("ADMIN_BOT_TOKEN", "")
-
 
 ADMIN_BOT_TOKEN: str = _get_admin_token()
 ADMIN_CHAT_ID: int = int(os.environ.get("ADMIN_CHAT_ID", "0"))

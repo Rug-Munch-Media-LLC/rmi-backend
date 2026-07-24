@@ -8,6 +8,7 @@ Multi-Key Pools with Load Balancing. Split into:
   - sources:  BACKEND_SOURCES registry, list_all_sources, _summarize_all
 """
 
+from __future__ import annotations
 from .config import PROVIDER_REGISTRY, ProviderConfig
 from .keys import ApiKey, KeyPool, discover_keys
 from .manager import UnifiedApiManager, get_api_manager

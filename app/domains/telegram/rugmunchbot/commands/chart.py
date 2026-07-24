@@ -5,6 +5,7 @@ Generate text-based sparkline charts for any token using
 DexScreener market data with CoinGecko price history fallback.
 """
 
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
@@ -22,7 +23,6 @@ _SPARKLINE_CHARS = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
 
 # DexScreener chart URL template
 _DEXSCREENER_CHART_URL = "https://dexscreener.com/{chain}/{pair_address}"
-
 
 def _sparkline(prices: list[float], width: int = 8) -> str:
     """Map price points to unicode sparkline blocks.
@@ -43,7 +43,6 @@ def _sparkline(prices: list[float], width: int = 8) -> str:
     step = max(len(prices) // width, 1)
     sampled = [prices[min(i * step, len(prices) - 1)] for i in range(width)]
     return "".join(_SPARKLINE_CHARS[min(int((p - mn) / (mx - mn) * 7), 7)] for p in sampled)
-
 
 def _pseudo_sparkline(
     current_price: float,
@@ -79,7 +78,6 @@ def _pseudo_sparkline(
     points.append(current_price)
 
     return _sparkline(points, width=8)
-
 
 async def _fetch_cg_price_history(
     client: httpx.AsyncClient,
@@ -123,7 +121,6 @@ async def _fetch_cg_price_history(
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("CoinGecko price history failed: %s", exc)
         return None
-
 
 async def cmd_chart(update, ctx) -> None:
     """Handle /chart command — show price chart with sparkline."""
@@ -235,6 +232,5 @@ async def cmd_chart(update, ctx) -> None:
             parse_mode="HTML",
             disable_web_page_preview=True,
         )
-
 
 __all__ = ["cmd_chart"]

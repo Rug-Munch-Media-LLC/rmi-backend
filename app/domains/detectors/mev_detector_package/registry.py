@@ -2,6 +2,7 @@
 MEV Detector — Bot Registry
 Known MEV bots from public sources.
 """
+from __future__ import annotations
 from typing import Any
 
 from app.domains.detectors.mev_detector_package.models import MEVAttackType, MEVBotProfile
@@ -14,7 +15,6 @@ KNOWN_MEV_BOTS: dict[str, dict[str, Any]] = {
     "0x0000000000000a24dd410c9b6b2f5f5f4a5d1e3f": {"name": "BSC MEV Bot 1", "chain": "bsc", "tags": ["sandwich", "bsc"]},
     "0x00000000000001f4d12a5c4d0f3c2e3b4a5f6e7d": {"name": "Arbitrum Searcher", "chain": "arbitrum", "tags": ["arbitrage", "backrun"]},
 }
-
 
 def build_bot_profile(addr: str, info: dict) -> MEVBotProfile:
     """Build an MEVBotProfile from a registry entry."""

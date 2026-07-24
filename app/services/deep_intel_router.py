@@ -1,6 +1,5 @@
 """Deep Intelligence Router - 12 Unaccounted Features API
 
-
 Endpoints for:
 1. Deployer Reputation Score
 2. Pre-flight Transaction Simulator
@@ -45,9 +44,7 @@ router = APIRouter(prefix="/api/v1/deep-intel", tags=["deep-intelligence"])
 
 SUPPORTED_CHAINS = ["sol", "eth", "bsc", "base", "arb", "polygon", "avax"]
 
-
 # ── Health ──────────────────────────────────────────────────────────────────
-
 
 @router.get("/health")
 async def health() -> dict[str, str]:
@@ -71,9 +68,7 @@ async def health() -> dict[str, str]:
         ],
     }
 
-
 # ── 1. Deployer Reputation Score ──────────────────────────────────────
-
 
 @router.get("/deployer/{address}")
 async def api_deployer_reputation(
@@ -88,9 +83,7 @@ async def api_deployer_reputation(
         logger.error(f"Deployer reputation error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 2. Pre-flight Transaction Simulator ────────────────────────────────
-
 
 @router.get("/preflight/{token_address}")
 async def api_preflight_simulate(
@@ -107,9 +100,7 @@ async def api_preflight_simulate(
         logger.error(f"Preflight simulation error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 3. Liquidity Lock Authenticity ────────────────────────────────────
-
 
 @router.get("/liquidity-lock/{token_address}")
 async def api_liquidity_lock(
@@ -124,9 +115,7 @@ async def api_liquidity_lock(
         logger.error(f"Liquidity lock error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 4. Volume Authenticity Engine ──────────────────────────────────────
-
 
 @router.get("/volume-authenticity/{token_address}")
 async def api_volume_authenticity(
@@ -141,9 +130,7 @@ async def api_volume_authenticity(
         logger.error(f"Volume authenticity error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 5. Slow Rug Detector ──────────────────────────────────────────────
-
 
 @router.get("/slow-rug/{token_address}")
 async def api_slow_rug_detector(
@@ -158,9 +145,7 @@ async def api_slow_rug_detector(
         logger.error(f"Slow rug detector error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 6. Funding Source Tracer ──────────────────────────────────────────
-
 
 @router.get("/funding-source/{address}")
 async def api_funding_source(
@@ -175,9 +160,7 @@ async def api_funding_source(
         logger.error(f"Funding source error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 7. Ownership Theater Detector ─────────────────────────────────────
-
 
 @router.get("/ownership-theater/{token_address}")
 async def api_ownership_theater(
@@ -192,9 +175,7 @@ async def api_ownership_theater(
         logger.error(f"Ownership theater error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 8. Exit Liquidity Calculator ──────────────────────────────────────
-
 
 @router.get("/exit-liquidity/{token_address}")
 async def api_exit_liquidity(
@@ -210,9 +191,7 @@ async def api_exit_liquidity(
         logger.error(f"Exit liquidity error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 9. Token Lifespan Predictor ────────────────────────────────────────
-
 
 @router.get("/lifespan/{token_address}")
 async def api_lifespan_predictor(
@@ -227,9 +206,7 @@ async def api_lifespan_predictor(
         logger.error(f"Lifespan predictor error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 10. Post-Purchase Monitor ─────────────────────────────────────────
-
 
 @router.get("/post-purchase/{token_address}")
 async def api_post_purchase_monitor(
@@ -244,9 +221,7 @@ async def api_post_purchase_monitor(
         logger.error(f"Post purchase monitor error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 11. Cross-Chain Identity Resolution ────────────────────────────────
-
 
 @router.get("/cross-chain/{address}")
 async def api_cross_chain_identity(
@@ -261,9 +236,7 @@ async def api_cross_chain_identity(
         logger.error(f"Cross-chain identity error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── 12. Social-Onchain Correlation ─────────────────────────────────────
-
 
 @router.get("/social-correlation/{token_address}")
 async def api_social_onchain_correlation(
@@ -278,9 +251,7 @@ async def api_social_onchain_correlation(
         logger.error(f"Social correlation error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── COMPOSITE: Full Deep Intelligence Report ────────────────────────────
-
 
 @router.get("/full-report/{token_address}")
 async def api_full_report(
@@ -296,9 +267,7 @@ async def api_full_report(
         logger.error(f"Full deep intel error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ── Batch: Multiple tokens at once ────────────────────────────────────
-
 
 @router.post("/batch-report")
 async def api_batch_report(

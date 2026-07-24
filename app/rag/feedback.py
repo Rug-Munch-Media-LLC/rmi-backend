@@ -33,9 +33,7 @@ FEEDBACK_TTL = 86400 * 30  # 30 days
 FEEDBACK_COUNTS_KEY = "rag:feedback:counts"
 FEEDBACK_PREFIX = "rag:feedback:"
 
-
 # ── Public API ────────────────────────────────────────────────────────────
-
 
 async def record_feedback(
     query_id: str,
@@ -100,7 +98,6 @@ async def record_feedback(
         logger.warning("feedback_store_failed", error=str(exc)[:80])
         return {"status": "error", "error": str(exc), "recorded": False}
 
-
 async def get_feedback(query_id: str) -> dict[str, Any] | None:
     """Retrieve a single feedback record by query_id.
 
@@ -119,7 +116,6 @@ async def get_feedback(query_id: str) -> dict[str, Any] | None:
     except (ConnectionError, OSError, TimeoutError, json.JSONDecodeError) as exc:
         logger.debug("feedback_get_failed", error=str(exc)[:60])
     return None
-
 
 async def get_feedback_counts() -> dict[str, int]:
     """Get aggregate feedback counts.
@@ -149,7 +145,6 @@ async def get_feedback_counts() -> dict[str, int]:
     except (ConnectionError, OSError, TimeoutError) as exc:
         logger.debug("feedback_counts_failed", error=str(exc)[:60])
         return {"total": 0, "helpful": 0, "unhelpful": 0, "helpfulness_ratio": 0.0}
-
 
 async def get_recent_feedback(limit: int = 20) -> list[dict[str, Any]]:
     """Get the most recent feedback records (best-effort, no ordering guarantee).
@@ -186,9 +181,7 @@ async def get_recent_feedback(limit: int = 20) -> list[dict[str, Any]]:
         logger.debug("recent_feedback_failed", error=str(exc)[:60])
         return []
 
-
 # ── Implicit feedback helpers ─────────────────────────────────────────────
-
 
 async def record_implicit_helpful(query_id: str) -> dict[str, Any]:
     """Record that a user implicitly found a RAG result helpful.
@@ -203,7 +196,6 @@ async def record_implicit_helpful(query_id: str) -> dict[str, Any]:
         metadata={"implicit": True},
     )
 
-
 async def record_implicit_unhelpful(query_id: str) -> dict[str, Any]:
     """Record that a user implicitly dismissed a RAG result.
 
@@ -216,7 +208,6 @@ async def record_implicit_unhelpful(query_id: str) -> dict[str, Any]:
         source="implicit_dismiss",
         metadata={"implicit": True},
     )
-
 
 __all__ = [
     "record_feedback",

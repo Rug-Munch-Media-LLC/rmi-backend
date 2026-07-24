@@ -4,10 +4,10 @@ This module provides a singleton httpx.AsyncClient that should be used
 for all external API calls to avoid connection pool fragmentation.
 """
 
+from __future__ import annotations
 import httpx
 
 _client: httpx.AsyncClient | None = None
-
 
 async def get_http_client() -> httpx.AsyncClient:
     """Get the shared httpx.AsyncClient instance.
@@ -26,7 +26,6 @@ async def get_http_client() -> httpx.AsyncClient:
         )
     return _client
 
-
 async def close_http_client() -> None:
     """Close the shared httpx.AsyncClient.
 
@@ -36,7 +35,6 @@ async def close_http_client() -> None:
     if _client is not None:
         await _client.aclose()
         _client = None
-
 
 # Re-export for convenience
 from httpx import Limits, Response, Timeout  # noqa: E402

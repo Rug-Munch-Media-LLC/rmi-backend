@@ -10,6 +10,7 @@ Real-time on-chain intelligence from Nansen:
 Auth: API key passed as ?api_key=KEY query parameter.
 """
 
+from __future__ import annotations
 import os
 from typing import Any
 
@@ -30,7 +31,6 @@ _nansen_cb = SimpleCircuitBreaker(
     recovery_timeout=30.0,
 )
 
-
 # ─── NANSEN API CONFIGURATION ─────────────────────────────────────
 
 NANSEN_BASE = "https://api.nansen.ai"
@@ -40,7 +40,6 @@ ENDPOINTS = {
     "smart_money": "/v2/smart-money",
     "wallet_activity": "/v2/wallet/{address}/activity",
 }
-
 
 def _load_api_key() -> str:
     """Load Nansen API key from secrets file or environment."""
@@ -59,9 +58,7 @@ def _load_api_key() -> str:
     logger.warning("Nansen API key not found - requests will fail without auth")
     return ""
 
-
 # ─── NANSEN CLIENT ────────────────────────────────────────────────
-
 
 class NansenClient:
     """Client for Nansen REST API v2."""
@@ -163,11 +160,9 @@ class NansenClient:
         path = ENDPOINTS["wallet_activity"].format(address=address)
         return self._get(path)
 
-
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _client: NansenClient | None = None
-
 
 def get_nansen_client() -> NansenClient:
     """Get or create the Nansen client singleton."""
@@ -176,19 +171,15 @@ def get_nansen_client() -> NansenClient:
         _client = NansenClient()
     return _client
 
-
 # ─── CONVENIENCE FUNCTIONS ────────────────────────────────────────
-
 
 def get_wallet_labels(address: str) -> dict[str, Any] | None:
     """Return on-chain labels for *address*."""
     return get_nansen_client().get_wallet_labels(address)
 
-
 def get_smart_money() -> list[dict[str, Any]] | None:
     """Return the current smart-money wallet list."""
     return get_nansen_client().get_smart_money()
-
 
 def get_wallet_activity(address: str) -> dict[str, Any] | None:
     """Return labelled transaction history for *address*."""

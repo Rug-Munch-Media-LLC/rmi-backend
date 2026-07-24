@@ -1,12 +1,12 @@
 """Tron blockchain provider - free TronGrid API, no key needed."""
 
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 TRONGRID = "https://api.trongrid.io"
-
 
 async def tron_balance(address: str) -> dict | None:
     """Get TRX balance + TRC20 tokens for an address."""
@@ -43,7 +43,6 @@ async def tron_balance(address: str) -> dict | None:
     except Exception as e:
         logger.warning(f"Tron balance failed: {e}")
     return None
-
 
 async def tron_transactions(address: str, limit: int = 10) -> dict | None:
     """Get recent transactions for an address."""

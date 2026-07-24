@@ -1,5 +1,6 @@
 """DataBus Router sub-module. Bitquery endpoints."""
 
+from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, Request
 from typing import Any
 from app.core.logging import get_logger

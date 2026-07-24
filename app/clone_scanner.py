@@ -31,6 +31,7 @@ Usage:
     print(report.clone_score, report.risk_label)
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import re
@@ -125,14 +126,12 @@ WELL_KNOWN_TOKENS: dict[str, tuple[str, str]] = {
     "Bonk": ("BONK", "solana"),
 }
 
-
 class CloneRisk(Enum):
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
     NONE = "none"
-
 
 SUPPORTED_CHAINS = [
     "ethereum",
@@ -150,9 +149,7 @@ SUPPORTED_CHAINS = [
     "solana",
 ]
 
-
 # ── Data Models ───────────────────────────────────────────────────
-
 
 @dataclass
 class SimilarToken:
@@ -170,7 +167,6 @@ class SimilarToken:
     @property
     def overall_similarity(self) -> float:
         return max(self.name_similarity, self.symbol_similarity)
-
 
 @dataclass
 class CloneReport:
@@ -251,9 +247,7 @@ class CloneReport:
             f"{flag_str}"
         )
 
-
 # ── Helper: String similarity ─────────────────────────────────────
-
 
 def string_similarity(a: str, b: str) -> float:
     """Fuzzy string similarity (0-1) using SequenceMatcher.
@@ -267,7 +261,6 @@ def string_similarity(a: str, b: str) -> float:
     if len(a) > 200 or len(b) > 200:
         a, b = a[:200], b[:200]
     return SequenceMatcher(None, a, b).ratio()
-
 
 def name_similarity_score(name: str, target_name: str) -> float:
     """Score name similarity considering common clone patterns."""
@@ -302,9 +295,7 @@ def name_similarity_score(name: str, target_name: str) -> float:
 
     return min(base, 1.0)
 
-
 # ── Core Scanner ──────────────────────────────────────────────────
-
 
 class CloneScanner:
     """Main scanner for token clone detection."""
@@ -764,9 +755,7 @@ class CloneScanner:
                 matches.append(kw)
         return matches
 
-
 # ── Module-level helpers ──────────────────────────────────────────
-
 
 async def scan_token(address: str, chain: str) -> CloneReport:
     """Convenience function - create scanner, scan, close."""
@@ -775,7 +764,6 @@ async def scan_token(address: str, chain: str) -> CloneReport:
         return await scanner.scan(address, chain)
     finally:
         await scanner.close()
-
 
 async def fast_check(address: str, chain: str) -> dict[str, Any]:
     """Convenience function for fast check."""

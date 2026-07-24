@@ -12,6 +12,7 @@ Integrations:
 - Pump.fun: new meme launches
 """
 
+from __future__ import annotations
 import os
 from datetime import UTC, datetime, timedelta
 
@@ -45,7 +46,6 @@ KOL_DATABASE = {
 }
 
 # ── Meme Token Intelligence ────────────────────────────────────
-
 
 async def get_meme_trending(limit: int = 50) -> list[dict]:
     """Get trending meme tokens across chains."""
@@ -91,7 +91,6 @@ async def get_meme_trending(limit: int = 50) -> list[dict]:
 
     return memes[:limit]
 
-
 async def get_smart_money_in_memes(limit: int = 20) -> list[dict]:
     """Track known smart money wallets trading memes."""
     from supabase import create_client
@@ -118,7 +117,6 @@ async def get_smart_money_in_memes(limit: int = 20) -> list[dict]:
     )
 
     return result.data or []
-
 
 async def get_meme_wins_losses(period: str = "24h") -> dict:
     """Get biggest wins and losses in meme tokens."""
@@ -164,7 +162,6 @@ async def get_meme_wins_losses(period: str = "24h") -> dict:
         "losses": losses.data or [],
     }
 
-
 def classify_meme_category(symbol: str, name: str) -> str:
     """Classify meme token into category."""
     text = f"{symbol} {name}".lower()
@@ -175,9 +172,7 @@ def classify_meme_category(symbol: str, name: str) -> str:
 
     return "other"
 
-
 # ── KOL Intelligence ──────────────────────────────────────────
-
 
 async def get_kol_scorecard(kol_handle: str) -> dict | None:
     """Get KOL scorecard with track record."""
@@ -227,7 +222,6 @@ async def get_kol_scorecard(kol_handle: str) -> dict | None:
         "recent_calls": calls.data[:10] if calls.data else [],
     }
 
-
 async def get_top_kols_by_category(category: str = "memes", limit: int = 20) -> list[dict]:
     """Get top KOLs by category with scorecards."""
     from supabase import create_client
@@ -246,9 +240,7 @@ async def get_top_kols_by_category(category: str = "memes", limit: int = 20) -> 
 
     return result.data or []
 
-
 # ── Social Monitoring ─────────────────────────────────────────
-
 
 async def monitor_social_sentiment(token_address: str) -> dict:
     """Monitor social sentiment for a token."""
@@ -271,7 +263,6 @@ async def monitor_social_sentiment(token_address: str) -> dict:
     except (AttributeError, ImportError):
         return {"error": "LunarCrush not available"}
 
-
 async def get_viral_crypto_posts(hours: int = 24) -> list[dict]:
     """Get viral crypto posts from X/Twitter."""
     from supabase import create_client
@@ -291,9 +282,7 @@ async def get_viral_crypto_posts(hours: int = 24) -> list[dict]:
 
     return result.data or []
 
-
 # ── Hack/Drain Alerts ────────────────────────────────────────
-
 
 async def get_recent_hacks_drains(hours: int = 24) -> list[dict]:
     """Get recent hacks and drains from monitoring."""
@@ -314,7 +303,6 @@ async def get_recent_hacks_drains(hours: int = 24) -> list[dict]:
     )
 
     return result.data or []
-
 
 async def format_hack_alert_for_social(hack_data: dict) -> dict:
     """Format hack alert for X/Telegram posting."""
@@ -343,9 +331,7 @@ Stay safe out there! 🔒""",
         "amount_usd": hack_data.get("amount_usd", 0),
     }
 
-
 # ── Wallet Screenshot Generation ──────────────────────────────
-
 
 async def generate_wallet_screenshot(wallet_address: str, pnl_data: dict) -> str:
     """Generate wallet PnL screenshot for sharing."""
@@ -362,9 +348,7 @@ async def generate_wallet_screenshot(wallet_address: str, pnl_data: dict) -> str
         "share_url": f"https://rugmunch.io/wallet/{wallet_address}",
     }
 
-
 # ── Content Generation ────────────────────────────────────────
-
 
 async def generate_marketing_content(content_type: str, data: dict) -> dict:
     """Generate marketing content using AI."""

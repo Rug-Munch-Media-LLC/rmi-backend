@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-
 class AlertBroadcaster:
     """Thin wrapper that knows how to push an AlertEvent to live clients."""
 

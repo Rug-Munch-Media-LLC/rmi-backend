@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-
 async def query_internal(address: str, chain: str = "ethereum") -> list[Label]:
     """Query internal labels database.
 

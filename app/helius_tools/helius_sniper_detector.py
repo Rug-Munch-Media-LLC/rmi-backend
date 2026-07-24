@@ -11,6 +11,7 @@ Key metrics:
 - Position sizing analysis
 - Jito bundle detection
 """
+from __future__ import annotations
 
 import os
 from collections import defaultdict
@@ -40,7 +41,6 @@ SNIPER_THRESHOLDS = {
     "max_launch_block_gap": 3,  # Within 3 blocks of launch
 }
 
-
 @dataclass
 class SniperWallet:
     address: str
@@ -52,7 +52,6 @@ class SniperWallet:
     funding_source: str | None
     is_jito_bundle: bool
     similarity_score: float  # 0-1 how similar to other snipers
-
 
 @dataclass
 class SniperReport:
@@ -72,7 +71,6 @@ class SniperReport:
     insider_probability: float  # 0-100
     risk_verdict: str
     evidence: list[str]
-
 
 class SniperDetector:
     """Detects coordinated sniping on Solana token launches."""

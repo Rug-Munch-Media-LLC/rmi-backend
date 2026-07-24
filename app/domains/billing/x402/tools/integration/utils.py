@@ -16,7 +16,6 @@ from .models import CHAIN_SUFFIXES, NETWORKS
 
 # ── Catalog & Format Converters ────────────────────────────────
 
-
 async def build_tools_from_catalog() -> list[dict[str, Any]]:
     """Build tool list from TOOL_PRICES (source of truth for all 201+ tools)."""
     from app.routers.x402_enforcement import TOOL_PRICES
@@ -41,14 +40,12 @@ async def build_tools_from_catalog() -> list[dict[str, Any]]:
         )
     return tools
 
-
 def _tool_desc(t: dict) -> str:
     """Build tool description string with price and trial info."""
     return (
         f"{t['description']} - ${t['price_usd']:.2f}/call, "
         f"{t['trial_free']} free trial(s). Category: {t['category']}."
     )
-
 
 def format_openai_tool(t: dict) -> dict:
     """Format a single tool for OpenAI function calling."""
@@ -75,7 +72,6 @@ def format_openai_tool(t: dict) -> dict:
         },
     }
 
-
 def format_langchain_tool(t: dict) -> dict:
     """Format a single tool for LangChain."""
     return {
@@ -96,7 +92,6 @@ def format_langchain_tool(t: dict) -> dict:
         "endpoint": f"/api/v1/x402-tools/{t['id']}",
         "method": "POST",
     }
-
 
 def format_anthropic_tool(t: dict) -> dict:
     """Format a single tool for Anthropic Claude API."""
@@ -120,7 +115,6 @@ def format_anthropic_tool(t: dict) -> dict:
         },
     }
 
-
 def format_gemini_tool(t: dict) -> dict:
     """Format a single tool for Google Gemini function calling."""
     return {
@@ -142,7 +136,6 @@ def format_gemini_tool(t: dict) -> dict:
         },
     }
 
-
 def build_framework_base(tools: list, format_key: str, **extra: Any) -> dict:
     """Build the shared response envelope for framework-format endpoints."""
     return {
@@ -157,9 +150,7 @@ def build_framework_base(tools: list, format_key: str, **extra: Any) -> dict:
         **extra,
     }
 
-
 # ── Rate Limiting ──────────────────────────────────────────────
-
 
 async def check_rate_limit(request: Request) -> bool:
     """Simple IP-based rate limiter: 60 req/min per IP, 300 req/5min per IP.
@@ -188,9 +179,7 @@ async def check_rate_limit(request: Request) -> bool:
     except (ConnectionError, TimeoutError, OSError):
         return True  # Fail open — allow request if Redis is down
 
-
 # ── Payment Recording ──────────────────────────────────────────
-
 
 async def record_payment(tool_id: str, price_usd: str, payer: str) -> None:
     """Surface for super-tool endpoints (comprehensive audit, etc.).
@@ -198,7 +187,6 @@ async def record_payment(tool_id: str, price_usd: str, payer: str) -> None:
     from app.domains.billing.x402.shared import record_x402_payment
 
     await record_x402_payment(tool_id, price_usd, payer)
-
 
 async def verify_onchain_direct(
     tx_hash: str,
@@ -256,9 +244,7 @@ async def verify_onchain_direct(
                     return result.get("status") == "1"
                 return str(data.get("status")) == "1"
 
-
 # ── Super-Tool Parallel Call Helper ────────────────────────────
-
 
 async def run_super_tool_batch(
     endpoints: dict[str, str],
@@ -279,9 +265,7 @@ async def run_super_tool_batch(
     results = await asyncio.gather(*tasks)
     return dict(results)
 
-
 # ── Bundle Execution Helper ─────────────────────────────────────
-
 
 async def execute_bundle_tasks(
     tasks: dict[str, str],
@@ -306,9 +290,7 @@ async def execute_bundle_tasks(
                 results[name] = {"error": str(e)}
     return results
 
-
 # ── Tool Alias Resolution ──────────────────────────────────────
-
 
 def resolve_tool_alias(tool_id: str) -> tuple[str | None, str | None]:
     """Resolve a tool ID to its alias target and optional injected chain.
@@ -344,9 +326,7 @@ def resolve_tool_alias(tool_id: str) -> tuple[str | None, str | None]:
 
     return target, injected_chain
 
-
 # ── Wallet Intelligence Enrichment ─────────────────────────────
-
 
 async def enrich_response(
     tool_id: str,

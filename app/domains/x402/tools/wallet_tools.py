@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 async def get_wallet_analysis(wallet_address: str, chain: str = "solana") -> dict[str, Any]:
     """Get wallet behavior analysis."""
     return {
@@ -15,7 +14,6 @@ async def get_wallet_analysis(wallet_address: str, chain: str = "solana") -> dic
         "risk_score": 50,
     }
 
-
 async def get_wallet_history(wallet_address: str, chain: str = "solana") -> dict[str, Any]:
     """Get wallet transaction history."""
     return {
@@ -24,7 +22,6 @@ async def get_wallet_history(wallet_address: str, chain: str = "solana") -> dict
         "transactions": [],
         "total_count": 0,
     }
-
 
 async def wallet_profiler(wallet_address: str, chain: str = "solana") -> dict[str, Any]:
     """Profile a wallet."""

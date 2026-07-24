@@ -23,15 +23,12 @@ from app.rag.engine import bulk_ingest as engine_bulk_ingest, get_stats as engin
 
 router = APIRouter(prefix="/api/v1/rag/v2", tags=["rag"])
 
-
 def _service() -> RAGService:
     return RAGService()
-
 
 class BulkIngestRequest(BaseModel):
     collection: str = "scam_intel"
     items: list[dict[str, Any]] = Field(default_factory=list)
-
 
 @router.post("/search", response_model=SearchResponse)
 async def search(
@@ -41,7 +38,6 @@ async def search(
     """RAG search. Returns Pydantic response with hits + scores."""
     return await svc.search(req)
 
-
 @router.post("/ingest", response_model=IngestResult)
 async def ingest(
     req: IngestRequest,
@@ -49,7 +45,6 @@ async def ingest(
 ) -> IngestResult:
     """Ingest a document into the RAG system."""
     return await svc.ingest(req)
-
 
 @router.post("/feedback", response_model=IngestResult)
 async def feedback(
@@ -64,12 +59,10 @@ async def feedback(
         status="ok" if ok else "failed",
     )
 
-
 @router.get("/stats")
 async def stats() -> dict:
     """Per-collection vector counts + active embedder backend."""
     return engine_get_stats()
-
 
 @router.post("/bulk-ingest")
 async def bulk(req: BulkIngestRequest) -> dict:

@@ -4,7 +4,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-
 @dataclass
 class WalletTx:
     hash: str
@@ -31,7 +30,6 @@ class WalletTx:
             "dex_swap": self.dex_swap, "token_transfers": self.token_transfers,
         }
 
-
 @dataclass
 class WalletAlert:
     alert_type: str
@@ -52,7 +50,6 @@ class WalletAlert:
             "timestamp": self.timestamp or datetime.now(UTC).isoformat(),
         }
 
-
 @dataclass
 class BurstSignal:
     wallet: str
@@ -68,7 +65,6 @@ class BurstSignal:
             "tx_count": self.tx_count, "window_seconds": self.window_seconds,
             "severity": self.severity, "timestamp": self.timestamp,
         }
-
 
 @dataclass
 class LabelSuggestion:

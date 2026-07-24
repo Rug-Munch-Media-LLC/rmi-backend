@@ -2,6 +2,7 @@
 Chain config and risk factor data models.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -22,7 +23,6 @@ CHAINS = {
     "scroll": {"id": "534352", "explorer": "https://scrollscan.com"},
     "mantle": {"id": "5000", "explorer": "https://mantlescan.xyz"},
 }
-
 
 @dataclass
 class WalletRiskFactors:

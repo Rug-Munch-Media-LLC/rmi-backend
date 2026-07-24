@@ -9,7 +9,6 @@ import httpx
 
 from app.domains.wallet.monitor.config import CONFIG, get_redis
 
-
 class AlertChannel:
     """Distributes alerts to Redis pub/sub and optional webhook callbacks."""
 

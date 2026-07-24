@@ -1,6 +1,7 @@
 """Cerebras provider - GPT-OSS-120B, fastest inference on Earth (9ms).
 Free tier: 14,400 req/day, 1M tokens/day."""
 
+from __future__ import annotations
 import os
 
 import httpx
@@ -10,7 +11,6 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 CEREBRAS_KEY = os.getenv("CEREBRAS_API_KEY", "")
 BASE = "https://api.cerebras.ai/v1"
-
 
 async def cerebras_chat(
     prompt: str, system: str | None = None, temperature: float = 0.7, max_tokens: int = 1024

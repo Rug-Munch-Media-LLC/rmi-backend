@@ -9,6 +9,7 @@ and social signal correlation.
 Premium feature: "4 tokens detected from same entity - coordinated rug campaign"
 """
 
+from __future__ import annotations
 import asyncio
 import hashlib
 from collections import defaultdict
@@ -22,7 +23,6 @@ logger = get_logger("sentinel.campaign")
 # In-memory recent scan cache (should be Redis-backed in production)
 _recent_scans: dict[str, dict[str, Any]] = {}  # "chain:address" → scan metadata
 MAX_RECENT = 500  # Keep last 500 scans for campaign detection
-
 
 @dataclass
 class CampaignCluster:
@@ -39,7 +39,6 @@ class CampaignCluster:
     first_detected: str | None = None
     description: str = ""
 
-
 def record_scan(chain: str, address: str, metadata: dict[str, Any]) -> None:
     """Record a scan for campaign correlation."""
     key = f"{chain}:{address.lower()}"
@@ -54,7 +53,6 @@ def record_scan(chain: str, address: str, metadata: dict[str, Any]) -> None:
     if len(_recent_scans) > MAX_RECENT:
         oldest = min(_recent_scans.keys(), key=lambda k: _recent_scans[k].get("_recorded_at", 0))
         del _recent_scans[oldest]
-
 
 def detect_campaigns(min_cluster_size: int = 3) -> list[CampaignCluster]:
     """Analyze recent scans for coordinated campaigns.
@@ -150,7 +148,6 @@ def detect_campaigns(min_cluster_size: int = 3) -> list[CampaignCluster]:
 
     return sorted(campaigns, key=lambda c: -len(c.tokens))
 
-
 def _extract_deployer_entity(scan: dict) -> str | None:
     """Extract deployer entity ID from scan metadata."""
     free = scan.get("free", scan)
@@ -160,13 +157,11 @@ def _extract_deployer_entity(scan: dict) -> str | None:
     entity_id = deployer.get("entity_id") or deep.get("entity_id") or deployer.get("address")
     return entity_id
 
-
 def _extract_funding_source(scan: dict) -> str | None:
     """Extract funding source from scan metadata."""
     free = scan.get("free", scan)
     funding = free.get("funding_source") or free.get("deep_deployer", {}).get("funding_source")
     return funding
-
 
 def _contract_similarity(scan_a: dict, scan_b: dict) -> float:
     """Estimate contract similarity between two scans."""
@@ -189,7 +184,6 @@ def _contract_similarity(scan_a: dict, scan_b: dict) -> float:
             return len(intersection) / len(union)
 
     return 0.0
-
 
 def _cluster_similar(pairs: list[tuple]) -> list[list]:
     """Union-find clustering of similar contract pairs."""
@@ -221,7 +215,6 @@ def _cluster_similar(pairs: list[tuple]) -> list[list]:
 
     return list(clusters.values())
 
-
 def _token_summary(scan: dict) -> dict[str, Any]:
     """Create a concise token summary for campaign display."""
     return {
@@ -237,7 +230,6 @@ def _token_summary(scan: dict) -> dict[str, Any]:
         if isinstance(scan.get("free", {}).get("holders"), dict)
         else 0,
     }
-
 
 def get_active_campaigns() -> dict[str, Any]:
     """Get all currently detected campaigns."""

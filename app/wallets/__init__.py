@@ -10,6 +10,7 @@ Split into:
   - factory:         WalletFactory class, singleton, get_wallet_factory
 """
 
+from __future__ import annotations
 from .chain_registry import SUPPORTED_CHAINS, ChainConfig, ChainFamily
 from .crypto import _has_cryptography, decrypt_key, encrypt_key
 from .factory import WalletFactory, _factory, get_wallet_factory

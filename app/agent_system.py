@@ -24,6 +24,7 @@ Specialists:
   general         → Agent MUNCH default operative
 """
 
+from __future__ import annotations
 import contextlib
 import hashlib
 import json
@@ -39,7 +40,6 @@ logger = get_logger("agent.system")
 # AGENT DEFINITIONS
 # ═══════════════════════════════════════════════════════════
 
-
 @dataclass
 class AgentDef:
     id: str
@@ -54,7 +54,6 @@ class AgentDef:
     color: str = "#8B5CF6"  # UI color
     output_format: str = "standard"  # standard, evidence_chain, threat_rating
     databus_context: list[str] = field(default_factory=list)  # DataBus chains to inject
-
 
 MUNCH_BASE = """You are Agent MUNCH, a crypto intelligence operative for Rug Munch Intelligence.
 You are NOT a generic AI assistant. You are a highly trained specialist operative.
@@ -351,7 +350,6 @@ ROUTES = {
     ],
 }
 
-
 def classify(msg: str) -> str:
     m = msg.lower()
     for agent_id, keywords in ROUTES.items():
@@ -359,11 +357,9 @@ def classify(msg: str) -> str:
             return agent_id
     return "general"
 
-
 # ═══════════════════════════════════════════════════════════
 # RAG CONTEXT INJECTION
 # ═══════════════════════════════════════════════════════════
-
 
 async def fetch_databus_context(chains: list[str]) -> str:
     """Fetch real data from DataBus and format as context for the LLM."""
@@ -400,11 +396,9 @@ async def fetch_databus_context(chains: list[str]) -> str:
         )
     return ""
 
-
 # ═══════════════════════════════════════════════════════════
 # SMART CACHING
 # ═══════════════════════════════════════════════════════════
-
 
 async def check_cache(msg: str, agent_id: str) -> str | None:
     """Check Redis for previously answered similar questions."""
@@ -428,7 +422,6 @@ async def check_cache(msg: str, agent_id: str) -> str | None:
         pass
     return None
 
-
 async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600) -> None:
     """Store response in Redis cache. TTL defaults to 1 hour."""
     try:
@@ -448,11 +441,9 @@ async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600) -
     except (ConnectionError, OSError):
         pass
 
-
 # ═══════════════════════════════════════════════════════════
 # STREAMING ROUTER
 # ═══════════════════════════════════════════════════════════
-
 
 async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict, None]:
     """Route to specialist agent, inject RAG context, stream response.
@@ -625,7 +616,6 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
         "text": "All providers unavailable (Gemini rate-limited, OpenRouter failed)",
     }
     yield {"type": "done"}
-
 
 def agents_list() -> list:
     return [

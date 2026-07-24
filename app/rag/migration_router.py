@@ -1,7 +1,7 @@
 """Feature-flag router: legacy RAG vs LlamaIndex, per-collection rollout."""
 
+from __future__ import annotations
 import os
-
 
 def use_llama_rag(collection: str = "default") -> bool:
     """Check if LlamaIndex should be used for this collection."""

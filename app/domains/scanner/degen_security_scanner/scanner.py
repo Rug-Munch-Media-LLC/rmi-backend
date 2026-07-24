@@ -4,6 +4,7 @@ Degen Security Scanner — Main Scanner Engine
 DegenSecurityScanner class with all detection phases.
 """
 
+from __future__ import annotations
 import asyncio
 import logging
 import statistics
@@ -28,7 +29,6 @@ from .models import (
 
 logging.basicConfig(level=logging.INFO)
 logger = get_logger(__name__)
-
 
 class DegenSecurityScanner:
     """

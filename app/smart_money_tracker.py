@@ -28,6 +28,7 @@ Usage:
         print(move.summary())
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import logging
@@ -46,7 +47,6 @@ logger = get_logger(__name__)
 # Enums & Types
 # ═══════════════════════════════════════════════════════════════
 
-
 class WalletCategory(Enum):
     """Classification of smart money wallets."""
 
@@ -61,14 +61,12 @@ class WalletCategory(Enum):
     SUSPECTED_INSIDER = "suspected_insider"  # Suspicious inside trader
     UNKNOWN = "unknown"
 
-
 def safe_wallet_category(value: str) -> WalletCategory:
     """Safely convert a string to WalletCategory, falling back to UNKNOWN."""
     try:
         return WalletCategory(value)
     except (ValueError, AttributeError):
         return WalletCategory.UNKNOWN
-
 
 class MoveDirection(Enum):
     """Direction of a wallet's position change."""
@@ -80,7 +78,6 @@ class MoveDirection(Enum):
     TRANSFER = "transfer"  # Moved tokens (could be wallet rotation)
     INTERACT = "interact"  # Contract interaction (stake, vote, etc.)
 
-
 class ImpactLevel(Enum):
     """How impactful a detected move is."""
 
@@ -90,11 +87,9 @@ class ImpactLevel(Enum):
     LOW = "low"  # Small move or low-confidence wallet
     INFO = "info"  # Informational, no strong signal
 
-
 # ═══════════════════════════════════════════════════════════════
 # Data Models
 # ═══════════════════════════════════════════════════════════════
-
 
 @dataclass
 class SmartWallet:
@@ -128,7 +123,6 @@ class SmartWallet:
         }.get(self.category, "❓")
         addr_short = f"{self.address[:6]}...{self.address[-4:]}"
         return f"{cat_icon} **{self.label}** ({addr_short}) | {self.chain} | ${self.total_value_usd:,.0f} | Rep: {self.reputation_score:.0f}/100"
-
 
 @dataclass
 class DetectedMove:
@@ -173,7 +167,6 @@ class DetectedMove:
             f"Safety: {self.token_safety_score:.0f}/100 | "
             f"{self.context}"
         )
-
 
 @dataclass
 class FlowReport:
@@ -222,11 +215,9 @@ class FlowReport:
             lines.append(f"### {i}. {move.summary()}")
         return "\n".join(lines)
 
-
 # ═══════════════════════════════════════════════════════════════
 # Core Tracker
 # ═══════════════════════════════════════════════════════════════
-
 
 class SmartMoneyTracker:
     """
@@ -862,11 +853,9 @@ class SmartMoneyTracker:
         report = await self.scan(lookback_minutes=60, max_wallets=20)
         return report.summary()
 
-
 # ═══════════════════════════════════════════════════════════════
 # Convenience entry point
 # ═══════════════════════════════════════════════════════════════
-
 
 async def run_smart_money_scan(lookback_minutes: int = 60, chains: list[str] | None = None) -> str:
     """
@@ -883,7 +872,6 @@ async def run_smart_money_scan(lookback_minutes: int = 60, chains: list[str] | N
         max_wallets=30,
     )
     return report.summary()
-
 
 if __name__ == "__main__":
     """CLI entry point for testing."""

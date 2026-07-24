@@ -5,6 +5,7 @@ Orchestrates all detection methods, manages wallet/transaction/connection state,
 and provides the main API for cluster analysis.
 """
 
+from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -31,7 +32,6 @@ from app.domains.wallet.clustering.visualization import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 class WalletClusteringEngine:
     """
@@ -144,10 +144,8 @@ class WalletClusteringEngine:
             return None
         return get_cluster_report(cluster, self.wallets, self.connections)
 
-
 # Global engine instance
 _clustering_engine = None
-
 
 def get_clustering_engine() -> WalletClusteringEngine:
     """Get global clustering engine instance."""
@@ -155,7 +153,6 @@ def get_clustering_engine() -> WalletClusteringEngine:
     if _clustering_engine is None:
         _clustering_engine = WalletClusteringEngine()
     return _clustering_engine
-
 
 if __name__ == "__main__":
     logger.info("=" * 70)
@@ -176,6 +173,5 @@ if __name__ == "__main__":
     logger.info("  - Line thickness = Connection strength")
     logger.info("  - Interactive depth control")
     logger.info("\n" + "=" * 70)
-
 
 __all__ = ["WalletClusteringEngine", "get_clustering_engine"]

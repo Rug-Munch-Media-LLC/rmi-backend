@@ -6,6 +6,7 @@ R2 free tier: 10GB storage, 10M Class A ops/month, zero egress.
 Uses CF REST API with Bearer token - no S3 credentials needed.
 """
 
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime, timedelta
@@ -32,10 +33,8 @@ EMBEDDING_VERSION = os.getenv("EMBEDDING_MODEL_VERSION", "v1")
 
 LOCAL_CACHE.mkdir(parents=True, exist_ok=True)
 
-
 def _headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {R2_API_TOKEN}", "Content-Type": "application/json"}
-
 
 # ═══════════════════════════════════════════════════════════════
 # R2 REST API OPERATIONS
@@ -61,7 +60,6 @@ async def _r2_put(key: str, data: bytes, content_type: str = "application/json")
             logger.error(f"R2 PUT {key}: {e}")
             return False
 
-
 async def _r2_get(key: str) -> bytes | None:
     """Download an object from R2 via REST API."""
     if not R2_API_TOKEN:
@@ -76,7 +74,6 @@ async def _r2_get(key: str) -> bytes | None:
         except Exception as e:
             logger.error(f"R2 GET {key}: {e}")
             return None
-
 
 async def _r2_list(prefix: str = "") -> list:
     """List objects in R2 bucket."""
@@ -96,7 +93,6 @@ async def _r2_list(prefix: str = "") -> list:
             logger.error(f"R2 LIST: {e}")
             return []
 
-
 async def _r2_delete(key: str) -> bool:
     """Delete an object from R2."""
     if not R2_API_TOKEN:
@@ -109,7 +105,6 @@ async def _r2_delete(key: str) -> bool:
         except Exception as e:
             logger.error(f"R2 DELETE {key}: {e}")
             return False
-
 
 # ═══════════════════════════════════════════════════════════════
 # RAG PERSISTENCE OPERATIONS
@@ -239,7 +234,6 @@ async def snapshot_all() -> Any:
 
     return results
 
-
 async def restore_all() -> Any | dict[str, str]:
     """Restore all RAG collections from latest R2 snapshots."""
     # Get collections and Redis connection
@@ -310,7 +304,6 @@ async def restore_all() -> Any | dict[str, str]:
 
     return results
 
-
 async def nightly_cycle() -> dict[str, dict]:
     """Full nightly cycle: snapshot to R2, clean local cache."""
     snap = await snapshot_all()
@@ -334,7 +327,6 @@ async def nightly_cycle() -> dict[str, dict]:
         "collections_total": total,
         "local_cache_cleaned": cleaned,
     }
-
 
 async def r2_stats() -> dict[str, dict]:
     """Get R2 usage + local cache stats."""

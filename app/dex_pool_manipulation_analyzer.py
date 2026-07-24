@@ -22,6 +22,7 @@ Tier: Premium ($0.10)
 Endpoint: POST /api/v1/x402-tools/dex_pool_manipulation
 """
 
+from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, field
@@ -31,7 +32,6 @@ from typing import Any
 from app.core.logging import get_logger
 from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE, is_valid_address
 
-
 logger = get_logger("dex_pool_manipulation_analyzer")
 
 # ── Constants ──────────────────────────────────────────────────
@@ -39,7 +39,6 @@ logger = get_logger("dex_pool_manipulation_analyzer")
 BASIS_POINTS_DENOM = 10000
 
 # ── Risk signal definitions ────────────────────────────────────
-
 
 class RiskCategory(Enum):
     LIQUIDITY_CONCENTRATION = "liquidity_concentration"
@@ -49,7 +48,6 @@ class RiskCategory(Enum):
     PRICE_MANIPULATION = "price_manipulation"
     MEV_EXPOSURE = "mev_exposure"
     FEE_TIER_ABUSE = "fee_tier_abuse"
-
 
 RISK_WEIGHTS = {
     RiskCategory.LIQUIDITY_CONCENTRATION: 25,
@@ -63,9 +61,7 @@ RISK_WEIGHTS = {
 
 MAX_RISK_SCORE = sum(RISK_WEIGHTS.values())  # 140
 
-
 # ── Data models ─────────────────────────────────────────────────
-
 
 @dataclass
 class PoolConfig:
@@ -87,7 +83,6 @@ class PoolConfig:
     owner: str = ""
     created_at: int = 0
 
-
 @dataclass
 class Position:
     """A concentrated liquidity position."""
@@ -97,7 +92,6 @@ class Position:
     tick_upper: int
     liquidity: int
     usd_value: float = 0.0
-
 
 @dataclass
 class SwapEvent:
@@ -112,7 +106,6 @@ class SwapEvent:
     price_after: float
     price_impact_pct: float = 0.0
 
-
 @dataclass
 class RiskSignal:
     """A single risk signal with evidence."""
@@ -121,7 +114,6 @@ class RiskSignal:
     severity: float  # 0.0 - 1.0
     description: str
     evidence: list[str] = field(default_factory=list)
-
 
 @dataclass
 class PoolRiskReport:
@@ -139,13 +131,11 @@ class PoolRiskReport:
     recommendations: list[str] = field(default_factory=list)
     analysis_time_ms: int = 0
 
-
 # ── Address validation ──────────────────────────────────────────
 
 # ═══════════════════════════════════════════════════════════════
 # Core Analyzer
 # ═══════════════════════════════════════════════════════════════
-
 
 class DEXPoolManipulationAnalyzer:
     """Analyze a DEX pool for manipulation signals."""
@@ -784,11 +774,9 @@ class DEXPoolManipulationAnalyzer:
 
         return recs
 
-
 # ═══════════════════════════════════════════════════════════════
 # Report formatting
 # ═══════════════════════════════════════════════════════════════
-
 
 def format_risk_report(report: PoolRiskReport) -> dict[str, Any]:
     """Convert report to API-friendly dict."""
@@ -823,7 +811,6 @@ def format_risk_report(report: PoolRiskReport) -> dict[str, Any]:
         "fee_tier_bps": report.pool.fee_tier,
         "analysis_time_ms": report.analysis_time_ms,
     }
-
 
 def _risk_level(score: float) -> str:
     if score >= 70:

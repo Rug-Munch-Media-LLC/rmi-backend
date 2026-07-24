@@ -2,6 +2,7 @@
 Portfolio Risk — Token Risk Scorer
 Scores tokens using heuristics or the unified scanner when available.
 """
+from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
@@ -10,7 +11,6 @@ from app.domains.portfolio.portfolio_risk_package.constants import COMMON_TOKENS
 logger = get_logger(__name__)
 
 KNOWN_SCAM_TOKENS: set[str] = set()
-
 
 class TokenRiskScorer:
     def __init__(self) -> None:

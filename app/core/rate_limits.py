@@ -34,18 +34,15 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # TIERS
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 class Tier(StrEnum):
     """Usage tiers with increasing rate limits."""
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TIER LIMITS — per-user daily/minute quotas
@@ -92,7 +89,6 @@ TIER_LIMITS: dict[Tier, dict[str, int | float | list[str]]] = {
 
 DEFAULT_TIER = Tier.FREE
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # CATEGORY LIMITS — per-endpoint-category rate limits (token-bucket)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -112,7 +108,6 @@ CATEGORY_LIMITS: dict[str, tuple[int, float]] = {
     "protection":(60,   0.25),   # 60/min,    burst 15
     "default":   (60,   0.25),   # 60/min,    burst 15
 }
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PATH → CATEGORY MAPPING
@@ -179,7 +174,6 @@ PATH_CATEGORIES: dict[str, str] = {
     "/api/v1/_test": "admin",
 }
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # ENDPOINT OVERRIDES — specific routes that differ from category defaults
 # ═══════════════════════════════════════════════════════════════════════════
@@ -191,7 +185,6 @@ class EndpointOverride:
     requests_per_minute: int
     burst: int
     reason: str  # Why this override exists
-
 
 ENDPOINT_OVERRIDES: list[EndpointOverride] = [
     # Heavy scan endpoints — lower rate to protect upstream APIs
@@ -217,7 +210,6 @@ ENDPOINT_OVERRIDES: list[EndpointOverride] = [
     ),
 ]
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # x402 CONFIG — paid calls bypass rate limits
 # ═══════════════════════════════════════════════════════════════════════════
@@ -228,11 +220,9 @@ X402_VERIFY_URL = os.getenv(
     "http://localhost:8000/api/v1/x402/verify",
 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # RESOLVERS
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 def resolve_category(path: str) -> str:
     """Resolve a request path to a rate limit category.
@@ -248,7 +238,6 @@ def resolve_category(path: str) -> str:
             return category
     return "default"
 
-
 def resolve_category_limit(category: str) -> tuple[int, int]:
     """Resolve (requests_per_minute, burst) for a category.
 
@@ -261,7 +250,6 @@ def resolve_category_limit(category: str) -> tuple[int, int]:
     rpm, burst_factor = CATEGORY_LIMITS["default"]
     burst = max(1, int(rpm * burst_factor))
     return rpm, burst
-
 
 def resolve_path_limit(path: str) -> tuple[int, int]:
     """Resolve (requests_per_minute, burst) for a full request path.
@@ -276,7 +264,6 @@ def resolve_path_limit(path: str) -> tuple[int, int]:
     # Fall back to category
     category = resolve_category(path)
     return resolve_category_limit(category)
-
 
 def resolve_tier_limit(tier: Tier, path: str) -> dict[str, Any]:
     """Resolve the effective rate limit for a (tier, path) combination.
@@ -303,7 +290,6 @@ def resolve_tier_limit(tier: Tier, path: str) -> dict[str, Any]:
         "features": list(tier_config["features"]),
         "price_monthly_usd": tier_config["price_monthly_usd"],
     }
-
 
 def is_x402_endpoint(path: str) -> bool:
     """Check if a path is an x402 payment endpoint (bypasses rate limits)."""

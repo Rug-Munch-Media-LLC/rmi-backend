@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 async def generate_report(
     subject_type: str, subject_id: str, model: str = "deepseek-v3"
 ) -> dict[str, Any]:
@@ -18,7 +17,6 @@ async def generate_report(
         "markdown": "# Pending Report\n\n[Report generation pending]",
     }
 
-
 async def get_report(report_id: str) -> dict[str, Any]:
     """Get a previously generated report."""
     return {
@@ -26,7 +24,6 @@ async def get_report(report_id: str) -> dict[str, Any]:
         "status": "pending",
         "result": {},
     }
-
 
 async def social_sentiment(token: str, chain: str = "solana") -> dict[str, Any]:
     """Get social sentiment analysis."""
@@ -37,7 +34,6 @@ async def social_sentiment(token: str, chain: str = "solana") -> dict[str, Any]:
         "mentions": 0,
     }
 
-
 async def cluster_detection(wallet_address: str, chain: str = "solana") -> dict[str, Any]:
     """Run cluster detection."""
     return {
@@ -45,7 +41,6 @@ async def cluster_detection(wallet_address: str, chain: str = "solana") -> dict[
         "chain": chain,
         "clusters": [],
     }
-
 
 async def insider_tracker(creator: str, chain: str = "solana") -> dict[str, Any]:
     """Track insider activity."""
@@ -55,14 +50,12 @@ async def insider_tracker(creator: str, chain: str = "solana") -> dict[str, Any]
         "insider_activity": [],
     }
 
-
 async def twitter_profile(query: str) -> dict[str, Any]:
     """Get Twitter profile."""
     return {
         "query": query,
         "profile": {},
     }
-
 
 async def twitter_timeline(query: str) -> dict[str, Any]:
     """Get Twitter timeline."""
@@ -71,14 +64,12 @@ async def twitter_timeline(query: str) -> dict[str, Any]:
         "tweets": [],
     }
 
-
 async def twitter_search(query: str) -> dict[str, Any]:
     """Search Twitter."""
     return {
         "query": query,
         "results": [],
     }
-
 
 async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[str, Any]:
     """Get launch radar."""
@@ -88,7 +79,6 @@ async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[s
         "launches": [],
     }
 
-
 async def launch_intel(chain: str = "solana", hours: int = 24) -> dict[str, Any]:
     """Get launch intelligence."""
     return {
@@ -96,7 +86,6 @@ async def launch_intel(chain: str = "solana", hours: int = 24) -> dict[str, Any]
         "hours": hours,
         "launches": [],
     }
-
 
 async def token_pulse(token_address: str, chain: str = "solana") -> dict[str, Any]:
     """Get token pulse."""
@@ -106,14 +95,12 @@ async def token_pulse(token_address: str, chain: str = "solana") -> dict[str, An
         "pulse": "pending",
     }
 
-
 async def anomaly_detector(chain: str = "solana") -> dict[str, Any]:
     """Run anomaly detection."""
     return {
         "chain": chain,
         "anomalies": [],
     }
-
 
 async def whale_decoder(address: str, chain: str = "solana") -> dict[str, Any]:
     """Decode whale activity."""
@@ -123,14 +110,12 @@ async def whale_decoder(address: str, chain: str = "solana") -> dict[str, Any]:
         "whale_activity": [],
     }
 
-
 async def chain_health(chain: str = "solana") -> dict[str, Any]:
     """Check chain health."""
     return {
         "chain": chain,
         "health": "pending",
     }
-
 
 async def portfolio_tracker(addresses: list[str], chain: str = "solana") -> dict[str, Any]:
     """Track portfolio."""
@@ -140,14 +125,12 @@ async def portfolio_tracker(addresses: list[str], chain: str = "solana") -> dict
         "portfolio": [],
     }
 
-
 async def copy_trade_finder(chain: str = "solana") -> dict[str, Any]:
     """Find copy trade opportunities."""
     return {
         "chain": chain,
         "opportunities": [],
     }
-
 
 async def risk_monitor(address: str, chain: str = "solana") -> dict[str, Any]:
     """Monitor risk."""
@@ -157,14 +140,12 @@ async def risk_monitor(address: str, chain: str = "solana") -> dict[str, Any]:
         "risk_level": "pending",
     }
 
-
 async def defi_yield_scanner(chain: str = "solana") -> dict[str, Any]:
     """Scan DeFi yield opportunities."""
     return {
         "chain": chain,
         "opportunities": [],
     }
-
 
 async def nft_wash_detector(collection: str) -> dict[str, Any]:
     """Detect NFT wash trading."""
@@ -173,13 +154,11 @@ async def nft_wash_detector(collection: str) -> dict[str, Any]:
         "wash_trading": False,
     }
 
-
 async def bridge_security() -> dict[str, Any]:
     """Check bridge security."""
     return {
         "bridge_security": "pending",
     }
-
 
 async def gas_forecast(chain: str = "solana") -> dict[str, Any]:
     """Forecast gas prices."""
@@ -187,7 +166,6 @@ async def gas_forecast(chain: str = "solana") -> dict[str, Any]:
         "chain": chain,
         "gas_forecast": "pending",
     }
-
 
 async def sniper_alert(chain: str = "solana", hours: int = 24) -> dict[str, Any]:
     """Get sniper alerts."""
@@ -197,7 +175,6 @@ async def sniper_alert(chain: str = "solana", hours: int = 24) -> dict[str, Any]
         "sniper_alerts": [],
     }
 
-
 async def liquidity_flow(address: str, chain: str = "solana") -> dict[str, Any]:
     """Track liquidity flow."""
     return {
@@ -206,7 +183,6 @@ async def liquidity_flow(address: str, chain: str = "solana") -> dict[str, Any]:
         "liquidity_flow": [],
     }
 
-
 async def rug_pull_predictor(address: str, chain: str = "solana") -> dict[str, Any]:
     """Predict rug pull risk."""
     return {
@@ -214,7 +190,6 @@ async def rug_pull_predictor(address: str, chain: str = "solana") -> dict[str, A
         "chain": chain,
         "risk_score": 50,
     }
-
 
 async def airdrop_finder(chain: str = "solana") -> dict[str, Any]:
     """Find airdrop opportunities."""

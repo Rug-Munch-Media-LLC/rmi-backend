@@ -4,9 +4,9 @@ Bubble map data models — nodes, links, and map container.
 All dataclasses for the interactive wallet visualization engine.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-
 
 def _format_timestamp(ts: int | float | datetime | None) -> str | None:
     """Format a timestamp to ISO string, handling both numeric and datetime types."""
@@ -17,7 +17,6 @@ def _format_timestamp(ts: int | float | datetime | None) -> str | None:
     if isinstance(ts, datetime):
         return ts.isoformat()
     return str(ts)
-
 
 @dataclass
 class BubbleNode:
@@ -69,7 +68,6 @@ class BubbleNode:
             "tags": self.tags,
         }
 
-
 @dataclass
 class BubbleLink:
     """A link between nodes."""
@@ -101,7 +99,6 @@ class BubbleLink:
             "volume": self.total_volume,
             "transactions": self.transaction_count,
         }
-
 
 @dataclass
 class BubbleMap:

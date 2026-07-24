@@ -78,9 +78,7 @@ FREE_APIS: dict[str, str] = {
     "pumpfun": "https://frontend-api.pump.fun",
 }
 
-
 # ── Fallback HTTP Request System ────────────────────────────────
-
 
 async def fetch_with_fallback(
     urls: list[str],
@@ -120,7 +118,6 @@ async def fetch_with_fallback(
                 continue
     return None, None
 
-
 async def rpc_call(chain: str, method: str, params: list[Any]) -> Any:
     """Make JSON-RPC call to blockchain with fallback RPCs."""
     rpcs = FREE_RPCS.get(chain, FREE_RPCS.get("solana"))
@@ -140,45 +137,36 @@ async def rpc_call(chain: str, method: str, params: list[Any]) -> Any:
                 continue
     return None
 
-
 # ── Request Models ──────────────────────────────────────────────
-
 
 class TokenRequest(BaseModel):
     address: str
     chain: str = "solana"
 
-
 class WalletRequest(BaseModel):
     address: str
     chain: str = "solana"
-
 
 class SmartMoneyRequest(BaseModel):
     chain: str = "solana"
     threshold: float = 10000.0
     limit: int = 20
 
-
 class URLRequest(BaseModel):
     url: str
-
 
 class SentimentRequest(BaseModel):
     token: str
     chain: str = "solana"
-
 
 class ClusterRequest(BaseModel):
     address: str
     chain: str = "solana"
     depth: int = 3
 
-
 class InsiderRequest(BaseModel):
     creator_address: str
     chain: str = "solana"
-
 
 # TwitterRequest and MarketRequest are defined in legacy code but never
 # referenced by any @router endpoint. Surfaced here for traceability.
@@ -188,21 +176,17 @@ class TwitterRequest(BaseModel):  # pragma: no cover — legacy, unused
     handle: str | None = None
     tweet_id: str | None = None
 
-
 class MultiTokenRequest(BaseModel):
     addresses: list[str]
     chain: str = "solana"
-
 
 class WalletListRequest(BaseModel):
     addresses: list[str]
     chain: str = "solana"
 
-
 class MarketRequest(BaseModel):  # pragma: no cover — legacy, unused
     chain: str = "all"
     hours: int = 24
-
 
 class GenericRequest(BaseModel):
     address: str | None = None
@@ -213,9 +197,7 @@ class GenericRequest(BaseModel):
     threshold: float = 10000.0
     limit: int = 20
 
-
 # ── Helpers ─────────────────────────────────────────────────────
-
 
 async def _audit_solana(address: str) -> dict[str, Any]:
     """Full audit for Solana tokens with 5-layer fallback."""
@@ -345,7 +327,6 @@ async def _audit_solana(address: str) -> dict[str, Any]:
     result["source_count"] = len(result["sources_used"])
     return result
 
-
 async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
     """Full audit for EVM tokens (Base, ETH, BSC)."""
     result = {"chain": chain, "address": address, "sources_used": []}
@@ -442,7 +423,6 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
     result["findings"] = findings
     return result
 
-
 # ── Helper: Record x402 Payment ────────────────────────────────
 # Pre-existing bug surface: this name was referenced (via # noqa: F821)
 # in 77+ places across x402_tools.py but never defined. The legacy module
@@ -465,9 +445,7 @@ async def record_x402_payment(tool_id: str, price_usd: str, payer: str) -> None:
         payer,
     )
 
-
 # ── Bundle Pricing (Phase 3A surface) ──────────────────────────
-
 
 BUNDLES: dict[str, dict[str, Any]] = {
     "security_pack": {
@@ -512,9 +490,7 @@ BUNDLES: dict[str, dict[str, Any]] = {
     },
 }
 
-
 # ── Tool aliases (catch-all dispatcher source) ─────────────────
-
 
 TOOL_ALIASES: dict[str, str] = {
     # Security
@@ -566,7 +542,6 @@ try:
     TOOL_ALIASES.update(EXPANDED_ALIASES)
 except (AttributeError, ImportError):
     pass
-
 
 # ── Human Payment - Multi-Chain Wallet Pay-Per-Call ────────────
 
@@ -703,7 +678,6 @@ HUMAN_PAYMENT_TOKENS: dict[str, dict[str, Any]] = {
     },
 }
 
-
 # Pay-to addresses - pulled dynamically from WalletManagerV2
 # Falls back to env vars if wallet manager unavailable
 def _resolve_pay_to(chain: str) -> str:
@@ -750,7 +724,6 @@ def _resolve_pay_to(chain: str) -> str:
         return os.getenv(env_key, "")
     return ""
 
-
 HUMAN_PAY_TO: dict[str, str] = {
     "base": _resolve_pay_to("base"),
     "ethereum": _resolve_pay_to("ethereum"),
@@ -763,9 +736,7 @@ HUMAN_PAY_TO: dict[str, str] = {
     "sepa": os.getenv("ASTERPAY_SEPA_IBAN", ""),
 }
 
-
 # ── Models specific to integration endpoints ──────────────────────
-
 
 class BundleRequest(BaseModel):
     address: str = ""
@@ -774,12 +745,10 @@ class BundleRequest(BaseModel):
     chain: str = "base"
     url: str = ""
 
-
 class MCPProxyRequest(BaseModel):
     service: str
     tool: str
     arguments: dict[str, Any] = {}
-
 
 class HumanPaymentRequest(BaseModel):
     tool: str = Field(..., description="Tool ID to execute")
@@ -793,7 +762,6 @@ class HumanPaymentRequest(BaseModel):
         default=None, description="Blockchain (auto-detected from payment_token if not set)"
     )
 
-
 class HumanPaymentMethodsResponse(BaseModel):
     """Response listing all payment methods available to humans."""
 
@@ -802,21 +770,17 @@ class HumanPaymentMethodsResponse(BaseModel):
     chain_count: int
     token_count: int
 
-
 class AuditRequest(BaseModel):
     address: str
     chain: str = "solana"
-
 
 class SmartMoneyAlphaRequest(BaseModel):
     wallet: str
     chain: str = "solana"
 
-
 class MemeVibeRequest(BaseModel):
     token: str
     chain: str = "solana"
-
 
 class SentinelScanRequest(BaseModel):
     """Full 9-module SENTINEL deep scan."""
@@ -825,14 +789,12 @@ class SentinelScanRequest(BaseModel):
     chain: str = "solana"
     dev_address: str | None = None
 
-
 class SentinelModuleRequest(BaseModel):
     """Single SENTINEL module request."""
 
     address: str
     chain: str = "solana"
     dev_address: str | None = None
-
 
 # Re-exported for tools that mirror legacy symbols
 __all__ = [

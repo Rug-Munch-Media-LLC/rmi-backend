@@ -11,6 +11,7 @@ Split from monolithic x402_advanced_tools.py into:
   - narrative.py   Layer 6: Narrative engine
 """
 
+from __future__ import annotations
 from app.routers.x402_advanced_tools.cache import get_cached, invalidate_cache, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
 from app.routers.x402_advanced_tools.history import token_history
@@ -30,7 +31,6 @@ router.add_api_route("/rug_probability", rug_probability, methods=["POST"])
 router.add_api_route("/history", token_history, methods=["POST"])
 router.add_api_route("/narrative", narrative_engine, methods=["POST"])
 
-
 @router.post("/cache/clear")
 async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
     """Clear response cache for a specific tool or all tools."""
@@ -40,7 +40,6 @@ async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
         "tool": tool or "all",
         "timestamp": datetime.now(UTC).isoformat(),
     }
-
 
 @router.get("/cache/stats")
 async def cache_stats() -> dict[str, int] | dict[str, str]:
@@ -58,7 +57,6 @@ async def cache_stats() -> dict[str, int] | dict[str, str]:
         }
     except Exception as e:
         return {"error": str(e), "cached_entries": 0}
-
 
 __all__ = [
     "router",

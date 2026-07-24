@@ -2,3 +2,4 @@
 
 Target: user management, system config, ops, bulletin moderation.
 """
+from __future__ import annotations

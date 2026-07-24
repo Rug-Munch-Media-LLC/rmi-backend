@@ -31,7 +31,6 @@ _CHAIN_ID_MAP = {
     100: "gnosis",
 }
 
-
 async def query_eth_labels_db(address: str, chain: str = "ethereum") -> list[Label]:
     """Query the local eth-labels.db SQLite for an address.
 
@@ -81,7 +80,6 @@ async def query_eth_labels_db(address: str, chain: str = "ethereum") -> list[Lab
             raise
 
     return await asyncio.to_thread(_query)
-
 
 def _parse_date(s: str | None) -> datetime:
     """Parse SQLite date string to datetime."""

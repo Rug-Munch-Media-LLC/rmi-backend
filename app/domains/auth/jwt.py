@@ -20,14 +20,12 @@ JWT_SECRET = _settings.jwt_secret
 JWT_ALGORITHM = _settings.jwt_algorithm
 JWT_EXPIRY_DAYS = 7
 
-
 def _load_key(key_or_path: str) -> str:
     """Load a PEM key from a file path, or return the PEM string directly."""
     if os.path.exists(key_or_path) and os.path.isfile(key_or_path):
         with open(key_or_path) as _f:
             return _f.read()
     return key_or_path
-
 
 # RS256 key loading
 _JWT_PRIVATE_KEY: str | None = None
@@ -50,7 +48,6 @@ if JWT_ALGORITHM == "RS256":
             )
             JWT_ALGORITHM = "HS256"
 
-
 def _create_jwt(
     user_id: str, email: str, tier: str = "FREE", role: str = "USER", wallet: str | None = None
 ) -> str:
@@ -68,7 +65,6 @@ def _create_jwt(
     if JWT_ALGORITHM == "RS256" and _JWT_PRIVATE_KEY:
         return jwt.encode(payload, _JWT_PRIVATE_KEY, algorithm="RS256")
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
-
 
 def _verify_jwt(token: str) -> dict[str, Any] | None:
     try:
@@ -89,10 +85,8 @@ def _verify_jwt(token: str) -> dict[str, Any] | None:
     except JWTError:
         return None
 
-
 def _derive_user_id(email: str) -> str:
     return hashlib.sha256(email.lower().encode()).hexdigest()[:32]
-
 
 def generate_nonce() -> str:
     return secrets.token_urlsafe(16)

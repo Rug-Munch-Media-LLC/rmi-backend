@@ -35,9 +35,7 @@ _pry_cb = AsyncCircuitBreaker(
     recovery_timeout=30.0,
 )
 
-
 # ── Models ────────────────────────────────────────────────────────────────────
-
 
 class ScrapeRequest(BaseModel):
     """Request model for the Pry /v1/scrape endpoint."""
@@ -49,7 +47,6 @@ class ScrapeRequest(BaseModel):
     bypassCloudflare: bool = True
     jsRender: bool = False
 
-
 class ScrapeResult(BaseModel):
     """Normalised scrape result returned by the client."""
 
@@ -57,7 +54,6 @@ class ScrapeResult(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
     source: str = "pryscraper"
-
 
 class ExtractResult(BaseModel):
     """Normalised extraction result returned by the client."""
@@ -67,9 +63,7 @@ class ExtractResult(BaseModel):
     error: str | None = None
     source: str = "pryscraper"
 
-
 # ── Client ────────────────────────────────────────────────────────────────────
-
 
 class PryscraperClient:
     """Async HTTP client for the Pry web intelligence API.

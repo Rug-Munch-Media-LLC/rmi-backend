@@ -396,7 +396,6 @@ TOOL_PRICES.update(_NEW_TOOL_PRICES)
 
 _tool_prices_extras_loaded = False
 
-
 def _load_tool_prices() -> None:
     """Load tool prices from canonical dict (single source of truth).
 
@@ -454,7 +453,6 @@ def _load_tool_prices() -> None:
                         "description": name_match.group(1) or "",
                     }
 
-
 def _ensure_tool_prices() -> None:
     """Load expanded tools, bundles, and DataBus pricing on first use."""
     global _tool_prices_extras_loaded
@@ -501,7 +499,6 @@ def _ensure_tool_prices() -> None:
     for _k in _bad_keys:
         del TOOL_PRICES[_k]
 
-
 def _ensure_pay_addresses() -> None:
     """Ensure EVM_PAY_TO and SOL_PAY_TO are populated from env vars."""
     global EVM_PAY_TO, SOL_PAY_TO
@@ -509,7 +506,6 @@ def _ensure_pay_addresses() -> None:
         EVM_PAY_TO = os.getenv("X402_PAYMENT_ADDRESS_EVM", os.getenv("X402_PAYMENT_ADDRESS", ""))
     if not SOL_PAY_TO:
         SOL_PAY_TO = os.getenv("X402_PAYMENT_ADDRESS_SOL", os.getenv("X402_PAYMENT_ADDRESS", ""))
-
 
 def _get_pay_to_address(chain: str) -> str:
     """Get active x402 payment address from WalletManagerV2, with fallbacks."""
@@ -530,7 +526,6 @@ def _get_pay_to_address(chain: str) -> str:
         return _get_pay_to_address("eth")
     return ""
 
-
 def _resolve_pay_to(method: str) -> str:
     _ensure_pay_addresses()
     if method == "payai":
@@ -543,14 +538,12 @@ def _resolve_pay_to(method: str) -> str:
         return os.getenv("ASTERPAY_SEPA_IBAN", "")
     return EVM_PAY_TO or ""
 
-
 def _resolve_asset(cfg: dict[str, Any]) -> str:
     asset: str = cfg.get("usdc", "") or ""
     if not asset and "tokens" in cfg:
         first: str = next(iter(cfg["tokens"].values()), "") or ""
         return first if first != "native" else "BTC"
     return asset
-
 
 def _build_extra(
     cfg: dict[str, Any], tool_id: str, chain_key: str, pay_to: str, method: str

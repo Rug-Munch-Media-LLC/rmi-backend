@@ -1,5 +1,6 @@
 """Weighted airdrop calculator."""
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.domains.airdrop.multichain.models import AirdropTier, CrossChainHolder, TokenSource
 

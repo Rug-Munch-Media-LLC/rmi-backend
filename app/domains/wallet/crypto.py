@@ -4,6 +4,7 @@ Wallet Cryptography — encryption, secret sharing, ZK verification.
 Extracted from manager.py during god-file split (2026-07-23).
 """
 
+from __future__ import annotations
 import base64
 import hashlib
 import os
@@ -12,7 +13,6 @@ import secrets
 from app.core.logging import get_logger
 
 logger = get_logger("wallet_crypto")
-
 
 # ── Crypto Library Availability ──────────────────────────────────
 
@@ -33,9 +33,7 @@ try:
 except ImportError:
     _HAS_NACL = False
 
-
 # ── Encryption Layer ──────────────────────────────────────────────
-
 
 class WalletEncryption:
     """
@@ -112,9 +110,7 @@ class WalletEncryption:
         key = b"\x00" * 32  # Wipe key
         return result
 
-
 # ── Shamir's Secret Sharing ──────────────────────────────────────
-
 
 class ShamirSecretSharing:
     """
@@ -219,9 +215,7 @@ class ShamirSecretSharing:
             base = ShamirSecretSharing._gf_mul(base, base)
         return result
 
-
 # ── Zero-Knowledge Address Ownership ─────────────────────────────
-
 
 class ZKAddressVerifier:
     """
@@ -258,7 +252,6 @@ class ZKAddressVerifier:
             except (ConnectionError, OSError, TimeoutError):
                 return False
         return True  # Placeholder when nacl not available
-
 
 __all__ = [
     "ShamirSecretSharing",

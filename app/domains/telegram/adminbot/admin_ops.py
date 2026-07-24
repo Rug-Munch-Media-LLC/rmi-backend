@@ -32,7 +32,6 @@ _SYSTEMCTL_ACTIONS: frozenset[str] = frozenset(
     {"start", "stop", "restart", "status", "reload", "enable", "disable"}
 )
 
-
 def _validate_name(name: str) -> bool:
     """Validate container/service/docker-compose service name.
 
@@ -40,14 +39,11 @@ def _validate_name(name: str) -> bool:
     """
     return bool(name) and all(c.isalnum() or c in "-_" for c in name)
 
-
 def _ok(output: str = "", duration: float = 0.0) -> dict[str, Any]:
     return {"ok": True, "output": output, "error": "", "duration": duration}
 
-
 def _err(msg: str) -> dict[str, Any]:
     return {"ok": False, "output": "", "error": msg, "duration": 0.0}
-
 
 def _run_subprocess(args: list[str], timeout: int = 30) -> dict[str, Any]:
     """Run list-args via subprocess (NO shell). Return unified result dict."""
@@ -78,7 +74,6 @@ def _run_subprocess(args: list[str], timeout: int = 30) -> dict[str, Any]:
         logger.debug("_run_subprocess_error", exc_info=True)
         return _err(str(e))
 
-
 def run_shell(cmd: str, timeout: int = 30) -> dict[str, Any]:
     """Run a command safely via shlex.split() + shell=False.
 
@@ -105,14 +100,11 @@ def run_shell(cmd: str, timeout: int = 30) -> dict[str, Any]:
 
     return _run_subprocess(parts, timeout=timeout)
 
-
 def system_status() -> dict[str, Any]:
     return {"hostname": __import__("socket").gethostname(), "uptime": "stub"}
 
-
 def format_status(s: dict[str, Any]) -> str:
     return f"🖥️ *Host:* `{s.get('hostname', '?')}`\nUptime: {s.get('uptime', '?')}"
-
 
 def docker_ps() -> str:
     result = _run_subprocess(
@@ -121,16 +113,13 @@ def docker_ps() -> str:
     )
     return result.get("output", "")
 
-
 def docker_stats() -> dict[str, Any]:
     return _run_subprocess(["docker", "stats", "--no-stream"], timeout=30)
-
 
 def docker_restart(container: str) -> dict[str, Any]:
     if not _validate_name(container):
         return _err(f"Invalid container name: '{container}'")
     return _run_subprocess(["docker", "restart", container], timeout=60)
-
 
 def docker_compose(action: str) -> dict[str, Any]:
     try:
@@ -139,12 +128,10 @@ def docker_compose(action: str) -> dict[str, Any]:
         return _err(f"Invalid action syntax: {exc}")
     return _run_subprocess(["docker", "compose", *parts], timeout=120)
 
-
 def docker_logs(service: str, tail: int = 50) -> dict[str, Any]:
     if not _validate_name(service):
         return _err(f"Invalid service name: '{service}'")
     return _run_subprocess(["docker", "logs", service, "--tail", str(tail)], timeout=30)
-
 
 def service_list() -> str:
     result = _run_subprocess(
@@ -155,7 +142,6 @@ def service_list() -> str:
         return "\n".join(lines[:30])
     return "no services"
 
-
 def service_control(name: str, action: str) -> dict[str, Any]:
     if not _validate_name(name):
         return _err(f"Invalid service name: '{name}'")
@@ -163,20 +149,16 @@ def service_control(name: str, action: str) -> dict[str, Any]:
         return _err(f"Invalid systemctl action: '{action}'")
     return _run_subprocess(["systemctl", action, name], timeout=30)
 
-
 def trigger_backup(btype: str = "full") -> dict[str, Any]:
     return _ok(f"[stub] {btype} backup triggered")
-
 
 def deploy_service(name: str) -> dict[str, Any]:
     if not _validate_name(name):
         return _err(f"Invalid service name: '{name}'")
     return _run_subprocess(["docker", "compose", "up", "-d", name], timeout=120)
 
-
 def health_check() -> list[dict[str, Any]]:
     return [{"name": "stub", "status": "ok", "detail": "healthy"}]
-
 
 def format_health(checks: list[dict[str, Any]]) -> str:
     lines = ["📊 *Health Check*\n"]

@@ -22,6 +22,7 @@ Author: RMI Development
 Date: 2026-05-03
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import re
@@ -32,9 +33,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("fallback_engine")
 
-
 # ── Cache Layer ───────────────────────────────────────────────
-
 
 class FallbackCache:
     """
@@ -79,9 +78,7 @@ class FallbackCache:
         param_str = json.dumps(params, sort_keys=True)
         return hashlib.sha256(f"{tool}:{param_str}".encode()).hexdigest()[:16]
 
-
 # ── Web Scraping ──────────────────────────────────────────────
-
 
 class SimpleHTMLParser(HTMLParser):
     """Extract text content from HTML pages."""
@@ -107,7 +104,6 @@ class SimpleHTMLParser(HTMLParser):
         if tag in ["script", "style", "noscript"]:
             self.in_data = False
 
-
 async def fetch_page_text(url: str, timeout: int = 10) -> str | None:
     """Fetch and extract text from a web page."""
     try:
@@ -131,7 +127,6 @@ async def fetch_page_text(url: str, timeout: int = 10) -> str | None:
     except Exception as e:
         logger.debug(f"Page fetch failed: {url} - {e}")
     return None
-
 
 async def scrape_solscan(address: str, chain: str = "solana") -> dict:
     """
@@ -173,7 +168,6 @@ async def scrape_solscan(address: str, chain: str = "solana") -> dict:
                 return result
 
     return {}
-
 
 async def scrape_etherscan(address: str, chain: str = "ethereum") -> dict:
     """
@@ -221,7 +215,6 @@ async def scrape_etherscan(address: str, chain: str = "ethereum") -> dict:
 
     return {}
 
-
 async def scrape_dexscreener_web(address: str) -> dict:
     """
     Scrape DexScreener web page for token info.
@@ -253,9 +246,7 @@ async def scrape_dexscreener_web(address: str) -> dict:
 
     return {}
 
-
 # ── Tertiary/Alternative APIs ─────────────────────────────────
-
 
 async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
     """
@@ -297,7 +288,6 @@ async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
         logger.debug(f"GeckoTerminal failed: {e}")
     return {}
 
-
 async def fetch_dexlab(address: str) -> dict:
     """
     DexLab - Solana-specific DEX data.
@@ -324,7 +314,6 @@ async def fetch_dexlab(address: str) -> dict:
         pass
     return {}
 
-
 async def fetch_step_finance(address: str) -> dict:
     """
     Step Finance - Solana DeFi analytics.
@@ -343,7 +332,6 @@ async def fetch_step_finance(address: str) -> dict:
     except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
-
 
 async def fetch_moonrank(address: str) -> dict:
     """
@@ -364,7 +352,6 @@ async def fetch_moonrank(address: str) -> dict:
         pass
     return {}
 
-
 async def fetch_unchained(address: str) -> dict:
     """
     Unchained Capital - alternative on-chain data.
@@ -384,9 +371,7 @@ async def fetch_unchained(address: str) -> dict:
         pass
     return {}
 
-
 # ── Community/Unofficial APIs ─────────────────────────────────
-
 
 async def fetch_jito_search(address: str) -> dict:
     """
@@ -407,7 +392,6 @@ async def fetch_jito_search(address: str) -> dict:
         pass
     return {}
 
-
 async def fetch_orca_pools(address: str) -> dict:
     """
     Orca pools - check liquidity on Orca DEX.
@@ -426,7 +410,6 @@ async def fetch_orca_pools(address: str) -> dict:
     except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
-
 
 async def fetch_raydium_pools(address: str) -> dict:
     """
@@ -447,9 +430,7 @@ async def fetch_raydium_pools(address: str) -> dict:
         pass
     return {}
 
-
 # ── Social Media / Sentiment Scraping ─────────────────────────
-
 
 async def scrape_twitter_search(token: str) -> dict:
     """
@@ -476,7 +457,6 @@ async def scrape_twitter_search(token: str) -> dict:
     except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return result
-
 
 async def scrape_reddit_search(token: str) -> dict:
     """
@@ -506,9 +486,7 @@ async def scrape_reddit_search(token: str) -> dict:
         pass
     return result
 
-
 # ── RSS / News Feeds ─────────────────────────────────────────
-
 
 async def fetch_crypto_news_feeds(token: str = "") -> dict:
     """
@@ -543,9 +521,7 @@ async def fetch_crypto_news_feeds(token: str = "") -> dict:
         pass
     return result
 
-
 # ── AI Web Search (via Hermes Agent) ─────────────────────────
-
 
 async def ai_web_search(query: str) -> dict:
     """
@@ -574,9 +550,7 @@ async def ai_web_search(query: str) -> dict:
         logger.debug(f"AI web search failed: {e}")
     return result
 
-
 # ── Public Blockchain Data Archives ───────────────────────────
-
 
 async def fetch_bigquery_public(address: str) -> dict:
     """
@@ -597,9 +571,7 @@ async def fetch_bigquery_public(address: str) -> dict:
         pass
     return result
 
-
 # ── Master Fallback Orchestrator ──────────────────────────────
-
 
 async def try_all_fallbacks(
     tool: str,
@@ -766,9 +738,7 @@ async def try_all_fallbacks(
 
     return merged
 
-
 # ── Integration with existing tools ───────────────────────────
-
 
 async def audit_with_fallback(address: str, chain: str, redis=None) -> dict:
     """Run audit with full fallback chain."""

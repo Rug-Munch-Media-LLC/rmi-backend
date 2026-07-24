@@ -3,6 +3,7 @@ Liquidation Cascade Risk Analysis — modular package.
 Re-exports all public symbols for backward compatibility.
 """
 # Add report method patch to LiquidationAnalysis
+from __future__ import annotations
 from app.domains.analysis.liquidation import report as _rp_mod
 from app.domains.analysis.liquidation.analyzer import LiquidationCascadeAnalyzer
 from app.domains.analysis.liquidation.cli import main

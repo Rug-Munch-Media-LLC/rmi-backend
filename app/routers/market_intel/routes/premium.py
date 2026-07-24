@@ -3,6 +3,7 @@ Market Intelligence - Premium Routes
 Premium features: likely rugs, alpha signals, smart money, bundled detection, insider wallets, prediction signals.
 """
 
+from __future__ import annotations
 from fastapi import APIRouter, Query, Request
 
 from app.routers.market_intel.utils import _now, _safe_float
@@ -11,7 +12,6 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["market-intel"])
-
 
 @router.get("/likely-rugs")
 async def get_market_likely_rugs(
@@ -22,7 +22,6 @@ async def get_market_likely_rugs(
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
 
-
 @router.get("/alpha")
 async def get_market_alpha(
     request: Request,
@@ -32,20 +31,17 @@ async def get_market_alpha(
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
 
-
 @router.get("/smart-money")
 async def get_market_smart_money(request: Request) -> dict:
     """Smart money flows by sector."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
 
-
 @router.get("/bundlers")
 async def get_market_bundlers(request: Request) -> dict:
     """Bundler detection - coordinated buy patterns."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
-
 
 @router.get("/insider-wallets")
 async def get_insider_wallets(
@@ -117,7 +113,6 @@ async def get_insider_wallets(
 
     items = insider_wallets[:limit]
     return {"items": items, "total": len(items), "premium_only": True, "updated_at": now}
-
 
 @router.get("/prediction-signals")
 async def get_prediction_signals(

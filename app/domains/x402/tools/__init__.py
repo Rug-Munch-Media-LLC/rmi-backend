@@ -15,6 +15,7 @@ Registry shape:
   }
 """
 
+from __future__ import annotations
 from app.domains.x402.tools.label_tools import get_entity_labels, get_wallet_labels
 from app.domains.x402.tools.market_tools import get_market_overview, get_trending
 from app.domains.x402.tools.news_tools import get_news, get_news_sentiment
@@ -125,7 +126,6 @@ TOOLS = {
     },
 }
 
-
 def list_tools() -> list[dict]:
     """List all available x402 tools."""
     return [
@@ -139,11 +139,9 @@ def list_tools() -> list[dict]:
         for name, info in TOOLS.items()
     ]
 
-
 def get_tool(tool_id: str) -> dict | None:
     """Get a tool by ID."""
     return TOOLS.get(tool_id)
-
 
 async def call_tool(tool_id: str, **kwargs) -> dict:
     """Call a tool by ID with arguments."""

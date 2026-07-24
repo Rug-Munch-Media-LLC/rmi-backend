@@ -1,4 +1,5 @@
 """Configuration constants for portfolio risk aggregation."""
+from __future__ import annotations
 import json, re
 from typing import Any
 

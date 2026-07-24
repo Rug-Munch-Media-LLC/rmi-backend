@@ -20,7 +20,6 @@ logger = logging.getLogger("admin_bot.redis_listener")
 REDIS_QUEUE_KEY = "rag:telegram_queue"
 POLL_TIMEOUT = 5  # seconds per BLPOP call; allows clean shutdown
 
-
 async def start_redis_listener(bot_app) -> None:
     """Async BLPOP consumer.  Runs forever; start as an asyncio task."""
     logger.info(
@@ -70,7 +69,6 @@ async def start_redis_listener(bot_app) -> None:
         logger.info("Redis listener cancelled")
     finally:
         await client.aclose()
-
 
 def _format_payload(payload: dict) -> str:
     """Format a RAG alert payload into a concise Telegram message."""

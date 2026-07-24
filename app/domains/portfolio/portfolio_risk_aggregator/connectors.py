@@ -1,4 +1,5 @@
 """Chain connectors for portfolio scanning."""
+from __future__ import annotations
 import asyncio
 from typing import Any
 from app.core.logging import get_logger
@@ -18,13 +19,11 @@ try:
 except ImportError:
     SOLANA_AVAILABLE = False; SolanaClient = None
 
-
 class ChainConnector:
     async def get_native_balance(self, address: str) -> float:
         raise NotImplementedError
     async def get_token_balances(self, address: str) -> list[dict[str, Any]]:
         raise NotImplementedError
-
 
 class EVMConnector(ChainConnector):
     def __init__(self, chain_name: str, config: dict[str, Any]) -> None:
@@ -110,7 +109,6 @@ class EVMConnector(ChainConnector):
         except Exception as e:
             logger.debug(f"{self.chain_name} event scan error: {e}")
         return results
-
 
 class SolanaConnector(ChainConnector):
     def __init__(self) -> None:

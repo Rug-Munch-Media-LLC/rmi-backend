@@ -2,12 +2,12 @@
 RMI News Aggregation Service — modular package.
 Re-exports all public symbols for backward compatibility.
 """
+from __future__ import annotations
 from app.domains.news.news_service.service import NewsService, get_news_service
 from app.domains.news.news_service.sources import (
     RSS_FEEDS, REDDIT_SUBREDDITS,
     BULLISH_WORDS, BEARISH_WORDS, CATEGORY_KEYWORDS,
 )
-
 
 # Convenience: standalone fetch all news (for databus consumers)
 async def fetch_all_news(
@@ -26,7 +26,6 @@ async def fetch_all_news(
         include_api=include_api,
         include_internal=include_internal,
     )
-
 
 __all__ = [
     "NewsService", "get_news_service", "fetch_all_news",

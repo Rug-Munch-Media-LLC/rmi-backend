@@ -1,11 +1,11 @@
 """CLI entry points for MEV sandwich detector."""
+from __future__ import annotations
 import asyncio
 import logging
 from app.core.logging import get_logger
 from .detector import MEVSandwichDetector
 
 logger = get_logger(__name__)
-
 
 async def _run_scan(args=None) -> None:
     detector = MEVSandwichDetector(chains=["ethereum", "bsc", "arbitrum", "base", "optimism", "polygon"])
@@ -25,7 +25,6 @@ async def _run_scan(args=None) -> None:
         logger.info(f"  {p['name']} ({p['chain']}) - score: {p['mev_vulnerability_score']} - {p['assessment']}")
     detector.save_bot_registry()
 
-
 def main() -> None:
     import argparse
     parser = argparse.ArgumentParser(description="MEV & Sandwich Attack Detector - real-time MEV detection")
@@ -37,7 +36,6 @@ def main() -> None:
         asyncio.run(detector.scan())
     else:
         asyncio.run(_run_scan(args))
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")

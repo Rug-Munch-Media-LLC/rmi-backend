@@ -22,6 +22,7 @@ Supports:
   - Content hashing for dedup + cache
   - Parent-child chunking: small child chunks for retrieval, parent section for LLM
 """
+from __future__ import annotations
 
 import asyncio
 import hashlib
@@ -52,7 +53,6 @@ DEFAULT_CHUNK_SIZE = 2500  # chars per chunk
 DEFAULT_OVERLAP = 300  # overlap between chunks
 DEFAULT_MAX_CHUNKS = 50  # safety cap per document
 
-
 @dataclass
 class Chunk:
     """A single chunk with optional context."""
@@ -70,7 +70,6 @@ class Chunk:
         if not self.content_hash:
             self.content_hash = hashlib.sha256(self.content.encode()).hexdigest()[:16]
 
-
 @dataclass
 class ChunkedDocument:
     """Result of chunking a document."""
@@ -81,11 +80,9 @@ class ChunkedDocument:
     total_chars: int = 0
     processing_time_ms: float = 0.0
 
-
 # ══════════════════════════════════════════════════════════════════════
 # CHUNKING
 # ══════════════════════════════════════════════════════════════════════
-
 
 def _is_solidity(text: str) -> bool:
     """Detect if text is a Solidity smart contract."""
@@ -97,7 +94,6 @@ def _is_solidity(text: str) -> bool:
     ]
     head = text[:500].lower()
     return any(ind in head for ind in indicators)
-
 
 def chunk_document(
     text: str,
@@ -175,7 +171,6 @@ def chunk_document(
 
     return chunks
 
-
 # ══════════════════════════════════════════════════════════════════════
 # CONTEXT GENERATION
 # ══════════════════════════════════════════════════════════════════════
@@ -193,7 +188,6 @@ Here is the chunk we want to situate within the whole document:
 Give a short context (2-3 sentences) to precede this chunk that improves its retrievability. The context should explain where this chunk fits in the document and what information it contains. Be specific - mention names, topics, and any key entities. Do NOT repeat the chunk content verbatim.
 
 Context:"""
-
 
 async def _generate_context_llm(
     doc_text: str,
@@ -232,7 +226,6 @@ async def _generate_context_llm(
         logger.warning(f"Context generation failed: {e}")
         return ""
 
-
 def _generate_heuristic_context(
     doc_text: str,
     chunk_text: str,
@@ -270,7 +263,6 @@ def _generate_heuristic_context(
     parts.append(f"Chunk {chunk_index + 1} of {total_chunks}")
 
     return ". ".join(parts) + "."
-
 
 async def contextualize_chunks(
     doc_text: str,
@@ -323,11 +315,9 @@ async def contextualize_chunks(
 
     return chunks
 
-
 # ══════════════════════════════════════════════════════════════════════
 # FULL PIPELINE
 # ══════════════════════════════════════════════════════════════════════
-
 
 async def process_document(
     text: str,
@@ -369,11 +359,9 @@ async def process_document(
         processing_time_ms=round(elapsed, 1),
     )
 
-
 # ══════════════════════════════════════════════════════════════════════
 # PARENT-CHILD CHUNKING
 # ══════════════════════════════════════════════════════════════════════
-
 
 def parent_child_chunk(
     text: str,

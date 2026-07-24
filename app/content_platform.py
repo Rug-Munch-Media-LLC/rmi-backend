@@ -14,6 +14,7 @@ Post types:
 Auth: Session cookie from owner login. Cookie refreshed on 401.
 """
 
+from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
@@ -49,7 +50,6 @@ POST_TYPES = {
 
 TYPE_LIMITS = {k: v["limit"] for k, v in POST_TYPES.items()}
 
-
 def _get_session_cookie() -> str | None:
     """Read saved session cookie for Ghost admin auth."""
     try:
@@ -60,7 +60,6 @@ def _get_session_cookie() -> str | None:
     except FileNotFoundError:
         pass
     return None
-
 
 async def create_post(
     content: str,
@@ -166,7 +165,6 @@ async def create_post(
     except Exception as e:
         return {"error": str(e)}
 
-
 async def get_feed(
     page: int = 1, limit: int = 20, tag: str = "", include: str = "tags,authors"
 ) -> dict[str, Any]:
@@ -225,7 +223,6 @@ async def get_feed(
     except Exception as e:
         return {"posts": [], "error": str(e)}
 
-
 async def create_thread(posts: list[str], post_type: str = "thread") -> dict[str, Any]:
     """Create a thread - multiple connected posts."""
     results = []
@@ -238,7 +235,6 @@ async def create_thread(posts: list[str], post_type: str = "thread") -> dict[str
         "total": len(results),
         "url": results[0].get("url") if results else None,
     }
-
 
 async def generate_briefing() -> dict[str, Any]:
     """Generate daily intelligence briefing from RAG + news sources."""
@@ -275,7 +271,6 @@ async def generate_briefing() -> dict[str, Any]:
         post_type="briefing",
         title=f"Daily Briefing - {datetime.now(UTC).strftime('%B %d, %Y')}",
     )
-
 
 async def generate_newsletter() -> dict[str, Any]:
     """Generate weekly newsletter with top stories and analysis."""

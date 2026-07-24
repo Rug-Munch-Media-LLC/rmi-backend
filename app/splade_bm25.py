@@ -18,12 +18,12 @@ For production SPLADE, you'd use naver/splade-v3-doc or prithivida/Splade_PP_en_
 This module provides a lightweight approximation using BGE-small features + expansion,
 with a clear upgrade path to a full SPLADE model.
 """
+from __future__ import annotations
 
 import asyncio
 import math
 import re
 from collections import Counter
-from typing import Optional
 
 from app.core.logging import get_logger
 
@@ -183,7 +183,6 @@ STOPWORDS = frozenset(
     }
 )
 
-
 # ── Crypto-Domain Term Expansion ───────────────────────────────────────
 # Maps common crypto terms to related expansion terms for SPLADE-like expansion
 CRYPTO_EXPANSIONS = {
@@ -207,7 +206,6 @@ CRYPTO_EXPANSIONS = {
     "frontier": {"frontier", "fibonacci", "retrace"},
 }
 
-
 # ── Simple Stemmer (Porter-lite for crypto terms) ─────────────────────
 _STEM_RULES = [
     (r"ing$", ""),  # running → runn
@@ -221,7 +219,6 @@ _STEM_RULES = [
     (r"ive$", ""),  # restrictive → restrict
 ]
 
-
 def simple_stem(word: str) -> str:
     """Aggressive suffix stripping for search matching. Not proper linguistics."""
     for pattern, replacement in _STEM_RULES:
@@ -229,7 +226,6 @@ def simple_stem(word: str) -> str:
         if new != word and len(new) >= 3:
             return new
     return word
-
 
 # ── Tokenizer ─────────────────────────────────────────────────────────
 def tokenize(text: str, remove_stopwords: bool = True, stem: bool = True) -> list[str]:
@@ -271,9 +267,7 @@ def tokenize(text: str, remove_stopwords: bool = True, stem: bool = True) -> lis
 
     return tokens
 
-
 # ── BM25 Implementation ────────────────────────────────────────────────
-
 
 class BM25Index:
     """
@@ -357,7 +351,7 @@ class BM25Index:
         logger.info(f"BM25 index persisted to {path} ({os.path.getsize(path) / 1024 / 1024:.1f}MB)")
 
     @classmethod
-    def load(cls, path: str) -> "BM25Index" | None:
+    def load(cls, path: str) -> BM25Index | None:
         """Load BM25 index from disk."""
         import os
         import pickle
@@ -516,9 +510,7 @@ class BM25Index:
         scored.sort(key=lambda x: x["sparse_score"], reverse=True)
         return scored[:limit]
 
-
 # ── Async BM25 Builder (for Redis collections) ──────────────────────
-
 
 async def build_bm25_from_redis(
     collections: list[str] | None = None,
@@ -615,13 +607,11 @@ async def build_bm25_from_redis(
     )
     return index
 
-
 # ── In-memory BM25 cache ───────────────────────────────────────────────
 _bm25_index: BM25Index | None = None
 _bm25_built_at: float = 0.0
 _BM25_TTL = 3600  # Rebuild every hour
 _bm25_lock = asyncio.Lock()
-
 
 async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
     """Get or build the BM25 index (persisted to disk, 1h TTL in memory)."""
@@ -662,7 +652,6 @@ async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
 
         return _bm25_index
 
-
 async def _save_bm25_async(path: str) -> None:
     """Save BM25 index to disk in executor thread."""
     try:
@@ -670,7 +659,6 @@ async def _save_bm25_async(path: str) -> None:
         await loop.run_in_executor(None, _bm25_index.save, path)
     except Exception as e:
         logger.debug(f"BM25 disk save failed (non-critical): {e}")
-
 
 async def bm25_search(
     query: str,
@@ -685,7 +673,6 @@ async def bm25_search(
     index = await get_bm25_index()
     results = index.search(query, limit=limit, min_score=min_score)
     return results
-
 
 async def splade_search(
     query: str,

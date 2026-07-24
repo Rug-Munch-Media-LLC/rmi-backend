@@ -1,5 +1,6 @@
 """BSC label loader."""
 
+from __future__ import annotations
 import csv
 import json
 from datetime import UTC, datetime
@@ -9,7 +10,6 @@ from .config import LABELS_DIR
 from .loaders import _normalize_chain, _flush_batch
 
 logger = get_logger("wallet_memory.label_importer")
-
 
 async def _load_bsc_detail(storage) -> int:
     """Load BSC address tag detail CSV. 15K BSC addresses with entity labels."""
@@ -70,6 +70,5 @@ async def _load_bsc_detail(storage) -> int:
 
     logger.info(f"Loaded {count} BSC detail labels")
     return count
-
 
 import os  # noqa: E402

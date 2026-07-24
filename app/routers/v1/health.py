@@ -34,24 +34,20 @@ router = APIRouter(prefix="/health", tags=["health-v1"])
 # Existing redirect endpoints
 # ──────────────────────────────────────────────────────────────────────
 
-
 @router.get("/live", summary="Liveness Check", description="Kubernetes-style liveness probe (redirect to /live). Returns 307 redirect. Use root /live for the actual check.")
 async def live_v1() -> Any:
     """Liveness check (redirect to root /live)."""
     return RedirectResponse(url="/live", status_code=307)
-
 
 @router.get("/ready", summary="Readiness Check", description="Kubernetes-style readiness probe (redirect to /ready). Returns 307 redirect. Use root /ready for the actual check.")
 async def ready_v1() -> Any:
     """Readiness check (redirect to root /ready)."""
     return RedirectResponse(url="/ready", status_code=307)
 
-
 @router.get("", summary="Full Health Check", description="Full health check (redirect to root /health). Returns 307 redirect. Use root /health for the comprehensive probe.")
 async def health_v1() -> Any:
     """Full health check (redirect to root /health)."""
     return RedirectResponse(url="/health", status_code=307)
-
 
 # ──────────────────────────────────────────────────────────────────────
 # Unified health endpoint
@@ -59,7 +55,6 @@ async def health_v1() -> Any:
 
 _UNIFIED_CACHE: dict[str, Any] = {"data": None, "timestamp": 0.0}
 _UNIFIED_CACHE_TTL = 15  # seconds
-
 
 async def _get_service_health() -> dict[str, Any]:
     """Replicate the store checks from app.core.health_route.
@@ -104,7 +99,6 @@ async def _get_service_health() -> dict[str, Any]:
         logger.warning("Service health check failed: %s", exc)
         return {}
 
-
 async def _get_provider_status_slim() -> dict[str, str]:
     """Get a slim version of provider status — just name -> status mapping."""
     try:
@@ -119,7 +113,6 @@ async def _get_provider_status_slim() -> dict[str, str]:
         logger.warning("Provider status slim check failed: %s", exc)
         return {}
 
-
 def _get_degradation_info() -> dict[str, Any]:
     """Get degradation registry info — degraded stores, LRU stats."""
     try:
@@ -130,7 +123,6 @@ def _get_degradation_info() -> dict[str, Any]:
         logger.warning("Degradation health check failed: %s", exc)
         return {"degraded_stores": [], "store_details": {}, "in_process_lru": {}}
 
-
 def _get_config_issues() -> list[dict[str, str]]:
     """Check for missing or placeholder config values."""
     try:
@@ -140,7 +132,6 @@ def _get_config_issues() -> list[dict[str, str]]:
     except Exception as exc:
         logger.warning("Config check failed: %s", exc)
         return [{"key": "_internal", "description": str(exc)[:200], "severity": "check_failed"}]
-
 
 def _compute_overall_status(
     services: dict[str, Any],
@@ -171,7 +162,6 @@ def _compute_overall_status(
         return "degraded"
 
     return "healthy"
-
 
 @router.get("/unified", summary="Unified Health Dashboard", description="Aggregated health dashboard combining service health (Redis, PostgreSQL, Neo4j, Qdrant, ClickHouse, MinIO), provider status (30+ connector circuit breakers), degradation registry, and config validation. Cached for 15 seconds.")
 async def health_unified() -> dict[str, Any]:

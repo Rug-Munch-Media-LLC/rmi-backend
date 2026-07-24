@@ -36,7 +36,6 @@ logger = get_logger("prediction_market.router")
 
 router = APIRouter(prefix="/api/v1/prediction-markets", tags=["prediction-markets"])
 
-
 @router.get("/search")
 async def search_markets(
     q: str = Query(..., description="Search query (token name, event, protocol, etc.)"),
@@ -60,7 +59,6 @@ async def search_markets(
         "crypto_relevant": sum(1 for m in results if m.is_crypto_relevant),
         "results": [_market_response(m) for m in results[:limit]],
     }
-
 
 @router.get("/trending")
 async def trending_markets(
@@ -94,7 +92,6 @@ async def trending_markets(
         "results": [_market_response(m) for m in results[:limit]],
     }
 
-
 @router.get("/token/{symbol}")
 async def token_markets(
     symbol: str,
@@ -117,7 +114,6 @@ async def token_markets(
         "security_relevant": sum(1 for m in results if m.is_security_relevant),
         "results": [_market_response(m) for m in results[:limit]],
     }
-
 
 @router.get("/sentinel")
 async def sentinel_digest(
@@ -149,7 +145,6 @@ async def sentinel_digest(
         "regulatory": [_market_response(m) for m in digest.regulatory_markets],
     }
 
-
 @router.get("/detail/{source}/{market_id}")
 async def market_detail(
     source: str,
@@ -174,9 +169,7 @@ async def market_detail(
         "interpretation": _interpret_market(market),
     }
 
-
 # ── Sources Info ─────────────────────────────────────────────────
-
 
 @router.get("/sources")
 async def list_sources() -> dict:
@@ -242,9 +235,7 @@ async def list_sources() -> dict:
         ],
     }
 
-
 # ── Helpers ──────────────────────────────────────────────────────
-
 
 def _market_response(m: PredictionMarket) -> dict:
     """Format a PredictionMarket into API response."""
@@ -267,7 +258,6 @@ def _market_response(m: PredictionMarket) -> dict:
         "ends_at": m.ends_at,
         "updated_at": m.updated_at,
     }
-
 
 def _interpret_market(m: PredictionMarket) -> dict:
     """Generate a human-readable interpretation of market probabilities."""

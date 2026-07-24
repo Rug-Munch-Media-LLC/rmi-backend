@@ -6,6 +6,7 @@ to AI agents, Claude, Cursor, and any MCP-compatible client.
 Totally free. No API key needed. Built for the people.
 """
 
+from __future__ import annotations
 import json
 
 from fastmcp import FastMCP
@@ -15,7 +16,6 @@ from app.core.redis import get_redis
 mcp = FastMCP(
     "rmi-news", description="RMI Free Crypto News - 50+ sources, real-time, no API key needed"
 )
-
 
 # Redis connection helper
 def search_news(query: str, limit: int = 10) -> dict:
@@ -59,7 +59,6 @@ def search_news(query: str, limit: int = 10) -> dict:
 
     return {"query": query, "count": len(results[:limit]), "results": results[:limit]}
 
-
 @mcp.tool()
 def get_latest_news(limit: int = 20, include_social: bool = True) -> dict:
     """Get the latest crypto news articles across all sources."""
@@ -97,7 +96,6 @@ def get_latest_news(limit: int = 20, include_social: bool = True) -> dict:
 
     return {"count": len(results), "results": results}
 
-
 @mcp.tool()
 def get_news_by_source(source: str, limit: int = 20) -> dict:
     """Get news articles filtered by source name (e.g. cointelegraph, decrypt, coindesk)."""
@@ -115,7 +113,6 @@ def get_news_by_source(source: str, limit: int = 20) -> dict:
                 if len(results) >= limit:
                     break
     return {"source": source, "count": len(results), "results": results}
-
 
 @mcp.tool()
 def get_news_by_sentiment(min_sentiment: float = 0.3, limit: int = 20) -> dict:
@@ -142,7 +139,6 @@ def get_news_by_sentiment(min_sentiment: float = 0.3, limit: int = 20) -> dict:
         "bearish": bearish[:limit],
     }
 
-
 @mcp.tool()
 def get_trending_tickers(limit: int = 10) -> dict:
     """Get the most mentioned crypto tickers across all news sources."""
@@ -156,7 +152,6 @@ def get_trending_tickers(limit: int = 10) -> dict:
                 ticker_count[t] = ticker_count.get(t, 0) + 1
     trending = sorted(ticker_count.items(), key=lambda x: x[1], reverse=True)[:limit]
     return {"count": len(trending), "trending": [{"ticker": t, "mentions": c} for t, c in trending]}
-
 
 @mcp.tool()
 def get_news_stats() -> dict:
@@ -175,7 +170,6 @@ def get_news_stats() -> dict:
         "powered_by": "RMI - Rug Munch Intelligence",
     }
 
-
 @mcp.resource("news://latest")
 def news_latest_resource() -> str:
     """Get latest news as a text resource."""
@@ -189,7 +183,6 @@ def news_latest_resource() -> str:
             sent = "🟢" if a["sentiment"] > 0.1 else ("🔴" if a["sentiment"] < -0.1 else "⚪")
             results.append(f"{sent} [{a['source']}] {a['title']}")
     return "\n".join(results)
-
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

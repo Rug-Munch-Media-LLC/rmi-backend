@@ -1,6 +1,5 @@
 """Unified Scanner Router v3 - matches WalletScanner v3 fields.
 
-
 Dependency injection: ``UnifiedTokenScanner`` and ``UnifiedWalletScanner``
 are injected via ``Depends()`` so they can be mocked in tests.
 """
@@ -20,16 +19,13 @@ from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v2/scanner", tags=["scanner-v2"])
 
-
 class TokenScanRequest(BaseModel):
     address: str
     chain: str = "solana"
 
-
 class WalletScanRequest(BaseModel):
     address: str
     chain: str = "solana"
-
 
 def _get_tier(request: Request) -> str:
     if request.headers.get("X-RMI-Key") == INTERNAL_API_KEY:
@@ -38,10 +34,8 @@ def _get_tier(request: Request) -> str:
         return "pro"
     return "free"
 
-
 def _get_admin_key(request: Request) -> Any | None:
     return request.headers.get("X-Admin-Key") or request.headers.get("X-RMI-Key")
-
 
 @router.post(
     "/token/scan",
@@ -81,7 +75,6 @@ async def scan_token(
         }
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
-
 
 @router.post(
     "/wallet/scan",

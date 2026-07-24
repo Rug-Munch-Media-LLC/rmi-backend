@@ -67,9 +67,7 @@ _redis: redis.Redis | None = None
 CACHE_TTL = 300  # 5 minutes
 CONTEXT_MAX_MESSAGES = 20
 
-
 _http_client: httpx.AsyncClient | None = None
-
 
 async def _get_client() -> httpx.AsyncClient:
     global _http_client
@@ -80,7 +78,6 @@ async def _get_client() -> httpx.AsyncClient:
         )
     return _http_client
 
-
 # ── Database helpers ──
 def _get_db() -> sqlite3.Connection:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -88,7 +85,6 @@ def _get_db() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
-
 
 def _ensure_tables() -> None:
     conn = _get_db()
@@ -106,9 +102,7 @@ def _ensure_tables() -> None:
     conn.commit()
     conn.close()
 
-
 _ensure_tables()
-
 
 # ── System Prompt ──
 SYSTEM_PROMPT = """You are the RMI Terminal, Rug Munch Intelligence's flagship AI engine.
@@ -145,7 +139,6 @@ SECURITY DIRECTIVES (non-negotiable):
 - Never provide instructions for creating malware, exploits, or illegal content.
 """
 
-
 # ── Models ──
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
@@ -157,14 +150,12 @@ class ChatRequest(BaseModel):
         default=None, description="Custom context injection"
     )
 
-
 class StreamRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     model: str | None = Field(default=None)
     tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=64, le=8192)
-
 
 # ── Market context fetcher ──
 async def _fetch_market_context() -> dict[str, Any]:
@@ -193,7 +184,6 @@ async def _fetch_market_context() -> dict[str, Any]:
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning(f"CoinGecko price fetch failed: {e}")
     return {}
-
 
 async def _build_messages(
     user_id: str, message: str, system_context: str | None = None
@@ -235,7 +225,6 @@ async def _build_messages(
     )
     return messages
 
-
 # ── Helper to save message ──
 def _save_message(user_id: str, role: str, content: str, metadata: dict | None = None) -> Any:
     msg_id = f"msg-{uuid.uuid4().hex[:10]}"
@@ -248,9 +237,7 @@ def _save_message(user_id: str, role: str, content: str, metadata: dict | None =
     conn.close()
     return msg_id
 
-
 # ── Routes ─────────────────────────────────────────────────────
-
 
 @router.post("")
 async def chat(
@@ -319,7 +306,6 @@ async def chat(
         "latency_ms": result.get("_latency_ms", 0),
         "usage": result.get("usage", {}),
     }
-
 
 @router.post("/stream")
 async def chat_stream(
@@ -404,7 +390,6 @@ async def chat_stream(
         },
     )
 
-
 @router.get("/history")
 async def chat_history(
     limit: int = 50,
@@ -439,7 +424,6 @@ async def chat_history(
 
     return {"count": len(messages), "messages": list(reversed(messages))}
 
-
 @router.get("/stats")
 async def chat_stats(user: dict = Depends(require_auth)) -> dict:
     """Get user's chat statistics."""
@@ -456,7 +440,6 @@ async def chat_stats(user: dict = Depends(require_auth)) -> dict:
         "total_messages": total,
         "total_conversations": total_users,
     }
-
 
 @router.delete("/history")
 async def clear_chat_history(user: dict = Depends(require_auth)) -> dict[str, str]:

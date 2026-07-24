@@ -17,6 +17,7 @@ but can contain up to 20 sub-requests. This dramatically reduces RPC calls
 when fetching data for multiple tokens/wallets simultaneously.
 """
 
+from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -48,7 +49,6 @@ BATCH_CAPABLE_PROVIDERS = {
 # Providers that DON'T support batching
 NO_BATCH_PROVIDERS = {"anvil", "publicnode"}
 
-
 @dataclass
 class BatchRequest:
     """A single request within a batch."""
@@ -57,7 +57,6 @@ class BatchRequest:
     method: str
     params: list[Any]
 
-
 @dataclass
 class BatchResult:
     """Result for a single request within a batch."""
@@ -65,7 +64,6 @@ class BatchResult:
     id: int
     result: Any = None
     error: str | None = None
-
 
 class RpcBatcher:
     """Accumulates RPC requests and dispatches them as batch JSON-RPC calls.

@@ -1,5 +1,6 @@
 """News, Social, and Security scan providers."""
 
+from __future__ import annotations
 import asyncio
 import datetime
 import os
@@ -7,7 +8,6 @@ import os
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
-
 
 async def _messari_news(limit: int = 20, **kw) -> dict | None:
     """Messari News API - curated crypto news with per-asset sentiment scores."""
@@ -47,7 +47,6 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
     """CoinDesk News API - institutional-grade crypto news with categorization."""
     api_key = kw.get("api_key", "") or os.getenv("COINDESK_API_KEY", "")
@@ -83,7 +82,6 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict | None:
     """Santiment - GitHub dev activity and social volume (free tier: 100 calls/day)."""
@@ -123,7 +121,6 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict |
         logger.warning("provider error")
     return None
 
-
 async def _virustotal_url_scan(url: str, **kw) -> dict | None:
     """VirusTotal - scan token website URLs for phishing/malware (free: 500 req/day)."""
     api_key = kw.get("api_key", "") or os.getenv("VIRUSTOTAL_API_KEY", "")
@@ -149,7 +146,6 @@ async def _virustotal_url_scan(url: str, **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", **kw) -> dict | None:
     """Dune Analytics - finds the first 5-minute buyers of a token.

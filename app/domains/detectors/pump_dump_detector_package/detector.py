@@ -37,7 +37,6 @@ from app.domains.detectors.pump_dump_detector_package.types import (
 
 logger = get_logger("pump_dump_detector")
 
-
 class PumpDumpDetector:
     """
     Comprehensive pump-and-dump / coordinated market manipulation detector.
@@ -138,7 +137,6 @@ class PumpDumpDetector:
     async def close(self) -> None:
         await self._client.aclose()
 
-
 # ── Convenience Functions ────────────────────────────────────────────
 
 async def analyze_token(
@@ -152,14 +150,12 @@ async def analyze_token(
     finally:
         await detector.close()
 
-
 def analyze_token_sync(
     token_address: str,
     chain: str = "ethereum",
 ) -> dict:
     """Synchronous wrapper for environments without async support."""
     return asyncio.run(analyze_token(token_address, chain)).to_dict()
-
 
 # ── CLI Entry Point ──────────────────────────────────────────────────
 

@@ -28,13 +28,11 @@ from app.domains.reports.generator import (
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
-
 class GenerateRequest(BaseModel):
     subject_type: str = Field(..., pattern="^(token|wallet)$")
     subject_id: str = Field(..., description='"chain:address"')
     model: str = "deepseek-v3"
     save: bool = True
-
 
 class GenerateResponse(BaseModel):
     report_id: str
@@ -49,7 +47,6 @@ class GenerateResponse(BaseModel):
     markdown: str
     paid_via_x402: str | None = None
     error: str | None = None
-
 
 @router.post("/generate", response_model=GenerateResponse)
 async def generate_report(req: GenerateRequest) -> GenerateResponse:
@@ -90,7 +87,6 @@ async def generate_report(req: GenerateRequest) -> GenerateResponse:
         paid_via_x402=report.paid_via_x402,
     )
 
-
 def _extract_risk_factors(exec_summary: str) -> list[str]:
     """Heuristically extract risk factor names from the exec summary."""
     if not exec_summary:
@@ -110,7 +106,6 @@ def _extract_risk_factors(exec_summary: str) -> list[str]:
     ]
     text_l = exec_summary.lower()
     return [k for k in keywords if k in text_l]
-
 
 @router.get("/{report_id}")
 async def get_report(report_id: str) -> dict:

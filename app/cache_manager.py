@@ -22,6 +22,7 @@ Usage:
   stats = cache.get_stats()  # {"coingecko": {"hits": 1423, "misses": 47, ...}}
 """
 
+from __future__ import annotations
 import asyncio
 import contextlib
 import json
@@ -201,7 +202,6 @@ FREE_PROVIDERS = {
     "coincap",
     "rugcheck",
 }
-
 
 class RMICache:
     """Centralized cache with Redis primary + dict fallback + credit tracking."""
@@ -418,7 +418,6 @@ class RMICache:
         except (ConnectionError, OSError):
             pass
         self._memory.pop(key, None)
-
 
 # Singleton instance
 cache = RMICache()

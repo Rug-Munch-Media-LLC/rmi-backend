@@ -18,6 +18,7 @@ Scoring bands:
   81-100: DANGER (red) - auto-fail
 """
 
+from __future__ import annotations
 import json
 import os
 import time
@@ -39,7 +40,6 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 CACHE_TTL = 300  # 5 min active, 1 hour dormant
 
 # ── Check Definitions ──────────────────────────────────────────────
-
 
 class SecurityCheck:
     """A single security check with weight, category, and scoring."""
@@ -63,7 +63,6 @@ class SecurityCheck:
         self.tier = tier
         self.description = description
         self.auto_fail = auto_fail
-
 
 # ── 37+ Security Checks ────────────────────────────────────────────
 
@@ -373,10 +372,8 @@ SECURITY_CHECKS = [
     ),
 ]
 
-
 def get_checks_by_tier(tier: int) -> list[SecurityCheck]:
     return [c for c in SECURITY_CHECKS if c.tier <= tier]
-
 
 def get_check_matrix() -> dict:
     """Full security check matrix with descriptions."""
@@ -402,9 +399,7 @@ def get_check_matrix() -> dict:
         },
     }
 
-
 # ── Scoring Engine ─────────────────────────────────────────────────
-
 
 class TokenSecurityScorer:
     """Weighs and aggregates security check results into a 0-100 risk score."""
@@ -471,9 +466,7 @@ class TokenSecurityScorer:
         band, color = TokenSecurityScorer.band_for_score(score)
         return round(score, 1), band, color
 
-
 # ── Quick Scan Provider ─────────────────────────────────────────────
-
 
 async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[str, Any]:
     """Tier 1 quick scan - GoPlus + basic checks. <1s target."""
@@ -665,9 +658,7 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
         "source": "token_security_matrix",
     }
 
-
 # ── Full Security Scan (Tier 1 + 2 + 3 async) ─────────────────────
-
 
 async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dict | None:
     """DataBus provider: Full token security scan.
@@ -727,7 +718,6 @@ async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dic
         pass
 
     return result
-
 
 async def get_check_matrix_endpoint(**kw) -> dict:
     """Returns the full security check matrix definition."""

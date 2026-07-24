@@ -27,11 +27,9 @@ from app.domains.billing.x402.shared import (
 
 sub_router = APIRouter(tags=["x402-deployer-tools"])
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 8: Insider Tracker ($1.50)
 # ═══════════════════════════════════════════════════════════════
-
 
 async def _insider_tracking(creator: str, chain: str) -> dict:
     """Track creator wallet activity across all tokens."""
@@ -110,7 +108,6 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
     result["risk_level"] = risk
     return result
 
-
 @sub_router.post("/insider")
 async def insider_tracker(req: InsiderRequest) -> dict[str, str]:
     """Dev/team wallet tracking across all their tokens."""
@@ -127,11 +124,9 @@ async def insider_tracker(req: InsiderRequest) -> dict[str, str]:
     except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-
 # ═══════════════════════════════════════════════════════════════
 # TOOL 41: Whale Accumulation Pattern Detector ($0.10)
 # ═══════════════════════════════════════════════════════════════
-
 
 @sub_router.post("/whale_accumulation")
 async def whale_accumulation(req: GenericRequest) -> dict[str, str]:

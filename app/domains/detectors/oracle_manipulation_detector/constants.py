@@ -4,6 +4,7 @@ Oracle Manipulation Detector — Constants and Configuration
 Chain configurations, feed addresses, and detection thresholds.
 """
 
+from __future__ import annotations
 from typing import Any
 
 # Chainlink-specific constants

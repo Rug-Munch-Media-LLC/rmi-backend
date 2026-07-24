@@ -13,6 +13,7 @@ API Documentation:
 - https://pyth.dourolabs.app/docs/?urls.primaryName=Hermes+API
 """
 
+from __future__ import annotations
 import asyncio
 from typing import Any
 
@@ -24,7 +25,6 @@ logger = get_logger(__name__)
 
 # Pyth Hermes API endpoint
 PYTH_HERMES_BASE_URL = "https://hermes.pyth.network"
-
 
 class PythPriceFeedProvider:
     """Pyth Network price feed provider"""
@@ -153,7 +153,6 @@ class PythPriceFeedProvider:
         """Close the HTTP client"""
         await self.client.aclose()
 
-
 # Provider functions for DataBus integration
 async def _pyth_price_feed_list(**kwargs) -> dict[str, Any]:
     """Get list of all Pyth price feeds"""
@@ -165,7 +164,6 @@ async def _pyth_price_feed_list(**kwargs) -> dict[str, Any]:
     finally:
         await provider.close()
 
-
 async def _pyth_latest_price_updates(price_feed_ids: list, **kwargs) -> dict[str, Any]:
     """Get latest price updates for specified feeds"""
     provider = PythPriceFeedProvider()
@@ -175,7 +173,6 @@ async def _pyth_latest_price_updates(price_feed_ids: list, **kwargs) -> dict[str
     finally:
         await provider.close()
 
-
 async def _pyth_single_price_feed(price_feed_id: str, **kwargs) -> dict[str, Any]:
     """Get a single price feed by ID"""
     provider = PythPriceFeedProvider()
@@ -184,7 +181,6 @@ async def _pyth_single_price_feed(price_feed_id: str, **kwargs) -> dict[str, Any
         return result
     finally:
         await provider.close()
-
 
 async def _pyth_parsed_price(price_feed_id: str, **kwargs) -> dict[str, Any]:
     """Get parsed price data for a single feed"""
@@ -196,7 +192,6 @@ async def _pyth_parsed_price(price_feed_id: str, **kwargs) -> dict[str, Any]:
     finally:
         await provider.close()
 
-
 # Example usage functions
 async def get_bitcoin_price_feed() -> dict[str, Any]:
     """
@@ -207,7 +202,6 @@ async def get_bitcoin_price_feed() -> dict[str, Any]:
     btc_usd_feed_id = "0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b41"
     return await _pyth_parsed_price(btc_usd_feed_id)
 
-
 async def get_ethereum_price_feed() -> dict[str, Any]:
     """
     Get Ethereum/USD price feed via Pyth Network.
@@ -216,7 +210,6 @@ async def get_ethereum_price_feed() -> dict[str, Any]:
     # Pyth ETH/USD price feed ID (verified, mainnet)
     eth_usd_feed_id = "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace"
     return await _pyth_parsed_price(eth_usd_feed_id)
-
 
 if __name__ == "__main__":
     # Test the provider

@@ -12,6 +12,7 @@ Architecture:
   - Metadata filtering (chain, severity, date range)
   - Automatic index maintenance
 """
+from __future__ import annotations
 
 import json
 import os
@@ -25,11 +26,9 @@ from app.core.secrets import get_secret_or_none
 
 logger = get_logger(__name__)
 
-
-def _get_url() -> Any | None:
+def _get_url() -> str:
     """Get Supabase URL from env dynamically."""
     return os.environ.get("SUPABASE_URL", "")
-
 
 def _get_headers() -> dict:
     """Build headers dynamically to pick up env changes without module reload.
@@ -49,7 +48,6 @@ def _get_headers() -> dict:
         "Content-Type": "application/json",
     }
 
-
 # Table configuration
 VECTOR_TABLE = "rag_vectors"
 
@@ -66,7 +64,6 @@ TABLE_DIM = (
     int(os.environ.get("RAG_TABLE_DIM", str(max(EMBEDDING_DIM, 1)))) if EMBEDDING_DIM > 0 else 640
 )
 
-
 def pad_vector(vec: list, target_dim: int) -> list:
     """Pad or truncate a vector to exactly target_dim dimensions."""
     if len(vec) == target_dim:
@@ -74,7 +71,6 @@ def pad_vector(vec: list, target_dim: int) -> list:
     if len(vec) > target_dim:
         return vec[:target_dim]
     return vec + [0.0] * (target_dim - len(vec))
-
 
 # SQL for table creation
 CREATE_TABLE_SQL = f"""
@@ -107,7 +103,6 @@ CREATE INDEX IF NOT EXISTS idx_rag_content_fts ON {VECTOR_TABLE}
 -- CREATE INDEX IF NOT EXISTS idx_rag_embedding_ivfflat ON {VECTOR_TABLE}
 --     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 """
-
 
 class SupabaseVectorStore:
     """
@@ -692,13 +687,11 @@ class SupabaseVectorStore:
         except (httpx.HTTPError, ConnectionError, TimeoutError):
             return []
 
-
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ══════════════════════════════════════════════════════════════════════
 
 _vector_store: SupabaseVectorStore | None = None
-
 
 async def get_vector_store() -> SupabaseVectorStore:
     global _vector_store

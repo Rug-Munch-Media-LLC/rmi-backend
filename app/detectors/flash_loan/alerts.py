@@ -5,6 +5,7 @@ CLI entry point, output formatting, and alert pipeline integration
 for detected flash loan attacks.
 """
 
+from __future__ import annotations
 import argparse
 import asyncio
 import json
@@ -15,7 +16,6 @@ from app.detectors.flash_loan.detector import FlashLoanAttackDetector
 from app.detectors.flash_loan.models import AttackSeverity
 
 logger = get_logger(__name__)
-
 
 def _parse_cli_args() -> argparse.Namespace:
     """Parse command-line arguments for standalone operation."""
@@ -65,7 +65,6 @@ def _parse_cli_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 def _severity_from_str(s: str) -> AttackSeverity | None:
     """Convert severity string to enum."""
     mapping = {
@@ -76,7 +75,6 @@ def _severity_from_str(s: str) -> AttackSeverity | None:
         "critical": AttackSeverity.CRITICAL,
     }
     return mapping.get(s.lower())
-
 
 async def _run_cli() -> None:
     """Execute the CLI workflow."""
@@ -184,11 +182,9 @@ async def _run_cli() -> None:
             for attack in report.attacks_confirmed:
                 logger.info("\n⚠️  NEW: %s", attack.summary())
 
-
 def main() -> None:
     """CLI entry point."""
     asyncio.run(_run_cli())
-
 
 if __name__ == "__main__":
     main()

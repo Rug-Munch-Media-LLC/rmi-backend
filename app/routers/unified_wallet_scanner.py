@@ -41,14 +41,12 @@ OLLAMA_URL = "https://ollama.com/v1/chat/completions"
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
 MODEL = "deepseek-v4-flash"
 
-
 def _validate_https_url(url: str) -> str:
     """Ensure URL uses HTTPS scheme to prevent SSRF via user-influenced URLs."""
     parsed = urlparse(url)
     if parsed.scheme not in ("https",):
         raise ValueError(f"Only HTTPS URLs allowed, got: {parsed.scheme}://")
     return url
-
 
 @dataclass
 class WalletScanResult:
@@ -92,7 +90,6 @@ class WalletScanResult:
     enrichment_sources: list[str] = field(default_factory=list)
     tier: str = "free"
     scan_duration_ms: float = 0.0
-
 
 class UnifiedWalletScanner:
     """THE wallet scanner. Beats anything on the market."""
@@ -399,9 +396,7 @@ class UnifiedWalletScanner:
                 s += 25
         r.risk_score = min(100.0, s)
 
-
 _scanner: UnifiedWalletScanner | None = None
-
 
 def get_wallet_scanner() -> UnifiedWalletScanner:
     global _scanner

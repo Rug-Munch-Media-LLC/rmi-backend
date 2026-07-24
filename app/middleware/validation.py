@@ -11,6 +11,7 @@ Includes:
 - Custom validators
 """
 
+from __future__ import annotations
 import re
 
 from pydantic import BaseModel, Field, field_validator
@@ -18,7 +19,6 @@ from pydantic import BaseModel, Field, field_validator
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 # ─── COMMON VALIDATION CONSTANTS ─────────────────────────────────
 
@@ -54,9 +54,7 @@ VALID_CHAINS = {
     "holesky",
 }
 
-
 # ─── BASE REQUEST MODELS ────────────────────────────────────────
-
 
 class WalletRequest(BaseModel):
     """Base model for wallet address requests."""
@@ -87,7 +85,6 @@ class WalletRequest(BaseModel):
             logger.warning("Unknown chain '%s', allowing anyway for flexibility", v)
         return v.lower()
 
-
 class BatchWalletRequest(BaseModel):
     """Request for batch wallet operations."""
 
@@ -117,12 +114,10 @@ class BatchWalletRequest(BaseModel):
             logger.warning("Unknown chain '%s', allowing anyway", v)
         return v.lower()
 
-
 class ContractRequest(WalletRequest):
     """Request for contract operations."""
 
     deep: bool = Field(default=False, description="Run deep scan with Slither/Mythril")
-
 
 class TextSearchRequest(BaseModel):
     """Request for text-based searches."""
@@ -130,9 +125,7 @@ class TextSearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=200, description="Search query")
     limit: int = Field(default=10, ge=1, le=100, description="Maximum results to return")
 
-
 # ─── SECURITY-FOCUSED MODELS ────────────────────────────────────
-
 
 class ThreatCheckRequest(WalletRequest):
     """Request for threat intelligence checks."""
@@ -140,7 +133,6 @@ class ThreatCheckRequest(WalletRequest):
     check_sanctions: bool = Field(default=True, description="Check OFAC sanctions list")
     check_risk: bool = Field(default=True, description="Check risk score")
     check_exchange: bool = Field(default=True, description="Check if address is exchange/deposit")
-
 
 class MempoolMonitorRequest(WalletRequest):
     """Request for mempool monitoring."""
@@ -150,7 +142,6 @@ class MempoolMonitorRequest(WalletRequest):
     )
     alert_on_bot: bool = Field(default=True, description="Alert on bot detection")
 
-
 class PortfolioRequest(WalletRequest):
     """Request for portfolio analysis."""
 
@@ -158,9 +149,7 @@ class PortfolioRequest(WalletRequest):
     include_nfts: bool = Field(default=False, description="Include NFTs")
     history_days: int = Field(default=30, ge=1, le=365, description="Days of transaction history")
 
-
 # ─── UTILITY VALIDATORS ─────────────────────────────────────────
-
 
 def tier_validator(tier: str, rate_type: str = "requests_per_hour") -> dict[str, int]:
     """
@@ -180,7 +169,6 @@ def tier_validator(tier: str, rate_type: str = "requests_per_hour") -> dict[str,
         "ENTERPRISE": {"requests_per_hour": 1000, "requests_per_day": 10000},
     }
     return tiers.get(tier.upper(), tiers["FREE"])
-
 
 def validate_x402_payment(required: int, tier: str) -> bool:
     """

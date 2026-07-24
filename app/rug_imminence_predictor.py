@@ -10,4 +10,5 @@ Usage:
     from app.rug_imminence_predictor import RugImminencePredictor
 """
 
+from __future__ import annotations
 from app.domains.detectors.rug_imminence_predictor import *  # noqa: F401, F403

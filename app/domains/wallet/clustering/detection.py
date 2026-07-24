@@ -11,11 +11,11 @@ Provides the detection algorithms that WalletClusteringEngine uses:
   - center wallet identification
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
 from app.domains.wallet.clustering.models import Cluster, WalletProfile
-
 
 def detect_temporal_clusters(
     wallets: dict[str, WalletProfile],
@@ -65,7 +65,6 @@ def detect_temporal_clusters(
         cluster_id += 1
 
     return clusters
-
 
 def detect_common_counterparty_clusters(
     wallets: dict[str, WalletProfile],
@@ -130,7 +129,6 @@ def detect_common_counterparty_clusters(
 
     return clusters
 
-
 def detect_pattern_clusters(
     wallets: dict[str, WalletProfile],
     min_transaction_similarity: float = 0.7,
@@ -190,7 +188,6 @@ def detect_pattern_clusters(
 
     return clusters
 
-
 def detect_funding_clusters(
     wallets: dict[str, WalletProfile],
     transactions: list,
@@ -225,7 +222,6 @@ def detect_funding_clusters(
             cluster_id += 1
 
     return clusters
-
 
 def merge_clusters(clusters: list[Cluster]) -> list[Cluster]:
     """Merge clusters that share wallets."""
@@ -284,7 +280,6 @@ def merge_clusters(clusters: list[Cluster]) -> list[Cluster]:
 
     return merged_clusters
 
-
 def _calculate_fingerprint_similarity(fp1: dict[str, Any], fp2: dict[str, Any]) -> float:
     """Calculate similarity between two behavioral fingerprints."""
     scores = []
@@ -311,7 +306,6 @@ def _calculate_fingerprint_similarity(fp1: dict[str, Any], fp2: dict[str, Any]) 
 
     return sum(scores) / len(scores) if scores else 0
 
-
 def _find_center_wallet(wallets: set[str], wallets_dict: dict) -> str | None:
     """Find the most connected wallet in a cluster (center)."""
     if not wallets:
@@ -329,7 +323,6 @@ def _find_center_wallet(wallets: set[str], wallets_dict: dict) -> str | None:
                 max_connections = connections
                 center = wallet
     return center or next(iter(wallets))
-
 
 __all__ = [
     "detect_temporal_clusters",

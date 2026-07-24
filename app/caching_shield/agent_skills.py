@@ -5,11 +5,11 @@ Served as MCP prompts/resources so agents discover best practices
 alongside tool definitions. Each skill teaches a specific workflow.
 """
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # AGENT SKILLS - Workflow guides for common agent tasks
 # ═══════════════════════════════════════════════════════════════════════════
 
+from __future__ import annotations
 AGENT_SKILLS = {
     "token_vetting": {
         "name": "Pre-Buy Token Vetting",
@@ -265,7 +265,6 @@ AGENT_PROMPTS = {
 # ═══════════════════════════════════════════════════════════════════════════
 # CATALOG
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 def get_agent_skills() -> dict:
     return {

@@ -12,7 +12,6 @@ log = get_logger(__name__)
 
 CSV_PATH = "/home/dev/rmi/backend/data/wallet-labels-clean/wallet_labels_ethereum.csv"
 
-
 async def query_ethereum_labels_csv(address: str, chain: str = "ethereum") -> list[Label]:
     """Query the ethereum wallet labels CSV via DuckDB.
 

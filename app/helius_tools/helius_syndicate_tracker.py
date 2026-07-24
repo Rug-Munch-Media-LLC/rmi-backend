@@ -8,6 +8,7 @@ and all related wallets for movement, coordination, and new activity.
 Your webhook (7263c8c2-63d0-49b3-9d4e-860b26c5d874) is preserved and
 receives all events for this contract.
 """
+from __future__ import annotations
 
 import os
 from dataclasses import dataclass
@@ -64,7 +65,6 @@ TIERS = {
     },
 }
 
-
 @dataclass
 class SyndicateEvent:
     timestamp: datetime
@@ -79,7 +79,6 @@ class SyndicateEvent:
     risk_flag: str
     description: str
 
-
 @dataclass
 class WalletGraphNode:
     address: str
@@ -91,7 +90,6 @@ class WalletGraphNode:
     risk_score: int
     last_active: datetime
     transaction_count: int
-
 
 class SyndicateTracker:
     """Tracks SOSANA syndicate activity on-chain."""

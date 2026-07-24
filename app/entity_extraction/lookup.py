@@ -10,10 +10,11 @@ Key schema:
   entity:type:{type}           -> set         {value1, value2, ...}
 """
 
+from __future__ import annotations
 import json
 import os
 import threading
-from typing import Any, Optional
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -22,7 +23,6 @@ logger = get_logger(__name__)
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
-
 
 class EntityLookup:
     """

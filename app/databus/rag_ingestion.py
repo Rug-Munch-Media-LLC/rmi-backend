@@ -8,6 +8,7 @@ Runs at 3AM UTC. Embeds via NVIDIA NIM (BGE-M3, 1024d, free).
 Redis-backed with permanence to R2.
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import os
@@ -16,7 +17,6 @@ from datetime import UTC, datetime
 from app.core.logging import get_logger
 
 logger = get_logger("rag_ingestion")
-
 
 async def nightly_rag_index(**kw) -> dict:
     """Nightly RAG indexing - embeds all new content from all sources.
@@ -136,7 +136,6 @@ async def nightly_rag_index(**kw) -> dict:
 
     return indexed
 
-
 async def _embed_batch(docs: list[dict], collection: str) -> int:
     """Embed a batch of documents and store in Redis RAG store."""
     if not docs:
@@ -179,7 +178,6 @@ async def _embed_batch(docs: list[dict], collection: str) -> int:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Embed batch failed for {collection}: {e}")
         return 0
-
 
 async def rag_health_check(**kw) -> dict:
     """Check RAG system health - collections, doc counts, storage."""

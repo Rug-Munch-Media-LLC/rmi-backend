@@ -5,13 +5,12 @@ Covers: wallet tokens, NFTs, transactions, token price/metadata,
 net worth, and token search.
 """
 
-
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.moralis")
-
 
 async def _moralis_price(**kwargs) -> dict | None:
     """Moralis — paid, high quality token price."""
@@ -28,7 +27,6 @@ async def _moralis_price(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) -> dict | None:
     """Moralis — wallet token balances."""
@@ -48,7 +46,6 @@ async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) ->
         logger.warning("provider error")
     return None
 
-
 async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> dict | None:
     """Moralis — wallet NFT holdings."""
     api_key = kw.get("api_key", "")
@@ -66,7 +63,6 @@ async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> d
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **kw) -> dict | None:
     """Moralis — wallet transaction history."""
@@ -86,7 +82,6 @@ async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **
         logger.warning("provider error")
     return None
 
-
 async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> dict | None:
     """Moralis — token price (specific endpoint)."""
     api_key = kw.get("api_key", "")
@@ -104,7 +99,6 @@ async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> d
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -> dict | None:
     """Moralis — token metadata (name, symbol, decimals)."""
@@ -124,7 +118,6 @@ async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -
         logger.warning("provider error")
     return None
 
-
 async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict | None:
     """Moralis — wallet net worth across chains."""
     api_key = kw.get("api_key", "")
@@ -141,7 +134,6 @@ async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _moralis_search_tokens(query: str = "", **kw) -> dict | None:
     """Moralis — search tokens by name/symbol/address."""

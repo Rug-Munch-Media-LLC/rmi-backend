@@ -3,6 +3,7 @@
 Provides the `get_db` FastAPI dependency for request-scoped sessions.
 """
 
+from __future__ import annotations
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -27,7 +28,6 @@ async_session_factory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
-
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency yielding a request-scoped async session.

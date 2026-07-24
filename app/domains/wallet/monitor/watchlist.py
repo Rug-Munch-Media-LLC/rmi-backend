@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 
 from app.domains.wallet.monitor.config import CONFIG, get_redis
 
-
 class WatchlistManager:
     """Subscribe / unsubscribe wallet addresses across chains. Persisted in Redis."""
 

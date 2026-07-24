@@ -19,6 +19,7 @@ Tier: Premium ($0.15)
 Endpoint: POST /api/v1/x402-tools/social_engineering
 """
 
+from __future__ import annotations
 import re
 import time
 from datetime import UTC, datetime
@@ -104,9 +105,7 @@ _AI_CONTENT_PATTERNS = [
     re.compile(r"\bgeneric\b.{0,50}\btemplate\b", re.I),
 ]
 
-
 # ── Core Detection Functions ─────────────────────────────────────
-
 
 def analyze_profile_photo(photo_url: str | None, name: str) -> dict:
     """Analyze team profile photos for synthetic/AI indicators.
@@ -168,7 +167,6 @@ def analyze_profile_photo(photo_url: str | None, name: str) -> dict:
         "flags": flags,
         "details": f"Photo URL: {photo_url[:80]}...",
     }
-
 
 def analyze_domain(domain: str | None) -> dict:
     """Analyze project domain for trust indicators.
@@ -244,7 +242,6 @@ def analyze_domain(domain: str | None) -> dict:
         "flags": flags,
         "details": "Domain analysis based on lexical patterns (full WHOIS requires API key)",
     }
-
 
 def analyze_social_presence(social_links: list[str] | None) -> dict:
     """Analyze social media presence for authenticity.
@@ -322,7 +319,6 @@ def analyze_social_presence(social_links: list[str] | None) -> dict:
         "details": f"Found {platform_count} social platforms",
     }
 
-
 def analyze_whitepaper_content(text: str | None) -> dict:
     """Analyze whitepaper/documentation text for AI generation or plagiarism.
 
@@ -397,7 +393,6 @@ def analyze_whitepaper_content(text: str | None) -> dict:
         "details": details or ["Content analysis complete"],
     }
 
-
 async def check_team_background(name: str, role: str, social_handle: str | None) -> dict:
     """Check team member background for red flags.
 
@@ -441,7 +436,6 @@ async def check_team_background(name: str, role: str, social_handle: str | None)
         "flags": flags,
         "details": "Analysis based on name, role, and social presence patterns",
     }
-
 
 async def detect_social_engineering(
     token_address: str,

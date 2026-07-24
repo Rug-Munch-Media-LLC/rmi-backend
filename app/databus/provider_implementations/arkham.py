@@ -1,11 +1,11 @@
 """Arkham Intelligence providers — Free trial month, premium entity data."""
 
+from __future__ import annotations
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
 
 _ARKHAM_BASE = "https://api.arkhamintelligence.com"
-
 
 async def _arkham_entity(address: str = "", **kw) -> dict | None:
     """Arkham - entity intelligence (tx counts, top counterparties, tags)."""
@@ -21,7 +21,6 @@ async def _arkham_entity(address: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
     """Arkham - top counterparties ranked by transaction volume."""
@@ -43,7 +42,6 @@ async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
     """Arkham - search entities by address prefix (up to 20 matches)."""
     api_key = kw.get("api_key", "")
@@ -61,7 +59,6 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
-
 async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
     """Arkham - portfolio via entity intelligence (includes balance info)."""
     api_key = kw.get("api_key", "")
@@ -76,7 +73,6 @@ async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _arkham_transfers(address: str = "", **kw) -> dict | None:
     """Arkham - transfer history via counterparties endpoint."""
@@ -97,7 +93,6 @@ async def _arkham_transfers(address: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
-
 
 async def _arkham_labels(address: str = "", **kw) -> dict | None:
     """Arkham - labels extracted from entity intelligence (arkhamLabel field)."""

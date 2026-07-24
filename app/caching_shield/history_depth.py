@@ -19,6 +19,7 @@ Cache integration:
   - Pagination queries: TTL 180s
 """
 
+from __future__ import annotations
 import time
 from collections import OrderedDict
 
@@ -40,7 +41,6 @@ DEEP_SCAN_COOLDOWN = 300  # 5 minutes
 
 # How many addresses to track for cooldown
 COOLDOWN_TRACK_SIZE = 500
-
 
 class HistoryDepthController:
     """Controls transaction history query depth and deep-scan gating.
@@ -126,11 +126,9 @@ class HistoryDepthController:
             "deep_scan_cooldown_s": DEEP_SCAN_COOLDOWN,
         }
 
-
 # ── Singleton ──────────────────────────────────────────────────────────────
 
 _controller: HistoryDepthController | None = None
-
 
 def get_history_controller() -> HistoryDepthController:
     global _controller

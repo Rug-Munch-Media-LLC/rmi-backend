@@ -17,11 +17,14 @@ patterns that static rules miss entirely.
 Premium feature: "AI-Powered Risk Score" - ML confidence alongside rules-based score.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import pickle
 from datetime import UTC, datetime
-from typing import Any
+from pathlib import Path
+from typing import Any, Final
 
 import numpy as np
 
@@ -29,14 +32,13 @@ from app.core.logging import get_logger
 
 logger = get_logger("sentinel.ai")
 
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "models")
-MODEL_PATH = os.path.join(MODEL_DIR, "scam_classifier_xgb.pkl")
-FEATURE_NAMES_PATH = os.path.join(MODEL_DIR, "scam_classifier_features.json")
+MODEL_DIR: Final = Path(__file__).resolve().parent.parent / "data" / "models"
+MODEL_PATH: Final = MODEL_DIR / "scam_classifier_xgb.pkl"
+FEATURE_NAMES_PATH: Final = MODEL_DIR / "scam_classifier_features.json"
 
 # ──────────────────────────────────────────────────────────────
 # Feature Extraction - 80+ features from enrichment data
 # ──────────────────────────────────────────────────────────────
-
 
 def extract_features(scan_result: dict[str, Any]) -> dict[str, float]:
     """Extract ML features from a scan result. Returns dict of feature_name → value."""
@@ -208,11 +210,9 @@ def extract_features(scan_result: dict[str, Any]) -> dict[str, float]:
 
     return f
 
-
 # ──────────────────────────────────────────────────────────────
 # Model Training
 # ──────────────────────────────────────────────────────────────
-
 
 class ScamClassifier:
     """XGBoost classifier trained on historical scan data."""
@@ -395,13 +395,11 @@ class ScamClassifier:
             logger.warning(f"Prediction failed: {e}")
             return {"status": "error", "probability": None, "error": str(e)}
 
-
 # ──────────────────────────────────────────────────────────────
 # Singleton
 # ──────────────────────────────────────────────────────────────
 
 _classifier: ScamClassifier | None = None
-
 
 def get_classifier() -> ScamClassifier:
     global _classifier

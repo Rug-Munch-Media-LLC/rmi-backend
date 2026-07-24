@@ -4,8 +4,8 @@ Resolves Docker env-loading issues by checking multiple sources.
 Pattern: env var → /tmp/{name}_key.txt → /root/.secrets/sentinel_enrichment_keys.env → None
 """
 
+from __future__ import annotations
 import os
-
 
 def load_key(name: str) -> str:
     """Load an API key with multiple fallback sources.
@@ -47,7 +47,6 @@ def load_key(name: str) -> str:
         pass
 
     return ""
-
 
 # Enrichment key service name → env var mapping
 SERVICE_KEYS = {

@@ -14,6 +14,7 @@ Uses:
 Designed to work with existing RAG pipeline: images → descriptions → embed → search.
 """
 
+from __future__ import annotations
 import hashlib
 import os
 from typing import Any
@@ -23,7 +24,6 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # ── Perceptual Hashing ───────────────────────────────────────────
-
 
 def compute_image_hash(image_bytes: bytes, hash_size: int = 16) -> str:
     """
@@ -83,7 +83,6 @@ def compute_image_hash(image_bytes: bytes, hash_size: int = 16) -> str:
     # Ultimate fallback: SHA-based hash of raw bytes
     return hashlib.sha256(image_bytes).hexdigest()[: hash_size * 2]
 
-
 def _hash_from_raw(data: bytes, width: int, height: int, hash_size: int) -> str:
     """Compute average hash from raw pixel data."""
     try:
@@ -120,7 +119,6 @@ def _hash_from_raw(data: bytes, width: int, height: int, hash_size: int) -> str:
     except (ConnectionError, OSError, TimeoutError):
         return hashlib.sha256(data).hexdigest()[: hash_size * 2]
 
-
 def compare_image_hashes(hash1: str, hash2: str) -> float:
     """Compare two perceptual hashes. Returns similarity 0-1."""
     if len(hash1) != len(hash2):
@@ -136,9 +134,7 @@ def compare_image_hashes(hash1: str, hash2: str) -> float:
     except ValueError:
         return 0.0
 
-
 # ── Token Logo Database ───────────────────────────────────────────
-
 
 class TokenLogoDB:
     """In-memory database of known token logos for stolen artwork detection."""
@@ -206,9 +202,7 @@ class TokenLogoDB:
             "summary": "No stolen artwork detected",
         }
 
-
 # ── Image Description (via DeepSeek Vision) ──────────────────────
-
 
 async def describe_image(
     image_url: str = "",
@@ -297,9 +291,7 @@ async def describe_image(
         logger.warning(f"Image description error: {e}")
         return f"Image analysis failed: {e}"
 
-
 # ── Screenshot OCR - lightweight text extraction ─────────────────
-
 
 def extract_text_from_image_hints(image_bytes: bytes) -> dict[str, list[str]]:
     """
@@ -344,11 +336,9 @@ def extract_text_from_image_hints(image_bytes: bytes) -> dict[str, list[str]]:
 
     return results
 
-
 # ── Singleton ─────────────────────────────────────────────────────
 
 _logo_db: TokenLogoDB | None = None
-
 
 def get_logo_db() -> TokenLogoDB:
     global _logo_db

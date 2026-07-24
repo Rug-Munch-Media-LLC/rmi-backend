@@ -11,14 +11,13 @@ These use inline HTTP passthrough functions to the local RMI backend API.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
-
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 
 logger = get_logger("databus.providers.chains.misc")
-
 
 def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
     """Build passthrough chains for Hyperliquid, insider wallets, and prediction signals."""

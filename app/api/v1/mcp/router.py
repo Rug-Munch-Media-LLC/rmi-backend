@@ -32,20 +32,17 @@ from app.mcp.server import (
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 log = get_logger(__name__)
 
-
 class JsonRpcRequest(BaseModel):
     jsonrpc: str = "2.0"
     method: str
     params: dict[str, Any] = {}
     id: int | str | None = None
 
-
 class JsonRpcResponse(BaseModel):
     jsonrpc: str = "2.0"
     result: Any | None = None
     error: dict | None = None
     id: int | str | None = None
-
 
 @router.post("")
 async def jsonrpc_handler(req: JsonRpcRequest) -> dict:
@@ -121,12 +118,10 @@ async def jsonrpc_handler(req: JsonRpcRequest) -> dict:
         "id": req.id,
     }
 
-
 @router.get("/tools")
 async def list_tools() -> dict:
     """Plain JSON endpoint (for direct integration, no JSON-RPC)."""
     return {"server": "rugmunch-intelligence", "version": MCP_SERVER_VERSION, "tools": TOOL_CATALOG}
-
 
 @router.get("/info")
 async def server_info() -> dict:
@@ -162,7 +157,6 @@ async def server_info() -> dict:
             "docs": "https://github.com/Rug-Munch-Media-LLC/rmi-docs",
         },
     }
-
 
 @router.post("/call/{tool_id}")
 async def direct_call(tool_id: str, request: Request) -> dict:

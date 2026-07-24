@@ -5,6 +5,7 @@ RugMunchBot -- Message formatting & utility helpers.
 All formatting, text generation, and small utility functions
 used by handlers and other modules.
 """
+from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
@@ -32,16 +33,13 @@ logger = get_logger("rmi_bot")
 # --- Address detection helpers ---
 TOKEN_RE = re.compile(r"\$([A-Za-z]{2,10})\b")
 
-
 def is_evm(addr: str) -> bool:
     from app.core.shared_utils import is_evm_address
     return is_evm_address(addr)
 
-
 def is_sol(addr: str) -> bool:
     from app.core.shared_utils import is_solana_address
     return is_solana_address(addr)
-
 
 def detect_chain(addr: str) -> str:
     if is_evm(addr):
@@ -50,36 +48,29 @@ def detect_chain(addr: str) -> str:
         return "solana"
     return "unknown"
 
-
 def short_addr(addr: str) -> str:
     if len(addr) > 12:
         return f"{addr[:6]}...{addr[-4:]}"
     return addr
 
-
 def is_owner(uid: int) -> bool:
     return uid in OWNER_IDS
-
 
 # --- Text helpers ---
 def sep(char: str = "\u2501", length: int = 28) -> str:
     return char * length
 
-
 def thin_sep(char: str = "\u2500", length: int = 24) -> str:
     return char * length
 
-
 def footer_links() -> str:
     return f'\n{sep()}\n\U0001f50d RugMunch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
-
 
 def web_scan_button(address: str, chain: str = "") -> InlineKeyboardButton:
     url = f"{WEB_APP_URL}?token={address}"
     if chain:
         url += f"&chain={chain}"
     return InlineKeyboardButton("\U0001f310 Full Report on RugMunch.io", url=url)
-
 
 def dex_buttons(token: str, chain: str) -> list[InlineKeyboardButton]:
     buttons = []
@@ -93,7 +84,6 @@ def dex_buttons(token: str, chain: str) -> list[InlineKeyboardButton]:
             buttons.append(InlineKeyboardButton(f"{dex['emoji']} {dex['name']}", url=url))
     return buttons
 
-
 def social_proof_text() -> str:
     try:
         conn = db.get_db()
@@ -105,7 +95,6 @@ def social_proof_text() -> str:
         return f"\U0001f465 {users_str} users | \U0001f50d {scans_str} scans completed"
     except (ConnectionError, OSError):
         return "\U0001f465 1,000+ users | \U0001f50d 50,000+ scans completed"
-
 
 def paywall_text(user_id: int, action: str = "scan") -> str:
     tier = db.get_user_tier(user_id)
@@ -127,7 +116,6 @@ def paywall_text(user_id: int, action: str = "scan") -> str:
         f"\U0001f50b 10 scans = \u2b5075 | 50 scans = \u2b50300 | 100 scans = \u2b50500"
     )
 
-
 # --- Risk helpers ---
 def _risk_indicator(score: float) -> str:
     if score >= 70:
@@ -135,7 +123,6 @@ def _risk_indicator(score: float) -> str:
     if score >= 40:
         return "\U0001f7e1"
     return "\U0001f7e2"
-
 
 def _price_diff_pct(p1: float, p2: float) -> str:
     if p1 <= 0 or p2 <= 0:
@@ -146,7 +133,6 @@ def _price_diff_pct(p1: float, p2: float) -> str:
         return "\u2248 same"
     cheaper = "T1" if diff < 0 else "T2"
     return f"{cheaper} {abs_diff:.2f}% cheaper"
-
 
 # --- Format scan report ---
 def format_scan_report(r: dict) -> str:
@@ -242,7 +228,6 @@ def format_scan_report(r: dict) -> str:
     lines.append(footer_links())
     return "\n".join(lines)
 
-
 # --- Wallet report formatting ---
 def _activity_score(tx_count: int | None) -> str:
     if not tx_count or tx_count == 0:
@@ -254,7 +239,6 @@ def _activity_score(tx_count: int | None) -> str:
     if tx_count < 1000:
         return "\U0001f535 High"
     return "\U0001f48e Very High"
-
 
 def _explorer_link(address: str, chain: str) -> str:
     if chain.lower() == "solana":
@@ -271,7 +255,6 @@ def _explorer_link(address: str, chain: str) -> str:
     }
     domain = explorers.get(chain.lower(), "etherscan.io")
     return f'<a href="https://{domain}/address/{address}">\U0001f50d {domain.split(".")[0].title()}</a>'
-
 
 def format_wallet_report(r: dict) -> str:
     s = sep()

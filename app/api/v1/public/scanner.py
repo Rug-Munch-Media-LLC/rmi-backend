@@ -14,7 +14,6 @@ from pydantic.config import ConfigDict
 
 router = APIRouter(prefix="/scanner", tags=["scanner"])
 
-
 class ScanRequest(BaseModel):
     """Request model for token scanning."""
 
@@ -37,7 +36,6 @@ class ScanRequest(BaseModel):
         pattern=r"^(quick|standard|deep)$",
     )
 
-
 class ScanResult(BaseModel):
     """Result of a token security scan."""
 
@@ -51,7 +49,6 @@ class ScanResult(BaseModel):
     risk_score: int = Field(..., ge=0, le=100)
     risk_tier: str = Field(..., min_length=1, max_length=20)
     factors: list[str] = []
-
 
 @router.post("/scan", response_model=ScanResult)
 async def scan_token(request: ScanRequest) -> Any:

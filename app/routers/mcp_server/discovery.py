@@ -1,5 +1,6 @@
 """MCP Discovery endpoints — /.well-known/mcp, /llms.txt, etc."""
 
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
@@ -11,7 +12,6 @@ from .config import _get_tools, _get_facilitator_count, _desc, MCP_PROTOCOL_VERS
 
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_discovery"])
-
 
 def _build_discovery() -> dict:
     """Build the MCP server discovery document."""
@@ -97,12 +97,10 @@ def _build_discovery() -> dict:
         ],
     }
 
-
 @router.get("/.well-known/mcp")
 @router.get("/.well-known/mcp.json")
 async def mcp_discovery() -> Any:
     return _build_discovery()
-
 
 @router.get("/.well-known/ai-plugin.json")
 async def ai_plugin_manifest() -> dict[str, str]:
@@ -120,7 +118,6 @@ async def ai_plugin_manifest() -> dict[str, str]:
         "contact_email": "mcp@rugmunch.io",
         "legal_info_url": "https://rugmunch.io/terms",
     }
-
 
 @router.get("/llms.txt")
 async def llms_txt() -> Any:
@@ -152,7 +149,6 @@ async def llms_txt() -> Any:
 """,
         media_type="text/plain; charset=utf-8",
     )
-
 
 @router.options("/mcp")
 async def mcp_options() -> Any:

@@ -9,6 +9,7 @@ Graceful degradation: if ClickHouse is unavailable, falls back to Redis-only
 If both are down, returns empty results with a warning.
 """
 
+from __future__ import annotations
 import contextlib
 import json
 import os
@@ -24,7 +25,6 @@ logger = get_logger("wallet_memory.storage")
 # ── ClickHouse connection (lazy, optional) ──────────────────────────
 
 _ch_client = None
-
 
 async def _get_clickhouse() -> Any | None:
     """Lazy-init ClickHouse client. Returns None if unavailable.
@@ -64,7 +64,6 @@ async def _get_clickhouse() -> Any | None:
         _try_mark_down("clickhouse")
         return None
 
-
 def _try_mark_healthy(store: str) -> None:
     try:
         from app.core.degradation import get_registry
@@ -72,7 +71,6 @@ def _try_mark_healthy(store: str) -> None:
         get_registry().mark_healthy(store)
     except (AttributeError, ImportError):
         pass
-
 
 def _try_mark_down(store: str) -> None:
     try:
@@ -82,11 +80,9 @@ def _try_mark_down(store: str) -> None:
     except (AttributeError, ImportError):
         pass
 
-
 # ── Redis connection (lazy) ─────────────────────────────────────────
 
 _redis_client: aioredis.Redis | None = None
-
 
 async def _get_redis() -> aioredis.Redis | None:
     """Lazy-init Redis client. Returns None if unavailable."""
@@ -116,7 +112,6 @@ async def _get_redis() -> aioredis.Redis | None:
         logger.warning("Redis unavailable for wallet memory: %s", e)
         _redis_client = None
         return None
-
 
 # ── Schema DDL ──────────────────────────────────────────────────────
 
@@ -214,7 +209,6 @@ CREATE TABLE IF NOT EXISTS bridge_mappings (
 ORDER BY (source_address, source_chain);
 """
 
-
 async def ensure_schema() -> bool:
     """Create ClickHouse tables if they don't exist. Safe to call on startup."""
     ch = await _get_clickhouse()
@@ -235,9 +229,7 @@ async def ensure_schema() -> bool:
         logger.error("ClickHouse schema creation failed: %s", e)
         return False
 
-
 # ── Storage interface ────────────────────────────────────────────────
-
 
 class WalletStorage:
     """Unified storage with ClickHouse + Redis, transparent fallback."""
@@ -759,11 +751,9 @@ class WalletStorage:
                 logger.warning("error")
         return False
 
-
 # ── Global singleton ─────────────────────────────────────────────────
 
 _storage: WalletStorage | None = None
-
 
 def get_storage() -> WalletStorage:
     """Get global storage instance."""

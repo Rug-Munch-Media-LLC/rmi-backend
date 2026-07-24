@@ -3,6 +3,7 @@ Supabase Realtime Bridge - live PostgreSQL changes → Redis pub/sub → WebSock
 Uses proper WebSocket protocol via 'websockets' library (httpx doesn't support WS upgrades).
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -37,7 +38,6 @@ TABLE_CHANNELS = {
     "system_health_log": "rmi:ws:health",
     "activity_feed": "rmi:ws:activity",
 }
-
 
 class SupabaseRealtimeBridge:
     def __init__(self) -> None:
@@ -156,7 +156,6 @@ class SupabaseRealtimeBridge:
         if self.redis:
             await self.redis.publish(channel, json.dumps(out, default=str))
 
-
 # ── HTTP polling fallback ──
 async def poll_realtime_changes() -> None:
     """Poll Supabase REST API for recent changes (falls back when WebSocket unavailable)."""
@@ -207,6 +206,5 @@ async def poll_realtime_changes() -> None:
         except Exception as e:
             logger.warning("Realtime poll error: %s", e)
         await asyncio.sleep(2)
-
 
 bridge = SupabaseRealtimeBridge()

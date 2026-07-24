@@ -18,7 +18,6 @@ router = APIRouter(prefix="/api/v1/impersonation", tags=["impersonation-detector
 BACKEND = settings.backend_url
 DATABUS = settings.databus_url
 
-
 class ImpersonationReport(BaseModel):
     address: str
     chain: str
@@ -27,7 +26,6 @@ class ImpersonationReport(BaseModel):
     suspicious_approvals: list[dict[str, Any]]
     risk_level: str
     risk_score: int
-
 
 async def _find_delegates(address: str, chain: str) -> list[dict]:
     """Find delegate/proxy wallets controlled by this address."""
@@ -41,7 +39,6 @@ async def _find_delegates(address: str, chain: str) -> list[dict]:
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning(f"Delegate lookup failed for {address}: {e}")
     return delegates
-
 
 async def _find_approvals(address: str, chain: str) -> list[dict]:
     """Find token approvals with unlimited spend to unverified contracts."""
@@ -64,7 +61,6 @@ async def _find_approvals(address: str, chain: str) -> list[dict]:
         logger.warning(f"Approval lookup failed for {address}: {e}")
     return approvals
 
-
 async def _scan_related_contracts(address: str, chain: str) -> list[dict]:
     """Find contracts deployed by or controlled by this address."""
     contracts: list[dict] = []
@@ -79,7 +75,6 @@ async def _scan_related_contracts(address: str, chain: str) -> list[dict]:
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning(f"Contract scan failed for {address}: {e}")
     return contracts
-
 
 def _assess_risk(delegates: list, approvals: list, contracts: list) -> tuple[str, int]:
     """Compute impersonation risk score."""
@@ -98,7 +93,6 @@ def _assess_risk(delegates: list, approvals: list, contracts: list) -> tuple[str
     elif score >= 10:
         return "medium", score
     return "low", score
-
 
 @router.get("/audit/{address}")
 async def audit_address(address: str, chain: str = Query("ethereum")) -> dict:

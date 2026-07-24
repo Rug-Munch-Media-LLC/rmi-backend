@@ -6,6 +6,7 @@ via mev-commit preconfirmations.
 ERC-8004 registered (Agent #23175).
 """
 
+from __future__ import annotations
 from typing import Any
 
 import aiohttp
@@ -22,7 +23,6 @@ from app.domains.billing.facilitators.base import (
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
 logger = get_logger("facilitator.primev")
-
 
 class PrimevFacilitator(Facilitator):
     """

@@ -2,6 +2,7 @@
 Tests for the Supply Manipulation / Bundler Detector (bundler_detect.py)
 """
 
+from __future__ import annotations
 import asyncio
 import unittest
 from unittest.mock import patch
@@ -17,7 +18,6 @@ from bundler_detect import (
     _label_risk,
     _time_cluster_similarity,
 )
-
 
 class TestHelpers(unittest.TestCase):
     """Test scoring helper functions."""
@@ -104,7 +104,6 @@ class TestHelpers(unittest.TestCase):
 
     def test_label_risk_none(self) -> None:
         assert _label_risk(0) == "none"
-
 
 class TestDataModels(unittest.TestCase):
     """Test dataclass models."""
@@ -193,7 +192,6 @@ class TestDataModels(unittest.TestCase):
         d = cluster.to_dict()
         assert d["wallet_count"] == 3
         assert d["total_supply_pct"] == 45.0
-
 
 class TestBundlerDetector(unittest.TestCase):
     """Test main BundlerDetector class."""
@@ -358,7 +356,6 @@ class TestBundlerDetector(unittest.TestCase):
             )
             assert "error" in result
 
-
 class TestEdgeCases(unittest.TestCase):
     """Test edge cases for robustness."""
 
@@ -409,7 +406,6 @@ class TestEdgeCases(unittest.TestCase):
         ]
         result = detector._analyze_launch_timing(buys)
         assert result["total_buys_first_blocks"] == 10
-
 
 if __name__ == "__main__":
     unittest.main()

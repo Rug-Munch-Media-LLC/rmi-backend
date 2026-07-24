@@ -1,4 +1,5 @@
 """Main MEV sandwich detector class."""
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -14,7 +15,6 @@ from .registry import KNOWN_MEV_BOTS
 from .analysis import _check_pool_vulnerability, _estimate_mev_vulnerability_score, _is_sandwich_pattern
 
 logger = get_logger(__name__)
-
 
 class MEVSandwichDetector:
     def __init__(self, chains: list[str] | None = None, data_dir: str | None = None) -> None:

@@ -15,6 +15,7 @@ Modules:
   entities.py    — Entity resolution, chain lookup, address validation
 """
 
+from __future__ import annotations
 from app.domains.wallet.crypto import (
     ShamirSecretSharing,
     WalletEncryption,

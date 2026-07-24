@@ -1,8 +1,8 @@
 """Base helpers — no circular dependencies."""
 
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
-
 
 def _parse_timestamp(ts: Any) -> float | None:
     """Parse a timestamp from various formats."""
@@ -19,7 +19,6 @@ def _parse_timestamp(ts: Any) -> float | None:
         except (ValueError, AttributeError):
             pass
     return None
-
 
 def _ts_human(ts: float) -> str:
     """Format a Unix timestamp to a human-readable UTC string."""

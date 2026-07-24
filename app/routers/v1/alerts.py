@@ -52,7 +52,6 @@ VALID_ALERT_TYPES = [
 
 # ── Rate limiting ──────────────────────────────────────────────────
 
-
 async def _check_rate_limit(client_key: str, r: Any | None) -> bool:
     """Check and increment rate limit counter for a client.
 
@@ -78,9 +77,7 @@ async def _check_rate_limit(client_key: str, r: Any | None) -> bool:
         logger.debug("rate_limit_check_failed: %s", exc)
         return True  # Allow on Redis failure
 
-
 # ── Token validation ──────────────────────────────────────────────────
-
 
 async def _validate_token_exists(
     token: str,
@@ -132,9 +129,7 @@ async def _validate_token_exists(
 
     return True
 
-
 # ── Request / Response models ────────────────────────────────────────
-
 
 class BulkAlertRequest(BaseModel):
     """Bulk alert creation request."""
@@ -145,7 +140,6 @@ class BulkAlertRequest(BaseModel):
     email: str | None = None
     chain: str = "ethereum"
 
-
 class BulkAlertResponse(BaseModel):
     """Response for bulk alert creation."""
 
@@ -155,9 +149,7 @@ class BulkAlertResponse(BaseModel):
     errors: list[dict[str, str]]
     skipped: list[dict[str, str]]
 
-
 # ── Endpoint ─────────────────────────────────────────────────────────
-
 
 @router.post("/bulk")
 async def create_bulk_alerts(
@@ -271,7 +263,6 @@ async def create_bulk_alerts(
         "errors": errors[:10],
         "skipped": skipped[:10],
     }
-
 
 def _make_alert_id(token: str, alert_type: str) -> str:
     """Generate deterministic alert ID from token + alert type."""

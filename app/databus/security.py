@@ -10,6 +10,7 @@ Three tiers:
 Never exposes API keys in responses. Never leaks internal data to public users.
 """
 
+from __future__ import annotations
 import os
 
 from fastapi import Request
@@ -68,7 +69,6 @@ ACCESS_LEVELS = {
 }
 
 ADMIN_KEY = os.getenv("ADMIN_API_KEY", "")
-
 
 class SecurityGate:
     """Validates access to data based on tier."""
@@ -159,7 +159,6 @@ class SecurityGate:
             # Keep simple string sources for public
 
         return sanitized
-
 
 # ── Singleton ──
 security = SecurityGate()

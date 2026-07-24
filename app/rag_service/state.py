@@ -1,5 +1,6 @@
 """Shared state for rag_service package."""
 
+from __future__ import annotations
 from app.crypto_embeddings import EmbeddingResult
 from app.core.logging import get_logger
 

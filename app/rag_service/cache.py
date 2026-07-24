@@ -1,5 +1,6 @@
 """Redis connection management for rag_service."""
 
+from __future__ import annotations
 import os
 
 from app.core.logging import get_logger
@@ -10,7 +11,6 @@ logger = get_logger(__name__)
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
-
 
 async def _get_redis() -> any:
     """Get or create a shared Redis connection (singleton pattern to prevent leaks)."""

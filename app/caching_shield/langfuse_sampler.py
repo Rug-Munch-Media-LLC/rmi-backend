@@ -12,6 +12,7 @@ Strategy:
 Free tier: 50,000 observations/month
 Our target: 30,000/month (60% headroom)
 """
+from __future__ import annotations
 
 import os
 import random
@@ -30,7 +31,6 @@ _counters = {
     "errors_captured": 0,
     "local_only": 0,
 }
-
 
 def should_send_to_cloud(
     is_error: bool = False,
@@ -62,7 +62,6 @@ def should_send_to_cloud(
 
     _counters["local_only"] += 1
     return False
-
 
 def stats() -> dict:
     total = max(_counters["total"], 1)

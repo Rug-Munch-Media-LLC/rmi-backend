@@ -6,6 +6,7 @@ Re-export shim — all implementation lives in app/unified_scanner/ package.
 Import directly from app.unified_scanner for new code.
 """
 
+from __future__ import annotations
 from app.unified_scanner import *  # noqa: F401, F403
 
 __all__ = [  # noqa: PLE0604

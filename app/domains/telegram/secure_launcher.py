@@ -16,6 +16,7 @@ Usage (systemd ExecStart):
 
 Where <bot_name> is 'rugmunchbot' or 'adminbot'.
 """
+from __future__ import annotations
 
 import os
 import subprocess
@@ -26,7 +27,6 @@ from app.domains.telegram.log_filter import install as install_token_filter, sup
 
 install_token_filter()
 suppress_httpx_urls()
-
 
 GOPASS_PATHS = {
     "rugmunchbot": "rmi/infra/telegram_rugmunch_bot_token",
@@ -47,7 +47,6 @@ MODULES = {
     "adminbot": "app.domains.telegram.adminbot.bot",
 }
 
-
 def _fetch_from_gopass(gopass_path: str) -> str:
     """Fetch token from gopass. Returns empty string on failure."""
     try:
@@ -63,7 +62,6 @@ def _fetch_from_gopass(gopass_path: str) -> str:
         return token
     except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return ""
-
 
 def main() -> None:
     if len(sys.argv) < 2:
@@ -104,7 +102,6 @@ def main() -> None:
     else:
         print(f"FATAL: {module_name} has no main()", file=sys.stderr)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

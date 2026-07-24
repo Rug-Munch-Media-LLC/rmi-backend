@@ -9,7 +9,6 @@ from app.core.logging import get_logger
 
 logger = get_logger("darkroom_multichain_airdrop")
 
-
 # ── Data Models ───────────────────────────────────────────────
 
 class TokenSource:

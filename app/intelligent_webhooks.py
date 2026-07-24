@@ -8,6 +8,7 @@ Processes Helius, Moralis, and custom webhook events with:
 - Alert prioritization (critical/high/medium/low)
 """
 
+from __future__ import annotations
 import hashlib
 import time
 from collections import defaultdict
@@ -24,7 +25,6 @@ CRITICAL = "critical"  # Confirmed scam, large exploit
 HIGH = "high"  # Whale movement, suspicious pattern
 MEDIUM = "medium"  # Cluster detected, unusual activity
 LOW = "low"  # Routine monitoring
-
 
 @dataclass
 class SmartAlert:
@@ -44,7 +44,6 @@ class SmartAlert:
     related_wallets: list[str] = field(default_factory=list)
     enriched_data: dict = field(default_factory=dict)
     actions: list[str] = field(default_factory=list)  # Recommended actions
-
 
 class IntelligentWebhookProcessor:
     """Smart webhook event processor with multi-signal analysis."""
@@ -409,10 +408,8 @@ class IntelligentWebhookProcessor:
         cutoff = time.time() - (window_hours * 3600)
         return [e for e in events if e.get("timestamp", 0) > cutoff]
 
-
 # Singleton
 _processor: IntelligentWebhookProcessor | None = None
-
 
 def get_intelligent_processor() -> IntelligentWebhookProcessor:
     global _processor

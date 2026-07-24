@@ -1,5 +1,6 @@
 """TRON TRC-20 token deployer."""
 
+from __future__ import annotations
 import time
 
 from app.core.logging import get_logger
@@ -7,7 +8,6 @@ from app.domains.tokens.deployer.base import ChainDeployer
 from app.domains.tokens.deployer.models import DeployParams, TokenDeployment
 
 logger = get_logger("darkroom_token_deployer.tron")
-
 
 class TronDeployer(ChainDeployer):
     """Deploy TRC-20 tokens on TRON."""

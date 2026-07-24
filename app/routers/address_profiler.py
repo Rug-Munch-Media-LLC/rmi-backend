@@ -33,7 +33,6 @@ CHAINS = {
 DATABUS_BASE = os.environ.get("DATABUS_URL", f"{settings.backend_url}/api/v1/databus")
 ETH_LABELS_URL = os.environ.get("ETH_LABELS_URL", f"{settings.backend_url}/api/v1/eth-labels")
 
-
 class AddressProfile(BaseModel):
     address: str
     labels: list[dict[str, str]] = []
@@ -43,7 +42,6 @@ class AddressProfile(BaseModel):
     risk_factors: list[str] = []
     rag_context: dict | None = None
     entity_hints: list[str] = []
-
 
 async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict:
     """Fetch balance/activity for an address on one chain via DataBus."""
@@ -56,7 +54,6 @@ async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict:
         pass
     return {"chain": chain, "balance_usd": 0, "tx_count": 0, "error": "unavailable"}
 
-
 async def _fetch_eth_labels(address: str) -> list[dict]:
     """Look up address in eth-labels database."""
     try:
@@ -67,7 +64,6 @@ async def _fetch_eth_labels(address: str) -> list[dict]:
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
     return []
-
 
 @router.get("/profile/{address}")
 async def get_address_profile(address: str, chains: str = Query(None)) -> Any:

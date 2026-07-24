@@ -16,6 +16,7 @@ Usage:
     result = await router.verify(payload, chain="base", token="USDC")
 """
 
+from __future__ import annotations
 import time
 from collections import defaultdict
 from typing import Any
@@ -30,7 +31,6 @@ from app.domains.billing.facilitators.base import (
 )
 
 logger = get_logger("facilitator_router")
-
 
 class FacilitatorRouter:
     """
@@ -329,11 +329,9 @@ class FacilitatorRouter:
             }
         return stats
 
-
 # ── Singleton ───────────────────────────────────────────────────
 
 _router: FacilitatorRouter | None = None
-
 
 def get_facilitator_router() -> FacilitatorRouter:
     """Get the global facilitator router instance."""

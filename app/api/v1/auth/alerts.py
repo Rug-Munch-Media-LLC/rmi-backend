@@ -16,7 +16,6 @@ from pydantic.config import ConfigDict
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
-
 class AlertRule(BaseModel):
     """Schema for an alert rule (creation/edit)."""
 
@@ -29,7 +28,6 @@ class AlertRule(BaseModel):
     threshold: float | None = Field(None, ge=0)
     channels: list[str] = []
 
-
 class AlertList(BaseModel):
     """Response for GET /api/v1/alerts."""
 
@@ -37,7 +35,6 @@ class AlertList(BaseModel):
 
     count: int = Field(..., ge=0)
     items: list[dict[str, Any]] = []
-
 
 @router.get("", response_model=AlertList)
 async def list_alerts() -> AlertList:
@@ -47,7 +44,6 @@ async def list_alerts() -> AlertList:
     Returns empty list as a stub so the factory can mount successfully.
     """
     return AlertList(count=0, items=[])
-
 
 @router.post("", status_code=501)
 async def create_alert(rule: AlertRule) -> dict[str, str]:
@@ -60,7 +56,6 @@ async def create_alert(rule: AlertRule) -> dict[str, str]:
         status_code=501,
         detail="Alert persistence not yet implemented - coming in v5.1",
     )
-
 
 @router.delete("/{rule_id}", status_code=501)
 async def delete_alert(rule_id: str) -> dict[str, str]:

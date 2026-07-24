@@ -5,10 +5,10 @@ Defines Transaction, WalletProfile, Cluster, and Connection dataclasses
 used by all clustering detection methods and visualization.
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-
 
 @dataclass
 class Transaction:
@@ -26,7 +26,6 @@ class Transaction:
     @property
     def is_transfer(self) -> bool:
         return self.program in ["spl-token", "system", "transfer"]
-
 
 @dataclass
 class WalletProfile:
@@ -63,7 +62,6 @@ class WalletProfile:
                 hour_counts[h] += 1
             self.preferred_hours = sorted(hour_counts.keys(), key=lambda x: hour_counts[x], reverse=True)[:3]
 
-
 @dataclass
 class Cluster:
     """A detected wallet cluster."""
@@ -94,7 +92,6 @@ class Cluster:
             "last_activity": self.last_activity.isoformat() if self.last_activity else None,
         }
 
-
 @dataclass
 class Connection:
     """Connection between two wallets."""
@@ -108,6 +105,5 @@ class Connection:
     transaction_count: int = 0
     first_connection: datetime | None = None
     last_connection: datetime | None = None
-
 
 __all__ = ["Transaction", "WalletProfile", "Cluster", "Connection"]

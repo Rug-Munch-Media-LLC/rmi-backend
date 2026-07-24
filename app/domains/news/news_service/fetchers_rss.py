@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-
 async def fetch_rss(svc: NewsService, url: str, source_name: str, limit: int = 5, use_proxy: bool = False) -> list[dict[str, Any]]:
     needs_proxy = use_proxy or url in PROXY_REQUIRED_FEEDS
     for attempt in range(3 if needs_proxy else 1):
@@ -92,7 +91,6 @@ async def fetch_rss(svc: NewsService, url: str, source_name: str, limit: int = 5
         logger.info(f"RSS {source_name}: {len(articles)} articles")
     return articles
 
-
 async def fetch_all_rss(svc: NewsService, limit_per_source: int = 3) -> list[dict[str, Any]]:
     all_articles = []
     for i in range(0, len(RSS_FEEDS), 20):
@@ -103,7 +101,6 @@ async def fetch_all_rss(svc: NewsService, limit_per_source: int = 3) -> list[dic
         if i + 20 < len(RSS_FEEDS):
             await asyncio.sleep(0.3)
     return all_articles
-
 
 async def fetch_reddit_hot(svc: NewsService, subreddit: str, limit: int = 5) -> list[dict[str, Any]]:
     try:
@@ -139,7 +136,6 @@ async def fetch_reddit_hot(svc: NewsService, subreddit: str, limit: int = 5) -> 
         logger.debug("fetch_reddit_hot_error", exc_info=True)
         logger.debug(f"Reddit fetch failed: {e}")
         return []
-
 
 async def fetch_all_reddit(svc: NewsService) -> list[dict[str, Any]]:
     results = await asyncio.gather(*[fetch_reddit_hot(svc, sub, 5) for sub in REDDIT_SUBREDDITS], return_exceptions=True)

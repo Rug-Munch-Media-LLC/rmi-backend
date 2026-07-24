@@ -13,6 +13,7 @@ consensus with confidence %. 5 providers, majority=3 for high confidence.
 Depends on: httpx (async HTTP), HELIUS_API_KEY env var.
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -77,9 +78,7 @@ EVM_RPC_PROVIDERS: dict[int, list[tuple[str, str, bool]]] = {
     ],
 }
 
-
 # ── Data Classes ───────────────────────────────────────────────────────────
-
 
 @dataclass
 class RpcEndpoint:
@@ -111,7 +110,6 @@ class RpcEndpoint:
         # Blend base weight with recent success rate (70/30)
         return self.weight * (0.7 + 0.3 * self.success_rate)
 
-
 @dataclass
 class ConsensusResult:
     """Result of a multi-provider consensus query."""
@@ -129,9 +127,7 @@ class ConsensusResult:
     def is_reliable(self) -> bool:
         return self.confidence >= 60.0
 
-
 # ── Consensus RPC Client ───────────────────────────────────────────────────
-
 
 class ConsensusRpcClient:
     """Multi-provider RPC client with N-of-M consensus voting.
@@ -614,11 +610,9 @@ class ConsensusRpcClient:
             "health": await self.health_summary(),
         }
 
-
 # ── Singleton ──────────────────────────────────────────────────────────────
 
 _consensus_client: ConsensusRpcClient | None = None
-
 
 def get_consensus_rpc() -> ConsensusRpcClient:
     """Get the global ConsensusRpcClient singleton."""

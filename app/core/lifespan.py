@@ -1,5 +1,6 @@
 """RMI Backend - Application lifespan (startup/shutdown events)."""
 
+from __future__ import annotations
 import asyncio
 import os
 
@@ -13,7 +14,6 @@ from app.core.secrets import get_secret_or_none
 logger = get_logger(__name__)
 
 # Background task imports (lazy, at startup time)
-
 
 async def lifespan(app: FastAPI) -> Any:
     """Application lifespan: startup checks, background tasks, graceful shutdown."""
@@ -38,7 +38,6 @@ async def lifespan(app: FastAPI) -> Any:
 
     await app.state.http_client.aclose()
     logger.info("shutdown_complete")
-
 
 async def _start_background_tasks(app: FastAPI) -> None:
     """Start all background monitoring / cleanup tasks."""
@@ -70,7 +69,6 @@ async def _start_background_tasks(app: FastAPI) -> None:
         logger.info("background_task_started", task="databus_cache_warmer", interval="")
     except Exception as e:
         logger.warning("background_task_failed", task="databus_cache_warmer", error=str(e))
-
 
 async def _verify_indexes(app: FastAPI) -> None:
     """Verify and create database indexes on startup."""

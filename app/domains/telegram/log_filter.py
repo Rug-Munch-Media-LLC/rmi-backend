@@ -1,10 +1,10 @@
 """Log filter that redacts Telegram bot tokens from all log output."""
+from __future__ import annotations
 import logging
 import re
 
 # Match bot tokens in URLs: bot<digits>:<alphanumeric>
 _TOKEN_RE = re.compile(r'bot\d+:[A-Za-z0-9_-]{35,45}')
-
 
 class TokenRedactionFilter(logging.Filter):
     """Redacts Telegram bot tokens from log messages."""
@@ -20,14 +20,12 @@ class TokenRedactionFilter(logging.Filter):
             )
         return True
 
-
 def install() -> None:
     """Install the redaction filter on all root handlers + httpx logger."""
     f = TokenRedactionFilter()
     logging.root.addFilter(f)
     # httpx logs URLs containing the token
     logging.getLogger("httpx").addFilter(f)
-
 
 def suppress_httpx_urls() -> None:
     """Suppress httpx INFO logs that contain bot tokens in URLs."""

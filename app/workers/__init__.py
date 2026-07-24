@@ -5,3 +5,4 @@
 - ingest_cron: scheduled data ingestion
 - cleanup:    storage maintenance
 """
+from __future__ import annotations

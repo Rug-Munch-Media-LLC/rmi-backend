@@ -11,6 +11,7 @@ Combines 7 signals:
   - Price crash signal
 """
 
+from __future__ import annotations
 import asyncio
 import json
 import time
@@ -27,7 +28,6 @@ from app.routers.x402_advanced_tools.confidence import compute_confidence
 from app.routers.x402_advanced_tools.models import AddressRequest
 
 logger = get_logger("x402.rug_probability")
-
 
 async def rug_probability(req: AddressRequest) -> Any:
     """Predictive rug pull probability: 0-100 score."""
@@ -206,6 +206,5 @@ async def rug_probability(req: AddressRequest) -> Any:
     except Exception as e:
         logger.error(f"Rug probability failed: {e}")
         raise AppError(message=str(e)) from e
-
 
 __all__ = ["rug_probability"]

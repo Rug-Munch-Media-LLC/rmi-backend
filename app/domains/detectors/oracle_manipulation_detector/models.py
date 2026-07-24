@@ -4,10 +4,10 @@ Oracle Manipulation Detector — Data Models
 Enums and dataclasses for oracle manipulation detection.
 """
 
+from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-
 
 class OracleType(Enum):
     """Supported oracle types."""
@@ -27,7 +27,6 @@ class OracleType(Enum):
                 return member
         return cls.CUSTOM
 
-
 class ManipulationType(Enum):
     """Types of oracle manipulation attacks."""
     TWAP_POISONING = "twap_poisoning"
@@ -39,7 +38,6 @@ class ManipulationType(Enum):
     LENDING_ORACLE_EXPLOIT = "lending_oracle_exploit"
     FRESH_WALLET_SWAP = "fresh_wallet_swap"
     PROPORTIONAL_VOLUME_ANOMALY = "proportional_volume_anomaly"
-
 
 class Severity(Enum):
     """Severity levels for detected incidents."""
@@ -56,7 +54,6 @@ class Severity(Enum):
     def __lt__(self, other) -> bool:
         return self.score < other.score if isinstance(other, Severity) else NotImplemented
 
-
 @dataclass
 class PriceSnapshot:
     """A single price observation at a point in time."""
@@ -69,7 +66,6 @@ class PriceSnapshot:
 
     def to_dict(self) -> dict:
         return asdict(self)
-
 
 @dataclass
 class TWAPWindow:
@@ -102,7 +98,6 @@ class TWAPWindow:
         result["manipulation_risk"] = self.manipulation_risk()
         return result
 
-
 @dataclass
 class OracleRead:
     """A single oracle price read with metadata."""
@@ -131,7 +126,6 @@ class OracleRead:
         result["oracle_type"] = self.oracle_type.value
         result["is_stale"] = self.is_stale()
         return result
-
 
 @dataclass
 class PriceManipulation:
@@ -169,7 +163,6 @@ class PriceManipulation:
         result["oracle_type"] = self.oracle_type.value
         result["label"] = self.label()
         return result
-
 
 @dataclass
 class ManipulationReport:
@@ -226,7 +219,6 @@ class ManipulationReport:
 
     def json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str)
-
 
 __all__ = [
     "ManipulationReport",

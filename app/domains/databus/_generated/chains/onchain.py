@@ -7,6 +7,7 @@ RAG search, DeFiLlama TVL, Blockchair stats, and Birdeye overview/price.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 from app.databus.provider_implementations import (
@@ -25,7 +26,6 @@ from app.databus.provider_implementations import (
 from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
 
 logger = get_logger("databus.providers.chains.onchain")
-
 
 def build_onchain_chains(chains: dict[str, ProviderChain]) -> None:
     """Build wallet, scanner, SPL, RAG, DeFiLlama, Blockchair, and Birdeye chains."""

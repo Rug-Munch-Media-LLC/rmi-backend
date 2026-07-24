@@ -10,6 +10,7 @@ Key features:
 - WebSocket: Real-time event streaming (not implemented here)
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import time
@@ -45,7 +46,6 @@ NETWORKS = {
     "optimism": "https://opt-mainnet.g.alchemy.com/v2",
     "base": "https://base-mainnet.g.alchemy.com/v2",
 }
-
 
 class AlchemyConnector:
     """Alchemy API connector for NFTs, enhanced APIs, and transactions."""
@@ -303,10 +303,8 @@ class AlchemyConnector:
             "cache_entries": len(self._cache),
         }
 
-
 # Singleton
 _alchemy: AlchemyConnector | None = None
-
 
 def get_alchemy_connector() -> AlchemyConnector:
     global _alchemy

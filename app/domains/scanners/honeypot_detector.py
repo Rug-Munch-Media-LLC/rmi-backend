@@ -14,6 +14,7 @@ Tax pattern detection:
   - Variable tax over time/volume → time-based honeypot
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 
 import httpx
@@ -47,7 +48,6 @@ VARIABLE_TAX_CONF = 75
 LAMPORTS_PER_SOL = 1_000_000_000
 TOKEN_DECIMALS_SOL = 1e6  # assume 6 decimals for Jupiter output
 
-
 @dataclass
 class SellSimulationResult:
     """Single sell simulation at a given amount."""
@@ -57,7 +57,6 @@ class SellSimulationResult:
     actual_output: float
     slippage_pct: float
     simulation_failed: bool
-
 
 @dataclass
 class HoneypotReport:
@@ -76,7 +75,6 @@ class HoneypotReport:
     warnings: list[str] = field(default_factory=list)
     risk_score: int = 0  # 0-100
     risk_level: str = "LOW"  # LOW / MEDIUM / HIGH / CRITICAL
-
 
 class HoneypotDetector:
     """Detects honeypot tokens through buy/sell simulation and tax analysis."""

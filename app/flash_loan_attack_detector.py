@@ -23,6 +23,7 @@ CLI:
 """
 
 # Re-export everything from the new package structure
+from __future__ import annotations
 from app.detectors.flash_loan import *  # noqa: F401, F403, E402
 
 # Also re-export the CLI main() at module level for backward compat

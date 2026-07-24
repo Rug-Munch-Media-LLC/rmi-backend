@@ -1,3 +1,4 @@
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
@@ -8,7 +9,6 @@ from app.core.logging import get_logger
 logger = get_logger("news_feed")
 router = APIRouter(prefix="/api/v1/internal", tags=["internal"])
 _posted: set[str] = set()
-
 
 @router.get("/news-feed")
 async def get_news_feed(
@@ -42,7 +42,6 @@ async def get_news_feed(
     except Exception as e:
         logger.error(f"news_feed error: {e}")
         return {"items": [], "total_unposted": 0, "error": str(e)}
-
 
 @router.post("/news-fetch")
 async def trigger_fetch() -> dict[str, Any]:

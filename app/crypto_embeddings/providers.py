@@ -1,5 +1,6 @@
 """Embedding providers: Local BGE, Ollama bge-m3, OpenRouter, HuggingFace."""
 
+from __future__ import annotations
 import asyncio
 import os
 from typing import Any
@@ -15,7 +16,6 @@ logger = get_logger(__name__)
 
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN", "")
-
 
 class LocalBGEEmbedder:
     """Local BAAI BGE-small-en-v1.5 embedder. CPU, ~80MB RAM, 384-dim."""
@@ -41,7 +41,6 @@ class LocalBGEEmbedder:
     async def embed_one(self, text: str) -> list[float]:
         results = await self.embed([text])
         return results[0]
-
 
 class OllamaBGEEmbedder:
     """Our own bge-m3 via Ollama. 1024d, zero cost."""
@@ -76,7 +75,6 @@ class OllamaBGEEmbedder:
     async def embed_one(self, text: str) -> list[float]:
         results = await self.embed([text])
         return results[0]
-
 
 class OpenRouterEmbedder:
     """OpenRouter embedding API - NVIDIA Nemotron primary, bge-m3 fallback."""
@@ -116,7 +114,6 @@ class OpenRouterEmbedder:
     async def embed_one(self, text: str, model: str | None = None) -> list[float]:
         results = await self.embed([text], model)
         return results[0]
-
 
 class HuggingFaceEmbedder:
     """HuggingFace Inference API - free tier fallback."""
@@ -158,7 +155,6 @@ class HuggingFaceEmbedder:
     async def embed_one(self, text: str, model: str | None = None) -> list[float]:
         results = await self.embed([text], model)
         return results[0]
-
 
 class ContractCodeEmbedder:
     """Specialized contract code embedder using structural features + semantic embedding."""

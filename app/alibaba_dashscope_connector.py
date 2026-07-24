@@ -3,6 +3,7 @@ Alibaba Cloud DashScope Connector - Qwen Models for Content Generation.
 Supports: qwen-max, qwen-plus, qwen-turbo, qwen-coder, qwen-vl-max
 """
 
+from __future__ import annotations
 import os
 
 import httpx
@@ -54,7 +55,6 @@ QWEN_MODELS = {
         "cost": "$$$",
     },
 }
-
 
 class AlibabaDashScopeConnector:
     """Alibaba DashScope AI services connector."""
@@ -352,10 +352,8 @@ Variation 2: [content]
             "models_available": list(QWEN_MODELS.keys()),
         }
 
-
 # Singleton
 _alibaba_dashscope: AlibabaDashScopeConnector | None = None
-
 
 def get_alibaba_dashscope_connector() -> AlibabaDashScopeConnector:
     global _alibaba_dashscope

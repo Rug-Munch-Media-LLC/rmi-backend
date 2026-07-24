@@ -6,6 +6,7 @@ Integration with Slither (static analysis) and Mythril (symbolic execution)
 for comprehensive smart contract vulnerability detection.
 """
 
+from __future__ import annotations
 import json
 import os
 import subprocess
@@ -21,7 +22,6 @@ from app.core.logging import get_logger
 # Currently uses sync httpx.get() inside a sync function chain.
 
 logger = get_logger(__name__)
-
 
 # ─── VULNERABILITY CATEGORIES ─────────────────────────────────────
 
@@ -46,9 +46,7 @@ SEVERITY = {
     "Informational": 0,
 }
 
-
 # ─── SCAN RESULT MODELS ──────────────────────────────────────────
-
 
 @dataclass
 class Finding:
@@ -63,7 +61,6 @@ class Finding:
     swc_id: str = ""
     reference: str = ""
 
-
 @dataclass
 class ScanResult:
     """Complete scan result."""
@@ -76,9 +73,7 @@ class ScanResult:
     summary: dict[str, int]
     metrics: dict[str, Any]
 
-
 # ─── SLITHER INTEGRATION ──────────────────────────────────────────
-
 
 class SlitherScanner:
     """Slither static analysis scanner."""
@@ -222,9 +217,7 @@ class SlitherScanner:
             counts[f.severity] = counts.get(f.severity, 0) + 1
         return counts
 
-
 # ─── MYTHRIL INTEGRATION ──────────────────────────────────────────
-
 
 class MythrilScanner:
     """Mythril symbolic execution scanner."""
@@ -307,9 +300,7 @@ class MythrilScanner:
         except subprocess.TimeoutExpired:
             return {"success": False, "error": "Scan timed out"}
 
-
 # ─── COMBINED SCANNER ─────────────────────────────────────────────
-
 
 class ContractScanner:
     """Combined Slither + Mythril scanner."""
@@ -366,16 +357,13 @@ class ContractScanner:
 
         return result
 
-
 # ─── SINGLETON INSTANCE ───────────────────────────────────────────
 
 _scanner = ContractScanner()
 
-
 def deep_scan_contract(contract_address: str, chain: str = "base") -> dict[str, Any]:
     """Deep scan single contract (Slither + Mythril)."""
     return _scanner.scan(contract_address, chain, deep=True)
-
 
 def batch_deep_scan(contracts: list[str], chain: str = "base") -> dict[str, Any]:
     """Batch scan multiple contracts."""

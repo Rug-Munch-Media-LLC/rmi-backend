@@ -4,6 +4,7 @@ Traces: embedding latency, retrieval latency, cache hit rate, ingest rate.
 Langfuse primary, Redis metrics fallback when Langfuse unavailable.
 """
 
+from __future__ import annotations
 import json
 import os
 import time
@@ -33,7 +34,6 @@ try:
 except ImportError:
     logger.info("Langfuse not installed - using local metrics")
 
-
 @dataclass
 class RAGMetrics:
     """Accumulated RAG metrics for local fallback."""
@@ -47,9 +47,7 @@ class RAGMetrics:
     ingest_docs: int = 0
     errors: int = 0
 
-
 _metrics = RAGMetrics()
-
 
 async def _save_local_metrics() -> None:
     """Persist metrics to Redis for dashboard."""
@@ -84,7 +82,6 @@ async def _save_local_metrics() -> None:
     except (json.JSONDecodeError):
         pass
 
-
 def trace_embedding(duration_ms: float, dims: int = 1024, model: str = "bge-m3") -> None:
     """Record an embedding operation."""
     _metrics.embedding_calls += 1
@@ -95,7 +92,6 @@ def trace_embedding(duration_ms: float, dims: int = 1024, model: str = "bge-m3")
                 name="rag.embedding",
                 metadata={"duration_ms": duration_ms, "dims": dims, "model": model},
             )
-
 
 def trace_retrieval(duration_ms: float, collection: str, results: int, cache_hit: bool = False) -> None:
     """Record a retrieval operation."""
@@ -117,7 +113,6 @@ def trace_retrieval(duration_ms: float, collection: str, results: int, cache_hit
                 },
             )
 
-
 def trace_ingest(docs: int, collection: str) -> None:
     """Record an ingestion operation."""
     _metrics.ingest_docs += docs
@@ -128,12 +123,10 @@ def trace_ingest(docs: int, collection: str) -> None:
                 metadata={"docs": docs, "collection": collection},
             )
 
-
 def trace_error(error_type: str, detail: str = "") -> None:
     """Record an error."""
     _metrics.errors += 1
     logger.warning(f"RAG error [{error_type}]: {detail[:200]}")
-
 
 @asynccontextmanager
 async def timed_embedding(dims: int = 1024, model: str = "bge-m3") -> Any:
@@ -144,7 +137,6 @@ async def timed_embedding(dims: int = 1024, model: str = "bge-m3") -> Any:
     finally:
         trace_embedding((time.time() - t0) * 1000, dims, model)
 
-
 @asynccontextmanager
 async def timed_retrieval(collection: str, cache_hit: bool = False) -> Any:
     """Context manager for timing retrieval operations."""
@@ -154,7 +146,6 @@ async def timed_retrieval(collection: str, cache_hit: bool = False) -> Any:
         yield
     finally:
         trace_retrieval((time.time() - t0) * 1000, collection, result_count, cache_hit)
-
 
 def get_metrics() -> dict:
     """Return current metrics snapshot."""

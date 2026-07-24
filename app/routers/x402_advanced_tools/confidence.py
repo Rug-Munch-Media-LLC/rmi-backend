@@ -5,10 +5,10 @@ Evaluates source quality (high/medium quality sources), source count,
 and flags such as freshness indicators.
 """
 
+from __future__ import annotations
 from typing import Any
 
 logger = __import__("logging").getLogger("x402.confidence")
-
 
 def compute_confidence(result: dict) -> dict:
     """Add confidence scoring to any tool result."""
@@ -84,6 +84,5 @@ def compute_confidence(result: dict) -> dict:
             "unverified": "Insufficient data - treat as directional only",
         }.get(level, ""),
     }
-
 
 __all__ = ["compute_confidence"]

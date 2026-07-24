@@ -18,6 +18,7 @@ Per-Type Stats:
   - health() flags types with hit_rate < 30% as "increase TTL"
 """
 
+from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
@@ -40,7 +41,6 @@ REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
-
 
 class L1Cache:
     """In-memory LRU cache with Stale-While-Revalidate support.
@@ -114,7 +114,6 @@ class L1Cache:
             "hit_rate": round((self.hits + self.stale_hits) / total * 100, 1) if total > 0 else 0,
             "fresh_hit_rate": round(self.hits / total * 100, 1) if total > 0 else 0,
         }
-
 
 class L2RedisCache:
     """Redis cache. Shared across processes. TTL-managed automatically."""
@@ -200,7 +199,6 @@ class L2RedisCache:
             "misses": self.misses,
             "hit_rate": round(self.hits / total * 100, 1) if total > 0 else 0,
         }
-
 
 class CacheLayer:
     """
@@ -403,11 +401,9 @@ class CacheLayer:
             "ttl_config": self.ttl_config,
         }
 
-
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
 _cache: CacheLayer | None = None
-
 
 def get_cache() -> CacheLayer:
     global _cache

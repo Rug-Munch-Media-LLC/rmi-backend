@@ -1,5 +1,6 @@
 """RMI Backend - Core Middleware."""
 
+from __future__ import annotations
 import json
 import os
 import uuid
@@ -17,7 +18,6 @@ CACHEABLE_TOOLS = {"token_price", "token_metadata", "wallet_tokens", "entity_int
 # Payload size limit
 # ═══════════════════════════════════════════════════════════════
 MAX_PAYLOAD_SIZE = 1_048_576  # 1MB for standard JSON APIs
-
 
 async def cache_middleware(request: Request, call_next) -> Any:
     """Check Redis cache before executing tool. Store result after."""
@@ -63,7 +63,6 @@ async def cache_middleware(request: Request, call_next) -> Any:
             pass
     return response
 
-
 async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
     """Check for emergency lockdown status. Block non-admin routes if active."""
     if request.url.path in [
@@ -103,13 +102,11 @@ async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
         pass
     return await call_next(request)
 
-
 async def hsts_middleware(request: Request, call_next) -> Any:
     """Force HTTPS and prevent protocol downgrade attacks."""
     response = await call_next(request)
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
-
 
 async def request_id_middleware(request: Request, call_next) -> Any:
     """Generate unique request ID for log correlation."""
@@ -117,7 +114,6 @@ async def request_id_middleware(request: Request, call_next) -> Any:
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
     return response
-
 
 async def payload_size_limit_middleware(request: Request, call_next) -> Any:
     """Enforce 1MB payload limit on non-upload routes."""
@@ -129,7 +125,6 @@ async def payload_size_limit_middleware(request: Request, call_next) -> Any:
                 content={"error": "Payload Too Large", "detail": "Maximum payload size is 1MB"},
             )
     return await call_next(request)
-
 
 async def secure_cookie_middleware(request: Request, call_next) -> Any:
     """Enforce secure cookie flags for admin sessions."""

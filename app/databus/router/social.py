@@ -1,5 +1,6 @@
 """DataBus Router sub-module. Social endpoints."""
 
+from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, Request
 from typing import Any
 from app.core.logging import get_logger
@@ -14,7 +15,6 @@ from app.databus.social import (
 )
 
 X_HANDLE = "CryptoRugMunch"
-
 
 @router.get("/social/x/profile/{username}")
 async def social_x_profile(username: str) -> dict[str, str]:

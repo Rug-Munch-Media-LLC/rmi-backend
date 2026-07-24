@@ -5,13 +5,13 @@ Scan wallets and return token holdings with portfolio value.
 Supports comma-separated multi-address scanning.
 """
 
+from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL
 
 logger = get_logger("rmi.portfolio")
-
 
 async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> dict:
     """Fetch Solana token balances from Shyft (free tier).
@@ -39,7 +39,6 @@ async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> di
 
     return result
 
-
 async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict:
     """Fetch EVM token balances.
 
@@ -63,13 +62,11 @@ async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict:
 
     return result
 
-
 def _format_usd(value: float) -> str:
     """Format USD value nicely."""
     if value >= 1000:
         return f"${value:,.2f}"
     return f"${value:.4f}"
-
 
 async def cmd_portfolio(update, ctx) -> None:
     """Handle /portfolio command — scan one or more wallet addresses.
@@ -200,6 +197,5 @@ async def cmd_portfolio(update, ctx) -> None:
                     f"Make sure the address is valid.",
                     parse_mode="HTML",
                 )
-
 
 __all__ = ["cmd_portfolio"]

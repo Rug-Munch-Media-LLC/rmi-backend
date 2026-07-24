@@ -1,6 +1,5 @@
 """x402_tools.py — DEPRECATED shim. Re-exports from app.billing.x402.
 
-
 Phase 3A of AUDIT-2026-Q3.md split this 5,780-LOC god-file into focused modules
 under app/billing/x402/. This file is kept as a thin re-export shim so any
 caller that does `from app.routers.x402_tools import router` still works.

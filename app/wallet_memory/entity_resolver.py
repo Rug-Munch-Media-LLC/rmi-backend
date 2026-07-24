@@ -10,6 +10,7 @@ Links wallets across chains using:
 Produces entity_id (deterministic hash) for each resolved entity group.
 """
 
+from __future__ import annotations
 import hashlib
 from typing import Any
 
@@ -19,7 +20,6 @@ from .storage import WalletStorage, get_storage
 
 logger = get_logger("wallet_memory.entity_resolver")
 
-
 def _mark_degraded(store: str) -> None:
     try:
         from app.core.degradation import get_registry
@@ -27,7 +27,6 @@ def _mark_degraded(store: str) -> None:
         get_registry().mark_down(store)
     except (AttributeError, ImportError):
         pass
-
 
 class EntityResolver:
     """
@@ -219,11 +218,9 @@ class EntityResolver:
         raw = f"{address.lower()}:{chain}"
         return "ent_" + hashlib.sha256(raw.encode()).hexdigest()[:16]
 
-
 # ── Global singleton ────────────────────────────────────────────
 
 _resolver: EntityResolver | None = None
-
 
 def get_entity_resolver() -> EntityResolver:
     global _resolver

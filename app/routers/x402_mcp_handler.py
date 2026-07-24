@@ -16,7 +16,6 @@ router = APIRouter(tags=["x402-MCP"])
 
 # ── Standard MCP endpoint ────────────────────────────────────────
 
-
 @router.post("/mcp/x402")
 async def mcp_x402_handler(request: Request) -> dict[str, dict] | dict:
     """MCP protocol handler for x402 payment tools.
@@ -51,9 +50,7 @@ async def mcp_x402_handler(request: Request) -> dict[str, dict] | dict:
 
     raise HTTPException(status_code=400, detail=f"Unknown method: {method}")
 
-
 # ── x402 Discovery endpoint ──────────────────────────────────────
-
 
 @router.get("/.well-known/x402")
 async def well_known_x402() -> dict[str, str]:

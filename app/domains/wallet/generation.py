@@ -4,6 +4,7 @@ Wallet Generation Mixin — multi-chain key generation for WalletManagerV2.
 Extracted from manager.py during god-file split (2026-07-23).
 """
 
+from __future__ import annotations
 import hashlib
 import secrets
 
@@ -50,7 +51,6 @@ try:
     _HAS_NACL = True
 except ImportError:
     pass
-
 
 class WalletGenerationMixin:
     """
@@ -260,6 +260,5 @@ class WalletGenerationMixin:
                 logger.debug("generate_batch_error", exc_info=True)
                 logger.error(f"Failed to generate {chain} wallet: {e}")
         return wallets
-
 
 __all__ = ["WalletGenerationMixin"]

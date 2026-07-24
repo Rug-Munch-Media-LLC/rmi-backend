@@ -8,6 +8,7 @@ Usage:
     agg = PortfolioRiskAggregator()
     profile = await agg.analyze("0x...")
 """
+from __future__ import annotations
 from app.domains.portfolio.portfolio_risk_package.aggregator import PortfolioRiskAggregator
 from app.domains.portfolio.portfolio_risk_package.constants import validate_wallet_address
 from app.domains.portfolio.portfolio_risk_package.models import (

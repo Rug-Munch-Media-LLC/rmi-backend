@@ -3,6 +3,7 @@ RugCharts Intel — Insider Pattern Detector.
 Pre-pump accumulation detection.
 """
 
+from __future__ import annotations
 import json
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -13,7 +14,6 @@ from app.core.logging import get_logger
 from .cache import _r, CACHE_TTL, HELIUS_KEY
 
 logger = get_logger("rugcharts_intel")
-
 
 async def insider_pattern_detector(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Detect wallets that accumulated before major price movements.

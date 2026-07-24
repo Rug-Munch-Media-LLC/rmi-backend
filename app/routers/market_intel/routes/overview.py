@@ -3,13 +3,13 @@ Market Intelligence - Overview & Sentiment Routes
 Global market overview, movers, chains, fear & greed, on-chain metrics, macro, sentiment.
 """
 
+from __future__ import annotations
 from fastapi import APIRouter, Query, Request
 
 from app.routers.market_intel.providers import _cg, _fng, _binance_funding
 from app.routers.market_intel.utils import _now, _safe_float
 
 router = APIRouter(tags=["market-intel"])
-
 
 @router.get("/overview")
 async def get_market_overview(request: Request) -> dict:
@@ -52,7 +52,6 @@ async def get_market_overview(request: Request) -> dict:
         "fear_greed": {"value": fng_value, "classification": fng_class, "timestamp": now},
         "updated_at": now,
     }
-
 
 @router.get("/movers")
 async def get_market_movers(
@@ -102,7 +101,6 @@ async def get_market_movers(
 
     return {"items": items, "total": len(items), "updated_at": now}
 
-
 @router.get("/chains")
 async def get_market_chains(request: Request) -> dict:
     """Chain activity - TPS, gas, active addresses from CoinGecko chain data."""
@@ -136,7 +134,6 @@ async def get_market_chains(request: Request) -> dict:
 
     return {"items": items, "total": len(items), "updated_at": now}
 
-
 @router.get("/fear-greed")
 async def get_fear_greed(
     request: Request,
@@ -160,7 +157,6 @@ async def get_fear_greed(
         "timestamp": timestamp,
         "history": fng_data.get("data", [])[:days] if fng_data and "data" in fng_data else [],
     }
-
 
 @router.get("/onchain")
 async def get_market_onchain(
@@ -210,7 +206,6 @@ async def get_market_onchain(
 
     return {"items": items, "total": len(items), "updated_at": now}
 
-
 @router.get("/macro")
 async def get_market_macro(
     request: Request,
@@ -245,7 +240,6 @@ async def get_market_macro(
     ]
 
     return {"items": items, "total": len(items), "updated_at": now}
-
 
 @router.get("/sentiment")
 async def get_market_sentiment(

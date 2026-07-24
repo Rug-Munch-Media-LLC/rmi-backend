@@ -11,8 +11,8 @@ Usage in x402 routers:
     # Returns: {"price_usd": 79.5, "source": "jupiter", "cached": False}
 """
 
+from __future__ import annotations
 from app.caching_shield.unified_layer import get_data_layer
-
 
 class ToolData:
     """Cached, rate-limited data provider for x402 tool routers."""
@@ -92,7 +92,6 @@ class ToolData:
 
     def stats(self) -> dict:
         return self._layer.stats()
-
 
 # Singleton
 td = ToolData()

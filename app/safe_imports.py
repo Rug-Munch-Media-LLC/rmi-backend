@@ -6,12 +6,12 @@ This module wraps security feature imports with graceful fallbacks to stubs
 if dependencies aren't available, preventing full router import failures.
 """
 
+from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 def safe_import(name: str, fallback_to_stub: bool = True) -> Any | None:
     """
@@ -34,9 +34,7 @@ def safe_import(name: str, fallback_to_stub: bool = True) -> Any | None:
             return None
         raise
 
-
 # ─── STUB CLASSES FOR CRITICAL DEPENDENCIES ───────────────────────
-
 
 class StubContractDeepscan:
     """Stub contract scanning module."""
@@ -54,7 +52,6 @@ class StubContractDeepscan:
     def batch_deep_scan(self, addresses: list[str], chain: str = "base") -> dict[str, Any]:
         results = [self.deep_scan_contract(addr, chain) for addr in addresses]
         return {"contracts": results, "total": len(results)}
-
 
 class StubCrossChainCorrelator:
     """Stub cross-chain correlation module."""
@@ -74,7 +71,6 @@ class StubCrossChainCorrelator:
         def find_correlations(self, address: str, limit: int = 10) -> dict[str, Any]:
             return {"address": address, "correlations": [], "count": 0}
 
-
 class StubCryptoGuard:
     """Stub crypto guard module."""
 
@@ -88,7 +84,6 @@ class StubCryptoGuard:
     def require_crypto_auth(self, request: Any) -> dict[str, Any]:
         return {"authenticated": True}
 
-
 # ─── STUB INSTANCES ───────────────────────────────────────────────
 
 _stub_deepscan = StubContractDeepscan()
@@ -96,9 +91,7 @@ _stub_correlator = StubCrossChainCorrelator()
 _stub_correlator_corr = _stub_correlator.CrossChainCorrelator()
 _stub_crypto_guard = StubCryptoGuard()
 
-
 # ─── FALLBACK LOADERS ─────────────────────────────────────────────
-
 
 def get_contract_deepscan() -> tuple[Any, Any]:
     """Load contract deepscan with fallback to stub."""
@@ -110,7 +103,6 @@ def get_contract_deepscan() -> tuple[Any, Any]:
         logger.warning("contract_deepscan not available, using stub")
         return (_stub_deepscan.deep_scan_contract, _stub_deepscan.batch_deep_scan)
 
-
 def get_cross_chain_correlator() -> Any:
     """Load cross-chain correlator with fallback to stub."""
     try:
@@ -120,7 +112,6 @@ def get_cross_chain_correlator() -> Any:
     except ImportError:
         logger.warning("cross_chain_correlator not available, using stub")
         return _stub_correlator_corr
-
 
 def get_crypto_guard() -> tuple[Any, Any]:
     """Load crypto guard with fallback to stub."""
@@ -135,7 +126,6 @@ def get_crypto_guard() -> tuple[Any, Any]:
         logger.warning("crypto_guard not available, using stub")
         return (_stub_crypto_guard.check_wallet_reputation, _stub_crypto_guard.rate_limit_by_tier)
 
-
 def get_sentinel_manager() -> Any:
     """Load mempool sentinel with fallback to stub."""
     try:
@@ -146,7 +136,6 @@ def get_sentinel_manager() -> Any:
         logger.warning("mempool_sentinel not available, using stub")
         return lambda: None
 
-
 def get_wallet_anomaly_detector() -> Any:
     """Load wallet anomaly detector with fallback to stub."""
     try:
@@ -156,7 +145,6 @@ def get_wallet_anomaly_detector() -> Any:
     except ImportError:
         logger.warning("ml_anomaly not available, using stub")
         return lambda: None
-
 
 def get_token_anomaly_detector() -> Any:
     """Load token anomaly detector with fallback to stub."""

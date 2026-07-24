@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-
 @dataclass
 class DomainHealth:
     """Health status for one domain (catalog, rag, etc.)."""
@@ -33,17 +32,14 @@ class DomainHealth:
     error: str | None = None
     latency_ms: int | None = None
 
-
 # Global health check registry
 _health_checks: dict[str, Callable[[], Any]] = {}
-
 
 def register_health_check(name: str, func: Callable[[], Any]) -> None:
     """Register a health check function for a domain."""
     if name in _health_checks:
         log.warning(f"health_check_already_registered name={name}")
     _health_checks[name] = func
-
 
 async def run_health_checks() -> dict[str, DomainHealth]:
     """Run all registered health checks and return results."""
@@ -66,7 +62,6 @@ async def run_health_checks() -> dict[str, DomainHealth]:
             log.exception(f"health_check_failed name={name}")
             results[name] = DomainHealth(name=name, healthy=False, error=str(e))
     return results
-
 
 def get_health_status() -> dict[str, Any]:
     """Get current health status for all domains."""

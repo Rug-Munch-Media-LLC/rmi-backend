@@ -2,12 +2,12 @@
 RIP — Data Source Wrappers
 External API calls for LP data, deployer info, wallet age, etc.
 """
+from __future__ import annotations
 import time
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 async def fetch_dexscreener_pool(address: str, chain: str) -> dict | None:
     """Fetch DEX pool data from DexScreener API."""
@@ -36,7 +36,6 @@ async def fetch_dexscreener_pool(address: str, chain: str) -> dict | None:
         logger.debug("dexscreener fetch failed", exc_info=True)
     return None
 
-
 async def resolve_deployer(address: str, chain: str) -> str | None:
     """Find deployer address for a token contract."""
     import httpx
@@ -54,7 +53,6 @@ async def resolve_deployer(address: str, chain: str) -> str | None:
     except (ConnectionError, TimeoutError, httpx.HTTPError):
         logger.debug("deployer resolve failed", exc_info=True)
     return None
-
 
 async def check_wallet_age(wallet: str, chain: str) -> dict | None:
     """Estimate wallet age from first transaction."""
@@ -75,7 +73,6 @@ async def check_wallet_age(wallet: str, chain: str) -> dict | None:
     except (httpx.HTTPError):
         return None
 
-
 async def check_deployer_history(deployer: str, chain: str) -> dict:
     """Check deployer's token deployment history."""
     result = {"total_deployed": 0, "rug_tokens": 0, "active_tokens": 0}
@@ -91,7 +88,6 @@ async def check_deployer_history(deployer: str, chain: str) -> dict:
         pass
     return result
 
-
 async def check_lp_lock(address: str, chain: str) -> dict:
     """Check if LP tokens are locked via known lockers."""
     result = {"locked": False, "unlocked": True, "unlock_date": None}
@@ -106,7 +102,6 @@ async def check_lp_lock(address: str, chain: str) -> dict:
     except (ImportError, AttributeError):
         pass
     return result
-
 
 async def fetch_holder_data(address: str, chain: str) -> dict | None:
     """Fetch holder count and concentration data."""

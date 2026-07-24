@@ -8,7 +8,6 @@ from app.domains.news.ingest import ingest_all
 
 router = APIRouter(prefix="/api/v1/news/_admin", tags=["news-admin"])
 
-
 @router.post("/ingest")
 async def trigger_ingest() -> dict:
     """Trigger RSS ingest now (synchronous). Returns counts."""

@@ -17,6 +17,7 @@ Import from other services (walletpress, pryscraper):
     # Or copy this package and import locally.
 """
 
+from __future__ import annotations
 from app.auth.jwt_validation import (  # noqa: F401
     create_token,
     extract_token_from_request,

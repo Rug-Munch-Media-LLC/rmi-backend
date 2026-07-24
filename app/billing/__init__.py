@@ -8,6 +8,7 @@ MIGRATION: replace `from app.billing.x402 import ...` with
 `from app.domains.billing.x402 import ...`.
 """
 
+from __future__ import annotations
 import sys as _sys
 
 from app.domains.billing import x402 as _x402

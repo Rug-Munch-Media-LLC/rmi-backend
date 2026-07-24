@@ -4,6 +4,7 @@ Circuit breaker and rate limiter for DataBus providers.
 Tracks failures, rate limits, and quota usage across all provider instances.
 """
 
+from __future__ import annotations
 import time
 
 from app.core.circuit_breaker import AsyncCircuitBreaker
@@ -17,7 +18,6 @@ _cb_etherscan = AsyncCircuitBreaker("etherscan", failure_threshold=5)
 _cb_moralis = AsyncCircuitBreaker("moralis", failure_threshold=5)
 _cb_alchemy = AsyncCircuitBreaker("alchemy", failure_threshold=5)
 _cb_default = AsyncCircuitBreaker("default", failure_threshold=3)
-
 
 class _CircuitBreaker:
     """Simple circuit breaker to prevent hammering failing providers."""
@@ -48,7 +48,6 @@ class _CircuitBreaker:
         self.failures = 0
         self.open = False
 
-
 class _RateLimiter:
     """Simple rate limiter using minimum interval between calls."""
 
@@ -62,7 +61,6 @@ class _RateLimiter:
 
     def record_call(self) -> None:
         self.last_call = time.time()
-
 
 # Global state (populated by build_provider_chains)
 _circuit_breakers: dict[str, _CircuitBreaker] = {}

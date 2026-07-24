@@ -1,5 +1,6 @@
 """Database connection pooling - Redis + Postgres with auto-reconnect."""
 
+from __future__ import annotations
 import os
 
 from app.core.logging import get_logger

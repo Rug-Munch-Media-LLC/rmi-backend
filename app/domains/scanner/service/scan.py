@@ -1,5 +1,6 @@
 """Scanner service — main scan_token orchestrator."""
 
+from __future__ import annotations
 import asyncio
 from typing import Any
 

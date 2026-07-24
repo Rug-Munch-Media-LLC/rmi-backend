@@ -15,6 +15,7 @@ Architecture:
   6. Admin endpoints NEVER expose key values - only status (active/disabled/rate-limited)
 """
 
+from __future__ import annotations
 import asyncio
 import os
 import subprocess
@@ -115,14 +116,12 @@ KEY_REGISTRY = {
     ],
 }
 
-
 class KeyState(Enum):
     ACTIVE = "active"
     RATE_LIMITED = "rate_limited"
     DISABLED = "disabled"
     ERROR = "error"
     EXHAUSTED = "exhausted"  # monthly quota hit
-
 
 @dataclass
 class ManagedKey:
@@ -227,7 +226,6 @@ class ManagedKey:
             else 0,
         }
 
-
 class VaultKeyPool:
     """
     Key pool for a single provider. Round-robin with health tracking.
@@ -297,7 +295,6 @@ class VaultKeyPool:
             "total_calls": self.total_calls,
             "keys": [k.status() for k in self.keys],
         }
-
 
 class DataBusVault:
     """
@@ -529,11 +526,9 @@ class DataBusVault:
 
     arkham_ws_key: str = ""
 
-
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
 _vault: DataBusVault | None = None
-
 
 async def get_vault() -> DataBusVault:
     global _vault
@@ -541,7 +536,6 @@ async def get_vault() -> DataBusVault:
         _vault = DataBusVault()
         await _vault.load()
     return _vault
-
 
 def get_vault_sync() -> DataBusVault:
     """Synchronous access - vault must already be loaded."""

@@ -13,6 +13,7 @@ Key features:
 - Contract clone detection (same creator, same code, different name)
 """
 
+from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field
@@ -21,7 +22,6 @@ from typing import Any
 from app.core.logging import get_logger
 
 logger = get_logger("contract_diff")
-
 
 @dataclass
 class ContractDiffReport:
@@ -57,7 +57,6 @@ class ContractDiffReport:
     citations: list[dict[str, Any]] = field(default_factory=list)
 
     warnings: list[str] = field(default_factory=list)
-
 
 # Dangerous function selectors (4-byte signatures of known rug functions)
 DANGEROUS_SELECTORS = {
@@ -109,7 +108,6 @@ RUG_BYTECODE_PATTERNS = [
     rb"tradingEnabled",
     rb"launchedAt",
 ]
-
 
 class ContractDiffAnalyzer:
     """Compare contract bytecode against known rug patterns and clone databases."""

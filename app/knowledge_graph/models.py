@@ -4,7 +4,7 @@ Knowledge Graph - Node and Edge Types
 Type definitions for the Redis-backed knowledge graph.
 """
 
-
+from __future__ import annotations
 class EdgeType:
     HOLDS = "holds"  # wallet holds token
     DEPLOYED = "deployed"  # wallet deployed contract/token
@@ -15,7 +15,6 @@ class EdgeType:
     OWNS = "owns"  # wallet owns NFT/token
     MIGRATED = "migrated"  # token migrated to new contract
     ASSOCIATED = "associated"  # generic association
-
 
 class NodeType:
     WALLET = "wallet"

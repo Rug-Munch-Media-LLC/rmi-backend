@@ -1,5 +1,6 @@
 """Alert and AlertSubscription ORM models."""
 
+from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import Any
@@ -10,7 +11,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
 from app.models.base import TimestampMixin
-
 
 class Alert(Base, TimestampMixin):
     __tablename__ = "alerts"
@@ -45,7 +45,6 @@ class Alert(Base, TimestampMixin):
         Index("ix_alert_token_chain_type", "token_address", "chain", "alert_type"),
         Index("ix_alert_fired_at", "fired_at"),
     )
-
 
 class AlertSubscription(Base, TimestampMixin):
     __tablename__ = "alert_subscriptions"

@@ -64,12 +64,10 @@ logger = logging.getLogger(__name__)
 
 F = TypeVar("F", bound=Callable[..., Any])
 
-
 class State(Enum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
-
 
 class CircuitBreakerOpenError(Exception):
     """Raised when the circuit is OPEN and no stale cache is available."""
@@ -79,7 +77,6 @@ class CircuitBreakerOpenError(Exception):
         self.state = state
         msg = message or f"Circuit breaker '{name}' is {state.value} — call rejected"
         super().__init__(msg)
-
 
 class AsyncCircuitBreaker:
     """Async circuit breaker with failure tracking, stale-cache serving, and 4xx/5xx distinction.
@@ -318,7 +315,6 @@ class AsyncCircuitBreaker:
         elif exc_type is not None:
             await self.record_failure(is_server_error=True)
         return False  # Don't suppress exceptions
-
 
 class SimpleCircuitBreaker:
     """Thread-safe sync circuit breaker for connectors not yet migrated to async.

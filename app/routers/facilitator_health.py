@@ -130,9 +130,7 @@ FACILITATORS = {
     },
 }
 
-
 # ── Redis Helper ─────────────────────────────────────────────────
-
 
 async def get_all_health() -> Any:
     """Get health status for all facilitators."""
@@ -161,7 +159,6 @@ async def get_all_health() -> Any:
         }
     )
 
-
 @router.get("/status/{name}")
 async def get_facilitator_status(name: str) -> Any:
     """Get health status for a specific facilitator."""
@@ -176,7 +173,6 @@ async def get_facilitator_status(name: str) -> Any:
 
     return JSONResponse(content=get_facilitator_health(name))  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
 
-
 @router.get("/chains/{chain}")
 async def get_facilitators_for_chain(chain: str) -> Any:
     """Get healthy facilitators for a specific chain."""
@@ -188,7 +184,6 @@ async def get_facilitators_for_chain(chain: str) -> Any:
             "count": len(facilitators),
         }
     )
-
 
 @router.post("/check/{name}")
 async def trigger_health_check(name: str) -> Any:
@@ -210,9 +205,7 @@ async def trigger_health_check(name: str) -> Any:
         }
     )
 
-
 # ── Payment Success Tracking ─────────────────────────────────────
-
 
 def record_payment_success(facilitator_name: str, success: bool) -> None:
     """Record whether a payment via this facilitator succeeded or failed.

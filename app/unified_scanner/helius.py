@@ -1,5 +1,6 @@
 """Helius RPC credential pool and wallet data fetching."""
 
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
@@ -11,7 +12,6 @@ logger = get_logger(__name__)
 
 _HELIUS_KEYS = None
 _HELIUS_INDEX = 0
-
 
 def _get_helius_key() -> str | None:
     """Round-robin through Helius API keys. Returns None if none configured."""
@@ -36,7 +36,6 @@ def _get_helius_key() -> str | None:
     _HELIUS_INDEX += 1
     return key
 
-
 async def _helius_call(method: str, params: list) -> dict | None:
     """Call Helius RPC with credential pool fallback."""
     for _attempt in range(3):
@@ -59,7 +58,6 @@ async def _helius_call(method: str, params: list) -> dict | None:
             logger.debug("helius call failed, trying next key", exc_info=True)
             continue
     return None
-
 
 async def _fetch_helius_wallet(address: str) -> dict[str, Any]:
     """Fetch wallet age, tx count, balances, and token holdings from Helius."""
@@ -105,7 +103,6 @@ async def _fetch_helius_wallet(address: str) -> dict[str, Any]:
         result["sol_balance"] = bal / 1e9 if bal else 0
 
     return result
-
 
 async def _fetch_moralis_wallet(address: str, chain: str) -> dict[str, Any]:
     """Fetch EVM wallet data from Moralis."""
@@ -180,7 +177,6 @@ async def _fetch_moralis_wallet(address: str, chain: str) -> dict[str, Any]:
 
     return result
 
-
 ETHERSCAN_APIS = {
     "ethereum": "https://api.etherscan.io/api",
     "bsc": "https://api.bscscan.com/api",
@@ -191,7 +187,6 @@ ETHERSCAN_APIS = {
     "avalanche": "https://api.snowtrace.io/api",
     "fantom": "https://api.ftmscan.com/api",
 }
-
 
 async def _fetch_etherscan_wallet(address: str, chain: str) -> dict[str, Any]:
     """Fetch EVM wallet tx count and age from Etherscan family."""

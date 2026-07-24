@@ -2,6 +2,7 @@
 Prediction Market — Manifold Source
 Play-money, open-source sentiment signals.
 """
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
@@ -14,7 +15,6 @@ from app.domains.prediction.prediction_market_package.models import (
 logger = get_logger("prediction_market.manifold")
 
 MANIFOLD_BASE = "https://api.manifold.markets/v0"
-
 
 async def search(http_client: Any, query: str) -> list[PredictionMarket]:
     try:
@@ -34,7 +34,6 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
         logger.debug("search_error", exc_info=True)
         logger.warning(f"Manifold search error: {e}")
         return []
-
 
 def _parse_market(c: dict) -> PredictionMarket | None:
     try:

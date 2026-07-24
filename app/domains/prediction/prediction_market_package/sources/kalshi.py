@@ -2,6 +2,7 @@
 Prediction Market — Kalshi Source
 REST API /series, /markets, /events, /orderbook (unauthenticated).
 """
+from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import Any
@@ -15,7 +16,6 @@ from app.domains.prediction.prediction_market_package.models import (
 logger = get_logger("prediction_market.kalshi")
 
 KALSHI_BASE = "https://external-api.kalshi.com/trade-api/v2"
-
 
 async def search(http_client: Any, query: str) -> list[PredictionMarket]:
     try:
@@ -53,7 +53,6 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
         logger.warning(f"Kalshi search error: {e}")
         return []
 
-
 async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
     try:
         resp = await http_client.get(f"{KALSHI_BASE}/events", params={"status": "open", "limit": min(limit * 2, 30)}, timeout=10.0)
@@ -80,7 +79,6 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
         logger.warning(f"Kalshi trending error: {e}")
         return []
 
-
 async def detail(http_client: Any, ticker: str) -> PredictionMarket | None:
     try:
         resp = await http_client.get(f"{KALSHI_BASE}/markets/{ticker}/orderbook", timeout=10.0)
@@ -105,7 +103,6 @@ async def detail(http_client: Any, ticker: str) -> PredictionMarket | None:
         logger.debug("detail_error", exc_info=True)
         logger.warning(f"Kalshi detail error for {ticker}: {e}")
         return None
-
 
 def _parse_market(m: dict) -> PredictionMarket | None:
     try:

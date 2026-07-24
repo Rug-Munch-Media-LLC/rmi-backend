@@ -29,7 +29,6 @@ log = get_logger(__name__)
 
 T = TypeVar("T", covariant=True)
 
-
 class ServiceProtocol(Protocol[T]):
     """Minimal service interface expected by CRUDRouter.
 
@@ -43,9 +42,7 @@ class ServiceProtocol(Protocol[T]):
     async def update(self, id_: str, data: Any, **kwargs: Any) -> T: ...
     async def delete(self, id_: str, **kwargs: Any) -> bool: ...
 
-
 # ── Base class ────────────────────────────────────────────────────────────
-
 
 class CRUDRouter(APIRouter):
     """Base router with auto-registered CRUD endpoints.

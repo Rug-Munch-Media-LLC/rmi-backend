@@ -10,6 +10,7 @@ Usage:
     from app.oracle_manipulation_detector import OracleManipulationDetector
 """
 
+from __future__ import annotations
 import sys as _sys
 from app.domains.detectors.oracle_manipulation_detector import *  # noqa: F401, F403
 

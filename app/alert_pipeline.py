@@ -17,6 +17,7 @@ Alert flow:
   WebSocket streams to connected clients
 """
 
+from __future__ import annotations
 import json
 import os
 import time
@@ -35,7 +36,6 @@ ALERT_KEY = "rmi:alerts:recent"
 ALERT_COUNT_KEY = "rmi:alerts:count:active"
 ALERT_MAX = 500  # Keep last 500 alerts
 
-
 async def _get_redis() -> Any:
     """Get async Redis connection."""
     import redis.asyncio as aioredis
@@ -47,7 +47,6 @@ async def _get_redis() -> Any:
         decode_responses=True,
     )
 
-
 async def get_active_alert_count() -> int:
     """Get count of active (unacknowledged) alerts."""
     try:
@@ -58,7 +57,6 @@ async def get_active_alert_count() -> int:
     except Exception as e:
         logger.debug(f"Alert count error: {e}")
         return 0
-
 
 async def push_alert(
     alert_type: str,
@@ -109,7 +107,6 @@ async def push_alert(
 
     return alert_id
 
-
 async def get_recent_alerts(limit: int = 20, severity: str = "") -> list[dict]:
     """Get recent alerts with optional severity filter. Normalizes old/new formats."""
     try:
@@ -156,9 +153,7 @@ async def get_recent_alerts(limit: int = 20, severity: str = "") -> list[dict]:
         logger.error(f"get_recent_alerts error: {e}")
         return []
 
-
 # ── Alert generators - called by cron jobs or on-demand ──────────
-
 
 async def scan_solana_new_pairs(limit: int = 5) -> int:
     """
@@ -230,7 +225,6 @@ async def scan_solana_new_pairs(limit: int = 5) -> int:
         logger.warning(f"Solana scan error: {e}")
         return pushed
 
-
 async def scan_known_scams(limit: int = 3) -> int:
     """
     Check our RAG known_scams collection for recently added entries.
@@ -277,7 +271,6 @@ async def scan_known_scams(limit: int = 3) -> int:
         logger.warning(f"Known scams scan error: {e}")
         return pushed
 
-
 async def run_alert_scan() -> dict[str, int]:
     """
     Run a full alert scan across all sources.
@@ -295,9 +288,7 @@ async def run_alert_scan() -> dict[str, int]:
     logger.info(f"Alert scan complete: {total} new alerts ({results})")
     return results
 
-
 # ── Seed some initial alerts if Redis is empty ────────────────────
-
 
 async def seed_initial_alerts() -> None:
     """Seed baseline alerts so the system isn't empty on first run."""

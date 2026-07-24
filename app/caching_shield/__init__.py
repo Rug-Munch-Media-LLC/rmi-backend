@@ -39,6 +39,7 @@ Usage:
     limit = hdc.clamp_limit(100, is_deep_scan=True)
 """
 
+from __future__ import annotations
 from app.caching_shield.api_registry import (
     PROVIDER_REGISTRY,
     ApiKey,

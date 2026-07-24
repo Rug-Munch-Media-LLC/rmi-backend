@@ -15,6 +15,7 @@ Heuristics (confidence 0-1):
 Union-Find for O(alpha(n)) merges. Results persisted to storage.py.  # noqa: RUF002
 """
 
+from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 
@@ -22,9 +23,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("wallet_memory.clustering")
 
-
 # ── Union-Find (Disjoint Set) ────────────────────────────────────────
-
 
 class UnionFind:
     """Weighted Union-Find with path compression. O(alpha(n)) per op."""
@@ -80,9 +79,7 @@ class UnionFind:
     def total_nodes(self) -> int:
         return len(self._parent)
 
-
 # ── Data classes ─────────────────────────────────────────────────────
-
 
 class WalletProfile:
     """Behavioral profile of a wallet."""
@@ -144,7 +141,6 @@ class WalletProfile:
             hour_counts.keys(), key=lambda h: hour_counts[h], reverse=True
         )[:3]
 
-
 class Cluster:
     """A detected wallet cluster (entity)."""
 
@@ -169,7 +165,6 @@ class Cluster:
             "category": self.category,
         }
 
-
 # ── Clustering Engine ───────────────────────────────────────────────
 
 HEURISTIC_WEIGHTS = {
@@ -180,7 +175,6 @@ HEURISTIC_WEIGHTS = {
     "gas_payer": 0.85,
     "deposit_withdraw": 0.80,
 }
-
 
 class WalletClusteringEngine:
     """6-heuristic clustering engine with Union-Find merge."""

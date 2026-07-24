@@ -1,3 +1,4 @@
+from __future__ import annotations
 r"""
 Entity Extraction - Pattern Definitions
 ========================================

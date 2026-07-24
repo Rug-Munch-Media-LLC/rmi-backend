@@ -4,6 +4,7 @@ RugMunchBot -- Market data command handlers.
 
 Commands: trending, news + helpers: _time_ago, _fetch_cg_trending_news
 """
+from __future__ import annotations
 
 import contextlib
 from datetime import UTC, datetime
@@ -32,7 +33,6 @@ from app.domains.telegram.rugmunchbot.keyboards import back_kb
 
 logger = get_logger("rmi_bot")
 
-
 def _time_ago(dt_iso: str | None) -> str:
     """Convert ISO timestamp to human readable relative time."""
     if not dt_iso:
@@ -53,7 +53,6 @@ def _time_ago(dt_iso: str | None) -> str:
         return f"{diff.days}d ago"
     except (ConnectionError, OSError, TimeoutError):
         return ""
-
 
 async def _fetch_cg_trending_news() -> list[dict] | None:
     """Fallback: fetch CoinGecko trending coins as pseudo-news items."""
@@ -79,7 +78,6 @@ async def _fetch_cg_trending_news() -> list[dict] | None:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("CoinGecko trending fallback failed: %s", exc)
         return None
-
 
 async def cmd_rugcheck(update, ctx) -> None:
     """Quick rug pull checklist - educational."""
@@ -115,8 +113,6 @@ async def cmd_rugcheck(update, ctx) -> None:
     await update.message.reply_text(
         text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
     )
-
-
 
 async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text(
@@ -187,7 +183,6 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "\u274c <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again later.",
             parse_mode=ParseMode.HTML,
         )
-
 
 async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("\U0001f4f0 <b>Fetching news...</b>", parse_mode=ParseMode.HTML)

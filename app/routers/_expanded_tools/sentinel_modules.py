@@ -1,5 +1,6 @@
 """Auto-generated tool definitions for SENTINEL_MODULES."""
 
+from __future__ import annotations
 SENTINEL_MODULES = {
     "sentinel_scan": {
         "price_usd": 0.15,

@@ -21,6 +21,7 @@ Data sources:
   EVM:    Etherscan-family APIs → contract bytecode, storage slots, ABI
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from enum import Enum
@@ -69,9 +70,7 @@ SYSTEM_PROGRAM_ID = "11111111111111111111111111111111"
 # Renounced / burned addresses on Solana
 SOLANA_ZERO_ADDRESS = "11111111111111111111111111111111"
 
-
 # ── Risk Levels ────────────────────────────────────────────
-
 
 class AuthorityRiskLevel(Enum):
     LOW = "LOW"
@@ -79,9 +78,7 @@ class AuthorityRiskLevel(Enum):
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
 
-
 # ── Data Models ─────────────────────────────────────────────
-
 
 @dataclass
 class SolanaAuthority:
@@ -92,7 +89,6 @@ class SolanaAuthority:
     is_renounced: bool
     is_token_itself: bool  # authority set to token's own mint address
 
-
 @dataclass
 class SolanaAuthorities:
     """All authority fields for a Solana token mint."""
@@ -100,7 +96,6 @@ class SolanaAuthorities:
     mint_authority: SolanaAuthority | None = None
     freeze_authority: SolanaAuthority | None = None
     update_authority: SolanaAuthority | None = None
-
 
 @dataclass
 class EVMProxyInfo:
@@ -116,7 +111,6 @@ class EVMProxyInfo:
     has_admin_functions: bool = False
     admin_function_signatures: list[str] = field(default_factory=list)
 
-
 @dataclass
 class ContractAuthorityReport:
     """Full authority analysis for a token contract."""
@@ -128,7 +122,6 @@ class ContractAuthorityReport:
     warnings: list[str] = field(default_factory=list)
     risk_score: int = 0  # 0-100
     risk_level: str = "LOW"
-
 
 # ── EVM Proxy Detection Slots ───────────────────────────────
 
@@ -145,7 +138,6 @@ EIP1822_SLOT = (
 # OpenZeppelin-specific: _upgradeTo signature
 OZ_TRANSPARENT_ADMIN_SIG = "0xf3b7dead"  # changeAdmin
 OZ_UUPS_UPGRADE_SIG = "0x4f1ef286"  # upgradeToAndCall
-
 
 class ContractAuthorityScanner:
     """Detects dangerous authority configurations on Solana and EVM chains.
@@ -688,9 +680,7 @@ class ContractAuthorityScanner:
         else:
             report.risk_level = AuthorityRiskLevel.LOW.value
 
-
 # ── Pipeline Integration ────────────────────────────────────
-
 
 async def run_contract_authority_scan(token_address: str, chain: str) -> ContractAuthorityReport:
     """Convenience function for SENTINEL pipeline integration."""

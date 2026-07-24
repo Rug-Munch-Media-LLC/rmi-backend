@@ -10,11 +10,11 @@ and tier comparison.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
+from __future__ import annotations
 from app.core.logging import get_logger
 from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 
 logger = get_logger("databus.providers.chains.rugcharts")
-
 
 def build_rugcharts_chains(chains: dict[str, ProviderChain]) -> None:
     """Build RugCharts Intelligence chains (10 premium features)."""

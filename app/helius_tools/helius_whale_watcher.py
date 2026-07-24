@@ -10,6 +10,7 @@ Features:
 - Track historical whale behavior patterns
 - Score wallets by "whale influence" (0-100)
 """
+from __future__ import annotations
 
 import asyncio
 import os
@@ -35,7 +36,6 @@ WHALE_THRESHOLDS = {
     "holder_concentration": 10,  # Top 10 holders
 }
 
-
 @dataclass
 class WhaleAlert:
     timestamp: datetime
@@ -52,7 +52,6 @@ class WhaleAlert:
     whale_tags: list[str] = field(default_factory=list)
     related_wallets: list[str] = field(default_factory=list)
 
-
 @dataclass
 class WhaleProfile:
     address: str
@@ -65,7 +64,6 @@ class WhaleProfile:
     last_active: datetime
     avg_transfer_size_usd: float
     dump_history: list[dict[str, Any]]
-
 
 class WhaleWatcher:
     """Monitors Solana for whale activity using Helius enhanced APIs."""

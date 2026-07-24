@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-
 async def query_clickhouse_labels(address: str, chain: str = "ethereum") -> list[Label]:
     """Query ClickHouse wallet_memory.wallet_labels table.
 

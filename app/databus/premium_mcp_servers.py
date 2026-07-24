@@ -6,12 +6,12 @@ Each: free tier → rate limit → x402 micropayment upsell.
 Target users: trading bots, MEV searchers, degens, researchers.
 """
 
+from __future__ import annotations
 import json
 import os
 
 import httpx as req
 from typing import Any
-
 
 def gredis() -> Any:
     from dotenv import load_dotenv
@@ -22,7 +22,6 @@ def gredis() -> Any:
     return redis.Redis(
         host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True
     )
-
 
 def trial(fingerprint: str, tool: str, limit: int = 10) -> dict:
     r, k = gredis(), f"mcp:trial:{tool}:{fingerprint}"
@@ -36,7 +35,6 @@ def trial(fingerprint: str, tool: str, limit: int = 10) -> dict:
         "remaining": 0,
         "upgrade": "$0.01-0.05/call via x402 on Base/Solana/13 chains",
     }
-
 
 # ═══════════════════════════════════════════════════
 # MCP #1: WHALE ALERT - Real-time large transfers
@@ -74,7 +72,6 @@ def whale_alert(
     result["mcp"] = "rmi-whale-alert"
     return result
 
-
 # ═══════════════════════════════════════════════════
 # MCP #2: TOKEN LAUNCH SCANNER
 # ═══════════════════════════════════════════════════
@@ -105,7 +102,6 @@ def token_launch_scanner(
     result["auth"] = auth
     result["mcp"] = "rmi-launch-scanner"
     return result
-
 
 # ═══════════════════════════════════════════════════
 # MCP #3: SMART MONEY TRACKER
@@ -139,7 +135,6 @@ def smart_money_tracker(chain: str = "ethereum", fingerprint: str = "anon") -> d
         "mcp": "rmi-smart-money",
     }
 
-
 # ═══════════════════════════════════════════════════
 # MCP #4: MEV/SANDWICH DETECTION
 # ═══════════════════════════════════════════════════
@@ -171,7 +166,6 @@ def mev_detector(address: str = "", chain: str = "ethereum", fingerprint: str = 
     result["auth"] = auth
     result["mcp"] = "rmi-mev-detector"
     return result
-
 
 # ═══════════════════════════════════════════════════
 # MCP #5: NARRATIVE DETECTION
@@ -206,7 +200,6 @@ def narrative_detector(fingerprint: str = "anon") -> dict:
         "mcp": "rmi-narrative",
     }
 
-
 # ═══════════════════════════════════════════════════
 # MCP #6: CROSS-CHAIN ARBITRAGE SCANNER
 # ═══════════════════════════════════════════════════
@@ -237,7 +230,6 @@ def arbitrage_scanner(token: str = "ETH", fingerprint: str = "anon") -> dict:
         "auth": auth,
         "mcp": "rmi-arbitrage",
     }
-
 
 # ═══════════════════════════════════════════════════
 # MCP #7: CONTRACT AUDIT QUICK-SCAN
@@ -277,7 +269,6 @@ def quick_audit(address: str, chain: str = "ethereum", fingerprint: str = "anon"
     result["mcp"] = "rmi-quick-audit"
     return result
 
-
 # ═══════════════════════════════════════════════════
 # MCP #8: PORTFOLIO RISK SCORER
 # ═══════════════════════════════════════════════════
@@ -311,7 +302,6 @@ def portfolio_risk(address: str, fingerprint: str = "anon") -> dict:
     risk["auth"] = auth
     risk["mcp"] = "rmi-portfolio-risk"
     return risk
-
 
 # Registry
 PREMIUM_MCP = {

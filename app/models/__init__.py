@@ -13,8 +13,8 @@ Model files organized by domain:
     payment.py - x402 micro-payment receipts
 """
 
+from __future__ import annotations
 from sqlalchemy.orm import DeclarativeBase
-
 
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base for all ORM models.
@@ -23,7 +23,6 @@ class Base(DeclarativeBase):
     Managed by Alembic migrations in alembic/versions/.
     """
     pass
-
 
 from app.models.alert import Alert, AlertSubscription  # noqa: E402
 from app.models.label import Label  # noqa: E402

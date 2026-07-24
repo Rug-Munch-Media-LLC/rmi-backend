@@ -2,12 +2,12 @@
 Honeypot Detector — Data Models
 Enums, dataclasses, and result types for honeypot/malicious token analysis.
 """
+from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
-
 
 class FindingSeverity(Enum):
     CRITICAL = "critical"
@@ -15,7 +15,6 @@ class FindingSeverity(Enum):
     MEDIUM = "medium"
     LOW = "low"
     INFO = "info"
-
 
 class HoneypotType(Enum):
     SELL_RESTRICTION = "sell_restriction"
@@ -36,7 +35,6 @@ class HoneypotType(Enum):
     RUG_PULL = "rug_pull"
     UNKNOWN = "unknown"
 
-
 @dataclass
 class SecurityFinding:
     finding_type: HoneypotType
@@ -53,7 +51,6 @@ class SecurityFinding:
             "detail": self.detail,
             "code_reference": self.code_reference,
         }
-
 
 @dataclass
 class TokenInfo:
@@ -101,7 +98,6 @@ class TokenInfo:
             "implementation": self.implementation_address,
             "chain_data_sources": self.chain_data_sources,
         }
-
 
 @dataclass
 class HoneypotAnalysisResult:

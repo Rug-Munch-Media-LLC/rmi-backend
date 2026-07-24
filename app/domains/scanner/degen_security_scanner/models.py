@@ -4,9 +4,9 @@ Degen Security Scanner — Data Models
 Dataclasses for token security analysis reports.
 """
 
+from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
-
 
 @dataclass
 class HolderProfile:
@@ -28,7 +28,6 @@ class HolderProfile:
     other_tokens_held: int = 0
     risk_score: int = 0
 
-
 @dataclass
 class FundingTrace:
     """Gas funding trace result."""
@@ -42,7 +41,6 @@ class FundingTrace:
     is_exchange_direct: bool = False
     exchange_name: str | None = None
     risk_flags: list[str] = field(default_factory=list)
-
 
 @dataclass
 class SniperProfile:
@@ -59,7 +57,6 @@ class SniperProfile:
     sold_percentage: float = 0.0
     is_known_sniper: bool = False
     sniper_score: int = 0  # 0-100
-
 
 @dataclass
 class LPAnalysis:
@@ -80,7 +77,6 @@ class LPAnalysis:
     concentration_risk: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
     depth_score: int = 0  # 0-100
 
-
 @dataclass
 class WashTradeCluster:
     """Detected wash trading cluster."""
@@ -91,7 +87,6 @@ class WashTradeCluster:
     pattern_type: str  # circular, back_forth, triangular
     confidence: float  # 0.0 - 1.0
     sample_txs: list[str] = field(default_factory=list)
-
 
 @dataclass
 class SecurityReport:
@@ -211,7 +206,6 @@ class SecurityReport:
 
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str)
-
 
 __all__ = [
     "FundingTrace",
