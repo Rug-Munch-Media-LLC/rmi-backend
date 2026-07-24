@@ -42,6 +42,8 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.shared_utils import normalize_chain as _normalize_chain
+from app.core.shared_utils import EVM_ADDRESS_RE as EVM_ADDR_RE, SOLANA_ADDRESS_RE as SOLANA_ADDR_RE, is_valid_address
 
 __all__ = ["RiskLevel", "RugPullAnalysis", "SignalResult", "analyze", "predict_rug_pull"]
 
@@ -55,8 +57,6 @@ FREE_APIS = {
     "goplus": "https://api.gopluslabs.io/api/v1",
 }
 
-EVM_ADDR_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
-SOLANA_ADDR_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
 # Default risk thresholds
 DEFAULT_WEIGHTS = {
@@ -68,16 +68,6 @@ DEFAULT_WEIGHTS = {
     "social_signals": 0.10,
 }
 
-CHAIN_MAP: dict[str, str] = {
-    "solana": "solana",
-    "ethereum": "ethereum",
-    "bsc": "bsc",
-    "polygon": "polygon",
-    "arbitrum": "arbitrum",
-    "optimism": "optimism",
-    "base": "base",
-    "avalanche": "avalanche",
-}
 
 # ── Data Models ──────────────────────────────────────────────────
 
@@ -159,14 +149,6 @@ class RugPullAnalysis:
 # ── Helpers ──────────────────────────────────────────────────────
 
 
-def is_valid_address(addr: str) -> bool:
-    addr = addr.strip()
-    return bool(EVM_ADDR_RE.match(addr) or SOLANA_ADDR_RE.match(addr))
-
-
-def _normalize_chain(chain: str) -> str:
-    chain = chain.strip().lower()
-    return CHAIN_MAP.get(chain, chain)
 
 
 def _level_from_score(score: float) -> RiskLevel:

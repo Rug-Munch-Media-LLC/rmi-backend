@@ -74,7 +74,8 @@ def _run_subprocess(args: list[str], timeout: int = 30) -> dict[str, Any]:
         return _err(f"Command not found: {args[0]}")
     except PermissionError:
         return _err(f"Permission denied: {args[0]}")
-    except Exception as e:  # noqa: BLE001
+    except (KeyError, TypeError) as e :
+        logger.debug("_run_subprocess_error", exc_info=True)
         return _err(str(e))
 
 

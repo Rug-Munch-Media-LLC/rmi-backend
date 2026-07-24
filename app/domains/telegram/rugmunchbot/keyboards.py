@@ -7,7 +7,6 @@ All inline keyboard markup generators in one place.
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BUY_STARS_PACKS,
     SCAM_SCHOOL_TOPICS,
@@ -17,7 +16,6 @@ from app.domains.telegram.rugmunchbot.config import (
     TIERS,
     TOP_UP_PACKS,
     TWITTER_URL,
-    WEB_APP_URL,
     WEBSITE_URL,
 )
 from app.domains.telegram.rugmunchbot.formatters import dex_buttons, web_scan_button

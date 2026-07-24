@@ -3,9 +3,9 @@
 from collections import defaultdict
 
 from app.core.logging import get_logger
-from .models import InsiderEvidence, InsiderReport, InsiderType, Confidence
-from .config import INSIDER_WINDOW_MIN, AVG_PRE_TRENDING_PUMP
-from .helpers import _ts_human
+
+from .config import AVG_PRE_TRENDING_PUMP, INSIDER_WINDOW_MIN
+from .models import Confidence, InsiderEvidence, InsiderReport, InsiderType
 
 logger = get_logger(__name__)
 
@@ -83,7 +83,8 @@ async def _check_early_buy(
 
     try:
         events = await _gather_events(token_address, chain, None, None, None)
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError):
+        logger.debug("_check_early_buy_error", exc_info=True)
         logger.warning("_gather_events failed", exc_info=True)
         return False, 0, None
 

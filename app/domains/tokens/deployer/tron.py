@@ -39,7 +39,8 @@ class TronDeployer(ChainDeployer):
                 extra={"note": "TRON deployment requires manual contract compilation and deployment"},
             )
             return deployment
-        except Exception as e:
+        except (ValueError) as e :
+            logger.debug("deploy_token_error", exc_info=True)
             logger.error(f"TRON deploy failed: {e}")
             raise
 

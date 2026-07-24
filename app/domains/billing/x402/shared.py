@@ -399,7 +399,7 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
         else:
             result["is_contract"] = False
             result["findings"].append("Address is not a contract")
-    except (httpx.HTTPError):  # noqa: BLE001
+    except (httpx.HTTPError):
         pass
 
     # Risk computation
@@ -564,7 +564,7 @@ try:
     from app.routers._expanded_aliases import EXPANDED_ALIASES
 
     TOOL_ALIASES.update(EXPANDED_ALIASES)
-except (AttributeError, ImportError):  # noqa: BLE001
+except (AttributeError, ImportError):
     pass
 
 

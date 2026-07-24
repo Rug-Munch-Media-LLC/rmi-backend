@@ -3,8 +3,6 @@ RIP — Signal Analyzer Modules
 Extracted signal analysis logic from RugImminencePredictor.
 Each function operates on a RIPResult and updates one signal category.
 """
-import asyncio
-from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.detectors.rug_imminence_predictor_package.types import RIPResult
@@ -22,7 +20,9 @@ async def analyze_lp_health(result: RIPResult) -> None:
         dex_data = None
         result.sources_used.append("dexscreener")
         try:
-            from app.domains.detectors.rug_imminence_predictor_package.sources import fetch_dexscreener_pool
+            from app.domains.detectors.rug_imminence_predictor_package.sources import (
+                fetch_dexscreener_pool,
+            )
             dex_data = await fetch_dexscreener_pool(result.token_address, result.chain)
         except (AttributeError, ImportError):
             result.sources_failed.append("dexscreener")
@@ -78,7 +78,9 @@ async def analyze_lp_health(result: RIPResult) -> None:
                     sig.evidence.append(f"Buy pressure dominates ({sell_buy_ratio:.1f}x) - potential manipulation")
 
             try:
-                from app.domains.detectors.rug_imminence_predictor_package.sources import check_lp_lock
+                from app.domains.detectors.rug_imminence_predictor_package.sources import (
+                    check_lp_lock,
+                )
                 lock_info = await check_lp_lock(result.token_address, result.chain)
                 if lock_info.get("locked"):
                     sig.score -= 20
@@ -99,7 +101,8 @@ async def analyze_lp_health(result: RIPResult) -> None:
             sig.evidence.append("No DEX pool data found - token may have no real liquidity")
 
         sig.confidence = min(1.0, sig.score / 50) if sig.score > 0 else 0.3
-    except Exception as e:
+    except (KeyError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"LP health analysis failed for {result.token_address}: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.1
@@ -110,7 +113,11 @@ async def analyze_deployer_risk(result: RIPResult) -> None:
     """Signal 2: Deployer Risk (20% weight)."""
     sig = result.signals["deployer_risk"]
     try:
-        from app.domains.detectors.rug_imminence_predictor_package.sources import resolve_deployer, check_wallet_age, check_deployer_history
+        from app.domains.detectors.rug_imminence_predictor_package.sources import (
+            check_deployer_history,
+            check_wallet_age,
+            resolve_deployer,
+        )
         deployer = await resolve_deployer(result.token_address, result.chain)
         if not deployer:
             sig.score += 10
@@ -157,7 +164,8 @@ async def analyze_deployer_risk(result: RIPResult) -> None:
             sig.evidence.append("All previously deployed tokens are inactive/dead")
 
         sig.confidence = min(0.9, 0.4 + (total_tokens / 20))
-    except Exception as e:
+    except (KeyError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Deployer risk analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.2
@@ -195,7 +203,9 @@ async def analyze_smart_money_flow(result: RIPResult) -> None:
             result.sources_failed.append("smart_money_tracker")
 
         try:
-            from app.domains.detectors.rug_imminence_predictor_package.sources import fetch_holder_data
+            from app.domains.detectors.rug_imminence_predictor_package.sources import (
+                fetch_holder_data,
+            )
             holder_data = await fetch_holder_data(result.token_address, result.chain)
             if holder_data:
                 result.sources_used.append("holder_data")
@@ -213,7 +223,8 @@ async def analyze_smart_money_flow(result: RIPResult) -> None:
             result.sources_failed.append("holder_data")
 
         sig.confidence = min(0.8, 0.3 + (sig.score / 50))
-    except Exception as e:
+    except (KeyError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Smart money flow analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.15
@@ -250,7 +261,8 @@ async def analyze_bundle_pattern(result: RIPResult) -> None:
         sig.evidence.append("Bundle detection unavailable")
         sig.confidence = 0.3
         result.sources_failed.append("bundle_detector")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("analyze_bundle_pattern_error", exc_info=True)
         logger.warning(f"Bundle analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.2
@@ -303,7 +315,8 @@ async def analyze_social_velocity(result: RIPResult) -> None:
             result.sources_failed.append("sentiment_analyzer")
 
         sig.confidence = min(0.7, 0.3 + (sig.score / 40))
-    except Exception as e:
+    except (KeyError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Social velocity analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.15
@@ -354,7 +367,8 @@ async def analyze_contract_risk(result: RIPResult) -> None:
             result.sources_failed.append("contract_authority")
 
         sig.confidence = min(0.85, 0.4 + (sig.score / 40))
-    except Exception as e:
+    except (KeyError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Contract risk analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.2
@@ -395,7 +409,9 @@ async def analyze_liquidity_migration(result: RIPResult) -> None:
 
         if not sig.evidence:
             try:
-                from app.domains.detectors.rug_imminence_predictor_package.sources import fetch_dexscreener_pool
+                from app.domains.detectors.rug_imminence_predictor_package.sources import (
+                    fetch_dexscreener_pool,
+                )
                 dex_data = await fetch_dexscreener_pool(result.token_address, result.chain)
                 if dex_data and dex_data.get("pairs"):
                     pair = dex_data["pairs"][0]
@@ -408,7 +424,8 @@ async def analyze_liquidity_migration(result: RIPResult) -> None:
                 logger.debug("liquidity change parse failed", exc_info=True)
 
         sig.confidence = min(0.7, 0.3 + (sig.score / 40))
-    except Exception as e:
+    except (KeyError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Liquidity migration analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.15

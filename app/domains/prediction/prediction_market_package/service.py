@@ -58,7 +58,8 @@ class PredictionMarketService:
             self._redis = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True, socket_connect_timeout=3)
             if self._redis is None:
                 self._redis = False
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, OSError, ValueError) as e :
+            logger.debug("_get_redis_error", exc_info=True)
             logger.warning(f"Redis unavailable, caching disabled: {e}")
             self._redis = False
         return self._redis if self._redis is not False else None
@@ -99,7 +100,8 @@ class PredictionMarketService:
         if redis:
             try:
                 await redis.setex(cache_key, 300, json.dumps([market_to_dict(m) for m in all_markets[:50]]))
-            except Exception as e:
+            except (httpx.HTTPError, json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+                logger.debug("search_error", exc_info=True)
                 logger.warning(f"Redis cache write failed: {e}")
         return all_markets
 
@@ -153,7 +155,8 @@ class PredictionMarketService:
         if redis:
             try:
                 await redis.setex(cache_key, 3600, json.dumps(digest_to_dict(digest)))
-            except Exception as e:
+            except (httpx.HTTPError, json.JSONDecodeError, ConnectionError, OSError, ValueError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Redis digest cache write failed: {e}")
         return digest
 

@@ -50,7 +50,7 @@ async def _profile_wallet(address: str, chain: str) -> dict:
             if balance is not None:
                 result["balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_rpc")
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         # Get recent transactions
@@ -143,7 +143,7 @@ async def wallet_profiler(req: WalletRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -244,7 +244,7 @@ async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0,
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -336,7 +336,7 @@ async def cluster_detection(req: ClusterRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -356,7 +356,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
             if balance is not None:
                 result["sol_balance"] = balance / 1e9
                 result["sources_used"].append("solana_rpc")
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         try:
@@ -393,7 +393,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
                 result["native_balance_wei"] = balance
                 result["native_balance_eth"] = int(balance, 16) / 1e18
                 result["sources_used"].append(f"{chain}_rpc")
-        except (httpx.HTTPError):  # noqa: BLE001
+        except (httpx.HTTPError):
             pass
 
     # DexScreener for recent activity
@@ -448,7 +448,7 @@ async def whale_decoder(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -471,7 +471,7 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
                 if balance is not None:
                     wallet_data["sol_balance"] = balance / 1e9
                     result["sources_used"].append("solana_rpc")
-            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):
                 pass
 
         # EVM balance
@@ -481,7 +481,7 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
                 if balance:
                     wallet_data["native_balance"] = int(balance, 16) / 1e18
                     result["sources_used"].append(f"{chain}_rpc")
-            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):
                 pass
 
         result["wallets"].append(wallet_data)
@@ -503,7 +503,7 @@ async def portfolio_tracker(req: WalletListRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -555,5 +555,5 @@ async def copy_trade_finder(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e

@@ -6,7 +6,6 @@ Uses subprocess to invoke opencode MCP tools and returns parsed results.
 
 import json
 import subprocess
-from typing import Any
 
 from app.core.logging import get_logger
 

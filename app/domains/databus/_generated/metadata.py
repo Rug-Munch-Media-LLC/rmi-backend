@@ -7,7 +7,6 @@ data types with descriptions, used for introspection and documentation.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
-from app.databus.provider_core import ProviderChain
 
 # Descriptive metadata for every registered data type.
 # This dict is populated on import from build_provider_chains() output
@@ -142,7 +141,7 @@ def get_chains_by_category() -> dict[str, list[str]]:
 
 
 __all__ = [
-    "CHAIN_METADATA",
     "CATEGORY_INDEX",
+    "CHAIN_METADATA",
     "get_chains_by_category",
 ]

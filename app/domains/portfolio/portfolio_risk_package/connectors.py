@@ -71,7 +71,8 @@ class EVMConnector(ChainConnector):
             bal_wei = await asyncio.to_thread(self.w3.eth.get_balance, address)
             decimals = self.config["decimals"]
             return float(bal_wei) / (10**decimals)
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+            logger.debug("get_native_balance_error", exc_info=True)
             logger.warning(f"{self.chain_name} balance error: {e}")
             return 0.0
 
@@ -114,7 +115,8 @@ class EVMConnector(ChainConnector):
                     pass
                 if len(results) >= MAX_TOKENS_PER_WALLET:
                     break
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+            logger.debug("get_token_balances_error", exc_info=True)
             logger.debug(f"{self.chain_name} event scan error: {e}")
         return results
 
@@ -139,7 +141,8 @@ class SolanaConnector(ChainConnector):
             if resp and resp.get("result"):
                 return resp["result"]["value"] / 1e9
             return 0.0
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError, OSError) as e :
+            logger.debug("get_native_balance_error", exc_info=True)
             logger.warning(f"solana balance error: {e}")
             return 0.0
 
@@ -166,6 +169,7 @@ class SolanaConnector(ChainConnector):
                     })
                 except (ConnectionError, OSError, TimeoutError):
                     pass
-        except Exception as e:
+        except (ValueError, KeyError, TypeError) as e :
+            logger.debug("get_token_balances_error", exc_info=True)
             logger.warning(f"solana token balances error: {e}")
         return results

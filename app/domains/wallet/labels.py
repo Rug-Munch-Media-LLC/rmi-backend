@@ -14,7 +14,6 @@ from app.core.logging import get_logger
 from app.domains.wallet.models import (
     WalletPurpose,
     WalletRecord,
-    WalletStatus,
     WalletTier,
 )
 

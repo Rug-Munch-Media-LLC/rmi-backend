@@ -15,8 +15,9 @@ Architecture:
   - app/token_scanner.py             Backward compatibility shim
 """
 
-from app.domains.scanner.models import ScanResult
 from typing import Any
+
+from app.domains.scanner.models import ScanResult
 
 
 def quick_scan_text(*args, **kwargs) -> Any:

@@ -10,7 +10,9 @@ import os
 from datetime import UTC, datetime
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
+
+from app.core.errors import AppError, AuthorizationError, NotFoundError, ValidationError
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
@@ -129,7 +131,11 @@ class BotRegistrationIn(BaseModel):
 # ── Bulletin Posts ──────────────────────────────────────────
 
 
-@router.get("/latest", summary="Latest Posts", description="Fetch the latest bulletin board posts with optional category filtering and sorting.")
+@router.get(
+    "/latest",
+    summary="Latest Posts",
+    description="Fetch the latest bulletin board posts with optional category filtering and sorting.",
+)
 async def latest_posts(
     category: str = Query(None),
     sort: str = Query("created_at.desc"),
@@ -155,7 +161,11 @@ async def latest_posts(
     return {"posts": posts, "total": len(posts)}
 
 
-@router.post("/posts", summary="Create Post", description="Create a new bulletin board post. Requires an authenticated user profile.")
+@router.post(
+    "/posts",
+    summary="Create Post",
+    description="Create a new bulletin board post. Requires an authenticated user profile.",
+)
 async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public_profile)) -> Any:
     result = await create_bulletin_post(
         title=post.title,
@@ -168,7 +178,7 @@ async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public
         source=post.source,
     )
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to create post")
+        raise AppError("Failed to create post")
     if post.is_bot and result.get("id"):
         with contextlib.suppress(Exception):
             _sb_patch(
@@ -177,11 +187,13 @@ async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public
     return result
 
 
-@router.post("/posts/{post_id}/vote", summary="Vote", description="Upvote or downvote a bulletin board post.")
+@router.post(
+    "/posts/{post_id}/vote", summary="Vote", description="Upvote or downvote a bulletin board post."
+)
 async def vote(post_id: int, vote_type: str = Query(..., pattern="^(up|down)$")) -> dict[str, str]:
     ok = await vote_post(post_id, vote_type)
     if not ok:
-        raise HTTPException(status_code=404, detail="Post not found or vote failed")
+        raise NotFoundError("Post not found or vote failed")
     return {"status": "ok", "post_id": post_id, "vote": vote_type}
 
 
@@ -210,7 +222,7 @@ async def create_comment(
             },
         )
         if not result:
-            raise HTTPException(status_code=500, detail="Failed to create comment")
+            raise AppError("Failed to create comment")
         return {"status": "ok", "comment": result[0]}
     except Exception as e:
         # Fallback if table doesn't exist yet
@@ -261,12 +273,12 @@ async def register_bot(bot: BotRegistrationIn) -> dict:
             },
         )
         if not profiles:
-            raise HTTPException(status_code=500, detail="Failed to create bot profile")
+            raise AppError("Failed to create bot profile")
         bot_profile = profiles[0]
-    except HTTPException:
+    except AppError:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Bot profile creation failed: {e}") from e
+        raise AppError(f"Bot profile creation failed: {e}") from e
 
     # Create bot registration record
     try:
@@ -285,7 +297,7 @@ async def register_bot(bot: BotRegistrationIn) -> dict:
             },
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Bot registration failed: {e}") from e
+        raise AppError(f"Bot registration failed: {e}") from e
 
     # Log the fee payment
     if bot.fee_paid > 0:
@@ -329,7 +341,7 @@ async def bot_fee_status(bot_id: str) -> dict:
     """Check a bot's fee payment status."""
     reg = _sb_get("bot_registrations", {"bot_user_id": f"eq.{bot_id}", "limit": "1"})
     if not reg:
-        raise HTTPException(status_code=404, detail="Bot not registered")
+        raise NotFoundError("Bot not registered")
     registration = reg[0]
 
     fees = _sb_get("bot_fee_log", {"bot_id": f"eq.{bot_id}", "order": "created_at.desc"})
@@ -361,7 +373,7 @@ async def pay_bot_fee(
             },
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fee logging failed: {e}") from e
+        raise AppError(f"Fee logging failed: {e}") from e
 
     fees = _sb_get("bot_fee_log", {"bot_id": f"eq.{bot_id}", "select": "amount"})
     total_paid = sum(f.get("amount", 0) for f in fees)
@@ -384,16 +396,14 @@ async def bot_create_post(bot_id: str, post: BulletinPostIn) -> Any:
         "bot_registrations", {"bot_user_id": f"eq.{bot_id}", "status": "eq.active", "limit": "1"}
     )
     if not reg:
-        raise HTTPException(status_code=403, detail="Bot not registered or fee not paid")
+        raise AuthorizationError("Bot not registered or fee not paid")
 
     registration = reg[0]
     if (
         registration.get("allowed_categories")
         and post.category not in registration["allowed_categories"]
     ):
-        raise HTTPException(
-            status_code=403, detail=f"Bot not allowed to post in category: {post.category}"
-        )
+        raise AuthorizationError(f"Bot not allowed to post in category: {post.category}")
 
     post.is_bot = True
     post.bot_id = bot_id
@@ -410,7 +420,7 @@ async def bot_create_post(bot_id: str, post: BulletinPostIn) -> Any:
         source=post.source,
     )
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to create post")
+        raise AppError("Failed to create post")
 
     with contextlib.suppress(Exception):
         _sb_patch("bulletin_posts", {"is_bot": True, "bot_id": bot_id}, {"id": result["id"]})
@@ -451,7 +461,7 @@ async def create_report(report: ReportIn) -> Any:
         },
     )
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to create report")
+        raise AppError("Failed to create report")
     return result[0]
 
 
@@ -526,30 +536,46 @@ async def list_badges(rarity: str = Query(None)) -> Any:
     return await get_badges(rarity=rarity)
 
 
-@router.get("/badges/{user_id}", summary="User Badges", description="Get all badges earned by a specific user.")
+@router.get(
+    "/badges/{user_id}",
+    summary="User Badges",
+    description="Get all badges earned by a specific user.",
+)
 async def user_badges(user_id: str) -> Any:
     badges = await get_user_badges(user_id)
     return badges
 
 
-@router.post("/badges/award", summary="Award Badge", description="Award a badge to a user. Requires moderator privileges.")
+@router.post(
+    "/badges/award",
+    summary="Award Badge",
+    description="Award a badge to a user. Requires moderator privileges.",
+)
 async def award(badge_id: str, user_id: str, earned_via: str = "auto") -> Any:
     result = await award_badge(user_id, badge_id, earned_via)
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to award badge")
+        raise AppError("Failed to award badge")
     return result
 
 
 # ── Alerts ──────────────────────────────────────────────────
 
 
-@router.get("/alerts", summary="List Alerts", description="List all active bulletin board alerts and announcements.")
+@router.get(
+    "/alerts",
+    summary="List Alerts",
+    description="List all active bulletin board alerts and announcements.",
+)
 async def list_alerts(severity: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
     alerts = await get_alerts(severity=severity, limit=limit)
     return {"alerts": alerts, "total": len(alerts)}
 
 
-@router.post("/alerts", summary="Submit Alert", description="Submit a new bulletin board alert. Requires moderator privileges.")
+@router.post(
+    "/alerts",
+    summary="Submit Alert",
+    description="Submit a new bulletin board alert. Requires moderator privileges.",
+)
 async def submit_alert(alert: AlertIn) -> Any:
     result = await create_alert(
         title=alert.title,
@@ -563,7 +589,7 @@ async def submit_alert(alert: AlertIn) -> Any:
         user_id=alert.user_id,
     )
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to create alert")
+        raise AppError("Failed to create alert")
     return result
 
 

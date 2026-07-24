@@ -18,8 +18,6 @@ from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
-    TELEGRAM_CHANNEL,
-    WEBSITE_URL,
     fmt_chain,
     fmt_number,
     fmt_pct,
@@ -28,11 +26,9 @@ from app.domains.telegram.rugmunchbot.formatters import (
     EVM_RE,
     SOL_RE,
     TOKEN_RE,
-    detect_chain,
     footer_links,
     is_evm,
     is_sol,
-    short_addr,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, main_menu_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.states import check_spam

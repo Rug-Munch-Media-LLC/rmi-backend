@@ -6,17 +6,21 @@ Commands: trending, news + helpers: _time_ago, _fetch_cg_trending_news
 """
 
 import contextlib
+from datetime import UTC, datetime
 
 import httpx
-from datetime import UTC, datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from app.core.logging import get_logger
-from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER, TELEGRAM_CHANNEL, WEBSITE_URL
+from app.domains.telegram.rugmunchbot.config import (
+    BACKEND_URL,
+    DEXSCREENER,
+    TELEGRAM_CHANNEL,
+    WEBSITE_URL,
+)
 from app.domains.telegram.rugmunchbot.formatters import (
-    fmt_chain,
     fmt_number,
     fmt_pct,
     footer_links,
@@ -47,7 +51,7 @@ def _time_ago(dt_iso: str | None) -> str:
         if total_secs < 86400:
             return f"{int(total_secs / 3600)}h ago"
         return f"{diff.days}d ago"
-    except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         return ""
 
 
@@ -79,9 +83,9 @@ async def _fetch_cg_trending_news() -> list[dict] | None:
 
 async def cmd_rugcheck(update, ctx) -> None:
     """Quick rug pull checklist - educational."""
-    from app.domains.telegram.rugmunchbot.formatters import footer_links, sep, thin_sep
-    from app.domains.telegram.rugmunchbot.keyboards import back_kb
     from telegram.constants import ParseMode
+
+    from app.domains.telegram.rugmunchbot.formatters import footer_links, sep, thin_sep
     text = (
         f"\U0001f6a9 <b>Rug Pull Checklist</b>\n{sep()}\n\n"
         f"Before buying ANY token, check these:\n\n"

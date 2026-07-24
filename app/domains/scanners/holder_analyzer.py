@@ -17,6 +17,7 @@ Solscan (holders), Helius (account metadata).
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 
@@ -24,7 +25,6 @@ from app.birdeye_client import BirdeyeClient
 from app.chain_registry import is_solana
 from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient
-from typing import Any
 
 logger = get_logger("holder_analyzer")
 
@@ -105,7 +105,8 @@ class HolderAnalyzer:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
@@ -116,7 +117,8 @@ class HolderAnalyzer:
             if isinstance(result, dict) and "data" in result:
                 return result["data"]
             return result
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("_fetch_birdeye_overview_error", exc_info=True)
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
             return None
 
@@ -125,7 +127,8 @@ class HolderAnalyzer:
         try:
             holders = self._solscan.get_holder_wallets(token_address, top_n=top_n)
             return holders or []
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_solscan_holders_error", exc_info=True)
             logger.warning(f"Solscan holders fetch failed for {token_address}: {e}")
             return []
 
@@ -143,7 +146,8 @@ class HolderAnalyzer:
                     data = r.json()
                     if data and isinstance(data, list) and len(data) > 0:
                         return data[0]
-        except Exception as e:
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_fetch_helius_token_metadata_error", exc_info=True)
             logger.warning(f"Helius token metadata failed for {mint}: {e}")
         return None
 

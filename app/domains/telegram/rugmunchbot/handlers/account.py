@@ -5,11 +5,11 @@ RugMunchBot -- Account & billing command handlers.
 Commands: account, pricing, topup, buystars, scamschool, refer
 """
 
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
@@ -25,8 +25,6 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     scamschool_kb,
     topup_kb,
 )
-
-from datetime import UTC, datetime
 
 
 async def cmd_account(update: Update, ctx) -> None:

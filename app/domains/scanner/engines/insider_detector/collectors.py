@@ -7,7 +7,8 @@ import httpx
 
 from app.core.logging import get_logger
 from app.domains.scanner.engines import gmgn_client as gmgn
-from .config import DEXSCREENER_TOKEN, DEXSCREENER_SEARCH, DEXSCREENER_PROFILES, DEXSCREENER_BOOSTS
+
+from .config import DEXSCREENER_BOOSTS, DEXSCREENER_PROFILES, DEXSCREENER_SEARCH, DEXSCREENER_TOKEN
 from .helpers import _parse_timestamp
 
 logger = get_logger(__name__)
@@ -124,7 +125,8 @@ async def _get_token_traders(
         if isinstance(wallet_trades, list):
             for t in wallet_trades:
                 _add_trade(t)
-    except Exception as e:  # noqa: BLE001
+    except (httpx.HTTPError):
+        logger.debug("unknown_error", exc_info=True)
         logger.warning("get_wallet_trades failed", exc_info=True)
 
     try:

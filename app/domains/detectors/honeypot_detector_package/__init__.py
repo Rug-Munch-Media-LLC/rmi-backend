@@ -9,7 +9,6 @@ Usage:
     detector = HoneypotDetector()
     result = await detector.analyze_token("0x...", chain="ethereum")
 """
-from app.domains.detectors.honeypot_detector_package.scanner import HoneypotDetector
 from app.domains.detectors.honeypot_detector_package.models import (
     FindingSeverity,
     HoneypotAnalysisResult,
@@ -17,11 +16,12 @@ from app.domains.detectors.honeypot_detector_package.models import (
     SecurityFinding,
     TokenInfo,
 )
+from app.domains.detectors.honeypot_detector_package.scanner import HoneypotDetector
 
 __all__ = [
-    "HoneypotDetector",
     "FindingSeverity",
     "HoneypotAnalysisResult",
+    "HoneypotDetector",
     "HoneypotType",
     "SecurityFinding",
     "TokenInfo",

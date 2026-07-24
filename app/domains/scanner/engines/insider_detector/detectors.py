@@ -1,17 +1,23 @@
 """Phase 2 Detection Methods — All insider detection algorithms."""
 
 from app.core.logging import get_logger
-from .models import InsiderEvidence, InsiderType, Confidence
-from .config import (
-    INSIDER_WINDOW_MIN, MIN_INSIDER_BUY_USD,
-    AVG_PRE_TRENDING_PUMP, AVG_CEX_LISTING_PUMP, AVG_KOL_PUMP,
-    AVG_PUMPFUN_GRADUATION_PUMP, CEX_LISTING_MULTIPLIER,
-    PRE_TRENDING_WINDOW_MAX, PRE_KOL_WINDOW_MAX,
-    PRE_CEX_WINDOW_MAX, PRE_GRADUATION_WINDOW_MAX,
-)
-from .utils import _ts_human
-from app.domains.scanner.engines.known_entities import label_wallet
 from app.domains.scanner.engines import gmgn_client as gmgn
+from app.domains.scanner.engines.known_entities import label_wallet
+
+from .config import (
+    AVG_KOL_PUMP,
+    AVG_PRE_TRENDING_PUMP,
+    AVG_PUMPFUN_GRADUATION_PUMP,
+    CEX_LISTING_MULTIPLIER,
+    INSIDER_WINDOW_MIN,
+    MIN_INSIDER_BUY_USD,
+    PRE_CEX_WINDOW_MAX,
+    PRE_GRADUATION_WINDOW_MAX,
+    PRE_KOL_WINDOW_MAX,
+    PRE_TRENDING_WINDOW_MAX,
+)
+from .models import Confidence, InsiderEvidence, InsiderType
+from .utils import _ts_human
 
 logger = get_logger(__name__)
 
@@ -111,7 +117,8 @@ async def _detect_dev_insider(
         info = gmgn.get_token_info(token_address, chain)
         if isinstance(info, dict):
             pass
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError):
+        logger.debug("_detect_dev_insider_error", exc_info=True)
         logger.warning("get_token_info failed", exc_info=True)
 
     for trader in traders:

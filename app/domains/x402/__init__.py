@@ -22,7 +22,7 @@ async def _health_check() -> DomainHealth:
             healthy=True,
             details={"tools": len(PRICING), "middleware": "available"},
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, OSError) as e :
         return DomainHealth(name="x402", healthy=False, error=str(e))
 
 

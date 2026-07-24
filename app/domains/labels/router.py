@@ -75,7 +75,7 @@ async def get_labels(
             include_low_confidence=include_low_confidence,
         )
         return LabelsResponse(**result)
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, OSError) as e :
         log.exception("labels_endpoint_fail address=%s", address[:10])
         raise HTTPException(
             status_code=500,

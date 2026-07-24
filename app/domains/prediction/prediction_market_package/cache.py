@@ -3,9 +3,11 @@ Prediction Market — Caching Helpers
 Serialization/deserialization for PredictionMarket and PredictionDigest.
 """
 import hashlib
-from typing import Any
 
-from app.domains.prediction.prediction_market_package.models import PredictionDigest, PredictionMarket
+from app.domains.prediction.prediction_market_package.models import (
+    PredictionDigest,
+    PredictionMarket,
+)
 
 
 def cache_hash(*args) -> str:

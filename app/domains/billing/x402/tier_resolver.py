@@ -73,7 +73,8 @@ async def check_developer_key(request: Any) -> dict[str, Any] | None:
         return await _check(request)
     except ImportError:
         return None
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("check_developer_key_error", exc_info=True)
         logger.warning(f"Developer key check failed: {e}")
         return None
 

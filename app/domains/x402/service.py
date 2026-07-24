@@ -37,7 +37,7 @@ class X402Service:
 
             raw = await _catalog_mod.list_tools_catalog()
             return self._wrap_catalog(raw)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, OSError) as e :
             log.warning("x402_catalog_fetch_failed", error=str(e))
             return ToolCatalog()
 
@@ -60,7 +60,7 @@ class X402Service:
             if asyncio.iscoroutine(raw):
                 raw = await raw
             return self._wrap_facilitators(raw)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, OSError) as e :
             log.warning("x402_facilitators_fetch_failed", error=str(e))
             return self._default_facilitators()
 

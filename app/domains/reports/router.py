@@ -70,7 +70,7 @@ async def generate_report(req: GenerateRequest) -> GenerateResponse:
             report = await generate_wallet_report(catalog, chain, address, model=req.model)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
-    except Exception as e:
+    except (ValueError) as e :
         raise HTTPException(500, f"report_generation_failed: {e}") from e
     if req.save:
         await save_report(catalog, report)
@@ -133,5 +133,5 @@ async def get_report(report_id: str) -> dict:
         return d
     except HTTPException:
         raise
-    except Exception as e:
+    except (KeyError, ValueError, TypeError) as e :
         raise HTTPException(500, f"get_report_fail: {e}") from e

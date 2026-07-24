@@ -705,7 +705,8 @@ async def run_sentinel_scan(
     for k, task in tasks.items():
         try:
             results[k] = await task
-        except Exception as exc:
+        except (httpx.HTTPError, KeyError, TypeError) as exc :
+            logger.debug("_gas_error", exc_info=True)
             logger.warning(f"SENTINEL module {k} failed for {token_address}: {exc}")
             results[k] = None
             report.errors[k] = str(exc)[:200]
@@ -787,7 +788,8 @@ async def run_sentinel_scan(
         if raw_result is not None and module_name in extractors:
             try:
                 risk_scores[module_name] = extractors[module_name](raw_result)
-            except Exception as e:
+            except (httpx.HTTPError, KeyError, TypeError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.debug(f"Risk score extraction failed for {module_name}: {e}")
 
         # Collect red flags
@@ -811,7 +813,8 @@ async def run_sentinel_scan(
                 token=token_address,
                 score=composite,
             )
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Wallet Memory Bank feedback failed: {e}")
 
     return report

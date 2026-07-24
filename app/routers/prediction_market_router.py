@@ -19,8 +19,9 @@ Caching: Redis-backed, 30s-1hr TTL by endpoint.
 Rate limiting: Inherited from app-wide slowapi configuration.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
+from app.core.errors import NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.domains.prediction.prediction_market_service import (
     PredictionDigest,
@@ -157,13 +158,13 @@ async def market_detail(
     """
     valid_sources = {"polymarket", "kalshi"}
     if source not in valid_sources:
-        raise HTTPException(400, f"Invalid source. Use: {', '.join(valid_sources)}")
+        raise ValidationError(f"Invalid source. Use: {', '.join(valid_sources)}")
 
     svc = get_prediction_market_service()
     market = await svc.market_detail(source, market_id)
 
     if not market:
-        raise HTTPException(404, f"Market not found: {source}/{market_id}")
+        raise NotFoundError(f"Market not found: {source}/{market_id}")
 
     return {
         "market": _market_response(market),

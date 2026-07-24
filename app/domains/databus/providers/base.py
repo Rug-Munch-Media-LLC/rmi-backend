@@ -5,13 +5,10 @@ Defines the core types: ProviderTier, Provider, and ProviderChain
 with the smart fallback fetch logic.
 """
 
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
-
-import httpx
 
 from app.core.logging import get_logger
 
@@ -66,11 +63,11 @@ class ProviderChain:
         """
         # Lazy import to avoid circular dependency at module level
         from .circuit_breaker import (
-            _CircuitBreaker,
-            _RateLimiter,
             _circuit_breakers,
+            _CircuitBreaker,
             _quota_usage,
             _rate_limiters,
+            _RateLimiter,
         )
 
         providers_sorted = sorted(self.providers, key=lambda p: (-p.weight, p.tier.value))

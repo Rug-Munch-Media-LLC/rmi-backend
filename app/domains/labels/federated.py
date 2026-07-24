@@ -176,7 +176,7 @@ class FederatedLabelAPI:
                     "federated_source_timeout source=%s address=%s", source.value, address[:10]
                 )
                 return []
-            except Exception as e:
+            except (KeyError, TypeError) as e :
                 log.warning(
                     "federated_source_error source=%s err=%s: %s",
                     source.value,
@@ -279,7 +279,7 @@ class FederatedLabelAPI:
                 )
                 for line in data
             ]
-        except Exception as e:
+        except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
             log.debug("federated_cache_get_fail: %s", e)
             return None
 
@@ -296,7 +296,7 @@ class FederatedLabelAPI:
             key = self._cache_key(address, chain)
             data = [line.to_dict() for line in labels]
             r.setex(key, self._cache_ttl, _json.dumps(data))
-        except Exception as e:
+        except (ConnectionError, OSError, ValueError) as e :
             log.debug("federated_cache_set_fail: %s", e)
 
     def _cache_key(self, address: str, chain: str) -> str:

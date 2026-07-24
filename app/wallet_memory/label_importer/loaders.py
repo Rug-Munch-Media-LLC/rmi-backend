@@ -5,14 +5,16 @@ import json
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
-from .config import _CHAIN_ALIASES, WALLET_LABELS_DDL
+from .config import WALLET_LABELS_DDL
 
 logger = get_logger("wallet_memory.label_importer")
 
 
 def _normalize_chain(chain: str) -> str:
-    """Normalize chain name to canonical form."""
-    return _CHAIN_ALIASES.get(chain.lower().strip(), chain.lower().strip()) or "ethereum"
+    """Normalize chain name to canonical form - delegates to shared_utils."""
+    from app.core.shared_utils import normalize_chain
+    result = normalize_chain(chain)
+    return result or "ethereum"
 
 
 async def _flush_batch(

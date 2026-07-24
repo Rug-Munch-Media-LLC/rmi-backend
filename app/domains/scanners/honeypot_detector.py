@@ -126,7 +126,8 @@ class HoneypotDetector:
                 if "error" in data:
                     continue
                 buy_results.append((sol_amt, int(data.get("outAmount", 0)) / TOKEN_DECIMALS_SOL))
-            except Exception as e:
+            except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                logger.debug("_detect_solana_error", exc_info=True)
                 logger.debug(f"Jupiter buy quote failed: {e}")
 
         if not buy_results:
@@ -293,7 +294,8 @@ class HoneypotDetector:
                         reverse=True,
                     )
                     return pairs[0]
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_get_dexscreener_pair_error", exc_info=True)
             logger.debug(f"DexScreener lookup failed: {e}")
         return None
 
@@ -320,7 +322,8 @@ class HoneypotDetector:
                 if rv in ("0x", "", None):
                     return False
                 return int(rv, 16) != 0
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_simulate_transfer_error", exc_info=True)
             logger.debug(f"eth_call transfer sim failed: {e}")
         return False
 

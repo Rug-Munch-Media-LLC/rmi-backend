@@ -15,19 +15,18 @@ from app.core.logging import get_logger
 logger = get_logger("databus.providers")
 
 # Re-export from registry
-from app.domains.databus.providers.registry import build_provider_chains
-
 # Re-export from base
 from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
 
 # Re-export from circuit_breaker
 from app.domains.databus.providers.circuit_breaker import (
-    _CircuitBreaker,
-    _RateLimiter,
     _circuit_breakers,
-    _rate_limiters,
+    _CircuitBreaker,
     _quota_usage,
+    _rate_limiters,
+    _RateLimiter,
 )
+from app.domains.databus.providers.registry import build_provider_chains
 
 # Lazy-import provider functions on demand
 _imported_names = {}

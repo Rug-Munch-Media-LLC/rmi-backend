@@ -314,7 +314,8 @@ async def ensure_schema() -> bool:
             await conn.close()
         logger.info("news_clusters_schema_ready")
         return True
-    except Exception as exc:
+    except (KeyError, ValueError, TypeError) as exc :
+        logger.debug("ensure_schema_error", exc_info=True)
         logger.warning("news_clusters_schema_failed err=%s", exc)
         return False
 
@@ -367,7 +368,8 @@ async def persist_clusters(stories: list[StoryCluster]) -> int:
             return len(rows)
         finally:
             await conn.close()
-    except Exception as exc:
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning("news_clusters_persist_failed err=%s", exc)
         return 0
 
@@ -403,7 +405,8 @@ async def load_recent_clusters(limit: int = 50) -> list[dict]:
             ]
         finally:
             await conn.close()
-    except Exception as exc:
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc :
+        logger.debug("load_recent_clusters_error", exc_info=True)
         logger.warning("news_clusters_load_failed err=%s", exc)
         return []
 

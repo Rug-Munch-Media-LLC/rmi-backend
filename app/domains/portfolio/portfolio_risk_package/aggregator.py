@@ -96,13 +96,15 @@ class PortfolioRiskAggregator:
 
         try:
             native_balance = await connector.get_native_balance(wallet)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, OSError) as e :
+            logger.debug("_scan_chain_error", exc_info=True)
             native_balance = 0.0
             logger.debug(f"{chain} native balance error: {e}")
 
         try:
             token_data = await connector.get_token_balances(wallet)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, OSError) as e :
+            logger.debug("_scan_chain_error", exc_info=True)
             token_data = []
             logger.debug(f"{chain} token balances error: {e}")
 
@@ -137,7 +139,8 @@ class PortfolioRiskAggregator:
                     risk_flags=risk_result.get("risk_flags", []), is_native=False,
                 )
                 cp.holdings.append(token)
-            except Exception as e:
+            except (KeyError, TypeError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.debug(f"Error processing token on {chain}: {e}")
 
         cp.token_count = len(cp.holdings)

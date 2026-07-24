@@ -145,7 +145,8 @@ class DevReputationEngine:
             )
             if resp.status_code == 200:
                 return resp.json()
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_dexscreener_search_error", exc_info=True)
             logger.warning(f"DexScreener search failed for '{query}': {e}")
         return None
 
@@ -155,7 +156,8 @@ class DevReputationEngine:
             resp = await self.client.get(f"{DEXSCREENER_URL}/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
                 return resp.json()
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_dexscreener_token_info_error", exc_info=True)
             logger.warning(f"DexScreener token lookup failed for {token_address}: {e}")
         return None
 
@@ -178,7 +180,8 @@ class DevReputationEngine:
                 if data.get("status") == "1":
                     return data.get("result")
                 return data
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_etherscan_get_error", exc_info=True)
             logger.warning(f"Etherscan call failed for {chain}: {e}")
         return None
 
@@ -202,7 +205,8 @@ class DevReputationEngine:
                 if isinstance(data, list):
                     return data
                 return data.get("result", data.get("data", data))
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_moralis_get_error", exc_info=True)
             logger.warning(f"Moralis call failed: {e}")
         return None
 

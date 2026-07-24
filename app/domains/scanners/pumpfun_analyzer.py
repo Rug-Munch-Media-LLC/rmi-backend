@@ -211,7 +211,8 @@ class PumpFunAnalyzer:
             # DexScreener pair data for progress estimation.
             curve = await self._estimate_curve_from_dexscreener(token_address)
             return curve
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e :
+            logger.debug("_fetch_curve_state_error", exc_info=True)
             logger.error(f"Failed to fetch curve state for {token_address}: {e}")
             return None
 
@@ -281,7 +282,8 @@ class PumpFunAnalyzer:
                 curve_progress=progress,
             )
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"DexScreener curve estimation failed: {e}")
             return None
 
@@ -330,7 +332,8 @@ class PumpFunAnalyzer:
                         continue
                     self._extract_buyer_from_tx(tx, buyer_map)
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Helius buyer fetch failed: {e}")
 
         return list(buyer_map.values())
@@ -493,7 +496,8 @@ class PumpFunAnalyzer:
             # If only pump.fun pairs exist, not migrated
             return False, ""
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_check_migration_error", exc_info=True)
             logger.error(f"Migration check failed for {token_address}: {e}")
             return False, ""
 

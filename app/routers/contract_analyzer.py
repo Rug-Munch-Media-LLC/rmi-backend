@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """#19 - Smart Contract Function Analyzer. Extends SENTINEL to decompile and analyze
-bytecode. Returns human-readable "what this contract actually does." """
+bytecode. Returns human-readable "what this contract actually does."
+
+Dependency injection: Settings and HTTP client are injected via ``Depends()``
+so they can be mocked in tests.
+"""
 
 import re
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
-from app.config import settings
+from app.config import Settings
+from app.core.dependencies import get_http_client, get_settings
 from app.core.internal_key import INTERNAL_API_KEY
 
 router = APIRouter(prefix="/api/v1/contract-analyzer", tags=["contract-analyzer"])
-
-BACKEND = settings.backend_url
 
 # Known suspicious function signatures (4-byte selectors)
 SUSPICIOUS_SELECTORS = {
@@ -55,7 +58,7 @@ MALICIOUS_PATTERNS = [
 ]
 
 
-async def _get_contract_bytecode(address: str, chain: str) -> dict[str, Any]:
+async def _get_contract_bytecode(address: str, chain: str, client: httpx.AsyncClient) -> dict[str, Any]:
     """Fetch contract bytecode and source from Etherscan/Blockscout."""
     explorers = {
         "ethereum": "https://api.etherscan.io/api",
@@ -73,35 +76,32 @@ async def _get_contract_bytecode(address: str, chain: str) -> dict[str, Any]:
         return result
 
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            # Get bytecode
-            resp = await client.get(
-                f"{api_base}",
-                params={
-                    "module": "proxy",
-                    "action": "eth_getCode",
-                    "address": address,
-                    "apikey": "YourApiKeyToken",
-                },
-            )
-            if resp.status_code == 200:
-                result["bytecode"] = resp.json().get("result", "")
+        resp = await client.get(
+            f"{api_base}",
+            params={
+                "module": "proxy",
+                "action": "eth_getCode",
+                "address": address,
+                "apikey": "YourApiKeyToken",
+            },
+        )
+        if resp.status_code == 200:
+            result["bytecode"] = resp.json().get("result", "")
 
-            # Check if verified
-            resp2 = await client.get(
-                f"{api_base}",
-                params={
-                    "module": "contract",
-                    "action": "getsourcecode",
-                    "address": address,
-                    "apikey": "YourApiKeyToken",
-                },
-            )
-            if resp2.status_code == 200:
-                data = resp2.json().get("result", [{}])[0]
-                result["source"] = data.get("SourceCode", "")
-                result["abi"] = data.get("ABI", "[]")
-                result["verified"] = True
+        resp2 = await client.get(
+            f"{api_base}",
+            params={
+                "module": "contract",
+                "action": "getsourcecode",
+                "address": address,
+                "apikey": "YourApiKeyToken",
+            },
+        )
+        if resp2.status_code == 200:
+            data = resp2.json().get("result", [{}])[0]
+            result["source"] = data.get("SourceCode", "")
+            result["abi"] = data.get("ABI", "[]")
+            result["verified"] = True
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
@@ -113,7 +113,6 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
     findings: list[dict] = []
     risk_score = 0
 
-    # Check for suspicious function selectors in bytecode
     for selector, name in SUSPICIOUS_SELECTORS.items():
         if selector[2:] in bytecode.lower():
             risk_map = {
@@ -140,7 +139,6 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
                     )
                     break
 
-    # Check source code for malicious patterns
     if source:
         for pattern_name, regexes in MALICIOUS_PATTERNS:
             for regex in regexes:
@@ -169,23 +167,28 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
 
 
 @router.get("/analyze/{address}")
-async def analyze_contract(address: str, chain: str = Query("ethereum")) -> dict:
+async def analyze_contract(
+    address: str,
+    chain: str = Query("ethereum"),
+    client: httpx.AsyncClient = Depends(get_http_client),
+    settings: Settings = Depends(get_settings),
+) -> dict:
     """Analyze a smart contract's functions and risk profile."""
-    info = await _get_contract_bytecode(address, chain)
+    backend = settings.backend_url
+    info = await _get_contract_bytecode(address, chain, client)
     analysis = _analyze_bytecode(info.get("bytecode", ""), info.get("source", ""))
 
     # Also run SENTINEL scan
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                f"{BACKEND}/api/v1/token/scan",
-                json={"token_address": address, "chain": chain},
-                headers={"X-RMI-Key": INTERNAL_API_KEY},
-            )
-            if resp.status_code == 200:
-                sentinel = resp.json()
-                analysis["sentinel_score"] = sentinel.get("safety_score", 50)
-                analysis["sentinel_flags"] = sentinel.get("risk_flags", [])
+        resp = await client.post(
+            f"{backend}/api/v1/token/scan",
+            json={"token_address": address, "chain": chain},
+            headers={"X-RMI-Key": INTERNAL_API_KEY},
+        )
+        if resp.status_code == 200:
+            sentinel = resp.json()
+            analysis["sentinel_score"] = sentinel.get("safety_score", 50)
+            analysis["sentinel_flags"] = sentinel.get("risk_flags", [])
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
@@ -204,9 +207,13 @@ async def analyze_contract(address: str, chain: str = Query("ethereum")) -> dict
 
 
 @router.get("/detect-mint/{address}")
-async def detect_mint_function(address: str, chain: str = Query("ethereum")) -> dict:
+async def detect_mint_function(
+    address: str,
+    chain: str = Query("ethereum"),
+    client: httpx.AsyncClient = Depends(get_http_client),
+) -> dict:
     """Quick check: does this contract have a mint function?"""
-    info = await _get_contract_bytecode(address, chain)
+    info = await _get_contract_bytecode(address, chain, client)
     bytecode = info.get("bytecode", "")
 
     mint_selectors = ["40c10f19", "079cc6790", "a0712d68"]

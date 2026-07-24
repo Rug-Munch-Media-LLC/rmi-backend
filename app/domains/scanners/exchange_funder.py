@@ -101,7 +101,8 @@ class ExchangeFunderDetector:
         try:
             sources = self._solscan.get_wallet_funding_sources(wallet, days=days)
             return sources or []
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_solscan_funding_sources_error", exc_info=True)
             logger.warning(f"Solscan funding sources failed for {wallet}: {e}")
             return []
 
@@ -112,7 +113,8 @@ class ExchangeFunderDetector:
         try:
             result = self._solscan.account_transfers(address, page=page, page_size=page_size)
             return result or []
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_solscan_transfers_error", exc_info=True)
             logger.warning(f"Solscan transfers failed for {address}: {e}")
             return []
 
@@ -120,7 +122,8 @@ class ExchangeFunderDetector:
         """Fetch account info from Solscan."""
         try:
             return self._solscan.account_info(address)
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_solscan_account_info_error", exc_info=True)
             logger.warning(f"Solscan account info failed for {address}: {e}")
             return None
 
@@ -141,7 +144,8 @@ class ExchangeFunderDetector:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_dexscreener_boosts_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
@@ -240,7 +244,8 @@ class ExchangeFunderDetector:
                         ]
                         # Filter out empty strings
                         buyer_addresses = [a for a in buyer_addresses if a]
-                except Exception as e:
+                except (httpx.HTTPError, KeyError, TypeError) as e :
+                    logger.debug("analyze_error", exc_info=True)
                     logger.warning(f"Could not fetch holder wallets for {token_address}: {e}")
 
         total = len(buyer_addresses) or 1

@@ -30,6 +30,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.shared_utils import EVM_ADDRESS_RE as ADDRESS_PATTERN_EVM, SOLANA_ADDRESS_RE as ADDRESS_PATTERN_SOLANA
 
 logger = get_logger(__name__)
 
@@ -62,8 +63,6 @@ ETHERSCAN_BASES: dict[str, str] = {
 
 SOLSCAN_BASE = "https://api.solscan.io"
 
-ADDRESS_PATTERN_EVM = re.compile(r"^0x[a-fA-F0-9]{40}$")
-ADDRESS_PATTERN_SOLANA = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
 # Cache for HTTP responses
 _cache: dict[str, tuple[float, Any]] = {}
@@ -119,55 +118,15 @@ class InsiderNetworkReport:
 
 
 def _validate_eip55_checksum(address: str) -> bool:
-    """
-    Validate EIP-55 mixed-case checksum for Ethereum addresses.
-    Implements the exact EIP-55 algorithm using keccak256 hashing.
-    """
-    if not address.startswith("0x") or len(address) != 42:
-        return False
-
-    try:
-        # EIP-55: lowercase address, hash with keccak256
-        addr_lower = address[2:].lower().encode("ascii")
-
-        # Try to use eth_hash if available (pysha3)
-        try:
-            from eth_hash.auto import keccak
-
-            hashed = keccak(addr_lower).hex()
-        except ImportError:
-            # Fallback: accept mixed-case without strict EIP-55
-            return True
-
-        # EIP-55 checksum validation
-        for i, ch in enumerate(address[2:]):
-            if ch.isalpha():
-                should_be_upper = int(hashed[i], 16) >= 8
-                if should_be_upper and ch.islower():
-                    return False
-                if not should_be_upper and ch.isupper():
-                    return False
-        return True
-    except (ConnectionError, OSError, TimeoutError):
-        # If keccak unavailable, accept basic hex format
-        return bool(ADDRESS_PATTERN_EVM.match(address))
+    """Validate EIP-55 mixed-case checksum - delegates to shared_utils."""
+    from app.core.shared_utils import validate_eip55_checksum as _check
+    return _check(address)
 
 
 def is_valid_address(address: str) -> bool:
-    """Validate Solana (base58) or EVM (0x-hex) address with checksum validation."""
-    if not address or not isinstance(address, str):
-        return False
-    addr = address.strip()
-
-    # EVM address validation
-    if ADDRESS_PATTERN_EVM.match(addr):
-        # EIP-55 checksum validation
-        if addr == addr.lower() or addr == addr.upper():
-            return True  # All-lower or all-upper passes basic validation
-        return _validate_eip55_checksum(addr)
-
-    # Solana address validation (base58)
-    return bool(ADDRESS_PATTERN_SOLANA.match(addr))
+    """Validate Solana or EVM address with checksum - delegates to shared_utils."""
+    from app.core.shared_utils import is_valid_address as _check
+    return _check(address)
 
 
 def _truncate_address(addr: str) -> str:

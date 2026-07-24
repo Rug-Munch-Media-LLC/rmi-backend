@@ -7,7 +7,6 @@ Commands: watchlist, watch, unwatch
 
 from telegram import Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import TIERS

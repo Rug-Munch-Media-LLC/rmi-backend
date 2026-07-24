@@ -10,6 +10,7 @@ USDC payment to our wallet before the request is processed.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
@@ -42,7 +43,6 @@ from app.domains.x402.tools.wallet_tools import (
     get_wallet_analysis,
     get_wallet_history,
 )
-from typing import Any
 
 router = APIRouter(prefix="/api/v1/x402-tools", tags=["x402-tools"])
 log = logging.getLogger("x402_tools")

@@ -2,7 +2,7 @@
 Rug Pull Imminence Predictor (RIP)
 Re-export from package.
 """
-from app.domains.detectors.rug_imminence_predictor_package import (  # noqa: F401
+from app.domains.detectors.rug_imminence_predictor import (  # noqa: F401
     ImminenceLevel,
     RIPResult,
     RugImminencePredictor,

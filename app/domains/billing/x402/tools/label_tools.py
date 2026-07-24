@@ -49,5 +49,5 @@ async def address_labels_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e

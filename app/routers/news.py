@@ -17,8 +17,10 @@ import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+
+from app.core.errors import AppError, ValidationError
 
 from app.auth import require_public_profile
 from app.core.logging import get_logger
@@ -168,9 +170,7 @@ async def get_news_feed(
                 if _NEWS_CACHE:
                     result = _NEWS_CACHE
                 else:
-                    raise HTTPException(
-                        status_code=500, detail=f"News aggregation failed: {e!s}"
-                    ) from e
+                    raise AppError(f"News aggregation failed: {e!s}") from e
 
     articles = result.get("articles", [])
 
@@ -324,7 +324,7 @@ async def get_stats() -> dict:
 async def post_comment(req: CommentRequest, user: dict = Depends(require_public_profile)) -> Any:
     """Post a comment on any news article. Requires public profile."""
     if not req.article_id or not req.content.strip():
-        raise HTTPException(status_code=400, detail="article_id and content required")
+        raise ValidationError("article_id and content required")
 
     comment = {
         "id": _make_comment_id(req.article_id, req.content),

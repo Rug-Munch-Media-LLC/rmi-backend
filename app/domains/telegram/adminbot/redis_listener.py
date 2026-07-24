@@ -32,7 +32,8 @@ async def start_redis_listener(bot_app) -> None:
     try:
         client = aioredis.from_url("redis://localhost:6379/0")
         await client.ping()
-    except Exception as exc:  # noqa: BLE001
+    except (ConnectionError, OSError, ValueError) as exc :
+        logger.debug("start_redis_listener_error", exc_info=True)
         logger.error("Redis connection failed: %s", exc)
         return
 

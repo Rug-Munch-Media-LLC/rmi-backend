@@ -1,7 +1,6 @@
 """HttpOnly cookie helpers for JWT and CSRF tokens."""
 
 import secrets
-from typing import Any
 
 from fastapi import Request, Response
 

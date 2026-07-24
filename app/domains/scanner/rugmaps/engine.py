@@ -7,7 +7,7 @@ connection graphs, fund-flow diagrams, and cluster maps.
 
 import json
 import os
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, ClassVar
 
 import httpx

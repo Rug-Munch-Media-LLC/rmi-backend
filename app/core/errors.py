@@ -92,6 +92,26 @@ class AuthorizationError(AppError):
         super().__init__(message, **kwargs)
 
 
+class PaymentRequiredError(AppError):
+    """402 — payment required (x402 gate)."""
+
+    status_code = 402
+    code = "payment.required"
+
+    def __init__(self, message: str = "payment required", **kwargs: Any) -> None:
+        super().__init__(message, **kwargs)
+
+
+class ConflictError(AppError):
+    """409 — resource conflict (e.g. duplicate, version mismatch)."""
+
+    status_code = 409
+    code = "conflict"
+
+    def __init__(self, message: str = "conflict", **kwargs: Any) -> None:
+        super().__init__(message, **kwargs)
+
+
 class RateLimitError(AppError):
     """429 — too many requests."""
 

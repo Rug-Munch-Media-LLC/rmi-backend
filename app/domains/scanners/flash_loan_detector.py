@@ -92,7 +92,8 @@ class FlashLoanDetector:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_dexscreener_trades_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return []
 
@@ -109,7 +110,8 @@ class FlashLoanDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("data", {}).get("items", []) or []
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_birdeye_trades_error", exc_info=True)
             logger.warning(f"Birdeye trades failed for {token_address}: {e}")
         return []
 
@@ -122,7 +124,8 @@ class FlashLoanDetector:
             if result and "result" in result:
                 lamports = result["result"].get("value", 0)
                 return lamports / 1e9
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+            logger.debug("_fetch_solana_account_balance_before_error", exc_info=True)
             logger.warning(f"Helius balance check failed for {address}: {e}")
         return None
 
@@ -153,7 +156,8 @@ class FlashLoanDetector:
             resp = await self._http.get(url)
             if resp.status_code == 200:
                 return resp.json()
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_evm_account_history_error", exc_info=True)
             logger.warning(f"Etherscan account history failed for {address}: {e}")
         return None
 

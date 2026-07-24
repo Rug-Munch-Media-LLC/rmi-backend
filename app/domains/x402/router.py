@@ -212,7 +212,7 @@ async def usage(request: Request) -> UsageResponse:
                         "paid_at": r["paid_at"].isoformat() if r["paid_at"] else None,
                     }
                 )
-        except Exception as e:
+        except (KeyError, ValueError, TypeError) as e :
             get_logger(__name__).warning(f"usage_query_fail: {e}")
     return UsageResponse(
         agent_id=agent_id,
@@ -248,7 +248,7 @@ async def receipt(tx_hash: str) -> ReceiptResponse:
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except (KeyError, ValueError, TypeError) as e :
         raise HTTPException(500, f"receipt_query_fail: {e}") from e
 
 

@@ -11,12 +11,13 @@ Split from registry.py into categories/: market, security, wallet, intel, social
 """
 
 from typing import Any
+
 import httpx
 
 from app.core.logging import get_logger
 
 from ..base import Provider, ProviderChain, ProviderTier
-from ..circuit_breaker import _CircuitBreaker, _RateLimiter, _circuit_breakers, _rate_limiters
+from ..circuit_breaker import _circuit_breakers, _CircuitBreaker, _rate_limiters, _RateLimiter
 
 logger = get_logger("databus.providers.registry")
 
@@ -26,19 +27,16 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     chains: dict[str, ProviderChain] = {}
 
     # ── Import all provider functions ──
-    from ..chains.local import (
-        _passthrough_hyperliquid,
-        _passthrough_hyperliquid_action,
-        _passthrough_insider_wallets,
-        _passthrough_prediction_signals,
-        _local_token_price,
-        _local_wallet_labels,
-        _passthrough_alerts,
-        _passthrough_market_overview,
-        _passthrough_news,
-        _passthrough_rag,
-        _passthrough_scanner,
-        _passthrough_trending,
+    from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
+
+    from ..chains.alchemy import _alchemy_token_balances, _alchemy_token_metadata
+    from ..chains.arkham import (
+        _arkham_counterparties,
+        _arkham_entity,
+        _arkham_intel_search,
+        _arkham_labels,
+        _arkham_portfolio,
+        _arkham_transfers,
     )
     from ..chains.dexscreener import (
         _dexscreener_holders,
@@ -55,25 +53,6 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _defillama_tvl,
         _etherscan_tx_trace,
     )
-    from ..chains.moralis import (
-        _moralis_price,
-        _moralis_search_tokens,
-        _moralis_token_metadata,
-        _moralis_token_price,
-        _moralis_wallet_net_worth,
-        _moralis_wallet_nfts,
-        _moralis_wallet_tokens,
-        _moralis_wallet_transactions,
-    )
-    from ..chains.alchemy import _alchemy_token_balances, _alchemy_token_metadata
-    from ..chains.arkham import (
-        _arkham_counterparties,
-        _arkham_entity,
-        _arkham_intel_search,
-        _arkham_labels,
-        _arkham_portfolio,
-        _arkham_transfers,
-    )
     from ..chains.freemium_apis import (
         _birdeye_overview,
         _birdeye_price,
@@ -86,16 +65,39 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _solana_tracker_trending,
         _virustotal_url_scan,
     )
+    from ..chains.local import (
+        _local_token_price,
+        _local_wallet_labels,
+        _passthrough_alerts,
+        _passthrough_hyperliquid,
+        _passthrough_hyperliquid_action,
+        _passthrough_insider_wallets,
+        _passthrough_market_overview,
+        _passthrough_news,
+        _passthrough_prediction_signals,
+        _passthrough_rag,
+        _passthrough_scanner,
+        _passthrough_trending,
+    )
     from ..chains.mcp_bridge import _mcp_bridge
-    from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider  # noqa: E402
+    from ..chains.moralis import (
+        _moralis_price,
+        _moralis_search_tokens,
+        _moralis_token_metadata,
+        _moralis_token_price,
+        _moralis_wallet_net_worth,
+        _moralis_wallet_nfts,
+        _moralis_wallet_tokens,
+        _moralis_wallet_transactions,
+    )
+    from .categories.intel import build_intel_chains
 
     # ── Build chains by category ──
     from .categories.market import build_market_chains
     from .categories.security import build_security_chains
-    from .categories.wallet import build_wallet_chains
-    from .categories.intel import build_intel_chains
     from .categories.social import build_social_chains
     from .categories.system import build_system_chains
+    from .categories.wallet import build_wallet_chains
 
     chains.update(build_market_chains(locals()))
     chains.update(build_security_chains(locals()))

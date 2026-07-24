@@ -13,7 +13,6 @@ from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 from app.databus.provider_implementations import (
     _coindesk_news,
     _coingecko_price,
-    _dexscreener_holders,
     _dexscreener_price,
     _dexscreener_top_traders,
     _dexscreener_trades,
@@ -24,7 +23,6 @@ from app.databus.provider_implementations import (
     _passthrough_alerts,
     _passthrough_market_overview,
     _passthrough_news,
-    _passthrough_scanner,
     _passthrough_trending,
     _santiment_dev_activity,
     _solana_tracker_price,

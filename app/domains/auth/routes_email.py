@@ -11,13 +11,20 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-from app.domains.auth.router import router
-from app.domains.auth.jwt import JWT_ALGORITHM, JWT_SECRET, _JWT_PRIVATE_KEY, _JWT_PUBLIC_KEY, _create_jwt, _derive_user_id
-from app.domains.auth.store import _get_user_by_email, _is_valid_email
-from app.domains.auth.passwords import hash_password, verify_password
-from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie
-from app.domains.auth.schemas import EmailLoginRequest, EmailRegisterRequest
 from app.core.slowrate import limiter
+from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie
+from app.domains.auth.jwt import (
+    _JWT_PRIVATE_KEY,
+    _JWT_PUBLIC_KEY,
+    JWT_ALGORITHM,
+    JWT_SECRET,
+    _create_jwt,
+    _derive_user_id,
+)
+from app.domains.auth.passwords import hash_password, verify_password
+from app.domains.auth.router import router
+from app.domains.auth.schemas import EmailLoginRequest, EmailRegisterRequest
+from app.domains.auth.store import _get_user_by_email, _is_valid_email
 
 
 @router.post("/register")

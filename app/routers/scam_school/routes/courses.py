@@ -4,8 +4,9 @@ Scam School — course content delivery endpoints.
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from app.core.errors import NotFoundError
 from app.core.redis import get_redis
 from app.routers.scam_school.content import COURSES
 from app.routers.scam_school.progress import ACHIEVEMENTS, BADGES, LEVELS
@@ -53,7 +54,7 @@ async def get_course(course_id: str) -> Any:
     """Get full course content including all lesson slides."""
     course = next((c for c in COURSES if c["id"] == course_id), None)
     if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+        raise NotFoundError("Course not found")
     return course
 
 
@@ -62,10 +63,10 @@ async def get_module(course_id: str, module_id: str) -> Any:
     """Get a specific module's content."""
     course = next((c for c in COURSES if c["id"] == course_id), None)
     if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+        raise NotFoundError("Course not found")
     module = next((m for m in course["modules"] if m["id"] == module_id), None)
     if not module:
-        raise HTTPException(status_code=404, detail="Module not found")
+        raise NotFoundError("Module not found")
     return module
 
 
@@ -109,4 +110,4 @@ async def verify_certificate(cert_id: str) -> dict:
         except (json.JSONDecodeError, TypeError, ValueError):
             continue
 
-    return {"valid": False, "error": "Certificate not found"}
+    raise NotFoundError("Certificate not found")

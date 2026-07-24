@@ -65,7 +65,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
             if balance is not None:
                 result["creator_balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_balance")
-        except (httpx.HTTPError):  # noqa: BLE001
+        except (httpx.HTTPError):
             pass
 
         try:
@@ -73,7 +73,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
             if sigs:
                 result["recent_txs"] = len(sigs)
                 result["sources_used"].append("solana_txs")
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     # Layer 3: Etherscan/BaseScan
@@ -124,7 +124,7 @@ async def insider_tracker(req: InsiderRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -157,5 +157,5 @@ async def whale_accumulation(req: GenericRequest) -> dict[str, str]:
         }
     except HTTPException:
         raise
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e

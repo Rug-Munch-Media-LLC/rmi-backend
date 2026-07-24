@@ -9,17 +9,17 @@ Usage:
     profile = await agg.analyze("0x...")
 """
 from app.domains.portfolio.portfolio_risk_package.aggregator import PortfolioRiskAggregator
+from app.domains.portfolio.portfolio_risk_package.constants import validate_wallet_address
 from app.domains.portfolio.portfolio_risk_package.models import (
     ChainPortfolio,
     PortfolioRiskProfile,
     RiskLevel,
     TokenHolding,
 )
-from app.domains.portfolio.portfolio_risk_package.constants import validate_wallet_address
 
 __all__ = [
-    "PortfolioRiskAggregator",
     "ChainPortfolio",
+    "PortfolioRiskAggregator",
     "PortfolioRiskProfile",
     "RiskLevel",
     "TokenHolding",

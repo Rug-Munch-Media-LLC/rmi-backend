@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+
+from app.core.errors import ValidationError
 from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["x402-Docs"])
@@ -162,7 +164,9 @@ async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test
 
 
 @router.post("/x402/sandbox/verify")
-async def sandbox_verify_payment(tx_hash: str = Query(...), tool: str = Query(...)) -> dict[str, bool]:
+async def sandbox_verify_payment(
+    tx_hash: str = Query(...), tool: str = Query(...)
+) -> dict[str, bool]:
     """Sandbox mode - verify a test payment.
 
     Accepts any tx_hash starting with '0xSANDBOX_' as valid.
@@ -178,4 +182,4 @@ async def sandbox_verify_payment(tx_hash: str = Query(...), tool: str = Query(..
             "mode": "test",
             "note": "SANDBOX: Payment verified. This was a test - no real USDC transferred.",
         }
-    raise HTTPException(status_code=400, detail="Invalid sandbox tx_hash. Use 0xSANDBOX_ prefix.")
+    raise ValidationError("Invalid sandbox tx_hash. Use 0xSANDBOX_ prefix.")

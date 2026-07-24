@@ -3,6 +3,7 @@
 import csv
 import io
 import json
+
 from app.core.logging import get_logger
 from app.domains.airdrop.multichain.models import CrossChainHolder
 
@@ -52,8 +53,6 @@ class CustomSnapshotLoader:
     @staticmethod
     def parse_csv_snapshot(data: str) -> dict[str, CrossChainHolder]:
         """Parse CSV snapshot data."""
-        import csv
-        import io
 
         holders = {}
         reader = csv.DictReader(io.StringIO(data))

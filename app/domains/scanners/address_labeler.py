@@ -134,7 +134,8 @@ class AddressLabeler:
                                 category=self._infer_category(tag),
                             )
                         )
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_query_etherscan_error", exc_info=True)
             logger.debug(f"Etherscan label query failed for {address}: {e}")
         return entries
 
@@ -197,7 +198,8 @@ class AddressLabeler:
                 _ROLODETH_CACHE = index
                 _ROLODETH_LAST_FETCH = now
                 return index
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"RolodETH fetch failed: {e}")
 
         return _ROLODETH_CACHE or {}
@@ -258,7 +260,8 @@ class AddressLabeler:
                                 category=labels.get("category", ""),
                             )
                         )
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_query_walletlabels_error", exc_info=True)
             logger.debug(f"walletLabels.xyz query failed for {address}: {e}")
         return entries
 
@@ -286,7 +289,8 @@ class AddressLabeler:
                                     confidence=item.get("confidence", 1.0),
                                 )
                             )
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_query_bluepages_error", exc_info=True)
             logger.debug(f"bluepages.fyi query failed for {address}: {e}")
         return entries
 
@@ -337,7 +341,8 @@ class AddressLabeler:
                         )
         except ImportError:
             logger.debug("RAG service not available for address labeling")
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Internal RAG query failed for {address}: {e}")
         return entries
 
@@ -550,7 +555,8 @@ class AddressLabeler:
         # Gather results
         try:
             results = await asyncio.gather(*tasks, return_exceptions=True)
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_empty_error", exc_info=True)
             logger.warning(f"Label gathering failed for {address}: {e}")
             results = []
 

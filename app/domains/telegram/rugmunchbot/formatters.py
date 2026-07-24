@@ -8,7 +8,6 @@ used by handlers and other modules.
 
 import re
 from datetime import UTC, datetime
-from typing import Any
 
 from telegram import InlineKeyboardButton
 
@@ -21,7 +20,6 @@ from app.domains.telegram.rugmunchbot.config import (
     TELEGRAM_CHANNEL,
     TIERS,
     WEB_APP_URL,
-    WEBSITE_URL,
     fmt_chain,
     fmt_number,
     fmt_pct,
@@ -32,17 +30,17 @@ from app.domains.telegram.rugmunchbot.config import (
 logger = get_logger("rmi_bot")
 
 # --- Address detection helpers ---
-EVM_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
-SOL_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 TOKEN_RE = re.compile(r"\$([A-Za-z]{2,10})\b")
 
 
 def is_evm(addr: str) -> bool:
-    return bool(EVM_RE.match(addr))
+    from app.core.shared_utils import is_evm_address
+    return is_evm_address(addr)
 
 
 def is_sol(addr: str) -> bool:
-    return bool(SOL_RE.match(addr))
+    from app.core.shared_utils import is_solana_address
+    return is_solana_address(addr)
 
 
 def detect_chain(addr: str) -> str:
@@ -105,7 +103,7 @@ def social_proof_text() -> str:
         users_str = f"{total_users:,}" if total_users else "1,000+"
         scans_str = f"{total_scans:,}" if total_scans else "50,000+"
         return f"\U0001f465 {users_str} users | \U0001f50d {scans_str} scans completed"
-    except (ConnectionError, OSError):  # noqa: BLE001
+    except (ConnectionError, OSError):
         return "\U0001f465 1,000+ users | \U0001f50d 50,000+ scans completed"
 
 
@@ -165,7 +163,7 @@ def format_scan_report(r: dict) -> str:
                 age_str = f" | Age: {age.days}d"
             else:
                 age_str = f" | Age: {age.seconds // 3600}h"
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
     chain_str = fmt_chain(r["chain"])
     lines = [

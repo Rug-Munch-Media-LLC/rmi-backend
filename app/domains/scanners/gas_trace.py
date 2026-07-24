@@ -188,7 +188,8 @@ class GasTraceAnalyzer:
             try:
                 # Find the funding source for the current address
                 funding = await self._find_funding_source(current_address, chain)
-            except Exception as e:
+            except (httpx.HTTPError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Gas trace hop {hop} error for {current_address}: {e}")
                 report.errors.append(f"Hop {hop} error: {e}")
                 report.dead_end = True
@@ -350,7 +351,8 @@ class GasTraceAnalyzer:
         except httpx.TimeoutException:
             logger.warning(f"Etherscan API timeout for {address} on {chain}")
             return None
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Etherscan API error for {address}: {e}")
             return None
 
@@ -393,7 +395,8 @@ class GasTraceAnalyzer:
                 }
 
             return None
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("_find_funding_source_solana_error", exc_info=True)
             logger.warning(f"Solscan funding source error for {address}: {e}")
             return None
 
@@ -593,7 +596,8 @@ class GasTraceAnalyzer:
                 tx_count = result.get("tx_count", 0)
                 result["tx_count"] = max(tx_count, len(transfers))
 
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Solscan wallet info error for {address}: {e}")
 
         return result
@@ -643,7 +647,8 @@ class GasTraceAnalyzer:
                                 result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
                             except (ConnectionError, OSError, TimeoutError):
                                 pass
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"EVM wallet info error for {address}: {e}")
 
         # Get total TX count using txlist count endpoint
@@ -660,7 +665,8 @@ class GasTraceAnalyzer:
                 if count_data.get("status") == "1":
                     all_txs = count_data.get("result", [])
                     result["tx_count"] = len(all_txs)
-        except Exception as e:
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"EVM TX count error for {address}: {e}")
 
         return result

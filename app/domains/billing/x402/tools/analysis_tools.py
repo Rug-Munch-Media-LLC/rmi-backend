@@ -142,7 +142,7 @@ async def social_sentiment(req: SentimentRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -270,7 +270,7 @@ async def url_scam_detector(req: URLRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -296,7 +296,7 @@ async def _twitter_profile(query: str) -> dict:
                 result["source"] = "nitter"
                 result["sources_used"].append("nitter")
                 break
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     # Layer 2: DuckDuckGo search
@@ -307,7 +307,7 @@ async def _twitter_profile(query: str) -> dict:
         if data:
             result["duckduckgo_results"] = True
             result["sources_used"].append("duckduckgo")
-    except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -327,7 +327,7 @@ async def twitter_profile(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -352,7 +352,7 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
             )
             if data:
                 tweets.append({"source": "duckduckgo"})
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         await record_x402_payment("tw_timeline", "0.01", query)
@@ -365,7 +365,7 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
             "sources_used": ["duckduckgo"] if tweets else [],
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -388,7 +388,7 @@ async def twitter_search(req: GenericRequest) -> dict[str, str]:
             )
             if data:
                 results.append({"source": "duckduckgo"})
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         await record_x402_payment("tw_search", "0.01", query)
@@ -401,7 +401,7 @@ async def twitter_search(req: GenericRequest) -> dict[str, str]:
             "sources_used": ["duckduckgo"] if results else [],
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -461,7 +461,7 @@ async def social_signal(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -542,7 +542,7 @@ async def nft_wash_detector(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -598,5 +598,5 @@ async def bridge_security(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e

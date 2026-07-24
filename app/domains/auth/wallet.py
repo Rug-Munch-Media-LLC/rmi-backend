@@ -85,11 +85,13 @@ def verify_wallet_signature(
             # Delete nonce after successful verification (replay protection)
             r.delete(nonce_key)
 
-        except Exception as e:
+        except (ValueError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Error parsing nonce data: {e}")
             return False
 
-    except Exception as e:
+    except (ValueError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Redis not available for nonce verification: {e}")
         # Continue with signature verification even if Redis is unavailable
         # This maintains backward compatibility
@@ -115,7 +117,8 @@ def _verify_evm_signature(address: str, message: str, signature: str) -> bool:
         # eth_account not available - fail closed
         logger.error("eth_account not available for EVM signature verification")
         return False
-    except Exception as e:
+    except (ConnectionError, TimeoutError, ValueError) as e :
+        logger.debug("_verify_evm_signature_error", exc_info=True)
         logger.debug(f"EVM signature verification failed: {e}")
         return False
 
@@ -133,7 +136,8 @@ def _verify_solana_signature(address: str, message: str, signature: str) -> bool
     except ImportError:
         logger.error("nacl not available for Solana signature verification")
         return False
-    except Exception as e:
+    except (ConnectionError, TimeoutError, ValueError) as e :
+        logger.debug("_verify_solana_signature_error", exc_info=True)
         logger.debug(f"Solana signature verification failed: {e}")
         return False
 
@@ -186,7 +190,8 @@ async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[s
             password=os.environ["REDIS_PASSWORD"],
             decode_responses=True,
         )
-    except Exception as e:
+    except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+        logger.debug("get_or_create_wallet_user_error", exc_info=True)
         logger.warning(f"Redis not available for wallet user lookup: {e}")
 
     user = None
@@ -263,6 +268,7 @@ async def verify_auth_token(token: str) -> dict[str, Any] | None:
                 "tier": user.get("tier", "FREE"),
                 "role": user.get("role", "USER"),
             }
-    except Exception as e:
+    except (KeyError, TypeError) as e :
+        logger.debug("verify_auth_token_error", exc_info=True)
         logger.debug(f"Token verification failed: {e}")
     return None

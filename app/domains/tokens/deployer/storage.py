@@ -3,7 +3,6 @@
 import json
 import os
 from datetime import UTC, datetime
-from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.tokens.deployer.models import TokenDeployment
@@ -28,7 +27,8 @@ class DeploymentStorage:
                 password=os.getenv("REDIS_PASSWORD", ""),
                 decode_responses=True,
             )
-        except Exception as e:
+        except (ConnectionError, OSError, ValueError) as e :
+            logger.debug("_init_stores_error", exc_info=True)
             logger.warning(f"Redis not available for deployment storage: {e}")
 
         try:
@@ -37,7 +37,8 @@ class DeploymentStorage:
             supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
             if supabase_url and supabase_key:
                 self.supabase = create_client(supabase_url, supabase_key)
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError) as e :
+            logger.debug("_init_stores_error", exc_info=True)
             logger.warning(f"Supabase not available for deployment storage: {e}")
 
     async def save(self, deployment: TokenDeployment) -> bool:
@@ -51,13 +52,15 @@ class DeploymentStorage:
                 await self.redis.sadd("token_deployments:all", deployment.deployment_id)
                 await self.redis.sadd(f"token_deployments:chain:{deployment.chain}", deployment.deployment_id)
                 success = True
-            except Exception as e:
+            except (json.JSONDecodeError, ConnectionError, OSError, ValueError) as e :
+                logger.debug("save_error", exc_info=True)
                 logger.error(f"Redis save failed: {e}")
         if self.supabase:
             try:
                 self.supabase.table("token_deployments").upsert(data).execute()
                 success = True
-            except Exception as e:
+            except (ConnectionError, TimeoutError, ValueError) as e :
+                logger.debug("save_error", exc_info=True)
                 logger.error(f"Supabase save failed: {e}")
         return success
 
@@ -67,14 +70,16 @@ class DeploymentStorage:
                 data = await self.redis.get(f"token_deployment:{deployment_id}")
                 if data:
                     return TokenDeployment(**json.loads(data))
-            except Exception as e:
+            except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+                logger.debug("get_error", exc_info=True)
                 logger.error(f"Redis get failed: {e}")
         if self.supabase:
             try:
                 result = self.supabase.table("token_deployments").select("*").eq("deployment_id", deployment_id).execute()
                 if result.data:
                     return TokenDeployment(**result.data[0])
-            except Exception as e:
+            except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+                logger.debug("get_error", exc_info=True)
                 logger.error(f"Supabase get failed: {e}")
         return None
 
@@ -90,7 +95,8 @@ class DeploymentStorage:
                     dep = await self.get(dep_id)
                     if dep:
                         deployments.append(dep)
-            except Exception as e:
+            except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+                logger.debug("list_all_error", exc_info=True)
                 logger.error(f"Redis list failed: {e}")
         if not deployments and self.supabase:
             try:
@@ -100,7 +106,8 @@ class DeploymentStorage:
                 result = query.execute()
                 for row in result.data:
                     deployments.append(TokenDeployment(**row))
-            except Exception as e:
+            except (ConnectionError, TimeoutError, ValueError) as e :
+                logger.debug("list_all_error", exc_info=True)
                 logger.error(f"Supabase list failed: {e}")
         return deployments
 

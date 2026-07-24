@@ -15,7 +15,6 @@ from telegram.ext import ContextTypes
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
-    BOT_USERNAME,
     DEXSCREENER,
     TELEGRAM_CHANNEL,
     TELEGRAM_GROUP,
@@ -28,13 +27,10 @@ from app.domains.telegram.rugmunchbot.config import (
 from app.domains.telegram.rugmunchbot.formatters import (
     _price_diff_pct,
     _risk_indicator,
-    detect_chain,
     footer_links,
     format_scan_report,
     format_wallet_report,
-    is_evm,
     is_owner,
-    is_sol,
     paywall_text,
     sep,
     short_addr,
@@ -221,7 +217,8 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=scan_result_kb(target, result["chain"]),
             disable_web_page_preview=True,
         )
-    except Exception as e:  # noqa: BLE001
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.error(f"Scan error: {e}")
         await msg.edit_text(
             f"\u274c <b>Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
@@ -263,7 +260,8 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             report, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
         )
-    except Exception as e:  # noqa: BLE001
+    except (httpx.HTTPError) as e :
+        logger.debug("cmd_wallet_error", exc_info=True)
         logger.error(f"Wallet error: {e}")
         await msg.edit_text(
             f"\u274c <b>Wallet Analysis Failed</b>\n\n{str(e)[:200]}",
@@ -427,7 +425,8 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
         )
-    except Exception as e:  # noqa: BLE001
+    except (httpx.HTTPError, KeyError, TypeError) as e :
+        logger.debug("mini_error", exc_info=True)
         logger.error(f"cmd_compare failed: {e}")
         await msg.edit_text(
             "\u274c <b>Comparison Failed</b>\n\nPlease check both addresses and try again.",

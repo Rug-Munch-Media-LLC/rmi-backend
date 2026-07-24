@@ -537,7 +537,7 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
                 result["source"] = "honeypot_detector"
         except ImportError:
             pass
-        except Exception as e:  # noqa: BLE001
+        except (httpx.HTTPError, KeyError, TypeError) as e :
             logger.debug("ownership_honeypot_failed", error=str(e)[:60])
 
     # ── Risk scoring ──

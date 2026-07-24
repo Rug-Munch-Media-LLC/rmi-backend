@@ -23,12 +23,12 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 
@@ -149,7 +149,8 @@ class UnifiedWalletScanner:
 
             self._compute_risk(r)
 
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, OSError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Wallet scan failed for {address}: {e}")
 
         r.scan_duration_ms = (time.monotonic() - start) * 1000
@@ -163,7 +164,7 @@ class UnifiedWalletScanner:
                 return c, await asyncio.wait_for(
                     databus.fetch(c, admin_key=admin_key, **params), timeout
                 )
-            except (AttributeError, ImportError):  # noqa: BLE001
+            except (AttributeError, ImportError):
                 return c, None
 
         results = await asyncio.gather(*[_one(c) for c in chains])
@@ -239,7 +240,8 @@ class UnifiedWalletScanner:
                 r.enrichment_sources.append("ai:ollama_cloud")
                 if r.persona.startswith("Scam") or r.persona.startswith("Bot"):
                     r.risk_flags.append(f"PERSONA_{r.persona.upper().replace(' ', '_')}")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, TypeError) as e :
+            logger.debug("_ai_persona_error", exc_info=True)
             logger.warning(f"AI persona failed: {e}")
 
     # ═══════════════════════════════════════════════════════════════
@@ -374,7 +376,7 @@ class UnifiedWalletScanner:
             resp = urlopen(req, timeout=5)
             r.risk_forecast = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
             r.modules_run.append("ai_forecast")
-        except (json.JSONDecodeError):  # noqa: BLE001
+        except (json.JSONDecodeError):
             r.risk_forecast = "Unable to forecast"
 
     def _compute_risk(self, r) -> None:

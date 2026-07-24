@@ -57,7 +57,7 @@ async def flash_loan_detect_endpoint(req: SentinelModuleRequest) -> dict[str, st
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -85,7 +85,7 @@ async def pump_dump_detect_endpoint(req: SentinelModuleRequest) -> dict[str, str
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -113,7 +113,7 @@ async def oracle_manipulation_endpoint(req: SentinelModuleRequest) -> dict[str, 
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -144,7 +144,7 @@ async def governance_attack_endpoint(req: SentinelModuleRequest) -> dict[str, st
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -172,7 +172,7 @@ async def proxy_detect_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -200,7 +200,7 @@ async def static_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str]
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -228,7 +228,7 @@ async def decompiler_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, 
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -251,7 +251,7 @@ async def fund_flow_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -280,5 +280,5 @@ async def contract_diff_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError) as e :
         raise HTTPException(status_code=500, detail=str(e)) from e

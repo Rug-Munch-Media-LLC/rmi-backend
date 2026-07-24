@@ -15,12 +15,23 @@ Modules:
   entities.py    — Entity resolution, chain lookup, address validation
 """
 
+from app.domains.wallet.crypto import (
+    ShamirSecretSharing,
+    WalletEncryption,
+    ZKAddressVerifier,
+)
+from app.domains.wallet.entities import (
+    get_chain_meta,
+    get_chains_by_group,
+    list_chains,
+    resolve_chain_address,
+)
+from app.domains.wallet.labels import import_legacy_wallets
 from app.domains.wallet.manager import (
-    WalletManagerV2,
     WalletManagerFacade,
+    WalletManagerV2,
     get_wallet_manager_v2,
 )
-
 from app.domains.wallet.models import (
     CHAIN_REGISTRY,
     ChainMeta,
@@ -32,21 +43,6 @@ from app.domains.wallet.models import (
     WalletStatus,
     WalletTier,
     _build_registry,
-)
-
-from app.domains.wallet.crypto import (
-    ShamirSecretSharing,
-    WalletEncryption,
-    ZKAddressVerifier,
-)
-
-from app.domains.wallet.labels import import_legacy_wallets
-
-from app.domains.wallet.entities import (
-    get_chain_meta,
-    list_chains,
-    get_chains_by_group,
-    resolve_chain_address,
 )
 
 __all__ = [

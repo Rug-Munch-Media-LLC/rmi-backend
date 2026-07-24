@@ -4,11 +4,7 @@ Wallet Data Models — enums, dataclasses, and chain registry.
 Extracted from manager.py during god-file split (2026-07-23).
 """
 
-import json
-import os
-import time
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 

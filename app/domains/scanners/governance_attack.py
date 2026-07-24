@@ -109,7 +109,8 @@ class GovernanceAttackDetector:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
@@ -121,7 +122,8 @@ class GovernanceAttackDetector:
             solscan = FreeSolscanClient()
             holders = solscan.get_holder_wallets(token_address, top_n=top_n)
             return holders or []
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_solscan_holders_error", exc_info=True)
             logger.warning(f"Solscan holders failed for {token_address}: {e}")
             return []
 
@@ -138,7 +140,8 @@ class GovernanceAttackDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("data", body)
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_birdeye_overview_error", exc_info=True)
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
         return None
 
@@ -162,7 +165,8 @@ class GovernanceAttackDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("result", []) or []
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_evm_holders_error", exc_info=True)
             logger.warning(f"Etherscan holders failed for {token_address}: {e}")
         return []
 
@@ -184,7 +188,8 @@ class GovernanceAttackDetector:
                 result = body.get("result", [])
                 if result and len(result) > 0:
                     return result[0].get("SourceCode", "")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_contract_source_error", exc_info=True)
             logger.warning(f"Etherscan source fetch failed for {address}: {e}")
         return None
 
@@ -209,7 +214,8 @@ class GovernanceAttackDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("result")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_eth_call_error", exc_info=True)
             logger.warning(f"eth_call failed for {to}: {e}")
         return None
 

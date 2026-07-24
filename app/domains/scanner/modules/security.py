@@ -40,7 +40,7 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
             # Defensive JSON parsing
             try:
                 data = resp.json()
-            except (httpx.HTTPError):  # noqa: BLE001
+            except (httpx.HTTPError):
                 logger.debug("goplus_json_parse_failed", chain=chain)
                 return {"check": "goplus", "result": "error", "error": "Invalid JSON response"}
 
@@ -169,7 +169,7 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
             }
     except ImportError:
         logger.warning("honeypot_detector_not_available")
-    except Exception as e:  # noqa: BLE001
+    except (httpx.HTTPError) as e :
         logger.warning("honeypot_check_failed", error=str(e))
 
     # Fallback: use DexScreener data for basic checks

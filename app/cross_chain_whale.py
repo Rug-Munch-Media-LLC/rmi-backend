@@ -793,28 +793,9 @@ def format_whale_report(report: WhaleTrackerReport) -> str:
 
 
 def is_valid_address(address: str) -> bool:
-    """Basic address validation for Solana and EVM addresses."""
-    if not address or len(address) < 32:
-        return False
-    # Solana: base58, 32-44 chars
-    # EVM: hex, 42 chars with 0x prefix
-    if address.startswith("0x"):
-        if len(address) != 42:
-            return False
-        try:
-            int(address, 16)
-            return True
-        except ValueError:
-            return False
-    # Solana-like: base58
-    if len(address) >= 32 and len(address) <= 44:
-        import string
-
-        base58 = string.digits + string.ascii_uppercase + string.ascii_lowercase
-        # Remove commonly confused chars
-        base58 = base58.replace("0", "").replace("O", "").replace("I", "").replace("l", "")
-        return all(c in base58 for c in address)
-    return False
+    """Basic address validation for Solana and EVM addresses - delegates to shared_utils."""
+    from app.core.shared_utils import is_valid_address as _check
+    return _check(address)
 
 
 # ── Quick test ────────────────────────────────────────────────────

@@ -46,7 +46,8 @@ def load_brand_patterns() -> list[str]:
         patterns = [str(p).lower() for p in data.get("brands", []) if p]
         logger.info("certstream_brands_loaded count=%d", len(patterns))
         return patterns
-    except Exception as exc:
+    except (httpx.HTTPError, json.JSONDecodeError, ValueError, KeyError, TypeError) as exc :
+        logger.debug("load_brand_patterns_error", exc_info=True)
         logger.warning("certstream_brands_load_failed err=%s", exc)
         return []
 
@@ -111,7 +112,8 @@ async def _telegram_alert(domain: str, brand: str, issuer: str) -> bool:
                 json={"chat_id": chat_id, "text": text},
             )
             return r.status_code == 200
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError, TypeError, ConnectionError, OSError, TimeoutError) as exc :
+        logger.debug("_telegram_alert_error", exc_info=True)
         logger.debug("telegram_alert_skipped err=%s", exc)
         return False
 
@@ -147,7 +149,8 @@ async def _ensure_schema() -> bool:
         finally:
             await conn.close()
         return True
-    except Exception as exc:
+    except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc :
+        logger.debug("_ensure_schema_error", exc_info=True)
         logger.warning("threat_domains_schema_failed err=%s", exc)
         return False
 
@@ -176,7 +179,8 @@ async def _persist_domain(domain: str, brand: str, issued_at: datetime | None, i
         finally:
             await conn.close()
         return True
-    except Exception as exc:
+    except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc :
+        logger.debug("_persist_domain_error", exc_info=True)
         logger.debug("threat_domains_persist_failed domain=%s err=%s", domain, exc)
         return False
 
@@ -263,7 +267,8 @@ async def _run_listener(stop_event: asyncio.Event) -> None:
                     await _process_message(msg)
         except asyncio.CancelledError:
             raise
-        except Exception as exc:
+        except (httpx.HTTPError, json.JSONDecodeError) as exc :
+            logger.debug("_run_listener_error", exc_info=True)
             logger.warning("certstream_disconnected err=%s reconnecting_in=%.1fs", exc, backoff)
             with suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(stop_event.wait(), timeout=backoff)

@@ -135,7 +135,8 @@ class TronSelfVerifyFacilitator(Facilitator):
             return self._format_error("TRON: TronGrid API timeout")
         except aiohttp.ClientError as e:
             return self._format_error(f"TRON: TronGrid API error: {e}")
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, OSError) as e :
+            logger.debug("verify_error", exc_info=True)
             logger.exception(f"TRON verify error: {e}")
             return self._format_error(f"TRON: {e}")
 

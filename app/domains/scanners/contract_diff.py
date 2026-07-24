@@ -152,7 +152,8 @@ class ContractDiffAnalyzer:
             self._initialized = True
             if self._rug_hashes:
                 logger.info(f"Loaded {len(self._rug_hashes)} known rug bytecode hashes")
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("_ensure_init_error", exc_info=True)
             logger.warning(f"Could not load rug hashes: {e}")
             self._initialized = True  # Don't retry on every call
 
@@ -298,7 +299,8 @@ class ContractDiffAnalyzer:
                     max_citations=3,
                     min_similarity=0.3,
                 )
-            except Exception as e:
+            except (httpx.HTTPError, KeyError, TypeError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.debug(f"Citation lookup failed: {e}")
 
             # Compute risk score
@@ -379,7 +381,8 @@ class ContractDiffAnalyzer:
             except (AttributeError, ImportError):
                 pass
 
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Contract diff analysis failed: {e}")
             report.warnings.append(f"Analysis error: {str(e)[:100]}")
 
@@ -424,7 +427,8 @@ class ContractDiffAnalyzer:
                             # Return the base64-encoded program data
                             return data_arr[0] if data_arr[1] == "base64" else str(data_arr[0])
                     return str(account_data)
-            except Exception as e:
+            except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+                logger.debug("_fetch_bytecode_error", exc_info=True)
                 logger.debug(f"Solana account info fetch failed: {e}")
             return None
 
@@ -450,7 +454,8 @@ class ContractDiffAnalyzer:
                 )
                 return code_hex
             logger.debug(f"eth_getCode returned empty for {address} on {chain}")
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Consensus RPC bytecode fetch failed: {e}")
 
         # Fallback: direct public RPC call
@@ -482,7 +487,8 @@ class ContractDiffAnalyzer:
                     if code and code != "0x" and len(code) > 10:
                         logger.info(f"Got bytecode via fallback RPC for {address}")
                         return code
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Fallback RPC failed: {e}")
 
         return None

@@ -5,7 +5,6 @@ Provides token prices, metadata, holders, trades, and top trader data
 from DexScreener's public API.
 """
 
-from typing import Any
 
 import httpx
 

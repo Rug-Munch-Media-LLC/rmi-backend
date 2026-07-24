@@ -248,7 +248,8 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
                         first = datetime.fromisoformat(result["first_seen"].replace("Z", "+00:00"))
                         result["wallet_age_days"] = (datetime.now(UTC) - first).days
                         result["is_fresh"] = result["wallet_age_days"] < 7
-                    except Exception as e:  # noqa: BLE001
+                    except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+                        logger.debug("analyze_wallet_error", exc_info=True)
                         logger.warning(f"Failed to parse first_seen for {address}: {e}")
                 return result
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:

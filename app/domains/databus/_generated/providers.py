@@ -9,6 +9,8 @@ provides helper functions for building provider chain configurations.
 Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
+from typing import Any
+
 from app.databus.provider_core import (
     Provider,
     ProviderChain,
@@ -18,7 +20,6 @@ from app.databus.provider_core import (
     _rate_limiters,
     _RateLimiter,
 )
-from typing import Any
 
 
 def premium_provider(name: str, fn: Any, rps: float = 3.0) -> Provider:

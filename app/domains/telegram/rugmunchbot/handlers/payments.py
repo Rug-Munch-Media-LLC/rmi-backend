@@ -7,7 +7,6 @@ Telegram Stars payment pre-checkout and successful payment routing.
 
 import time
 
-import httpx
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -15,7 +14,6 @@ from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BUY_STARS_PACKS,
-    SCAN_PACKS,
     TIERS,
     TOP_UP_PACKS,
 )
@@ -130,7 +128,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
             try:
                 result = await scan_token(pending["address"], pending["chain"])
                 report_lines = [
-                    f"\U0001f52c <b>Deep Token Scan</b>",
+                    "\U0001f52c <b>Deep Token Scan</b>",
                     _SEP,
                     "",
                 ]

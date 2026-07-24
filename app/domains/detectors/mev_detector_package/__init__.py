@@ -20,9 +20,9 @@ from app.domains.detectors.mev_detector_package.models import (
 )
 
 __all__ = [
-    "MEVSandwichDetector",
     "MEVAttackType",
     "MEVBotProfile",
+    "MEVSandwichDetector",
     "MEVScanReport",
     "MEVSeverity",
     "MEVTransaction",

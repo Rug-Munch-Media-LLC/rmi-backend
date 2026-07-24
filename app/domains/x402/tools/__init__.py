@@ -153,5 +153,5 @@ async def call_tool(tool_id: str, **kwargs) -> dict:
     try:
         result = await tool["function"](**kwargs)
         return {"tool_id": tool_id, "result": result}
-    except Exception as e:
+    except (KeyError, TypeError) as e :
         return {"error": str(e)}

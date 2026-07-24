@@ -14,24 +14,20 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.domains.billing.x402.shared import (
-    HUMAN_PAY_TO,
-    HUMAN_PAYMENT_TOKENS,
     td,
 )
 
-from .models import CHAIN_SUFFIXES, NETWORKS
 from .utils import (
+    build_framework_base,
     build_tools_from_catalog,
     check_rate_limit,
+    enrich_response,
     execute_bundle_tasks,
     format_anthropic_tool,
     format_gemini_tool,
     format_langchain_tool,
     format_openai_tool,
-    build_framework_base,
-    record_payment,
     resolve_tool_alias,
-    enrich_response,
 )
 
 sub_router = APIRouter(tags=["x402-integration"])
@@ -278,8 +274,10 @@ async def mcp_proxy(req: Any) -> dict[str, Any]:
 # Bundle Pricing Endpoints
 # ═══════════════════════════════════════════════════════════════
 
-from app.domains.billing.x402.shared import BUNDLES as _BUNDLES  # noqa: E402
-from app.domains.billing.x402.shared import BundleRequest  # noqa: E402
+from app.domains.billing.x402.shared import (
+    BUNDLES as _BUNDLES,
+    BundleRequest,
+)
 
 
 @sub_router.get("/bundles")
@@ -444,7 +442,6 @@ async def bundle_forensic_pack(req: BundleRequest) -> dict[str, Any]:
 @sub_router.get("/{tool_id}")
 async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
     """GET catch-all for paid tools — converts query params to JSON body and dispatches."""
-    from app.domains.billing.x402.shared import TOOL_ALIASES
 
     query_params = dict(request.query_params)
     if not query_params:
@@ -514,7 +511,7 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
 
     try:
         result = await enrich_response(tool_id, result, body, request)
-    except (ImportError, Exception):  # noqa: BLE001
+    except (ImportError, Exception):
         pass
 
     return JSONResponse(content=result, status_code=200)
@@ -531,7 +528,6 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
 
     Returns 404 for truly unknown tools.
     """
-    from app.domains.billing.x402.shared import TOOL_ALIASES
 
     if not await check_rate_limit(request):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Max 60 req/min per IP.")
@@ -559,10 +555,10 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
                         result["chain"] = injected_chain
                 try:
                     result = await enrich_response(tool_id, result, body, request)
-                except (ImportError, Exception):  # noqa: BLE001
+                except (ImportError, Exception):
                     pass
                 return JSONResponse(content=result, status_code=200)
-        except (ImportError, Exception):  # noqa: BLE001
+        except (ImportError, Exception):
             pass
         raise HTTPException(
             status_code=404,
@@ -628,7 +624,7 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
 
     try:
         result = await enrich_response(tool_id, result, body, request)
-    except (ImportError, Exception):  # noqa: BLE001
+    except (ImportError, Exception):
         pass
 
     return JSONResponse(content=result, status_code=resp.status_code, headers=rh)

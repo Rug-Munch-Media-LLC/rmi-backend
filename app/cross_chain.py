@@ -46,8 +46,9 @@ for canonical, aliases in CHAIN_ALIASES.items():
 
 
 def normalize_chain(chain: str) -> str:
-    """Normalize chain name to canonical form."""
-    return CHAIN_FROM_ALIAS.get(chain.lower().strip(), chain.lower())
+    """Normalize chain name to canonical form - delegates to shared_utils."""
+    from app.core.shared_utils import normalize_chain as _normalize
+    return _normalize(chain)
 
 
 # ── Behavioral Fingerprint ───────────────────────────────────────

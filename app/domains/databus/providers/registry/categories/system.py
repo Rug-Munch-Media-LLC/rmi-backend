@@ -208,7 +208,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
 
     # ── Full News Feed ──
     try:
-        from app.databus.news_provider import get_full_news_feed  # noqa: E402
+        from app.databus.news_provider import get_full_news_feed
     except ImportError:
         get_full_news_feed = None
 

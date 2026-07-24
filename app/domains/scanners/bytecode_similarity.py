@@ -245,7 +245,8 @@ class BytecodeSimilarityAnalyzer:
                 )
                 return str(code_hex)
             logger.debug(f"eth_getCode returned empty for {address} on {chain_name}")
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e :
+            logger.debug("_fetch_evm_bytecode_error", exc_info=True)
             logger.debug(f"Consensus RPC bytecode fetch failed: {e}")
 
         # Fallback: direct public RPC
@@ -277,7 +278,8 @@ class BytecodeSimilarityAnalyzer:
                     if code and code != "0x" and len(code) > 10:
                         logger.info(f"Got bytecode via fallback RPC for {address}")
                         return code
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Fallback RPC failed: {e}")
 
         return None
@@ -303,7 +305,8 @@ class BytecodeSimilarityAnalyzer:
                         return str(data_list[0])  # base64 encoded
                     return str(raw)
                 return str(raw)
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+            logger.debug("_fetch_solana_bytecode_error", exc_info=True)
             logger.debug(f"Consensus RPC Solana fetch failed: {e}")
 
         # Fallback: direct Solana RPC
@@ -325,7 +328,8 @@ class BytecodeSimilarityAnalyzer:
                         data_list = result_val.get("data")
                         if isinstance(data_list, list) and len(data_list) >= 1:
                             return str(data_list[0])
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Solana fallback RPC failed: {e}")
 
         # Last resort: try free solscan client for token info
@@ -335,7 +339,8 @@ class BytecodeSimilarityAnalyzer:
             info = FreeSolscanClient.account_info(address)
             if info:
                 return str(info)
-        except Exception as e:
+        except (httpx.HTTPError, ValueError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"FreeSolscan fetch failed: {e}")
 
         return None

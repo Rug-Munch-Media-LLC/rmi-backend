@@ -136,7 +136,8 @@ class ProxyDetector:
                 result = body.get("result")
                 if result and result != "0x" and result != "0x0":
                     return result
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_eth_call_error", exc_info=True)
             logger.warning(f"eth_call failed for {to} data={data[:10]}: {e}")
         return None
 
@@ -161,7 +162,8 @@ class ProxyDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("result")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_eth_getCode_error", exc_info=True)
             logger.warning(f"eth_getCode failed for {address}: {e}")
         return None
 
@@ -183,7 +185,8 @@ class ProxyDetector:
                 result = body.get("result", [])
                 if result and len(result) > 0:
                     return result[0]
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_contract_source_error", exc_info=True)
             logger.warning(f"Etherscan source fetch failed for {address}: {e}")
         return None
 
@@ -211,7 +214,8 @@ class ProxyDetector:
                     if r.status_code == 200:
                         data = r.json()
                         return data.get("upgradeAuthority")
-            except Exception as e:
+            except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                logger.debug("_fetch_solana_upgrade_authority_error", exc_info=True)
                 logger.warning(f"Helius program data failed for {program_id}: {e}")
 
         # Fallback: try DAS API or getProgramAccounts

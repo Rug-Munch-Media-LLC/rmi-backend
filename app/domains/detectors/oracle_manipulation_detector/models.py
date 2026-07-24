@@ -4,11 +4,9 @@ Oracle Manipulation Detector — Data Models
 Enums and dataclasses for oracle manipulation detection.
 """
 
+import json
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any
-import json
-import time
 
 
 class OracleType(Enum):
@@ -231,12 +229,12 @@ class ManipulationReport:
 
 
 __all__ = [
-    "OracleType",
-    "ManipulationType",
-    "Severity",
-    "PriceSnapshot",
-    "TWAPWindow",
-    "OracleRead",
-    "PriceManipulation",
     "ManipulationReport",
+    "ManipulationType",
+    "OracleRead",
+    "OracleType",
+    "PriceManipulation",
+    "PriceSnapshot",
+    "Severity",
+    "TWAPWindow",
 ]

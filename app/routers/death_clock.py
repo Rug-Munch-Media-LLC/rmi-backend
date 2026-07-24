@@ -6,7 +6,9 @@ import math
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+
+from app.core.errors import UpstreamError
 from pydantic import BaseModel
 
 from app.config import settings
@@ -122,7 +124,7 @@ async def predict_death_clock(
                     features["liquidity_usd"], 1
                 )
     except Exception as e:
-        raise HTTPException(502, f"Scanner unavailable: {e}") from e
+        raise UpstreamError(f"Scanner unavailable: {e}") from e
 
     days, confidence, factors = _compute_death_clock(features)
 

@@ -290,7 +290,8 @@ class DecompilerAnalyzer:
                 result = body.get("result")
                 if result and result != "0x" and result != "0x0":
                     return result
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_get_bytecode_error", exc_info=True)
             logger.warning(f"eth_getCode failed for {address}: {e}")
         return None
 
@@ -311,7 +312,8 @@ class DecompilerAnalyzer:
                 if result and len(result) > 0:
                     source = result[0].get("SourceCode", "")
                     return bool(source and source not in ("", "0x", None))
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+            logger.debug("_check_verified_error", exc_info=True)
             logger.debug(f"Verified check failed for {address}: {e}")
         return False
 
@@ -390,7 +392,8 @@ class DecompilerAnalyzer:
         except TimeoutError:
             logger.warning(f"Heimdall decompile timed out for {address}")
             return False, "", tmp_dir
-        except Exception as e:
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Heimdall decompile error for {address}: {e}")
             return False, "", tmp_dir
 
@@ -436,7 +439,8 @@ class DecompilerAnalyzer:
             )
             if result and "result" in result:
                 return result["result"]
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Anchor IDL extraction failed for {program_id}: {e}")
 
         return None
@@ -595,7 +599,8 @@ class DecompilerAnalyzer:
                                     report.decompiled_functions = sorted(
                                         set(func_pattern.findall(source_code))
                                     )
-                    except Exception as e:
+                    except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+                        logger.debug("unknown_error", exc_info=True)
                         logger.debug(f"Source scan failed for {token_address}: {e}")
 
         elif is_solana(chain):

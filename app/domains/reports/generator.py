@@ -169,7 +169,7 @@ async def _fetch_news(catalog, subject_id: str, since_hours: int = 720) -> list:
         from app.domains.news.router import _adapt_legacy_row as _adapt_news_row
 
         return [_adapt_news_row(dict(r)) for r in rows]
-    except Exception as e:
+    except (KeyError, ValueError, TypeError) as e :
         log.warning(f"fetch_news_fail: {e}")
         return []
 
@@ -332,7 +332,7 @@ async def generate_token_report(
         try:
             r = await llm.chat(prompt, model=model, max_tokens=400)
             return r if r else _template_fallback(name, sections_ctx[name])
-        except Exception as e:
+        except (KeyError, TypeError) as e :
             log.warning(f"section_{name}_llm_fail: {e}")
             return _template_fallback(name, sections_ctx[name])
 
@@ -586,9 +586,9 @@ async def save_report(catalog, report: ScanReport) -> bool:
                 # MinIO upload is complex; skip for v1, store markdown in Postgres instead
                 # Future: use boto3 or httpx PUT to minio with signed URL
                 pass
-            except Exception as e:
+            except (httpx.HTTPError) as e :
                 log.debug(f"minio_upload_skip: {e}")
         return True
-    except Exception as e:
+    except (httpx.HTTPError) as e :
         log.warning(f"save_report_fail: {e}")
         return False

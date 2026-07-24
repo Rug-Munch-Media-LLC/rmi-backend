@@ -4,14 +4,19 @@ import asyncio
 
 from app.core.logging import get_logger
 from app.domains.scanner.engines import gmgn_client as gmgn
-from .models import InsiderReport, InsiderEvidence, InsiderType, Confidence
-from .config import MIN_INSIDER_BUY_USD, INSIDER_WINDOW_MIN
-from .collectors import _collect_token_meta, _get_token_traders, _gather_events
+
+from .collectors import _collect_token_meta, _gather_events, _get_token_traders
+from .config import INSIDER_WINDOW_MIN, MIN_INSIDER_BUY_USD
 from .detectors import (
-    _detect_pre_trending, _detect_pre_kol, _detect_dev_insider,
-    _detect_cex_frontrun, _detect_pumpfun_graduation, _detect_snipers,
+    _detect_cex_frontrun,
+    _detect_dev_insider,
+    _detect_pre_kol,
+    _detect_pre_trending,
+    _detect_pumpfun_graduation,
+    _detect_snipers,
 )
-from .utils import _deduplicate_evidence, _generate_insights, _check_early_buy
+from .models import InsiderReport
+from .utils import _check_early_buy, _deduplicate_evidence, _generate_insights
 
 logger = get_logger(__name__)
 
@@ -85,7 +90,8 @@ async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
 
     try:
         wallet_trades = gmgn.get_wallet_trades(wallet, chain=chain, limit=100)
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("get_insider_score_error", exc_info=True)
         logger.debug("GMGN wallet trades failed: %s", e)
         wallet_trades = []
 
@@ -142,7 +148,8 @@ async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
             score = min(100, score + 5)
         if "photon" in tags:
             signals.append("Photon/automated trader pattern")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError):
+        logger.debug("unknown_error", exc_info=True)
         logger.warning("get_wallet_tags failed", exc_info=True)
 
     risk = "UNKNOWN"

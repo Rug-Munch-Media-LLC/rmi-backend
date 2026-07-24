@@ -162,7 +162,8 @@ class MEVDetector:
                 chain_id = self._get_chain_id(chain)
                 if chain_id:
                     await self._analyze_evm(token_address, chain_id, report, tx_count)
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("analyze_error", exc_info=True)
             logger.error(f"MEV analysis failed for {token_address}: {e}")
             report.warnings.append(f"Analysis error: {e!s}")
 
@@ -266,7 +267,8 @@ class MEVDetector:
                     )
                     data = resp.json()
                     return data.get("result", []) if resp.status_code == 200 else []
-                except Exception as e:
+                except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                    logger.debug("_fetch_sol_signatures_error", exc_info=True)
                     logger.warning(f"Failed to fetch Sol signatures: {e}")
                     return []
         # Use ChainClient if available
@@ -369,7 +371,8 @@ class MEVDetector:
             data = resp.json()
             if data.get("status") == "1":
                 return data.get("result", [])
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_evm_normal_txs_error", exc_info=True)
             logger.warning(f"Etherscan normal TXs failed: {e}")
         return []
 
@@ -403,7 +406,8 @@ class MEVDetector:
             data = resp.json()
             if data.get("status") == "1":
                 return data.get("result", [])
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_evm_internal_txs_error", exc_info=True)
             logger.warning(f"Etherscan internal TXs failed: {e}")
         return []
 

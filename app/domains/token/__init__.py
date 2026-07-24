@@ -16,7 +16,7 @@ async def _health_check() -> DomainHealth:
             healthy=True,
             details={"databus": "importable"},
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, OSError) as e :
         return DomainHealth(name="token", healthy=False, error=str(e))
 
 

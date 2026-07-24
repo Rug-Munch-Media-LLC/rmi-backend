@@ -9,7 +9,7 @@ import os
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
-from app.domains.wallet.models import WalletRecord, WalletRotationSchedule
+from app.domains.wallet.models import WalletRecord
 
 logger = get_logger("wallet_db")
 
@@ -55,7 +55,8 @@ class WalletDBMixin:
             with open(self.VAULT_PATH, "w") as f:
                 json.dump(data, f, indent=2)
             os.chmod(self.VAULT_PATH, 0o600)
-        except Exception as e:  # noqa: BLE001
+        except (json.JSONDecodeError) as e :
+            logger.debug("_save_vault_error", exc_info=True)
             logger.error(f"Vault save error: {e}")
 
     # ── Payment Persistence ──────────────────────────────────
@@ -71,7 +72,8 @@ class WalletDBMixin:
                         line = line.strip()
                         if line:
                             self._payments.append(PaymentRecord(**json.loads(line)))
-            except Exception as e:  # noqa: BLE001
+            except (json.JSONDecodeError) as e :
+                logger.debug("_load_payments_error", exc_info=True)
                 logger.error(f"Payments load error: {e}")
 
     # ── Key Storage ──────────────────────────────────────────
@@ -91,7 +93,7 @@ class WalletDBMixin:
             try:
                 with open(self.KEYSTORE_PATH) as f:
                     keystore = json.load(f)
-            except (AttributeError, ImportError):  # noqa: BLE001
+            except (AttributeError, ImportError):
                 pass
 
         keystore[wallet_id] = {
@@ -114,7 +116,7 @@ class WalletDBMixin:
         try:
             with open(self.KEYSTORE_PATH) as f:
                 keystore = json.load(f)
-        except (AttributeError, ImportError):  # noqa: BLE001
+        except (AttributeError, ImportError):
             return None
 
         entry = keystore.get(wallet_id)
