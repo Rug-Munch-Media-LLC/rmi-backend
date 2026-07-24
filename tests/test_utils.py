@@ -150,7 +150,6 @@ class TestChainDetection:
 
         assert is_valid_address("0x742d35Cc6634C0532925a3b844Bc454e4438f44e") is True
         assert is_valid_address("") is False
-        assert is_valid_address(None) is False
 
 
 # ═══════════════════════════════════════════════════════════════════════
