@@ -1,14 +1,15 @@
 """Scanner module — split from modules.py for maintainability."""
 
+from __future__ import annotations
 from typing import Any
 
 from app.domains.scanner.modules._core import (
     EXPLORER_APIS,
+    _fetch_dexscreener,
     _fetch_json,
     _fetch_with_fallback,
     logger,
 )
-
 
 async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get deployer address and basic reputation score.
@@ -52,14 +53,12 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("explorer_deployer_failed", error=str(e))
 
-    # Fallback: try HoneypotDetector which gathers creator from DexScreener
+    # Fallback: try DexScreener (uses shared per-token cache)
     if not deployer_addr:
         try:
-            data, _ = await _fetch_with_fallback(
-                [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
-            )
-            if data and data.get("pairs"):
-                pair = data["pairs"][0]
+            ds_data = await _fetch_dexscreener(token_address)
+            if ds_data:
+                pair = ds_data["pairs"][0]
                 deployer_addr = pair.get("baseToken", {}).get("address", "")
                 result["token_name"] = pair.get("baseToken", {}).get("name", "")
                 result["token_symbol"] = pair.get("baseToken", {}).get("symbol", "")
@@ -92,7 +91,6 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
             result["reputation_label"] = "UNKNOWN"
 
     return result
-
 
 async def _deep_deployer_check(deployer_addr: str, chain: str) -> dict[str, Any] | None:
     """Deep deployer analysis using behavioral fingerprint matching.

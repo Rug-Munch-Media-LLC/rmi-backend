@@ -1,15 +1,16 @@
 """Scanner module — split from modules.py for maintainability."""
 
+from __future__ import annotations
 from typing import Any
 
 import httpx
 
 from app.domains.scanner.modules._core import (
     GOPLUS_CHAIN_IDS,
+    _fetch_dexscreener,
     _fetch_with_fallback,
     logger,
 )
-
 
 async def _check_goplus_security(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check token security via GoPlus Security API (free, 21+ chains).
@@ -122,9 +123,7 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
         logger.warning("goplus_failed", token=token_address, error=str(e)[:100])
     return {"check": "goplus", "result": "error", "error": "GoPlus API unavailable"}
 
-
 # ── 2. Honeypot Detection (on-chain bytecode + fee analysis) ──────────
-
 
 async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if token is a honeypot using on-chain bytecode + market analysis.
@@ -172,13 +171,11 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
     except (httpx.HTTPError) as e :
         logger.warning("honeypot_check_failed", error=str(e))
 
-    # Fallback: use DexScreener data for basic checks
+    # Fallback: use DexScreener data for basic checks (uses shared cache)
     try:
-        data, _ = await _fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
-        )
-        if data and data.get("pairs"):
-            pair = data["pairs"][0]
+        ds_data = await _fetch_dexscreener(token_address)
+        if ds_data:
+            pair = ds_data["pairs"][0]
             buys = pair.get("txns", {}).get("h24", {}).get("buys", 0) or 0
             sells = pair.get("txns", {}).get("h24", {}).get("sells", 0) or 0
             liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
@@ -211,9 +208,7 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
 
     return {"check": "honeypot", "result": "error", "error": "No data source available"}
 
-
 # ── 3. Holder Data ────────────────────────────────────────────────────
-
 
 async def _check_spam(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if token is in known spam/sanctions databases."""

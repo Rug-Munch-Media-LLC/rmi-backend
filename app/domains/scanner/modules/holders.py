@@ -1,16 +1,17 @@
 """Scanner module — split from modules.py for maintainability."""
 
+from __future__ import annotations
 import time
 from typing import Any
 
 from app.domains.scanner.modules._core import (
     GOPLUS_CHAIN_IDS,
+    _fetch_dexscreener,
     _fetch_json,
     _fetch_with_fallback,
     _solana_rpc_call,
     logger,
 )
-
 
 async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get holder distribution data from chain RPC or DexScreener.
@@ -67,11 +68,9 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
     else:
         # EVM: try DexScreener for holder estimate + explorer for deployer
         try:
-            data, _ = await _fetch_with_fallback(
-                [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
-            )
-            if data and data.get("pairs"):
-                pair = data["pairs"][0]
+            ds_data = await _fetch_dexscreener(token_address)
+            if ds_data:
+                pair = ds_data["pairs"][0]
                 result["holder_count"] = int(pair.get("holders", 0) or 0)
                 result["source"] = "dexscreener"
 
@@ -104,9 +103,7 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
 
     return result
 
-
 # ── 4. Deployer Information ───────────────────────────────────────────
-
 
 async def _check_liquidity_lock_multi(
     token_address: str, chain: str, pair_address: str = ""
@@ -157,13 +154,11 @@ async def _check_liquidity_lock_multi(
     except (KeyError, TypeError) as e :
         logger.debug("honeypot_liquidity_failed", error=str(e))
 
-    # Fallback: direct DexScreener check
+    # Fallback: direct DexScreener check (uses shared per-token cache)
     try:
-        data, _ = await _fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
-        )
-        if data and data.get("pairs"):
-            pair = data["pairs"][0]
+        ds_data = await _fetch_dexscreener(token_address)
+        if ds_data:
+            pair = ds_data["pairs"][0]
             liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
             result["liquidity_usd"] = liquidity
             result["dex"] = pair.get("dexId", "")
@@ -219,9 +214,7 @@ async def _check_liquidity_lock_multi(
 
     return result
 
-
 # ── 6. Copycat Detection ──────────────────────────────────────────────
-
 
 async def _check_lp_concentration(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check LP concentration — what % of LP is held by top wallets.
