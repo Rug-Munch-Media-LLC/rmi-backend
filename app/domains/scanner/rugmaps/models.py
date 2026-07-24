@@ -6,7 +6,6 @@ All dataclasses for the interactive wallet visualization engine.
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
 
 
 def _format_timestamp(ts: int | float | datetime | None) -> str | None:

@@ -24,12 +24,10 @@ from app.domains.telegram.rugmunchbot.config import (
     TELEGRAM_CHANNEL,
     TIERS,
     TOP_UP_PACKS,
-    WEBSITE_URL,
     fmt_number,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
-    is_owner,
     sep,
     short_addr,
     thin_sep,
@@ -210,7 +208,6 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                             else:
                                 lines.append(f"{i}. \U0001f525 <b>{name}</b> ({sym}) {chain}{bs}")
                         lines.append(footer_links())
-                        from app.domains.telegram.rugmunchbot.formatters import fmt_pct
                         refresh_kb = InlineKeyboardMarkup([
                             [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh")],
                             [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
@@ -245,7 +242,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning("news_refresh backend failed: %s", e)
         if not articles:
-            from app.domains.telegram.rugmunchbot.handlers.market import _fetch_cg_trending_news, _time_ago
+            from app.domains.telegram.rugmunchbot.handlers.market import (
+                _fetch_cg_trending_news,
+                _time_ago,
+            )
             cg_items = await _fetch_cg_trending_news()
             if cg_items:
                 articles = cg_items
@@ -286,7 +286,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text(
                 "\u2705 Alert dismissed.", parse_mode=ParseMode.HTML,
             )
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
         await query.answer("Alert dismissed.")
     elif data == "menu_watchlist":
@@ -364,7 +364,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(pack["name"], pack["stars"])],
             )
             await query.answer()
-        except Exception as e:  # noqa: BLE001
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Buy stars invoice error: {e}")
             await query.answer(
                 "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",
@@ -396,7 +397,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice("Deep Scan", SCAN_PACKS["deep_scan"]["stars"])],
             )
             await query.answer()
-        except Exception as e:  # noqa: BLE001
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Deep scan invoice error: {e}")
             _pending_deep_scans.pop(token, None)
             await query.answer(
@@ -428,7 +430,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(f"{tier['name']} - 30 days", tier["price_stars"])],
             )
             await query.answer()
-        except Exception as e:  # noqa: BLE001
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Sub invoice error: {e}")
             await query.answer(
                 "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",
@@ -451,7 +454,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(pack["name"], pack["stars"])],
             )
             await query.answer()
-        except Exception as e:  # noqa: BLE001
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Topup invoice error: {e}")
             await query.answer(
                 "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",

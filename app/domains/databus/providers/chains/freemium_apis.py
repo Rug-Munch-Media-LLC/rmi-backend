@@ -5,7 +5,6 @@ Includes: Birdeye, Solana Tracker, Messari, CoinDesk, Santiment,
 VirusTotal, Dune Analytics.
 """
 
-from typing import Any
 
 import httpx
 
@@ -226,7 +225,7 @@ async def _dune_early_buyers(
     try:
         async with httpx.AsyncClient(timeout=30) as c:
             r = await c.get(
-                f"https://api.dune.com/api/v1/query/12345/results",
+                "https://api.dune.com/api/v1/query/12345/results",
                 headers={"x-dune-api-key": api_key},
                 params={"token": token_address, "chain": chain},
             )

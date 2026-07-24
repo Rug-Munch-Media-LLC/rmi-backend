@@ -115,7 +115,8 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
                 creator = data["result"][0].get("contractCreator", "")
                 if creator:
                     result["creator"] = creator
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_fetch_evm_wallets_error", exc_info=True)
             logger.debug(f"EVM creator fetch failed: {e}")
 
         # 2) Get first token transfers (earliest buyers/funders)
@@ -166,7 +167,8 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
                                 "timestamp": timestamp,
                             }
                         )
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"EVM transfer fetch failed: {e}")
 
         # 3) Get top token holders
@@ -193,7 +195,8 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
                                 "balance_raw": balance,
                             }
                         )
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"EVM holder fetch failed: {e}")
 
     return result
@@ -223,7 +226,8 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
                     creator = info.get("updateAuthority", info.get("mintAuthority", ""))
                     if creator:
                         result["creator"] = creator
-            except Exception as e:
+            except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                logger.debug("_fetch_solana_wallets_error", exc_info=True)
                 logger.debug(f"Helius token metadata fetch failed: {e}")
 
             # 2) Get transaction history to find early buyers/sellers
@@ -278,7 +282,8 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
                                         "amount_raw": amount,
                                     }
                                 )
-            except Exception as e:
+            except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.debug(f"Helius transaction fetch failed: {e}")
 
         # 3) Get top holders from Solscan
@@ -310,7 +315,8 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
                                 "balance_raw": holder.get("amount", 0),
                             }
                         )
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Solscan holders fetch failed: {e}")
 
     return result
@@ -739,7 +745,8 @@ class FundFlowVisualizer:
                     f"Unsupported chain '{chain}' for fund flow, attempting generic fetch"
                 )
                 wallets = await _fetch_evm_wallets(token_address, chain)
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("analyze_error", exc_info=True)
             logger.warning(f"Wallet data fetch failed: {e}")
 
         # ── Build flow graph ───────────────────────────────────
@@ -781,7 +788,8 @@ class FundFlowVisualizer:
             with open(svg_path, "w", encoding="utf-8") as f:
                 f.write(svg_content)
             logger.info(f"Fund flow SVG saved to {svg_path}")
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Failed to save SVG to {svg_path}: {e}")
             svg_path = ""
 

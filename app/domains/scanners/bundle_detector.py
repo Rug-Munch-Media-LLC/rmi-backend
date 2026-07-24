@@ -128,7 +128,8 @@ class BundleDetector:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
@@ -136,7 +137,8 @@ class BundleDetector:
         """Fetch token metadata from Solscan (Solana)."""
         try:
             return self._solscan.token_data(token_address)
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_solscan_token_data_error", exc_info=True)
             logger.warning(f"Solscan token data failed for {token_address}: {e}")
             return None
 
@@ -163,7 +165,8 @@ class BundleDetector:
         """Fetch transaction history from Solscan."""
         try:
             return self._solscan.account_transactions(address, page=page, page_size=page_size) or []
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_solscan_transactions_error", exc_info=True)
             logger.warning(f"Solscan transactions failed for {address}: {e}")
             return []
 
@@ -171,7 +174,8 @@ class BundleDetector:
         """Fetch transaction detail from Solscan."""
         try:
             return self._solscan.transaction_detail(tx_hash)
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_solscan_transaction_detail_error", exc_info=True)
             logger.warning(f"Solscan transaction detail failed for {tx_hash}: {e}")
             return None
 

@@ -7,7 +7,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.prediction.prediction_market_package.models import PredictionMarket, extract_token_symbols
+from app.domains.prediction.prediction_market_package.models import (
+    PredictionMarket,
+    extract_token_symbols,
+)
 
 logger = get_logger("prediction_market.kalshi")
 
@@ -45,7 +48,8 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
             except (ConnectionError, OSError, TimeoutError):
                 continue
         return results
-    except Exception as e:
+    except (json.JSONDecodeError, KeyError, TypeError) as e :
+        logger.debug("search_error", exc_info=True)
         logger.warning(f"Kalshi search error: {e}")
         return []
 
@@ -71,7 +75,8 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
             except (ConnectionError, OSError, TimeoutError):
                 continue
         return results[:limit]
-    except Exception as e:
+    except (json.JSONDecodeError, KeyError, TypeError) as e :
+        logger.debug("trending_error", exc_info=True)
         logger.warning(f"Kalshi trending error: {e}")
         return []
 
@@ -96,7 +101,8 @@ async def detail(http_client: Any, ticker: str) -> PredictionMarket | None:
                     pm.probability_no = 1.0 - best_yes
                     return pm
         return None
-    except Exception as e:
+    except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+        logger.debug("detail_error", exc_info=True)
         logger.warning(f"Kalshi detail error for {ticker}: {e}")
         return None
 
@@ -121,6 +127,7 @@ def _parse_market(m: dict) -> PredictionMarket | None:
             url=f"https://kalshi.com/markets/{ticker}" if ticker else "",
             updated_at=datetime.now(UTC).isoformat(),
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError) as e :
+        logger.debug("_parse_market_error", exc_info=True)
         logger.warning(f"Failed to parse Kalshi market: {e}")
         return None

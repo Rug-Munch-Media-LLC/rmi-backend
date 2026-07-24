@@ -2,6 +2,7 @@
 
 import json
 import os
+
 from app.core.logging import get_logger
 from app.domains.airdrop.multichain.models import CrossChainHolder
 
@@ -136,7 +137,8 @@ class CrossChainIdentityResolver:
             await r.set(reverse_key, json.dumps(reverse_data))
 
             return True
-        except Exception as e:
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+            logger.debug("store_linkage_error", exc_info=True)
             logger.error(f"Store linkage failed: {e}")
             return False
 

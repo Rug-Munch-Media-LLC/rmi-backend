@@ -69,7 +69,7 @@ async def revoke_key(key: str) -> dict:
 async def get_usage(x_api_key: str = Header(...)) -> dict:
     """Get your API usage stats."""
     if x_api_key not in _api_keys:
-        raise HTTPException(401, "Invalid API key")
+        raise AuthError("Invalid API key")
     return {
         "key": x_api_key,
         "tier": _api_keys[x_api_key]["tier"],

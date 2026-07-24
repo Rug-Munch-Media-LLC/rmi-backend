@@ -148,7 +148,8 @@ class LiquidityVerifier:
             elif resp.status_code == 429:
                 logger.warning(f"Etherscan rate limited for {chain}")
                 return None
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_etherscan_get_error", exc_info=True)
             logger.warning(f"Etherscan call failed for {chain}: {e}")
         return None
 
@@ -185,7 +186,8 @@ class LiquidityVerifier:
                 return data.get("result", data.get("data", data))
             elif resp.status_code == 429:
                 logger.warning("Moralis rate limited")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_moralis_get_error", exc_info=True)
             logger.warning(f"Moralis call failed: {e}")
         return None
 
@@ -204,7 +206,8 @@ class LiquidityVerifier:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("result")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_helius_rpc_error", exc_info=True)
             logger.warning(f"Helius RPC call failed: {e}")
         return None
 
@@ -222,7 +225,8 @@ class LiquidityVerifier:
                 if isinstance(data, list) and len(data) > 0:
                     return data[0]
                 return data
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_helius_das_get_asset_error", exc_info=True)
             logger.warning(f"Helius DAS asset lookup failed for {mint_address}: {e}")
         return None
 
@@ -499,7 +503,8 @@ class LiquidityVerifier:
                                 mint = info.get("mint", "")
                                 if mint == lp_address:
                                     return True
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_check_solana_lp_burn_error", exc_info=True)
             logger.debug(f"Solana LP burn check failed: {e}")
 
         # Fallback: check token metadata for LP burn indication
@@ -550,7 +555,8 @@ class LiquidityVerifier:
                     )
                 if holders:
                     return holders
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+            logger.debug("_get_lp_holders_error", exc_info=True)
             logger.debug(f"Moralis holders query failed: {e}")
 
         # Fallback: Etherscan token holders

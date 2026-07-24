@@ -93,7 +93,8 @@ class PumpDumpDetector:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
@@ -110,7 +111,8 @@ class PumpDumpDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("data", body)
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_birdeye_overview_error", exc_info=True)
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
         return None
 
@@ -127,7 +129,8 @@ class PumpDumpDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("data", {}).get("items", []) or []
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_birdeye_trades_error", exc_info=True)
             logger.warning(f"Birdeye trades failed for {token_address}: {e}")
         return []
 

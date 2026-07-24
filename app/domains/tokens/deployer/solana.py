@@ -22,11 +22,11 @@ class SolanaDeployer(ChainDeployer):
 
     async def deploy_token(self, params: DeployParams) -> TokenDeployment:
         from solana.transaction import Transaction
+        from solders.keypair import Keypair
         from solders.pubkey import Pubkey
         from solders.system_program import CreateAccountParams, create_account
         from spl.token.constants import TOKEN_PROGRAM_ID
         from spl.token.instructions import create_mint, get_associated_token_address, mint_to
-        from solders.keypair import Keypair
 
         try:
             mint = Keypair()
@@ -73,7 +73,8 @@ class SolanaDeployer(ChainDeployer):
             )
             logger.info(f"Deployed SPL token {params.symbol} on Solana at {mint.pubkey()}")
             return deployment
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError, OSError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Solana deploy failed: {e}")
             raise
 

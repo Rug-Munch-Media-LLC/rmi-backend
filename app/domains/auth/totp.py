@@ -16,14 +16,20 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-from app.domains.auth.router import router
-from app.domains.auth.jwt import JWT_ALGORITHM, JWT_SECRET, _JWT_PRIVATE_KEY, _JWT_PUBLIC_KEY, _create_jwt
-from app.domains.auth.store import _get_user, _get_user_by_email, _save_user
-from app.domains.auth.passwords import hash_password, verify_password
 from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie
 from app.domains.auth.deps import get_current_user
-from app.domains.auth.schemas import TwoFAEnableRequest, TwoFALoginRequest, TwoFASetupResponse, TwoFAStatusResponse, TwoFAVerifyRequest
-from app.core.slowrate import limiter
+from app.domains.auth.jwt import (
+    _create_jwt,
+)
+from app.domains.auth.passwords import hash_password, verify_password
+from app.domains.auth.router import router
+from app.domains.auth.schemas import (
+    TwoFAEnableRequest,
+    TwoFALoginRequest,
+    TwoFAStatusResponse,
+    TwoFAVerifyRequest,
+)
+from app.domains.auth.store import _get_user_by_email, _save_user
 
 # ── 2FA / TOTP ──
 try:

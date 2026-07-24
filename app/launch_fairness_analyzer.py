@@ -32,18 +32,12 @@ from enum import Enum
 from typing import Any
 
 from app.core.logging import get_logger
+from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE, is_valid_address
+
 
 logger = get_logger("launch_fairness_analyzer")
 
 # ── Address validation ──────────────────────────────────────────
-EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
-SOLANA_ADDRESS_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
-
-
-def is_valid_address(addr: str) -> bool:
-    addr = addr.strip()
-    return bool(EVM_ADDRESS_RE.match(addr) or SOLANA_ADDRESS_RE.match(addr))
-
 
 # ── Enums ────────────────────────────────────────────────────────
 

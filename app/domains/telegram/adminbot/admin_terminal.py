@@ -177,7 +177,7 @@ def run_quick(cmd_name: str) -> dict[str, Any]:
             "error": r.stderr if r.returncode != 0 else "",
             "duration": time.time() - t0,
         }
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
         return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
 
 

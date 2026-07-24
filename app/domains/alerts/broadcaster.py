@@ -23,7 +23,7 @@ class AlertBroadcaster:
         """Broadcast a single event to all connected WebSocket subscribers."""
         try:
             await broadcast_alert(event.model_dump(mode="json"))
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, OSError) as e :
             # Broadcasting failure must not break the firing path.
             log.warning(
                 "alert_broadcast_failed",

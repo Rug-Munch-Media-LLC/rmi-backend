@@ -1,6 +1,7 @@
 """Multi-chain snapshot engine."""
 
 import os
+
 from app.core.logging import get_logger
 from app.domains.airdrop.multichain.models import CrossChainHolder, TokenSource
 
@@ -101,7 +102,8 @@ class MultiChainSnapshotEngine:
                     "topics": [transfer_topic],
                 }
             )
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError) as e :
+            logger.debug("_get_evm_holders_error", exc_info=True)
             logger.error(f"EVM log query failed: {e}")
             return {}
 
@@ -161,7 +163,8 @@ class MultiChainSnapshotEngine:
 
             return holders
 
-        except Exception as e:
+        except (ValueError, KeyError, TypeError) as e :
+            logger.debug("_get_solana_holders_error", exc_info=True)
             logger.error(f"Solana holder fetch failed: {e}")
             return {}
 

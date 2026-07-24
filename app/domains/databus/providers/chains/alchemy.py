@@ -2,7 +2,6 @@
 Alchemy providers — token balances and metadata (freemium, 300M compute/mo).
 """
 
-from typing import Any
 
 import httpx
 

@@ -7,7 +7,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.prediction.prediction_market_package.models import PredictionMarket, extract_token_symbols
+from app.domains.prediction.prediction_market_package.models import (
+    PredictionMarket,
+    extract_token_symbols,
+)
 
 logger = get_logger("prediction_market.polymarket")
 
@@ -31,7 +34,8 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
                 if pm:
                     markets.append(pm)
         return markets
-    except Exception as e:
+    except (requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        logger.debug("search_error", exc_info=True)
         logger.warning(f"Polymarket search error: {e}")
         return []
 
@@ -53,7 +57,8 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
                 if pm:
                     markets.append(pm)
         return markets
-    except Exception as e:
+    except (requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        logger.debug("trending_error", exc_info=True)
         logger.warning(f"Polymarket trending error: {e}")
         return []
 
@@ -82,7 +87,8 @@ async def detail(http_client: Any, slug: str) -> PredictionMarket | None:
                 except (ConnectionError, OSError, TimeoutError):
                     pass
         return pm
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+        logger.debug("detail_error", exc_info=True)
         logger.warning(f"Polymarket detail error for {slug}: {e}")
         return None
 
@@ -114,7 +120,8 @@ def _parse_market(m: dict, event: dict | None = None) -> PredictionMarket | None
             ends_at=m.get("endDate", event.get("endDate", "") if event else ""),
             updated_at=datetime.now(UTC).isoformat(),
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError) as e :
+        logger.debug("_parse_market_error", exc_info=True)
         logger.warning(f"Failed to parse Polymarket market: {e}")
         return None
 

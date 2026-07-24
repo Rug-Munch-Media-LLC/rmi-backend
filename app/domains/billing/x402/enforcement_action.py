@@ -361,5 +361,6 @@ def _record_refundable_payment(
     try:
         r.setex(refund_key, 7 * 86400, json.dumps(refund_data))
         logger.info(f"Recorded refundable payment: {tx_hash[:16]}... tool={tool} reason={reason}")
-    except Exception as e:  # noqa: BLE001
+    except (json.JSONDecodeError, KeyError, TypeError) as e :
+        logger.debug("_record_refundable_payment_error", exc_info=True)
         logger.error(f"Failed to record refund for {tx_hash}: {e}")

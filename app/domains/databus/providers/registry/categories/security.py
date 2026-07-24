@@ -11,7 +11,18 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     _g = locals_dict
     # ── Conditional imports for optional databus modules ──
     try:
-        from app.databus.premium_scanner import run_bundle_scan, run_cluster_map, run_dev_finder, run_sniper_detect, run_bot_farm_detect, run_copy_trade_detect, run_insider_detect, run_wash_trade_detect, run_mev_detect, run_fresh_wallet_analysis
+        from app.databus.premium_scanner import (
+            run_bot_farm_detect,
+            run_bundle_scan,
+            run_cluster_map,
+            run_copy_trade_detect,
+            run_dev_finder,
+            run_fresh_wallet_analysis,
+            run_insider_detect,
+            run_mev_detect,
+            run_sniper_detect,
+            run_wash_trade_detect,
+        )
     except ImportError:
         run_bundle_scan = run_cluster_map = run_dev_finder = run_sniper_detect = None
         run_bot_farm_detect = run_copy_trade_detect = run_insider_detect = None
@@ -25,7 +36,18 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     except ImportError:
         get_check_matrix_endpoint = run_full_scan = None
     try:
-        from app.databus.rugcharts_intel import get_smart_money, get_whale_alerts, get_token_launches, detect_insiders, analyze_liquidity_risk, check_holder_health, track_cross_chain_entity, detect_rug_patterns, get_dev_reputation, get_enhanced_token_report
+        from app.databus.rugcharts_intel import (
+            analyze_liquidity_risk,
+            check_holder_health,
+            detect_insiders,
+            detect_rug_patterns,
+            get_dev_reputation,
+            get_enhanced_token_report,
+            get_smart_money,
+            get_token_launches,
+            get_whale_alerts,
+            track_cross_chain_entity,
+        )
     except ImportError:
         get_smart_money = get_whale_alerts = get_token_launches = detect_insiders = None
         analyze_liquidity_risk = check_holder_health = track_cross_chain_entity = None

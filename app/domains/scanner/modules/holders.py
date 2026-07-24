@@ -154,7 +154,7 @@ async def _check_liquidity_lock_multi(
             return result
     except ImportError:
         pass
-    except Exception as e:  # noqa: BLE001
+    except (KeyError, TypeError) as e :
         logger.debug("honeypot_liquidity_failed", error=str(e))
 
     # Fallback: direct DexScreener check

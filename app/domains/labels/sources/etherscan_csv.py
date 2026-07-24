@@ -65,7 +65,7 @@ async def query_etherscan_csv(address: str, chain: str = "ethereum") -> list[Lab
                 return labels
             finally:
                 d.close()
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e :
             log.warning("etherscan_csv_query_fail address=%s err=%s", address[:10], e)
             raise
 

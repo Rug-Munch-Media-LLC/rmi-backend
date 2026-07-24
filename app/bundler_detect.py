@@ -32,13 +32,12 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.shared_utils import EVM_ADDRESS_RE as EVM_ADDR_RE, SOLANA_ADDRESS_RE as SOLANA_ADDR_RE
 
 logger = get_logger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────
 
-SOLANA_ADDR_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
-EVM_ADDR_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
 
 EVM_CHAINS = frozenset(
     {

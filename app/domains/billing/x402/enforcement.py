@@ -114,7 +114,7 @@ async def get_redis_async() -> Any:
         from app.core.redis import get_redis_async as _get_async
 
         return _get_async()
-    except (AttributeError, ImportError):  # noqa: BLE001
+    except (AttributeError, ImportError):
         return None
 
 

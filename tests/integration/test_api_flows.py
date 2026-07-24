@@ -12,6 +12,7 @@ Uses TestClient against the real FastAPI app factory.
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -480,3 +481,12 @@ class TestErrorFlows:
         assert resp.status_code == 422
         # Check for content-type header (most basic response header)
         assert "content-type" in resp.headers or "Content-Type" in resp.headers
+
+    @pytest.mark.integration
+    def test_unknown_route_returns_404(self, app) -> None:
+        """GET on an unregistered route returns 404."""
+        from fastapi.testclient import TestClient
+
+        client = TestClient(app)
+        resp = client.get("/this/route/does/not/exist", headers=_AUTH)
+        assert resp.status_code == 404

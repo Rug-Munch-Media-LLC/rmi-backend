@@ -25,7 +25,7 @@ class TokenRepository:
             client = get_databus_client()
             raw = await client.get_token_info(address, chain=chain)
             return self._parse_detail(address, chain, raw or {})
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e :
             log.warning("token_detail_fetch_failed", address=address[:12], error=str(e))
             return TokenDetail(address=address, chain=chain)
 
@@ -42,7 +42,7 @@ class TokenRepository:
             client = get_databus_client()
             raw = await client.get_token_holders(address, chain=chain, limit=limit)
             return [self._parse_holder(h) for h in (raw or [])]
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e :
             log.warning("token_holders_fetch_failed", address=address[:12], error=str(e))
             return []
 
@@ -54,7 +54,7 @@ class TokenRepository:
             client = get_databus_client()
             raw = await client.get_token_liquidity(address, chain=chain)
             return self._parse_liquidity(address, chain, raw or {})
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e :
             log.warning("token_liquidity_fetch_failed", address=address[:12], error=str(e))
             return TokenLiquidity(address=address, chain=chain)
 

@@ -29,6 +29,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.shared_utils import EVM_ADDRESS_RE
 
 logger = get_logger(__name__)
 
@@ -144,12 +145,12 @@ class ContractUpgradeReport:
 
 # ── Address Validation ────────────────────────────────────────────
 
-EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
 
 
 def is_valid_evm_address(address: str) -> bool:
     """Validate an EVM address format with optional EIP-55 checksum."""
-    return bool(EVM_ADDRESS_RE.match(address))
+    from app.core.shared_utils import is_evm_address
+    return is_evm_address(address)
 
 
 # ── HTTP Client ───────────────────────────────────────────────────

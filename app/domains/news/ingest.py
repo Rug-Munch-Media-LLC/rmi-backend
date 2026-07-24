@@ -95,7 +95,8 @@ async def fetch_feed(client: httpx.AsyncClient, feed: dict[str, str]) -> list[di
                 }
             )
         return items
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        logger.debug("fetch_feed_error", exc_info=True)
         log.warning("feed_fetch_fail name=%s err=%s", feed["name"], e)
         return []
 
@@ -155,7 +156,8 @@ async def ingest_all(
                     tokens_mentioned=tickers,
                 )
                 items_to_ingest.append(ni)
-            except Exception as e:
+            except (httpx.HTTPError, KeyError, TypeError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 counts["errors"] += 1
                 log.debug("item_build_fail: %s", e)
 
@@ -194,10 +196,12 @@ async def ingest_all(
                             ni.sentiment_score,
                         )
                         counts["ingested"] += 1
-                    except Exception as e:
+                    except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
+                        logger.debug("unknown_error", exc_info=True)
                         counts["errors"] += 1
                         log.debug("item_insert_fail: %s", e)
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             log.warning("ingest_postgres_fail: %s", e)
 
     # Embed into RAG for semantic search
@@ -221,7 +225,8 @@ async def ingest_all(
                             )
                     except (ConnectionError, OSError):
                         pass
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             log.warning("ingest_rag_fail: %s", e)
 
     return counts

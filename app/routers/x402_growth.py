@@ -9,7 +9,9 @@ import os
 import secrets
 import time
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+
+from app.core.errors import NotFoundError
 from fastapi.responses import HTMLResponse
 
 from app.core.logging import get_logger
@@ -336,7 +338,7 @@ async def affiliate_stats(code: str) -> Any:
     """Get affiliate stats - earnings, referrals, payouts."""
     aff = _affiliates.get(code)
     if not aff:
-        raise HTTPException(status_code=404, detail="Affiliate not found")
+        raise NotFoundError("Affiliate not found")
     return aff
 
 

@@ -6,7 +6,6 @@ from fastapi import HTTPException, Request
 
 from app.domains.auth.jwt import _verify_jwt
 from app.domains.auth.store import _get_user
-from app.domains.auth.router import router
 
 
 def _extract_token(request: Request) -> str | None:

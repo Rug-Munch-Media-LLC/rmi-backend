@@ -107,5 +107,6 @@ def build_bitquery_chains(chains: dict[str, ProviderChain]) -> None:
             ],
         )
         logger.info("Bitquery chains registered: holder_data, tx_trace, cross_chain")
-    except Exception as e:
+    except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Bitquery not available: {e}")

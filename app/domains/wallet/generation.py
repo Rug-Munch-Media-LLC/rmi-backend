@@ -8,7 +8,13 @@ import hashlib
 import secrets
 
 from app.core.logging import get_logger
-from app.domains.wallet.models import CHAIN_REGISTRY, ChainMeta, WalletPurpose, WalletTier, WalletRecord
+from app.domains.wallet.models import (
+    CHAIN_REGISTRY,
+    ChainMeta,
+    WalletPurpose,
+    WalletRecord,
+    WalletTier,
+)
 
 logger = get_logger("wallet_generation")
 
@@ -19,8 +25,15 @@ _HAS_NACL: bool = False
 
 try:
     from bip_utils import (
-        Bip39MnemonicGenerator, Bip39SeedGenerator, Bip39WordsNum,
-        Bip44, Bip44Coins, Bip49, Bip49Coins, Bip84, Bip84Coins,
+        Bip39MnemonicGenerator,
+        Bip39SeedGenerator,
+        Bip39WordsNum,
+        Bip44,
+        Bip44Coins,
+        Bip49,
+        Bip49Coins,
+        Bip84,
+        Bip84Coins,
     )
     _HAS_BIP_UTILS = True
 except ImportError:
@@ -165,7 +178,8 @@ class WalletGenerationMixin:
                 address = monero_ctx.PublicKey().ToAddress()
                 pub_key = monero_ctx.PublicKey().RawCompressed().ToHex()
                 return address, pub_key, mnemonic
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, OSError) as e :
+                logger.debug("_generate_monero_wallet_error", exc_info=True)
                 logger.warning(f"bip_utils Monero failed ({e}), trying fallback")
 
         if _HAS_NACL:
@@ -242,7 +256,8 @@ class WalletGenerationMixin:
                     purpose=purpose, tier=tier, group=group, created_by=created_by,
                 )
                 wallets.append(wallet)
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, KeyError, OSError) as e :
+                logger.debug("generate_batch_error", exc_info=True)
                 logger.error(f"Failed to generate {chain} wallet: {e}")
         return wallets
 

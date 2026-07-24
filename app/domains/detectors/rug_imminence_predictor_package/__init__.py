@@ -16,8 +16,8 @@ from app.domains.detectors.rug_imminence_predictor_package.types import (
 )
 
 __all__ = [
-    "RugImminencePredictor",
     "ImminenceLevel",
     "RIPResult",
+    "RugImminencePredictor",
     "SignalCategory",
 ]

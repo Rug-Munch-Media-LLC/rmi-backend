@@ -265,7 +265,8 @@ class ContractAuthorityScanner:
             self._compute_risk(report)
             return report
 
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Solana authority scan failed for {token_address}: {e}")
             report.warnings.append(f"Solana scan error: {str(e)[:120]}")
             self._compute_risk(report)
@@ -319,7 +320,8 @@ class ContractAuthorityScanner:
                 "mint_authority": mint_authority,
                 "freeze_authority": freeze_authority,
             }
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("pk_from_bytes_error", exc_info=True)
             logger.debug(f"Raw SPL mint parse failed: {e}")
             return None
 
@@ -443,7 +445,8 @@ class ContractAuthorityScanner:
             self._compute_risk(report)
             return report
 
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"EVM authority scan failed for {token_address} on {chain}: {e}")
             report.warnings.append(f"EVM scan error: {str(e)[:120]}")
             report.evm_proxy = proxy_info
@@ -561,7 +564,8 @@ class ContractAuthorityScanner:
                 if data.get("result") and data["result"] not in ("", "0x", None):
                     return data
             return None
-        except Exception as e:
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_etherscan_get_error", exc_info=True)
             logger.debug(f"Etherscan API error: {e}")
             return None
 

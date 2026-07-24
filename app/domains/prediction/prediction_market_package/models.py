@@ -3,7 +3,6 @@ Prediction Market — Data Models
 Unified dataclasses across all prediction market sources.
 """
 from dataclasses import dataclass, field
-from typing import Any
 
 SECURITY_KEYWORDS = [
     "hack","exploit","rug","scam","fraud","breach","leak","drain","phish",

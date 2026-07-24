@@ -5,7 +5,6 @@ Covers: wallet tokens, NFTs, transactions, token price/metadata,
 net worth, and token search.
 """
 
-from typing import Any
 
 import httpx
 
@@ -115,7 +114,7 @@ async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
-                f"https://deep-index.moralis.io/api/v2/erc20/metadata",
+                "https://deep-index.moralis.io/api/v2/erc20/metadata",
                 headers={"X-API-Key": api_key},
                 params={"chain": chain, "addresses[]": address},
             )
@@ -152,7 +151,7 @@ async def _moralis_search_tokens(query: str = "", **kw) -> dict | None:
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
-                f"https://deep-index.moralis.io/api/v2/tokens/search",
+                "https://deep-index.moralis.io/api/v2/tokens/search",
                 headers={"X-API-Key": api_key},
                 params={"q": query},
             )

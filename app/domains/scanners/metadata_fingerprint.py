@@ -538,7 +538,8 @@ class MetadataFingerprinter:
                     # Logo URL from pair data
                     dex_logo_url = info.get("imageUrl", "") or ""
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"DexScreener metadata fetch failed for {token_address}: {e}")
 
         # --- Birdeye: supplementary metadata (social, website, security) ---
@@ -595,7 +596,8 @@ class MetadataFingerprinter:
                 list_data = resp2.json().get("data") or {}
                 birdeye_description = list_data.get("description", "") or ""
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Birdeye metadata fetch failed for {token_address}: {e}")
 
         # --- Merge data: DexScreener first, Birdeye supplements ---

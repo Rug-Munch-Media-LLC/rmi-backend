@@ -8,27 +8,26 @@ import json
 import math
 import random
 import time
-from typing import Any
 
 from app.core.logging import get_logger
 
 from .constants import (
     CHAINLINK_FEEDS,
+    CROSS_POOL_DIVERGENCE_THRESHOLD,
     KNOWN_LP_POOLS,
+    MIN_TWAP_SAMPLES,
     SUPPORTED_CHAINS,
     TWAP_MANIPULATION_THRESHOLD_PCT,
-    MIN_TWAP_SAMPLES,
-    CROSS_POOL_DIVERGENCE_THRESHOLD,
 )
 from .models import (
-    OracleType,
-    ManipulationType,
-    Severity,
-    PriceSnapshot,
-    TWAPWindow,
-    OracleRead,
-    PriceManipulation,
     ManipulationReport,
+    ManipulationType,
+    OracleRead,
+    OracleType,
+    PriceManipulation,
+    PriceSnapshot,
+    Severity,
+    TWAPWindow,
 )
 
 logger = get_logger(__name__)
@@ -80,7 +79,8 @@ class OracleManipulationDetector:
                 combined_report.oracle_reads.extend(report.oracle_reads)
                 combined_report.pools_checked += report.pools_checked
                 combined_report.errors.extend(report.errors)
-            except Exception as e:
+            except (ValueError, TypeError, KeyError, OSError) as e :
+                logger.debug("scan_error", exc_info=True)
                 combined_report.errors.append(f"Chain {chain}: {e}")
 
         combined_report.end_time = time.time()
@@ -123,7 +123,8 @@ class OracleManipulationDetector:
                     )
                     report.incidents.append(incident)
             report.pools_checked = 1
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, OSError) as e :
+            logger.debug("analyze_pool_error", exc_info=True)
             report.errors.append(f"Pool analysis error: {e}")
 
         report.end_time = time.time()
@@ -227,7 +228,8 @@ class OracleManipulationDetector:
                                 evidence=[f"risk={risk:.2%}"],
                             )
                             report.incidents.append(incident)
-                except Exception as e:
+                except (KeyError, TypeError) as e :
+                    logger.debug("unknown_error", exc_info=True)
                     report.errors.append(f"TWAP pool {pair}: {e}")
 
         # 2. Check LP pool price divergence (cross-pool)
@@ -265,7 +267,8 @@ class OracleManipulationDetector:
                             evidence=[f"age={read.price_age_seconds:.0f}s", f"reported={read.reported_price}"],
                         )
                         report.incidents.append(incident)
-            except Exception as e:
+            except (KeyError, TypeError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 report.errors.append(f"Chainlink check: {e}")
 
         # 4. Detect flash loan + swap patterns

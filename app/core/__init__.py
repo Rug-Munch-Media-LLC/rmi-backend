@@ -11,4 +11,38 @@ Modules (populated by parallel DeepSeek tasks DS-1..DS-10):
     - middleware: CORS, rate limit, correlation ID (DS-8)
     - websocket: connection manager (DS-9)
     - tracing: OpenTelemetry + Langfuse v4 (DS-10)
+    - dependencies: central DI hub (REFACTOR-2026-Q3)
 """
+
+from __future__ import annotations
+
+# Re-export DI providers so callers can ``from app.core import get_settings``
+from app.core.dependencies import (
+    get_settings,
+    get_db,
+    get_http_client,
+    get_redis,
+    get_chain_client,
+    get_evm_client,
+    get_rate_limiter,
+    get_token_scanner,
+    get_wallet_scanner,
+    get_pryscraper_client,
+    get_client_ip,
+    close_http_client,
+)
+
+__all__ = [
+    "get_settings",
+    "get_db",
+    "get_http_client",
+    "get_redis",
+    "get_chain_client",
+    "get_evm_client",
+    "get_rate_limiter",
+    "get_token_scanner",
+    "get_wallet_scanner",
+    "get_pryscraper_client",
+    "get_client_ip",
+    "close_http_client",
+]

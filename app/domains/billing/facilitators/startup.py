@@ -33,7 +33,8 @@ async def register_all_facilitators() -> None:
 
         registry.register(PrimevFacilitator())
         logger.info("Registered: Primev FastRPC (fee-free Ethereum)")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("register_all_facilitators_error", exc_info=True)
         logger.warning(f"Failed to register Primev: {e}")
 
     # ── 2. Coinbase CDP (highest priority for Base) ──
@@ -43,7 +44,8 @@ async def register_all_facilitators() -> None:
 
         registry.register(CoinbaseCDPFacilitator())
         logger.info("Registered: Coinbase CDP (Base + Solana, fee-free)")
-    except Exception as e:  # noqa: BLE001
+    except (ConnectionError, TimeoutError, ValueError) as e :
+        logger.debug("register_all_facilitators_error", exc_info=True)
         logger.warning(f"Failed to register Coinbase CDP: {e}")
 
     # ── 3. BNB Pieverse (BNB Chain) - OFFLINE: api.pieverse.xyz NXDOMAIN ──
@@ -76,7 +78,8 @@ async def register_all_facilitators() -> None:
             logger.info("Registered: TRON Self-Verify (USDT/USDC/USDD via TronGrid, fee-free)")
         else:
             logger.info("TRON Self-Verify: skipped (no X402_TRON_PAY_TO wallet configured)")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register TRON Self-Verify: {e}")
 
     # ── 5. PayAI (Base + Solana, always available - no key needed) ──
@@ -85,7 +88,8 @@ async def register_all_facilitators() -> None:
 
         registry.register(PayAIFacilitator())
         logger.info("Registered: PayAI (Base + Solana, deferred)")
-    except Exception as e:  # noqa: BLE001
+    except (ConnectionError, TimeoutError, ValueError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register PayAI: {e}")
 
     # ── 6. AsterPay (EUR/SEPA Europe) ──
@@ -95,7 +99,8 @@ async def register_all_facilitators() -> None:
 
         registry.register(AsterPayFacilitator())
         logger.info("Registered: AsterPay (European, EUR/SEPA off-ramp)")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register AsterPay: {e}")
 
     # ── 7. Cloudflare x402 (Base Sepolia fallback) ──
@@ -104,7 +109,8 @@ async def register_all_facilitators() -> None:
 
         registry.register(CloudflareX402Facilitator())
         logger.info("Registered: Cloudflare x402 (Base Sepolia/Ethereum, deferred)")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register Cloudflare x402: {e}")
 
     # ── 8. Satoshi (Bitcoin) - OFFLINE: api.satoshi.dev NXDOMAIN ──
@@ -127,7 +133,8 @@ async def register_all_facilitators() -> None:
             logger.info("Registered: Bitcoin Self-Verify (BTC via Mempool.space, fee-free)")
         else:
             logger.info("Bitcoin Self-Verify: skipped (no X402_BTC_PAY_TO wallet configured)")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register Bitcoin Self-Verify: {e}")
 
     # ── 9. Self-hosted x402-rs (optional, check if container is running) ──
@@ -142,7 +149,8 @@ async def register_all_facilitators() -> None:
             logger.info("Registered: x402-rs (self-hosted, multi-chain)")
         else:
             logger.info("x402-rs: container not running - skipped")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.info(f"x402-rs: not available - {e}")
 
     # ── 10. EIP-7702 Universal EVM (always available - no key needed) ──
@@ -151,7 +159,8 @@ async def register_all_facilitators() -> None:
 
         registry.register(EIP7702Facilitator())
         logger.info("Registered: EIP-7702 Universal EVM (all chains, all tokens)")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register EIP-7702: {e}")
 
     # ── Summary ─────────────────────────────────────────────────

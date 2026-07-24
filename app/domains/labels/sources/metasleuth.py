@@ -97,7 +97,7 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
         except httpx.HTTPError as e:
             log.warning("metasleuth_api_http_err: %s", e)
             return {}
-        except Exception as e:
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
             log.warning("metasleuth_api_err: %s", e)
             return {}
 

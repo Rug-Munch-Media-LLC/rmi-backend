@@ -39,9 +39,10 @@ DEFILLAMA_PROTOCOL = "https://api.llama.fi/protocol/{}"
 DEFILLAMA_TOKEN = "https://api.llama.fi/token/{}"
 GMGN_API = "https://gmgn.ai/defi/quotation/v1/tokens/{}"
 # ── Compiled patterns ────────────────────────────────────────────
-_RE_TOKEN_ADDR = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
-_RE_SOLANA_ADDR = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
-_RE_EVM_ADDR = re.compile(r"^0x[a-fA-F0-9]{40}$")
+from app.core.shared_utils import EVM_ADDRESS_RE as _RE_EVM_ADDR, SOLANA_ADDRESS_RE as _RE_SOLANA_ADDR
+
+# Note: _RE_TOKEN_ADDR kept as alias for token-specific validation
+_RE_TOKEN_ADDR = _RE_SOLANA_ADDR
 _RE_URL = re.compile(r"^https?://[a-zA-Z0-9.-]+(?::\d+)?(?:/.*)?$")
 _RE_SOCIAL_LINK = re.compile(
     r"(twitter\.com|x\.com|t\.me|discord\.gg|discord\.com/invite|github\.com|"

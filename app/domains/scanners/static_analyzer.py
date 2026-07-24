@@ -153,7 +153,8 @@ class StaticAnalyzer:
                     source_code = entry.get("SourceCode", "")
                     if source_code and source_code not in ("", "0x", None):
                         return entry
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_contract_source_error", exc_info=True)
             logger.warning(f"Etherscan source fetch failed for {address}: {e}")
         return None
 
@@ -215,7 +216,8 @@ class StaticAnalyzer:
         except TimeoutError:
             logger.warning(f"Heimdall decompile timed out for {address}")
             return None
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Heimdall decompile error for {address}: {e}")
             return None
 
@@ -269,7 +271,8 @@ class StaticAnalyzer:
         except json.JSONDecodeError:
             logger.warning(f"Slither output not valid JSON for {sol_path}")
             return []
-        except Exception as e:
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Slither failed on {sol_path}: {e}")
             return []
 
@@ -297,7 +300,8 @@ class StaticAnalyzer:
                             "timestamp": alert.get("timestamp", ""),
                         }
                     )
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_forta_alerts_error", exc_info=True)
             logger.debug(f"Forta alerts query failed for {address}: {e}")
         return alerts
 
@@ -336,7 +340,8 @@ class StaticAnalyzer:
                             "description": issue.get("description", ""),
                         }
                     )
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_smartcheck_error", exc_info=True)
             logger.debug(f"SmartCheck query failed for {address}: {e}")
         return findings
 

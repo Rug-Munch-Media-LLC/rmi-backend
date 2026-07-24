@@ -10,6 +10,7 @@ Rate Limits: Free tier - 100 queries/day, Pro - 1000/day, Enterprise - Unlimited
 """
 
 import asyncio
+import json
 from datetime import datetime
 
 import httpx
@@ -141,7 +142,17 @@ class MBALService:
                 return []
             logger.error(f"MBAL API error: {e} for {chain}:{address}")
             return []
-        except Exception as e:
+        except (
+            httpx.HTTPError,
+            json.JSONDecodeError,
+            ValueError,
+            TypeError,
+            KeyError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
+            logger.debug("unknown_error", exc_info=True)
             logger.error(f"Unexpected error querying MBAL: {e}")
             return []
 
@@ -256,7 +267,7 @@ class MBALService:
         try:
             response = await self.client.get(f"{self.base_url}/health")
             return response.status_code == 200
-        except:  # noqa: E722
+        except (httpx.HTTPError, ConnectionError, TimeoutError, OSError):
             return False
 
 

@@ -81,7 +81,7 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
                 return payload
         except (MemoryError, KeyboardInterrupt, SystemExit):
             raise
-        except (json.JSONDecodeError):  # noqa: BLE001
+        except (json.JSONDecodeError):
             pass
 
         if stripped.startswith("x402 "):
@@ -95,7 +95,8 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
             return json.loads(payload_str)
 
         return None
-    except Exception as e:  # noqa: BLE001
+    except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+        logger.debug("parse_x_pay_header_error", exc_info=True)
         logger.warning(f"Failed to parse payment header: {e}")
         return None
 
@@ -428,7 +429,7 @@ async def self_verify_evm_usdc(
                     status="fulfilled",
                 )
             )
-        except (AttributeError, ImportError):  # noqa: BLE001
+        except (AttributeError, ImportError):
             pass
 
         logger.info(

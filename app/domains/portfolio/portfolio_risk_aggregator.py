@@ -2,7 +2,7 @@
 Cross-Chain Portfolio Risk Aggregator
 Re-export from package.
 """
-from app.domains.portfolio.portfolio_risk_package import (  # noqa: F401
+from app.domains.portfolio.portfolio_risk_aggregator import (  # noqa: F401
     ChainPortfolio,
     PortfolioRiskAggregator,
     PortfolioRiskProfile,

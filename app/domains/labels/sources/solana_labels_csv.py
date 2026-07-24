@@ -69,7 +69,7 @@ async def query_solana_labels_csv(address: str, chain: str = "solana") -> list[L
                 return labels
             finally:
                 d.close()
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError, TypeError, KeyError) as e :
             log.warning("solana_labels_csv_query_fail address=%s err=%s", address[:10], e)
             raise
 

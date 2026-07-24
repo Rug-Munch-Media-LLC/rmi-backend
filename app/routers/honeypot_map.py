@@ -3,7 +3,9 @@
 fund flows. Interactive graph showing the honeypot factory network."""
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+
+from app.core.errors import UpstreamError
 from pydantic import BaseModel
 
 from app.config import settings
@@ -144,7 +146,7 @@ async def get_honeypot_network(
                                     }
                                 )
     except Exception as e:
-        raise HTTPException(502, f"Labels service unavailable: {e}") from e
+        raise UpstreamError(f"Labels service unavailable: {e}") from e
 
     return {
         "chain": chain,

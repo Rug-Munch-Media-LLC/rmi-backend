@@ -198,7 +198,8 @@ async def query_address_rag(
             if c:
                 formatted.append(c)
         return formatted
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("query_address_rag_error", exc_info=True)
         logger.debug(f"Address RAG query failed for {address[:10]}...: {e}")
         return []
 

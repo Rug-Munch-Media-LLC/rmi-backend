@@ -4,8 +4,8 @@ Degen Security Scanner — Data Models
 Dataclasses for token security analysis reports.
 """
 
-from dataclasses import asdict, dataclass, field
 import json
+from dataclasses import asdict, dataclass, field
 
 
 @dataclass
@@ -214,10 +214,10 @@ class SecurityReport:
 
 
 __all__ = [
-    "HolderProfile",
     "FundingTrace",
-    "SniperProfile",
+    "HolderProfile",
     "LPAnalysis",
-    "WashTradeCluster",
     "SecurityReport",
+    "SniperProfile",
+    "WashTradeCluster",
 ]

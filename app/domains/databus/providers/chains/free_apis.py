@@ -4,7 +4,6 @@ Free API providers — no API key required for basic usage.
 Includes: CoinGecko, DeFiLlama, Blockchair, Etherscan.
 """
 
-from typing import Any
 
 import httpx
 
@@ -89,7 +88,7 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
         return None
     api_key = kw.get("api_key", "")
     try:
-        url = f"https://api.etherscan.io/api?module=transaction&action=gettxreceiptstatus&txhash={tx_hash}&apikey={api_key}"  # noqa: E501
+        url = f"https://api.etherscan.io/api?module=transaction&action=gettxreceiptstatus&txhash={tx_hash}&apikey={api_key}"
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(url)
             if r.status_code == 200:

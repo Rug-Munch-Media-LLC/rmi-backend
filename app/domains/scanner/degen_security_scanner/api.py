@@ -4,8 +4,8 @@ Degen Security Scanner — Convenience API and CLI
 Module-level functions for one-shot scans and report formatting.
 """
 
-import sys
 import asyncio
+import sys
 
 from .models import SecurityReport
 from .scanner import DegenSecurityScanner
@@ -149,6 +149,6 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "scan_token",
     "format_report",
+    "scan_token",
 ]

@@ -6,14 +6,13 @@ Standalone heuristic helpers for quick checks and tests.
 
 import math
 
-from .constants import TWAP_MANIPULATION_THRESHOLD_PCT, MIN_TWAP_SAMPLES
+from .constants import MIN_TWAP_SAMPLES, TWAP_MANIPULATION_THRESHOLD_PCT
 from .models import (
-    OracleType,
     ManipulationType,
-    Severity,
-    PriceSnapshot,
-    TWAPWindow,
     PriceManipulation,
+    PriceSnapshot,
+    Severity,
+    TWAPWindow,
 )
 
 
@@ -120,9 +119,9 @@ def calculate_twap_from_samples(samples: list[PriceSnapshot]) -> TWAPWindow | No
 
 
 __all__ = [
-    "detect_twap_manipulation",
-    "compute_deviation_pct",
-    "classify_severity",
-    "is_sandwich_pattern",
     "calculate_twap_from_samples",
+    "classify_severity",
+    "compute_deviation_pct",
+    "detect_twap_manipulation",
+    "is_sandwich_pattern",
 ]

@@ -2,7 +2,7 @@
 MEV & Sandwich Attack Detector
 Re-export from package.
 """
-from app.domains.detectors.mev_detector_package import (  # noqa: F401
+from app.domains.detectors.mev_sandwich_detector import (  # noqa: F401
     MEVAttackType,
     MEVBotProfile,
     MEVScanReport,

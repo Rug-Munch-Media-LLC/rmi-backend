@@ -6,10 +6,15 @@ Extracted from manager.py during god-file split (2026-07-23).
 
 import json
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from app.core.logging import get_logger
-from app.domains.wallet.models import CHAIN_REGISTRY, WalletRecord, WalletRotationSchedule, WalletStatus
+from app.domains.wallet.models import (
+    CHAIN_REGISTRY,
+    WalletRecord,
+    WalletRotationSchedule,
+    WalletStatus,
+)
 
 logger = get_logger("wallet_analysis")
 
@@ -205,7 +210,8 @@ class WalletAnalysisMixin:
                     })
                     continue
 
-            except Exception as e:  # noqa: BLE001
+            except (KeyError, TypeError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.error(f"sweep_to_owner error for {wallet.wallet_id}: {e}")
                 result["errors"].append({
                     "wallet_id": wallet.wallet_id,

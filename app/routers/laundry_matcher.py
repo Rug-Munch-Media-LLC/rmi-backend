@@ -3,7 +3,9 @@
 liquidity profile, marketing tactics. Spots scams before they launch."""
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+
+from app.core.errors import UpstreamError
 from pydantic import BaseModel
 
 from app.config import settings
@@ -69,10 +71,10 @@ async def find_matches(
                 headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
             if resp.status_code != 200:
-                raise HTTPException(502, "Scanner unavailable")
+                raise UpstreamError("Scanner unavailable")
             reference = resp.json()
     except Exception as e:
-        raise HTTPException(502, f"Scan failed: {e}") from e
+        raise UpstreamError(f"Scan failed: {e}") from e
 
     ref_name = reference.get("free", {}).get("name", "") or reference.get("symbol", "")
     reference.get("pro", {}).get("deployer_address", "")
@@ -142,7 +144,7 @@ async def scan_and_match(address: str, chain: str = Query("solana")) -> dict:
 
         scan_resp = await scan_task
         if scan_resp.status_code != 200:
-            raise HTTPException(502, "Scan failed")
+            raise UpstreamError("Scan failed")
         scan = scan_resp.json()
 
     # Quick match

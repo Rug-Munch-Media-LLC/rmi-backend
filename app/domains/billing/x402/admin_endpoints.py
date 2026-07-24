@@ -21,6 +21,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from app.core.dependencies import get_client_ip as get_client_id
 from app.core.logging import get_logger
 from app.core.redis import get_redis
 from app.domains.billing.x402.enforcement_action import SECURITY_HEADERS
@@ -36,7 +37,6 @@ from app.domains.billing.x402.pricing_catalog import (
     _resolve_asset,
     _resolve_pay_to,
 )
-from app.routers.protection import get_client_id
 
 logger = get_logger("x402_enforcement")
 

@@ -27,21 +27,14 @@ from typing import Any
 from urllib.parse import urlparse
 
 from app.core.logging import get_logger
+from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE, is_valid_address
+
 
 logger = get_logger("cross_chain_trace")
 
 # ── Address validation patterns ────────────────────────────────────
-EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
-SOLANA_ADDRESS_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 TX_HASH_EVM_RE = re.compile(r"^0x[a-fA-F0-9]{64}$")
 TX_HASH_SOLANA_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{64,88}$")
-
-
-def is_valid_address(addr: str) -> bool:
-    """Validate a blockchain address format."""
-    addr = addr.strip()
-    return bool(EVM_ADDRESS_RE.match(addr) or SOLANA_ADDRESS_RE.match(addr))
-
 
 def is_valid_tx_hash(tx_hash: str) -> bool:
     """Validate a transaction hash format."""

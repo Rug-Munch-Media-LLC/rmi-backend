@@ -8,7 +8,6 @@ Command handlers and business logic live in handlers/ and supporting modules.
 Run: cd /root/backend && python3 -m app.domains.telegram.rugmunchbot.bot
 """
 
-import logging
 import random
 import sys
 from datetime import UTC, time as dtime
@@ -51,7 +50,7 @@ from app.domains.telegram.rugmunchbot.handlers.account import (
     cmd_scamschool,
     cmd_topup,
 )
-from app.domains.telegram.rugmunchbot.handlers.alerts import cmd_alert, cmd_alerts, check_alerts
+from app.domains.telegram.rugmunchbot.handlers.alerts import check_alerts, cmd_alert, cmd_alerts
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
@@ -73,7 +72,11 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_ta,
     cmd_wallet,
 )
-from app.domains.telegram.rugmunchbot.handlers.watchlist import cmd_unwatch, cmd_watch, cmd_watchlist
+from app.domains.telegram.rugmunchbot.handlers.watchlist import (
+    cmd_unwatch,
+    cmd_watch,
+    cmd_watchlist,
+)
 
 logger = get_logger("rmi_bot")
 
@@ -84,12 +87,14 @@ async def setup_bot_profile(app: Application) -> None:
     try:
         await bot.set_my_description(description=BOT_DESCRIPTION)
         logger.info("Bot description set")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("setup_bot_profile_error", exc_info=True)
         logger.warning(f"Could not set description: {e}")
     try:
         await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
         logger.info("Bot short description set")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("setup_bot_profile_error", exc_info=True)
         logger.warning(f"Could not set short description: {e}")
     try:
         commands = [
@@ -120,7 +125,8 @@ async def setup_bot_profile(app: Application) -> None:
         ]
         await bot.set_my_commands(commands)
         logger.info("Bot commands registered")
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Could not set commands: {e}")
 
 
@@ -141,7 +147,8 @@ async def daily_scam_tip(ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await ctx.bot.send_message(
             CHANNELS["main"], text, parse_mode="HTML", disable_web_page_preview=True
         )
-    except Exception as e:  # noqa: BLE001
+    except (KeyError, TypeError) as e :
+        logger.debug("daily_scam_tip_error", exc_info=True)
         logger.error(f"Daily tip failed: {e}")
 
 

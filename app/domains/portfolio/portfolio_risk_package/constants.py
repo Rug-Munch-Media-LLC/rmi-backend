@@ -3,7 +3,6 @@ Portfolio Risk — Constants
 Chain configurations, ERC20 ABI, address validation, and defaults.
 """
 import json
-import re
 from typing import Any
 
 DEFAULT_TIMEOUT = 15
@@ -22,20 +21,11 @@ ERC20_ABI = json.loads("""
 ]
 """)
 
-EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
-SOLANA_ADDRESS_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
 
 def validate_wallet_address(address: str) -> tuple[bool, str]:
-    if EVM_ADDRESS_RE.match(address):
-        return True, "evm"
-    if SOLANA_ADDRESS_RE.match(address):
-        return True, "solana"
-    if not address.startswith("0x") and len(address) >= 32:
-        return True, "solana"
-    if address.startswith("0x") and len(address) == 42:
-        return True, "evm"
-    return False, ""
+    from app.core.shared_utils import validate_wallet_address as _check
+    return _check(address)
 
 
 CHAIN_CONFIGS: dict[str, dict[str, Any]] = {

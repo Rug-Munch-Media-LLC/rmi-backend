@@ -2,6 +2,9 @@
 """
 Protection Suite API Endpoints
 Provides safety checking for URLs, wallets, and tokens.
+
+Dependency injection: all external clients are injected via FastAPI's
+``Depends()`` so they can be mocked in tests.
 """
 
 import asyncio
@@ -12,24 +15,30 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from app.core.errors import AppError, RateLimitError, ValidationError
 from pydantic import BaseModel
 
+from app.core.dependencies import get_http_client, get_rate_limiter
 from app.core.logging import get_logger
+from app.core.rate_limiter import UnifiedRateLimiter
 
 logger = get_logger("protection")
 
 
 # ── Rate Limiter ─────────────────────────────────────────────────────────────
-# Uses UnifiedRateLimiter from app.core.rate_limiter (token bucket, Redis + in-memory fallback)
+# Uses UnifiedRateLimiter injected via Depends.
 
 
-async def _check_rate_limit(request: Request, limit_key: str, req_per_min: int) -> None:
-    """Check rate limit using UnifiedRateLimiter. Raises 429 if exceeded."""
-    from app.core.rate_limiter import get_rate_limiter
-
+async def _check_rate_limit(
+    request: Request,
+    limit_key: str,
+    req_per_min: int,
+    limiter: UnifiedRateLimiter,
+) -> None:
+    """Check rate limit. Raises 429 if exceeded."""
     client_id = get_client_id(request)
-    limiter = get_rate_limiter()
     rate = req_per_min / 60.0
     burst = max(1, req_per_min // 12)
     allowed, headers = await limiter.acquire(
@@ -37,11 +46,7 @@ async def _check_rate_limit(request: Request, limit_key: str, req_per_min: int) 
     )
     if not allowed:
         retry_after = headers.get("Retry-After", "60")
-        raise HTTPException(
-            status_code=429,
-            detail=f"Rate limit exceeded. Retry after {retry_after} seconds.",
-            headers={k: str(v) for k, v in headers.items()},
-        )
+        raise RateLimitError(f"Rate limit exceeded. Retry after {retry_after} seconds.")
 
 
 def get_client_id(request: Request) -> str:
@@ -50,18 +55,6 @@ def get_client_id(request: Request) -> str:
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
-
-
-# ── Shared HTTP Client (dependency injection pattern) ───────────────────────
-_shared_http_client: httpx.AsyncClient | None = None
-
-
-def get_http_client() -> httpx.AsyncClient:
-    """Get shared HTTP client for connection pooling."""
-    global _shared_http_client
-    if _shared_http_client is None:
-        _shared_http_client = httpx.AsyncClient(timeout=15.0)
-    return _shared_http_client
 
 
 # ── Router Definition ─────────────────────────────────────────────────────────
@@ -94,31 +87,24 @@ class ProtectionResponse(BaseModel):
 
 
 async def check_rag_for_url(url: str) -> dict[str, Any] | None:
-    """
-    Check RAG for known scam URL.
-    """
+    """Check RAG for known scam URL."""
     try:
-        # Import RAG service lazily to avoid circular deps
         from app.rag_service import three_pillar_search
 
-        # Search in known_scams and scam_patterns collections for the URL
-        # Add timeout to prevent slow RAG from blocking endpoint
         results = await asyncio.wait_for(
             three_pillar_search(
                 query=url,
                 collections=["known_scams", "scam_patterns"],
                 limit=1,
-                min_similarity=0.7,  # Only high confidence matches
-                use_mmr=False,  # We just want the top result
-                use_kg=False,  # Disable KG for speed
-                use_parent_child=False,  # Disable parent-child for speed
-                use_reranker=False,  # Disable reranker for speed
+                min_similarity=0.7,
+                use_mmr=False,
+                use_kg=False,
+                use_parent_child=False,
+                use_reranker=False,
             ),
-            timeout=0.2,  # 0.2 second timeout for RAG check
+            timeout=0.2,
         )
-        # Check if we got any results
         if results and results.get("results"):
-            # If there's at least one result with similarity >= 0.7, consider it a match
             for res in results["results"]:
                 if res.get("similarity", 0) >= 0.7:
                     return {
@@ -135,9 +121,7 @@ async def check_rag_for_url(url: str) -> dict[str, Any] | None:
 
 
 async def check_blocklist_for_url(url: str) -> dict[str, Any] | None:
-    """
-    Check URL against blocklist.json domains.
-    """
+    """Check URL against blocklist.json domains."""
     try:
         blocklist_path = "/app/blocklist.json"
         if not os.path.exists(blocklist_path):
@@ -146,7 +130,6 @@ async def check_blocklist_for_url(url: str) -> dict[str, Any] | None:
             blocklist = json.load(f)
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
-        # Remove www prefix
         if domain.startswith("www."):
             domain = domain[4:]
         if domain in blocklist:
@@ -161,13 +144,9 @@ async def check_blocklist_for_url(url: str) -> dict[str, Any] | None:
     return None
 
 
-async def scan_url_content(url: str) -> dict[str, Any] | None:
-    """
-    Scan URL content for malicious patterns (simple check).
-    """
+async def scan_url_content(url: str, client: httpx.AsyncClient) -> dict[str, Any] | None:
+    """Scan URL content for malicious patterns (simple check)."""
     try:
-        client = get_http_client()
-        # Add timeout to prevent slow URL fetching from blocking endpoint
         resp = await asyncio.wait_for(
             client.get(
                 str(url),
@@ -175,12 +154,11 @@ async def scan_url_content(url: str) -> dict[str, Any] | None:
                 headers={"User-Agent": "RMI-Protection-Bot"},
                 timeout=1.5,
             ),
-            timeout=2.0,  # 2 second timeout for URL fetch
+            timeout=2.0,
         )
         if resp.status_code != 200:
             return None
         text = resp.text.lower()
-        # Simple phishing indicators
         phishing_indicators = [
             "verify your account",
             "suspend",
@@ -214,7 +192,7 @@ async def feed_url_to_rag(url: str, is_safe: bool) -> None:
         from app.rag_service import ingest_document
 
         doc = {
-            "content": f"URL: {url}\\nSafety: {'safe' if is_safe else 'unsafe'}\\nScanned by RMI Protection Suite",
+            "content": f"URL: {url}\nSafety: {'safe' if is_safe else 'unsafe'}\nScanned by RMI Protection Suite",
             "metadata": {"source": "protection_suite", "url": url, "safe": is_safe},
         }
         await ingest_document(doc)
@@ -222,31 +200,32 @@ async def feed_url_to_rag(url: str, is_safe: bool) -> None:
         logger.debug(f"Failed to feed URL to RAG: {e}")
 
 
-# Endpoint implementations
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
 @router.post("/check-url", response_model=ProtectionResponse)
-async def check_url(request: URLCheckRequest, http_request: Request) -> Any:
-    """
-    Check a URL for phishing/scam content.
-    Returns: {safe: bool, risk: low|medium|high|critical, reason: str, source: rag|scanner|blocklist}
-    """
+async def check_url(
+    request: URLCheckRequest,
+    http_request: Request,
+    client: httpx.AsyncClient = Depends(get_http_client),
+    limiter: UnifiedRateLimiter = Depends(get_rate_limiter),
+) -> Any:
+    """Check a URL for phishing/scam content."""
     try:
-        await _check_rate_limit(http_request, "check-url", 60)
+        await _check_rate_limit(http_request, "check-url", 60, limiter)
 
         url = request.url.strip()
         if not url:
-            raise HTTPException(status_code=400, detail="URL is required")
+            raise ValidationError("URL is required")
 
-        # Run checks in parallel: blocklist (fastest), RAG, content scan
         blocklist_task = asyncio.create_task(check_blocklist_for_url(url))
         rag_task = asyncio.create_task(check_rag_for_url(url))
-        scan_task = asyncio.create_task(scan_url_content(url))
+        scan_task = asyncio.create_task(scan_url_content(url, client))
 
-        # Wait for all to complete (or timeout individually inside each function)
         blocklist_result, rag_result, scan_result = await asyncio.gather(
             blocklist_task, rag_task, scan_task, return_exceptions=False
         )
 
-        # Check results in order of preference: blocklist, rag, scan
         if blocklist_result and not isinstance(blocklist_result, Exception):
             return ProtectionResponse(**blocklist_result)
 
@@ -254,19 +233,19 @@ async def check_url(request: URLCheckRequest, http_request: Request) -> Any:
             return ProtectionResponse(**rag_result)
 
         if scan_result and not isinstance(scan_result, Exception):
-            # Feed result to RAG for future
             await feed_url_to_rag(url, is_safe=scan_result.get("safe", True))
             return ProtectionResponse(**scan_result)
 
-        # If we get here, no threats detected
         await feed_url_to_rag(url, is_safe=True)
         return ProtectionResponse(
             safe=True, risk="low", reason="No threats detected", source="protection_suite"
         )
+    except (HTTPException, AppError):
+        raise
     except Exception as e:
         logger.warning(f"URL check failed for {request.url}: {e}")
         return ProtectionResponse(
-            safe=True,  # Fail safe: assume safe on error
+            safe=True,
             risk="low",
             reason="URL scan unavailable",
             source="error",
@@ -275,21 +254,21 @@ async def check_url(request: URLCheckRequest, http_request: Request) -> Any:
 
 
 @router.post("/check-wallet", response_model=ProtectionResponse)
-async def check_wallet(request: WalletCheckRequest, http_request: Request) -> Any:
-    """
-    Check a wallet address for risk.
-    Returns: {safe: bool, risk_score: 0-100, flags: [list], reason: str, source: ...}
-    """
+async def check_wallet(
+    request: WalletCheckRequest,
+    http_request: Request,
+    limiter: UnifiedRateLimiter = Depends(get_rate_limiter),
+) -> Any:
+    """Check a wallet address for risk."""
     try:
-        await _check_rate_limit(http_request, "check-wallet", 30)
+        await _check_rate_limit(http_request, "check-wallet", 30, limiter)
 
         address = request.address.strip()
         chain = request.chain.lower().strip()
         if not address:
-            raise HTTPException(status_code=400, detail="Address is required")
+            raise ValidationError("Address is required")
 
-        # Normalize chain
-        if chain not in [
+        valid_chains = {
             "ethereum",
             "solana",
             "base",
@@ -299,28 +278,25 @@ async def check_wallet(request: WalletCheckRequest, http_request: Request) -> An
             "optimism",
             "avalanche",
             "fantom",
-        ]:
-            chain = "ethereum"  # default fallback
+        }
+        if chain not in valid_chains:
+            chain = "ethereum"
 
-        # Use unified scanner for wallet risk with timeout
         from app.unified_scanner import scan_wallet as wallet_scan
 
-        # We'll use the free tier scan with a timeout of 1.8s to prevent slow scans
         try:
             result = await asyncio.wait_for(wallet_scan(address, chain), timeout=1.8)
         except TimeoutError:
             logger.warning(f"Wallet scan timed out for {address}")
             return ProtectionResponse(
-                safe=True,  # Fail safe: assume safe on timeout
+                safe=True,
                 risk="low",
                 reason="Wallet scan timed out",
                 source="error",
                 error="service_unavailable",
             )
 
-        # Extract risk score and flags
-        risk_score = getattr(result, "total_risk_score", 50)  # default 50 if not found
-        # Determine risk level - higher score = higher risk
+        risk_score = getattr(result, "total_risk_score", 50)
         if risk_score >= 80:
             risk_level = "critical"
         elif risk_score >= 60:
@@ -329,7 +305,6 @@ async def check_wallet(request: WalletCheckRequest, http_request: Request) -> An
             risk_level = "medium"
         else:
             risk_level = "low"
-        # Extract flags from risk factors (simplified)
         flags = []
         if hasattr(result, "is_labeled_scammer") and result.is_labeled_scammer:
             flags.append("scammer")
@@ -337,19 +312,20 @@ async def check_wallet(request: WalletCheckRequest, http_request: Request) -> An
             flags.append("sanctioned")
         if hasattr(result, "approval_risk_score") and result.approval_risk_score > 70:
             flags.append("approval_risk")
-        # Convert to dict for response - safe when risk_score < 60
         return ProtectionResponse(
-            safe=risk_score < 60,  # Risk score < 60 means low risk = safe
+            safe=risk_score < 60,
             risk=risk_level,
             reason=f"Wallet risk score: {risk_score}",
             source="unified_scanner",
             risk_score=risk_score,
             flags=flags,
         )
+    except (HTTPException, AppError):
+        raise
     except Exception as e:
         logger.warning(f"Wallet scan failed for {request.address}: {e}")
         return ProtectionResponse(
-            safe=True,  # Fail safe: assume safe on error
+            safe=True,
             risk="low",
             reason="Wallet scan unavailable",
             source="error",
@@ -358,22 +334,22 @@ async def check_wallet(request: WalletCheckRequest, http_request: Request) -> An
 
 
 @router.post("/check-token", response_model=ProtectionResponse)
-async def check_token(request: TokenCheckRequest, http_request: Request) -> Any:
-    """
-    Check a token address for safety.
-    Returns: full safety report from scanner with protection-focused summary.
-    """
+async def check_token(
+    request: TokenCheckRequest,
+    http_request: Request,
+    limiter: UnifiedRateLimiter = Depends(get_rate_limiter),
+) -> Any:
+    """Check a token address for safety."""
     try:
-        await _check_rate_limit(http_request, "check-token", 30)
+        await _check_rate_limit(http_request, "check-token", 30, limiter)
 
         address = request.address.strip()
         chain = request.chain.lower().strip()
         if not address:
-            raise HTTPException(status_code=400, detail="Address is required")
+            raise ValidationError("Address is required")
         if not chain:
-            raise HTTPException(status_code=400, detail="Chain is required")
+            raise ValidationError("Chain is required")
 
-        # Use token scanner with timeout to prevent slow scans
         from app.token_scanner import scan_token
 
         try:
@@ -383,15 +359,13 @@ async def check_token(request: TokenCheckRequest, http_request: Request) -> Any:
         except TimeoutError:
             logger.warning(f"Token scan timed out for {address}")
             return ProtectionResponse(
-                safe=True,  # Fail safe: assume safe on timeout
+                safe=True,
                 risk="low",
                 reason="Token scan timed out",
                 source="error",
                 error="service_unavailable",
             )
-        # Convert ScanResult to our response - higher safety score = safer token
         safety_score = scan_result.safety_score
-        # Safety score: higher = safer, so invert for risk level
         if safety_score >= 80:
             risk_level = "low"
         elif safety_score >= 60:
@@ -400,18 +374,14 @@ async def check_token(request: TokenCheckRequest, http_request: Request) -> Any:
             risk_level = "high"
         else:
             risk_level = "critical"
-        # Extract risk flags
         flags = scan_result.risk_flags if hasattr(scan_result, "risk_flags") else []
-        # Determine source
         source = "token_scanner"
         if hasattr(scan_result, "modules_run") and scan_result.modules_run:
-            # Use first module that ran as source hint
             source = (
                 scan_result.modules_run[0].get("module", "token_scanner")
                 if scan_result.modules_run
                 else "token_scanner"
             )
-        # Safe when safety_score >= 60
         return ProtectionResponse(
             safe=safety_score >= 60,
             risk=risk_level,
@@ -420,10 +390,12 @@ async def check_token(request: TokenCheckRequest, http_request: Request) -> Any:
             risk_score=safety_score,
             flags=flags,
         )
+    except (HTTPException, AppError):
+        raise
     except Exception as e:
         logger.warning(f"Token scan failed for {request.address}: {e}")
         return ProtectionResponse(
-            safe=True,  # Fail safe
+            safe=True,
             risk="low",
             reason="Token scan unavailable",
             source="error",
@@ -433,98 +405,73 @@ async def check_token(request: TokenCheckRequest, http_request: Request) -> Any:
 
 @router.get("/domains")
 async def get_domains() -> dict | dict[str, list]:
-    """
-    Return the blocklist JSON for extension download.
-    Reads from /root/browser-extension/blocklist.json, /app/blocklist.json, and RAG known scams.
-    Returns: {"domains": [...], "count": N}
-    """
+    """Return the blocklist JSON for extension download."""
     logger.info("=== get_domains endpoint called ===")
     try:
-        # Load blocklist from browser extension file
         extension_blocklist_path = "/root/browser-extension/blocklist.json"
         backend_blocklist_path = "/app/blocklist.json"
         domains_set: set[str] = set()
 
-        logger.info(
-            f"Loading blocklist from {extension_blocklist_path} and {backend_blocklist_path}"
-        )
-
         if os.path.exists(extension_blocklist_path):
-            logger.info(f"Extension blocklist file exists: {extension_blocklist_path}")
             with open(extension_blocklist_path) as f:
                 extension_domains = json.load(f)
-                logger.info(f"Loaded {len(extension_domains)} domains from extension blocklist")
                 domains_set.update(extension_domains)
         else:
             logger.warning(f"Extension blocklist file does not exist: {extension_blocklist_path}")
 
         if os.path.exists(backend_blocklist_path):
-            logger.info(f"Backend blocklist file exists: {backend_blocklist_path}")
             with open(backend_blocklist_path) as f:
                 backend_domains = json.load(f)
-                logger.info(f"Loaded {len(backend_domains)} domains from backend blocklist")
                 domains_set.update(backend_domains)
-        else:
-            logger.warning(f"Backend blocklist file does not exist: {backend_blocklist_path}")
 
-        # Extract domains from RAG known_scams collection
         try:
             from app.rag_service import three_pillar_search
 
-            # Query RAG for known scams (look for URLs in content)
             rag_results = await asyncio.wait_for(
                 three_pillar_search(
-                    query="",  # Empty query to get all known scams (relevance based on popularity)
+                    query="",
                     collections=["known_scams"],
-                    limit=100,  # Limit to avoid slowing down endpoint
-                    min_similarity=0.0,  # Get all documents regardless of similarity
+                    limit=100,
+                    min_similarity=0.0,
                     use_mmr=False,
                     use_kg=False,
                     use_parent_child=False,
                     use_reranker=False,
                 ),
-                timeout=0.5,  # 0.5 second timeout for RAG query
+                timeout=0.5,
             )
             if rag_results and rag_results.get("results"):
                 for res in rag_results["results"]:
                     content = res.get("content", "")
-                    # Extract URL from content (format: "URL: <url>\nSafety: ...")
                     for line in content.split("\n"):
                         if line.startswith("URL: "):
                             url = line[5:].strip()
                             if url:
-                                # Parse URL to extract domain
                                 try:
                                     parsed = urlparse(url)
                                     domain = parsed.netloc.lower()
-                                    # Remove www prefix
                                     if domain.startswith("www."):
                                         domain = domain[4:]
-                                    if domain:  # Only add non-empty domains
+                                    if domain:
                                         domains_set.add(domain)
                                 except (ValueError, TypeError):
-                                    pass  # Skip invalid URLs
-                            break  # Only take first URL line
+                                    pass
+                            break
         except TimeoutError:
             logger.debug("RAG query for domains timed out")
         except Exception as e:
             logger.debug(f"Failed to extract domains from RAG: {e}")
 
         domains = sorted(domains_set)
-        logger.info(f"Returning {len(domains)} unique domains (including RAG)")
         return {"domains": domains, "count": len(domains)}
     except Exception as e:
         logger.error(f"Failed to load blocklist: {e}", exc_info=True)
-        # Return empty list on error to avoid breaking extensions
         return {"domains": [], "count": 0}
 
 
 @router.get("/health")
 async def protection_health() -> Any:
-    """
-    Health check for protection modules.
-    Returns status of RAG, blocklist, scanners, etc.
-    """
+    """Health check for protection modules."""
     health_status = {
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
@@ -535,23 +482,20 @@ async def protection_health() -> Any:
             "token_scanner": "unknown",
         },
     }
-    # Check blocklist file (backend)
     try:
         blocklist_path = "/app/blocklist.json"
         if os.path.exists(blocklist_path):
             with open(blocklist_path) as f:
-                json.load(f)  # validate JSON
+                json.load(f)
             health_status["modules"]["blocklist"] = "ok"
         else:
             health_status["modules"]["blocklist"] = "missing_file"
     except Exception as e:
         health_status["modules"]["blocklist"] = f"error: {e}"
 
-    # Check RAG (simple ping)
     try:
         from app.rag_service import three_pillar_search
 
-        # We'll do a quick query
         await three_pillar_search(
             query="test", collections=["known_scams"], limit=1, min_similarity=0.5
         )
@@ -559,19 +503,16 @@ async def protection_health() -> Any:
     except Exception as e:
         health_status["modules"]["rag"] = f"error: {e}"
 
-    # Check unified scanner (by trying to import)
     try:
         health_status["modules"]["unified_scanner"] = "ok"
     except Exception as e:
         health_status["modules"]["unified_scanner"] = f"error: {e}"
 
-    # Check token scanner
     try:
         health_status["modules"]["token_scanner"] = "ok"
     except Exception as e:
         health_status["modules"]["token_scanner"] = f"error: {e}"
 
-    # Overall status: if any critical module is error, set status to degraded
     critical_modules = ["rag", "blocklist", "unified_scanner", "token_scanner"]
     for mod in critical_modules:
         if health_status["modules"][mod] != "ok":

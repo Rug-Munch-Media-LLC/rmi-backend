@@ -20,10 +20,28 @@ Available services:
 import json
 import os
 
+import httpx
+
 from app.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger("gcloud")
+
+# Module-level shared httpx client to avoid connection pool fragmentation
+_gcloud_client: httpx.AsyncClient | None = None
+
+
+async def _get_client() -> httpx.AsyncClient:
+    """Get or create a shared httpx client for GCloud API calls."""
+    global _gcloud_client
+    if _gcloud_client is None:
+        _gcloud_client = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+            timeout=httpx.Timeout(timeout=30.0, connect=10.0),
+            follow_redirects=True,
+        )
+    return _gcloud_client
+
 
 SA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "cryptorugmunch-sa.json")
 VAULT_PATH = settings.gcloud_sa_vault_path
@@ -323,7 +341,7 @@ class GoogleCloudManager:
                     json={"lifecycle": {"rule": rules}},
                 )
                 return r.status_code == 200
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             return False
 
     def health(self) -> dict:

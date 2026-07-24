@@ -306,7 +306,8 @@ class GuiltAssociationAnalyzer:
             # Compute final score and label
             self._compute_risk(report)
 
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("analyze_error", exc_info=True)
             logger.exception(f"Guilt association analyzer failed for {address} on {chain}")
             report.errors.append(str(e))
             report.risk_label = "error"
@@ -405,7 +406,8 @@ class GuiltAssociationAnalyzer:
             if isinstance(data.get("result"), list):
                 return data["result"][: self.EVM_TX_LIMIT]
             return []
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_etherscan_txs_error", exc_info=True)
             logger.warning(f"Etherscan fetch failed ({action}): {e}")
             return []
 
@@ -453,7 +455,8 @@ class GuiltAssociationAnalyzer:
                     report.interacted_addresses.append(from_addr)
                     if tx_ts >= thirty_days_ago:
                         report.recent_mixer_funding = True
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Solana funding sources failed: {e}")
 
         # ── 2. Fetch account transfers (token + SOL transfers) ──────
@@ -466,7 +469,8 @@ class GuiltAssociationAnalyzer:
                     page=page,
                     page_size=100,
                 )
-            except Exception as e:
+            except (httpx.HTTPError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Solana transfers page {page} failed: {e}")
                 continue
 
@@ -519,7 +523,8 @@ class GuiltAssociationAnalyzer:
                     page=page,
                     page_size=40,
                 )
-            except Exception as e:
+            except (httpx.HTTPError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Solana transactions page {page} failed: {e}")
                 continue
 

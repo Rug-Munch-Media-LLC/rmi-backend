@@ -2,7 +2,6 @@
 Honeypot Detector — HTTP utilities
 Async fetch with retry and fallback across multiple URLs.
 """
-import logging
 from typing import Any
 
 from app.core.logging import get_logger
@@ -31,7 +30,8 @@ async def fetch_with_fallback(
                         return resp.json(), url
                     return resp.text, url
                 logger.debug(f"HTTP {resp.status_code} from {url}")
-            except Exception as e:
+            except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                logger.debug("fetch_with_fallback_error", exc_info=True)
                 logger.debug(f"Failed {url}: {e}")
                 continue
     return {}, ""

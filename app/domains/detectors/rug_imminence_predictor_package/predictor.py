@@ -7,18 +7,8 @@ import os
 import re
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.detectors.rug_imminence_predictor_package.types import (
-    DEFAULT_WEIGHTS,
-    RIPResult,
-    SIGNAL_NAMES,
-    SCORE_THRESHOLDS,
-    VALID_CHAINS,
-    ImminenceLevel,
-    SignalCategory,
-)
 from app.domains.detectors.rug_imminence_predictor_package.signals import (
     analyze_bundle_pattern,
     analyze_contract_risk,
@@ -29,6 +19,14 @@ from app.domains.detectors.rug_imminence_predictor_package.signals import (
     analyze_social_velocity,
     generate_recommendations,
     generate_warnings,
+)
+from app.domains.detectors.rug_imminence_predictor_package.types import (
+    DEFAULT_WEIGHTS,
+    SCORE_THRESHOLDS,
+    SIGNAL_NAMES,
+    VALID_CHAINS,
+    RIPResult,
+    SignalCategory,
 )
 
 logger = get_logger(__name__)

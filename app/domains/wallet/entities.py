@@ -5,8 +5,8 @@ Extracted from manager.py during god-file split (2026-07-23).
 """
 
 from app.core.logging import get_logger
+from app.domains.wallet.crypto import ZKAddressVerifier  # re-exported for convenience
 from app.domains.wallet.models import CHAIN_REGISTRY, ChainMeta
-from app.domains.wallet.crypto import ZKAddressVerifier  # noqa: F401  # re-exported for convenience
 
 logger = get_logger("wallet_entities")
 
@@ -64,7 +64,7 @@ def resolve_chain_address(chain: str, address: str) -> bool:
 __all__ = [
     "ZKAddressVerifier",
     "get_chain_meta",
-    "list_chains",
     "get_chains_by_group",
+    "list_chains",
     "resolve_chain_address",
 ]

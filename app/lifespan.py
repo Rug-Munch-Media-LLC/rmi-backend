@@ -9,6 +9,8 @@ Per v4.0 §T01 + ADR-0001, lifespan wires up cross-cutting concerns:
 All initializations are isolated - one failure does not break startup.
 Per v3 unfuck rule #7: add_middleware must be at module level, NOT
 in lifespan. So this file only does setup() calls and yield.
+
+Cleanup: HTTP client, Langfuse, Sentry, OTel are flushed on shutdown.
 """
 
 from __future__ import annotations
@@ -113,7 +115,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     yield
 
-    # Shutdown
+    # ── Shutdown ──────────────────────────────────────────────────────────
+    # Cleanup order: network clients first, then observability flushes.
+    try:
+        from app.core.dependencies import close_http_client
+
+        await close_http_client()
+    except Exception as exc:
+        log.warning("http_client_close_failed err=%s", exc)
+
     try:
         from app.domains.threat.certstream_listener import stop_listener
 

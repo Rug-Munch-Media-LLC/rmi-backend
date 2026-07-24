@@ -5,7 +5,6 @@ Covers: entity resolution, labels, portfolio, transfers, counterparties,
 and intel search.
 """
 
-from typing import Any
 
 import httpx
 
@@ -58,7 +57,7 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(
-                f"https://api.arkhamintelligence.com/search",
+                "https://api.arkhamintelligence.com/search",
                 headers={"API-Key": api_key},
                 params={"q": query},
             )

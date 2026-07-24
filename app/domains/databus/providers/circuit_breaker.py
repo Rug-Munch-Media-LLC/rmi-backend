@@ -5,7 +5,6 @@ Tracks failures, rate limits, and quota usage across all provider instances.
 """
 
 import time
-from typing import Any
 
 from app.core.circuit_breaker import AsyncCircuitBreaker
 from app.core.logging import get_logger

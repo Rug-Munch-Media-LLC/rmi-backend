@@ -6,7 +6,9 @@ import os
 from datetime import UTC, datetime
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Query
+
+from app.core.errors import NotFoundError
 from pydantic import BaseModel
 from typing import Any
 
@@ -66,7 +68,7 @@ async def unsubscribe(alert_id: str) -> dict:
             if s["id"] == alert_id:
                 subs.remove(s)
                 return {"id": alert_id, "status": "unsubscribed"}
-    raise HTTPException(404, "Alert not found")
+    raise NotFoundError("Alert not found")
 
 
 @router.get("/subscriptions/{user_id}")

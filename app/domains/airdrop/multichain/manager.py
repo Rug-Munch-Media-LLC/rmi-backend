@@ -3,14 +3,17 @@
 import json
 import time
 from datetime import UTC, datetime
+
 from app.core.logging import get_logger
-from app.domains.airdrop.multichain.models import (
-    CrossChainHolder, MultiChainAirdropCampaign, TokenSource,
-)
-from app.domains.airdrop.multichain.snapshot import MultiChainSnapshotEngine
 from app.domains.airdrop.multichain.calculator import WeightedAirdropCalculator
 from app.domains.airdrop.multichain.filters import AntiGamingFilter
 from app.domains.airdrop.multichain.loader import CustomSnapshotLoader
+from app.domains.airdrop.multichain.models import (
+    CrossChainHolder,
+    MultiChainAirdropCampaign,
+    TokenSource,
+)
+from app.domains.airdrop.multichain.snapshot import MultiChainSnapshotEngine
 
 logger = get_logger("darkroom_multichain_airdrop")
 
@@ -210,7 +213,8 @@ class MultiChainAirdropManager:
 
                 logger.info(f"Airdropped {holder.airdrop_allocation} to {target_address}")
 
-            except Exception as e:
+            except (ValueError, KeyError, TypeError) as e :
+                logger.debug("execute_distribution_error", exc_info=True)
                 logger.error(f"Distribution failed for {holder.primary_address}: {e}")
 
         campaign.total_distributed = str(total_distributed)
@@ -238,7 +242,8 @@ class MultiChainAirdropManager:
                 await storage.redis.sadd("multichain_airdrops:all", campaign.campaign_id)
 
             return True
-        except Exception as e:
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError) as e :
+            logger.debug("_save_campaign_error", exc_info=True)
             logger.error(f"Save campaign failed: {e}")
             return False
 
@@ -256,7 +261,8 @@ class MultiChainAirdropManager:
                     return MultiChainAirdropCampaign(**json.loads(data))
 
             return None
-        except Exception as e:
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+            logger.debug("_get_campaign_error", exc_info=True)
             logger.error(f"Get campaign failed: {e}")
             return None
 

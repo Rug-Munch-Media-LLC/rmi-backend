@@ -1,13 +1,18 @@
-"""Unified Scanner Router v3 - matches WalletScanner v3 fields."""
+"""Unified Scanner Router v3 - matches WalletScanner v3 fields.
 
-from fastapi import APIRouter, HTTPException, Request
+Dependency injection: ``UnifiedTokenScanner`` and ``UnifiedWalletScanner``
+are injected via ``Depends()`` so they can be mocked in tests.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from typing import Any
 
+from app.core.dependencies import get_token_scanner, get_wallet_scanner
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
-from app.unified_token_scanner import get_token_scanner
-from app.unified_wallet_scanner import get_wallet_scanner
-from typing import Any
+from app.domains.scanner.unified_token_scanner import UnifiedTokenScanner
+from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v2/scanner", tags=["scanner-v2"])
@@ -23,7 +28,7 @@ class WalletScanRequest(BaseModel):
     chain: str = "solana"
 
 
-def _get_tier(request) -> str:
+def _get_tier(request: Request) -> str:
     if request.headers.get("X-RMI-Key") == INTERNAL_API_KEY:
         return "admin"
     if request.headers.get("X-Payment-Verified") == "true":
@@ -31,16 +36,23 @@ def _get_tier(request) -> str:
     return "free"
 
 
-def _get_admin_key(request) -> Any | None:
+def _get_admin_key(request: Request) -> Any | None:
     return request.headers.get("X-Admin-Key") or request.headers.get("X-RMI-Key")
 
 
-@router.post("/token/scan", summary="Scan Token", description="Comprehensive token scan across 50+ security modules. Returns safety score, risk flags, green flags, and detailed module results.")
-async def scan_token(request: Request, body: TokenScanRequest) -> dict[str, Any]:
+@router.post(
+    "/token/scan",
+    summary="Scan Token",
+    description="Comprehensive token scan across 50+ security modules. Returns safety score, risk flags, green flags, and detailed module results.",
+)
+async def scan_token(
+    request: Request,
+    body: TokenScanRequest,
+    scanner: UnifiedTokenScanner = Depends(get_token_scanner),
+) -> dict[str, Any]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
     try:
-        scanner = get_token_scanner()
         result = await scanner.scan(
             address=body.address, chain=body.chain, tier=tier, admin_key=admin_key
         )
@@ -68,12 +80,19 @@ async def scan_token(request: Request, body: TokenScanRequest) -> dict[str, Any]
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
 
 
-@router.post("/wallet/scan", summary="Scan Wallet", description="Comprehensive wallet scan with entity clustering, risk scoring, behavioral analysis, and RAG-based threat intelligence matching.")
-async def scan_wallet(request: Request, body: WalletScanRequest) -> dict[str, Any]:
+@router.post(
+    "/wallet/scan",
+    summary="Scan Wallet",
+    description="Comprehensive wallet scan with entity clustering, risk scoring, behavioral analysis, and RAG-based threat intelligence matching.",
+)
+async def scan_wallet(
+    request: Request,
+    body: WalletScanRequest,
+    scanner: UnifiedWalletScanner = Depends(get_wallet_scanner),
+) -> dict[str, Any]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
     try:
-        scanner = get_wallet_scanner()
         result = await scanner.scan(
             address=body.address, chain=body.chain, tier=tier, admin_key=admin_key
         )

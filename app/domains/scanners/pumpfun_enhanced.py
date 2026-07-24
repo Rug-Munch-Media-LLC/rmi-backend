@@ -16,7 +16,6 @@ Data sources (direct API calls):
   - DexScreener: token pool metadata
 """
 
-import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -84,7 +83,8 @@ async def _fetch_helius_transactions(address: str, limit: int = 100) -> list[dic
             if resp.status_code == 200:
                 return resp.json()
             logger.debug("helius_tx_failed", status=resp.status_code)
-    except Exception as e:
+    except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        logger.debug("_fetch_helius_transactions_error", exc_info=True)
         logger.debug("helius_tx_error", error=str(e)[:60])
     return []
 
@@ -123,7 +123,8 @@ async def analyze_wallet_pnl(
                                 == token_address.lower()
                             ):
                                 tracked_wallets.append(pair.get("pairAddress", ""))
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("analyze_wallet_pnl_error", exc_info=True)
             logger.debug("holder_fetch_failed", error=str(e)[:60])
 
     if not tracked_wallets:
@@ -199,7 +200,8 @@ async def analyze_wallet_pnl(
             wallet_pnl = total_sold - total_bought
             wallet_pnls.append(wallet_pnl)
 
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug("wallet_analysis_failed", wallet=wallet[:8], error=str(e)[:60])
             continue
 
@@ -306,7 +308,8 @@ async def check_pumpfun_enhanced(
             "total_realized_pnl": round(analysis.total_realized_pnl, 2),
             "source": "helius",
         }
-    except Exception as e:
+    except (httpx.HTTPError) as e :
+        logger.debug("check_pumpfun_enhanced_error", exc_info=True)
         logger.warning("pumpfun_enhanced_failed", error=str(e)[:100])
 
     return {

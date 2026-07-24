@@ -595,13 +595,15 @@ class SentimentAnalyzer:
         # --- DexScreener ---
         try:
             messages.extend(await self._fetch_dexscreener_comments(token_address, chain))
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_social_data_error", exc_info=True)
             logger.warning(f"DexScreener social fetch failed: {e}")
 
         # --- Birdeye ---
         try:
             messages.extend(await self._fetch_birdeye_social(token_address, chain))
-        except Exception as e:
+        except (httpx.HTTPError) as e :
+            logger.debug("_fetch_social_data_error", exc_info=True)
             logger.warning(f"Birdeye social fetch failed: {e}")
 
         # Deduplicate by (author, text[:80], platform)

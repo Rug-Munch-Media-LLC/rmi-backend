@@ -76,7 +76,7 @@ async def query_eth_labels_db(address: str, chain: str = "ethereum") -> list[Lab
                 return labels
             finally:
                 conn.close()
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
             log.warning("eth_labels_db_query_fail address=%s err=%s", address[:10], e)
             raise
 

@@ -199,7 +199,7 @@ async def list_news(
                         sentiment_score=r["sentiment_score"],
                     )
                 )
-        except Exception as e:
+        except (KeyError, ValueError, TypeError) as e :
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"news_list_new_fail: {e}")
@@ -221,7 +221,7 @@ async def list_news(
                 rows = await conn.fetch(query, *params)
             for r in rows:
                 items.append(_adapt_legacy_row(dict(r)))
-        except Exception as e:
+        except (KeyError, ValueError, TypeError) as e :
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"news_list_legacy_fail: {e}")
@@ -313,7 +313,7 @@ async def trending_news(
             )
             item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
             items.append(item)
-    except Exception as e:
+    except (KeyError, ValueError, TypeError) as e :
         from app.core.logging import get_logger
 
         get_logger(__name__).warning(f"trending_new_fail: {e}")
@@ -342,7 +342,7 @@ async def trending_news(
                 item = _adapt_legacy_row(d)
                 item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
                 items.append(item)
-        except Exception as e:
+        except (ValueError, KeyError, TypeError) as e :
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"trending_legacy_fail: {e}")
@@ -392,7 +392,7 @@ async def get_news(news_id: str) -> NewsItemOut:
         raise HTTPException(404, "news item not found")
     except HTTPException:
         raise
-    except Exception as e:
+    except (KeyError, ValueError, TypeError) as e :
         raise HTTPException(500, f"news_get_fail: {e}") from e
 
 
@@ -459,5 +459,5 @@ async def analyze_news(news_id: str) -> NewsAnalysisResponse:
         return NewsAnalysisResponse(news_id=news_id, analysis=analysis, model="deepseek-v3")
     except HTTPException:
         raise
-    except Exception as e:
+    except (KeyError, ValueError, TypeError) as e :
         return NewsAnalysisResponse(news_id=news_id, analysis=None, error=str(e))

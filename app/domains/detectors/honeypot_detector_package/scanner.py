@@ -7,7 +7,6 @@ import os
 import re
 import time
 from datetime import UTC, datetime
-from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.detectors.honeypot_detector_package.constants import (
@@ -90,7 +89,8 @@ class HoneypotDetector:
                 pair_addr = pair.get("pairAddress", "")
                 if pair_addr:
                     info.chain_data_sources.append(f"pair:{pair_addr}")
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+            logger.debug("_gather_token_info_error", exc_info=True)
             logger.debug(f"DexScreener failed: {e}")
 
         explorer_url = chain_info.get("explorer", "")
@@ -109,7 +109,8 @@ class HoneypotDetector:
                     if abi_str and abi_str != "Contract source code not verified":
                         info.is_verified = True
                     info.chain_data_sources.append(f"explorer:{chain}")
-            except Exception as e:
+            except (httpx.HTTPError, KeyError, TypeError) as e :
+                logger.debug("_gather_token_info_error", exc_info=True)
                 logger.debug(f"Explorer failed: {e}")
         return info
 
@@ -134,7 +135,8 @@ class HoneypotDetector:
                             description="Extremely low sell volume - possible sell restriction",
                             detail=f"Buys: {buy_tx}, Sells: {sell_tx} (ratio: {sell_tx / max(buy_tx, 1):.2%})",
                         ))
-        except Exception as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e :
+            logger.debug("_analyze_fees_error", exc_info=True)
             logger.debug(f"Fee analysis via DexScreener failed: {e}")
 
         try:
@@ -193,7 +195,8 @@ class HoneypotDetector:
                             result.token.owner_address = "0x" + admin_data[-40:]
                 except (ConnectionError, OSError, TimeoutError):
                     pass
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_analyze_ownership_error", exc_info=True)
             logger.debug(f"Ownership analysis failed: {e}")
 
     async def _analyze_contract_functions(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
@@ -265,7 +268,8 @@ class HoneypotDetector:
                         detail="Contract uses delegatecall pattern for execution forwarding",
                         code_reference="DELEGATECALL (0xf4) in bytecode",
                     ))
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Bytecode analysis failed: {e}")
 
     async def _analyze_liquidity(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
@@ -289,7 +293,8 @@ class HoneypotDetector:
                             result.warnings.append(f"Pool is less than 1 hour old ({age_hours:.1f}h) - very high risk")
                         elif age_hours < 24:
                             result.warnings.append(f"Pool is less than 24 hours old ({age_hours:.1f}h)")
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+            logger.debug("_analyze_liquidity_error", exc_info=True)
             logger.debug(f"Liquidity analysis failed: {e}")
 
         try:

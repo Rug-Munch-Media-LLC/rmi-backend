@@ -118,7 +118,8 @@ class OracleManipulationDetector:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
@@ -135,7 +136,8 @@ class OracleManipulationDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return float(body.get("data", {}).get("value", 0) or 0)
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+            logger.debug("_fetch_birdeye_price_error", exc_info=True)
             logger.warning(f"Birdeye price failed for {token_address}: {e}")
         return None
 
@@ -157,7 +159,8 @@ class OracleManipulationDetector:
                 result = body.get("result", [])
                 if result and len(result) > 0:
                     return result[0].get("SourceCode", "")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_fetch_contract_source_error", exc_info=True)
             logger.warning(f"Etherscan source fetch failed for {address}: {e}")
         return None
 
@@ -182,7 +185,8 @@ class OracleManipulationDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("result")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_eth_call_error", exc_info=True)
             logger.warning(f"eth_call failed for {to}: {e}")
         return None
 

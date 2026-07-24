@@ -136,7 +136,7 @@ async def _burn_nonce(catalog, tx_hash: str) -> bool:
             log.warning(f"x402_replay_attempt: tx_hash={tx_hash[:10]}...")
             _X402_REPLAY_COUNTER.labels(tool="unknown").inc()
         return bool(ok)
-    except Exception as e:
+    except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
         log.error(f"x402_nonce_burn_fail: {e}")
         # Fail closed - reject if we can't burn atomically
         return False
@@ -265,7 +265,7 @@ async def _check_rate_limit(redis, agent_id: str) -> None:
             )
     except HTTPException:
         raise
-    except Exception as e:
+    except (httpx.HTTPError, ValueError, TypeError, ConnectionError, OSError) as e :
         log.warning(f"rate_limit_check_fail: {e}")
 
 
@@ -354,7 +354,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
         return result.get("verified", False)
     except ImportError:
         pass
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, TypeError) as e :
         get_logger("wp.x402").error(f"verify_payment_on_chain error: {e}")
 
     # Local verification for Base USDC via public RPC
@@ -389,7 +389,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
 
                 # Check recipient matches our payment address
                 return not (to_address and pay_to.lower() != to_address)
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
             get_logger("wp.x402").error(f"Base tx verify failed: {e}")
             return False
 
@@ -413,7 +413,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                 )
                 data = r.json()
                 return not ("result" not in data or data["result"] is None)
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
             get_logger("wp.x402").error(f"Solana tx verify failed: {e}")
             return False
 
@@ -440,7 +440,7 @@ async def record_receipt(
                 os.getenv("X402_DEFAULT_TIER", "pro"),
             )
         return True
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
         log.warning(f"receipt_record_fail: {e}")
         return False
 

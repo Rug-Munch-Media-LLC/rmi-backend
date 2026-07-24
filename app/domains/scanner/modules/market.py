@@ -463,7 +463,7 @@ async def _rag_scam_check(
             return result
     except ImportError:
         logger.debug("rag_scam_check_module_not_available")
-    except Exception as e:  # noqa: BLE001
+    except (httpx.HTTPError) as e :
         logger.warning("rag_scam_check_failed", error=str(e)[:100])
 
     return {"check": "rag", "result": "scanned", "risk_score": 0, "source": "unavailable"}

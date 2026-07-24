@@ -13,15 +13,14 @@ from app.databus.provider_core import (
     _rate_limiters,
     _RateLimiter,
 )
-
-from app.domains.databus._generated.chains.core import build_core_chains
-from app.domains.databus._generated.chains.bitquery import build_bitquery_chains
-from app.domains.databus._generated.chains.onchain import build_onchain_chains
 from app.domains.databus._generated.chains.alchemy_arkham import build_alchemy_arkham_chains
+from app.domains.databus._generated.chains.bitquery import build_bitquery_chains
+from app.domains.databus._generated.chains.core import build_core_chains
+from app.domains.databus._generated.chains.misc import build_misc_chains
+from app.domains.databus._generated.chains.news_social import build_news_social_chains
+from app.domains.databus._generated.chains.onchain import build_onchain_chains
 from app.domains.databus._generated.chains.premium import build_premium_chains
 from app.domains.databus._generated.chains.rugcharts import build_rugcharts_chains
-from app.domains.databus._generated.chains.news_social import build_news_social_chains
-from app.domains.databus._generated.chains.misc import build_misc_chains
 
 logger = get_logger("databus.providers.chains")
 

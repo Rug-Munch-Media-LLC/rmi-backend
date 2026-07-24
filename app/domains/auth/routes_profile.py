@@ -1,21 +1,19 @@
 """User profile and auth cookie/logout endpoints."""
 
-import json
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.core.logging import get_logger
-from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-from app.domains.auth.router import router
-from app.domains.auth.jwt import _verify_jwt
-from app.domains.auth.store import _get_user
 from app.domains.auth.cookie import _clear_auth_cookie
-from app.domains.auth.deps import _extract_token, get_current_user
+from app.domains.auth.deps import _extract_token
+from app.domains.auth.jwt import _verify_jwt
+from app.domains.auth.router import router
 from app.domains.auth.schemas import UserResponse
+from app.domains.auth.store import _get_user
 
 
 @router.get("/user/me", response_model=UserResponse)

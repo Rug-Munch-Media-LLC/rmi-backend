@@ -6,7 +6,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.prediction.prediction_market_package.models import PredictionMarket, extract_token_symbols
+from app.domains.prediction.prediction_market_package.models import (
+    PredictionMarket,
+    extract_token_symbols,
+)
 
 logger = get_logger("prediction_market.limitless")
 
@@ -32,7 +35,8 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
                 if pm:
                     results.append(pm)
         return results
-    except Exception as e:
+    except (requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        logger.debug("search_error", exc_info=True)
         logger.warning(f"Limitless search error: {e}")
         return []
 
@@ -47,7 +51,8 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
         data = resp.json()
         markets = data.get("data", [])
         return [pm for m in markets[:limit] if (pm := _parse_market(m))]
-    except Exception as e:
+    except (requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        logger.debug("trending_error", exc_info=True)
         logger.warning(f"Limitless trending error: {e}")
         return []
 
@@ -74,6 +79,7 @@ def _parse_market(m: dict) -> PredictionMarket | None:
             ends_at=m.get("expirationDate", ""),
             updated_at=datetime.now(UTC).isoformat(),
         )
-    except Exception as e:
+    except (ValueError, TypeError, KeyError) as e :
+        logger.debug("_parse_market_error", exc_info=True)
         logger.warning(f"Failed to parse Limitless market: {e}")
         return None

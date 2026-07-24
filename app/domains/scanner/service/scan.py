@@ -8,8 +8,8 @@ from app.core.logging import get_logger
 from app.domains.scanner.market_data import fetch_market_data
 from app.domains.scanner.models import ScanResult
 from app.domains.scanner.modules import (
-    _check_bundle,
     _check_blockscout,
+    _check_bundle,
     _check_contract_verification,
     _check_copycat,
     _check_defi_scanner,
@@ -67,7 +67,8 @@ async def scan_token(
             r = await func(*args, **kwargs)
             result.modules_run.append({"module": name, "status": "success", "result": r})
             return r
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, OSError) as e :
+            logger.debug("run_module_error", exc_info=True)
             logger.warning("module_failed", module=name, error=str(e))
             last_error = str(e)
             result.modules_run.append({"module": name, "status": "error", "error": str(e)})

@@ -56,7 +56,8 @@ class EVMDeployer(ChainDeployer):
                 return await self._deploy_via_factory(factory_address, params)
             else:
                 return await self._deploy_direct(params)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, OSError) as e :
+            logger.debug("deploy_token_error", exc_info=True)
             logger.error(f"EVM deploy failed on {self.chain}: {e}")
             raise
 

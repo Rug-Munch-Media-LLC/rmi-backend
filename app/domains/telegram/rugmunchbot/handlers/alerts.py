@@ -13,7 +13,6 @@ from telegram.ext import ContextTypes
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
-    ALERT_CHECK_INTERVAL,
     DEXSCREENER,
     TIERS,
     fmt_number,
@@ -21,11 +20,8 @@ from app.domains.telegram.rugmunchbot.config import (
 from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
     footer_links,
-    fmt_chain,
-    is_owner,
     sep,
     short_addr,
-    thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
 from app.domains.telegram.rugmunchbot.states import check_alert_rate_limit
@@ -156,7 +152,8 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
                 disable_web_page_preview=True,
             )
             sent_count += 1
-        except Exception as e:  # noqa: BLE001
+        except (httpx.HTTPError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Failed to send alert to user {user_id}: {e}")
             continue
 
@@ -227,7 +224,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     ts = a["alert_triggered_at"]
                     if "T" in ts:
                         ts_str = f" \u2014 {ts[:10]}"
-                except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+                except (ConnectionError, OSError, TimeoutError):
                     pass
             text += f"  \u2022 <b>{a.get('symbol', '???')}</b> \U0001f514 {fmt_number(a['alert_price'])}{ts_str}\n"
         if len(triggered_alerts) > 5:

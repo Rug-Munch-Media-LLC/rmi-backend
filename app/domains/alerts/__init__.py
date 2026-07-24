@@ -45,7 +45,7 @@ async def _health_check() -> DomainHealth:
             healthy=True,
             details={"redis": "ok", "host": host, "port": port},
         )
-    except Exception as e:
+    except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
         return DomainHealth(
             name="alerts",
             healthy=False,

@@ -327,7 +327,8 @@ class BlockZeroSniperAnalyzer:
                         )
                     )
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning("Solana split trace failed for %s: %s", wallet, e)
 
         return splits
@@ -392,7 +393,8 @@ class BlockZeroSniperAnalyzer:
                     )
                 )
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning("EVM split trace failed for %s on %s: %s", wallet, chain, e)
 
         return splits
@@ -476,7 +478,8 @@ class BlockZeroSniperAnalyzer:
             result.sort(key=lambda x: x.get("block", 0))
             return result
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(
                 "Failed to fetch Solana earliest txs for %s: %s",
                 token_address,
@@ -534,7 +537,8 @@ class BlockZeroSniperAnalyzer:
             # Already sorted asc by Etherscan
             return result
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(
                 "Failed to fetch EVM earliest txs for %s on %s: %s",
                 token_address,
@@ -560,7 +564,8 @@ class BlockZeroSniperAnalyzer:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("result")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+            logger.debug("_helius_rpc_error", exc_info=True)
             logger.warning("Helius RPC call %s failed: %s", method, e)
         return None
 

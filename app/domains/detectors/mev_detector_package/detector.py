@@ -83,7 +83,8 @@ class MEVSandwichDetector:
                     return resp.json()
         except ImportError:
             logger.debug("httpx not available, skipping DataBus query")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_query_databus_error", exc_info=True)
             logger.error(f"DataBus query error: {e}")
         return None
 
@@ -199,7 +200,8 @@ class MEVSandwichDetector:
                         report.frontruns.append(entry)
                     else:
                         report.backruns.append(entry)
-            except Exception as e:
+            except (httpx.HTTPError, KeyError, TypeError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 err = f"Chain {chain} scan error: {e}"
                 logger.error(err)
                 report.errors.append(err)
@@ -209,7 +211,8 @@ class MEVSandwichDetector:
                 risk = await self._analyze_pool_mev_risk(pool)
                 report.vulnerable_pools.append(risk)
                 report.pools_analyzed += 1
-            except Exception as e:
+            except (httpx.HTTPError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Pool analysis error for {pool.address}: {e}")
 
         report.scan_end = datetime.now(UTC).isoformat()

@@ -11,16 +11,14 @@ import aiohttp
 import httpx
 from fastapi import HTTPException
 
+from app.core.logging import get_logger
 from app.domains.billing.x402.shared import (
     HUMAN_PAY_TO,
     HUMAN_PAYMENT_TOKENS,
     AuditRequest,
     MemeVibeRequest,
     SmartMoneyAlphaRequest,
-    td,
 )
-
-from app.core.logging import get_logger
 
 from .core import sub_router
 from .utils import (
@@ -140,64 +138,61 @@ async def human_execute(req: Any) -> dict[str, Any]:
 
     # ── Execute the tool ──
     try:
-        if chain in ("base", "ethereum", "bsc", "polygon", "arbitrum"):
-            gw = "https://base.rugmunch.io"
-        elif chain == "tron":
+        if chain in ("base", "ethereum", "bsc", "polygon", "arbitrum") or chain == "tron":
             gw = "https://base.rugmunch.io"
         else:
             gw = "https://sol.rugmunch.io"
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{gw}/tools/{tool_name}",
-                json=req.arguments,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-RMI-Human-Payment": "verified",
-                },
-                timeout=aiohttp.ClientTimeout(total=30),
-            ) as resp:
-                text = await resp.text()
-                try:
-                    result_data = json.loads(text)
-                except json.JSONDecodeError:
-                    result_data = {"raw": text[:500]}
+        async with aiohttp.ClientSession() as session, session.post(
+            f"{gw}/tools/{tool_name}",
+            json=req.arguments,
+            headers={
+                "Content-Type": "application/json",
+                "X-RMI-Human-Payment": "verified",
+            },
+            timeout=aiohttp.ClientTimeout(total=30),
+        ) as resp:
+            text = await resp.text()
+            try:
+                result_data = json.loads(text)
+            except json.JSONDecodeError:
+                result_data = {"raw": text[:500]}
 
-                try:
-                    from app.routers.x402_enforcement import get_redis
+            try:
+                from app.routers.x402_enforcement import get_redis
 
-                    r = get_redis()
-                    if r:
-                        r.setex(
-                            f"x402:spent_tx:{req.tx_hash}",
-                            86400,
-                            json.dumps(
-                                {
-                                    "chain": chain,
-                                    "payer": req.wallet,
-                                    "amount": "0",
-                                    "tool": tool_name,
-                                    "timestamp": _time.time(),
-                                    "method": "human-wallet",
-                                    "facilitator": facilitator_used,
-                                }
-                            ),
-                        )
-                except (ConnectionError, TimeoutError, OSError) as e:
-                    logger.warning(f"Redis spent_tx record failed: {e}")
+                r = get_redis()
+                if r:
+                    r.setex(
+                        f"x402:spent_tx:{req.tx_hash}",
+                        86400,
+                        json.dumps(
+                            {
+                                "chain": chain,
+                                "payer": req.wallet,
+                                "amount": "0",
+                                "tool": tool_name,
+                                "timestamp": _time.time(),
+                                "method": "human-wallet",
+                                "facilitator": facilitator_used,
+                            }
+                        ),
+                    )
+            except (ConnectionError, TimeoutError, OSError) as e:
+                logger.warning(f"Redis spent_tx record failed: {e}")
 
-                return {
-                    "success": resp.status < 400,
-                    "tool": tool_name,
-                    "payment_token": req.payment_token,
-                    "chain": chain,
-                    "tx_hash": req.tx_hash,
-                    "verified": True,
-                    "verification": verification_method,
-                    "facilitator": facilitator_used,
-                    "pay_to": expected_pay_to,
-                    "result": result_data,
-                }
+            return {
+                "success": resp.status < 400,
+                "tool": tool_name,
+                "payment_token": req.payment_token,
+                "chain": chain,
+                "tx_hash": req.tx_hash,
+                "verified": True,
+                "verification": verification_method,
+                "facilitator": facilitator_used,
+                "pay_to": expected_pay_to,
+                "result": result_data,
+            }
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         return {"success": False, "error": f"Tool execution failed: {e!s}"}
 

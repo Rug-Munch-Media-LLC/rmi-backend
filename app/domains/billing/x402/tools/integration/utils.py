@@ -14,7 +14,6 @@ from fastapi import Request
 
 from .models import CHAIN_SUFFIXES, NETWORKS
 
-
 # ── Catalog & Format Converters ────────────────────────────────
 
 
@@ -303,7 +302,7 @@ async def execute_bundle_tasks(
             try:
                 resp = await coro
                 results[name] = await resp.json() if resp.status == 200 else {"status": resp.status}
-            except Exception as e:  # noqa: BLE001
+            except (TimeoutError, aiohttp.ClientError, ConnectionError, OSError, httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
                 results[name] = {"error": str(e)}
     return results
 
@@ -361,5 +360,5 @@ async def enrich_response(
         from app.routers.x402_enrichment import enrich_tool_response
 
         return enrich_tool_response(tool_id, result, request_params=body, opt_out=opt_out)
-    except (ImportError, Exception):  # noqa: BLE001
+    except (ImportError, Exception):
         return result

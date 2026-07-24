@@ -166,7 +166,8 @@ class WashTradingDetector:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("result")
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_helius_rpc_error", exc_info=True)
             logger.warning(f"Helius RPC call failed: {e}")
         return None
 
@@ -201,7 +202,8 @@ class WashTradingDetector:
                 if isinstance(data, list):
                     return data
                 return data if data else []
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_helius_enhanced_txs_error", exc_info=True)
             logger.warning(f"Helius Enhanced Transactions failed for {address}: {e}")
 
         return []
@@ -226,7 +228,8 @@ class WashTradingDetector:
                 if isinstance(data, list):
                     return data
                 return data.get("result", data.get("data", data))
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_moralis_get_error", exc_info=True)
             logger.warning(f"Moralis call failed: {e}")
         return None
 
@@ -248,7 +251,8 @@ class WashTradingDetector:
                 if data.get("status") == "1":
                     return data.get("result")
                 return data
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_etherscan_get_error", exc_info=True)
             logger.warning(f"Etherscan call failed for {chain}: {e}")
         return None
 
@@ -261,7 +265,8 @@ class WashTradingDetector:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("pairs") or []
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            logger.debug("_dexscreener_token_pairs_error", exc_info=True)
             logger.warning(f"DexScreener lookup failed for {token_address}: {e}")
         return []
 
@@ -417,7 +422,8 @@ class WashTradingDetector:
                             )
                         )
 
-        except Exception as e:
+        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+            logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Solana transfer parsing failed: {e}")
 
         return transfers
@@ -479,7 +485,8 @@ class WashTradingDetector:
                         )
                     if transfers:
                         return transfers
-            except Exception as e:
+            except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+                logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Moralis transfer fetch failed for {token_address} on {chain}: {e}")
 
         # ── Strategy 2: Etherscan tokentx ──

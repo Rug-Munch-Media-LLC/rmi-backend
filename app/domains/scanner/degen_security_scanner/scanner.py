@@ -16,7 +16,7 @@ import httpx
 from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
-from .config import BIRDEYE_API_KEY, HELIUS_API_KEY, BUNDLER_PROGRAMS
+from .config import BIRDEYE_API_KEY, HELIUS_API_KEY
 from .models import (
     FundingTrace,
     HolderProfile,
@@ -135,7 +135,7 @@ class DegenSecurityScanner:
                     if report.decimals
                     else float(supply_raw)
                 )
-            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):
                 report.total_supply = 0
             report.created_at = token_data.get("createdTime")
         else:

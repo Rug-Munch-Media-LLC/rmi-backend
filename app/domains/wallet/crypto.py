@@ -255,7 +255,7 @@ class ZKAddressVerifier:
                 vk = VerifyKey(bytes.fromhex(public_key_hex))
                 vk.verify(challenge.encode(), bytes.fromhex(signature_hex))
                 return True
-            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):
                 return False
         return True  # Placeholder when nacl not available
 

@@ -24,7 +24,8 @@ async def _rag_scam_check(
         )
         if result:
             return result
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, OSError) as e :
+        logger.debug("_rag_scam_check_error", exc_info=True)
         logger.warning("rag_scam_check_failed", error=str(e)[:100])
 
     return {"check": "rag", "result": "scanned", "risk_score": 0, "source": "unavailable"}

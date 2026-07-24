@@ -5,7 +5,9 @@ Scam School — user progress, lesson completion, exam submission, and leaderboa
 import json
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Query, Request
+
+from app.core.errors import AuthError, NotFoundError
 
 from app.core.redis import get_redis
 from app.routers.scam_school.content import COURSES
@@ -37,7 +39,7 @@ async def get_progress(request: Request) -> dict:
     """Get current user's full progress."""
     user = await get_current_user(request)
     if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
+        raise AuthError("Authentication required")
 
     progress = _get_progress(user["id"])
     level_data = _calculate_level(progress.total_xp)
@@ -65,14 +67,14 @@ async def complete_lesson(
     """Mark a lesson as complete and award XP."""
     user = await get_current_user(request)
     if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
+        raise AuthError("Authentication required")
 
     course = next((c for c in COURSES if c["id"] == course_id), None)
     if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+        raise NotFoundError("Course not found")
     module = next((m for m in course["modules"] if m["id"] == lesson_id), None)
     if not module:
-        raise HTTPException(status_code=404, detail="Lesson not found")
+        raise NotFoundError("Lesson not found")
 
     progress = _get_progress(user["id"])
     _update_streak(progress)
@@ -157,14 +159,14 @@ async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Re
     """Submit an exam and get results."""
     user = await get_current_user(request)
     if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
+        raise AuthError("Authentication required")
 
     course = next((c for c in COURSES if c["id"] == course_id), None)
     if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+        raise NotFoundError("Course not found")
     exam = next((m for m in course["modules"] if m["id"] == exam_id and m["type"] == "exam"), None)
     if not exam:
-        raise HTTPException(status_code=404, detail="Exam not found")
+        raise NotFoundError("Exam not found")
 
     progress = _get_progress(user["id"])
 
