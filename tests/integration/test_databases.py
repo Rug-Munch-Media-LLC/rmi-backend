@@ -19,6 +19,7 @@ Markers:
 from __future__ import annotations
 
 import asyncio
+import httpx
 import json
 import os
 import time
@@ -28,6 +29,74 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
+
+# Qdrant REST API helpers — avoids importing the Python qdrant_client
+# (which pulls in a broken huggingface_hub._snapshot_download on this
+# system).  All Qdrant interactions use httpx against the REST endpoint
+# (port 6333), matching the pattern in app/core/health_route.py and
+# app/catalog/service.py.
+
+
+def _qdrant_create_collection(
+    client: httpx.Client, name: str, size: int, distance: str = "Cosine"
+) -> dict:
+    """Create a Qdrant collection via REST API."""
+    resp = client.put(
+        f"/collections/{name}", json={"vectors": {"size": size, "distance": distance}}
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _qdrant_collection_info(client: httpx.Client, name: str) -> dict:
+    """Get Qdrant collection info via REST API."""
+    resp = client.get(f"/collections/{name}")
+    resp.raise_for_status()
+    return resp.json()["result"]
+
+
+def _qdrant_delete_collection(client: httpx.Client, name: str) -> dict:
+    """Delete a Qdrant collection via REST API."""
+    resp = client.delete(f"/collections/{name}")
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _qdrant_list_collections(client: httpx.Client) -> list[dict]:
+    """List Qdrant collections via REST API."""
+    resp = client.get("/collections")
+    resp.raise_for_status()
+    return resp.json()["result"]["collections"]
+
+
+def _qdrant_upsert_points(client: httpx.Client, name: str, points: list[dict]) -> dict:
+    """Upsert points into a Qdrant collection via REST API."""
+    resp = client.put(f"/collections/{name}/points", json={"points": points})
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _qdrant_search_points(
+    client: httpx.Client,
+    name: str,
+    vector: list[float],
+    limit: int = 10,
+    qdrant_filter: dict | None = None,
+) -> list[dict]:
+    """Search points in a Qdrant collection via REST API."""
+    body: dict = {"vector": vector, "limit": limit}
+    if qdrant_filter is not None:
+        body["filter"] = qdrant_filter
+    resp = client.post(f"/collections/{name}/points/search", json=body)
+    resp.raise_for_status()
+    return resp.json()["result"]
+
+
+def _qdrant_delete_points(client: httpx.Client, name: str, point_ids: list[int]) -> dict:
+    """Delete points from a Qdrant collection via REST API."""
+    resp = client.post(f"/collections/{name}/points/delete", json={"points": point_ids})
+    resp.raise_for_status()
+    return resp.json()
 
 
 pytestmark = [
@@ -1161,19 +1230,14 @@ def qdrant_container():
 
 
 @pytest.fixture
-def qdrant_client(qdrant_container):
-    """Per-test Qdrant gRPC client with auto-cleanup."""
-    from qdrant_client import QdrantClient as _QdrantClient
-
-    grpc_port = qdrant_container.get_exposed_port(6334)
-    host = qdrant_container.get_container_host_ip()
-    client = _QdrantClient(host=host, port=grpc_port, prefer_grpc=True)
-    yield client
-
-
-@pytest.fixture
 def qdrant_http_client(qdrant_container):
-    """HTTP client for REST API tests."""
+    """HTTP client for Qdrant REST API (port 6333).
+
+    This is the PRIMARY test client — we use the REST API directly
+    instead of the qdrant_client Python package (gRPC) to avoid a
+    broken huggingface_hub._snapshot_download import on this system.
+    The application itself uses httpx against the REST API too.
+    """
     import httpx as _httpx
 
     rest_port = qdrant_container.get_exposed_port(6333)
@@ -1185,61 +1249,48 @@ def qdrant_http_client(qdrant_container):
 class TestQdrantCollectionManagement:
     """Collection create, info, and delete."""
 
-    def test_create_collection(self, qdrant_client, qdrant_http_client):
+    def test_create_collection(self, qdrant_http_client):
         """Create collection with vectors config."""
         name = _random_id("test_coll_create_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
-        )
-        info = qdrant_client.get_collection(collection_name=name)
-        assert info.status == "green"
-        assert info.config.params.vectors.size == 4
+        _qdrant_create_collection(qdrant_http_client, name, size=4, distance="Cosine")
+        info = _qdrant_collection_info(qdrant_http_client, name)
+        assert info["status"] == "green"
+        assert info["config"]["params"]["vectors"]["size"] == 4
 
-    def test_collection_info(self, qdrant_client, qdrant_http_client):
+    def test_collection_info(self, qdrant_http_client):
         """Collection info returns correct metadata."""
         name = _random_id("test_coll_info_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=128, distance=Distance.DOT),
-        )
-        info = qdrant_client.get_collection(collection_name=name)
-        assert info.config.params.vectors.size == 128
-        assert info.points_count >= 0
+        _qdrant_create_collection(qdrant_http_client, name, size=128, distance="Dot")
+        info = _qdrant_collection_info(qdrant_http_client, name)
+        assert info["config"]["params"]["vectors"]["size"] == 128
+        assert info["points_count"] >= 0
 
-    def test_delete_collection(self, qdrant_client, qdrant_http_client):
+    def test_delete_collection(self, qdrant_http_client):
         """Delete collection removes it."""
         name = _random_id("test_coll_del_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
-        )
-        qdrant_client.delete_collection(collection_name=name)
-        collections = qdrant_client.get_collections()
-        names = [c.name for c in collections.collections]
+        _qdrant_create_collection(qdrant_http_client, name, size=4, distance="Cosine")
+        _qdrant_delete_collection(qdrant_http_client, name)
+        collections = _qdrant_list_collections(qdrant_http_client)
+        names = [c["name"] for c in collections]
         assert name not in names
 
-    def test_list_collections(self, qdrant_client, qdrant_http_client):
+    def test_list_collections(self, qdrant_http_client):
         """List all collections returns expected names."""
         name = _random_id("test_coll_list_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
-        )
-        collections = qdrant_client.get_collections()
-        names = [c.name for c in collections.collections]
+        _qdrant_create_collection(qdrant_http_client, name, size=4, distance="Cosine")
+        collections = _qdrant_list_collections(qdrant_http_client)
+        names = [c["name"] for c in collections]
         assert name in names
-        qdrant_client.delete_collection(collection_name=name)
+        _qdrant_delete_collection(qdrant_http_client, name)
 
     @pytest.fixture(autouse=True)
-    def _cleanup(self, qdrant_client):
+    def _cleanup(self, qdrant_http_client):
         """Cleanup all test collections after each test."""
         yield
-        collections = qdrant_client.get_collections()
-        for c in collections.collections:
-            if c.name.startswith("test_coll"):
+        for c in _qdrant_list_collections(qdrant_http_client):
+            if c["name"].startswith("test_coll"):
                 try:
-                    qdrant_client.delete_collection(collection_name=c.name)
+                    _qdrant_delete_collection(qdrant_http_client, c["name"])
                 except Exception:
                     pass
 
@@ -1247,120 +1298,110 @@ class TestQdrantCollectionManagement:
 class TestQdrantVectorSearch:
     """Vector insert, search, and filtered search."""
 
-    def test_insert_and_search(self, qdrant_client):
+    def test_insert_and_search(self, qdrant_http_client):
         """Insert vectors and find nearest neighbors."""
         name = _random_id("test_coll_vs_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
-        )
+        _qdrant_create_collection(qdrant_http_client, name, size=4, distance="Cosine")
         points = [
-            PointStruct(id=1, vector=[0.1, 0.2, 0.3, 0.4], payload={"label": "a"}),
-            PointStruct(id=2, vector=[0.9, 0.8, 0.7, 0.6], payload={"label": "b"}),
-            PointStruct(id=3, vector=[0.2, 0.1, 0.4, 0.3], payload={"label": "a"}),
+            {"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "payload": {"label": "a"}},
+            {"id": 2, "vector": [0.9, 0.8, 0.7, 0.6], "payload": {"label": "b"}},
+            {"id": 3, "vector": [0.2, 0.1, 0.4, 0.3], "payload": {"label": "a"}},
         ]
-        qdrant_client.upsert(collection_name=name, points=points)
+        _qdrant_upsert_points(qdrant_http_client, name, points)
 
-        results = qdrant_client.search(
-            collection_name=name,
-            query_vector=[0.15, 0.25, 0.35, 0.45],
-            limit=2,
+        results = _qdrant_search_points(
+            qdrant_http_client, name, vector=[0.15, 0.25, 0.35, 0.45], limit=2
         )
         assert len(results) >= 1
-        assert results[0].score > 0.9  # close to point 1
+        assert results[0]["score"] > 0.9  # close to point 1
 
-    def test_batch_upsert(self, qdrant_client):
+    def test_batch_upsert(self, qdrant_http_client):
         """Batch upsert handles many vectors."""
         name = _random_id("test_coll_batch_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=8, distance=Distance.COSINE),
-        )
+        _qdrant_create_collection(qdrant_http_client, name, size=8, distance="Cosine")
         points = [
-            PointStruct(id=i, vector=[float(j) for j in range(i, i + 8)], payload={"idx": i})
+            {"id": i, "vector": [float(j) for j in range(i, i + 8)], "payload": {"idx": i}}
             for i in range(50)
         ]
-        qdrant_client.upsert(collection_name=name, points=points)
+        _qdrant_upsert_points(qdrant_http_client, name, points)
 
-        info = qdrant_client.get_collection(collection_name=name)
-        assert info.points_count >= 50
+        info = _qdrant_collection_info(qdrant_http_client, name)
+        assert info["points_count"] >= 50
 
-    def test_filtered_search(self, qdrant_client):
+    def test_filtered_search(self, qdrant_http_client):
         """Search with payload filter returns matching subset."""
         name = _random_id("test_coll_filter_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
-        )
+        _qdrant_create_collection(qdrant_http_client, name, size=4, distance="Cosine")
         points = [
-            PointStruct(
-                id=1, vector=[0.1, 0.2, 0.3, 0.4], payload={"chain": "solana", "risk": "high"}
-            ),
-            PointStruct(
-                id=2, vector=[0.5, 0.6, 0.7, 0.8], payload={"chain": "ethereum", "risk": "low"}
-            ),
-            PointStruct(
-                id=3, vector=[0.9, 0.8, 0.7, 0.6], payload={"chain": "solana", "risk": "low"}
-            ),
+            {
+                "id": 1,
+                "vector": [0.1, 0.2, 0.3, 0.4],
+                "payload": {"chain": "solana", "risk": "high"},
+            },
+            {
+                "id": 2,
+                "vector": [0.5, 0.6, 0.7, 0.8],
+                "payload": {"chain": "ethereum", "risk": "low"},
+            },
+            {
+                "id": 3,
+                "vector": [0.9, 0.8, 0.7, 0.6],
+                "payload": {"chain": "solana", "risk": "low"},
+            },
         ]
-        qdrant_client.upsert(collection_name=name, points=points)
+        _qdrant_upsert_points(qdrant_http_client, name, points)
 
         # Filter: chain = solana
-        results = qdrant_client.search(
-            collection_name=name,
-            query_vector=[0.0, 0.0, 0.0, 0.0],
-            query_filter=Filter(
-                must=[FieldCondition(key="chain", match=MatchValue(value="solana"))]
-            ),
+        qdrant_filter = {"must": [{"key": "chain", "match": {"value": "solana"}}]}
+        results = _qdrant_search_points(
+            qdrant_http_client,
+            name,
+            vector=[0.0, 0.0, 0.0, 0.0],
             limit=10,
+            qdrant_filter=qdrant_filter,
         )
         assert len(results) == 2
-        chains = {r.payload["chain"] for r in results}
+        chains = {r["payload"]["chain"] for r in results}
         assert chains == {"solana"}
 
-    def test_search_with_payload_projection(self, qdrant_client):
+    def test_search_with_payload_projection(self, qdrant_http_client):
         """Search results include payload in response."""
         name = _random_id("test_coll_proj_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+        _qdrant_create_collection(qdrant_http_client, name, size=4, distance="Cosine")
+        _qdrant_upsert_points(
+            qdrant_http_client,
+            name,
+            points=[{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "payload": {"name": "test_token"}}],
         )
-        qdrant_client.upsert(
-            collection_name=name,
-            points=[PointStruct(id=1, vector=[0.1, 0.2, 0.3, 0.4], payload={"name": "test_token"})],
-        )
-        results = qdrant_client.search(
-            collection_name=name,
-            query_vector=[0.1, 0.2, 0.3, 0.4],
-            limit=1,
+        results = _qdrant_search_points(
+            qdrant_http_client, name, vector=[0.1, 0.2, 0.3, 0.4], limit=1
         )
         assert len(results) == 1
-        assert results[0].payload.get("name") == "test_token"
+        assert results[0]["payload"].get("name") == "test_token"
 
-    def test_delete_points(self, qdrant_client):
+    def test_delete_points(self, qdrant_http_client):
         """Delete specific points by ID."""
         name = _random_id("test_coll_dp_")
-        qdrant_client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
-        )
-        qdrant_client.upsert(
-            collection_name=name,
+        _qdrant_create_collection(qdrant_http_client, name, size=4, distance="Cosine")
+        _qdrant_upsert_points(
+            qdrant_http_client,
+            name,
             points=[
-                PointStruct(id=1, vector=[0.1, 0.2, 0.3, 0.4]),
-                PointStruct(id=2, vector=[0.5, 0.6, 0.7, 0.8]),
+                {"id": 1, "vector": [0.1, 0.2, 0.3, 0.4]},
+                {"id": 2, "vector": [0.5, 0.6, 0.7, 0.8]},
             ],
         )
-        info_before = qdrant_client.get_collection(collection_name=name)
-        qdrant_client.delete(collection_name=name, points_selector=[1])
+        info_before = _qdrant_collection_info(qdrant_http_client, name)
+        _qdrant_delete_points(qdrant_http_client, name, [1])
         # Check count decreased
-        info_after = qdrant_client.get_collection(collection_name=name)
-        assert info_after.points_count < info_before.points_count or info_after.points_count >= 0
+        info_after = _qdrant_collection_info(qdrant_http_client, name)
+        assert (
+            info_after["points_count"] < info_before["points_count"]
+            or info_after["points_count"] >= 0
+        )
         # Point 2 should still exist
-        results = qdrant_client.search(
-            collection_name=name,
-            query_vector=[0.5, 0.6, 0.7, 0.8],
-            limit=1,
+        results = _qdrant_search_points(
+            qdrant_http_client, name, vector=[0.5, 0.6, 0.7, 0.8], limit=1
         )
         assert len(results) >= 0  # point 2 may still exist
 
