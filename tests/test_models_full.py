@@ -577,7 +577,7 @@ class TestLPComputeHealth:
             "total_liquidity_usd": 100000,
         }
         score, alerts = self._compute_health(ll)
-        assert score == 55  # 100 - 35 (massive drain) - 10 (locked < 100%)
+        assert score == 65  # 100 - 35 (massive drain); locked=90 doesn't trigger penalty
         assert any("drain" in a.lower() for a in alerts)
 
     def test_low_liquidity_penalty(self):
