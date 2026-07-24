@@ -44,7 +44,8 @@ class TestPostgresBenchmarks:
         """)
         await pg_conn.execute(
             "INSERT INTO bm_pk_test (label, value) VALUES ($1, $2)",
-            "benchmark_row", 42,
+            "benchmark_row",
+            42,
         )
 
         timer.start()
@@ -59,9 +60,7 @@ class TestPostgresBenchmarks:
 
     @pytest.mark.asyncio
     @pytest.mark.benchmark
-    async def test_pg_select_by_index(
-        self, pg_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    async def test_pg_select_by_index(self, pg_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: PostgreSQL SELECT by indexed column < 100ms.
 
         Creates a table with an index on a text column, inserts rows,
@@ -82,14 +81,14 @@ class TestPostgresBenchmarks:
         for i in range(100):
             await pg_conn.execute(
                 "INSERT INTO bm_index_test (wallet_address, balance) VALUES ($1, $2)",
-                f"0xdeadbeef{i:04d}000000000000000000000000", i * 1000,
+                f"0xdeadbeef{i:04d}000000000000000000000000",
+                i * 1000,
             )
 
         timer.start()
         row = await pg_conn.fetchrow(
-            "SELECT id, wallet_address, balance FROM bm_index_test "
-            "WHERE wallet_address = $1",
-            "0xdeadbeef004200000000000000000000000000",
+            "SELECT id, wallet_address, balance FROM bm_index_test WHERE wallet_address = $1",
+            f"0xdeadbeef{42:04d}000000000000000000000000",
         )
         elapsed_ms = timer.stop() * 1000
 
@@ -98,9 +97,7 @@ class TestPostgresBenchmarks:
 
     @pytest.mark.asyncio
     @pytest.mark.benchmark
-    async def test_pg_insert(
-        self, pg_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    async def test_pg_insert(self, pg_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: PostgreSQL single row INSERT < 100ms.
 
         Measures the round-trip time for inserting a row into a table
@@ -118,8 +115,7 @@ class TestPostgresBenchmarks:
 
         timer.start()
         row = await pg_conn.fetchrow(
-            "INSERT INTO bm_insert_test (chain, address, data) "
-            "VALUES ($1, $2, $3) RETURNING id",
+            "INSERT INTO bm_insert_test (chain, address, data) VALUES ($1, $2, $3) RETURNING id",
             "solana",
             "BMInsertTestAddr0000000000000000000000000",
             '{"risk_score": 42, "flags": ["test"]}',
@@ -132,9 +128,7 @@ class TestPostgresBenchmarks:
 
     @pytest.mark.asyncio
     @pytest.mark.benchmark
-    async def test_pg_update(
-        self, pg_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    async def test_pg_update(self, pg_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: PostgreSQL single row UPDATE < 100ms.
 
         Measures round-trip for UPDATE with RETURNING to verify the
@@ -150,14 +144,16 @@ class TestPostgresBenchmarks:
         """)
         await pg_conn.execute(
             "INSERT INTO bm_update_test (status, score) VALUES ($1, $2)",
-            "pending", 10,
+            "pending",
+            10,
         )
 
         timer.start()
         row = await pg_conn.fetchrow(
             "UPDATE bm_update_test SET status = $1, score = $2 "
             "WHERE id = 1 RETURNING id, status, score",
-            "completed", 95,
+            "completed",
+            95,
         )
         elapsed_ms = timer.stop() * 1000
 
@@ -179,9 +175,7 @@ class TestClickHouseBenchmarks:
     """ClickHouse query benchmarks — aggregate and time-range queries."""
 
     @pytest.mark.benchmark
-    def test_ch_aggregate_query(
-        self, ch_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    def test_ch_aggregate_query(self, ch_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: ClickHouse aggregate query < 200ms.
 
         Creates an in-memory table, inserts sample event rows, then
@@ -200,12 +194,14 @@ class TestClickHouseBenchmarks:
         now = datetime.datetime.utcnow()
         rows: list[tuple[str, str, float, datetime.datetime]] = []
         for i in range(500):
-            rows.append((
-                "scan" if i % 3 == 0 else "alert" if i % 3 == 1 else "webhook",
-                ["solana", "ethereum", "base"][i % 3],
-                float(i * 1.5),
-                now - datetime.timedelta(minutes=i),
-            ))
+            rows.append(
+                (
+                    "scan" if i % 3 == 0 else "alert" if i % 3 == 1 else "webhook",
+                    ["solana", "ethereum", "base"][i % 3],
+                    float(i * 1.5),
+                    now - datetime.timedelta(minutes=i),
+                )
+            )
         ch_conn.execute(
             "INSERT INTO bm_events (event_type, chain, value, ts) VALUES",
             rows,
@@ -232,9 +228,7 @@ class TestClickHouseBenchmarks:
         assert_time(elapsed_ms, THRESHOLD_CH_AGGREGATE_MS, "ch_aggregate_query")
 
     @pytest.mark.benchmark
-    def test_ch_time_range_query(
-        self, ch_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    def test_ch_time_range_query(self, ch_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: ClickHouse time-range filtered query < 200ms.
 
         Queries with WHERE on DateTime column to simulate real
@@ -254,13 +248,15 @@ class TestClickHouseBenchmarks:
         now = datetime.datetime.utcnow()
         rows: list[tuple[str, str, str, float, datetime.datetime]] = []
         for i in range(1000):
-            rows.append((
-                ["solana", "ethereum", "base", "bsc", "polygon"][i % 5],
-                f"0x{i:040x}",
-                ["transfer", "swap", "approve", "mint"][i % 4],
-                float(i * 0.001),
-                now - datetime.timedelta(hours=i),
-            ))
+            rows.append(
+                (
+                    ["solana", "ethereum", "base", "bsc", "polygon"][i % 5],
+                    f"0x{i:040x}",
+                    ["transfer", "swap", "approve", "mint"][i % 4],
+                    float(i * 0.001),
+                    now - datetime.timedelta(hours=i),
+                )
+            )
         ch_conn.execute(
             "INSERT INTO bm_time_series (chain, address, event_type, value, ts) VALUES",
             rows,
@@ -295,9 +291,7 @@ class TestRedisBenchmarks:
     """Redis roundtrip and pipeline throughput benchmarks."""
 
     @pytest.mark.benchmark
-    def test_redis_set_roundtrip(
-        self, redis_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    def test_redis_set_roundtrip(self, redis_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: Redis SET roundtrip < 10ms.
 
         Sets a string value and verifies it was stored by checking
@@ -311,9 +305,7 @@ class TestRedisBenchmarks:
         assert_time(elapsed_ms, THRESHOLD_REDIS_SET_MS, "redis_set")
 
     @pytest.mark.benchmark
-    def test_redis_get_roundtrip(
-        self, redis_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    def test_redis_get_roundtrip(self, redis_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: Redis GET roundtrip < 10ms.
 
         Sets a key first, then measures how long it takes to retrieve
@@ -329,9 +321,7 @@ class TestRedisBenchmarks:
         assert_time(elapsed_ms, THRESHOLD_REDIS_GET_MS, "redis_get")
 
     @pytest.mark.benchmark
-    def test_redis_delete_roundtrip(
-        self, redis_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    def test_redis_delete_roundtrip(self, redis_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: Redis DELETE roundtrip < 10ms.
 
         Sets a key, then measures how long deletion takes, and verifies
@@ -348,9 +338,7 @@ class TestRedisBenchmarks:
         assert_time(elapsed_ms, THRESHOLD_REDIS_DELETE_MS, "redis_delete")
 
     @pytest.mark.benchmark
-    def test_redis_pipeline_throughput(
-        self, redis_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    def test_redis_pipeline_throughput(self, redis_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: Redis pipeline with 100 operations < 50ms.
 
         Uses a pipeline to batch 100 SET commands and execute them
@@ -364,12 +352,8 @@ class TestRedisBenchmarks:
         results = pipe.execute()
         elapsed_ms = timer.stop() * 1000
 
-        assert len(results) == 100, (
-            f"Expected 100 pipeline results, got {len(results)}"
-        )
-        assert all(r is True for r in results), (
-            "Not all pipeline SET operations succeeded"
-        )
+        assert len(results) == 100, f"Expected 100 pipeline results, got {len(results)}"
+        assert all(r is True for r in results), "Not all pipeline SET operations succeeded"
         assert_time(elapsed_ms, THRESHOLD_REDIS_PIPELINE_MS, "redis_pipeline")
 
         # Cleanup pipeline keys
