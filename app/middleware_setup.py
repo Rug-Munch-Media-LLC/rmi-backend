@@ -43,7 +43,45 @@ def register_middleware(app: FastAPI) -> None:
     _try_register_deprecation_header(app)
     _try_register_slowapi(app)
     _try_register_rate_limit_middleware(app)
+    _try_register_slow_query_logging(app)
     _try_register_csrf(app)
+
+
+def _try_register_slow_query_logging(app: FastAPI) -> None:
+    """Log warnings for endpoints that take > 500ms.
+
+    Helps identify performance regressions in production without
+    needing APM tooling for every deployment.
+    """
+    try:
+        from starlette.middleware.base import BaseHTTPMiddleware
+
+        slow_threshold_ms: float = 500.0
+
+        class SlowQueryLoggingMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next: Any) -> Response:
+                start = time.perf_counter()
+                response = cast("Response", await call_next(request))
+                elapsed_ms = (time.perf_counter() - start) * 1000
+
+                if elapsed_ms > slow_threshold_ms:
+                    path = request.url.path
+                    method = request.method
+                    qs = request.url.query_string.decode() if request.url.query_string else ""
+                    log.warning(
+                        "slow_request method=%s path=%s qs=%s elapsed_ms=%.0f threshold_ms=%.0f",
+                        method,
+                        path,
+                        qs[:200],
+                        elapsed_ms,
+                        slow_threshold_ms,
+                    )
+                return response
+
+        app.add_middleware(SlowQueryLoggingMiddleware)
+        log.info("middleware_registered name=slow_query_logging")
+    except Exception as exc:
+        log.warning("middleware_skipped name=slow_query_logging err=%s", exc)
 
 
 def _try_register_request_id(app: FastAPI) -> None:
@@ -183,11 +221,13 @@ def _try_register_rate_limit_middleware(app: FastAPI) -> None:
     """T28b — Unified token-bucket rate limiting for all paths."""
     try:
         from app.core.rate_limiter import get_rate_limiter, RateLimitMiddleware
+
         limiter = get_rate_limiter()
         app.add_middleware(RateLimitMiddleware, limiter=limiter)
         log.info("middleware_registered name=rate_limit_middleware")
     except Exception as exc:
         log.warning("middleware_skipped name=rate_limit_middleware err=%s", exc)
+
 
 def _try_register_slowapi(app: FastAPI) -> None:
     """T28 - slowapi rate limiting per PATH_CATEGORIES + decorators."""

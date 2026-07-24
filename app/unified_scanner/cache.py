@@ -1,6 +1,9 @@
-"""Redis-backed result cache for wallet scans."""
+"""Redis-backed result cache for wallet scans.
 
-import hashlib
+Uses a module-level shared async Redis connection pool instead of
+creating a new TCP connection per cache operation (performance fix).
+"""
+
 import json
 import os
 
@@ -8,18 +11,32 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# ── Shared async Redis connection pool ────────────────────────────────
+_redis_pool = None
 
-async def _cache_get(key: str) -> dict | None:
-    """Get cached wallet scan result."""
-    try:
+
+async def _get_redis():
+    """Get or create a shared async Redis connection with pooling."""
+    global _redis_pool
+    if _redis_pool is None:
         import redis.asyncio as aioredis
 
-        r = await aioredis.from_url(
+        _redis_pool = aioredis.ConnectionPool.from_url(
             f"redis://{os.getenv('REDIS_HOST', 'rmi-redis')}:{os.getenv('REDIS_PORT', '6379')}",
             password=os.getenv("REDIS_PASSWORD", "") or None,
+            max_connections=10,
+            decode_responses=True,
+            retry_on_timeout=True,
+            health_check_interval=30,
         )
+    return aioredis.Redis(connection_pool=_redis_pool)
+
+
+async def _cache_get(key: str) -> dict | None:
+    """Get cached wallet scan result using shared connection pool."""
+    try:
+        r = await _get_redis()
         cached = await r.get(f"rmi:wallet_cache:{key}")
-        await r.close()
         if cached:
             return json.loads(cached)
     except (ConnectionError, OSError, json.JSONDecodeError):
@@ -28,18 +45,9 @@ async def _cache_get(key: str) -> dict | None:
 
 
 async def _cache_set(key: str, data: dict, ttl: int = 3600) -> None:
-    """Cache wallet scan result for 1 hour."""
+    """Cache wallet scan result for 1 hour using shared connection pool."""
     try:
-        import json
-        import os
-
-        import redis.asyncio as aioredis
-
-        r = await aioredis.from_url(
-            f"redis://{os.getenv('REDIS_HOST', 'rmi-redis')}:{os.getenv('REDIS_PORT', '6379')}",
-            password=os.getenv("REDIS_PASSWORD", "") or None,
-        )
-        await r.setex(f"rmi:wallet_cache:{key}", ttl, json.dumps(data))
-        await r.close()
+        r = await _get_redis()
+        await r.setex(f"rmi:wallet_cache:{key}", ttl, json.dumps(data, default=str))
     except (ConnectionError, OSError, json.JSONDecodeError):
         logger.debug("wallet cache set failed", exc_info=True)
