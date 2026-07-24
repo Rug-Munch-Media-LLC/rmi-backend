@@ -476,13 +476,13 @@ class TestProviderChains:
         chains_lower = {k.lower() for k in result}
         assert len(chains_lower) >= 2
 
-    def test_build_provider_chains_values_are_lists(self):
-        """All chain entries are lists of provider names."""
+    def test_build_provider_chains_values_have_providers(self):
+        """All chain entries have a providers list with at least one entry."""
         from app.databus.provider_chains import build_provider_chains
 
         result = build_provider_chains()
-        for chain, providers in result.items():
-            assert isinstance(providers, list), f"{chain} providers is not a list"
+        for chain, entry in result.items():
+            assert hasattr(entry, "providers"), f"{chain} has no providers attribute"
+            providers = entry.providers
+            assert isinstance(providers, list), f"{chain}.providers is not a list"
             assert len(providers) >= 1, f"{chain} has no providers"
-            for p in providers:
-                assert isinstance(p, str), f"Provider in {chain} is not a string: {p}"

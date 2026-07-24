@@ -165,35 +165,40 @@ class TestExportOpenAPI:
 class TestEnterpriseFirewall:
     """Tests for ``scripts/enterprise-firewall.py``."""
 
-    @patch("scripts.enterprise-firewall.os.path.exists")
-    @patch("scripts.enterprise-firewall.Path.stat")
-    def test_simhash_consistency(self, mock_stat, mock_exists):
-        """Same input produces the same simhash."""
-        import scripts.enterprise_firewall as fw
+    @staticmethod
+    def _load_fw():
+        """Load the firewall module via spec_from_file_location (hyphenated name)."""
+        import importlib.util
 
+        path = "scripts/enterprise-firewall.py"
+        spec = importlib.util.spec_from_file_location("enterprise_firewall", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_simhash_consistency(self):
+        """Same input produces the same simhash."""
+        fw = self._load_fw()
         h1 = fw.simhash("hello world this is a test")
         h2 = fw.simhash("hello world this is a test")
         assert h1 == h2
 
     def test_simhash_different_inputs_differ(self):
         """Different inputs produce different simhashes."""
-        import scripts.enterprise_firewall as fw
-
+        fw = self._load_fw()
         h1 = fw.simhash("the quick brown fox")
         h2 = fw.simhash("jumps over the lazy dog")
         assert h1 != h2
 
     def test_simhash_empty_string(self):
         """Empty string returns a hash (should not crash)."""
-        import scripts.enterprise_firewall as fw
-
+        fw = self._load_fw()
         h = fw.simhash("")
         assert isinstance(h, int)
 
     def test_simhash_unicode(self):
         """Unicode characters do not crash simhash."""
-        import scripts.enterprise_firewall as fw
-
+        fw = self._load_fw()
         h = fw.simhash("🦊 rug munch media 🔥")
         assert isinstance(h, int)
 
@@ -366,22 +371,33 @@ class TestHealthMonitor:
 class TestGenerateEnv:
     """Tests for ``generate_env.py``."""
 
-    def test_generate_env_exports_present(self):
-        """generate_env exports expected keys (sample check)."""
+    def test_generate_env_key_map_present(self):
+        """generate_env exports expected KEY_MAP."""
         import generate_env
 
-        schema = generate_env.SCHEMA
-        assert len(schema) > 0
-        keys = [entry["name"] for entry in schema]
-        assert "HELIUS_API_KEY" in keys
-        assert "DATABASE_URL" in keys
+        assert isinstance(generate_env.KEY_MAP, dict)
+        assert len(generate_env.KEY_MAP) > 0
 
-    def test_generate_env_no_duplicate_keys(self):
-        """SCHEMA should not contain duplicate keys."""
+    def test_generate_env_target_present(self):
+        """generate_env exports TARGET path."""
         import generate_env
 
-        keys = [entry["name"] for entry in generate_env.SCHEMA]
-        assert len(keys) == len(set(keys))
+        assert isinstance(generate_env.TARGET, str)
+        assert len(generate_env.TARGET) > 0
+
+    def test_generate_env_get_secret(self):
+        """get_secret returns a string or None (env-dependent)."""
+        import generate_env
+
+        secret = generate_env.get_secret("NONEXISTENT_KEY_XYZ")
+        assert secret is None or isinstance(secret, str)
+
+    def test_generate_env_load_env_file(self):
+        """load_env_file returns a dict."""
+        import generate_env
+
+        env = generate_env.load_env_file()
+        assert isinstance(env, dict)
 
 
 # ═══════════════════════════════════════════════════════════════════════

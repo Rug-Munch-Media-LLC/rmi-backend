@@ -1,0 +1,143 @@
+"""
+Intel provider chains.
+"""
+
+from ..base import Provider, ProviderChain, ProviderTier
+
+
+def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
+    """Build intel provider chains."""
+    chains: dict[str, ProviderChain] = {}
+    _g = locals_dict
+
+    chains["entity_intel"] = ProviderChain(
+        data_type="entity_intel",
+        description="Entity resolution and risk scoring (local labels → Arkham free → Moralis)",
+        providers=[
+            Provider("wallet_labels_local", ProviderTier.LOCAL, _local_wallet_labels, weight=10.0),
+            Provider(
+                "arkham_entity",
+                ProviderTier.FREEMIUM,
+                _arkham_entity,
+                weight=8.0,
+                rate_limit_rps=5.0,
+                requires_key=True,
+                key_env="ARKHAM_API_KEY",
+                monthly_quota=100000,
+            ),
+            Provider(
+                "moralis_labels",
+                ProviderTier.FREEMIUM,
+                _moralis_wallet_tokens,
+                weight=3.0,
+                requires_key=True,
+                key_env="MORALIS_API_KEY",
+            ),
+        ],
+    )
+
+    chains["arkham_labels"] = ProviderChain(
+        data_type="arkham_labels",
+        description="Entity labels with confidence scores (local → Arkham free trial)",
+        providers=[
+            Provider("wallet_labels_local", ProviderTier.LOCAL, _local_wallet_labels, weight=10.0),
+            Provider(
+                "arkham_labels_api",
+                ProviderTier.FREEMIUM,
+                _arkham_labels,
+                weight=8.0,
+                rate_limit_rps=5.0,
+                requires_key=True,
+                key_env="ARKHAM_API_KEY",
+                monthly_quota=100000,
+            ),
+        ],
+    )
+
+    chains["arkham_portfolio"] = ProviderChain(
+        data_type="arkham_portfolio",
+        description="Portfolio holdings with USD values (Arkham free trial)",
+        providers=[
+            Provider(
+                "arkham_portfolio_api",
+                ProviderTier.FREEMIUM,
+                _arkham_portfolio,
+                weight=10.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="ARKHAM_API_KEY",
+                monthly_quota=100000,
+            ),
+        ],
+    )
+
+    chains["arkham_transfers"] = ProviderChain(
+        data_type="arkham_transfers",
+        description="Transfer history with counterparty mapping (Arkham free trial)",
+        providers=[
+            Provider(
+                "arkham_transfers_api",
+                ProviderTier.FREEMIUM,
+                _arkham_transfers,
+                weight=10.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="ARKHAM_API_KEY",
+                monthly_quota=100000,
+            ),
+        ],
+    )
+
+    chains["arkham_counterparties"] = ProviderChain(
+        data_type="arkham_counterparties",
+        description="Counterparty network and relationship mapping (Arkham free trial)",
+        providers=[
+            Provider(
+                "arkham_counterparties_api",
+                ProviderTier.FREEMIUM,
+                _arkham_counterparties,
+                weight=10.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="ARKHAM_API_KEY",
+                monthly_quota=100000,
+            ),
+        ],
+    )
+
+    chains["arkham_intel"] = ProviderChain(
+        data_type="arkham_intel",
+        description="Entity intelligence search (Arkham free trial)",
+        providers=[
+            Provider(
+                "arkham_intel_search",
+                ProviderTier.FREEMIUM,
+                _arkham_intel_search,
+                weight=10.0,
+                rate_limit_rps=5.0,
+                requires_key=True,
+                key_env="ARKHAM_API_KEY",
+                monthly_quota=100000,
+            ),
+        ],
+    )
+
+
+    chains["arkham_ws"] = ProviderChain(
+            "arkham_ws",
+            description="Arkham Intelligence WebSocket - real-time entity updates, transfers, labels",
+            providers=[
+                Provider(
+                    "arkham_ws_stream",
+                    ProviderTier.FREEMIUM,
+                    arkham_ws_subscribe,
+                    weight=10.0,
+                    rate_limit_rps=10.0,
+                    requires_key=True,
+                    key_env="ARKHAM_WS_KEY",
+                    monthly_quota=500000,
+                )
+            ],
+        )
+
+    return chains
