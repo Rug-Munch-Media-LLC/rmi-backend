@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.core")
@@ -107,15 +109,21 @@ class ProviderChain:
                 result = await provider.fetch_fn(api_key=api_key, **kwargs)
 
                 if result is not None:
-                    _rate_limiters[provider.name].record_call()
+                    _rate_limiters.setdefault(provider.name, _RateLimiter()).record_call()
                     if provider.monthly_quota > 0:
                         _quota_usage[provider.name] = _quota_usage.get(provider.name, 0) + 1
-                    _circuit_breakers[provider.name].record_success()
+                    _circuit_breakers.setdefault(provider.name, _CircuitBreaker()).record_success()
                     return result
 
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            except (
+                ConnectionError,
+                OSError,
+                TimeoutError,
+                httpx.HTTPError,
+                httpx.TimeoutException,
+            ) as e:
                 logger.warning(f"Provider {provider.name} failed: {e}")
-                _circuit_breakers[provider.name].record_failure()
+                _circuit_breakers.setdefault(provider.name, _CircuitBreaker()).record_failure()
                 continue
 
         return None

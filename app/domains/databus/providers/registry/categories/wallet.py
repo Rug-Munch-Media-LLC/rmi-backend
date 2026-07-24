@@ -2,7 +2,7 @@
 Wallet provider chains.
 """
 
-from ..base import Provider, ProviderChain, ProviderTier
+from ...base import Provider, ProviderChain, ProviderTier
 
 
 def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
@@ -14,7 +14,9 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="wallet_labels",
         description="Address labels and entity identification (190K local + external)",
         providers=[
-            Provider("wallet_memory_bank", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0),
+            Provider(
+                "wallet_memory_bank", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0
+            ),
             Provider(
                 "nansen_labels",
                 ProviderTier.PAID,
@@ -25,7 +27,6 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             ),
         ],
     )
-
 
     chains["wallet_tokens"] = ProviderChain(
         data_type="wallet_tokens",
@@ -93,7 +94,6 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
-
     chains["wallet_transactions"] = ProviderChain(
         data_type="wallet_transactions",
         description="Wallet transaction history (Etherscan free → Moralis freemium)",
@@ -148,6 +148,5 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             ),
         ],
     )
-
 
     return chains

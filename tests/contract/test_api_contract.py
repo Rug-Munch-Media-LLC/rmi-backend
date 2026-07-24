@@ -16,10 +16,15 @@ Run: pytest tests/contract/test_api_contract.py -v
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+
+# Override .env default 'development' which is invalid for Settings Literal
+os.environ.setdefault("ENVIRONMENT", "dev")
 
 from app.api.v1.public.scanner import ScanRequest, ScanResult
 from app.api.v1.public.token import TokenRisk, TokenSummary

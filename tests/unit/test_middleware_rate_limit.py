@@ -1,281 +1,400 @@
-"""Unit tests for app.middleware.rate_limit — RateLimiter class.
+"""Unit tests for app.core.rate_limiter — UnifiedRateLimiter (token bucket).
 
 Tests cover:
-- Tier-based limit resolution
-- Redis-backed check with pipeline (mocked)
-- Fail-open when Redis is unavailable
-- Disabled limiter (no Redis client)
-- Edge cases: burst threshold, window boundaries
+- _resolve_rate_limit path-to-category resolution
+- UnifiedRateLimiter construction and acquire() with in-memory fallback
+- UnifiedRateLimiter acquire() with mocked Redis (Lua script)
+- acquire_path() and acquire_provider() backward compat
+- Constant data integrity (DEFAULT_RATE_LIMITS, PATH_CATEGORIES)
+- get_rate_limiter() singleton
+- _hash_identifier() PII-safe hashing
 """
 
 from __future__ import annotations
 
+import os
+import time as _time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from redis import asyncio as aioredis
 
-from app.middleware.rate_limit import DEFAULT_LIMITS, RATE_LIMITS, RateLimiter
+from app.core.rate_limiter import (
+    DEFAULT_RATE_LIMITS,
+    PATH_CATEGORIES,
+    UnifiedRateLimiter,
+    _hash_identifier,
+    _resolve_rate_limit,
+    get_rate_limiter,
+)
 
-
-def _make_redis_pipe(incr_result=1) -> tuple[MagicMock, MagicMock]:
-    """Build a mock Redis client + pipeline.
-
-    In redis-py, Pipeline.incr() and .expire() are SYNCHRONOUS methods that
-    queue commands. Only .execute() is async. So we use MagicMock for the
-    pipeline and make .execute() return an awaitable.
-    """
-    pipe = MagicMock()
-    pipe.incr.return_value = pipe  # method chaining
-    pipe.expire.return_value = pipe
-    pipe.execute = AsyncMock(return_value=[incr_result, True])
-
-    redis = MagicMock(spec=aioredis.Redis)
-    redis.pipeline.return_value = pipe
-    return redis, pipe
+# ═══════════════════════════════════════════════════════════════════════════
+# _resolve_rate_limit
+# ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestRateLimiterInit:
-    """RateLimiter construction and basic properties."""
+class TestResolveRateLimit:
+    """Path → (rate_per_sec, burst_size) resolution."""
 
-    def test_init_with_redis(self) -> None:
-        """Given a Redis client, the limiter is enabled."""
-        redis = MagicMock(spec=aioredis.Redis)
-        limiter = RateLimiter(redis_client=redis)
-        assert limiter.enabled is True
-        assert limiter.redis is redis
+    def test_known_path_health(self) -> None:
+        rate, burst = _resolve_rate_limit("/health")
+        assert rate == pytest.approx(1000 / 60.0)
+        assert burst == max(1, int(1000 * 0.2))
 
-    def test_init_without_redis(self) -> None:
-        """Given no Redis client, the limiter is disabled."""
-        limiter = RateLimiter(redis_client=None)
-        assert limiter.enabled is False
-        assert limiter.redis is None
+    def test_known_path_auth(self) -> None:
+        rate, burst = _resolve_rate_limit("/login")
+        assert rate == pytest.approx(5 / 60.0)
+        assert burst == max(1, int(5 * 0.4))
 
+    def test_known_path_scan(self) -> None:
+        rate, burst = _resolve_rate_limit("/api/v1/scanner/scan")
+        assert rate == pytest.approx(20 / 60.0)
+        assert burst == max(1, int(20 * 0.25))
 
-class TestGetTierLimits:
-    """Rate limit configuration by tier."""
+    def test_known_path_public(self) -> None:
+        rate, burst = _resolve_rate_limit("/api/v1/token/0x...")
+        assert rate == pytest.approx(100 / 60.0)
+        assert burst == max(1, int(100 * 0.25))
 
-    def test_free_tier(self) -> None:
-        limiter = RateLimiter()
-        limits = limiter.get_tier_limits("FREE")
-        assert limits == RATE_LIMITS["FREE"]
-        assert limits["rph"] == 10
-        assert limits["rpd"] == 100
-        assert limits["burst"] == 2
+    def test_unknown_path_uses_default(self) -> None:
+        rate, burst = _resolve_rate_limit("/some/unknown/route")
+        expected_rpm, expected_factor = DEFAULT_RATE_LIMITS["default"]
+        assert rate == pytest.approx(expected_rpm / 60.0)
+        assert burst == max(1, int(expected_rpm * expected_factor))
 
-    def test_basic_tier(self) -> None:
-        limiter = RateLimiter()
-        limits = limiter.get_tier_limits("BASIC")
-        assert limits["rph"] == 50
-        assert limits["burst"] == 5
+    def test_exact_prefix_match(self) -> None:
+        """Longest prefix match wins."""
+        rate, burst = _resolve_rate_limit("/api/v1/scanner/something")
+        assert rate == pytest.approx(20 / 60.0), "Should match 'scan' category"
 
-    def test_premium_tier(self) -> None:
-        limiter = RateLimiter()
-        limits = limiter.get_tier_limits("PREMIUM")
-        assert limits["rph"] == 200
-        assert limits["burst"] == 10
-
-    def test_enterprise_tier(self) -> None:
-        limiter = RateLimiter()
-        limits = limiter.get_tier_limits("ENTERPRISE")
-        assert limits["rph"] == 1000
-        assert limits["burst"] == 50
-
-    def test_case_insensitive_tier(self) -> None:
-        """Tier lookup should be case-insensitive (upper-cased internally)."""
-        limiter = RateLimiter()
-        assert limiter.get_tier_limits("free") == RATE_LIMITS["FREE"]
-        assert limiter.get_tier_limits("Premium") == RATE_LIMITS["PREMIUM"]
-
-    def test_unknown_tier_returns_default(self) -> None:
-        """An unrecognized tier name should fall back to DEFAULT_LIMITS."""
-        limiter = RateLimiter()
-        limits = limiter.get_tier_limits("NONEXISTENT")
-        assert limits == DEFAULT_LIMITS
-
-    def test_empty_tier_returns_default(self) -> None:
-        limiter = RateLimiter()
-        limits = limiter.get_tier_limits("")
-        assert limits == DEFAULT_LIMITS
+    def test_burst_never_below_one(self) -> None:
+        rate, burst = _resolve_rate_limit("/api/v1/some-unknown")
+        assert burst >= 1
 
 
-class TestCheckNoRedis:
-    """Rate limiter behaviour when Redis is unavailable (disabled)."""
-
-    @pytest.mark.asyncio
-    async def test_disabled_returns_allowed(self) -> None:
-        """Without Redis, every request is allowed with full limit remaining."""
-        limiter = RateLimiter(redis_client=None)
-        allowed, remaining = await limiter.check("test-key", limit=10, window=3600)
-        assert allowed is True
-        assert remaining == 10
-
-    @pytest.mark.asyncio
-    async def test_disabled_with_zero_limit(self) -> None:
-        """Even with limit=0, disabled limiter returns allowed."""
-        limiter = RateLimiter(redis_client=None)
-        allowed, remaining = await limiter.check("test-key", limit=0)
-        assert allowed is True
-        assert remaining == 0
+# ═══════════════════════════════════════════════════════════════════════════
+# UnifiedRateLimiter — construction + in-memory fallback
+# ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestCheckWithRedis:
-    """Rate limiter behaviour with a mocked Redis backend.
+class TestUnifiedRateLimiterInit:
+    """Construction and basic properties."""
 
-    Note: redis-py Pipeline.incr/expire are SYNC methods that queue commands.
-    Only Pipeline.execute() is async. We use MagicMock for sync methods and
-    AsyncMock for execute().
-    """
+    def test_init(self) -> None:
+        limiter = UnifiedRateLimiter()
+        assert limiter._redis is None
+        assert limiter._redis_failed is False
+        assert limiter._mem_buckets == {}
+
+    def test_singleton(self) -> None:
+        limiter1 = get_rate_limiter()
+        limiter2 = get_rate_limiter()
+        assert limiter1 is limiter2
+
+
+class TestAcquireInMemory:
+    """Token bucket using in-memory fallback (no Redis)."""
 
     @pytest.mark.asyncio
     async def test_first_request_allowed(self) -> None:
-        """The very first request for a key should be allowed."""
-        redis, pipe = _make_redis_pipe(incr_result=1)
-
-        limiter = RateLimiter(redis_client=redis)
-        allowed, remaining = await limiter.check("user:wallet:scan", limit=10)
+        limiter = UnifiedRateLimiter()
+        allowed, headers = await limiter.acquire("test-key", rate=10.0, burst=5)
         assert allowed is True
-        assert remaining == 9
-        pipe.incr.assert_called_once_with("user:wallet:scan")
-        pipe.expire.assert_called_once_with("user:wallet:scan", 3600)
+        assert "X-RateLimit-Limit" in headers
+        assert "X-RateLimit-Remaining" in headers
+        assert headers["X-RateLimit-Remaining"] >= 0
+        assert headers["X-RateLimit-Limit"] == 5
 
     @pytest.mark.asyncio
-    async def test_exactly_at_limit_allowed(self) -> None:
-        """When count equals limit, the last request is still allowed but 0 remain."""
-        redis, pipe = _make_redis_pipe(incr_result=10)
-
-        limiter = RateLimiter(redis_client=redis)
-        allowed, remaining = await limiter.check("user:wallet:scan", limit=10)
-        assert allowed is True
-        assert remaining == 0
-
-    @pytest.mark.asyncio
-    async def test_over_limit_denied(self) -> None:
-        """When count exceeds limit, the request is denied."""
-        redis, pipe = _make_redis_pipe(incr_result=11)
-
-        limiter = RateLimiter(redis_client=redis)
-        allowed, remaining = await limiter.check("user:wallet:scan", limit=10)
-        assert allowed is False
-        assert remaining == 0
-
-    @pytest.mark.asyncio
-    async def test_custom_window(self) -> None:
-        """Custom window parameter is passed to expire."""
-        redis, pipe = _make_redis_pipe(incr_result=1)
-
-        limiter = RateLimiter(redis_client=redis)
-        await limiter.check("key", limit=5, window=60)
-        pipe.expire.assert_called_once_with("key", 60)
-
-    @pytest.mark.asyncio
-    async def test_redis_error_fails_open(self) -> None:
-        """When Redis throws an error, the limiter fails open (allows request)."""
-        redis = MagicMock(spec=aioredis.Redis)
-        pipe = MagicMock()
-        pipe.execute = AsyncMock(side_effect=aioredis.RedisError("Connection refused"))
-        redis.pipeline.return_value = pipe
-
-        limiter = RateLimiter(redis_client=redis)
-        allowed, remaining = await limiter.check("key", limit=10)
-        assert allowed is True  # fail open
-        assert remaining == 10
-
-    @pytest.mark.asyncio
-    async def test_empty_key_allowed(self) -> None:
-        """An empty string key should not crash."""
-        redis, pipe = _make_redis_pipe(incr_result=1)
-
-        limiter = RateLimiter(redis_client=redis)
-        allowed, remaining = await limiter.check("", limit=10)
-        assert allowed is True
-        assert remaining == 9
-
-    @pytest.mark.asyncio
-    async def test_multiple_keys_independent(self) -> None:
-        """Different keys should produce independent counts."""
-        redis1, pipe1 = _make_redis_pipe(incr_result=1)
-        redis2, pipe2 = _make_redis_pipe(incr_result=1)
-
-        limiter1 = RateLimiter(redis_client=redis1)
-        limiter2 = RateLimiter(redis_client=redis2)
-        allowed1, rem1 = await limiter1.check("key-a", limit=5)
-        allowed2, rem2 = await limiter2.check("key-b", limit=5)
+    async def test_burst_limit_enforced(self) -> None:
+        """Consuming more tokens than burst should be denied."""
+        limiter = UnifiedRateLimiter()
+        # burst=2, so we can only consume 2 tokens before denial
+        allowed1, _ = await limiter.acquire("burst-key", rate=1.0, burst=2)
+        allowed2, _ = await limiter.acquire("burst-key", rate=1.0, burst=2)
+        allowed3, _ = await limiter.acquire("burst-key", rate=1.0, burst=2)
         assert allowed1 is True
         assert allowed2 is True
-        assert rem1 == 4
-        assert rem2 == 4
+        assert allowed3 is False  # burst exhausted
 
     @pytest.mark.asyncio
-    async def test_pipeline_called(self) -> None:
-        """verify that pipeline() is called on the redis client."""
-        redis, pipe = _make_redis_pipe(incr_result=1)
+    async def test_rate_limit_remaining_decreases(self) -> None:
+        limiter = UnifiedRateLimiter()
+        _, h1 = await limiter.acquire("remaining-key", rate=10.0, burst=5)
+        _, h2 = await limiter.acquire("remaining-key", rate=10.0, burst=5)
+        assert h2["X-RateLimit-Remaining"] <= h1["X-RateLimit-Remaining"]
 
-        limiter = RateLimiter(redis_client=redis)
-        await limiter.check("mykey", limit=10)
-        redis.pipeline.assert_called_once()
+    @pytest.mark.asyncio
+    async def test_custom_tokens_consumed(self) -> None:
+        """Multiple tokens consumed in one acquire."""
+        limiter = UnifiedRateLimiter()
+        allowed, _ = await limiter.acquire("multi-token", rate=10.0, burst=10, tokens=3)
+        assert allowed is True
 
+    @pytest.mark.asyncio
+    async def test_zero_rate_still_allows_first(self) -> None:
+        """With rate=0 and burst=1, one token is available."""
+        limiter = UnifiedRateLimiter()
+        allowed, _ = await limiter.acquire("zero-rate", rate=0.0, burst=1)
+        assert allowed is True
 
-class TestCheckTier:
-    """Integration between check() and tier-based limits."""
+    @pytest.mark.asyncio
+    async def test_different_keys_independent(self) -> None:
+        """Different keys should have independent buckets."""
+        limiter = UnifiedRateLimiter()
+        # Exhaust key-a (burst=1)
+        await limiter.acquire("key-a-independent", rate=1.0, burst=1)
+        denied, _ = await limiter.acquire("key-a-independent", rate=1.0, burst=1)
+        # key-b should be fresh
+        allowed, _ = await limiter.acquire("key-b-independent", rate=1.0, burst=1)
+        assert denied is False
+        assert allowed is True
 
-    def test_check_tier_disabled(self) -> None:
-        """When disabled, check_tier always returns True."""
-        limiter = RateLimiter(redis_client=None)
-        mock_request = MagicMock()
-        result = limiter.check_tier(mock_request, "FREE", endpoint="scan")
-        assert result is True
-
-    def test_check_tier_unknown_tier_uses_default(self) -> None:
-        """An unknown tier should fall back to default limits."""
-        limiter = RateLimiter(redis_client=None)
-        mock_request = MagicMock()
-        result = limiter.check_tier(mock_request, "NONEXISTENT", endpoint="test")
-        assert result is True
-
-    def test_check_tier_with_client_ip_fallback(self) -> None:
-        """check_tier should derive key from client IP and endpoint."""
-        limiter = RateLimiter(redis_client=None)
-        mock_request = MagicMock()
-        mock_request.client.host = "192.168.1.1"
-        mock_request.url.path = "/api/v1/test"
-        result = limiter.check_tier(mock_request, "BASIC", endpoint="test")
-        assert result is True
-
-    def test_check_tier_with_redis(self) -> None:
-        """With Redis enabled, check_tier returns None as it doesn't await check().
-
-        Note: The source code's check_tier is incomplete (line 97, truncated file).
-        It only handles the disabled path. When enabled, it implicitly returns None.
-        """
-        redis, pipe = _make_redis_pipe(incr_result=1)
-        limiter = RateLimiter(redis_client=redis)
-
-        mock_request = MagicMock()
-        mock_request.client.host = "127.0.0.1"
-        mock_request.url.path = "/api/v1/scan"
-
-        result = limiter.check_tier(mock_request, "FREE", endpoint="scan")
-        # Due to incomplete implementation, returns None when enabled
-        assert result is None
+    @pytest.mark.asyncio
+    async def test_returns_limit_header(self) -> None:
+        limiter = UnifiedRateLimiter()
+        _, headers = await limiter.acquire("hdr-test", rate=1.0, burst=5)
+        assert headers["X-RateLimit-Limit"] == 5
+        assert "X-RateLimit-Remaining" in headers
+        assert "X-RateLimit-Reset" in headers
 
 
-class TestRateLimitsConstants:
-    """Validate the RATE_LIMITS constant data integrity."""
+# ═══════════════════════════════════════════════════════════════════════════
+# acquire_path
+# ═══════════════════════════════════════════════════════════════════════════
 
-    def test_all_tiers_have_required_keys(self) -> None:
-        for tier, limits in RATE_LIMITS.items():
-            assert "rph" in limits, f"{tier} missing rph"
-            assert "rpd" in limits, f"{tier} missing rpd"
-            assert "burst" in limits, f"{tier} missing burst"
 
-    def test_tier_monotonic(self) -> None:
-        """Higher tiers should have >= limits than lower tiers."""
-        tiers = ["FREE", "BASIC", "PREMIUM", "ENTERPRISE"]
-        for key in ["rph", "rpd", "burst"]:
-            values = [RATE_LIMITS[t][key] for t in tiers]
-            assert values == sorted(values), f"{key} is not monotonic: {values}"
+class TestAcquirePath:
+    """Path-based rate limiting."""
 
-    def test_defaults_match_free(self) -> None:
-        """DEFAULT_LIMITS should match FREE tier exactly."""
-        assert DEFAULT_LIMITS == RATE_LIMITS["FREE"]
+    @pytest.mark.asyncio
+    async def test_known_path(self) -> None:
+        limiter = UnifiedRateLimiter()
+        allowed, headers = await limiter.acquire_path("/api/v1/token/0x...", "client-1")
+        assert allowed is True
+        assert headers["X-RateLimit-Limit"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_unknown_path_defaults(self) -> None:
+        limiter = UnifiedRateLimiter()
+        allowed, headers = await limiter.acquire_path("/unknown/route", "client-2")
+        assert allowed is True
+
+    @pytest.mark.asyncio
+    async def test_diff_paths_independent(self) -> None:
+        """Different paths for same client should have independent limits."""
+        limiter = UnifiedRateLimiter()
+        # Exhaust the scan bucket (burst=5)
+        for _ in range(6):
+            await limiter.acquire_path("/api/v1/scanner/scan", "client-scan")
+        # Health should be fresh (burst=200)
+        allowed, _ = await limiter.acquire_path("/health", "client-scan")
+        assert allowed is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# acquire_provider (backward compat)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestAcquireProvider:
+    """Backward-compatible provider-style acquire."""
+
+    @pytest.mark.asyncio
+    async def test_allowed(self) -> None:
+        limiter = UnifiedRateLimiter()
+        allowed, wait = await limiter.acquire_provider("solana", method="getBalance")
+        assert allowed is True
+        assert wait == 0.0
+
+    @pytest.mark.asyncio
+    async def test_returns_wait_seconds_when_denied(self) -> None:
+        """When burst is exhausted, wait should be > 0."""
+        limiter = UnifiedRateLimiter()
+        for _ in range(3):
+            await limiter.acquire("provider:test:method", rate=0.001, burst=2)
+        allowed, wait = await limiter.acquire_provider("test", method="method", rate=0.001, burst=2)
+        # The in-memory bucket key is 'provider:test:method' so the burst of 2 is shared
+        # After 3 acquires of 1 token each, the 4th should be denied
+        assert allowed is False
+        assert wait > 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Constants data integrity
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestDefaultRateLimits:
+    """Validate DEFAULT_RATE_LIMITS data integrity."""
+
+    def test_all_categories_have_tuple(self) -> None:
+        for cat, limits in DEFAULT_RATE_LIMITS.items():
+            assert isinstance(limits, tuple)
+            assert len(limits) == 2
+            rpm, factor = limits
+            assert isinstance(rpm, int), f"{cat} rpm must be int"
+            assert rpm > 0, f"{cat} rpm must be > 0"
+            assert isinstance(factor, float), f"{cat} factor must be float"
+            assert 0 < factor <= 1.0, f"{cat} factor must be in (0, 1]"
+
+    def test_burst_calculation(self) -> None:
+        for cat, (rpm, factor) in DEFAULT_RATE_LIMITS.items():
+            burst = max(1, int(rpm * factor))
+            assert burst >= 1, f"{cat} burst must be >= 1"
+
+    def test_has_default_category(self) -> None:
+        assert "default" in DEFAULT_RATE_LIMITS
+
+
+class TestPathCategories:
+    """Validate PATH_CATEGORIES data integrity."""
+
+    def test_all_prefixes_start_with_slash(self) -> None:
+        for prefix in PATH_CATEGORIES:
+            assert prefix.startswith("/"), f"Prefix {prefix!r} must start with /"
+
+    def test_all_categories_exist_in_limits(self) -> None:
+        for prefix, cat in PATH_CATEGORIES.items():
+            assert cat in DEFAULT_RATE_LIMITS, (
+                f"Category {cat!r} (from prefix {prefix!r}) not found in DEFAULT_RATE_LIMITS"
+            )
+
+    def test_longer_prefixes_more_specific(self) -> None:
+        """Longer prefix should not be shadowed by shorter."""
+        # /api/v1/scanner should match before /api/v1/
+        scanner_prefixes = [p for p in PATH_CATEGORIES if "scanner" in p]
+        assert len(scanner_prefixes) > 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# _hash_identifier
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestHashIdentifier:
+    """PII-safe hashing of identifiers."""
+
+    def test_deterministic(self) -> None:
+        h1 = _hash_identifier("user-123")
+        h2 = _hash_identifier("user-123")
+        assert h1 == h2
+
+    def test_different_inputs_different_hashes(self) -> None:
+        h1 = _hash_identifier("user-123")
+        h2 = _hash_identifier("user-456")
+        assert h1 != h2
+
+    def test_output_is_hex_string(self) -> None:
+        h = _hash_identifier("test@example.com")
+        assert isinstance(h, str)
+        assert len(h) == 32
+        int(h, 16)  # should not raise
+
+    def test_empty_string(self) -> None:
+        h = _hash_identifier("")
+        assert isinstance(h, str)
+        assert len(h) == 32
+
+    def test_uses_daily_salt(self) -> None:
+        """Same input on different days should produce different hashes
+        (the salt rotates daily). We can't fast-forward time here but
+        we verify the salt is derived from today's date."""
+        from app.core.rate_limiter import _get_daily_salt
+
+        salt = _get_daily_salt()
+        today = _time.strftime("%Y-%m-%d")
+        today_bytes = today.encode()
+        import hashlib
+        import hmac
+
+        expected = hmac.new(
+            b"dev-only-rmi-salt-replace-in-prod",
+            today_bytes,
+            hashlib.sha256,
+        ).digest()
+        assert salt == expected
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Mocked Redis path
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def mock_redis() -> MagicMock:
+    redis = MagicMock()
+    redis.evalsha = AsyncMock(return_value=[1, 5.0, 5, 0.0])  # allowed, remaining, limit, wait
+    return redis
+
+
+class TestAcquireWithRedis:
+    """Token bucket using mocked Redis backend."""
+
+    @pytest.mark.asyncio
+    async def test_redis_acquire_allowed(self, mock_redis: MagicMock) -> None:
+        limiter = UnifiedRateLimiter()
+        limiter._redis = mock_redis
+        limiter._lua_sha = "mock_sha"
+
+        allowed, headers = await limiter.acquire("redis-key", rate=1.0, burst=5)
+        assert allowed is True
+        assert headers["X-RateLimit-Limit"] == 5
+        assert headers["X-RateLimit-Remaining"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_redis_acquire_denied(self) -> None:
+        """When Lua returns not-allowed."""
+        redis = MagicMock()
+        redis.evalsha = AsyncMock(return_value=[0, 0.0, 5, 2.0])
+        limiter = UnifiedRateLimiter()
+        limiter._redis = redis
+        limiter._lua_sha = "mock_sha"
+
+        allowed, headers = await limiter.acquire("redis-deny", rate=1.0, burst=5)
+        assert allowed is False
+        assert "Retry-After" in headers
+
+    @pytest.mark.asyncio
+    async def test_redis_passed_evalsha(self, mock_redis: MagicMock) -> None:
+        limiter = UnifiedRateLimiter()
+        limiter._redis = mock_redis
+        limiter._lua_sha = "mock_sha"
+
+        await limiter.acquire("evalsha-key", rate=10.0, burst=20)
+        mock_redis.evalsha.assert_called_once()
+        args, _ = mock_redis.evalsha.call_args
+        assert args[0] == "mock_sha"
+
+    @pytest.mark.asyncio
+    async def test_redis_error_falls_back_to_memory(self) -> None:
+        """When Redis raises, falls back to in-memory."""
+        redis = MagicMock()
+        redis.evalsha = AsyncMock(side_effect=ConnectionError("Redis down"))
+        limiter = UnifiedRateLimiter()
+        limiter._redis = redis
+        limiter._lua_sha = "mock_sha"
+
+        allowed, headers = await limiter.acquire("failover-key", rate=1.0, burst=5)
+        # Should fail open (in-memory fallback)
+        assert allowed is True
+        # Connection should be nulled for retry
+        assert limiter._redis is None
+        assert limiter._redis_failed is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Stats
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestStats:
+    """UnifiedRateLimiter.stats() — bucket inspection."""
+
+    @pytest.mark.asyncio
+    async def test_stats_no_redis(self) -> None:
+        limiter = UnifiedRateLimiter()
+        await limiter.acquire("stat-key", rate=1.0, burst=5)
+        stats = await limiter.stats("stat-key")
+        assert stats["redis_available"] is False
+        assert len(stats["buckets"]) >= 1
+        assert "stat-key" in stats["buckets"]

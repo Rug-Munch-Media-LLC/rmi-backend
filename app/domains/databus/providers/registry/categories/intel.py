@@ -2,7 +2,7 @@
 Intel provider chains.
 """
 
-from ..base import Provider, ProviderChain, ProviderTier
+from ...base import Provider, ProviderChain, ProviderTier
 
 
 def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
@@ -15,12 +15,13 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     except ImportError:
         arkham_ws_subscribe = None
 
-
     chains["entity_intel"] = ProviderChain(
         data_type="entity_intel",
         description="Entity resolution and risk scoring (local labels → Arkham free → Moralis)",
         providers=[
-            Provider("wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0),
+            Provider(
+                "wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0
+            ),
             Provider(
                 "arkham_entity",
                 ProviderTier.FREEMIUM,
@@ -46,7 +47,9 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="arkham_labels",
         description="Entity labels with confidence scores (local → Arkham free trial)",
         providers=[
-            Provider("wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0),
+            Provider(
+                "wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0
+            ),
             Provider(
                 "arkham_labels_api",
                 ProviderTier.FREEMIUM,
@@ -128,22 +131,21 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
-
     chains["arkham_ws"] = ProviderChain(
-            "arkham_ws",
-            description="Arkham Intelligence WebSocket - real-time entity updates, transfers, labels",
-            providers=[
-                Provider(
-                    "arkham_ws_stream",
-                    ProviderTier.FREEMIUM,
-                    arkham_ws_subscribe,
-                    weight=10.0,
-                    rate_limit_rps=10.0,
-                    requires_key=True,
-                    key_env="ARKHAM_WS_KEY",
-                    monthly_quota=500000,
-                )
-            ],
-        )
+        "arkham_ws",
+        description="Arkham Intelligence WebSocket - real-time entity updates, transfers, labels",
+        providers=[
+            Provider(
+                "arkham_ws_stream",
+                ProviderTier.FREEMIUM,
+                arkham_ws_subscribe,
+                weight=10.0,
+                rate_limit_rps=10.0,
+                requires_key=True,
+                key_env="ARKHAM_WS_KEY",
+                monthly_quota=500000,
+            )
+        ],
+    )
 
     return chains

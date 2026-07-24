@@ -18,10 +18,10 @@ logger = get_logger("databus.providers")
 class ProviderTier(Enum):
     """Cost tier classification for a data provider."""
 
-    LOCAL = "local"          # Our own data — instant, free, unlimited
-    FREE_API = "free_api"    # Free external API — no key needed
-    FREEMIUM = "freemium"    # Free tier with key — limited credits
-    PAID = "paid"            # Paid API — precious credits
+    LOCAL = "local"  # Our own data — instant, free, unlimited
+    FREE_API = "free_api"  # Free external API — no key needed
+    FREEMIUM = "freemium"  # Free tier with key — limited credits
+    PAID = "paid"  # Paid API — precious credits
 
 
 @dataclass
@@ -31,14 +31,14 @@ class Provider:
     name: str
     tier: ProviderTier
     fetch_fn: Callable = field(repr=False)
-    weight: float = 1.0               # Higher = preferred within tier
+    weight: float = 1.0  # Higher = preferred within tier
     rate_limit_rps: float = 1.0
-    monthly_quota: int = 0            # 0 = unlimited
+    monthly_quota: int = 0  # 0 = unlimited
     requires_key: bool = False
     key_env: str = ""
     timeout: float = 15.0
-    is_local: bool = False            # True if this uses our own data (no external API)
-    description: str = ""             # Human-readable description
+    is_local: bool = False  # True if this uses our own data (no external API)
+    description: str = ""  # Human-readable description
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
 
@@ -113,20 +113,21 @@ class ProviderChain:
                 api_key = None
                 if provider.requires_key and provider.key_env:
                     import os
+
                     api_key = os.getenv(provider.key_env, "")
 
                 result = await provider.fetch_fn(api_key=api_key, **kwargs)
 
                 if result is not None:
-                    _rate_limiters[provider.name].record_call()
+                    _rate_limiters.setdefault(provider.name, _RateLimiter()).record_call()
                     if provider.monthly_quota > 0:
                         _quota_usage[provider.name] = _quota_usage.get(provider.name, 0) + 1
-                    _circuit_breakers[provider.name].record_success()
+                    _circuit_breakers.setdefault(provider.name, _CircuitBreaker()).record_success()
                     return result
 
             except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
                 logger.warning(f"provider error: {e}")
-                _circuit_breakers[provider.name].record_failure()
+                _circuit_breakers.setdefault(provider.name, _CircuitBreaker()).record_failure()
                 continue
 
         return None

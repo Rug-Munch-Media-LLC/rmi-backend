@@ -9,6 +9,9 @@ import secrets
 
 from app.wallets.chain_registry import ChainConfig, ChainFamily
 from app.wallets.crypto import _HAS_BASE58, _HAS_COINCURVE, _HAS_ECDSA, _HAS_NACL
+
+if _HAS_BASE58:
+    import base58
 from app.wallets.models import WalletResult
 
 # Re-export coincurve and ecdsa for local use
@@ -42,8 +45,11 @@ def generate_evm(cfg: ChainConfig) -> WalletResult:
         "0x" + hashlib.sha3_256(pub).hexdigest()[-40:] if pub else "0x" + secrets.token_hex(20)
     )
     return WalletResult(
-        chain="", chain_name="", symbol="",
-        address=address, private_key_hex=priv_hex,
+        chain="",
+        chain_name="",
+        symbol="",
+        address=address,
+        private_key_hex=priv_hex,
         public_key_hex=pub.hex() if isinstance(pub, bytes) else pub,
         derivation_path=cfg.hd_path,
     )
@@ -75,7 +81,8 @@ def generate_bitcoin(cfg: ChainConfig) -> WalletResult:
     else:
         address = (
             "1" + base58.b58encode(secrets.token_bytes(20)).decode()[:33]
-            if _HAS_BASE58 else "1" + secrets.token_hex(16)
+            if _HAS_BASE58
+            else "1" + secrets.token_hex(16)
         )
 
     addr_type = "legacy-p2pkh"
@@ -83,10 +90,14 @@ def generate_bitcoin(cfg: ChainConfig) -> WalletResult:
         addr_type = "segwit-p2sh" if "native" not in cfg.key else "native-segwit-p2wpkh"
 
     return WalletResult(
-        chain="", chain_name="", symbol="",
-        address=address, private_key_hex=priv_hex,
+        chain="",
+        chain_name="",
+        symbol="",
+        address=address,
+        private_key_hex=priv_hex,
         public_key_hex=pub.hex() if isinstance(pub, bytes) else "",
-        derivation_path=cfg.hd_path, address_type=addr_type,
+        derivation_path=cfg.hd_path,
+        address_type=addr_type,
     )
 
 
@@ -105,12 +116,16 @@ def generate_solana(cfg: ChainConfig) -> WalletResult:
         priv_hex = secrets.token_hex(32)
         address = (
             base58.b58encode(secrets.token_bytes(32)).decode()[:44]
-            if _HAS_BASE58 else secrets.token_hex(22)
+            if _HAS_BASE58
+            else secrets.token_hex(22)
         )
 
     return WalletResult(
-        chain="", chain_name="", symbol="",
-        address=address, private_key_hex=priv_hex,
+        chain="",
+        chain_name="",
+        symbol="",
+        address=address,
+        private_key_hex=priv_hex,
         derivation_path=cfg.hd_path,
     )
 
@@ -142,8 +157,11 @@ def generate_tron(cfg: ChainConfig) -> WalletResult:
         address = "T" + secrets.token_hex(16)
 
     return WalletResult(
-        chain="", chain_name="", symbol="",
-        address=address, private_key_hex=priv_hex,
+        chain="",
+        chain_name="",
+        symbol="",
+        address=address,
+        private_key_hex=priv_hex,
         derivation_path=cfg.hd_path,
     )
 
@@ -177,12 +195,16 @@ def generate_secp256k1_alt(cfg: ChainConfig) -> WalletResult:
     else:
         address = (
             cfg.key[0].upper() + base58.b58encode(ripe).decode()[:33]
-            if _HAS_BASE58 else cfg.key[:2].upper() + secrets.token_hex(16)
+            if _HAS_BASE58
+            else cfg.key[:2].upper() + secrets.token_hex(16)
         )
 
     return WalletResult(
-        chain="", chain_name="", symbol="",
-        address=address, private_key_hex=priv_hex,
+        chain="",
+        chain_name="",
+        symbol="",
+        address=address,
+        private_key_hex=priv_hex,
         derivation_path=cfg.hd_path,
     )
 
@@ -207,14 +229,18 @@ def generate_ed25519(cfg: ChainConfig) -> WalletResult:
     elif cfg.key == "ada":
         address = (
             "addr1" + base58.b58encode(pub).decode()[:50]
-            if _HAS_BASE58 else "addr1" + secrets.token_hex(24)
+            if _HAS_BASE58
+            else "addr1" + secrets.token_hex(24)
         )
     else:
         address = base58.b58encode(pub).decode()[:44] if _HAS_BASE58 else pub.hex()[:42]
 
     return WalletResult(
-        chain="", chain_name="", symbol="",
-        address=address, private_key_hex=priv_hex,
+        chain="",
+        chain_name="",
+        symbol="",
+        address=address,
+        private_key_hex=priv_hex,
         derivation_path=cfg.hd_path,
     )
 
@@ -226,20 +252,27 @@ def generate_ripple(cfg: ChainConfig) -> WalletResult:
     priv = secrets.token_hex(32)
     addr = (
         "r" + base58.b58encode(secrets.token_bytes(20)).decode()[:33]
-        if _HAS_BASE58 else "r" + secrets.token_hex(16)
+        if _HAS_BASE58
+        else "r" + secrets.token_hex(16)
     )
     return WalletResult(
-        chain="", chain_name="", symbol="",
-        address=addr, private_key_hex=priv,
+        chain="",
+        chain_name="",
+        symbol="",
+        address=addr,
+        private_key_hex=priv,
         derivation_path=cfg.hd_path,
     )
 
 
 def generate_substrate(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
-        chain="", chain_name="", symbol="",
+        chain="",
+        chain_name="",
+        symbol="",
         address="1" + base58.b58encode(secrets.token_bytes(32)).decode()[:47]
-        if _HAS_BASE58 else "1" + secrets.token_hex(23),
+        if _HAS_BASE58
+        else "1" + secrets.token_hex(23),
         private_key_hex=secrets.token_hex(32),
         derivation_path=cfg.hd_path,
     )
@@ -247,9 +280,12 @@ def generate_substrate(cfg: ChainConfig) -> WalletResult:
 
 def generate_cosmos(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
-        chain="", chain_name="", symbol="",
+        chain="",
+        chain_name="",
+        symbol="",
         address="cosmos1" + base58.b58encode(secrets.token_bytes(20)).decode()[:38]
-        if _HAS_BASE58 else "cosmos1" + secrets.token_hex(16),
+        if _HAS_BASE58
+        else "cosmos1" + secrets.token_hex(16),
         private_key_hex=secrets.token_hex(32),
         derivation_path=cfg.hd_path,
     )
@@ -257,9 +293,12 @@ def generate_cosmos(cfg: ChainConfig) -> WalletResult:
 
 def generate_algorand(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
-        chain="", chain_name="", symbol="",
+        chain="",
+        chain_name="",
+        symbol="",
         address=base58.b58encode(secrets.token_bytes(36)).decode()[:58]
-        if _HAS_BASE58 else secrets.token_hex(29),
+        if _HAS_BASE58
+        else secrets.token_hex(29),
         private_key_hex=secrets.token_hex(32),
         derivation_path=cfg.hd_path,
     )
@@ -267,9 +306,12 @@ def generate_algorand(cfg: ChainConfig) -> WalletResult:
 
 def generate_tezos(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
-        chain="", chain_name="", symbol="",
+        chain="",
+        chain_name="",
+        symbol="",
         address="tz1" + base58.b58encode(secrets.token_bytes(20)).decode()[:33]
-        if _HAS_BASE58 else "tz1" + secrets.token_hex(16),
+        if _HAS_BASE58
+        else "tz1" + secrets.token_hex(16),
         private_key_hex=secrets.token_hex(32),
         derivation_path=cfg.hd_path,
     )
@@ -277,9 +319,12 @@ def generate_tezos(cfg: ChainConfig) -> WalletResult:
 
 def generate_monero(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
-        chain="", chain_name="", symbol="",
+        chain="",
+        chain_name="",
+        symbol="",
         address="4" + base58.b58encode(secrets.token_bytes(64)).decode()[:94]
-        if _HAS_BASE58 else "4" + secrets.token_hex(47),
+        if _HAS_BASE58
+        else "4" + secrets.token_hex(47),
         private_key_hex=secrets.token_hex(32),
         derivation_path=cfg.hd_path,
         tags=["monero-placeholder", "needs-monero-python-for-full-support"],
