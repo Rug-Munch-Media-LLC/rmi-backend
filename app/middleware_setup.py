@@ -44,6 +44,7 @@ def register_middleware(app: FastAPI) -> None:
     _try_register_slowapi(app)
     _try_register_rate_limit_middleware(app)
     _try_register_slow_query_logging(app)
+    _try_register_content_type_enforcement(app)
     _try_register_csrf(app)
 
 
@@ -67,7 +68,7 @@ def _try_register_slow_query_logging(app: FastAPI) -> None:
                 if elapsed_ms > slow_threshold_ms:
                     path = request.url.path
                     method = request.method
-                    qs = request.url.query_string.decode() if request.url.query_string else ""
+                    qs = request.url.query.decode() if request.url.query else ""
                     log.warning(
                         "slow_request method=%s path=%s qs=%s elapsed_ms=%.0f threshold_ms=%.0f",
                         method,
@@ -359,6 +360,69 @@ def _try_register_tracing(app: FastAPI) -> None:
         log.info("middleware_registered name=tracing")
     except Exception as exc:
         log.warning("middleware_skipped name=tracing err=%s", exc)
+
+
+def _try_register_content_type_enforcement(app: FastAPI) -> None:
+    """PEN-TEST: Reject non-JSON Content-Type on write endpoints.
+
+    POST/PUT/PATCH/DELETE endpoints must have Content-Type: application/json
+    (except multipart/form-data for file uploads). This blocks XML, text/plain,
+    form-encoded, and other content types that could bypass JSON validation.
+    """
+    try:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        from starlette.responses import JSONResponse
+
+        _WRITE_METHODS: tuple[str, ...] = ("POST", "PUT", "PATCH", "DELETE")
+        _ALLOWED_CT_PREFIXES: tuple[str, ...] = (
+            "application/json",
+            "multipart/form-data",  # File uploads
+            "application/x-www-form-urlencoded",  # OAuth2 token endpoints
+        )
+        _EXEMPT_PATHS: tuple[str, ...] = (
+            "/health",
+            "/live",
+            "/ready",
+            "/metrics",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/mcp/",  # MCP endpoints use their own content-type negotiation
+        )
+
+        class ContentTypeEnforcementMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next: Any) -> Response:
+                path = request.url.path
+                method = request.method
+
+                # Only enforce on write methods
+                if method in _WRITE_METHODS:
+                    # Skip exempt paths
+                    if not any(path.startswith(p) for p in _EXEMPT_PATHS):
+                        ct = (request.headers.get("content-type") or "").lower().strip()
+                        if ct and not ct.startswith("application/json"):
+                            # Allow multipart and form-urlencoded
+                            if not any(ct.startswith(p) for p in _ALLOWED_CT_PREFIXES[1:]):
+                                log.warning(
+                                    "rejected_non_json_content_type method=%s path=%s content_type=%s",
+                                    method,
+                                    path,
+                                    ct,
+                                )
+                                return JSONResponse(
+                                    status_code=415,
+                                    content={
+                                        "detail": "Unsupported media type. Use Content-Type: application/json.",
+                                        "code": "unsupported_media_type",
+                                    },
+                                )
+
+                return cast("Response", await call_next(request))
+
+        app.add_middleware(ContentTypeEnforcementMiddleware)
+        log.info("middleware_registered name=content_type_enforcement")
+    except Exception as exc:
+        log.warning("middleware_skipped name=content_type_enforcement err=%s", exc)
 
 
 def _try_register_csrf(app: FastAPI) -> None:
