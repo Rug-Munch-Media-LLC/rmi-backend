@@ -30,13 +30,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 class TestProviderFallback:
     """UnifiedProvider cascade fallback when primary data source fails."""
 
+    def _make_provider(self):
+        """Create a UnifiedProvider with mocked cache to avoid cross-test pollution."""
+        from app.unified_provider import UnifiedProvider
+
+        provider = UnifiedProvider()
+        # Mock the cache to always return None (miss) so fallback logic runs
+        mock_cache = AsyncMock()
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.set = AsyncMock(return_value=None)
+        provider._get_cache = MagicMock(return_value=mock_cache)  # type: ignore
+        return provider
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_get_token_holders_fallback_empty(self) -> None:
         """When all providers fail, get_token_holders returns empty list."""
-        from app.unified_provider import UnifiedProvider
-
-        provider = UnifiedProvider()
+        provider = self._make_provider()
 
         # Mock all internal methods to return empty (simulating failure)
         provider._helius_holders = AsyncMock(return_value=[])  # type: ignore
@@ -54,9 +64,7 @@ class TestProviderFallback:
     @pytest.mark.asyncio
     async def test_get_token_holders_helius_success(self) -> None:
         """When Helius succeeds, results come from Helius (first priority)."""
-        from app.unified_provider import UnifiedProvider
-
-        provider = UnifiedProvider()
+        provider = self._make_provider()
         fake_holders = [
             {"address": "Addr1", "amount": 100, "source": "helius"},
             {"address": "Addr2", "amount": 50, "source": "helius"},
@@ -80,9 +88,7 @@ class TestProviderFallback:
     @pytest.mark.asyncio
     async def test_get_token_holders_fallback_to_birdeye(self) -> None:
         """When Helius fails, falls back to Birdeye."""
-        from app.unified_provider import UnifiedProvider
-
-        provider = UnifiedProvider()
+        provider = self._make_provider()
         fake_holders = [
             {"address": "Addr3", "amount": 200, "source": "birdeye"},
         ]
@@ -104,9 +110,7 @@ class TestProviderFallback:
     @pytest.mark.asyncio
     async def test_get_token_price_no_providers(self) -> None:
         """When all price providers fail, get_token_price returns None."""
-        from app.unified_provider import UnifiedProvider
-
-        provider = UnifiedProvider()
+        provider = self._make_provider()
 
         # Mock birdeye to be available but fail
         mock_birdeye = AsyncMock()
@@ -114,24 +118,38 @@ class TestProviderFallback:
         mock_birdeye._call = AsyncMock(return_value={})
         provider._birdeye = mock_birdeye
 
-        with patch.object(provider, "birdeye", mock_birdeye):
+        # Mock DexScreener httpx to fail too
+        with patch("httpx.AsyncClient") as mock_httpx:
+            mock_client = AsyncMock()
+            mock_httpx.return_value.__aenter__.return_value = mock_client
+            mock_response = AsyncMock()
+            mock_response.status_code = 429  # Rate limited
+            mock_client.get.return_value = mock_response
+
             result = await provider.get_token_price("So11111111111111111111111111111111111111112")
-            # Without httpx mocking, DexScreener will fail too
             assert result is None
 
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_get_token_metadata_fallback_name(self) -> None:
         """When all metadata providers fail, returns fallback name."""
-        from app.unified_provider import UnifiedProvider
+        provider = self._make_provider()
 
-        provider = UnifiedProvider()
-
-        # Mock chain_client to fail
-        with patch(
-            "app.unified_provider.get_chain_client",
-            side_effect=ConnectionError("No connection"),
+        # Mock chain_client (Helius) to fail
+        with (
+            patch(
+                "app.chain_client.get_chain_client",
+                side_effect=ConnectionError("No connection"),
+            ),
+            patch("httpx.AsyncClient") as mock_httpx,
         ):
+            # Mock DexScreener to fail too
+            mock_client = AsyncMock()
+            mock_httpx.return_value.__aenter__.return_value = mock_client
+            mock_response = AsyncMock()
+            mock_response.status_code = 429
+            mock_client.get.return_value = mock_response
+
             result = await provider.get_token_metadata(
                 "So11111111111111111111111111111111111111112"
             )
@@ -140,16 +158,14 @@ class TestProviderFallback:
         assert isinstance(result, dict)
         assert "source" in result
         assert result["source"] == "fallback"
-        assert result["name"] == "So1111111"  # First 8 chars
+        assert result["name"] == "So111111"  # First 8 chars of the address
         assert result["symbol"] == "???"
 
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_get_wallet_transactions_fallback_empty(self) -> None:
         """When all tx providers fail, get_wallet_transactions returns empty."""
-        from app.unified_provider import UnifiedProvider
-
-        provider = UnifiedProvider()
+        provider = self._make_provider()
         provider._helius_txs = AsyncMock(return_value=[])  # type: ignore
         provider._solscan_txs = AsyncMock(return_value=[])  # type: ignore
 
@@ -163,9 +179,7 @@ class TestProviderFallback:
     @pytest.mark.asyncio
     async def test_get_wallet_transactions_helius_success(self) -> None:
         """When Helius succeeds for txs, result comes from Helius."""
-        from app.unified_provider import UnifiedProvider
-
-        provider = UnifiedProvider()
+        provider = self._make_provider()
         fake_txs = [
             {"signature": "sig1", "timestamp": 1234567890, "status": "success", "source": "helius"},
         ]
@@ -184,9 +198,7 @@ class TestProviderFallback:
     @pytest.mark.asyncio
     async def test_get_wallet_transactions_fallback_to_solscan(self) -> None:
         """When Helius fails for txs, falls back to Solscan."""
-        from app.unified_provider import UnifiedProvider
-
-        provider = UnifiedProvider()
+        provider = self._make_provider()
         fake_txs = [
             {"signature": "sig2", "source": "solscan"},
         ]
@@ -466,13 +478,13 @@ class TestCacheBehavior:
 
         cache = ChainCache(max_size=10, default_ttl=60)
 
-        # Set with 0-second TTL
-        await cache.set("test", "value", "key1", ttl=0)
+        # Set with 0-second TTL — the entry has expiry = now, which may or may not
+        # be expired when we check. Use a negative TTL to guarantee expiry.
+        await cache.set("test", "value", "key1", ttl=-1)
 
-        # Force expiry by sleeping (0 TTL means immediate expiry)
-        # But the cache stores (time + ttl), so ttl=0 means already expired
+        # A negative TTL means expiry is in the past
         result = await cache.get("test", "key1")
-        assert result is None
+        assert result is None, "TTL-expired entry should not be returned"
 
     @pytest.mark.integration
     @pytest.mark.asyncio
