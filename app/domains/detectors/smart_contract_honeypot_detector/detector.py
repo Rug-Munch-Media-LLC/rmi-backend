@@ -93,7 +93,8 @@ class HoneypotDetector:
                     result.warnings.append(f"Extreme price change ({price_change:+.1f}%) with negligible volume")
                 if liquidity > 0 and volume > liquidity * 20:
                     result.findings.append(SecurityFinding(finding_type=HoneypotType.RUG_PULL, severity=FindingSeverity.MEDIUM, description=f"Unusually high volume/liquidity ratio ({volume / liquidity:.0f}x)", detail="Possible wash trading or manipulation"))
-        except Exception: pass
+        except Exception:
+            logger.debug("dex_market_analysis_failed %s", address[:12])
 
     async def _analyze_ownership(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
         chain_info = EVM_CHAINS.get(chain, {}); rpc_url = chain_info.get("rpc", "")
@@ -110,7 +111,8 @@ class HoneypotDetector:
                         if impl_data and impl_data != "0x" + "0" * 64:
                             result.token.is_proxy = True; result.token.implementation_address = "0x" + impl_data[-40:]
                             result.findings.append(SecurityFinding(finding_type=HoneypotType.PROXY_UPGRADE, severity=FindingSeverity.HIGH, description="Upgradable proxy contract detected", detail=f"Implementation at {result.token.implementation_address}", code_reference="EIP-1967 proxy storage slot"))
-                except Exception: pass
+                except Exception:
+                    logger.debug("impl_storage_failed %s", address[:12])
                 admin_slot = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
                 try:
                     payload["params"] = [address, admin_slot, "latest"]
@@ -119,7 +121,8 @@ class HoneypotDetector:
                         admin_data = resp.json().get("result", "")
                         if admin_data and admin_data != "0x" + "0" * 64:
                             result.token.owner_address = "0x" + admin_data[-40:]
-                except Exception: pass
+                except Exception:
+                    logger.debug("admin_slot_failed %s", address[:12])
         except Exception as e: logger.debug(f"Ownership analysis failed: {e}")
 
     async def _analyze_contract_functions(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
@@ -179,7 +182,8 @@ class HoneypotDetector:
         try:
             data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
             if data and data.get("pairs"): result.chain_data_sources.append("dexscreener_holders")
-        except Exception: pass
+        except Exception:
+            logger.debug("holder_analysis_failed %s", address[:12])
 
     async def _analyze_market_data(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
         try:
@@ -197,7 +201,8 @@ class HoneypotDetector:
                     if liquidity > 0 and volume_h24 > liquidity * 50:
                         result.findings.append(SecurityFinding(finding_type=HoneypotType.RUG_PULL, severity=FindingSeverity.MEDIUM, description=f"Volume ({volume_h24:.0f}) is {volume_h24 / max(liquidity, 1):.0f}x liquidity - possible wash trading"))
                     result.chain_data_sources.append("dexscreener_market")
-        except Exception: pass
+        except Exception:
+            logger.debug("market_data_failed %s", address[:12])
 
     async def _deep_scan(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
         import httpx
@@ -210,7 +215,8 @@ class HoneypotDetector:
                 if resp.status_code == 200:
                     latest_hex = resp.json().get("result", "0x0")
                     result.chain_data_sources.append(f"rpc_block:{int(latest_hex, 16)}")
-        except Exception: pass
+        except Exception:
+            logger.debug("deep_scan_failed %s", address[:12])
 
     def _compute_risk_score(self, result: HoneypotAnalysisResult) -> int:
         score = 0

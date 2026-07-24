@@ -20,5 +20,8 @@ __all__ = [
     "ChainFamily",
     "WalletFactory",
     "WalletResult",
+    "_has_cryptography",
+    "decrypt_key",
+    "encrypt_key",
     "get_wallet_factory",
 ]

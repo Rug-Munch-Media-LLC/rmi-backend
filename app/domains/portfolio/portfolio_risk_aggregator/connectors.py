@@ -73,7 +73,7 @@ class EVMConnector(ChainConnector):
                     results.append({"address": token_addr, "symbol": sym, "balance_raw": bal, "balance_formatted": float(bal) / (10**dec), "decimals": dec})
                     checked.add(token_addr.lower())
             except Exception:
-                pass
+                logger.debug("common_token_balance_failed %s", token_addr[:12])
         try:
             latest = await asyncio.to_thread(self.w3.eth.block_number)
             from_block = max(latest - 5000, 0)
@@ -104,7 +104,7 @@ class EVMConnector(ChainConnector):
                         sym = await asyncio.to_thread(contract.functions.symbol.call)
                         results.append({"address": log["address"], "symbol": sym, "balance_raw": bal, "balance_formatted": float(bal) / (10**dec), "decimals": dec})
                 except Exception:
-                    pass
+                    logger.debug("event_log_balance_failed %s", token_addr[:12])
                 if len(results) >= MAX_TOKENS_PER_WALLET:
                     break
         except Exception as e:
@@ -154,7 +154,7 @@ class SolanaConnector(ChainConnector):
                         continue
                     results.append({"address": mint, "symbol": token_amount.get("symbol", "SPL"), "balance_raw": int(token_amount.get("amount", "0")), "balance_formatted": ui_amount, "decimals": token_amount.get("decimals", 0)})
                 except Exception:
-                    pass
+                    logger.debug("solana_parse_token_failed %s", item.get("account", {}).get("data", {}).get("parsed", {}).get("info", {}).get("mint", "")[:12])
         except Exception as e:
             logger.warning(f"solana token balances error: {e}")
         return results

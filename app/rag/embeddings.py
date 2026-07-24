@@ -1,20 +1,15 @@
-"""M3 RAG Embeddings - strict two-tier (no hash fallback).
+"""RAG Embeddings — convenience facade over ``app.rag.embedder``.
 
-Per T04: the hash-based "fallback" embedding was returning
-confidently-wrong results (non-semantic vectors). When all neural
-backends fail, the RAG system now fails LOUDLY instead of returning
-gibberish.
+Maintains backwards compatibility with existing consumers (engine.py,
+ann_index.py) while delegating to the new protocol-based embedder
+architecture.
 
-Tier 1: Ollama bge-m3 (1024d, our own, zero cost) - best quality when reachable
-Tier 2: OpenRouter NVIDIA Nemotron (2048d, free tier) - if API key set
-
-Design (per DESIGN.md M3):
-- Single async API: `await get_embedding(text) -> list[float]`
-- BGE-M3 preferred when available
-- Embedding dim is reported via EMBEDDING_DIM; collections use same dim
-- All embeddings are float lists (JSON-serializable) for Redis storage
-- FAIL LOUD: if both backends fail, raise RAGUnavailableError
-- Monitor via Prometheus counter rag_empty_returns_total
+Public API (unchanged):
+    - ``EMBEDDING_DIM`` — current primary dimension constant
+    - ``get_embedding(text)`` — single-text async embedding
+    - ``get_embeddings(texts)`` — batch async embedding (supports 100+)
+    - ``current_backend()`` — human-readable backend name
+    - ``RAGUnavailableError`` — error when no backend is reachable
 """
 
 from __future__ import annotations
@@ -22,22 +17,26 @@ from __future__ import annotations
 import os
 from typing import Final
 
-import httpx
-import numpy as np
-
 from app.config import settings
 from app.core.logging import get_logger
+from app.rag.embedder import (
+    BGE_M3_Embedder,
+    CachedEmbedder,
+    EmbedderProtocol,
+    FallbackEmbedder,
+    OllamaEmbedder,
+    get_default_embedder,
+    lookup_dim,
+    normalize_dim,
+)
 
 log = get_logger(__name__)
 
-EMBEDDING_DIM: Final = 1024
+# ── Public constants ────────────────────────────────────────────────────
+EMBEDDING_DIM: Final = lookup_dim(settings.embedder_primary)
 
-# Backends
-_BACKEND = os.getenv("RAG_EMBED_BACKEND", "auto").lower()
-OLLAMA_URL = (os.getenv("OLLAMA_URL") or settings.ollama_url).rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
-OPENROUTER_URL = "https://openrouter.ai/api/v1/embeddings"
-OPENROUTER_MODEL = "nvidia/llama-nemotron-embed-vl-1b-v2:free"
+# Re-export _resize for legacy code (rmi-rag/legacy_supabase.py)
+_resize = normalize_dim
 
 
 class RAGUnavailableError(Exception):
@@ -46,130 +45,96 @@ class RAGUnavailableError(Exception):
     See T04 in MINIMAX_M3_TASKS.md."""
 
 
-def _ollama_reachable() -> bool:
-    """Quick probe: is Ollama listening? Cached per process via env."""
-    if os.getenv("_OLLAMA_PROBED"):
-        return os.getenv("_OLLAMA_OK") == "1"
-    try:
-        with httpx.Client(timeout=2.0) as c:
-            r = c.get(f"{OLLAMA_URL}/api/tags")
-            ok = r.status_code == 200
-    except (httpx.HTTPError, ConnectionError, TimeoutError):
-        ok = False
-    os.environ["_OLLAMA_PROBED"] = "1"
-    os.environ["_OLLAMA_OK"] = "1" if ok else "0"
-    if not ok:
-        log.info("rag_ollama_unreachable url=%s", OLLAMA_URL)
-    return ok
+# ── Backwards-compatible async API ──────────────────────────────────────
+
+_EMBEDDER: EmbedderProtocol | None = None
 
 
-def _resize(vec: list[float], dim: int) -> list[float]:
-    """Pad or truncate a vector to target dim, then L2 normalize."""
-    arr = np.asarray(vec, dtype=np.float32)
-    arr = (
-        arr[:dim]
-        if arr.shape[0] >= dim
-        else np.concatenate([arr, np.zeros(dim - arr.shape[0], dtype=np.float32)])
-    )
-    n = float(np.linalg.norm(arr))
-    if n > 0:
-        arr = arr / n
-    return arr.tolist()
-
-
-def _ollama_embed(text: str, dim: int = EMBEDDING_DIM) -> list[float] | None:
-    """Try Ollama bge-m3. Returns None on any failure."""
-    try:
-        with httpx.Client(timeout=10.0) as c:
-            r = c.post(
-                f"{OLLAMA_URL}/api/embeddings",
-                json={"model": OLLAMA_MODEL, "prompt": text[:8000]},
-            )
-            if r.status_code != 200:
-                return None
-            vec = r.json().get("embedding")
-            if not vec or not isinstance(vec, list):
-                return None
-            return _resize(vec, dim)
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        log.debug("ollama_embed_failed: %s", e)
-        return None
-
-
-def _openrouter_embed(text: str, dim: int = EMBEDDING_DIM) -> list[float] | None:
-    """Try OpenRouter Nemotron. Returns None on any failure."""
-    key = os.getenv("OPENROUTER_API_KEY")
-    if not key:
-        return None
-    try:
-        with httpx.Client(timeout=15.0) as c:
-            r = c.post(
-                OPENROUTER_URL,
-                headers={"Authorization": f"Bearer {key}"},
-                json={"model": OPENROUTER_MODEL, "input": text[:8000]},
-            )
-            if r.status_code != 200:
-                return None
-            data = r.json().get("data", [])
-            if not data:
-                return None
-            vec = data[0].get("embedding")
-            if not vec:
-                return None
-            return _resize(vec, dim)
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        log.debug("openrouter_embed_failed: %s", e)
-        return None
+def _get_embedder() -> EmbedderProtocol:
+    """Lazy singleton embedder for the convenience functions below."""
+    global _EMBEDDER
+    if _EMBEDDER is None:
+        _EMBEDDER = get_default_embedder()
+    return _EMBEDDER
 
 
 async def get_embedding(text: str) -> list[float]:
-    """Async embedding API. Returns 1024d float list.
+    """Async embedding API. Returns ``EMBEDDING_DIM``-dimensional float list.
 
-    Per T04: NO hash fallback. If both neural backends fail,
-    raises RAGUnavailableError. The RAG endpoint translates this to
-    HTTP 503 + {"status": "empty", "chunks": [], "message": ...}.
+    Uses the configured embedder chain (default: bge-m3 -> nomic-embed-text + cache).
+    Raises ``RAGUnavailableError`` on total failure.
+
+    Per T04: NO hash fallback. If all neural backends fail, the error
+    propagates so the caller can return HTTP 503 explicitly.
     """
     if not text or not text.strip():
         raise RAGUnavailableError("empty text input")
 
-    # Explicit backend override
-    if _BACKEND == "ollama":
-        v = _ollama_embed(text)
-        if v is not None:
-            return v
-        raise RAGUnavailableError("ollama backend failed and hash fallback removed per T04")
-    if _BACKEND == "openrouter":
-        v = _openrouter_embed(text)
-        if v is not None:
-            return v
-        raise RAGUnavailableError("openrouter backend failed and hash fallback removed per T04")
-
-    # auto: try ollama -> openrouter, fail loud if both fail
-    if _ollama_reachable():
-        v = _ollama_embed(text)
-        if v is not None:
-            return v
-    v = _openrouter_embed(text)
-    if v is not None:
-        return v
-    raise RAGUnavailableError(
-        "no embedding backend available (ollama unreachable, openrouter failed). "
-        "Per T04, hash fallback removed to prevent false-confidence in RAG results."
-    )
+    try:
+        return await _get_embedder().embed_one(text)
+    except RuntimeError as exc:
+        raise RAGUnavailableError(
+            f"no embedding backend available: {exc}"
+        ) from exc
 
 
 async def get_embeddings(texts: list[str]) -> list[list[float]]:
-    """Batch embedding. Sequential calls - Ollama and OpenRouter handle
-    larger requests poorly and we'd rather keep memory bounded."""
-    return [await get_embedding(t) for t in texts]
+    """Batch embedding. Handles 100+ texts efficiently.
 
+    Delegates to the embedder chain which supports native batching
+    (bge-m3, Ollama batch mode) with automatic fallback to sequential
+    processing if the backend doesn't support batching.
+    """
+    if not texts:
+        return []
+
+    try:
+        return await _get_embedder().embed(texts)
+    except RuntimeError as exc:
+        raise RAGUnavailableError(
+            f"batch embedding failed: {exc}"
+        ) from exc
+
+
+# ── Health / observability ──────────────────────────────────────────────
 
 def current_backend() -> str:
-    """Which tier is currently active? For observability."""
-    if _BACKEND != "auto":
-        return _BACKEND
-    if _ollama_reachable():
-        return "ollama"
-    if os.getenv("OPENROUTER_API_KEY"):
-        return "openrouter"
-    return "unavailable"
+    """Return a human-readable string describing the active embedder."""
+    try:
+        e = _get_embedder()
+        return e.name
+    except Exception:
+        return "unavailable"
+
+
+# ── Embedder factory (convenience for callers who want explicit control) ─
+
+def create_embedder(
+    primary: str | None = None,
+    fallback: str | None = None,
+    enable_cache: bool = True,
+) -> EmbedderProtocol:
+    """Build a fully-wired embedder chain (convenience wrapper).
+
+    Args:
+        primary: ``"bge-m3"`` or ``"ollama"`` (default from settings).
+        fallback: Ollama model name for fallback (default from settings).
+        enable_cache: Wrap in ``CachedEmbedder``.
+
+    Returns:
+        An ``EmbedderProtocol`` instance ready for ``await embed(texts)``.
+    """
+    from app.rag.embedder import get_embedder as _build
+
+    return _build(primary=primary, fallback=fallback, enable_cache=enable_cache)
+
+
+__all__ = [
+    "EMBEDDING_DIM",
+    "RAGUnavailableError",
+    "create_embedder",
+    "current_backend",
+    "get_embedding",
+    "get_embeddings",
+    "_resize",
+]
