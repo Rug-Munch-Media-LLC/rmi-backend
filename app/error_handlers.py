@@ -13,11 +13,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import (
-    FastAPI,
-    Request,
-)
-
 from app.core.errors import (
     AppError,
     AuthError,
@@ -34,6 +29,10 @@ from app.core.logging import get_logger
 from app.core.problem_details import ProblemDetail
 
 if TYPE_CHECKING:
+    from fastapi import (
+        FastAPI,
+        Request,
+    )
     from fastapi.responses import JSONResponse
 
 log = get_logger(__name__)

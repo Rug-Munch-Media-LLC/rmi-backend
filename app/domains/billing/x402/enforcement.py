@@ -22,9 +22,7 @@ and passes through. Real enforcement moved to app.domains.x402.middleware.py.
 
 from __future__ import annotations
 
-from typing import Any
-
-from fastapi import Request, Response
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.domains.billing.x402.admin_endpoints import (
@@ -74,6 +72,9 @@ from app.domains.billing.x402.tier_resolver import (
     check_trial,
     consume_trial,
 )
+
+if TYPE_CHECKING:
+    from fastapi import Request, Response
 
 logger = get_logger("x402_enforcement")
 

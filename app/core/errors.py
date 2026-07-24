@@ -19,17 +19,19 @@ from __future__ import annotations
 
 import traceback
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import (
-    FastAPI,
-    Request,
-)
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.problem_details import ProblemDetail
+
+if TYPE_CHECKING:
+    from fastapi import (
+        FastAPI,
+        Request,
+    )
 
 # ── AppError hierarchy ──────────────────────────────────────────────
 

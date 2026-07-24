@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from app.core.logging import get_logger
 from app.rag.chunking import content_hash as _content_hash
 from app.rag.config import RAG_MIN_DOC_LENGTH, RAG_SPAM_REPETITION_THRESHOLD
-from app.rag.ingestion_models import Document
+
+if TYPE_CHECKING:
+    from app.rag.ingestion_models import Document
 
 log = get_logger(__name__)
 
