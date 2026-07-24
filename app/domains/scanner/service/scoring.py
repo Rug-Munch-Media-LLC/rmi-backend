@@ -1,4 +1,4 @@
-"""Scanner service — risk scoring engine."""
+"""Scanner service — risk scoring engine + RAG ingestion hook."""
 
 from typing import Any
 
@@ -6,13 +6,38 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 async def _ingest_scan_to_rag(scan_result: Any) -> None:
     """Ingest scan result to RAG for future similarity searches.
 
-    Args:
-        scan_result: The completed ScanResult to persist
+    Uses the new ``app.rag.ingestion.ingest_scan_result`` pipeline.
+    Falls back gracefully if the RAG system is unavailable.
     """
-    logger.info("ingest_to_rag", token=scan_result.token_address)
+    try:
+        from app.rag.ingestion import ingest_scan_result as _ingest
+
+        report = await _ingest(
+            token_address=scan_result.token_address,
+            chain=getattr(scan_result, "chain", "solana"),
+            safety_score=float(getattr(scan_result, "safety_score", 50)),
+            risk_flags=list(getattr(scan_result, "risk_flags", [])),
+            symbol=getattr(scan_result, "symbol", ""),
+            name=getattr(scan_result, "name", ""),
+            extra={
+                "confidence": getattr(scan_result, "confidence", 0),
+                "tier_required": getattr(scan_result, "tier_required", "free"),
+            },
+        )
+        logger.info(
+            "ingest_to_rag",
+            token=scan_result.token_address,
+            status=report.status,
+            chunks=report.chunks_total,
+        )
+    except ImportError:
+        logger.debug("ingest_to_rag_skipped (RAG ingestion module not available)")
+    except Exception as exc:
+        logger.warning("ingest_to_rag_failed", token=scan_result.token_address[:16], error=str(exc))
 
 
 def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
@@ -155,5 +180,3 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
 
     # Clamp to 0-100
     return max(0, min(100, int(score)))
-
-
