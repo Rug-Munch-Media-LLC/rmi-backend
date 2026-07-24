@@ -39,4 +39,4 @@ EXPOSE 8000
 
 # Use Tini as PID 1 to properly reap zombie processes and forward signals
 ENTRYPOINT ["/tini", "--"]
-CMD ["python", "-u", "main.py"]
+CMD ["gunicorn", "main:app", "-k", "uvicorn.workers.UvicornWorker", "-w", "4", "--bind", "0.0.0.0:8000", "--timeout", "120", "--keep-alive", "5", "--worker-tmp-dir", "/dev/shm"]
