@@ -36,7 +36,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -111,10 +110,7 @@ class IngestReport:
 
 # ── DocumentProcessor ───────────────────────────────────────────────
 
-def _content_hash(text: str) -> str:
-    """Stable SHA-256 of normalised text for dedup."""
-    norm = re.sub(r"\s+", " ", text.strip().lower())
-    return hashlib.sha256(norm.encode("utf-8", errors="ignore")).hexdigest()
+from app.rag.chunking import content_hash as _content_hash
 
 def _quality_score(text: str, max_chunk: int) -> float:
     """Quick quality score 0-1. Penalise noise (high special-char ratio)."""
@@ -307,7 +303,7 @@ class QualityFilter:
             r = get_redis()
             return bool(r.sismember(f"rag:hashes:{collection}", content_hash))
         except Exception as e:  # noqa: BLE001
-            log.debug("dedup_check_failed: %s", e)
+            log.warning("dedup_check_failed: %s", e)
             return False
 
 # ── RateLimiter ──────────────────────────────────────────────────────

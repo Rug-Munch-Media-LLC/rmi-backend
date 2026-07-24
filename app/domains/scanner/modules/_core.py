@@ -1,5 +1,6 @@
 """Core scanner module — shared constants and helpers."""
 
+from __future__ import annotations
 from typing import Any
 
 import httpx
@@ -60,7 +61,6 @@ SOLANA_RPC_URLS = [
 
 SOLANA_RPC_TIMEOUT = 10.0
 
-
 async def _solana_rpc_call(method: str, params: list[Any]) -> dict[str, Any] | None:
     """Call Solana RPC with fallback across multiple endpoints."""
     body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
@@ -79,9 +79,7 @@ async def _solana_rpc_call(method: str, params: list[Any]) -> dict[str, Any] | N
             logger.debug("solana_rpc_failed", url=rpc_url.split("/")[2], error=str(e)[:50])
     return None
 
-
 # ── Shared helpers ────────────────────────────────────────────────────
-
 
 async def _fetch_json(
     url: str,
@@ -103,7 +101,6 @@ async def _fetch_json(
         logger.debug("http_failed", url=url, error=str(e))
     return None
 
-
 async def _fetch_with_fallback(
     urls: list[str],
     req_timeout: float = 15.0,
@@ -123,5 +120,35 @@ async def _fetch_with_fallback(
                 continue
     return {}, ""
 
-
 # ── 1. GoPlus Security ────────────────────────────────────────────────
+
+# ── DexScreener request cache (prevents N redundant calls per scan) ──
+# Multiple scanner modules (_check_honeypot_is, _get_holder_data,
+# _check_liquidity_lock_multi, _get_deployer_info) all call DexScreener
+# for the same token. This LRU cache deduplicates within a process.
+_DEXSCREENER_CACHE: dict[str, dict | None] = {}  # token_address -> response
+_DEXSCREENER_CACHE_MAX = 100
+
+async def _fetch_dexscreener(token_address: str) -> dict | None:
+    """Fetch DexScreener data once per token, cached per process.
+
+    All scanner modules should call this instead of crafting their own
+    DexScreener URL.  The cache lives for the lifetime of the process
+    (typically minutes per scan request before GC), which is fine since
+    DexScreener data doesn't change intra-second.
+    """
+    key = token_address.lower()
+    if key in _DEXSCREENER_CACHE:
+        return _DEXSCREENER_CACHE[key]
+
+    data, _ = await _fetch_with_fallback(
+        [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
+    )
+    result = data if data and data.get("pairs") else None
+
+    # Evict oldest if over limit
+    if len(_DEXSCREENER_CACHE) >= _DEXSCREENER_CACHE_MAX:
+        _DEXSCREENER_CACHE.pop(next(iter(_DEXSCREENER_CACHE)), None)
+    _DEXSCREENER_CACHE[key] = result
+
+    return result

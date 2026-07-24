@@ -10,7 +10,10 @@ Architecture:
   3. Final fallback: return neutral (no signal)
 """
 
+from __future__ import annotations
 from typing import Any
+
+import httpx
 
 from app.core.logging import get_logger
 
@@ -50,7 +53,6 @@ SCAM_SYMBOL_PATTERNS: list[tuple[str, str]] = [
     ("DAI", "Mimics DAI"),
 ]
 
-
 async def _score_by_pattern(name: str, symbol: str) -> dict[str, Any]:
     """Score token by name/symbol pattern matching.
 
@@ -68,16 +70,14 @@ async def _score_by_pattern(name: str, symbol: str) -> dict[str, Any]:
             risk_score += 10
             matched_indicators.append(f"name_contains_{indicator}")
 
-    # Check symbol for known mimic targets (levenshtein-like exact match)
+    # Check symbol for known mimic targets
     for mimic_target, _description in SCAM_SYMBOL_PATTERNS:
         if symbol_upper == mimic_target:
             risk_score += 0  # exact match to a real token = clean
             break
-        # Check if the symbol is the target with a common scam suffix
         if symbol_upper.startswith(mimic_target) and len(symbol_upper) > len(mimic_target):
             risk_score += 25
             matched_indicators.append(f"mimics_{mimic_target}_with_suffix")
-        # Check for common leetspeak substitutions
         leet = symbol_upper.replace("1", "I").replace("0", "O").replace("3", "E").replace("4", "A")
         if leet == mimic_target and symbol_upper != mimic_target:
             risk_score += 20
@@ -91,7 +91,6 @@ async def _score_by_pattern(name: str, symbol: str) -> dict[str, Any]:
         "matched_indicators": matched_indicators,
         "patterns_checked": len(SCAM_NAME_INDICATORS) + len(SCAM_SYMBOL_PATTERNS),
     }
-
 
 async def check_scam(
     token_address: str,
@@ -122,16 +121,20 @@ async def check_scam(
 
     # ── Phase 1: Try ChromaDB vector search ──
     try:
-        # Attempt to import and query the RMI security context
         from app.rag_firehose import RagFirehose
 
         firehose = RagFirehose()
-        query_parts = [f"token:{symbol}", f"name:{name}", token_address]
-        query = " ".join(q for q in query_parts if q)
+        # Build query only from non-empty fields — avoids prefixes leaking "token:" with no value
+        query_parts = []
+        if symbol:
+            query_parts.append(f"token:{symbol}")
+        if name:
+            query_parts.append(f"name:{name}")
+        query_parts.append(token_address)
+        query = " ".join(query_parts)
         if query:
             vector_results = await firehose.search_similar(query, top_k=5)
             if vector_results:
-                # Interpret vector similarity results
                 avg_score = sum(r.get("relevance_score", 0) for r in vector_results) / len(
                     vector_results
                 )
@@ -168,7 +171,6 @@ async def check_scam(
     # ── Phase 3: Check deployer against known scam deployers ──
     if deployer:
         try:
-            # Check if deployer is in the spam registry
             from app.spam_registry import get_spam_registry
 
             registry = get_spam_registry()

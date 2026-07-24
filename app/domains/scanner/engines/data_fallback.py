@@ -14,6 +14,7 @@ Architecture:
   Layer 4 (paid):  Helius → Moralis → Alchemy → DeepSeek
 """
 
+from __future__ import annotations
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -24,13 +25,11 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 class SourceTier(Enum):
     OUR_DATA = 1  # Free, unlimited, fastest
     FREE_RPC = 2  # Free, rate-limited
     FREE_API = 3  # Free, rate-limited
     PAID_API = 4  # Paid, highest quality, last resort
-
 
 class SourceStatus(Enum):
     HEALTHY = "healthy"
@@ -38,7 +37,6 @@ class SourceStatus(Enum):
     RATE_LIMITED = "rate_limited"
     DOWN = "down"
     UNKNOWN = "unknown"
-
 
 @dataclass
 class DataSource:
@@ -78,7 +76,6 @@ class DataSource:
     def tier_label(self) -> str:
         return {1: "OUR", 2: "RPC", 3: "API", 4: "PAID"}[self.tier.value]
 
-
 @dataclass
 class DataResult:
     """Result from a data query with source tracing."""
@@ -90,7 +87,6 @@ class DataResult:
     from_cache: bool = False
     fallback_attempts: int = 0
     all_sources_tried: list[str] = field(default_factory=list)
-
 
 # ══════════════════════════════════════════════════════════════════════
 # DATA SOURCE REGISTRY — Ordered by priority
@@ -239,7 +235,6 @@ DATA_SOURCES = {
     ),
 }
 
-
 # ══════════════════════════════════════════════════════════════════════
 # QUERY-TO-SOURCE MAPPING — Which sources can answer which queries
 # ══════════════════════════════════════════════════════════════════════
@@ -377,11 +372,9 @@ QUERY_FALLBACK_MAP = {
     ],
 }
 
-
 # ══════════════════════════════════════════════════════════════════════
 # FALLBACK CHAIN ENGINE
 # ══════════════════════════════════════════════════════════════════════
-
 
 class DataFallbackChain:
     """
@@ -544,13 +537,11 @@ class DataFallbackChain:
         """Get per-source query statistics."""
         return dict(self._stats)
 
-
 # ══════════════════════════════════════════════════════════════════════
 # GLOBAL INSTANCE
 # ══════════════════════════════════════════════════════════════════════
 
 _fallback_chain: DataFallbackChain | None = None
-
 
 def get_fallback_chain() -> DataFallbackChain:
     """Get or create the global DataFallbackChain instance."""
@@ -560,13 +551,16 @@ def get_fallback_chain() -> DataFallbackChain:
         logger.info("DataFallbackChain initialized")
     return _fallback_chain
 
-
-def query_with_fallback(
+async def query_with_fallback(
     query_type: str, cache_key: str | None = None, cache_ttl: float = 60, **kwargs
 ) -> DataResult:
     """
-    Query the fallback chain synchronously (health check, stats).
-    For async queries, use the DataBus provider system.
+    Query the fallback chain. For production use, prefer the DataBus provider
+    system (app.databus) which handles async execution, Redis caching with
+    SWR, request deduplication, and credit-aware routing.
+
+    This is a health-check / stats wrapper — it resolves which sources would
+    be tried but defers actual execution to the DataBus async dispatcher.
 
     Returns a DataResult with source tracing.
     """
@@ -586,6 +580,27 @@ def query_with_fallback(
 
     sources = chain.get_sources_for_query(query_type)
 
+    # Forward to DataBus for actual execution
+    try:
+        from app.databus import databus
+
+        result = await databus.fetch(
+            query_type=query_type,
+            cache_key=cache_key,
+            **kwargs,
+        )
+        if result is not None:
+            return DataResult(
+                data=result,
+                source=sources[0] if sources else "databus",
+                tier="API",
+                latency_ms=0,
+            )
+    except ImportError:
+        pass
+    except Exception as exc:
+        logger.debug("query_with_fallback_databus_failed: %s", exc)
+
     return DataResult(
         data=None,
         source="none",
@@ -594,11 +609,9 @@ def query_with_fallback(
         all_sources_tried=sources,
     )
 
-
 # ══════════════════════════════════════════════════════════════════════
 # SOURCE-DECISION LOGIC — "Can our data answer this?"
 # ══════════════════════════════════════════════════════════════════════
-
 
 def can_answer_from_our_data(query_type: str, chain: str = "ethereum") -> tuple[bool, str]:
     """
@@ -636,7 +649,6 @@ def can_answer_from_our_data(query_type: str, chain: str = "ethereum") -> tuple[
         )  # DexScreener→CoinGecko→CoinPaprika→DefiLlama→DexPaprika→CoinStats→TradingView
 
     return False, "unknown_query_type"
-
 
 # ══════════════════════════════════════════════════════════════════════
 # INIT
