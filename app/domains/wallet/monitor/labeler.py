@@ -17,26 +17,34 @@ class AutoLabeler:
     @classmethod
     async def update_counters(cls, tx: WalletTx) -> None:
         r = await get_redis()
-        if not r: return
+        if not r:
+            return
         key = cls._counter_key(tx.from_addr, tx.chain)
         pipe = r.pipeline()
         pipe.hincrby(key, "total_txs", 1)
-        if tx.dex_swap: pipe.hincrby(key, "dex_txs", 1)
-        if tx.is_approval: pipe.hincrby(key, "approvals", 1)
-        if tx.is_contract_creation: pipe.hincrby(key, "contract_creates", 1)
-        if tx.token_transfers: pipe.hincrby(key, "token_transfers", len(tx.token_transfers))
+        if tx.dex_swap:
+            pipe.hincrby(key, "dex_txs", 1)
+        if tx.is_approval:
+            pipe.hincrby(key, "approvals", 1)
+        if tx.is_contract_creation:
+            pipe.hincrby(key, "contract_creates", 1)
+        if tx.token_transfers:
+            pipe.hincrby(key, "token_transfers", len(tx.token_transfers))
         pipe.expire(key, 86400 * 7)
         await pipe.execute()
 
     @classmethod
     async def suggest_label(cls, wallet: str, chain: str) -> LabelSuggestion | None:
         r = await get_redis()
-        if not r: return None
+        if not r:
+            return None
         key = cls._counter_key(wallet, chain)
         counters = await r.hgetall(key)
-        if not counters: return None
+        if not counters:
+            return None
         total = int(counters.get("total_txs", 0))
-        if total < 3: return None
+        if total < 3:
+            return None
         dex = int(counters.get("dex_txs", 0))
         creates = int(counters.get("contract_creates", 0))
         tokens = int(counters.get("token_transfers", 0))

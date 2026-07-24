@@ -4,7 +4,8 @@ Liquidation Cascade Analyzer
 Analyzes liquidation cascades across DeFi lending protocols, identifying
 contagion risk and potential systemic failures.
 
-Backward-compatibility shim: this module now lives in ``app.domains.analysis``.
+Backward-compatibility shim: re-exports everything from
+``app.domains.analysis.liquidation``.
 
 Usage:
     from app.liquidation_cascade_analyzer import LiquidationCascadeAnalyzer
@@ -12,7 +13,9 @@ Usage:
 
 from __future__ import annotations
 
+from app.domains.analysis.liquidation import *  # noqa: F403
 
 if __name__ == "__main__":
     from app.domains.analysis.liquidation_cascade_analyzer import main as _main
+
     _main()

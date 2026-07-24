@@ -27,8 +27,8 @@ from app.domains.billing.x402.shared_data import (
     BUNDLES,
     FREE_APIS,
     FREE_RPCS,
-    HUMAN_PAYMENT_TOKENS,
     HUMAN_PAY_TO,
+    HUMAN_PAYMENT_TOKENS,
     TOOL_ALIASES,
     _resolve_pay_to,
 )
@@ -55,7 +55,6 @@ from app.domains.billing.x402.shared_models import (
     WalletListRequest,
     WalletRequest,
 )
-
 
 
 async def fetch_with_fallback(

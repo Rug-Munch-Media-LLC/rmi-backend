@@ -61,7 +61,8 @@ async def fetch_rss(svc: NewsService, url: str, source_name: str, limit: int = 5
         return []
 
     articles = []
-    for entry in feed.entries[:limit]:
+    for entry in feed.entries[:
+        limit]:
         try:
             title = entry.get("title", "")
             link = entry.get("link", "")
@@ -97,7 +98,8 @@ async def fetch_all_rss(svc: NewsService, limit_per_source: int = 3) -> list[dic
         batch = RSS_FEEDS[i:i + 20]
         results = await asyncio.gather(*[fetch_rss(svc, url, n, limit_per_source) for url, n in batch], return_exceptions=True)
         for r in results:
-            if isinstance(r, list): all_articles.extend(r)
+            if isinstance(r, list):
+                all_articles.extend(r)
         if i + 20 < len(RSS_FEEDS):
             await asyncio.sleep(0.3)
     return all_articles
@@ -108,7 +110,8 @@ async def fetch_reddit_hot(svc: NewsService, subreddit: str, limit: int = 5) -> 
             resp = await client.get(f"https://www.reddit.com/r/{subreddit}/hot.json",
                                     params={"limit": limit, "raw_json": "1"},
                                     headers={"User-Agent": REDDIT_USER_AGENT})
-            if resp.status_code != 200: return []
+            if resp.status_code != 200:
+                return []
             data = resp.json()
         articles = []
         for post in data.get("data", {}).get("children", []):
@@ -117,9 +120,11 @@ async def fetch_reddit_hot(svc: NewsService, subreddit: str, limit: int = 5) -> 
             url = f"https://reddit.com{permalink}" if permalink else ""
             text = (pd.get("selftext", "") or "")[:300]
             created = datetime.fromtimestamp(pd.get("created_utc", 0), tz=UTC).isoformat()
-            if pd.get("score", 0) < 5: continue
+            if pd.get("score", 0) < 5:
+                continue
             ch = hashlib.sha256(f"reddit:{title}:{permalink}".encode()).hexdigest()
-            if ch in svc.seen_hashes: continue
+            if ch in svc.seen_hashes:
+                continue
             svc.seen_hashes.add(ch)
             tfa = f"{title} {text}"
             articles.append({
@@ -130,7 +135,8 @@ async def fetch_reddit_hot(svc: NewsService, subreddit: str, limit: int = 5) -> 
                 "kind": "social", "tier": "social",
                 "reddit_score": pd.get("score", 0), "reddit_comments": pd.get("num_comments", 0),
             })
-        if articles: logger.info(f"Reddit r/{subreddit}: {len(articles)} posts")
+        if articles:
+            logger.info(f"Reddit r/{subreddit}: {len(articles)} posts")
         return articles
     except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, TypeError, KeyError, ConnectionError, OSError, TimeoutError) as e :
         logger.debug("fetch_reddit_hot_error", exc_info=True)

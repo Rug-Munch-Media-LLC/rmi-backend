@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from app.domains.billing.x402.shared_data import HUMAN_PAYMENT_TOKENS
 
 
-
 class TokenRequest(BaseModel):
     address: str
     chain: str = "solana"

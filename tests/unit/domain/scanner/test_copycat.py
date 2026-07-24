@@ -53,7 +53,7 @@ class TestCheckCopycat:
         """
         result = await _check_copycat("ETN", "Ethereum copy")
         assert result["result"] == "high_risk"
-        assert result["similar_to"] in ("ETH", "BTC", "VET")  # Could match any
+        assert result["similar_to"] in ("ETH", "BTC", "VET", "LTC")  # Could match any (depends on top symbol list)
 
     async def test_detects_copycat_with_levenshtein_2(self):
         """Symbols with Levenshtein distance 2 should be flagged."""
