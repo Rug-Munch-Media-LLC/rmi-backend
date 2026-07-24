@@ -246,21 +246,15 @@ async def backup_status() -> JSONResponse:
 async def backup_config() -> JSONResponse:
     """Current backup configuration values.
 
-    Returns sanitized config — no secrets.
+    Returns sanitized config — no secrets or infra details.
     """
     return JSONResponse(
         content={
             "backup_dir": str(BACKUP_DIR),
-            "r2_remote": R2_REMOTE,
-            "r2_bucket": R2_BUCKET,
-            "r2_path_prefix": R2_PATH_PREFIX,
             "retention_days": {
                 "local_backup": int(os.getenv("BACKUP_RETENTION_DAYS", "7")),
                 "clickhouse": int(os.getenv("CLICKHOUSE_RETENTION_DAYS", "30")),
                 "postgres": int(os.getenv("POSTGRES_RETENTION_DAYS", "90")),
             },
-            "postgres_tables": os.getenv("PG_TABLES", "scan_results tokens wallets"),
-            "clickhouse_tables": os.getenv("CLICKHOUSE_TABLES", "token_prices"),
-            "log_file": str(BACKUP_LOG),
         }
     )
