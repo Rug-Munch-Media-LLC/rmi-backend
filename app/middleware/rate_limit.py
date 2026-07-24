@@ -57,7 +57,8 @@ class RateLimiter:
 
         try:
             # Use Redis pipeline for atomic operations
-            assert self.redis is not None  # guarded by self.enabled check above
+            if self.redis is None:
+                return True, limit  # no redis = unlimited
             pipe = self.redis.pipeline()
             pipe.incr(key)
             pipe.expire(key, window)
