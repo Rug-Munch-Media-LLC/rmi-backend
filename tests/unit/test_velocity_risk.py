@@ -284,7 +284,7 @@ class TestAnalyzeVelocityRiskLevel(WithTimedSnapshots):
         result = self._analyze(
             "solana",
             "t1",
-            _fresh_metrics(top10_pct=90.0, liquidity_usd=1_000.0, price_usd=0.01),
+            _fresh_metrics(top10_pct=65.0, liquidity_usd=70_000.0, price_usd=0.3),
         )
         assert result["risk_level"] == "high"
 
