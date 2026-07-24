@@ -55,7 +55,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
             result["associated_tokens"] = tokens
             result["token_count"] = len(tokens)
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 2: Solana RPC - wallet activity
@@ -65,7 +65,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
             if balance is not None:
                 result["creator_balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_balance")
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         try:
@@ -73,7 +73,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
             if sigs:
                 result["recent_txs"] = len(sigs)
                 result["sources_used"].append("solana_txs")
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
     # Layer 3: Etherscan/BaseScan
@@ -90,7 +90,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
                 if data and data.get("result"):
                     result["explorer_txs"] = len(data["result"])
                     result["sources_used"].append(f"{chain}_explorer")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     # Risk assessment
@@ -124,7 +124,7 @@ async def insider_tracker(req: InsiderRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -157,5 +157,5 @@ async def whale_accumulation(req: GenericRequest) -> dict[str, str]:
         }
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e

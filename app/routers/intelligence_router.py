@@ -135,7 +135,8 @@ async def _get_current_user_id(authorization: str | None = None) -> str | None:
             user_id = user_data.get("id")
             return str(user_id) if user_id else None
         return None
-    except Exception:
+    except (httpx.HTTPError, json.JSONDecodeError, ValueError) as e:
+        logger.warning(f"User auth lookup failed: {e}")
         return None
 
 

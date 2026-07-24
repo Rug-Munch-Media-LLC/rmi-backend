@@ -149,7 +149,7 @@ class UnifiedWalletScanner:
 
             self._compute_risk(r)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Wallet scan failed for {address}: {e}")
 
         r.scan_duration_ms = (time.monotonic() - start) * 1000
@@ -163,7 +163,7 @@ class UnifiedWalletScanner:
                 return c, await asyncio.wait_for(
                     databus.fetch(c, admin_key=admin_key, **params), timeout
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001
                 return c, None
 
         results = await asyncio.gather(*[_one(c) for c in chains])
@@ -218,7 +218,7 @@ class UnifiedWalletScanner:
                     if r.address.lower() in content.lower():
                         r.risk_flags.append("RAG_SCAMMER_MATCH")
                         r.risk_score += 30
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"RAG enrich failed: {e}")
 
     # ═══════════════════════════════════════════════════════════════
@@ -239,7 +239,7 @@ class UnifiedWalletScanner:
                 r.enrichment_sources.append("ai:ollama_cloud")
                 if r.persona.startswith("Scam") or r.persona.startswith("Bot"):
                     r.risk_flags.append(f"PERSONA_{r.persona.upper().replace(' ', '_')}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"AI persona failed: {e}")
 
     # ═══════════════════════════════════════════════════════════════
@@ -374,7 +374,7 @@ class UnifiedWalletScanner:
             resp = urlopen(req, timeout=5)
             r.risk_forecast = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
             r.modules_run.append("ai_forecast")
-        except Exception:
+        except Exception:  # noqa: BLE001
             r.risk_forecast = "Unable to forecast"
 
     def _compute_risk(self, r) -> None:

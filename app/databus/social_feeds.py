@@ -92,7 +92,7 @@ def fetch_reddit(db_r=None) -> Any:
                     }
                 )
             logger.info(f"  {source}: {len(results)} articles")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"  {source}: {str(e)[:60]}")
     return results
 
@@ -134,7 +134,7 @@ def fetch_nitter(db_r=None) -> Any:
                 logger.info(
                     f"  @{username}: {len([r for r in results if r['source'] == username])} tweets"
                 )
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                 pass  # Try next instance
     return results
 
@@ -161,7 +161,7 @@ def merge_into_redis(articles, prefix="rmi:news") -> Any | int:
                 r.set(f"{prefix}:article:{a['id']}", json.dumps(a))
                 count += 1
         return count
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError) as e:
         logger.error(f"Redis merge failed: {e}")
         return 0
 

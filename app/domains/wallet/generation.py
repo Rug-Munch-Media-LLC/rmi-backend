@@ -165,7 +165,7 @@ class WalletGenerationMixin:
                 address = monero_ctx.PublicKey().ToAddress()
                 pub_key = monero_ctx.PublicKey().RawCompressed().ToHex()
                 return address, pub_key, mnemonic
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"bip_utils Monero failed ({e}), trying fallback")
 
         if _HAS_NACL:
@@ -242,7 +242,7 @@ class WalletGenerationMixin:
                     purpose=purpose, tier=tier, group=group, created_by=created_by,
                 )
                 wallets.append(wallet)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Failed to generate {chain} wallet: {e}")
         return wallets
 

@@ -185,7 +185,7 @@ class OHLCVEngine:
             r.zremrangebyrank(key, 0, -(MAX_CANDLES + 1))
             r.expire(key, CACHE_TTL.get(timeframe, 3600))
             r.close()
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Failed to persist candle: {e}")
 
     def flush_all(self) -> None:
@@ -228,7 +228,7 @@ class OHLCVEngine:
             if cached:
                 r.close()
                 return json.loads(cached)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
         try:
@@ -242,7 +242,7 @@ class OHLCVEngine:
                 try:
                     c = json.loads(item)
                     candles.append(c)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
 
             # Sort by timestamp ascending
@@ -266,7 +266,7 @@ class OHLCVEngine:
 
             return candles[-limit:] if len(candles) > limit else candles
 
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"OHLCV query failed: {e}")
             return []
 
@@ -363,7 +363,7 @@ async def fetch_ohlcv(
             "authentic_score": auth.get("authentic_score", 100),
             "risk_level": auth.get("risk_level", "UNKNOWN"),
         }
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     return {

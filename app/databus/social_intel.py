@@ -212,7 +212,7 @@ async def detect_shill_campaigns(posts: list[dict] | None = None, **kw) -> dict:
                                 "detected_at": datetime.now(UTC).isoformat(),
                             }
                         )
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
 
     # Store detected campaigns
@@ -299,21 +299,21 @@ async def generate_daily_intel(**kw) -> dict:
         from app.databus.news_provider import get_market_brief
 
         brief = await get_market_brief()
-    except Exception:
+    except Exception:  # noqa: BLE001
         brief = {}
 
     try:
         from app.databus.news_intel import aggregate_all_news
 
         news = await aggregate_all_news(limit=15)
-    except Exception:
+    except Exception:  # noqa: BLE001
         news = {"articles": []}
 
     try:
         from app.databus.x_intel import fetch_ct_rundown
 
         ct = await fetch_ct_rundown(limit=10)
-    except Exception:
+    except Exception:  # noqa: BLE001
         ct = {"rundown": []}
 
     # Build context for Groq
@@ -369,7 +369,7 @@ Be direct, data-driven, no fluff. Use emojis sparingly. Format cleanly.""",
                 )
                 if r.status_code == 200:
                     report = r.json()["choices"][0]["message"]["content"]
-        except Exception as e:
+        except (httpx.HTTPError, httpx.TimeoutException) as e:
             report = f"AI report generation unavailable: {str(e)[:100]}"
 
     if not report:
@@ -415,7 +415,7 @@ async def get_social_metrics(**kw) -> dict:
         from app.databus.news_intel import aggregate_all_news
 
         news = await aggregate_all_news(limit=50)
-    except Exception:
+    except Exception:  # noqa: BLE001
         news = {"articles": [], "stats": {}}
 
     # Trending topics from categories

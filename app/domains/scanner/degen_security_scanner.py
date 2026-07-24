@@ -392,7 +392,7 @@ class DegenSecurityScanner:
                     if report.decimals
                     else float(supply_raw)
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001
                 report.total_supply = 0
             report.created_at = token_data.get("createdTime")
         else:
@@ -1102,7 +1102,7 @@ class DegenSecurityScanner:
                         "mintAuthority": result.get("mint_extensions", {}).get("mintAuthority"),
                         "freezeAuthority": result.get("mint_extensions", {}).get("freezeAuthority"),
                     }
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Helius metadata failed: {e}")
         return None
 
@@ -1139,7 +1139,7 @@ class DegenSecurityScanner:
                 result["holders"] = o_data.get("holder", 0)
 
             return result if result else None
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Birdeye data failed: {e}")
         return None
 

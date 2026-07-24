@@ -2,17 +2,21 @@
 """#11 - Liquidity Pool Health Monitor. Tracks LPs across DEXes on all DataBus chains.
 Alerts on LP withdrawals, depletion, single-holder dominance."""
 
-import os
 from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 router = APIRouter(prefix="/api/v1/lp-health", tags=["lp-health-monitor"])
 
-DATABUS = os.environ.get("DATABUS_URL", "http://localhost:8000/api/v1/databus")
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+DATABUS = settings.databus_url
+BACKEND = settings.backend_url
 TG_BOT = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 # Tracked LPs (in-memory, Redis in prod)
@@ -93,7 +97,9 @@ async def check_lp_health(lp_address: str, chain: str = Query("ethereum")) -> di
 
 
 @router.post("/track")
-async def track_lp(lp_address: str, chain: str = Query("ethereum"), notify_tg: bool = Query(True)) -> dict:
+async def track_lp(
+    lp_address: str, chain: str = Query("ethereum"), notify_tg: bool = Query(True)
+) -> dict:
     """Start tracking an LP for health changes."""
     lp_id = f"{chain}:{lp_address}"
     _tracked_lps[lp_id] = {
@@ -141,8 +147,8 @@ async def find_unhealthy_pools(
                                 "alerts": alerts,
                             }
                         )
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Pool health check failed: {e}")
 
     unhealthy.sort(key=lambda p: p["health_score"])
     return {"chain": chain, "unhealthy_pools": unhealthy[:limit], "total_unhealthy": len(unhealthy)}

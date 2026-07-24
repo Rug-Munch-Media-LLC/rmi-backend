@@ -48,8 +48,10 @@ def _try_mark_down(store: str) -> None:
         from app.core.degradation import get_registry
 
         get_registry().mark_down(store)
-    except Exception:
+    except ImportError:
         pass
+    except Exception as e:
+        logger.debug(f"Degradation registry mark_down failed: {e}")
 
 
 # ── Health Check Functions ───────────────────────────────────────
@@ -353,8 +355,8 @@ async def get_status() -> Any:
         facilitators = r.get("rmi:facilitator:summary")
         if facilitators:
             overall["facilitators"] = json.loads(facilitators)
-    except Exception:
-        pass
+    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+        logger.debug(f"Facilitator summary parse failed: {e}")
 
     return JSONResponse(content=overall)
 

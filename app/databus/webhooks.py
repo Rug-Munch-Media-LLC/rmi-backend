@@ -99,7 +99,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
             return {"status": "duplicate", "event_id": event_id}
         r.setex(f"webhook:dedup:{service}:{event_id}", 3600, "1")
         r.close()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # ── 3. Store in DataBus cache ──
@@ -125,7 +125,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
             ),
         )
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # ── 4. Index in RAG for intelligence ──
@@ -148,7 +148,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
                     ],
                 },
             )
-    except Exception:
+    except (httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # ── 5. Trigger premium scanner based on event type ──
@@ -167,7 +167,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
                 chain=payload.get("chain", "unknown"),
                 metadata={"webhook_service": service, "event_id": event_id},
             )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     return {
@@ -188,7 +188,7 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
     try:
         expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -284,7 +284,7 @@ async def setup_webhook(
                     },
                 )
                 return resp.json() if resp.status_code == 200 else {"error": resp.text[:200]}
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return {"error": str(e)}
 
     elif service == "moralis":
@@ -306,7 +306,7 @@ async def setup_webhook(
                     },
                 )
                 return resp.json() if resp.status_code in (200, 201) else {"error": resp.text[:200]}
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return {"error": str(e)}
 
     return {
@@ -329,5 +329,5 @@ async def list_webhooks() -> dict:
                 webhooks.append(json.loads(data))
         r.close()
         return {"webhooks": webhooks, "total": len(webhooks)}
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         return {"webhooks": [], "total": 0}

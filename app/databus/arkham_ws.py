@@ -81,7 +81,7 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
                             "ws_key_active": bool(ws_key),
                             "source": "arkham_ws",
                         }
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Arkham WS seed fetch failed for {address}: {e}")
 
         return {
@@ -112,5 +112,5 @@ async def broadcast_ws_update(address: str, update: dict) -> None:
                 "timestamp": datetime.now(UTC).isoformat(),
             },
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass

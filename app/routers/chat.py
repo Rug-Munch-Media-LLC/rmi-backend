@@ -187,8 +187,8 @@ async def _fetch_market_context() -> dict[str, Any]:
                 "sol_price": data.get("solana", {}).get("usd", 0),
                 "sol_change_24h": data.get("solana", {}).get("usd_24h_change", 0),
             }
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"CoinGecko price fetch failed: {e}")
     return {}
 
 

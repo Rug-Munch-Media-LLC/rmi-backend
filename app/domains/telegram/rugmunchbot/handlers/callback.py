@@ -157,7 +157,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                         parse_mode=ParseMode.HTML,
                         reply_markup=back_kb(),
                     )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"handle_callback trending failed: {e}")
             await query.edit_message_text(
                 "\u274c Trending unavailable. Please try again later.",
@@ -187,7 +187,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                                     pairs = tr.json().get("pairs", [])
                                     if pairs:
                                         enriched[addr] = pairs[0]
-                            except Exception:
+                            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                                 pass
                         lines = ["\U0001f525 <b>Trending Tokens</b>", sep()]
                         for i, b in enumerate(boost_list, 1):
@@ -222,7 +222,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                             disable_web_page_preview=True,
                         )
                         return
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, telegram.error.TelegramError) as e:
             logger.warning(f"trending_refresh failed: {e}")
         await query.edit_message_text(
             "\u274c Could not refresh trending data.",
@@ -242,7 +242,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 if r.status_code == 200:
                     body = r.json()
                     articles = body.get("items", [])
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning("news_refresh backend failed: %s", e)
         if not articles:
             from app.domains.telegram.rugmunchbot.handlers.market import _fetch_cg_trending_news, _time_ago
@@ -286,7 +286,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text(
                 "\u2705 Alert dismissed.", parse_mode=ParseMode.HTML,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         await query.answer("Alert dismissed.")
     elif data == "menu_watchlist":
@@ -364,7 +364,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(pack["name"], pack["stars"])],
             )
             await query.answer()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Buy stars invoice error: {e}")
             await query.answer(
                 "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",
@@ -396,7 +396,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice("Deep Scan", SCAN_PACKS["deep_scan"]["stars"])],
             )
             await query.answer()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Deep scan invoice error: {e}")
             _pending_deep_scans.pop(token, None)
             await query.answer(
@@ -428,7 +428,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(f"{tier['name']} - 30 days", tier["price_stars"])],
             )
             await query.answer()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Sub invoice error: {e}")
             await query.answer(
                 "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",
@@ -451,7 +451,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(pack["name"], pack["stars"])],
             )
             await query.answer()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Topup invoice error: {e}")
             await query.answer(
                 "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",

@@ -303,7 +303,7 @@ async def execute_bundle_tasks(
             try:
                 resp = await coro
                 results[name] = await resp.json() if resp.status == 200 else {"status": resp.status}
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 results[name] = {"error": str(e)}
     return results
 
@@ -361,5 +361,5 @@ async def enrich_response(
         from app.routers.x402_enrichment import enrich_tool_response
 
         return enrich_tool_response(tool_id, result, request_params=body, opt_out=opt_out)
-    except (ImportError, Exception):
+    except (ImportError, Exception):  # noqa: BLE001
         return result

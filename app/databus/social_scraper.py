@@ -94,7 +94,7 @@ class XWebScraper:
                             "description": desc,
                             "discovered_at": datetime.now(UTC).isoformat(),
                         }
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.warning(f"Search error for '{q}': {e}")
                 continue
 
@@ -118,7 +118,7 @@ class XWebScraper:
                             if tweet_id in all_tweets:
                                 all_tweets[tweet_id]["full_text"] = r["content"][:2000]
                                 all_tweets[tweet_id]["extracted_at"] = datetime.now(UTC).isoformat()
-                except Exception as e:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                     logger.warning(f"Extract error: {e}")
                     continue
 
@@ -165,7 +165,7 @@ class XWebScraper:
                     }
                     await self.cache.set(cache_key, profile, ttl=CACHE_TTL_PROFILE)
                     return profile
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Profile search error: {e}")
 
         return None
@@ -195,7 +195,7 @@ class XWebScraper:
                             "discovered_at": datetime.now(UTC).isoformat(),
                         }
                     )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"Mentions search error: {e}")
 
         await self.cache.set(cache_key, mentions, ttl=CACHE_TTL_METRICS)
@@ -230,7 +230,7 @@ class XWebScraper:
                             "discovered_at": datetime.now(UTC).isoformat(),
                         }
                     )
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                 continue
 
         await self.cache.set(cache_key, topics, ttl=CACHE_TTL_METRICS)

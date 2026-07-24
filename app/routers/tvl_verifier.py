@@ -3,16 +3,20 @@
 actual on-chain balances. Flags inflated TVL or impending rug."""
 
 import asyncio
-import os
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
+from app.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 router = APIRouter(prefix="/api/v1/tvl-verify", tags=["tvl-verifier"])
 
 DEFILLAMA_API = "https://api.llama.fi"
-DATABUS = os.environ.get("DATABUS_URL", "http://localhost:8000/api/v1/databus")
+DATABUS = settings.databus_url
 
 
 async def _get_defillama_tvl(protocol_slug: str) -> dict[str, Any]:
@@ -29,8 +33,8 @@ async def _get_defillama_tvl(protocol_slug: str) -> dict[str, Any]:
                     "chain_tvls": data.get("chainTvls", {}),
                     "tvl_change_24h": data.get("change_1d"),
                 }
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"DeFiLlama TVL fetch failed for {protocol_slug}: {e}")
     return {
         "name": protocol_slug,
         "slug": protocol_slug,
@@ -53,8 +57,8 @@ async def _get_onchain_tvl(protocol_name: str, chains: list[str]) -> dict[str, f
                 if not isinstance(resp, Exception) and resp.status_code == 200:
                     data = resp.json().get("data", {})
                     chain_tvls[chains[i]] = data.get("tvl_usd", 0) or 0
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"On-chain TVL fetch failed: {e}")
     return chain_tvls
 
 
@@ -128,8 +132,9 @@ async def find_top_mismatches(limit: int = Query(10, le=20)) -> dict:
             if resp.status_code == 200:
                 protocols = resp.json()
                 top_protocols = [p["slug"] for p in protocols[: limit * 2] if p.get("slug")]
-    except Exception:
-        raise HTTPException(502, "DeFiLlama unavailable") from None
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"DeFiLlama protocols fetch failed: {e}")
+        raise HTTPException(502, "DeFiLlama unavailable") from e
 
     mismatches: list[dict] = []
     for slug in top_protocols[: limit * 2]:

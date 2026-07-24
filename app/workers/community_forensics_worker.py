@@ -117,9 +117,9 @@ class CommunityForensicsWorker:
                         logger.info(
                             f"[OK] Blockscout healthy: {resp.json().get('finished_indexing_blocks', False)}"
                         )
-                except Exception as e:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                     logger.warning(f"[WARN] Blockscout health check failed: {e}")
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.warning(f"[ERROR] Worker loop: {e}")
                 await asyncio.sleep(5)
 

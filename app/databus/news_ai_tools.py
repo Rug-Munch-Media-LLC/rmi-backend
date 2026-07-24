@@ -43,7 +43,7 @@ Respond in JSON format: {{"sentiment": "...", "confidence": ..., "top_stories": 
     ai_response = ask_ollama(prompt, 300)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except Exception:
+    except Exception:  # noqa: BLE001
         analysis = {"sentiment": "NEUTRAL", "confidence": 50, "raw_ai": ai_response[:200]}
 
     return {
@@ -78,7 +78,7 @@ Respond in JSON: {{"mood_summary": "...", "bullish_themes": ["...","...","..."],
     ai_response = ask_ollama(prompt, 400)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except Exception:
+    except Exception:  # noqa: BLE001
         analysis = {"mood_summary": ai_response[:200], "raw": True}
 
     return {
@@ -111,7 +111,7 @@ Respond in JSON: {{"narratives": [{{"name": "...", "mentions": ..., "summary": "
     ai_response = ask_ollama(prompt, 400)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except Exception:
+    except Exception:  # noqa: BLE001
         analysis = {"narratives": [], "raw": ai_response[:200]}
 
     return {
@@ -143,7 +143,7 @@ Respond in JSON: {{"token": "{token}", "impact": "POSITIVE/NEGATIVE/NEUTRAL", "c
     ai_response = ask_ollama(prompt, 250)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except Exception:
+    except Exception:  # noqa: BLE001
         analysis = {
             "token": token,
             "impact": "NEUTRAL",
@@ -186,7 +186,7 @@ Respond in JSON: {{"mood": "...", "top_stories": [{{"title": "...", "impact": ".
     ai_response = ask_ollama(prompt, 500)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
     try:
         brief = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except Exception:
+    except Exception:  # noqa: BLE001
         brief = {"mood": ai_response[:200], "raw": True}
 
     return {

@@ -333,7 +333,7 @@ class IntelligenceAggregationLayer:
                 if result:
                     label.sources.append(source_name)
                     label.source_labels[source_name] = result
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.debug(f"Source {source_name} failed for {address}: {e}")
 
         # Determine entity type from source agreement

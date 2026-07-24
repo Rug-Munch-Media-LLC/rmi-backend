@@ -305,10 +305,10 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict]:
                     for item in data:
                         if isinstance(item, dict) and "text" in item:
                             posts.append(item)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 continue
         return posts
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.debug(f"xurl search failed: {e}")
         return []
 
@@ -365,7 +365,7 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
             for p in posts
         ]
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"xurl timeline failed for @{handle}: {e}")
         return []
 
@@ -417,10 +417,10 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
                                             "url": f"https://x.com/{handle}/status/{tweet.get('id_str', '')}",
                                         }
                                     )
-                        except Exception:
+                        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                             pass
         return posts
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"Cookie scrape failed: {e}")
         return []
 
@@ -476,9 +476,9 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
                                         "id": url.split("/")[-1],
                                     }
                                 )
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                         continue
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.debug(f"Web scrape failed for @{handle}: {e}")
 
     return posts
@@ -516,7 +516,7 @@ async def _grok_summarize(posts: list[dict]) -> str:
             )
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"]
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"Groq summary failed: {e}")
 
     # Fallback: simple keyword extraction
@@ -573,7 +573,7 @@ def score_ct_post(post: dict, account: dict) -> float:
                 datetime.now(UTC) - datetime.fromisoformat(created.replace("Z", "+00:00"))
             ).total_seconds() / 3600
             score += max(0, 5 - age_hours * 0.5)  # 5 points now, 0 after 10 hours
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
     # Content signals
@@ -615,7 +615,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
                 all_posts.extend(posts)
                 if not source_method or source_method == "none":
                     source_method = "xurl_oauth"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errors.append(f"xurl: {e}")
 
     # ── Method 2: Cookie scraping ──
@@ -625,7 +625,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
             if cookie_posts:
                 all_posts.extend(cookie_posts)
                 source_method = source_method or "cookie_scrape"
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             errors.append(f"cookies: {e}")
 
     # ── Method 3: Web scraping fallback (DuckDuckGo + embed) ──
@@ -635,7 +635,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
             if scrape_posts:
                 all_posts.extend(scrape_posts)
                 source_method = source_method or "web_scrape"
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             errors.append(f"web_scrape: {e}")
 
     # ── Method 4: xurl search (broad) ──
@@ -656,7 +656,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
                     ]
                 )
                 source_method = source_method or "xurl_search"
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             errors.append(f"search: {e}")
 
     if not all_posts:

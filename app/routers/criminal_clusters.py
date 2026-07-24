@@ -9,11 +9,12 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 
 router = APIRouter(prefix="/api/v1/criminal-clusters", tags=["criminal-clusters"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 REAL_CATS_DB = os.environ.get("REAL_CATS_DB", str(Path.home() / "rmi/backend/data/real_cats.db"))
 
 
@@ -55,8 +56,8 @@ async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethere
                             "risk": entry.get("risk_score", 0),
                         }
                     )
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Cluster match failed: {e}")
 
     return {
         "deployer": deployer_address,
@@ -153,6 +154,6 @@ async def search_clusters(q: str = Query(..., min_length=2), limit: int = Query(
             )
             if resp.status_code == 200:
                 results = resp.json().get("labels", [])
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Label lookup for {q} failed: {e}")
     return {"query": q, "results": results, "count": len(results)}

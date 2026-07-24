@@ -173,9 +173,9 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
             # Try Blockstream fallback
             try:
                 return await self._verify_fallback(tx_hash, amount_atoms)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 return self._format_error(f"Bitcoin: API error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Bitcoin verify error: {e}")
             return self._format_error(f"Bitcoin: {e}")
 
@@ -238,7 +238,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
                 url = f"{self._api_base}/blocks/tip/hash"
                 async with session.get(url) as resp:
                     return resp.status == 200
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             return False
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:

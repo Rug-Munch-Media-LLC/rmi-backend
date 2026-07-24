@@ -146,7 +146,7 @@ def parse_spl_mint_data(raw_data: bytes) -> dict[str, Any]:
         if len(raw_data) > 82:
             result["extensions"] = _parse_token_extensions(raw_data[82:], result)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         result["error"] = f"Failed to parse mint data: {e!s}"
 
     return result
@@ -220,7 +220,7 @@ def _parse_token_extensions(
             extensions.append(ext_info)
             offset += 4 + ext_length
 
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             break  # Stop parsing if extension data is malformed
 
     return extensions
@@ -301,7 +301,7 @@ async def fetch_metaplex_metadata(mint: str, rpc_url: str) -> dict[str, Any] | N
                         "raw_size": len(raw_bytes),
                         "note": "Full metadata parsing requires borsh deserialization",
                     }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"Metaplex metadata fetch failed: {e}")
 
     return None
@@ -408,14 +408,14 @@ async def decode_spl_token_metadata(mint: str, rpc_urls: list[str] | None = None
                     meta = await fetch_metaplex_metadata(mint, rpc_url)
                     if meta:
                         result["metadata"] = meta
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass  # Metadata is optional
 
                 return result
 
         except httpx.TimeoutException:
             continue
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug(f"RPC {rpc_url} failed: {e}")
             continue
 

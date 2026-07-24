@@ -114,7 +114,7 @@ async def _get_redis() -> Any:
                 db=int(os.getenv("REDIS_DB", "0")),
                 decode_responses=True,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             _redis = None
     return _redis
 
@@ -646,10 +646,10 @@ class WalletMonitor:
                             if self._is_watched(tx.from_addr) or self._is_watched(tx.to_addr):
                                 await self._process_tx(tx)
 
-                        except Exception:
+                        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                             continue
 
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, websockets.ConnectionClosed) as e:
                 logger.warning("evm_ws_error chain=%s error=%s reconnecting=True", self.chain, e)
                 await asyncio.sleep(5)
 
@@ -737,10 +737,10 @@ class WalletMonitor:
                             tx = await self._fetch_solana_latest_tx(acc_key)
                             if tx:
                                 await self._process_tx(tx)
-                        except Exception:
+                        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                             continue
 
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, websockets.ConnectionClosed) as e:
                 logger.warning("solana_ws_error error=%s reconnecting=True", e)
                 await asyncio.sleep(5)
 
@@ -780,7 +780,7 @@ class WalletMonitor:
                 )
                 tx_data = tx_resp.json().get("result", {})
                 return self._parse_solana_tx(tx_data, sig)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             return None
 
     def _parse_solana_tx(self, raw: dict, signature: str) -> WalletTx:
@@ -862,7 +862,7 @@ class WalletMonitor:
                             token_transfers=d.get("token_transfers", []),
                         )
                     )
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
 
         # 3. Run alert engine
@@ -926,7 +926,7 @@ class WalletMonitor:
                         await cb(alert_dict)
                     else:
                         cb(alert_dict)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
 
         if label_suggestion:

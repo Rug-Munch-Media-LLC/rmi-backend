@@ -2,18 +2,18 @@
 """#19 - Smart Contract Function Analyzer. Extends SENTINEL to decompile and analyze
 bytecode. Returns human-readable "what this contract actually does." """
 
-import os
 import re
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 
 router = APIRouter(prefix="/api/v1/contract-analyzer", tags=["contract-analyzer"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 
 # Known suspicious function signatures (4-byte selectors)
 SUSPICIOUS_SELECTORS = {

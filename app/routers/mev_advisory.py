@@ -1,15 +1,14 @@
 """MEV Protection Advisory - warns users before trading in sandwich-prone pools."""
 
-import os
-
 import httpx
 from fastapi import APIRouter, Query
 
+from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 
 router = APIRouter(prefix="/api/v1/mev-advisory", tags=["mev-advisory"])
 
-BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND = settings.backend_url
 RMI_KEY = INTERNAL_API_KEY
 
 

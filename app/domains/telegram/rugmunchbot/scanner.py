@@ -91,7 +91,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
                     result["created_at"] = p.get("pairCreatedAt")
                     socials = p.get("info", {}).get("socials", [])
                     result["socials"] = {s.get("type"): s.get("url") for s in socials}
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             result["errors"].append(f"DexScreener: {e}")
 
         # GoPlus Security (EVM)
@@ -155,7 +155,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
                         if locked_pct < 0.5 and result["mcap"] > 10000:
                             result["threats"].append(f"Low LP lock: {locked_pct * 100:.0f}%")
                             result["risk_score"] += 15
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 result["errors"].append(f"GoPlus: {e}")
 
         # Honeypot.is (EVM fallback)
@@ -168,7 +168,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
                     if result["honeypot"]:
                         result["threats"].append("HONEYPOT (honeypot.is)")
                         result["risk_score"] += 40
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 result["errors"].append(f"Honeypot.is: {e}")
 
         # RMI Backend
@@ -187,7 +187,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
                         result["risk_score"] += 10
                 if rmi.get("dev_wallet"):
                     result["dev_wallet"] = rmi["dev_wallet"]
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             result["errors"].append(f"RMI Backend: {e}")
 
     # Volume authenticity
@@ -248,10 +248,10 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
                         first = datetime.fromisoformat(result["first_seen"].replace("Z", "+00:00"))
                         result["wallet_age_days"] = (datetime.now(UTC) - first).days
                         result["is_fresh"] = result["wallet_age_days"] < 7
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         logger.warning(f"Failed to parse first_seen for {address}: {e}")
                 return result
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"analyze_wallet RMI backend failed for {address}: {e}")
         if is_sol(address):
             try:
@@ -261,6 +261,6 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
                     sol_price = await get_sol_price()
                     result["balance_usd"] = float(data.get("balance", 0)) / 1e9 * sol_price
                     result["tx_count"] = data.get("transaction_count", 0)
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 result["errors"].append(f"Solana.fm: {e}")
     return result

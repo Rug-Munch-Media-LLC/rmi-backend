@@ -467,7 +467,7 @@ def _ensure_tool_prices() -> None:
 
         TOOL_PRICES.update(_EXPANDED_TOOLS)
         logger.info(f"x402 enforcement: loaded {len(_EXPANDED_TOOLS)} expanded tools")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"x402 enforcement: could not load expanded tools: {e}")
 
     try:
@@ -482,7 +482,7 @@ def _ensure_tool_prices() -> None:
                     "trial_free": b.get("trial_free", 1),
                     "description": b.get("name", bid),
                 }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"x402 enforcement: could not load x402_tools bundles: {e}")
 
     try:
@@ -490,7 +490,7 @@ def _ensure_tool_prices() -> None:
 
         TOOL_PRICES.update(_DATABUS_PRICING)
         logger.info(f"x402 enforcement: loaded {len(_DATABUS_PRICING)} DataBus-powered tools")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"x402 enforcement: could not load DataBus tools: {e}")
 
     _bad_keys = [k for k in TOOL_PRICES if "{" in k or "/" in k or " " in k]
@@ -518,7 +518,7 @@ def _get_pay_to_address(chain: str) -> str:
         for w in mgr._wallets.values():
             if w.chain == chain and w.x402_enabled and w.status == "active":
                 return w.address
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     if chain == "eth":
         return os.getenv("X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9")

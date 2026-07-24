@@ -115,7 +115,7 @@ async def fetch_with_fallback(
                         if resp.status == 200:
                             data: dict[str, Any] = await resp.json()
                             return data, url
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.debug(f"URL failed: {url} - {e}")
                 continue
     return None, None
@@ -136,7 +136,7 @@ async def rpc_call(chain: str, method: str, params: list[Any]) -> Any:
                     if resp.status == 200:
                         result = await resp.json()
                         return result.get("result")
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                 continue
     return None
 
@@ -237,7 +237,7 @@ async def _audit_solana(address: str) -> dict[str, Any]:
                 "sellers_24h": pair.get("txns", {}).get("h24", {}).get("sells", 0),
             }
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 2: Solana RPC - get account info
@@ -249,7 +249,7 @@ async def _audit_solana(address: str) -> dict[str, Any]:
             result["sources_used"].append("solana_rpc")
         else:
             result["account_exists"] = False
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 3: Birdeye public API
@@ -261,7 +261,7 @@ async def _audit_solana(address: str) -> dict[str, Any]:
         if data and data.get("data"):
             result["birdeye"] = data["data"]
             result["sources_used"].append("birdeye")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 4: Jupiter token list
@@ -277,7 +277,7 @@ async def _audit_solana(address: str) -> dict[str, Any]:
                     "logo": token.get("logoURI"),
                 }
                 result["sources_used"].append("jupiter")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 5: Coingecko
@@ -286,7 +286,7 @@ async def _audit_solana(address: str) -> dict[str, Any]:
         if data:
             result["coingecko"] = {"name": data.get("name"), "symbol": data.get("symbol")}
             result["sources_used"].append("coingecko")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Compute risk score from available data
@@ -364,7 +364,7 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
                 "price_change_24h": pair.get("priceChange", {}).get("h24", 0),
             }
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 2: Basescan / Etherscan
@@ -387,7 +387,7 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
             else:
                 result["verified"] = False
                 result["findings"].append("Contract not verified on explorer")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
     # Layer 3: Chain RPC
@@ -399,7 +399,7 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
         else:
             result["is_contract"] = False
             result["findings"].append("Address is not a contract")
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     # Risk computation
@@ -564,7 +564,7 @@ try:
     from app.routers._expanded_aliases import EXPANDED_ALIASES
 
     TOOL_ALIASES.update(EXPANDED_ALIASES)
-except Exception:
+except Exception:  # noqa: BLE001
     pass
 
 
@@ -731,7 +731,7 @@ def _resolve_pay_to(chain: str) -> str:
         for w in mgr._wallets.values():
             if w.chain == wm_chain and w.x402_enabled and w.status == "active":
                 return w.address
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     # Fallback: env vars
     fallbacks = {

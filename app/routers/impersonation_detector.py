@@ -2,17 +2,18 @@
 """#6 - Portfolio Impersonation Detector. Scans for hidden wallets, proxy contracts,
 suspicious approvals. Reveals what an address controls beyond its obvious wallet."""
 
-import os
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.config import settings
+
 router = APIRouter(prefix="/api/v1/impersonation", tags=["impersonation-detector"])
 
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8000")
-DATABUS = os.environ.get("DATABUS_URL", f"{BACKEND}/api/v1/databus")
+BACKEND = settings.backend_url
+DATABUS = settings.databus_url
 
 
 class ImpersonationReport(BaseModel):
@@ -34,8 +35,8 @@ async def _find_delegates(address: str, chain: str) -> list[dict]:
             resp = await client.get(f"{DATABUS}/{chain}/delegates/{address}")
             if resp.status_code == 200:
                 delegates = resp.json().get("data", {}).get("delegates", [])
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Delegate lookup failed for {address}: {e}")
     return delegates
 
 
@@ -56,8 +57,8 @@ async def _find_approvals(address: str, chain: str) -> list[dict]:
                     ):
                         a["suspicious"] = True
                         approvals.append(a)
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Approval lookup failed for {address}: {e}")
     return approvals
 
 
@@ -72,8 +73,8 @@ async def _scan_related_contracts(address: str, chain: str) -> list[dict]:
                 for entry in resp.json().get("labels", []):
                     if entry.get("type") == "contract":
                         contracts.append(entry)
-    except Exception:
-        pass
+    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+        logger.warning(f"Contract scan failed for {address}: {e}")
     return contracts
 
 

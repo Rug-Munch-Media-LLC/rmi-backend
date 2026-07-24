@@ -37,7 +37,7 @@ def check_trial(tool_id: str, client_id: str, max_trials: int = 3) -> tuple[bool
             return False, remaining
 
         return True, max_trials - used
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Trial check failed: {e}")
         return True, max_trials
 
@@ -56,7 +56,7 @@ def consume_trial(tool_id: str, client_id: str, max_trials: int = 3) -> bool:
         else:
             r.incr(key)
         return True
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Trial consume failed: {e}")
         return False
 
@@ -73,7 +73,7 @@ async def check_developer_key(request: Any) -> dict[str, Any] | None:
         return await _check(request)
     except ImportError:
         return None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"Developer key check failed: {e}")
         return None
 
@@ -107,5 +107,5 @@ def check_burst_limit(client_id: str, tool_id: str) -> dict[str, Any] | None:
                 "retry_after": BURST_WINDOW,
             }
         return None
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return None

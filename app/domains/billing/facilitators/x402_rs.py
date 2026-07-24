@@ -154,7 +154,7 @@ class X402RsFacilitator(Facilitator):
             return self._format_error("x402-rs not reachable - check docker container")
         except aiohttp.ClientError as e:
             return self._format_error(f"x402-rs connection error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"x402-rs verify error: {e}")
             return self._format_error(f"x402-rs internal error: {e}")
 
@@ -176,7 +176,7 @@ class X402RsFacilitator(Facilitator):
         except aiohttp.ClientConnectionError:
             logger.debug("x402-rs container not running")
             return False
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"x402-rs health check error: {e}")
             return False
 
@@ -214,7 +214,7 @@ class X402RsFacilitator(Facilitator):
                 reason="x402-rs not reachable for settlement",
                 facilitator=self.name,
             )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False,
                 reason=f"x402-rs settlement error: {e}",

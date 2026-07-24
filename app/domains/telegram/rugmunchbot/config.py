@@ -101,7 +101,7 @@ async def check_backend_health() -> None:
                 get_logger("rmi.config").warning(
                     "Backend at %s returned status %d", BACKEND_URL, r.status_code
                 )
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         from app.core.logging import get_logger
 
         get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", BACKEND_URL, exc)

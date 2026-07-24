@@ -66,11 +66,18 @@ class TestMEVSandwichDetector:
         from app.domains.detectors.mev_sandwich_detector import MEVSandwichDetector
 
         detector = MEVSandwichDetector()
-        # Mock __init__ so it doesn't try to connect to external services
-        with patch.object(detector, "_fetch_pool_txs", AsyncMock(return_value=[])):
-            with patch.object(detector, "_known_bot_addresses", []):
-                with patch.object(detector, "_known_pools", []):
-                    report = await detector.scan(pools=[])
+        # Mock the chain-checker to avoid external RPC calls
+        with patch.object(
+            detector,
+            "_check_chain_mev_activity",
+            AsyncMock(
+                return_value={
+                    "txs_checked": 0,
+                    "sandwich_candidates": [],
+                }
+            ),
+        ):
+            report = await detector.scan()
         assert report is not None
 
 
@@ -220,9 +227,11 @@ class TestPumpDumpDetector:
         from app.domains.detectors.pump_dump_manipulation_detector import PumpDumpDetector
 
         detector = PumpDumpDetector()
-        with patch.object(detector, "_fetch_dexscreener_data", AsyncMock(return_value=None)):
-            with patch.object(detector, "_fetch_birdeye_data", AsyncMock(return_value=None)):
-                result = await detector.analyze_token("", chain="ethereum")
+        # Mock internal data-fetching methods to avoid external calls
+        with patch.object(detector, "_fetch_pairs", AsyncMock(return_value=None)):
+            with patch.object(detector, "_fetch_trades", AsyncMock(return_value=None)):
+                with patch.object(detector, "_fetch_holders", AsyncMock(return_value=[])):
+                    result = await detector.analyze_token("", chain="ethereum")
         assert result is not None
 
     def test_manipulation_type_enum(self):
@@ -273,7 +282,8 @@ class TestHoneypotDetector:
         from app.domains.detectors.smart_contract_honeypot_detector import HoneypotDetector
 
         detector = HoneypotDetector()
-        with patch.object(detector, "_fetch_onchain_data", AsyncMock(return_value=None)):
+        # Mock internal analyzers to avoid external calls
+        with patch.object(detector, "_gather_token_info", AsyncMock(return_value=None)):
             result = await detector.analyze_token("", chain="ethereum")
         assert result is not None
 

@@ -37,7 +37,7 @@ class WalletDBMixin:
                     wr = WalletRecord(**wdata)
                     self._wallets[wr.wallet_id] = wr
                 logger.info(f"Vault loaded: {len(self._wallets)} wallets")
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.error(f"Vault load error: {e}")
         else:
             logger.info("No vault found - starting fresh")
@@ -55,7 +55,7 @@ class WalletDBMixin:
             with open(self.VAULT_PATH, "w") as f:
                 json.dump(data, f, indent=2)
             os.chmod(self.VAULT_PATH, 0o600)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Vault save error: {e}")
 
     # ── Payment Persistence ──────────────────────────────────
@@ -71,7 +71,7 @@ class WalletDBMixin:
                         line = line.strip()
                         if line:
                             self._payments.append(PaymentRecord(**json.loads(line)))
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Payments load error: {e}")
 
     # ── Key Storage ──────────────────────────────────────────
@@ -91,7 +91,7 @@ class WalletDBMixin:
             try:
                 with open(self.KEYSTORE_PATH) as f:
                     keystore = json.load(f)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         keystore[wallet_id] = {
@@ -114,7 +114,7 @@ class WalletDBMixin:
         try:
             with open(self.KEYSTORE_PATH) as f:
                 keystore = json.load(f)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return None
 
         entry = keystore.get(wallet_id)

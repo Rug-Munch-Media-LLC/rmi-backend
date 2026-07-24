@@ -74,7 +74,7 @@ class FacilitatorRouter:
             healthy = await facilitator.health()
             self._health_cache[name] = (healthy, now)
             return healthy
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"Health check failed for {name}: {e}")
             self._health_cache[name] = (False, now)
             return False
@@ -240,7 +240,7 @@ class FacilitatorRouter:
                     errors.append((facilitator.name, result.reason))
                     logger.debug(f"{facilitator.name} rejected: {result.reason} - trying next")
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self._failure_counts[facilitator.name] += 1
                 errors.append((facilitator.name, str(e)))
                 logger.warning(f"{facilitator.name} error: {e} - trying next")
@@ -290,7 +290,7 @@ class FacilitatorRouter:
                 "settlement_id": verification_result.settlement_id,
             }
             return await facilitator.settle(payment_data)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return SettlementResult(
                 settled=False,
                 reason=f"Settlement failed: {e}",

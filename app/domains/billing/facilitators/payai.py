@@ -119,7 +119,7 @@ class PayAIFacilitator(Facilitator):
         except aiohttp.ClientError as e:
             logger.warning("PayAI health check connection error: %s", e)
             return False
-        except Exception:
+        except (httpx.HTTPError, httpx.TimeoutException):
             logger.exception("PayAI health check unexpected error")
             return False
 
@@ -215,6 +215,6 @@ class PayAIFacilitator(Facilitator):
         except aiohttp.ClientError as e:
             logger.error("PayAI HTTP error during verify: %s", e)
             return self._format_error(f"PayAI connection error: {e}")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             logger.exception("PayAI verify unexpected error")
             return self._format_error("Unexpected PayAI verify error")

@@ -45,7 +45,7 @@ async def cmd_smartmoney(update, ctx) -> None:
                     data = r.json()
                     smart_money_data = data.get("smart_money", [])
                     top_holders = data.get("top_holders", [])
-            except Exception as exc:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
                 logger.debug("RMI backend call failed: %s", exc)
 
             # Fallback: fetch DexScreener for basic info
@@ -109,6 +109,6 @@ async def cmd_smartmoney(update, ctx) -> None:
         text = "\n".join(lines)
         await msg.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"SmartMoney failed: {e}")
         await msg.reply_text("❌ Could not fetch smart money data.", parse_mode="HTML")

@@ -229,7 +229,7 @@ class DataBus:
 
                 self.bitquery = BitqueryProvider(self.cache)
                 logger.info("Bitquery provider registered")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"Bitquery provider not available: {e}")
             self._initialized = True
             total_providers = sum(len(c.providers) for c in self.chains.values())
@@ -265,9 +265,9 @@ class DataBus:
 
                         ws = get_ws_manager()
                         await ws.broadcast_data(data_type, result)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         pass
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError) as e:
             logger.debug(f"SWR refresh failed for {data_type}: {e}")
 
     # ── Cache Warm Prefetch ────────────────────────────────────────
@@ -320,12 +320,12 @@ class DataBus:
                             consumer_type="authenticated",
                             **item.get("kwargs", {}),
                         )
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                         pass  # Individual warm failures are fine
                 await asyncio.sleep(interval)
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.warning(f"Cache warm loop error: {e}")
                 await asyncio.sleep(interval)
 
@@ -410,7 +410,7 @@ class DataBus:
             try:
                 result = await asyncio.wait_for(future, timeout=30)
                 return result
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # ── 5.5 LOCAL PRECHECK - RAG / Scanner / Labels / Redis (FREE) ──
@@ -431,7 +431,7 @@ class DataBus:
                 source = result.get("source", "unknown")
                 latency = result.get("latency_ms", 0)
                 self._provider_health.record_success(source, latency)
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             self._provider_health.record_failure(data_type, str(e))
             self._dedup.fail(dedup_key, e)
             self._stats["errors"] += 1
@@ -475,7 +475,7 @@ class DataBus:
                     text=json.dumps(result["data"], default=str)[:2000],
                     metadata={"data_type": data_type, "source": source, "tier": tier},
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # ── 10. WEBSOCKET BROADCAST (optional) ──
@@ -492,7 +492,7 @@ class DataBus:
                 from app.databus.ws_stream import databus_ws_broadcast
 
                 await databus_ws_broadcast(data_type, result)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # ── 11. RESOLVE DEDUP ──
@@ -575,7 +575,7 @@ class DataBus:
                                 "cached": True,
                             }
                     r.close()
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
 
             # ── SCANNER: check SENTINEL token security cache ──
@@ -609,7 +609,7 @@ class DataBus:
                             "cached": True,
                         }
                     r.close()
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
 
             # ── RAG: semantic search our 17K+ scam docs ──
@@ -633,7 +633,7 @@ class DataBus:
                                     "is_local": True,
                                     "cached": True,
                                 }
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
 
             # ── PRICE: check Redis price cache ──
@@ -662,10 +662,10 @@ class DataBus:
                             "cached": True,
                         }
                     r.close()
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
 
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
         return None

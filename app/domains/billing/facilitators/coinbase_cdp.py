@@ -134,7 +134,7 @@ class CoinbaseCDPFacilitator(Facilitator):
                 ) as resp,
             ):
                 return resp.status < 500
-        except Exception as e:
+        except (httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug(f"CDP health: {e}")
             return False
 
@@ -201,7 +201,7 @@ class CoinbaseCDPFacilitator(Facilitator):
             return self._format_error("Coinbase CDP verification timed out")
         except aiohttp.ClientError as e:
             return self._format_error(f"Coinbase CDP connection error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"CDP verify error: {e}")
             return self._format_error(f"Coinbase CDP internal error: {e}")
 
@@ -239,7 +239,7 @@ class CoinbaseCDPFacilitator(Facilitator):
                     reason=f"CDP settle: {data.get('error', f'HTTP {resp.status}')}",
                     facilitator=self.name,
                 )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False, reason=f"CDP settlement error: {e}", facilitator=self.name
             )

@@ -136,7 +136,7 @@ def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
             "error": f"Command not found: {parts[0]}",
             "duration": time.time() - t0,
         }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
 
 
@@ -177,7 +177,7 @@ def run_quick(cmd_name: str) -> dict[str, Any]:
             "error": r.stderr if r.returncode != 0 else "",
             "duration": time.time() - t0,
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
 
 

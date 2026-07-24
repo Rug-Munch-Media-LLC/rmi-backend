@@ -45,7 +45,7 @@ async def _get_price_consensus(
                 result["price_change_24h"] = pair.get("priceChange", {}).get("h24", 0)
                 result["dex"] = pair.get("dexId", "")
                 result["pair_address"] = pair.get("pairAddress", "")
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("dexscreener_price_failed", error=str(e))
 
     # Source 2: GoPlus (has price info for some tokens)
@@ -59,7 +59,7 @@ async def _get_price_consensus(
             goplus_result = goplus_data.get("result", {}).get(token_address.lower(), {})
             if goplus_result:
                 prices["goplus"] = float(goplus_result.get("price", 0) or 0)
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("goplus_price_failed", error=str(e))
 
     # Determine consensus
@@ -143,7 +143,7 @@ async def _check_volume_liquidity_ratio(token_address: str, chain: str) -> dict[
                 result["risk_level"] = "healthy"
                 result["risk_score"] = 0
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("volume_liquidity_failed", error=str(e)[:60])
         result["result"] = "error"
         result["error"] = str(e)[:60]
@@ -195,7 +195,7 @@ async def _check_blockscout(token_address: str, chain: str) -> dict[str, Any] | 
     except httpx.TimeoutException:
         logger.debug("blockscout_timeout", chain=chain)
         return {"check": "blockscout", "result": "unavailable", "error": "timeout"}
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("blockscout_failed", error=str(e)[:80])
         return {"check": "blockscout", "result": "unavailable", "error": str(e)[:60]}
 
@@ -338,13 +338,13 @@ async def _check_defillama_context(token_address: str, chain: str) -> dict[str, 
                             (float(p.get("apy", 0) or 0) for p in pools[:5]), default=0
                         )
                         result["source"] = "defillama_yields"
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                 pass
 
     except httpx.TimeoutException:
         logger.debug("defillama_context_timeout", chain=chain)
         return {**result, "result": "unavailable", "error": "DeFiLlama timeout"}
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("defillama_context_failed", error=str(e)[:80])
         return {**result, "result": "unavailable", "error": str(e)[:60]}
 
@@ -430,7 +430,7 @@ async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, An
             }
     except httpx.TimeoutException:
         logger.debug("coingecko_price_timeout", chain=chain)
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("coingecko_price_failed", error=str(e)[:80])
 
     return {"check": "coingecko", "result": "unavailable", "error": "CoinGecko API unavailable"}
@@ -463,7 +463,7 @@ async def _rag_scam_check(
             return result
     except ImportError:
         logger.debug("rag_scam_check_module_not_available")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("rag_scam_check_failed", error=str(e)[:100])
 
     return {"check": "rag", "result": "scanned", "risk_score": 0, "source": "unavailable"}
@@ -655,7 +655,7 @@ async def _check_defi_scanner(token_address: str, chain: str) -> dict[str, Any] 
 
     except httpx.TimeoutException:
         logger.debug("defiscanner_timeout", chain=chain)
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("defiscanner_failed", error=str(e)[:80])
 
     # If DeFiLlama had no data, try DexScreener as fallback
@@ -673,7 +673,7 @@ async def _check_defi_scanner(token_address: str, chain: str) -> dict[str, Any] 
                 result["has_defi_presence"] = True
                 result["protocols_found"] = 1
                 result["source"] = "dexscreener_fallback"
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("defiscanner_fallback_failed", error=str(e))
 
     return result
@@ -819,7 +819,7 @@ async def _check_volume_anomaly(
         result["sell_count_24h"] = sell_count
         result["source"] = "dexscreener"
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("volume_anomaly_failed", error=str(e)[:80])
         result["result"] = "error"
         result["error"] = str(e)[:60]

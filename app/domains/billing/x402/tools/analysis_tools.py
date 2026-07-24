@@ -52,7 +52,7 @@ async def _sentiment_analysis(token: str, chain: str) -> dict:
                 "sentiment_votes_up": data.get("public_interest_stats", {}).get("alexa_rank", 0),
             }
             result["sources_used"].append("coingecko")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 2: DexScreener social links
@@ -71,7 +71,7 @@ async def _sentiment_analysis(token: str, chain: str) -> dict:
                 else None,
             }
             result["sources_used"].append("dexscreener")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 3: CoinGecko community data
@@ -85,7 +85,7 @@ async def _sentiment_analysis(token: str, chain: str) -> dict:
         if data and data.get("community_data"):
             result["community"] = data["community_data"]
             result["sources_used"].append("coingecko_community")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Layer 4: DefiLlama - protocol mentions
@@ -100,7 +100,7 @@ async def _sentiment_analysis(token: str, chain: str) -> dict:
                     "chains": protocol.get("chains"),
                 }
                 result["sources_used"].append("defillama")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Compute sentiment score
@@ -142,7 +142,7 @@ async def social_sentiment(req: SentimentRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -270,7 +270,7 @@ async def url_scam_detector(req: URLRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -296,7 +296,7 @@ async def _twitter_profile(query: str) -> dict:
                 result["source"] = "nitter"
                 result["sources_used"].append("nitter")
                 break
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
     # Layer 2: DuckDuckGo search
@@ -307,7 +307,7 @@ async def _twitter_profile(query: str) -> dict:
         if data:
             result["duckduckgo_results"] = True
             result["sources_used"].append("duckduckgo")
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -327,7 +327,7 @@ async def twitter_profile(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -352,7 +352,7 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
             )
             if data:
                 tweets.append({"source": "duckduckgo"})
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         await record_x402_payment("tw_timeline", "0.01", query)
@@ -365,7 +365,7 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
             "sources_used": ["duckduckgo"] if tweets else [],
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -388,7 +388,7 @@ async def twitter_search(req: GenericRequest) -> dict[str, str]:
             )
             if data:
                 results.append({"source": "duckduckgo"})
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         await record_x402_payment("tw_search", "0.01", query)
@@ -401,7 +401,7 @@ async def twitter_search(req: GenericRequest) -> dict[str, str]:
             "sources_used": ["duckduckgo"] if results else [],
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -425,7 +425,7 @@ async def _social_signal(query: str) -> dict:
                 1 for r in data["results"] if r.get("sentiment") == "positive"
             )
             result["sources_used"].append("cryptopanic")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Reddit
@@ -436,7 +436,7 @@ async def _social_signal(query: str) -> dict:
         if data and data.get("data", {}).get("children"):
             result["reddit_count"] = len(data["data"]["children"])
             result["sources_used"].append("reddit")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     result["total_mentions"] = result.get("cryptopanic_count", 0) + result.get("reddit_count", 0)
@@ -461,7 +461,7 @@ async def social_signal(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -483,7 +483,7 @@ async def _nft_wash_detector(collection: str) -> dict:
             result["floor_price"] = data.get("floorPrice")
             result["volume_24h"] = data.get("volume24h")
             result["sources_used"].append("nftpricefloor")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # OpenSea stats (public endpoint)
@@ -501,7 +501,7 @@ async def _nft_wash_detector(collection: str) -> dict:
                 "one_day_sales": stats.get("one_day_sales"),
             }
             result["sources_used"].append("opensea")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Wash trading signals
@@ -542,7 +542,7 @@ async def nft_wash_detector(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -568,7 +568,7 @@ async def _bridge_security() -> dict:
                     }
                 )
             result["sources_used"].append("defillama")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # DeFiLlama protocols (check for bridge exploits)
@@ -579,7 +579,7 @@ async def _bridge_security() -> dict:
             result["bridge_count"] = len(bridge_protocols)
             result["total_bridge_tvl"] = sum(p.get("tvl", 0) for p in bridge_protocols)
             result["sources_used"].append("defillama_protocols")
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     return result
@@ -598,5 +598,5 @@ async def bridge_security(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e)) from e

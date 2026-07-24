@@ -86,7 +86,7 @@ def resolve_wallet(address: str, fingerprint: str = "anon") -> dict:
             result["chains_found"].append(chain)
         cur.close()
         pg.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     # Also check Redis cache
     for chain in ["ethereum", "solana", "bsc", "polygon"]:
@@ -125,7 +125,7 @@ def scan_token(address: str, chain: str = "ethereum", fingerprint: str = "anon")
             reports = r.json().get("reports", [])
             result["checks"]["chainabuse_reports"] = len(reports)
             result["checks"]["known_scam"] = len(reports) > 0
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     # GoPlus security check (free, no key)
     try:
@@ -139,7 +139,7 @@ def scan_token(address: str, chain: str = "ethereum", fingerprint: str = "anon")
             result["checks"]["buy_tax"] = data.get("buy_tax", "0")
             result["checks"]["sell_tax"] = data.get("sell_tax", "0")
             result["checks"]["liquidity"] = data.get("lp_holders", [])
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["auth"] = auth
     result["mcp"] = "rmi-token-security"
@@ -168,7 +168,7 @@ def check_bridge_transfers(
         r = req.get(f"{url}?address={address}&limit=5" if address else f"{url}/stats", timeout=10)
         if r.status_code == 200:
             result["data"] = r.json()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["supported_bridges"] = list(bridges.keys())
     result["auth"] = auth
@@ -197,7 +197,7 @@ def defi_analytics(protocol: str = "", chain: str = "", fingerprint: str = "anon
         if r.status_code == 200:
             result["tvl_data"] = r.json()
             result["source"] = "DeFiLlama (free, unlimited)"
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     # Pyth price feed
     try:
@@ -209,7 +209,7 @@ def defi_analytics(protocol: str = "", chain: str = "", fingerprint: str = "anon
             p = r.json()[0]["price"]
             result["eth_price"] = float(p["price"]) * (10 ** float(p["expo"]))
             result["price_source"] = "Pyth Network (125+ institutional publishers)"
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["auth"] = auth
     result["mcp"] = "rmi-defi-analytics"

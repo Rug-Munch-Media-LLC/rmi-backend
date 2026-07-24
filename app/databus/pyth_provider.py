@@ -43,7 +43,7 @@ class PythPriceFeedProvider:
             response = await self.client.get(f"{PYTH_HERMES_BASE_URL}/v2/price_feeds")
             response.raise_for_status()
             return response.json()
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"Error fetching price feeds list: {e}")
             return {}
 
@@ -75,7 +75,7 @@ class PythPriceFeedProvider:
             response = await self.client.get(url)
             response.raise_for_status()
             return response.json()
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"Error fetching price updates: {e}")
             return {}
 
@@ -99,7 +99,7 @@ class PythPriceFeedProvider:
             response = await self.client.get(url)
             response.raise_for_status()
             return response.json()
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"Error fetching single price feed: {e}")
             return {}
 
@@ -145,7 +145,7 @@ class PythPriceFeedProvider:
                 "publish_time": publish_time,
                 "timestamp": publish_time,
             }
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"Error parsing price data for {price_feed_id}: {e}")
             return None
 

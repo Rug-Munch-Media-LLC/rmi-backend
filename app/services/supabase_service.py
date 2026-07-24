@@ -617,7 +617,7 @@ async def check_health() -> dict:
                 "tables": 18,  # total tables we expect
                 "timestamp": datetime.now(UTC).isoformat(),
             }
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         return {"status": "unreachable", "error": str(e)}
 
 
@@ -712,7 +712,7 @@ async def get_x402_earnings_summary() -> dict:
             "by_day_usdc": {k: round(v / 1e6, 6) for k, v in sorted(by_day.items())[-30:]},
             "record_count": len(rows),
         }
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         return {
             "total_usdc": 0,
             "by_chain_usdc": {},
@@ -757,5 +757,5 @@ async def ensure_x402_payments_table() -> bool:
                 headers=_get_headers(),
             )
             return r.status_code in (200, 204)
-    except Exception:
+    except (httpx.HTTPError, httpx.TimeoutException):
         return False

@@ -127,11 +127,11 @@ def fetch_rss(source, url, limit=30) -> Any:
         # Some feeds have HTML entities that break XML parsing
         try:
             root = SafeET.fromstring(resp.content)
-        except Exception:
+        except Exception:  # noqa: BLE001
             try:
                 cleaned = resp.text.replace("&", "&amp;").replace("&amp;amp;", "&amp;")
                 root = SafeET.fromstring(cleaned.encode())
-            except Exception:
+            except Exception:  # noqa: BLE001
                 return results
 
         items = (
@@ -197,7 +197,7 @@ def fetch_rss(source, url, limit=30) -> Any:
 
         if results:
             logger.info(f"  {source}: {len(results)} crypto articles")
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"  {source}: {str(e)[:80]}")
     return results
 
@@ -270,7 +270,7 @@ def fetch_all_global() -> dict[str, int] | dict[str, str]:
                 pg.commit()
                 cur.close()
                 pg.close()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"PG: {e}")
 
             return {
@@ -278,7 +278,7 @@ def fetch_all_global() -> dict[str, int] | dict[str, str]:
                 "new": new_count,
                 "sources": len(MAJOR_NEWS) + len(GOOGLE_NEWS_FEEDS) + len(BING_NEWS_FEEDS),
             }
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return {"error": str(e), "collected": len(all_articles)}
     return {"collected": 0}
 

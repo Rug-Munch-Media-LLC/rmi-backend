@@ -98,7 +98,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
                                 disable_web_page_preview=True,
                             )
                             return
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, telegram.error.TelegramError) as e:
             logger.debug(f"handle_message $TOKEN lookup failed for {symbol}: {e}")
 
     # Natural language address extraction
@@ -195,7 +195,7 @@ async def _try_rag_backend(query: str) -> str | None:
         logger.debug("RAG backend unreachable (connection refused)")
     except httpx.TimeoutException:
         logger.debug("RAG backend timeout")
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("RAG backend error: %s", e)
     return None
 

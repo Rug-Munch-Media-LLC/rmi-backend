@@ -43,7 +43,7 @@ async def fetch_defillama_tvl(
                             data, key=lambda x: x.get("tvl", 0) or 0, reverse=True
                         )[:limit]
                     results["total"] = len(data)
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"DeFiLlama protocols fetch failed: {e}")
             results["protocols"] = []
 
@@ -57,7 +57,7 @@ async def fetch_defillama_tvl(
                     results["chains"] = sorted(
                         chain_data, key=lambda x: x.get("tvl", 0) or 0, reverse=True
                     )[:limit]
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"DeFiLlama chains fetch failed: {e}")
             results["chains"] = []
 
@@ -69,7 +69,7 @@ async def fetch_defillama_tvl(
             ) as resp:
                 if resp.status == 200:
                     results["historical_tvl"] = (await resp.json())[-30:]  # Last 30 days
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"DeFiLlama historical TVL failed: {e}")
 
     results["source"] = "DeFiLlama (free, no auth)"
@@ -114,7 +114,7 @@ async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict
                         }
                     )
                 return results
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Pyth fetch failed: {e}")
         return {"error": str(e), "source": "Pyth Network (Hermes)"}
 

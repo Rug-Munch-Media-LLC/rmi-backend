@@ -133,7 +133,7 @@ class PieverseFacilitator(Facilitator):
             return self._format_error("Pieverse verification timed out")
         except aiohttp.ClientError as e:
             return self._format_error(f"Pieverse connection error: {e}")
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Pieverse verify error: {e}")
             return self._format_error(f"Pieverse internal error: {e}")
 
@@ -178,7 +178,7 @@ class PieverseFacilitator(Facilitator):
                     reason=f"Pieverse settle failed: {data.get('error', 'HTTP ' + str(resp.status))}",
                     facilitator=self.name,
                 )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False, reason=f"Pieverse settlement error: {e}", facilitator=self.name
             )

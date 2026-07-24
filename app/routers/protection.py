@@ -502,7 +502,7 @@ async def get_domains() -> dict | dict[str, list]:
                                         domain = domain[4:]
                                     if domain:  # Only add non-empty domains
                                         domains_set.add(domain)
-                                except Exception:
+                                except (ValueError, TypeError):
                                     pass  # Skip invalid URLs
                             break  # Only take first URL line
         except TimeoutError:

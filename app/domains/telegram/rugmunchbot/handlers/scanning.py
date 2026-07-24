@@ -221,7 +221,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=scan_result_kb(target, result["chain"]),
             disable_web_page_preview=True,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Scan error: {e}")
         await msg.edit_text(
             f"\u274c <b>Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
@@ -263,7 +263,7 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             report, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Wallet error: {e}")
         await msg.edit_text(
             f"\u274c <b>Wallet Analysis Failed</b>\n\n{str(e)[:200]}",
@@ -361,7 +361,7 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
         )
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"TA error: {e}")
         await msg.edit_text(
             f"\u274c TA failed: {str(e)[:200]}", parse_mode=ParseMode.HTML, reply_markup=back_kb()
@@ -427,7 +427,7 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"cmd_compare failed: {e}")
         await msg.edit_text(
             "\u274c <b>Comparison Failed</b>\n\nPlease check both addresses and try again.",
@@ -473,7 +473,7 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True,
                     )
                     return
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"cmd_quick DexScreener lookup failed for symbol {symbol}: {e}")
     await update.message.reply_text(
         f"\u274c Could not find token: <b>{symbol}</b>", parse_mode=ParseMode.HTML

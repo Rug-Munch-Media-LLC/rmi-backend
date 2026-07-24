@@ -164,7 +164,7 @@ def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -
                 "source": "Pyth Network (125+ institutional publishers)",
                 "free": True,
             }
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     return {
         "mint": mint,

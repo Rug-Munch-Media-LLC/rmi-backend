@@ -113,7 +113,7 @@ class ProviderChain:
                     _circuit_breakers[provider.name].record_success()
                     return result
 
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.warning(f"Provider {provider.name} failed: {e}")
                 _circuit_breakers[provider.name].record_failure()
                 continue

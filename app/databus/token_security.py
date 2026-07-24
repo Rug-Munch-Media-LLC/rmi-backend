@@ -583,7 +583,7 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
                     "details": f"Anti-whale={'YES' if is_in_anti_whale in ('1', '1.0') else 'no'}",
                 }
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"GoPlus scan failed: {e}")
 
     # ── Our DataBus checks ──
@@ -623,7 +623,7 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
                             }
                         else:
                             results["RP05"] = {"status": "pass", "details": f"Age={age_hours:.0f}h"}
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Volume authenticity
@@ -648,7 +648,7 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
                 vl_ratio = volume_24h / liquidity
                 if vl_ratio > 5:
                     results["TA02"] = {"status": "warning", "details": f"V/L={vl_ratio:.1f}x"}
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Compute final score
@@ -691,7 +691,7 @@ async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dic
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     # Run quick scan
@@ -723,7 +723,7 @@ async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dic
         )
         r.setex(cache_key, CACHE_TTL, json.dumps(result, default=str))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result

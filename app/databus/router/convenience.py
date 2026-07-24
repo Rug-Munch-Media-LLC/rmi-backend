@@ -1,0 +1,124 @@
+"""DataBus Router sub-module. Convenience endpoints."""
+
+from fastapi import APIRouter, HTTPException, Query, Request
+from typing import Any
+from app.core.logging import get_logger
+from app.databus.core import databus
+
+logger = get_logger("databus.router.convenience")
+router = APIRouter(tags=["databus"])
+
+@router.get("/arkham/entity/{address}")
+async def arkham_entity(address: str, request: Request) -> Any:
+    """Resolve a wallet address to an Arkham entity. Admin key required."""
+    admin_key = request.headers.get("X-Admin-Key", "")
+    result = await databus.fetch("entity_intel", address=address, admin_key=admin_key)
+    if result is None:
+        raise HTTPException(502, f"Could not resolve entity for {address}")
+    return result
+
+@router.get("/arkham/labels")
+async def arkham_labels(request: Request) -> Any:
+    """Look up labels for addresses. Admin key required for Arkham, public for local."""
+    admin_key = request.headers.get("X-Admin-Key", "")
+    address = request.query_params.get("address", "")
+    result = await databus.fetch("wallet_labels", address=address, admin_key=admin_key)
+    if result is None:
+        raise HTTPException(502, "No labels found")
+    return result
+
+@router.get("/arkham/portfolio/{address}")
+async def arkham_portfolio(address: str, request: Request) -> Any:
+    """Get portfolio for an entity. Admin key required."""
+    admin_key = request.headers.get("X-Admin-Key", "")
+    result = await databus.fetch("arkham_portfolio", address=address, admin_key=admin_key)
+    if result is None:
+        raise HTTPException(502, f"Could not get portfolio for {address}")
+    return result
+
+@router.get("/token/{mint}")
+async def token_detail(mint: str, request: Request) -> Any:
+    """Rich token detail (metadata + price + security)."""
+    result = await databus.fetch("token_detail", mint=mint)
+    if result is None:
+        raise HTTPException(502, f"No data for token {mint}")
+    return result
+
+@router.get("/wallet/{address}/tokens")
+async def wallet_tokens(address: str, request: Request) -> Any:
+    """Wallet token holdings."""
+    result = await databus.fetch("wallet_tokens", address=address)
+    if result is None:
+        raise HTTPException(502, f"No token data for wallet {address}")
+    return result
+
+@router.get("/wallet/{address}/pnl")
+async def wallet_pnl(address: str, request: Request) -> Any:
+    """Wallet profit/loss."""
+    result = await databus.fetch("wallet_pnl", address=address)
+    if result is None:
+        raise HTTPException(502, f"No PnL data for wallet {address}")
+    return result
+
+@router.get("/rugmap/{address}")
+async def rugmap(address: str, request: Request, chain: str = "solana", depth: int = 2) -> Any:
+    """Interactive holder RugMap."""
+    result = await databus.fetch("rugmap", address=address, chain=chain, depth=depth)
+    if result is None:
+        raise HTTPException(502, f"No RugMap data for {address}")
+    return result
+
+@router.get("/rugmaps/{address}")
+async def rugmaps_analysis(address: str, request: Request, chain: str = "solana") -> Any:
+    """RugMaps AI analysis + similar scam search."""
+    result = await databus.fetch("rugmaps_analysis", address=address, chain=chain)
+    if result is None:
+        raise HTTPException(502, f"No RugMaps analysis for {address}")
+    return result
+
+@router.get("/threat/{address}")
+async def threat_check(address: str, request: Request, chain_id: str = "1") -> Any:
+    """Threat intelligence check (CryptoScamDB + GoPlus + Januus)."""
+    result = await databus.fetch("threat_check", address=address, chain_id=chain_id)
+    if result is None:
+        raise HTTPException(502, f"No threat data for {address}")
+    return result
+
+@router.get("/contract-scan/{address}")
+async def contract_scan(address: str, request: Request, chain: str = "base") -> Any:
+    """Smart contract deep scan (Slither + Mythril)."""
+    result = await databus.fetch("contract_scan", address=address, chain=chain)
+    if result is None:
+        raise HTTPException(502, f"No contract scan data for {address}")
+    return result
+
+@router.get("/sentinel-deep/{address}")
+async def sentinel_deep(address: str, request: Request, chain: str = "solana") -> Any:
+    """Deep SENTINEL scan + threat feeds + contract analysis."""
+    admin_key = request.headers.get("X-Admin-Key", "")
+    result = await databus.fetch("sentinel_deep", address=address, chain=chain, admin_key=admin_key)
+    if result is None:
+        raise HTTPException(502, f"No deep scan data for {address}")
+    return result
+
+@router.get("/prediction-markets")
+async def prediction_markets(request: Request, query: str = "", category: str = "") -> Any:
+    """Prediction market intel (Polymarket + Kalshi)."""
+    result = await databus.fetch("prediction_markets", query=query, category=category)
+    if result is None:
+        raise HTTPException(502, "No prediction market data available")
+    return result
+
+@router.get("/prediction-signals")
+async def prediction_signals(request: Request) -> Any:
+    """Auto-detected trading signals from prediction markets."""
+    result = await databus.fetch("prediction_signals")
+    if result is None:
+        raise HTTPException(502, "No prediction signals available")
+    return result
+
+@router.get("/market/prediction-markets")
+async def prediction_markets() -> Any:  # noqa: F811
+    """Prediction markets from Polymarket. Free, no key needed."""
+    return await databus.fetch("prediction_markets")
+

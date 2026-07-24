@@ -75,7 +75,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     bundles = []
@@ -159,9 +159,9 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
                             entity = ark_resp.json().get("arkhamEntity", {})
                             if entity.get("name"):
                                 bundle.setdefault("labeled_entities", {})[wallet] = entity["name"]
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                         pass
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Bundle detection failed: {e}")
 
     result = {
@@ -177,7 +177,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["bundle_scan"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -198,7 +198,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     nodes = []
@@ -254,7 +254,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
                                         "value": cp.get("txsSent", 0) + cp.get("txsReceived", 0),
                                     }
                                 )
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
 
             # Fallback: Helius transactions if Arkham not available
@@ -305,10 +305,10 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
                                             edges.append(
                                                 {"from": current, "to": acc_addr, "value": 1}
                                             )
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Cluster mapping failed: {e}")
 
     result = {
@@ -324,7 +324,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["cluster_map"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -345,7 +345,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     api_key = kw.get("api_key", "")
@@ -438,7 +438,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
                             if ark_resp.status_code == 200:
                                 entity = ark_resp.json().get("arkhamEntity", {})
                                 dw["entity_name"] = entity.get("name", "")
-                        except Exception:
+                        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                             pass
                     if funder:
                         try:
@@ -449,10 +449,10 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
                             if ark_resp.status_code == 200:
                                 entity = ark_resp.json().get("arkhamEntity", {})
                                 dw["funder_entity"] = entity.get("name", "")
-                        except Exception:
+                        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                             pass
 
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Dev finder failed: {e}")
 
     result = {
@@ -466,7 +466,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["dev_finder"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -522,7 +522,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
             r.close()
             return json.loads(cached)
         r.close()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     api_key = kw.get("api_key", "")
@@ -580,7 +580,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
                                         ).isoformat(),
                                     }
                                 )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
     result = {
@@ -595,7 +595,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["sniper_detect"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -622,7 +622,7 @@ async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | 
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["bot_farm"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -643,7 +643,7 @@ async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["copy_trading"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -665,7 +665,7 @@ async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> d
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["insider_signals"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -688,7 +688,7 @@ async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["wash_trading"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -710,7 +710,7 @@ async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["mev_sandwich"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result
@@ -734,7 +734,7 @@ async def detect_fresh_wallets(address: str, chain: str = "solana", **kw) -> dic
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["fresh_wallets"], json.dumps(result))
         r.close()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     return result

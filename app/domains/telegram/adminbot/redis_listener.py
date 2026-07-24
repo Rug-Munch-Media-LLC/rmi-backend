@@ -32,7 +32,7 @@ async def start_redis_listener(bot_app) -> None:
     try:
         client = aioredis.from_url("redis://localhost:6379/0")
         await client.ping()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error("Redis connection failed: %s", exc)
         return
 
@@ -63,7 +63,7 @@ async def start_redis_listener(bot_app) -> None:
                 )
             except json.JSONDecodeError:
                 logger.warning("Non-JSON message on queue, skipping")
-            except Exception as exc:
+            except (ConnectionError, OSError, TimeoutError) as exc:
                 logger.error("BLPOP/forward error: %s", exc)
     except asyncio.CancelledError:
         logger.info("Redis listener cancelled")

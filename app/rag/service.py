@@ -47,7 +47,7 @@ class RAGService:
                 min_similarity=req.min_similarity,
                 filters=req.filters or None,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.warning("rag_search_failed", error=str(e))
             raw = []
         took_ms = int((time.monotonic() - start) * 1000)
@@ -81,7 +81,7 @@ class RAGService:
                 status=r.get("status", "ok"),
                 chunks=r.get("chunks", 0),
             )
-        except Exception as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             log.warning("rag_ingest_failed", error=str(e))
             return IngestResult(
                 doc_id=req.doc_id or "",
@@ -94,7 +94,7 @@ class RAGService:
         """Return engine stats (collection counts + active embedder backend)."""
         try:
             return engine_get_stats()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.warning("rag_stats_failed", error=str(e))
             return {"total_docs": 0, "backend": "unknown", "collections": [], "error": str(e)}
 
@@ -127,7 +127,7 @@ class RAGService:
             )
             result = await self.ingest(req)
             return result.status == "ok"
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.warning("rag_feedback_failed", error=str(e))
             return False
 
@@ -164,5 +164,5 @@ async def init_rag() -> None:
 
         get_redis().ping()
         log.info("rag_init_complete")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.warning("rag_init_redis_probe_failed", error=str(e))

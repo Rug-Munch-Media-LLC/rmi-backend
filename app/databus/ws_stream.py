@@ -63,7 +63,7 @@ class WSConnectionManager:
             try:
                 await ws.send_json(data)
                 self._total_messages += 1
-            except Exception:
+            except Exception:  # noqa: BLE001
                 dead.append((ws, tier))
         for ws, tier in dead:
             self._connections[channel].discard((ws, tier))
@@ -179,7 +179,7 @@ async def databus_websocket(ws: WebSocket, channel: str) -> None:
                 # No message for 60s - send keepalive ping
                 try:
                     await ws.send_json({"type": "ping", "ts": int(time.time())})
-                except Exception:
+                except Exception:  # noqa: BLE001
                     break
             except WebSocketDisconnect:
                 break

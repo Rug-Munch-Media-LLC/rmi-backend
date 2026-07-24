@@ -144,7 +144,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
                     reply_markup=scan_result_kb(pending["address"], result["chain"]),
                     disable_web_page_preview=True,
                 )
-            except Exception as e:
+            except (telegram.error.TelegramError) as e:
                 logger.error(f"Deep scan payment error: {e}")
                 await msg.edit_text(
                     f"\u274c Deep scan failed: {str(e)[:200]}\n\nContact support for help.",
