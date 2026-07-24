@@ -16,6 +16,7 @@ Signals weighted:
 """
 
 from __future__ import annotations
+
 from datetime import UTC
 from typing import Any
 

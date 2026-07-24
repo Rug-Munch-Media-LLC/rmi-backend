@@ -5,12 +5,12 @@ from __future__ import annotations
 import hashlib
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Header
 from pydantic import BaseModel
 
 from app.core.errors import AuthError
-from typing import Any
 
 router = APIRouter(prefix="/api/v1/developer", tags=["developer-portal"])
 

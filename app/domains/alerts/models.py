@@ -11,6 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+
 class AlertType(StrEnum):
     """Valid alert trigger types. Matches the legacy alert_types enum."""
 

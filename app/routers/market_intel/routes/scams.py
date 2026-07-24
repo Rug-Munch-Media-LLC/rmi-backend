@@ -4,12 +4,12 @@ Scam alerts from DexScreener suspicious tokens and combined alerts feed.
 """
 
 from __future__ import annotations
+
 from fastapi import APIRouter, Query, Request
 
+from app.core.logging import get_logger
 from app.routers.market_intel.providers import _cg, _ds
 from app.routers.market_intel.utils import _now, _safe_float
-from app.routers.market_intel.cache import _cget, _cset
-from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["market-intel"])

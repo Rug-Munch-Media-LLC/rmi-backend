@@ -3,7 +3,9 @@ Scam School — Pydantic request/response models.
 """
 
 from __future__ import annotations
+
 from pydantic import BaseModel
+
 
 class LessonProgress(BaseModel):
     lesson_id: str

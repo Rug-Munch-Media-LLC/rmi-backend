@@ -9,6 +9,7 @@ Part of the scanner domain — provides visual forensics for investigation repor
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 

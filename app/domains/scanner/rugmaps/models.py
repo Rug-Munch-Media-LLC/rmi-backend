@@ -5,8 +5,10 @@ All dataclasses for the interactive wallet visualization engine.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+
 
 def _format_timestamp(ts: int | float | datetime | None) -> str | None:
     """Format a timestamp to ISO string, handling both numeric and datetime types."""

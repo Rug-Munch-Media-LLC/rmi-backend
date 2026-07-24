@@ -22,6 +22,7 @@ the smarter the RAG gets.
 """
 
 from __future__ import annotations
+
 import contextlib
 from typing import Any
 

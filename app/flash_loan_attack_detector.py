@@ -24,14 +24,12 @@ CLI:
 
 # Re-export everything from the new package structure
 from __future__ import annotations
-from app.detectors.flash_loan import *  # noqa: F401, F403, E402
+
+from app.detectors.flash_loan import *  # noqa: F403
 
 # Also re-export the CLI main() at module level for backward compat
 # (the original module had `main()` and `if __name__ == "__main__"`)
-from app.detectors.flash_loan.alerts import main as main  # noqa: F401, E402
-
-import sys as _sys
-import runpy as _runpy
+from app.detectors.flash_loan.alerts import main as main
 
 if __name__ == "__main__":
     # Run the CLI entry point when invoked directly

@@ -6,9 +6,10 @@ are injected via ``Depends()`` so they can be mocked in tests.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from typing import Any
 
 from app.core.dependencies import get_token_scanner, get_wallet_scanner
 from app.core.internal_key import INTERNAL_API_KEY

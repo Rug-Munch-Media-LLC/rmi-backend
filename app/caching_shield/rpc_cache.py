@@ -12,6 +12,7 @@ per data point, well under Helius/QuickNode free limits.
 """
 
 from __future__ import annotations
+
 import asyncio
 import hashlib
 import json
@@ -20,12 +21,12 @@ import random
 import time
 import zlib
 from dataclasses import dataclass
+from typing import Any
 
 import redis.asyncio as aioredis
 
 from app.consensus_rpc import ConsensusResult, get_consensus_rpc
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("rpc_cache")
 

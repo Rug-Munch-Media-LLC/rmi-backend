@@ -8,10 +8,11 @@ fee structure changes, liquidity unlocks, wallet behavior shifts.
 
 from __future__ import annotations
 
-from typing import Any
 from datetime import UTC, datetime
+from typing import Any
 
 from app.services.deep_intelligence.core import client
+
 
 async def post_purchase_monitor(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """

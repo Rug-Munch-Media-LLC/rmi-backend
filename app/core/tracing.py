@@ -1,6 +1,7 @@
 """OpenTelemetry Tracing - request IDs, spans, Grafana Tempo export."""
 
 from __future__ import annotations
+
 import os
 import time
 import uuid

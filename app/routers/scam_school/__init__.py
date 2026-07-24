@@ -8,6 +8,7 @@ All data stored in Redis + Supabase backup.
 """
 
 from __future__ import annotations
+
 from fastapi import APIRouter
 
 from app.core.logging import get_logger

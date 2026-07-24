@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime
 from datetime import UTC
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -18,7 +19,6 @@ from app.core.errors import (
     ValidationError,
 )
 from app.core.logging import get_logger
-from typing import Any
 
 router = APIRouter(prefix="/api/v1/wallet-clusters", tags=["wallet-clustering"])
 logger = get_logger(__name__)

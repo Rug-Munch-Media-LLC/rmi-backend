@@ -1,6 +1,7 @@
 """Moralis Web3 AI Agents — Full API Suite."""
 
 from __future__ import annotations
+
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger

@@ -3,8 +3,10 @@ Market Intelligence Utility Functions
 """
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
+
 
 def _now() -> str:
     """ISO-8601 timestamp in UTC."""

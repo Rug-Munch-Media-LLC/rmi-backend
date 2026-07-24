@@ -4,6 +4,7 @@ Scans the same wallet address across all supported chains.
 """
 
 from __future__ import annotations
+
 import time
 
 from app.adapters.binance_web3 import CHAIN_IDS, CHAIN_NAMES, get_wallet_holdings

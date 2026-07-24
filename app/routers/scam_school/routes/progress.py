@@ -3,20 +3,20 @@ Scam School — user progress, lesson completion, exam submission, and leaderboa
 """
 
 from __future__ import annotations
+
 import json
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Query, Request
 
 from app.core.errors import AuthError, NotFoundError
-
 from app.core.redis import get_redis
 from app.routers.scam_school.content import COURSES
 from app.routers.scam_school.models import (
+    CourseProgress,
     ExamSubmit,
     LessonComplete,
     LessonProgress,
-    CourseProgress,
 )
 from app.routers.scam_school.progress import (
     ACHIEVEMENTS,

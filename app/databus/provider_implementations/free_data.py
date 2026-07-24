@@ -1,11 +1,13 @@
 """Free fallback providers — never pay for what's free."""
 
 from __future__ import annotations
+
 import os
 
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
+
 
 async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
     """DexScreener - free token metadata from pairs endpoint."""

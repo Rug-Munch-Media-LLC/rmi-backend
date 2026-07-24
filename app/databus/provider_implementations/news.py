@@ -1,6 +1,7 @@
 """News, Social, and Security scan providers."""
 
 from __future__ import annotations
+
 import asyncio
 import datetime
 import os
@@ -8,6 +9,7 @@ import os
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
+
 
 async def _messari_news(limit: int = 20, **kw) -> dict | None:
     """Messari News API - curated crypto news with per-asset sentiment scores."""
@@ -70,7 +72,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
                                 "source": item.get("source", "CoinDesk"),
                                 "published_at": datetime.fromtimestamp(
                                     item.get("published_on", 0),
-                                    tz=datetime.timezone.utc,
+                                    tz=datetime.UTC,
                                 ).isoformat(),
                                 "description": item.get("body", ""),
                                 "category": item.get("categories", "news").lower(),

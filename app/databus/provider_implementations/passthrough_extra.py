@@ -1,10 +1,12 @@
 """Extra passthrough providers — Hyperliquid, insider wallets, prediction signals."""
 
 from __future__ import annotations
+
 import httpx
 
 from app.config import settings
 from sdks.python.x402_frameworks.autogen_adapter import logger
+
 
 async def _passthrough_hyperliquid(**kwargs) -> dict | None:
     """Hyperliquid perp markets from our own /api/v1/market/hyperliquid."""

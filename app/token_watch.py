@@ -21,6 +21,7 @@ Watch conditions supported:
 """
 
 from __future__ import annotations
+
 import asyncio
 import hashlib
 import json
@@ -71,7 +72,7 @@ class TokenWatch:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "TokenWatch":
+    def from_dict(cls, d: dict) -> TokenWatch:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 @dataclass

@@ -1,9 +1,11 @@
 """Stub crypto_guard - wallet reputation and auth"""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import HTTPException, Request
+
 
 def check_wallet_reputation(address: str, chain: str = "base") -> dict[str, Any]:
     """Check wallet reputation."""

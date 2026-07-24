@@ -17,13 +17,13 @@ All endpoints require admin auth via X-Admin-Key header.
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-extensions"])

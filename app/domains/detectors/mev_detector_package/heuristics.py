@@ -3,7 +3,9 @@ MEV Detector — Heuristic Rules
 Pool vulnerability scoring and sandwich detection logic.
 """
 from __future__ import annotations
+
 from typing import Any
+
 
 def check_pool_vulnerability(pool: dict[str, Any]) -> list[str]:
     """Score a DEX pool for MEV vulnerability. Returns flags."""

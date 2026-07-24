@@ -14,6 +14,7 @@ Graphics Types:
 """
 
 from __future__ import annotations
+
 import hashlib
 import os
 from datetime import UTC, datetime

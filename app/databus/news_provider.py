@@ -14,6 +14,7 @@ Every endpoint accessible via DataBus. Every response enriched.
 """
 
 from __future__ import annotations
+
 import os
 import time
 from datetime import UTC, datetime

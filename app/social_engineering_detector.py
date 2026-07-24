@@ -20,6 +20,7 @@ Endpoint: POST /api/v1/x402-tools/social_engineering
 """
 
 from __future__ import annotations
+
 import re
 import time
 from datetime import UTC, datetime
@@ -40,7 +41,7 @@ PUMPFUN_API = "https://frontend-api.pump.fun"
 LUNARCRUSH_API = "https://api.lunarcrush.com/v2"
 
 # ── Compiled patterns ────────────────────────────────────────────
-from app.core.shared_utils import EVM_ADDRESS_RE as _RE_EVM_ADDR, SOLANA_ADDRESS_RE as _RE_SOLANA_ADDR
+from app.core.shared_utils import SOLANA_ADDRESS_RE as _RE_SOLANA_ADDR
 
 # Note: _RE_TOKEN_ADDR kept as alias for token-specific validation
 _RE_TOKEN_ADDR = _RE_SOLANA_ADDR

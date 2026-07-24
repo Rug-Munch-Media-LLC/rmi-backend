@@ -5,9 +5,11 @@ Helpers for building research/writing prompts and getting usage stats.
 """
 
 from __future__ import annotations
+
 import json
 
 from .tracking import rate_tracker
+
 
 def build_research_prompt(topic: str, data: dict | None = None) -> str:
     """Build a research prompt with all available context."""

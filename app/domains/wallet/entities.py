@@ -5,6 +5,7 @@ Extracted from manager.py during god-file split (2026-07-23).
 """
 
 from __future__ import annotations
+
 from app.core.logging import get_logger
 from app.domains.wallet.crypto import ZKAddressVerifier  # re-exported for convenience
 from app.domains.wallet.models import CHAIN_REGISTRY, ChainMeta

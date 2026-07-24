@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.deep_intelligence.core import cfg, client, logger
+from app.services.deep_intelligence.core import cfg, client
+
 
 async def deployer_reputation(address: str, chain: str = "sol") -> dict[str, Any]:
     """

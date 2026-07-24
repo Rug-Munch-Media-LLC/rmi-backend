@@ -126,7 +126,7 @@ class RAGIntelligenceEnricher:
                     expand=True,
                 )
                 all_hits.extend(hits)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.debug(
                     "find_similar_scams_collection_failed",
                     collection=collection,
@@ -176,7 +176,7 @@ class RAGIntelligenceEnricher:
                     expand=False,
                 )
                 all_hits.extend(hits)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.debug(
                     "get_wallet_context_collection_failed",
                     collection=collection,
@@ -227,7 +227,7 @@ class RAGIntelligenceEnricher:
                     expand=True,
                 )
                 all_hits.extend(hits)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.debug(
                     "get_market_context_collection_failed",
                     collection=collection,
@@ -290,7 +290,7 @@ class RAGIntelligenceEnricher:
             )
             ctx.similar_scams = scam_hits
             ctx.collections_searched.extend(SCAM_COLLECTIONS)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             ctx.error = f"similar_scams: {exc!s}"
             log.warning("enrich_similar_scams_failed", token=token[:16], error=str(exc)[:100])
 
@@ -310,7 +310,7 @@ class RAGIntelligenceEnricher:
                 )
                 ctx.wallet_context = wallet_hits
                 ctx.collections_searched.extend(WALLET_COLLECTIONS)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.warning("enrich_wallet_context_failed", deployer=deployer_addr[:16], error=str(exc)[:100])
 
         # 3. Get market context for this token
@@ -320,7 +320,7 @@ class RAGIntelligenceEnricher:
                 market_hits = await self.get_market_context(query=market_query)
                 ctx.market_context = market_hits
                 ctx.collections_searched.extend(MARKET_COLLECTIONS)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.warning("enrich_market_context_failed", token=token[:16], error=str(exc)[:100])
 
         # 4. Build a fusion summary
@@ -416,10 +416,10 @@ def get_enricher() -> RAGIntelligenceEnricher:
     return _default_enricher
 
 __all__ = [
+    "MARKET_COLLECTIONS",
+    "SCAM_COLLECTIONS",
+    "WALLET_COLLECTIONS",
     "RAGContext",
     "RAGIntelligenceEnricher",
     "get_enricher",
-    "SCAM_COLLECTIONS",
-    "WALLET_COLLECTIONS",
-    "MARKET_COLLECTIONS",
 ]

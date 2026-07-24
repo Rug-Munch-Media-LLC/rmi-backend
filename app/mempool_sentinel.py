@@ -1,7 +1,9 @@
 """Stub mempool_sentinel - real-time attack detection"""
 
 from __future__ import annotations
+
 from typing import Any
+
 
 class SentinelManager:
     """Manages mempool sentinels for real-time monitoring."""

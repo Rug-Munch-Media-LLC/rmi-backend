@@ -9,6 +9,7 @@ Redis-backed with permanence to R2.
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import os
@@ -226,5 +227,5 @@ async def rag_health_check(**kw) -> dict:
             "source": "rag_health",
         }
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"status": "error", "error": str(e)[:200], "source": "rag_health"}

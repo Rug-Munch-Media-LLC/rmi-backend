@@ -1,6 +1,7 @@
 """Scanner service — risk scoring engine + RAG ingestion hook."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger

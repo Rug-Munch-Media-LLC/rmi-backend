@@ -8,6 +8,7 @@ Sources: 25+ trusted crypto news outlets, newsletters, blogs, and mirrors.
 """
 
 from __future__ import annotations
+
 import asyncio
 import hashlib
 import re

@@ -1,6 +1,7 @@
 """Social feed and news network — /news/feed, /news/social, etc."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter

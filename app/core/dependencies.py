@@ -26,8 +26,8 @@ Override in tests:
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, AsyncIterator
-from typing import Any, TYPE_CHECKING
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from fastapi import Request
@@ -124,7 +124,7 @@ async def get_redis() -> Any | None:
 
 # ── Chain client (Solana) ────────────────────────────────────────────────────
 
-def get_chain_client() -> "ChainClient":
+def get_chain_client() -> ChainClient:
     """Chain client for Solana RPC (rate-limited, circuit-broken).
 
     Wraps ``app.chain_client.get_chain_client`` so it can be injected
@@ -136,7 +136,7 @@ def get_chain_client() -> "ChainClient":
 
 # ── EVM client ───────────────────────────────────────────────────────────────
 
-def get_evm_client(chain: str = "base") -> "EVMClient":
+def get_evm_client(chain: str = "base") -> EVMClient:
     """EVM blockchain client for the given *chain*.
 
     Wraps ``app.evm_connector.get_evm_client``.  Callers remain free
@@ -153,7 +153,7 @@ def get_evm_client(chain: str = "base") -> "EVMClient":
 
 # ── Rate limiter ─────────────────────────────────────────────────────────────
 
-def get_rate_limiter() -> "UnifiedRateLimiter":
+def get_rate_limiter() -> UnifiedRateLimiter:
     """Unified rate limiter (token bucket, Redis + in-memory fallback).
 
     Wraps ``app.core.rate_limiter.get_rate_limiter``.
@@ -164,7 +164,7 @@ def get_rate_limiter() -> "UnifiedRateLimiter":
 
 # ── Scanners ─────────────────────────────────────────────────────────────────
 
-def get_token_scanner() -> "UnifiedTokenScanner":
+def get_token_scanner() -> UnifiedTokenScanner:
     """Token scanner singleton (50+ security modules).
 
     Wraps ``app.domains.scanner.unified_token_scanner.get_token_scanner``.
@@ -173,7 +173,7 @@ def get_token_scanner() -> "UnifiedTokenScanner":
 
     return _get()
 
-def get_wallet_scanner() -> "UnifiedWalletScanner":
+def get_wallet_scanner() -> UnifiedWalletScanner:
     """Wallet scanner singleton (entity clustering, RAG, risk scoring).
 
     Wraps ``app.domains.wallet.unified_wallet_scanner.get_wallet_scanner``.
@@ -184,7 +184,7 @@ def get_wallet_scanner() -> "UnifiedWalletScanner":
 
 # ── Pryscraper client ────────────────────────────────────────────────────────
 
-def get_pryscraper_client() -> "PryscraperClient":
+def get_pryscraper_client() -> PryscraperClient:
     """Pryscraper HTTP client with circuit breaker.
 
     Lazily creates a ``PryscraperClient`` singleton so it can be

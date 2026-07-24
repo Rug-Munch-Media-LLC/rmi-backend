@@ -1,6 +1,7 @@
 """Utility functions for insider detection (no circular deps with collectors)."""
 
 from __future__ import annotations
+
 from collections import defaultdict
 
 from app.core.logging import get_logger

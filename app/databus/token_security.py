@@ -19,6 +19,7 @@ Scoring bands:
 """
 
 from __future__ import annotations
+
 import json
 import os
 import time
@@ -714,7 +715,7 @@ async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dic
         )
         r.setex(cache_key, CACHE_TTL, json.dumps(result, default=str))
         r.close()
-    except (ConnectionError, OSError, json.JSONDecodeError):  # noqa: BLE001
+    except (ConnectionError, OSError, json.JSONDecodeError):
         pass
 
     return result

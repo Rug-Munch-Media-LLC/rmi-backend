@@ -1,7 +1,9 @@
 """Shared data types for Temporal workflows and activities."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 
 @dataclass
 class ScanTaskParams:

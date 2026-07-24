@@ -7,6 +7,7 @@ Paper ref: Article 3, Section 2 - Free Datasets and Labelled-Address Repositorie
 """
 
 from __future__ import annotations
+
 import json
 import os
 from dataclasses import dataclass

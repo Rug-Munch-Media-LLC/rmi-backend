@@ -26,6 +26,7 @@ Token-2022 Extensions:
 """
 
 from __future__ import annotations
+
 import base64
 import hashlib
 from typing import Any
@@ -144,7 +145,7 @@ def parse_spl_mint_data(raw_data: bytes) -> dict[str, Any]:
         if len(raw_data) > 82:
             result["extensions"] = _parse_token_extensions(raw_data[82:], result)
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         result["error"] = f"Failed to parse mint data: {e!s}"
 
     return result
@@ -403,7 +404,7 @@ async def decode_spl_token_metadata(mint: str, rpc_urls: list[str] | None = None
                     meta = await fetch_metaplex_metadata(mint, rpc_url)
                     if meta:
                         result["metadata"] = meta
-                except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+                except (ConnectionError, OSError, TimeoutError):
                     pass  # Metadata is optional
 
                 return result

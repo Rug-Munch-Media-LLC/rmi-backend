@@ -12,10 +12,12 @@ Provides the detection algorithms that WalletClusteringEngine uses:
 """
 
 from __future__ import annotations
+
 from collections import defaultdict
 from typing import Any
 
 from app.domains.wallet.clustering.models import Cluster, WalletProfile
+
 
 def detect_temporal_clusters(
     wallets: dict[str, WalletProfile],
@@ -325,11 +327,11 @@ def _find_center_wallet(wallets: set[str], wallets_dict: dict) -> str | None:
     return center or next(iter(wallets))
 
 __all__ = [
-    "detect_temporal_clusters",
-    "detect_common_counterparty_clusters",
-    "detect_pattern_clusters",
-    "detect_funding_clusters",
-    "merge_clusters",
     "_calculate_fingerprint_similarity",
     "_find_center_wallet",
+    "detect_common_counterparty_clusters",
+    "detect_funding_clusters",
+    "detect_pattern_clusters",
+    "detect_temporal_clusters",
+    "merge_clusters",
 ]

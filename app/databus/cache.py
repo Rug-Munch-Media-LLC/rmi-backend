@@ -19,6 +19,7 @@ Per-Type Stats:
 """
 
 from __future__ import annotations
+
 import asyncio
 import contextlib
 import hashlib
@@ -147,7 +148,7 @@ class L2RedisCache:
             self._available = True
             logger.info("DataBus Cache: Redis connected")
             return True
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(f"DataBus Cache: Redis unavailable ({e}), L2 disabled")
             self._available = False
             return False
@@ -173,7 +174,7 @@ class L2RedisCache:
             return
         try:
             await self._redis.setex(f"{self._prefix}{key}", ttl, json.dumps(value, default=str))
-        except (ConnectionError, OSError, httpx.HTTPError, json.JSONDecodeError):  # noqa: BLE001
+        except (ConnectionError, OSError, httpx.HTTPError, json.JSONDecodeError):
             self._available = False
 
     async def delete(self, key: str) -> None:
@@ -321,7 +322,7 @@ class CacheLayer:
             if is_stale and self.stale_refresh_callback:
                 try:  # noqa: SIM105
                     asyncio.create_task(self.stale_refresh_callback(key))
-                except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+                except (ConnectionError, OSError, TimeoutError):
                     pass  # Best-effort refresh
             return val, is_stale
         # L2 (no SWR - Redis handles its own TTL)

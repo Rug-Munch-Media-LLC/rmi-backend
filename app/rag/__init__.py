@@ -17,6 +17,7 @@ from __future__ import annotations
 from app.core import health as health_mod
 from app.core.health import DomainHealth
 
+
 async def _health_check() -> DomainHealth:
     """RAG health: v3 engine present + Redis reachable."""
     try:
@@ -32,24 +33,12 @@ async def _health_check() -> DomainHealth:
                 "total_docs": stats.get("total_docs", 0),
             },
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return DomainHealth(name="rag", healthy=False, error=str(e))
 
 health_mod.register_health_check("rag", _health_check)
 
 # Public API
-from app.rag.models import (  # noqa: E402
-    COLLECTIONS,
-    EmbeddingProvider,
-    FeedbackRecord,
-    IngestRequest,
-    IngestResult,
-    SearchHit,
-    SearchRequest,
-    SearchResponse,
-)
-from app.rag.service import RAGService, init_rag  # noqa: E402
-
 # ── New pipeline exports ─────────────────────────────────────────────
 # Config
 from app.rag.config import (  # noqa: E402
@@ -69,8 +58,8 @@ from app.rag.ingestion import (  # noqa: E402
     BatchIngestor,
     DocumentProcessor,
     IngestionScheduler,
-    IngestReport,
     IngestionStatus,
+    IngestReport,
     QualityFilter,
     RateLimiter,
     get_ingestor,
@@ -79,9 +68,19 @@ from app.rag.ingestion import (  # noqa: E402
     get_scheduler,
     ingest_news_article,
     ingest_research_post,
-    ingest_scan_result,
     ingest_scam_pattern,
+    ingest_scan_result,
     ingest_wallet_profile,
+)
+from app.rag.models import (  # noqa: E402
+    COLLECTIONS,
+    EmbeddingProvider,
+    FeedbackRecord,
+    IngestRequest,
+    IngestResult,
+    SearchHit,
+    SearchRequest,
+    SearchResponse,
 )
 
 # Retrieval
@@ -96,6 +95,7 @@ from app.rag.retrieval import (  # noqa: E402
     expand_query,
     search as hybrid_search,
 )
+from app.rag.service import RAGService, init_rag  # noqa: E402
 
 __all__ = [
     "COLLECTIONS",

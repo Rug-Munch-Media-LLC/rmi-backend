@@ -5,6 +5,7 @@ ProviderConfig dataclass and the full PROVIDER_REGISTRY definition.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 from app.core.logging import get_logger

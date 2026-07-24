@@ -1,11 +1,13 @@
 """OFAC sanctions loader."""
 
 from __future__ import annotations
+
 import json
 import os
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
+
 from .config import LABELS_DIR, OFAC_URL
 from .download import _download_json
 

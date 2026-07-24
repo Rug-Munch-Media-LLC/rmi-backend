@@ -5,6 +5,7 @@ Rate limited to 1 req/5 sec per IP. No API key required for basic use.
 """
 
 from __future__ import annotations
+
 from app.core.logging import get_logger
 
 logger = get_logger("databus.evm_extra")

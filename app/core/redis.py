@@ -11,7 +11,7 @@ bootstrapping before settings is fully initialized.
 from __future__ import annotations
 
 import os
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 
@@ -34,12 +34,12 @@ def _get_redis_url() -> str:
 
 REDIS_URL = _get_redis_url()
 
-_redis_client: "redis.Redis | aioredis.Redis | None" = None  # type: ignore[type-arg]
-_sync_pool: "redis.ConnectionPool | None" = None
-_async_pool: "aioredis.ConnectionPool | None" = None
+_redis_client: redis.Redis | aioredis.Redis | None = None  # type: ignore[type-arg]
+_sync_pool: redis.ConnectionPool | None = None
+_async_pool: aioredis.ConnectionPool | None = None
 _degraded: bool = False
 
-def get_redis() -> "redis.Redis | None":  # type: ignore[type-arg]
+def get_redis() -> redis.Redis | None:  # type: ignore[type-arg]
     """Get Redis client with connection pooling. Single source of truth."""
     global _redis_client, _sync_pool, _degraded
     import redis
@@ -69,7 +69,7 @@ def get_redis() -> "redis.Redis | None":  # type: ignore[type-arg]
         _mark_degraded()
         return None
 
-def get_redis_async() -> "aioredis.Redis | None":  # type: ignore[type-arg]
+def get_redis_async() -> aioredis.Redis | None:  # type: ignore[type-arg]
     """Get async Redis client for async operations."""
     global _redis_client, _async_pool
     import redis.asyncio as aioredis

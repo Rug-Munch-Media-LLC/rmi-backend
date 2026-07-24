@@ -26,6 +26,7 @@ from __future__ import annotations
 from app.core import health as health_mod
 from app.core.health import DomainHealth
 
+
 async def _health_check() -> DomainHealth:
     """Catalog health: which stores are reachable + how many entities."""
     try:

@@ -1,9 +1,12 @@
 """Chain connectors for portfolio scanning."""
 from __future__ import annotations
+
 import asyncio
 from typing import Any
+
 from app.core.logging import get_logger
-from .config import DEFAULT_TIMEOUT, MAX_TOKENS_PER_WALLET, COMMON_TOKENS, ERC20_ABI, CHAIN_CONFIGS
+
+from .config import CHAIN_CONFIGS, COMMON_TOKENS, DEFAULT_TIMEOUT, ERC20_ABI, MAX_TOKENS_PER_WALLET
 
 logger = get_logger(__name__)
 

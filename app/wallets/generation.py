@@ -5,6 +5,7 @@ Standalone wallet generation functions for each chain family.
 """
 
 from __future__ import annotations
+
 import hashlib
 import secrets
 

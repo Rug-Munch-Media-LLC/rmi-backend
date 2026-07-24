@@ -48,7 +48,6 @@ from app.core.logging import get_logger
 from app.rag.config import (
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
-    RAG_COLLECTIONS,
     RAG_INGESTION_BATCH_SIZE,
     RAG_INGESTION_MAX_PER_MINUTE,
     RAG_MIN_CHUNK_CHARS,
@@ -111,6 +110,7 @@ class IngestReport:
 # ── DocumentProcessor ───────────────────────────────────────────────
 
 from app.rag.chunking import content_hash as _content_hash
+
 
 def _quality_score(text: str, max_chunk: int) -> float:
     """Quick quality score 0-1. Penalise noise (high special-char ratio)."""
@@ -302,7 +302,7 @@ class QualityFilter:
 
             r = get_redis()
             return bool(r.sismember(f"rag:hashes:{collection}", content_hash))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.warning("dedup_check_failed: %s", e)
             return False
 
@@ -349,7 +349,7 @@ class RateLimiter:
 
             return True
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.warning("rate_limiter_check_failed: %s", e)
             return True  # Allow on Redis failure (fail-open)
 
@@ -363,7 +363,7 @@ class RateLimiter:
             r.zremrangebyscore(_INGESTION_COUNTER_KEY, 0, now - 60)
             current = r.zcard(_INGESTION_COUNTER_KEY) or 0
             return max(0, self.max_per_minute - current)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.debug("rate_limiter_remaining_failed: %s", e)
             return self.max_per_minute
 
@@ -374,7 +374,7 @@ class RateLimiter:
 
             r = get_redis()
             r.delete(_INGESTION_COUNTER_KEY)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.debug("rate_limiter_reset_failed: %s", e)
 
 # ── BatchIngestor ────────────────────────────────────────────────────
@@ -479,7 +479,7 @@ class BatchIngestor:
                     report.duplicate += 1
                 else:
                     errors.append(f"{doc.doc_id}:{result['status']}")
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.warning("ingest_doc_failed", doc_id=doc.doc_id, error=str(e))
                 errors.append(f"{doc.doc_id}:{e!s}")
                 report.failed += 1
@@ -605,7 +605,7 @@ class IngestionScheduler:
         for handler in self._handlers:
             try:
                 await handler()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.warning("scheduler_handler_failed", handler=handler.__name__, error=str(e))
 
         return reports
@@ -615,7 +615,7 @@ class IngestionScheduler:
         while self._running:
             try:
                 await self.tick()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.error("scheduler_tick_failed", error=str(e))
             await asyncio.sleep(self._interval)
 

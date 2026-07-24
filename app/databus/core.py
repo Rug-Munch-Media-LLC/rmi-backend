@@ -25,6 +25,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 import asyncio
 import hashlib
 import json
@@ -227,7 +228,7 @@ class DataBus:
 
                 self.bitquery = BitqueryProvider(self.cache)
                 logger.info("Bitquery provider registered")
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"Bitquery provider not available: {e}")
             self._initialized = True
             total_providers = sum(len(c.providers) for c in self.chains.values())
@@ -263,7 +264,7 @@ class DataBus:
 
                         ws = get_ws_manager()
                         await ws.broadcast_data(data_type, result)
-                    except (AttributeError, ImportError):  # noqa: BLE001
+                    except (AttributeError, ImportError):
                         pass
         except (ConnectionError, OSError, TimeoutError) as e:
             logger.debug(f"SWR refresh failed for {data_type}: {e}")
@@ -408,7 +409,7 @@ class DataBus:
             try:
                 result = await asyncio.wait_for(future, timeout=30)
                 return result
-            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):
                 pass
 
         # ── 5.5 LOCAL PRECHECK - RAG / Scanner / Labels / Redis (FREE) ──
@@ -473,7 +474,7 @@ class DataBus:
                     text=json.dumps(result["data"], default=str)[:2000],
                     metadata={"data_type": data_type, "source": source, "tier": tier},
                 )
-            except (AttributeError, ImportError, json.JSONDecodeError):  # noqa: BLE001
+            except (AttributeError, ImportError, json.JSONDecodeError):
                 pass
 
         # ── 10. WEBSOCKET BROADCAST (optional) ──
@@ -490,7 +491,7 @@ class DataBus:
                 from app.databus.ws_stream import databus_ws_broadcast
 
                 await databus_ws_broadcast(data_type, result)
-            except (AttributeError, ImportError):  # noqa: BLE001
+            except (AttributeError, ImportError):
                 pass
 
         # ── 11. RESOLVE DEDUP ──

@@ -6,6 +6,7 @@ ingestion. Builds nodes and edges for wallets, tokens, scams, etc.
 """
 
 from __future__ import annotations
+
 import json
 import logging
 from typing import Any

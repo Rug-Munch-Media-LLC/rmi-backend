@@ -80,6 +80,7 @@ FREE_APIS: dict[str, str] = {
 
 # ── Fallback HTTP Request System ────────────────────────────────
 
+
 async def fetch_with_fallback(
     urls: list[str],
     method: str = "GET",
@@ -118,6 +119,7 @@ async def fetch_with_fallback(
                 continue
     return None, None
 
+
 async def rpc_call(chain: str, method: str, params: list[Any]) -> Any:
     """Make JSON-RPC call to blockchain with fallback RPCs."""
     rpcs = FREE_RPCS.get(chain, FREE_RPCS.get("solana"))
@@ -127,9 +129,7 @@ async def rpc_call(chain: str, method: str, params: list[Any]) -> Any:
     async with aiohttp.ClientSession() as session:
         for url, payload in zip(urls, payloads, strict=False):
             try:
-                async with session.post(
-                    url, json=payload, timeout=aiohttp.ClientTimeout(total=10)
-                ) as resp:
+                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     if resp.status == 200:
                         result = await resp.json()
                         return result.get("result")
@@ -137,36 +137,45 @@ async def rpc_call(chain: str, method: str, params: list[Any]) -> Any:
                 continue
     return None
 
+
 # ── Request Models ──────────────────────────────────────────────
+
 
 class TokenRequest(BaseModel):
     address: str
     chain: str = "solana"
 
+
 class WalletRequest(BaseModel):
     address: str
     chain: str = "solana"
+
 
 class SmartMoneyRequest(BaseModel):
     chain: str = "solana"
     threshold: float = 10000.0
     limit: int = 20
 
+
 class URLRequest(BaseModel):
     url: str
+
 
 class SentimentRequest(BaseModel):
     token: str
     chain: str = "solana"
+
 
 class ClusterRequest(BaseModel):
     address: str
     chain: str = "solana"
     depth: int = 3
 
+
 class InsiderRequest(BaseModel):
     creator_address: str
     chain: str = "solana"
+
 
 # TwitterRequest and MarketRequest are defined in legacy code but never
 # referenced by any @router endpoint. Surfaced here for traceability.
@@ -176,17 +185,21 @@ class TwitterRequest(BaseModel):  # pragma: no cover — legacy, unused
     handle: str | None = None
     tweet_id: str | None = None
 
+
 class MultiTokenRequest(BaseModel):
     addresses: list[str]
     chain: str = "solana"
+
 
 class WalletListRequest(BaseModel):
     addresses: list[str]
     chain: str = "solana"
 
+
 class MarketRequest(BaseModel):  # pragma: no cover — legacy, unused
     chain: str = "all"
     hours: int = 24
+
 
 class GenericRequest(BaseModel):
     address: str | None = None
@@ -197,7 +210,9 @@ class GenericRequest(BaseModel):
     threshold: float = 10000.0
     limit: int = 20
 
+
 # ── Helpers ─────────────────────────────────────────────────────
+
 
 async def _audit_solana(address: str) -> dict[str, Any]:
     """Full audit for Solana tokens with 5-layer fallback."""
@@ -205,9 +220,7 @@ async def _audit_solana(address: str) -> dict[str, Any]:
 
     # Layer 1: DexScreener (free, no key)
     try:
-        data, _src = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"]
-        )
+        data, _src = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             result["dexscreener"] = {
@@ -327,15 +340,14 @@ async def _audit_solana(address: str) -> dict[str, Any]:
     result["source_count"] = len(result["sources_used"])
     return result
 
+
 async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
     """Full audit for EVM tokens (Base, ETH, BSC)."""
     result = {"chain": chain, "address": address, "sources_used": []}
 
     # Layer 1: DexScreener
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"]
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             result["dexscreener"] = {
@@ -350,17 +362,13 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
 
     # Layer 2: Basescan / Etherscan
     explorer_key = "BASESCAN_KEY" if chain == "base" else "ETHERSCAN_KEY"
-    explorer_api = (
-        "https://api.basescan.org/api" if chain == "base" else "https://api.etherscan.io/api"
-    )
+    explorer_api = "https://api.basescan.org/api" if chain == "base" else "https://api.etherscan.io/api"
     api_key = os.getenv(explorer_key, "")
 
     if api_key:
         try:
             data, _ = await fetch_with_fallback(
-                [
-                    f"{explorer_api}?module=contract&action=getsourcecode&address={address}&apikey={api_key}"
-                ]
+                [f"{explorer_api}?module=contract&action=getsourcecode&address={address}&apikey={api_key}"]
             )
             if data and data.get("result") and data["result"][0].get("SourceCode"):
                 result["verified"] = True
@@ -380,7 +388,7 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
         else:
             result["is_contract"] = False
             result["findings"].append("Address is not a contract")
-    except (httpx.HTTPError):
+    except httpx.HTTPError:
         pass
 
     # Risk computation
@@ -423,8 +431,9 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
     result["findings"] = findings
     return result
 
+
 # ── Helper: Record x402 Payment ────────────────────────────────
-# Pre-existing bug surface: this name was referenced (via # noqa: F821)
+# Pre-existing bug surface: this name was referenced (via noqa)
 # in 77+ places across x402_tools.py but never defined. The legacy module
 # silently failed at every endpoint call. We surface a no-op stub here
 # so the audit-tracked fix (issue: fix(f821)) has a clear home.
@@ -444,6 +453,7 @@ async def record_x402_payment(tool_id: str, price_usd: str, payer: str) -> None:
         price_usd,
         payer,
     )
+
 
 # ── Bundle Pricing (Phase 3A surface) ──────────────────────────
 
@@ -678,6 +688,7 @@ HUMAN_PAYMENT_TOKENS: dict[str, dict[str, Any]] = {
     },
 }
 
+
 # Pay-to addresses - pulled dynamically from WalletManagerV2
 # Falls back to env vars if wallet manager unavailable
 def _resolve_pay_to(chain: str) -> str:
@@ -724,6 +735,7 @@ def _resolve_pay_to(chain: str) -> str:
         return os.getenv(env_key, "")
     return ""
 
+
 HUMAN_PAY_TO: dict[str, str] = {
     "base": _resolve_pay_to("base"),
     "ethereum": _resolve_pay_to("ethereum"),
@@ -738,6 +750,7 @@ HUMAN_PAY_TO: dict[str, str] = {
 
 # ── Models specific to integration endpoints ──────────────────────
 
+
 class BundleRequest(BaseModel):
     address: str = ""
     token: str = ""
@@ -745,22 +758,21 @@ class BundleRequest(BaseModel):
     chain: str = "base"
     url: str = ""
 
+
 class MCPProxyRequest(BaseModel):
     service: str
     tool: str
     arguments: dict[str, Any] = {}
 
+
 class HumanPaymentRequest(BaseModel):
     tool: str = Field(..., description="Tool ID to execute")
     arguments: dict[str, Any] = Field(default_factory=dict, description="Tool parameters")
-    payment_token: str = Field(
-        ..., description=f"Payment token key: {', '.join(HUMAN_PAYMENT_TOKENS.keys())}"
-    )
+    payment_token: str = Field(..., description=f"Payment token key: {', '.join(HUMAN_PAYMENT_TOKENS.keys())}")
     tx_hash: str = Field(..., description="Transaction hash on-chain")
     wallet: str = Field(..., description="Payer wallet address")
-    chain: str | None = Field(
-        default=None, description="Blockchain (auto-detected from payment_token if not set)"
-    )
+    chain: str | None = Field(default=None, description="Blockchain (auto-detected from payment_token if not set)")
+
 
 class HumanPaymentMethodsResponse(BaseModel):
     """Response listing all payment methods available to humans."""
@@ -770,17 +782,21 @@ class HumanPaymentMethodsResponse(BaseModel):
     chain_count: int
     token_count: int
 
+
 class AuditRequest(BaseModel):
     address: str
     chain: str = "solana"
+
 
 class SmartMoneyAlphaRequest(BaseModel):
     wallet: str
     chain: str = "solana"
 
+
 class MemeVibeRequest(BaseModel):
     token: str
     chain: str = "solana"
+
 
 class SentinelScanRequest(BaseModel):
     """Full 9-module SENTINEL deep scan."""
@@ -789,12 +805,14 @@ class SentinelScanRequest(BaseModel):
     chain: str = "solana"
     dev_address: str | None = None
 
+
 class SentinelModuleRequest(BaseModel):
     """Single SENTINEL module request."""
 
     address: str
     chain: str = "solana"
     dev_address: str | None = None
+
 
 # Re-exported for tools that mirror legacy symbols
 __all__ = [

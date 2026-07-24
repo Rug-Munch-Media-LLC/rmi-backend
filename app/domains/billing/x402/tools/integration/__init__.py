@@ -11,13 +11,7 @@ Previously a single 1690-line god file (integration.py), now split into:
 
 from __future__ import annotations
 
-from app.domains.billing.x402.tools.integration import (
-    core as _core_mod,
-    models as _models_mod,
-    payments as _payments_mod,
-    utils as _utils_mod,
-    webhooks as _webhooks_mod,
-)
+from app.domains.billing.x402.tools.integration import core, models, payments, utils, webhooks
 from app.domains.billing.x402.tools.integration.core import sub_router
 
 __all__ = [

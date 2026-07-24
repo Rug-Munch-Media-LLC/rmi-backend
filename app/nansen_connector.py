@@ -11,6 +11,7 @@ Auth: API key passed as ?api_key=KEY query parameter.
 """
 
 from __future__ import annotations
+
 import os
 from typing import Any
 

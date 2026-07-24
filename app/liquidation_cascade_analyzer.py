@@ -11,8 +11,8 @@ Usage:
 """
 
 from __future__ import annotations
-import sys as _sys
-from app.domains.analysis.liquidation_cascade_analyzer import (  # noqa: F401, F403
+
+from app.domains.analysis.liquidation_cascade_analyzer import (  # noqa: F401
     CascadeScenario,
     CollateralPosition,
     DebtPosition,

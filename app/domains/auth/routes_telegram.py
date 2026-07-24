@@ -22,6 +22,7 @@ from app.domains.auth.router import router
 from app.domains.auth.schemas import TelegramAuthRequest
 from app.domains.auth.store import _get_user
 
+
 @router.post("/telegram")
 async def telegram_auth(req: TelegramAuthRequest, request: Request) -> JSONResponse:
     """Authenticate via Telegram Web App data."""

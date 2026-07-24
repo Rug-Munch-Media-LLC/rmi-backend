@@ -14,6 +14,7 @@ Cache: Redis-backed SWR with 15-min hot, 1-hour warm, 24-hour cold
 """
 
 from __future__ import annotations
+
 import hashlib
 import time
 from datetime import UTC, datetime
@@ -102,7 +103,7 @@ class XTwitterProvider:
             self._oauth2_refresh = result.stdout.strip()
             self._loaded = True
             logger.info("X/Twitter credentials loaded from vault")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"Failed to load X credentials from vault: {e}")
             raise
 

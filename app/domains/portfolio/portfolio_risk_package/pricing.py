@@ -4,6 +4,7 @@ Simple Coingecko-based price estimation with in-memory caching.
 """
 
 from __future__ import annotations
+
 from app.core.logging import get_logger
 from app.domains.portfolio.portfolio_risk_package.constants import CHAIN_CONFIGS
 

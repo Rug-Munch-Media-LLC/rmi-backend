@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import os
 import re
+from typing import Any
 
 from fastapi import APIRouter
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 
@@ -187,6 +187,7 @@ def load_external_mcp_tools() -> list[dict]:
     # Fallback: fetch from mcp-router dynamically
     try:
         import json as _json
+
         import httpx as _httpx
 
         url = "https://mcp.rugmunch.io/tools"

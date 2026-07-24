@@ -1,6 +1,7 @@
 """MCP Discovery endpoints — /.well-known/mcp, /llms.txt, etc."""
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
 
@@ -8,7 +9,8 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 
 from app.core.logging import get_logger
-from .config import _get_tools, _get_facilitator_count, _desc, MCP_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION
+
+from .config import MCP_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION, _desc, _get_facilitator_count, _get_tools
 
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_discovery"])

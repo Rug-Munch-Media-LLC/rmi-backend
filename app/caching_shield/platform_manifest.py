@@ -8,12 +8,14 @@ Update ONCE here, everything else auto-syncs.
 """
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 
 from app.caching_shield.agent_skills_extended import get_all_agent_skills
 from app.caching_shield.membership_plans import get_membership_catalog
 from app.caching_shield.tool_registry import TOOL_COUNTS
 from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES
+
 
 def get_platform_manifest() -> dict:
     """The ONE source of truth. Every platform surface reads from this."""

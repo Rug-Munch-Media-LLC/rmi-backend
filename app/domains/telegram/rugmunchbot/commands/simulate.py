@@ -5,6 +5,7 @@ Simulate how a buy or sell would execute at current market conditions.
 """
 
 from __future__ import annotations
+
 import httpx
 
 from app.core.logging import get_logger

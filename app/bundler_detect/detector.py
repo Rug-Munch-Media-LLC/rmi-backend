@@ -6,6 +6,7 @@ Orchestrates data fetching, analysis, and scoring.
 """
 
 from __future__ import annotations
+
 import os
 import time
 from typing import Any
@@ -14,7 +15,6 @@ import httpx
 
 from app.bundler_detect.fetchers import fetch_buys, fetch_holders, fetch_metadata
 from app.bundler_detect.models import (
-    BUNDLER_SCORE_WEIGHTS,
     EVM_CHAINS,
     SUPPORTED_CHAINS,
     BundledBuy,
@@ -25,7 +25,6 @@ from app.bundler_detect.scoring import gini_coefficient, label_risk
 from app.bundler_detect.scoring_methods import (
     compute_bundler_score,
     score_fund_flow,
-    score_launch_timing,
     score_sniper_clusters,
     score_supply_concentration,
 )

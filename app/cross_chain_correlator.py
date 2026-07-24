@@ -10,12 +10,13 @@ Paper ref: Section 5.3 - Cross-Chain Fragmentation
 """
 
 from __future__ import annotations
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

@@ -1,6 +1,8 @@
 """Analysis helper functions for MEV detection."""
 
 from __future__ import annotations
+
+
 def _check_pool_vulnerability(pool: dict) -> list[str]:
     """Score a DEX pool for MEV vulnerability based on characteristics. Returns vulnerability flags."""
     flags: list[str] = []

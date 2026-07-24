@@ -11,14 +11,15 @@ Fixes false positives, enriches all responses, populates empty providers.
 """
 
 from __future__ import annotations
+
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import redis
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("data_quality")
 
@@ -561,7 +562,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
         from app.databus.rugcharts_intel import instant_token_report
 
         base_report = await instant_token_report(address, chain, **kw)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         base_report = {"error": str(e), "sections": {}}
 
     if not base_report:
@@ -632,7 +633,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
         r = _r()
         r.setex(cache_key, 300, json.dumps(base_report, default=str))
         r.close()
-    except (json.JSONDecodeError):  # noqa: BLE001
+    except (json.JSONDecodeError):
         pass
 
     return base_report

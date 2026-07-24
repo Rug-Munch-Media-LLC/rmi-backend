@@ -5,6 +5,7 @@ This shim re-exports the public surface for legacy callers.
 """
 
 from __future__ import annotations
+
 from app.domains.auth import *  # noqa: F403
 from app.domains.auth import (  # noqa: F401
     FRONTEND_URL,

@@ -3,22 +3,23 @@ x402 DataBus Tools - API endpoints.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
 
 from app.core.errors import UpstreamError, ValidationError
 from app.core.logging import get_logger
-from app.routers.x402.pricing import X402_TOOL_PRICING, check_trial, TRIAL_WINDOW_SECONDS
-from app.routers.x402.payment import verify_x402_payment, _clean_response
 from app.routers.x402.payment import (
+    AddressDepthRequest,
     AddressRequest,
+    GenericDataRequest,
     MintRequest,
     QueryRequest,
-    AddressDepthRequest,
-    GenericDataRequest,
+    _clean_response,
+    verify_x402_payment,
 )
+from app.routers.x402.pricing import TRIAL_WINDOW_SECONDS, X402_TOOL_PRICING, check_trial
 
 logger = get_logger("x402_databus_endpoints")
 

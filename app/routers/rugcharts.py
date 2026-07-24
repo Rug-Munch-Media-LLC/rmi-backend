@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+from typing import Any
 
 import httpx
 import redis
@@ -18,7 +19,6 @@ from fastapi import APIRouter, Query
 
 from app.core.data_fusion import envelope, fusion
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("rugcharts_router")
 

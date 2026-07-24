@@ -5,6 +5,7 @@ Extracted from manager.py during god-file split (2026-07-23).
 """
 
 from __future__ import annotations
+
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Any

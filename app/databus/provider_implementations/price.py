@@ -1,11 +1,13 @@
 """Price providers for DataBus."""
 
 from __future__ import annotations
+
 import os
 
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
+
 
 async def _local_token_price(**kwargs) -> dict | None:
     """Get price from our own data (Redis/ClickHouse)."""

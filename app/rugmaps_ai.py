@@ -4,6 +4,7 @@ Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import os

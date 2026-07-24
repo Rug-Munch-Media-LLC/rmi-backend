@@ -1,6 +1,7 @@
 """DataBus Key Affinity - Consistent Hashing for API Key Selection"""
 
 from __future__ import annotations
+
 import hashlib
 
 from app.core.logging import get_logger

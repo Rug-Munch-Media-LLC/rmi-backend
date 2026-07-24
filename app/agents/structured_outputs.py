@@ -1,9 +1,11 @@
 """Pydantic models for structured agent outputs using Instructor."""
 
 from __future__ import annotations
+
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
+
 
 class RiskTier(StrEnum):
     LOW = "low"

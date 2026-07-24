@@ -8,6 +8,7 @@ Split from degen_security_scanner.py into: config, models, scanner, api.
 """
 
 from __future__ import annotations
+
 from .api import format_report, scan_token
 from .config import BUNDLER_PROGRAMS, MIXER_PROGRAMS
 from .models import (

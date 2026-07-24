@@ -5,6 +5,7 @@ All functions are async and use httpx for HTTP transport with proper timeouts.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx

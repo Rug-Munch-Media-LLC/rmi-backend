@@ -5,6 +5,8 @@ Type definitions for the Redis-backed knowledge graph.
 """
 
 from __future__ import annotations
+
+
 class EdgeType:
     HOLDS = "holds"  # wallet holds token
     DEPLOYED = "deployed"  # wallet deployed contract/token

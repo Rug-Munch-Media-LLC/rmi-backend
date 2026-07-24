@@ -10,23 +10,22 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from app.sweep_all import results
-
 from app.core.logging import get_logger
-from app.services.deep_intelligence.analyzers.deployer import deployer_reputation
-from app.services.deep_intelligence.analyzers.preflight import preflight_simulate
-from app.services.deep_intelligence.analyzers.liquidity import liquidity_lock_authenticity
-from app.services.deep_intelligence.analyzers.volume import volume_authenticity
-from app.services.deep_intelligence.analyzers.slow_rug import slow_rug_detector
-from app.services.deep_intelligence.analyzers.funding import funding_source_tracer
-from app.services.deep_intelligence.analyzers.ownership import ownership_theater_detector
-from app.services.deep_intelligence.analyzers.exit_liquidity import exit_liquidity_calculator
-from app.services.deep_intelligence.analyzers.lifespan import token_lifespan_predictor
-from app.services.deep_intelligence.analyzers.monitor import post_purchase_monitor
 from app.services.deep_intelligence.analyzers.cross_chain import cross_chain_identity
+from app.services.deep_intelligence.analyzers.deployer import deployer_reputation
+from app.services.deep_intelligence.analyzers.exit_liquidity import exit_liquidity_calculator
+from app.services.deep_intelligence.analyzers.funding import funding_source_tracer
+from app.services.deep_intelligence.analyzers.lifespan import token_lifespan_predictor
+from app.services.deep_intelligence.analyzers.liquidity import liquidity_lock_authenticity
+from app.services.deep_intelligence.analyzers.monitor import post_purchase_monitor
+from app.services.deep_intelligence.analyzers.ownership import ownership_theater_detector
+from app.services.deep_intelligence.analyzers.preflight import preflight_simulate
+from app.services.deep_intelligence.analyzers.slow_rug import slow_rug_detector
 from app.services.deep_intelligence.analyzers.social import social_onchain_correlation
 from app.services.deep_intelligence.analyzers.threat_intel import threat_intel_check
+from app.services.deep_intelligence.analyzers.volume import volume_authenticity
 from app.services.deep_intelligence.core import logger
+from app.sweep_all import results
 
 logger = get_logger("deep_intel")
 

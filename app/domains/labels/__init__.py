@@ -21,6 +21,7 @@ via federation.
 """
 
 from __future__ import annotations
+
 from app.domains.labels.federated import (
     FederatedLabelAPI,
     get_federated_api,

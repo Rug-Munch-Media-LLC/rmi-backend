@@ -1,19 +1,21 @@
 """Tool catalog — /mcp/tools, /tools, /mcp/capabilities."""
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Request
 
 from app.core.logging import get_logger
+
 from .config import (
-    _get_tools,
-    _get_facilitator_count,
-    _desc,
-    _input_schema,
     SERVER_NAME,
     SERVER_VERSION,
+    _desc,
+    _get_facilitator_count,
+    _get_tools,
+    _input_schema,
 )
 
 logger = get_logger("rmi_mcp_v3")

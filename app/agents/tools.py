@@ -1,7 +1,9 @@
 """Agent tools — wrappers around RMI capabilities for LLM tool-use."""
 
 from __future__ import annotations
+
 from typing import Any
+
 
 class AgentTool:
     """Base tool for agent use."""

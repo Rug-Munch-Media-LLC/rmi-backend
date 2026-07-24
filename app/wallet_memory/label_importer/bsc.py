@@ -1,13 +1,15 @@
 """BSC label loader."""
 
 from __future__ import annotations
+
 import csv
 import json
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
+
 from .config import LABELS_DIR
-from .loaders import _normalize_chain, _flush_batch
+from .loaders import _flush_batch, _normalize_chain
 
 logger = get_logger("wallet_memory.label_importer")
 

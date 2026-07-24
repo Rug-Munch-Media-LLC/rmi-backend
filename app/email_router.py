@@ -5,14 +5,15 @@ SMTP relay: Gmail (cryptorugmuncher@gmail.com)
 """
 
 from __future__ import annotations
+
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/email", tags=["email"])

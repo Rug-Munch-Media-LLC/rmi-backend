@@ -1,9 +1,11 @@
 """x402 tool bundles and multi-chain payment facilitator config."""
 
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
+
 
 @dataclass
 class X402Bundle:

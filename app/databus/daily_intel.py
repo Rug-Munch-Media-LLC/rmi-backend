@@ -16,6 +16,7 @@ Free models used (zero cost):
 """
 
 from __future__ import annotations
+
 import os
 import re
 import subprocess
@@ -404,7 +405,7 @@ async def _publish_to_x(report: str, date_str: str) -> dict:
             return {"status": "posted", "platform": "x", "length": len(tweet_text)}
         else:
             return {"status": "failed", "platform": "x", "error": result.stderr[:200]}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"status": "error", "platform": "x", "error": str(e)[:200]}
 
 async def _publish_to_ghost(report: str, date_str: str) -> dict:

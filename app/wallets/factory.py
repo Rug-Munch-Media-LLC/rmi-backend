@@ -5,6 +5,7 @@ WalletFactory class with generate, batch, rotation, storage, and singleton.
 """
 
 from __future__ import annotations
+
 import json
 import os
 import time
@@ -12,9 +13,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
-
 from app.wallets.chain_registry import SUPPORTED_CHAINS
-from app.wallets.crypto import encrypt_key, decrypt_key, _has_cryptography
+from app.wallets.crypto import encrypt_key
 from app.wallets.generation import GENERATORS
 from app.wallets.models import WalletResult
 

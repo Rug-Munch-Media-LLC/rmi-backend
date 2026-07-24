@@ -3,6 +3,7 @@ Read from RMI_INTERNAL_KEY env var. No default — must be set in production.
 """
 
 from __future__ import annotations
+
 import os
 
 from app.core.logging import get_logger

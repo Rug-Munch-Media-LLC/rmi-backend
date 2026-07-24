@@ -7,11 +7,13 @@ Target users: trading bots, MEV searchers, degens, researchers.
 """
 
 from __future__ import annotations
+
 import json
 import os
+from typing import Any
 
 import httpx as req
-from typing import Any
+
 
 def gredis() -> Any:
     from dotenv import load_dotenv

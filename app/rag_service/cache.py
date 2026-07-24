@@ -1,6 +1,7 @@
 """Redis connection management for rag_service."""
 
 from __future__ import annotations
+
 import os
 
 from app.core.logging import get_logger

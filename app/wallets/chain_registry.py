@@ -5,6 +5,7 @@ ChainFamily enum, ChainConfig dataclass, and full SUPPORTED_CHAINS registry.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 from app.core.logging import get_logger

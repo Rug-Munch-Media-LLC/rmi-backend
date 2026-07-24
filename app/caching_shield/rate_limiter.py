@@ -2,6 +2,7 @@
 # The new UnifiedRateLimiter supports acquire_provider() for backward compat.
 # Remove after migration verified. Consolidates 7 rate limiters into 1.
 from __future__ import annotations
+
 """
 Aggressive Caching Shield - Token Bucket Rate Limiter
 Redis-backed rate limiting to stay under free tier RPC limits.
@@ -25,11 +26,11 @@ import asyncio
 import os
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("rpc_rate_limiter")
 

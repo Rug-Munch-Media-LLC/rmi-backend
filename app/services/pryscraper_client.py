@@ -190,7 +190,7 @@ class PryscraperClient:
                 # Server error (5xx) — trip circuit breaker
                 if resp.status_code >= 500:
                     await _pry_cb.record_failure(is_server_error=True)
-                    last_exc = IOError(f"Pry HTTP {resp.status_code} on {path}: {resp.text[:200]}")
+                    last_exc = OSError(f"Pry HTTP {resp.status_code} on {path}: {resp.text[:200]}")
                     if attempt < 3:
                         await asyncio.sleep(2**attempt)
                     continue
@@ -222,7 +222,7 @@ class PryscraperClient:
             "upstream_error",
             f"Pryscraper unreachable after 3 retries: {last_exc}"
             if last_exc
-            else f"Pryscraper unreachable after 3 retries",
+            else "Pryscraper unreachable after 3 retries",
         )
 
     async def _handle_x402(self, resp: httpx.Response, operation: str | None) -> bool:

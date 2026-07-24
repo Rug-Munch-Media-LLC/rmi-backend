@@ -7,6 +7,7 @@ ERC-8004 registered (Agent #23175).
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import aiohttp

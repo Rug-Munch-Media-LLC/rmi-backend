@@ -8,10 +8,11 @@ Predict survival probability at 7d, 30d, 90d.
 
 from __future__ import annotations
 
-from typing import Any
 from datetime import UTC, datetime
+from typing import Any
 
 from app.services.deep_intelligence.core import client, logger
+
 
 async def token_lifespan_predictor(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """

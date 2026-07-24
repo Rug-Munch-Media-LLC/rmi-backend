@@ -7,7 +7,7 @@ classification, and alert generation.
 """
 
 from __future__ import annotations
-import logging
+
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
@@ -28,8 +28,8 @@ from app.detectors.flash_loan.models import (
     FlashLoanAttack,
     FlashLoanCall,
     FlashLoanProtocol,
-    TransactionTrace,
     ScanReport,
+    TransactionTrace,
 )
 
 logger = get_logger(__name__)

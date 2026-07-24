@@ -3,6 +3,8 @@ Portfolio aggregator: calculates total value and 24h change from holdings.
 """
 
 from __future__ import annotations
+
+
 def build_portfolio(holdings: list) -> dict:
     """
     Aggregate token holdings into a portfolio summary.

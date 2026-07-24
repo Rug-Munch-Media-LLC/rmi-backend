@@ -1,6 +1,7 @@
 """Arkham Intelligence providers — Free trial month, premium entity data."""
 
 from __future__ import annotations
+
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger

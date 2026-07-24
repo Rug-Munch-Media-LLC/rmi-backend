@@ -1,14 +1,23 @@
 """Main portfolio risk aggregator."""
 from __future__ import annotations
+
 import asyncio
 import logging
 import sys
-from typing import Any
+
 from app.core.logging import get_logger
-from .config import CHAIN_CONFIGS, MAX_TOKENS_PER_WALLET, RISK_WEIGHT_TOKENS, RISK_WEIGHT_CONCENTRATION, RISK_WEIGHT_CHAIN_DIVERSITY, validate_wallet_address
-from .models import TokenHolding, ChainPortfolio, PortfolioRiskProfile
-from .connectors import EVMConnector, SolanaConnector, ChainConnector
-from .scorers import TokenRiskScorer, PriceOracle
+
+from .config import (
+    CHAIN_CONFIGS,
+    MAX_TOKENS_PER_WALLET,
+    RISK_WEIGHT_CHAIN_DIVERSITY,
+    RISK_WEIGHT_CONCENTRATION,
+    RISK_WEIGHT_TOKENS,
+    validate_wallet_address,
+)
+from .connectors import ChainConnector, EVMConnector, SolanaConnector
+from .models import ChainPortfolio, PortfolioRiskProfile, TokenHolding
+from .scorers import PriceOracle, TokenRiskScorer
 
 logger = get_logger(__name__)
 

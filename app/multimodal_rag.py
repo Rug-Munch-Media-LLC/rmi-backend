@@ -15,6 +15,7 @@ Designed to work with existing RAG pipeline: images → descriptions → embed �
 """
 
 from __future__ import annotations
+
 import hashlib
 import os
 from typing import Any

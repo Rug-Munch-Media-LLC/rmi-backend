@@ -6,14 +6,15 @@ This stub re-exports everything for backward compatibility.
 """
 
 from __future__ import annotations
+
 from app.domains.detectors.pump_dump_detector_package import *  # noqa: F403
 
 __all__ = [
+    "PUMP_DUMP_THRESHOLDS",
     "CoordinatedBuyGroup",
     "FindingSeverity",
     "ManipulationFinding",
     "ManipulationType",
-    "PUMP_DUMP_THRESHOLDS",
     "PrePumpAccumulation",
     "PricePumpSignal",
     "PumpDumpAnalysisResult",

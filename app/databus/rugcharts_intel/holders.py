@@ -4,13 +4,15 @@ Distribution analysis (Gini, concentration, freshness).
 """
 
 from __future__ import annotations
+
 import json
 from datetime import UTC, datetime
 
 import httpx
 
 from app.core.logging import get_logger
-from .cache import _r, CACHE_TTL, HELIUS_KEY
+
+from .cache import CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 

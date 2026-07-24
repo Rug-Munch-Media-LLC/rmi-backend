@@ -214,7 +214,7 @@ def _try_register_deprecation_header(app: FastAPI) -> None:
 def _try_register_rate_limit_middleware(app: FastAPI) -> None:
     """T28b — Unified token-bucket rate limiting for all paths."""
     try:
-        from app.core.rate_limiter import get_rate_limiter, RateLimitMiddleware
+        from app.core.rate_limiter import RateLimitMiddleware, get_rate_limiter
 
         limiter = get_rate_limiter()
         app.add_middleware(RateLimitMiddleware, limiter=limiter)

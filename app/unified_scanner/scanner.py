@@ -3,6 +3,7 @@ Core wallet scan logic: scan_wallet() and risk scoring.
 """
 
 from __future__ import annotations
+
 import asyncio
 import hashlib
 from datetime import UTC, datetime
@@ -34,6 +35,7 @@ from app.unified_scanner.providers import (
     _scan_held_tokens,
     _trace_funding_source,
 )
+
 
 async def scan_wallet(
     wallet_address: str, chain: str = "solana", tier: str = "free"

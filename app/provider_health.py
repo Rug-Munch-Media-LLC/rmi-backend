@@ -5,6 +5,7 @@ Live status of all 10 embedding providers + enterprise credit burn rate.
 """
 
 from __future__ import annotations
+
 import time
 
 from app.core.logging import get_logger

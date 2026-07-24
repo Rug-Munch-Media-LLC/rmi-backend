@@ -9,15 +9,16 @@ Wired into DataBus as 'ohlcv' chain.
 """
 
 from __future__ import annotations
+
 import json
 import os
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 import redis
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("ohlcv_engine")
 
@@ -238,7 +239,7 @@ class OHLCVEngine:
                 try:
                     c = json.loads(item)
                     candles.append(c)
-                except (httpx.HTTPError, json.JSONDecodeError):  # noqa: BLE001
+                except (httpx.HTTPError, json.JSONDecodeError):
                     pass
 
             # Sort by timestamp ascending

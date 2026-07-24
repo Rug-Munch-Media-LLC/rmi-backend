@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
+from fastapi.responses import HTMLResponse
 
 from app.core.errors import ValidationError
-from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["x402-Docs"])
 

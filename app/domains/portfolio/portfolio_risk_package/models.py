@@ -3,11 +3,13 @@ Portfolio Risk — Data Models
 Enums, dataclasses, and result types for cross-chain portfolio risk analysis.
 """
 from __future__ import annotations
+
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
 
 class RiskLevel(Enum):
     SAFE = "safe"
@@ -17,7 +19,7 @@ class RiskLevel(Enum):
     CRITICAL = "critical"
 
     @classmethod
-    def from_score(cls, score: float) -> "RiskLevel":
+    def from_score(cls, score: float) -> RiskLevel:
         if score >= 80:
             return cls.SAFE
         elif score >= 60:

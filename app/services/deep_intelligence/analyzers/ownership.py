@@ -12,6 +12,7 @@ from typing import Any
 
 from app.services.deep_intelligence.core import cfg, client
 
+
 async def ownership_theater_detector(token_address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Detect fake renunciation: hidden admin roles, upgradeable proxies,

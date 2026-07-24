@@ -12,6 +12,7 @@ from typing import Any
 
 from app.services.deep_intelligence.core import client
 
+
 async def exit_liquidity_calculator(
     token_address: str, position_usd: float = 1000, chain: str = "sol"
 ) -> dict[str, Any]:

@@ -12,6 +12,7 @@ Produces structured community reports that answer:
 """
 
 from __future__ import annotations
+
 import json
 from collections import defaultdict
 from typing import Any

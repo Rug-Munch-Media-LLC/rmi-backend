@@ -1,8 +1,7 @@
 """Data models for prediction market intelligence."""
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Any
 
 SECURITY_KEYWORDS = ["hack","exploit","rug","scam","fraud","breach","leak","drain","phish","backdoor","vulnerability","zero-day","sanction","indict","arrest","freeze","seize","clampdown","depeg","insolvent","bankrupt","collapse","default","theft","heist","compromise","ransomware","malware","SEC","CFTC","DOJ","FBI","regulatory","enforcement"]
 CRYPTO_KEYWORDS = ["bitcoin","ethereum","solana","crypto","defi","token","blockchain","web3","nft","stablecoin","usdt","usdc","dai","exchange","binance","coinbase","uniswap","aave","tether","circle","layer","L1","L2","rollup","bridge","polygon","arbitrum","optimism","avalanche","fantom","chainlink","makerdao","lido","eigenlayer"]

@@ -3,6 +3,7 @@ Tests for the Supply Manipulation / Bundler Detector (bundler_detect.py)
 """
 
 from __future__ import annotations
+
 import asyncio
 import unittest
 from unittest.mock import patch
@@ -18,6 +19,7 @@ from bundler_detect import (
     _label_risk,
     _time_cluster_similarity,
 )
+
 
 class TestHelpers(unittest.TestCase):
     """Test scoring helper functions."""

@@ -1,5 +1,6 @@
 """Pre-pump accumulation and lifecycle pattern detection signals."""
 from __future__ import annotations
+
 from collections import defaultdict
 
 import httpx
@@ -10,6 +11,7 @@ from app.domains.detectors.pump_dump_detector_package.types import (
     ManipulationType,
     PrePumpAccumulation,
 )
+
 
 async def detect_pre_pump_accumulation(
     client: httpx.AsyncClient, token_address: str, chain: str,

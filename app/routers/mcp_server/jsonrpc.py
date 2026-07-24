@@ -1,19 +1,21 @@
 """MCP JSON-RPC endpoint — POST /mcp (Streamable HTTP)."""
 
 from __future__ import annotations
+
 import json
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from typing import Any
 from app.config import settings
 from app.core.logging import get_logger
+
 from .config import (
-    _get_tools,
     MCP_PROTOCOL_VERSION,
     SERVER_NAME,
     SERVER_VERSION,
+    _get_tools,
 )
 
 logger = get_logger("rmi_mcp_v3")

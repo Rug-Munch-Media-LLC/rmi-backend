@@ -3,6 +3,7 @@ x402 DataBus Tools - Payment verification and request models.
 """
 
 from __future__ import annotations
+
 import json
 import os
 from typing import Any
@@ -127,7 +128,7 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
         cached_result = await r.get(f"x402:idempotent:{idem_hash}")
         if cached_result:
             logger.info(f"Idempotent x402 payment hit for key: {idempotency_key}")
-            return json.loads(cached_result)  # noqa: F823
+            return json.loads(cached_result)
 
     # Verify via x402 enforcement
     try:

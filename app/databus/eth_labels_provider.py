@@ -4,6 +4,7 @@ Queries the SQLite database built from dawsbot/eth-labels.
 """
 
 from __future__ import annotations
+
 import os
 import sqlite3
 

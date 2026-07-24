@@ -4,16 +4,17 @@ Every major news organization's crypto coverage. The biggest on the internet.
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import logging
 import time
+from typing import Any
 
 import httpx
 from defusedxml import ElementTree as SafeET
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("rmi.global")
 
@@ -127,11 +128,11 @@ def fetch_rss(source, url, limit=30) -> Any:
         # Some feeds have HTML entities that break XML parsing
         try:
             root = SafeET.fromstring(resp.content)
-        except (httpx.HTTPError):  # noqa: BLE001
+        except (httpx.HTTPError):
             try:
                 cleaned = resp.text.replace("&", "&amp;").replace("&amp;amp;", "&amp;")
                 root = SafeET.fromstring(cleaned.encode())
-            except (httpx.HTTPError):  # noqa: BLE001
+            except (httpx.HTTPError):
                 return results
 
         items = (
@@ -269,7 +270,7 @@ def fetch_all_global() -> dict[str, int] | dict[str, str]:
                 pg.commit()
                 cur.close()
                 pg.close()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error(f"PG: {e}")
 
             return {

@@ -3,6 +3,7 @@ Prediction Market — Data Models
 Unified dataclasses across all prediction market sources.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 SECURITY_KEYWORDS = [

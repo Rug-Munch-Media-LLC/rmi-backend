@@ -1,5 +1,6 @@
 # AI Security Guard
 from __future__ import annotations
+
 """AI content moderation and malicious request detection"""
 
 class SecurityResult:

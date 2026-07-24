@@ -1,15 +1,16 @@
 """Scanner module — split from modules.py for maintainability."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.domains.scanner.modules._core import (
     EXPLORER_APIS,
     _fetch_dexscreener,
     _fetch_json,
-    _fetch_with_fallback,
     logger,
 )
+
 
 async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get deployer address and basic reputation score.

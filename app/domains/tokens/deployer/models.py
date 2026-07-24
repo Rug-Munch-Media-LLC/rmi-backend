@@ -1,9 +1,11 @@
 """Deployment record and parameter data models."""
 
 from __future__ import annotations
+
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+
 
 @dataclass
 class TokenDeployment:

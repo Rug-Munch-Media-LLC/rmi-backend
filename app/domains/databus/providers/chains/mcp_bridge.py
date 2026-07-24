@@ -5,6 +5,7 @@ Uses subprocess to invoke opencode MCP tools and returns parsed results.
 """
 
 from __future__ import annotations
+
 import json
 import subprocess
 

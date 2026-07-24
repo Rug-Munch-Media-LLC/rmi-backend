@@ -7,11 +7,12 @@ Sources:
 """
 
 from __future__ import annotations
+
 import json
 import os
+from typing import Any
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

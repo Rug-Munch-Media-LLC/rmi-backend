@@ -3,6 +3,7 @@ RIP — Data Source Wrappers
 External API calls for LP data, deployer info, wallet age, etc.
 """
 from __future__ import annotations
+
 import time
 
 from app.core.logging import get_logger

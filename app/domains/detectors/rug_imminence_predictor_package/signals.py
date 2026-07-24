@@ -5,6 +5,7 @@ Each function operates on a RIPResult and updates one signal category.
 """
 
 from __future__ import annotations
+
 from app.core.logging import get_logger
 from app.domains.detectors.rug_imminence_predictor_package.types import RIPResult
 

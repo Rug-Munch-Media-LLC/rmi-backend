@@ -5,6 +5,7 @@ Detect smart money wallet activity for a given token.
 """
 
 from __future__ import annotations
+
 import httpx
 
 from app.core.logging import get_logger

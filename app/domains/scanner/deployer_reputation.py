@@ -20,6 +20,7 @@ Returns a 0-100 risk score with human-readable explanation.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import numpy as np

@@ -1,6 +1,7 @@
 """Auto-generated tool definitions for CHAIN_VARIANTS."""
 
 from __future__ import annotations
+
 CHAIN_VARIANTS = {
     "honeypot_check_solana": {
         "price_usd": 0.03,

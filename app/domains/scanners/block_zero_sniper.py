@@ -21,6 +21,7 @@ Data sources (direct API calls - no circular imports):
 """
 
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
 from typing import Any

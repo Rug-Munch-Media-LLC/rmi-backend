@@ -6,6 +6,7 @@ Proves CRM ↔ SOSANA ↔ PBTC ↔ SHIFT AI connections.
 """
 
 from __future__ import annotations
+
 import asyncio
 import contextlib
 import logging

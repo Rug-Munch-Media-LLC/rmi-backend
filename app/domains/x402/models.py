@@ -6,6 +6,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+
 class X402Tier(StrEnum):
     """x402 payment tier - maps to scanner tiers."""
 

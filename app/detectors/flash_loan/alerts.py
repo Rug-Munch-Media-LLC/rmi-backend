@@ -6,6 +6,7 @@ for detected flash loan attacks.
 """
 
 from __future__ import annotations
+
 import argparse
 import asyncio
 import json

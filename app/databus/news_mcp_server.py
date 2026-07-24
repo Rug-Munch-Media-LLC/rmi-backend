@@ -7,6 +7,7 @@ Totally free. No API key needed. Built for the people.
 """
 
 from __future__ import annotations
+
 import json
 
 from fastmcp import FastMCP

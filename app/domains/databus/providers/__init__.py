@@ -9,6 +9,7 @@ Backward-compat re-export layer. All implementations are in:
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger

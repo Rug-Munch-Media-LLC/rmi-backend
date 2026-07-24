@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+
 class LabelSource(StrEnum):
     """Which source a label came from. Used for provenance + dedup."""
 

@@ -14,6 +14,7 @@ Providers:
 """
 
 from __future__ import annotations
+
 from app.databus.providers import (  # noqa: F401
     _arkham_counterparties,
     _arkham_entity,

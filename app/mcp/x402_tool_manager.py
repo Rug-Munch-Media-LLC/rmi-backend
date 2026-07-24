@@ -1,6 +1,7 @@
 """x402 tool manager - loads and exposes tool bundles across free/trial/premium tiers."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 from app.core.logging import get_logger

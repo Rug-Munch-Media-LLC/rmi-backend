@@ -5,12 +5,10 @@ Data models, enums, and constants for supply manipulation detection.
 """
 
 from __future__ import annotations
-import re
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
-
-from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE
 
 # ── Constants ──────────────────────────────────────────────────
 

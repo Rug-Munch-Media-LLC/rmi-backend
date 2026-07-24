@@ -16,6 +16,7 @@ Pure computation module - no external API calls needed.
 """
 
 from __future__ import annotations
+
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime

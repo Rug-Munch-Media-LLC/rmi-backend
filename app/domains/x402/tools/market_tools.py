@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 async def get_market_overview(chain: str = "solana") -> dict[str, Any]:
     """Get market overview for a chain."""
     return {

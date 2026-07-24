@@ -8,4 +8,5 @@ Submodules:
 """
 
 from __future__ import annotations
-from app.security.ai_guard import *  # noqa: F401, F403
+
+from app.security.ai_guard import *  # noqa: F403

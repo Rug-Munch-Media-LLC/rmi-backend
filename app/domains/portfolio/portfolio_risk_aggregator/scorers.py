@@ -1,9 +1,12 @@
 """Token risk scoring and pricing."""
 from __future__ import annotations
+
 import importlib
 from typing import Any
+
 from app.core.logging import get_logger
-from .config import KNOWN_SCAM_TOKENS, COMMON_TOKENS, CHAIN_CONFIGS
+
+from .config import CHAIN_CONFIGS, COMMON_TOKENS, KNOWN_SCAM_TOKENS
 
 logger = get_logger(__name__)
 

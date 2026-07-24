@@ -3,6 +3,7 @@ MEV Detector — Bot Registry
 Known MEV bots from public sources.
 """
 from __future__ import annotations
+
 from typing import Any
 
 from app.domains.detectors.mev_detector_package.models import MEVAttackType, MEVBotProfile

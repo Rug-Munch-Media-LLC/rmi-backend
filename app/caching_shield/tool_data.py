@@ -12,7 +12,9 @@ Usage in x402 routers:
 """
 
 from __future__ import annotations
+
 from app.caching_shield.unified_layer import get_data_layer
+
 
 class ToolData:
     """Cached, rate-limited data provider for x402 tool routers."""

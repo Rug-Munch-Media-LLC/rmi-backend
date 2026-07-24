@@ -2,6 +2,7 @@
 Store prompts in prompts/*.yaml. Load at startup, reload via API."""
 
 from __future__ import annotations
+
 import os
 from pathlib import Path
 from typing import Any

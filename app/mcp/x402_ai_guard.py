@@ -1,6 +1,7 @@
 """AI Guard middleware for x402 gateway. WAF-style filtering for malicious request patterns."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger

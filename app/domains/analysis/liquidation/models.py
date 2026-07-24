@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+
 class RiskTier(StrEnum):
     SAFE = "SAFE"
     WATCH = "WATCH"

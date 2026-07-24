@@ -3,11 +3,13 @@ MEV Detector — Data Models
 Enums, dataclasses for MEV attack detection.
 """
 from __future__ import annotations
+
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
 
 class MEVAttackType(Enum):
     SANDWICH = "sandwich"

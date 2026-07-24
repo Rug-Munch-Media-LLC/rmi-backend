@@ -4,6 +4,8 @@ Calculates profit/loss when user provides their average buy price.
 """
 
 from __future__ import annotations
+
+
 def calculate_token_pnl(token: dict, avg_cost: float) -> dict:
     """
     Calculate PnL for a specific token given user's average buy price.

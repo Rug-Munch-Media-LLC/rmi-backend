@@ -10,6 +10,7 @@ Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.databus.provider_core import (
@@ -21,6 +22,7 @@ from app.databus.provider_core import (
     _rate_limiters,
     _RateLimiter,
 )
+
 
 def premium_provider(name: str, fn: Any, rps: float = 3.0) -> Provider:
     """Create a LOCAL-tier provider with weight=10.0 and given rate limit.

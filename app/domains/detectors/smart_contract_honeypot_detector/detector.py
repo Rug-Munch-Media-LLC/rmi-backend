@@ -1,12 +1,17 @@
 """Main honeypot detector class."""
 from __future__ import annotations
-import os, re, json, time as time_mod
+
+import os
+import re
+import time as time_mod
 from datetime import UTC, datetime
-from typing import Any
+
 from app.core.logging import get_logger
+
 from .constants import BENIGN_SELECTORS, EVM_CHAINS, HONEYPOT_THRESHOLDS, KNOWN_MALICIOUS_SELECTORS
 from .models import FindingSeverity, HoneypotAnalysisResult, HoneypotType, SecurityFinding, TokenInfo
 from .utils import fetch_with_fallback
+
 logger = get_logger(__name__)
 
 class HoneypotDetector:

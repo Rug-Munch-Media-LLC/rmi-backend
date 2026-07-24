@@ -1,6 +1,8 @@
 """Pydantic request models for x402 DataBus tools."""
 from __future__ import annotations
+
 from pydantic import BaseModel
+
 
 class AddressRequest(BaseModel):
     address: str

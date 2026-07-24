@@ -6,15 +6,16 @@ returns proper RFC 7807 Problem Details.
 """
 
 from __future__ import annotations
+
+from typing import Any
+
 from fastapi import Request
-from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.routing import Mount, Route as StarletteRoute
 
 from app.config import settings
-from app.core.problem_details import ProblemDetail
 from app.core.logging import get_logger
-from typing import Any
+from app.core.problem_details import ProblemDetail
 
 log = get_logger(__name__)
 
@@ -58,8 +59,7 @@ def is_public_path(path: str, method: str) -> bool:
 
 def _path_has_route(path: str, routes: list) -> bool:
     """Check if a path matches any registered route. Simple prefix-based approach."""
-    from starlette.routing import Mount, Route as StarletteRoute
-    
+
     for route in routes:
         if isinstance(route, Mount):
             # Check if path starts with mount prefix

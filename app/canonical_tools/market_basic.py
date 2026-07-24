@@ -3,6 +3,7 @@ Canonical Tool Prices — Basic, Market, API, Monitoring, and Bundle categories.
 """
 
 from __future__ import annotations
+
 MARKET_BASIC_TOOLS = {
     # ── basic ──
     "catalog": {"price_usd": 0.0, "price_atoms": "0", "category": "api", "trial_free": 999, "description": "Browse available tools, pricing, and chain support"},

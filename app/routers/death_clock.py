@@ -10,11 +10,10 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
-
-from app.core.errors import UpstreamError
 from pydantic import BaseModel
 
 from app.config import settings
+from app.core.errors import UpstreamError
 from app.core.internal_key import INTERNAL_API_KEY
 
 router = APIRouter(prefix="/api/v1/death-clock", tags=["death-clock"])

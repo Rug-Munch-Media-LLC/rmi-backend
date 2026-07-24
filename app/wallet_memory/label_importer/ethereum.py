@@ -1,14 +1,16 @@
 """Ethereum label loaders — Etherscan combined + phish/hack."""
 
 from __future__ import annotations
+
+import contextlib
 import csv
 import json
-import contextlib
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
+
 from .config import ETHERSCAN_COMBINED, ETHERSCAN_PHISH_HACK
-from .loaders import _normalize_chain, _flush_batch
+from .loaders import _flush_batch, _normalize_chain
 
 logger = get_logger("wallet_memory.label_importer")
 
@@ -61,6 +63,7 @@ async def _load_etherscan_combined(storage) -> int:
     return count
 
 import os  # noqa: E402
+
 
 async def _load_etherscan_phish_hack(storage) -> int:
     """Load etherscan_phish_hack.csv."""

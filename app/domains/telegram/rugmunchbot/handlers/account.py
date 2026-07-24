@@ -27,6 +27,7 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     topup_kb,
 )
 
+
 async def cmd_account(update: Update, ctx) -> None:
     user = update.effective_user
     if user is None:

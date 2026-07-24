@@ -7,7 +7,7 @@ Type aliases and result model hints for the deep intelligence system.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any
 
 # ── Type aliases ───────────────────────────────────────────────────────────
 

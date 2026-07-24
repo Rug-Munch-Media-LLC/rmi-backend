@@ -3,7 +3,9 @@ Request models for x402 advanced tool endpoints.
 """
 
 from __future__ import annotations
+
 from pydantic import BaseModel, Field
+
 
 class AddressRequest(BaseModel):
     """Wallet or token address request."""

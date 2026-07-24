@@ -10,6 +10,7 @@ Premium feature: "4 tokens detected from same entity - coordinated rug campaign"
 """
 
 from __future__ import annotations
+
 import asyncio
 import hashlib
 from collections import defaultdict

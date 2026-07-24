@@ -1,15 +1,16 @@
 """DataBus Router — unified API endpoints."""
 
 from fastapi import APIRouter
-from app.databus.router.core import router as core_router
+
 from app.databus.router.admin import router as admin_router
-from app.databus.router.convenience import router as convenience_router
 from app.databus.router.batch_cache import router as batch_cache_router
-from app.databus.router.social import router as social_router
 from app.databus.router.bitquery import router as bitquery_router
-from app.databus.router.webhooks import router as webhooks_router
-from app.databus.router.premium import router as premium_router
+from app.databus.router.convenience import router as convenience_router
+from app.databus.router.core import router as core_router
 from app.databus.router.market_news import router as market_news_router
+from app.databus.router.premium import router as premium_router
+from app.databus.router.social import router as social_router
+from app.databus.router.webhooks import router as webhooks_router
 
 router = APIRouter(prefix="/api/v1/databus", tags=["databus"])
 router.include_router(core_router)

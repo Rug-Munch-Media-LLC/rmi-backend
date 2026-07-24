@@ -3,6 +3,7 @@ DataBus RAG Provider - wire the world-class RAG engine into DataBus.
 """
 
 from __future__ import annotations
+
 from app.core.logging import get_logger
 
 logger = get_logger("databus.rag_provider")

@@ -7,6 +7,7 @@ Network tests are skipped in offline mode.
 """
 
 from __future__ import annotations
+
 import os
 import sys
 import unittest
@@ -21,6 +22,7 @@ from app.clone_scanner import (
     name_similarity_score,
     string_similarity,
 )
+
 
 class TestStringHelpers(unittest.TestCase):
     """Core string similarity utilities."""

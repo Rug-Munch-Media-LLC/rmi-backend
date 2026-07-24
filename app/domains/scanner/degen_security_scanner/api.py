@@ -5,11 +5,13 @@ Module-level functions for one-shot scans and report formatting.
 """
 
 from __future__ import annotations
+
 import asyncio
 import sys
 
 from .models import SecurityReport
 from .scanner import DegenSecurityScanner
+
 
 async def scan_token(token_address: str, quick: bool = False) -> SecurityReport:
     """One-shot token scan."""

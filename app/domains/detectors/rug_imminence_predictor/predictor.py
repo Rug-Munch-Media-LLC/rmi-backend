@@ -1,25 +1,21 @@
 """Main Rug Imminence Predictor class."""
 
 from __future__ import annotations
+
 import asyncio
-import os
 import re
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 from app.core.logging import get_logger
-
-from app.domains.detectors.rug_imminence_predictor.models import (
-    ImminenceLevel,
-    SignalCategory,
-    RIPResult,
-)
 from app.domains.detectors.rug_imminence_predictor.config import (
     DEFAULT_WEIGHTS,
-    SIGNAL_NAMES,
     SCORE_THRESHOLDS,
-    _get_known_lp_lockers,
+    SIGNAL_NAMES,
+)
+from app.domains.detectors.rug_imminence_predictor.models import (
+    RIPResult,
+    SignalCategory,
 )
 
 logger = get_logger(__name__)
@@ -704,7 +700,9 @@ class RugImminencePredictor:
         return None
 
     async def _check_wallet_age(self, wallet: str, chain: str) -> dict | None:
-        import httpx, time
+        import time
+
+        import httpx
 
         try:
             if chain == "solana":

@@ -11,8 +11,8 @@ Usage:
 """
 
 from __future__ import annotations
-import sys as _sys
-from app.domains.portfolio.portfolio_risk_aggregator import *  # noqa: F401, F403
+
+from app.domains.portfolio.portfolio_risk_aggregator import *  # noqa: F403
 
 if __name__ == "__main__":
     from app.domains.portfolio.portfolio_risk_aggregator import main as _main

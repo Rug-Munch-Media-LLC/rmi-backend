@@ -31,6 +31,7 @@ Rate limits:
 """
 
 from __future__ import annotations
+
 import hashlib
 import time
 
@@ -106,7 +107,7 @@ class BitqueryProvider:
                 self._api_key = key
             self._loaded = True
             logger.info(f"Bitquery creds from vault (key={'✓' if self._api_key else '✗'})")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"Failed to load Bitquery credentials: {e}")
 
     async def _get_client(self) -> httpx.AsyncClient:

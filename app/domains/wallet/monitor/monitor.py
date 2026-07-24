@@ -5,7 +5,6 @@ import asyncio
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
 
 import httpx
 import websockets
@@ -14,7 +13,15 @@ from app.core.logging import get_logger
 from app.domains.wallet.monitor.alert_engine import AlertEngine
 from app.domains.wallet.monitor.burst import BurstDetector
 from app.domains.wallet.monitor.channel import AlertChannel
-from app.domains.wallet.monitor.config import CONFIG, WS_URLS, RPC_URLS, DEX_ROUTERS, SCAMMER_SET_KEY, TRANSFER_TOPIC, get_redis
+from app.domains.wallet.monitor.config import (
+    CONFIG,
+    DEX_ROUTERS,
+    RPC_URLS,
+    SCAMMER_SET_KEY,
+    TRANSFER_TOPIC,
+    WS_URLS,
+    get_redis,
+)
 from app.domains.wallet.monitor.labeler import AutoLabeler
 from app.domains.wallet.monitor.models import WalletAlert, WalletTx
 from app.domains.wallet.monitor.watchlist import WatchlistManager

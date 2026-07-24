@@ -11,6 +11,7 @@ Split from registry.py into categories/: market, security, wallet, intel, social
 """
 
 from __future__ import annotations
+
 import importlib
 from typing import Any
 

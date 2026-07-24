@@ -6,6 +6,7 @@ All usage counts against free tier (1TB queries/month - we'll use <1%).
 """
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger

@@ -1,6 +1,7 @@
 """Search and retrieval pipeline for RAG."""
 
 from __future__ import annotations
+
 import asyncio
 import json
 import re
@@ -299,7 +300,6 @@ async def three_pillar_search(
                 r["pillar"] = "sparse"
         except (ConnectionError, OSError, TimeoutError) as e:
             logger.debug(f"Sparse text search failed: {e}")
-            pass
     except (ConnectionError, OSError, TimeoutError) as e:
         logger.debug(f"SPLADE search failed: {e}")
         try:

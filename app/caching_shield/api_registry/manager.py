@@ -5,6 +5,7 @@ UnifiedApiManager singleton, get_api_manager, capacity_report.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger

@@ -1,7 +1,9 @@
 """Stub onchain_analyzer - onchain smart contract analysis"""
 
 from __future__ import annotations
+
 from typing import Any
+
 
 def get_w3(chain: str = "ethereum") -> None:
     """Get web3 instance for a chain (stub - returns None for testing)."""

@@ -4,6 +4,7 @@ academic_papers through kol_track — generated DataBus entries.
 """
 
 from __future__ import annotations
+
 X402_TOOL_PRICING_AUTOGEN_1 = {
     "academic_papers": {
         "price_usd": 0.01,

@@ -1,16 +1,17 @@
 """Embedding providers: Local BGE, Ollama bge-m3, OpenRouter, HuggingFace."""
 
 from __future__ import annotations
+
 import asyncio
 import os
 from typing import Any
 
 from app.core.logging import get_logger
-from app.crypto_embeddings.models import (
-    DIMS, HEAD_DEFAULTS, NVIDIA_EMBED_URL, OR_FALLBACK_EMBED,
-    OR_PAID_FALLBACK, OR_PRIMARY_EMBED,
-)
 from app.crypto_embeddings.features import extract_contract_features
+from app.crypto_embeddings.models import (
+    OR_FALLBACK_EMBED,
+    OR_PRIMARY_EMBED,
+)
 
 logger = get_logger(__name__)
 
@@ -127,8 +128,9 @@ class HuggingFaceEmbedder:
             raise ValueError("HUGGINGFACE_TOKEN required")
 
     async def embed(self, texts: list[str], model: str | None = None) -> list[list[float]]:
-        import httpx
         import asyncio as _asyncio
+
+        import httpx
 
         model_id = model or self.MODEL
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json", "x-wait-for-model": "true"}

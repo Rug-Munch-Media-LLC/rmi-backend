@@ -12,6 +12,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 from app.entity_extraction.extractor import extract_entities
 from app.entity_extraction.lookup import EntityLookup
 from app.entity_extraction.models import EntityExtractionResult

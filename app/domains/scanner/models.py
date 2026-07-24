@@ -1,9 +1,11 @@
 """Scanner data models and constants."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+
 
 @dataclass
 class ScanResult:

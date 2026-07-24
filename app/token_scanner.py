@@ -7,6 +7,7 @@ This file re-exports the main API from the new modules.
 """
 
 from __future__ import annotations
+
 from app.domains.scanner import ScanResult, quick_scan_text, scan_token
 
 __all__ = ["ScanResult", "quick_scan_text", "scan_token"]

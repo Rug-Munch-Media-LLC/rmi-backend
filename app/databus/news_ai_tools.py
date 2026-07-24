@@ -12,6 +12,7 @@ All powered by local Ollama - no external API costs.
 """
 
 from __future__ import annotations
+
 import json
 import time
 

@@ -1,8 +1,11 @@
 """DataBus Router sub-module. Core endpoints."""
 
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException, Query, Request
+
 from typing import Any
+
+from fastapi import APIRouter, HTTPException, Query, Request
+
 from app.core.logging import get_logger
 from app.databus.core import databus
 
@@ -10,6 +13,8 @@ logger = get_logger("databus.router.core")
 router = APIRouter(tags=["databus"])
 
 from app.databus.router._shared import verify_admin as _verify_admin
+
+
 @router.post("/fetch")
 async def databus_fetch(request: Request) -> Any:
     """

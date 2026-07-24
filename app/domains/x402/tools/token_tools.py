@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 async def get_token_risk(token_address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Get risk analysis for a token."""
     return {

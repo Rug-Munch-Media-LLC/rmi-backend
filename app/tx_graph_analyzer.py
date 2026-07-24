@@ -1,7 +1,9 @@
 """Stub tx_graph_analyzer - transaction graph analysis"""
 
 from __future__ import annotations
+
 from typing import Any
+
 
 class TransactionGraph:
     """Graph representation of transaction flows."""

@@ -1,8 +1,8 @@
 """External data providers: SENTINEL, Wallet Memory, threat intel, token scanning, etc."""
 
 from __future__ import annotations
+
 import asyncio
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx

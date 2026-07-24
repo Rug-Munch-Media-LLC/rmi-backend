@@ -1,12 +1,14 @@
 """Abstract base class for all chain deployers."""
 
 from __future__ import annotations
+
 import hashlib
 import time
 from abc import ABC, abstractmethod
 from typing import Any
 
 from app.domains.tokens.deployer.models import DeployParams, TokenDeployment
+
 
 class ChainDeployer(ABC):
     """Abstract base for all chain deployers."""

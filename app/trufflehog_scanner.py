@@ -10,6 +10,7 @@ Secure scanning for git repositories and code to detect:
 """
 
 from __future__ import annotations
+
 import json
 import subprocess
 from dataclasses import dataclass

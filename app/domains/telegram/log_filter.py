@@ -1,5 +1,6 @@
 """Log filter that redacts Telegram bot tokens from all log output."""
 from __future__ import annotations
+
 import logging
 import re
 

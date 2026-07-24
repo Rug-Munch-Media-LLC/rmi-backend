@@ -5,6 +5,7 @@ Re-exports all public functions for backward compatibility.
 """
 
 from __future__ import annotations
+
 import json
 import time
 
@@ -13,31 +14,43 @@ from app.core.logging import get_logger
 logger = get_logger("wallet_memory.label_importer")
 
 # Re-export config
+from .bsc import _load_bsc_detail
+from .clean import load_clean_labels
 from .config import (
-    DATA_DIR, LABELS_DIR, ETHERSCAN_COMBINED, ETHERSCAN_PHISH_HACK,
-    SOLANA_CSV_SPECS, ETH_CSV_SPECS, SOLANA_LABELS_REPO,
+    DATA_DIR,
+    ETH_CSV_SPECS,
+    ETHERSCAN_COMBINED,
+    ETHERSCAN_PHISH_HACK,
+    LABELS_DIR,
+    SOLANA_CSV_SPECS,
+    SOLANA_LABELS_REPO,
 )
 
 # Re-export download helpers
 from .download import (
-    _get_http, _download_file, _download_json,
-    _ensure_solana_labels, _ensure_eth_scam_labels,
-    _ensure_bsc_labels, _ensure_exchange_cluster_labels,
-    _ensure_contract_name_labels, _ensure_exchange_wallet_labels,
-)
-
-# Re-export shared loaders
-from .loaders import (
-    _load_csv_labels, _flush_batch, _normalize_chain,
-    _ensure_wallet_labels_table,
+    _download_file,
+    _download_json,
+    _ensure_bsc_labels,
+    _ensure_contract_name_labels,
+    _ensure_eth_scam_labels,
+    _ensure_exchange_cluster_labels,
+    _ensure_exchange_wallet_labels,
+    _ensure_solana_labels,
+    _get_http,
 )
 
 # Re-export source-specific loaders
 from .ethereum import _load_etherscan_combined, _load_etherscan_phish_hack
-from .bsc import _load_bsc_detail
-from .exchange import _load_exchange_clusters, _load_contract_names, _load_exchange_wallets
+from .exchange import _load_contract_names, _load_exchange_clusters, _load_exchange_wallets
+
+# Re-export shared loaders
+from .loaders import (
+    _ensure_wallet_labels_table,
+    _flush_batch,
+    _load_csv_labels,
+    _normalize_chain,
+)
 from .ofac import _load_ofac_sanctions
-from .clean import load_clean_labels
 
 # ── Module state ──
 
@@ -171,8 +184,8 @@ async def load_all_static_labels() -> dict[str, int]:
 import os  # noqa: E402 (used in load_all_static_labels)
 
 __all__ = [
-    "load_all_static_labels",
     "get_last_load_counts",
     "is_loading",
+    "load_all_static_labels",
     "load_clean_labels",
 ]

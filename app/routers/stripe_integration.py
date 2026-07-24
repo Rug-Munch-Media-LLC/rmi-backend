@@ -15,13 +15,13 @@ from __future__ import annotations
 import json
 import os
 import time
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("stripe")
 

@@ -4,13 +4,15 @@ RAG-powered similarity to known rug pulls.
 """
 
 from __future__ import annotations
+
 import json
 import time
 
 import httpx
 
 from app.core.logging import get_logger
-from .cache import _r, CACHE_TTL, HELIUS_KEY
+
+from .cache import CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 

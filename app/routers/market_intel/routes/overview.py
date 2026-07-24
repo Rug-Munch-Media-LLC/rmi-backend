@@ -4,9 +4,10 @@ Global market overview, movers, chains, fear & greed, on-chain metrics, macro, s
 """
 
 from __future__ import annotations
+
 from fastapi import APIRouter, Query, Request
 
-from app.routers.market_intel.providers import _cg, _fng, _binance_funding
+from app.routers.market_intel.providers import _cg, _fng
 from app.routers.market_intel.utils import _now, _safe_float
 
 router = APIRouter(tags=["market-intel"])

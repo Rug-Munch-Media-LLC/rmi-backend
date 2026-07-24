@@ -1,8 +1,11 @@
 """Embedding Router - thin wrapper around smart rate-limited dispatcher."""
 
 from __future__ import annotations
-from app.rate_limiter import get_dispatcher
+
 from typing import Any
+
+from app.rate_limiter import get_dispatcher
+
 
 async def get_router() -> Any:
     return await get_dispatcher()

@@ -5,6 +5,7 @@ This shim re-exports for legacy callers.
 """
 
 from __future__ import annotations
+
 import importlib as _importlib
 import sys as _sys
 

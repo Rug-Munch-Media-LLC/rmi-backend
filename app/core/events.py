@@ -44,9 +44,10 @@ DO NOT:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine, Generic, TypeVar
+from collections.abc import Callable, Coroutine
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from typing import Any, TypeVar
 
 from app.core.logging import get_logger
 
@@ -74,7 +75,7 @@ class BaseEvent:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
         if not self.event_id:
             import uuid
 

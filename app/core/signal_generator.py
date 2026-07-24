@@ -7,12 +7,12 @@ import asyncio
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

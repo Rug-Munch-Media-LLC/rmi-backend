@@ -5,11 +5,12 @@ All backed by the unified data fallback engine.
 """
 
 from __future__ import annotations
+
 import time
+from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Any
 
 router = APIRouter(prefix="/api/v1/investigate", tags=["investigate"])
 

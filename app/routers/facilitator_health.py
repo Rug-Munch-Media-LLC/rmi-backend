@@ -18,13 +18,13 @@ Date: 2026-06-05
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis
-from typing import Any
 
 logger = get_logger("facilitator_health")
 

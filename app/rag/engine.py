@@ -100,7 +100,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
 
         r = get_redis()
         raw = r.hgetall(f"rag:ann:{collection}:docs")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         log.debug("keyword_search_redis_failed: %s", e)
         return []
 
@@ -119,7 +119,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
         "all", "can", "will", "just", "very", "also", "than", "then",
         "each", "which", "what", "when", "where", "how", "who",
     }
-    
+
     # Sample large collections to prevent OOM — process up to 10K docs max
     MAX_KEYWORD_DOCS = 10_000
     if len(raw) > MAX_KEYWORD_DOCS:

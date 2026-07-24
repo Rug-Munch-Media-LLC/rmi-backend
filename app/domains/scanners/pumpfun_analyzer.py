@@ -17,6 +17,7 @@ Pump.fun bonding curve model:
 """
 
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
 

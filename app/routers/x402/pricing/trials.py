@@ -6,6 +6,7 @@ Humans connect wallet for full trial allotment.
 """
 
 from __future__ import annotations
+
 import os
 from typing import Any
 

@@ -15,9 +15,10 @@ Architecture:
 
 # Combine pricing catalog from submodules
 from __future__ import annotations
-from app.routers.x402.pricing.catalog_manual import X402_TOOL_PRICING_MANUAL
+
 from app.routers.x402.pricing.catalog_autogen_1 import X402_TOOL_PRICING_AUTOGEN_1
 from app.routers.x402.pricing.catalog_autogen_2 import X402_TOOL_PRICING_AUTOGEN_2
+from app.routers.x402.pricing.catalog_manual import X402_TOOL_PRICING_MANUAL
 from app.routers.x402.pricing.trials import (
     TRIAL_REDIS_PREFIX,
     TRIAL_WINDOW_SECONDS,
@@ -31,9 +32,9 @@ X402_TOOL_PRICING.update(X402_TOOL_PRICING_AUTOGEN_1)
 X402_TOOL_PRICING.update(X402_TOOL_PRICING_AUTOGEN_2)
 
 __all__ = [
+    "TRIAL_REDIS_PREFIX",
+    "TRIAL_WINDOW_SECONDS",
     "X402_TOOL_PRICING",
     "check_trial",
     "consume_trial",
-    "TRIAL_REDIS_PREFIX",
-    "TRIAL_WINDOW_SECONDS",
 ]

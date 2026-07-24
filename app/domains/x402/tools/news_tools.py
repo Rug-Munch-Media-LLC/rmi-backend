@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 async def get_news(token: str, chain: str = "solana") -> dict[str, Any]:
     """Get news mentions for a token."""
     return {

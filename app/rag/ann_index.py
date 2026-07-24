@@ -121,7 +121,7 @@ class ANNIndex:
         try:
             r = _get_redis()
             raw = r.hgetall(self._key_docs())
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.warning("ann_load_failed collection=%s err=%s", self.collection, e)
             raw = {}
 

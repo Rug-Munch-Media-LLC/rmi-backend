@@ -1,7 +1,9 @@
 """Stub portfolio_tracker - multi-wallet portfolio aggregation"""
 
 from __future__ import annotations
+
 from typing import Any
+
 
 def get_portfolio(wallet: str, chain: str = "base") -> dict[str, Any]:
     """Get portfolio for a single wallet."""

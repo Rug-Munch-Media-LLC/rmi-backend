@@ -5,6 +5,7 @@ Standalone heuristic helpers for quick checks and tests.
 """
 
 from __future__ import annotations
+
 import math
 
 from .constants import MIN_TWAP_SAMPLES, TWAP_MANIPULATION_THRESHOLD_PCT
@@ -15,6 +16,7 @@ from .models import (
     Severity,
     TWAPWindow,
 )
+
 
 def detect_twap_manipulation(twap: TWAPWindow) -> PriceManipulation | None:
     """Quick TWAP manipulation check - usable without instantiating the detector."""

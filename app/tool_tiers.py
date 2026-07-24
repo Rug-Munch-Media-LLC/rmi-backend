@@ -20,6 +20,7 @@ Tier logic:
 # ── Complete tool tier classification ──────────────────────────
 
 from __future__ import annotations
+
 TOOL_TIERS = {
     # ═══ BASIC TIER ($0.01-0.02) - Quick Scans & Lookups ═══
     "urlcheck": {

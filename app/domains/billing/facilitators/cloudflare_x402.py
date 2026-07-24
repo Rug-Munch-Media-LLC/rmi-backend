@@ -8,6 +8,7 @@ Used as a fallback when Coinbase CDP and PayAI are both unavailable.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import aiohttp

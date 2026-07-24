@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 async def generate_report(
     subject_type: str, subject_id: str, model: str = "deepseek-v3"
 ) -> dict[str, Any]:

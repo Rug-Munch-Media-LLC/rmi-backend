@@ -17,16 +17,16 @@ Split from monolithic clustering.py into:
 
 import logging
 
-from app.domains.wallet.clustering.models import Transaction, WalletProfile, Cluster, Connection
 from app.domains.wallet.clustering.engine import WalletClusteringEngine, get_clustering_engine
+from app.domains.wallet.clustering.models import Cluster, Connection, Transaction, WalletProfile
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "Transaction",
-    "WalletProfile",
     "Cluster",
     "Connection",
+    "Transaction",
     "WalletClusteringEngine",
+    "WalletProfile",
     "get_clustering_engine",
 ]

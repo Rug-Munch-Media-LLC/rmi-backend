@@ -2,9 +2,11 @@
 Priority: real-time → Cerebras (9ms), cheap → Ollama ($0), complex → DeepSeek, bulk → Mistral."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+
 
 class TaskType(Enum):
     FAST = "fast"  # < 100ms needed - Cerebras, Groq

@@ -1,6 +1,7 @@
 """Multi-chain airdrop campaign manager and convenience functions."""
 
 from __future__ import annotations
+
 import json
 import time
 from datetime import UTC, datetime

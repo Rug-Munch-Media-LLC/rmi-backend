@@ -1,7 +1,10 @@
 """Caching and serialization helpers for prediction markets."""
 from __future__ import annotations
-import hashlib, json
-from .models import PredictionMarket, PredictionDigest
+
+import hashlib
+
+from .models import PredictionDigest, PredictionMarket
+
 
 def _cache_hash(*args) -> str:
     raw = "|".join(str(a) for a in args)

@@ -5,6 +5,7 @@ Uses Warpcast v2 API (free, no auth needed for public data).
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger

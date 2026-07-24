@@ -7,6 +7,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 import os
 
 CLICKHOUSE_HOST = os.getenv("CH_HOST", "rmi-clickhouse")

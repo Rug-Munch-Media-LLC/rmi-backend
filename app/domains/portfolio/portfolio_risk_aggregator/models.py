@@ -1,10 +1,12 @@
 """Data models for portfolio risk aggregation."""
 from __future__ import annotations
+
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
 
 class RiskLevel(Enum):
     SAFE = "safe"
@@ -14,7 +16,7 @@ class RiskLevel(Enum):
     CRITICAL = "critical"
 
     @classmethod
-    def from_score(cls, score: float) -> "RiskLevel":
+    def from_score(cls, score: float) -> RiskLevel:
         if score >= 80: return cls.SAFE
         if score >= 60: return cls.LOW
         if score >= 40: return cls.MEDIUM

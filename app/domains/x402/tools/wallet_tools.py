@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 async def get_wallet_analysis(wallet_address: str, chain: str = "solana") -> dict[str, Any]:
     """Get wallet behavior analysis."""
     return {

@@ -2,6 +2,7 @@
 Credit-conserving: uses Small 4 for bulk, Medium 3.5 only when needed."""
 
 from __future__ import annotations
+
 import os
 
 import httpx

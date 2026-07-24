@@ -1,6 +1,7 @@
 """Label ORM model."""
 
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from typing import Any
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
 from app.models.base import TimestampMixin
+
 
 class Label(Base, TimestampMixin):
     __tablename__ = "labels"

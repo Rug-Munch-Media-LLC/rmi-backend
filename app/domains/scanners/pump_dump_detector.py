@@ -13,6 +13,7 @@ Uses direct API calls: DexScreener, Birdeye, Solscan, Helius.
 """
 
 from __future__ import annotations
+
 import os
 import time
 from collections import defaultdict

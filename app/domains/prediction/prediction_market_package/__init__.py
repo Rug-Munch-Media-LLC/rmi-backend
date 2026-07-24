@@ -9,6 +9,7 @@ Usage:
     results = await service.search("bitcoin hack")
 """
 from __future__ import annotations
+
 from app.domains.prediction.prediction_market_package.models import (
     PredictionDigest,
     PredictionMarket,

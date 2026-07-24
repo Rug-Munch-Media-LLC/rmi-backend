@@ -466,6 +466,7 @@ def get_rate_limiter() -> UnifiedRateLimiter:
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """FastAPI middleware that applies rate limits from PATH_CATEGORIES."""
 
@@ -492,6 +493,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 # ═══════════════════════════════════════════════════════════════════════════
 
 from fastapi import HTTPException
+
 
 class RateLimitDependency:
     """FastAPI dependency for per-endpoint rate limiting."""

@@ -14,9 +14,11 @@ All other functionality has been moved to focused modules:
 """
 
 from __future__ import annotations
+
 from app.domains.wallet.analysis import WalletAnalysisMixin
 from app.domains.wallet.db import WalletDBMixin
 from app.domains.wallet.generation import WalletGenerationMixin
+
 
 class WalletManagerV2(WalletDBMixin, WalletAnalysisMixin, WalletGenerationMixin):
     """Enterprise multi-chain wallet manager with HD support."""

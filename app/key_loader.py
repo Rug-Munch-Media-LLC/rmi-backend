@@ -5,7 +5,9 @@ Pattern: env var → /tmp/{name}_key.txt → /root/.secrets/sentinel_enrichment_
 """
 
 from __future__ import annotations
+
 import os
+
 
 def load_key(name: str) -> str:
     """Load an API key with multiple fallback sources.

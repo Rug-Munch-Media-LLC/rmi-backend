@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from app.domains.wallet.monitor.config import LABEL_PATTERNS, get_redis
 from app.domains.wallet.monitor.models import LabelSuggestion, WalletTx
 
+
 class AutoLabeler:
     """Suggests entity labels by pattern matching on wallet history."""
 

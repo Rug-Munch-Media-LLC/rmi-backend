@@ -16,7 +16,7 @@ import httpx
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 
-from app.core.errors import AppError, AuthorizationError, NotFoundError, ValidationError
+from app.core.errors import AppError, AuthorizationError, NotFoundError
 from app.core.logging import get_logger
 from app.core.secrets import get_secret_or_none
 from app.services.supabase_service import (
@@ -34,6 +34,7 @@ from app.services.supabase_service import (
 logger = get_logger(__name__)
 
 import contextlib  # noqa: E402
+
 
 # Lazy auth dependency - avoids importing jose+bcrypt at module load
 async def _require_public_profile(request: Request) -> Any:

@@ -15,12 +15,12 @@ Data sources:
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

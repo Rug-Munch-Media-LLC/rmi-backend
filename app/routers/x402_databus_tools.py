@@ -7,4 +7,4 @@ Split from 1757-line god file into app/routers/x402/.
 
 from __future__ import annotations
 
-from app.routers.x402 import *  # noqa: F401, F403
+from app.routers.x402 import *  # noqa: F403

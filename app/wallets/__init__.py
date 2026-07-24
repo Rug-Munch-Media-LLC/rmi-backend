@@ -11,6 +11,7 @@ Split into:
 """
 
 from __future__ import annotations
+
 from .chain_registry import SUPPORTED_CHAINS, ChainConfig, ChainFamily
 from .crypto import _has_cryptography, decrypt_key, encrypt_key
 from .factory import WalletFactory, _factory, get_wallet_factory
@@ -31,9 +32,9 @@ from .generation import (
 from .models import WalletResult
 
 __all__ = [
+    "SUPPORTED_CHAINS",
     "ChainConfig",
     "ChainFamily",
-    "SUPPORTED_CHAINS",
     "WalletFactory",
     "WalletResult",
     "get_wallet_factory",

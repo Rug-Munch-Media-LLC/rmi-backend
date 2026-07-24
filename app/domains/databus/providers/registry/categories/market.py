@@ -3,7 +3,9 @@ Market provider chains.
 """
 
 from __future__ import annotations
+
 from ...base import Provider, ProviderChain, ProviderTier
+
 
 def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     """Build market provider chains."""

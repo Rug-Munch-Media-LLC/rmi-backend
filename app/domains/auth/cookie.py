@@ -8,6 +8,7 @@ from fastapi import Request, Response
 
 from app.domains.auth.jwt import JWT_EXPIRY_DAYS
 
+
 def _is_localhost(request: Request) -> bool:
     """Check if the request is from localhost."""
     host = request.headers.get("host", "")

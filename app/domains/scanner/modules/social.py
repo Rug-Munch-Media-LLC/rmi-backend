@@ -1,6 +1,7 @@
 """Scanner module — split from modules.py for maintainability."""
 
 from __future__ import annotations
+
 import time
 from typing import Any
 
@@ -15,6 +16,7 @@ from app.domains.scanner.modules._core import (
     logger,
 )
 from app.domains.scanner.modules.holders import _get_holder_data
+
 
 def _get_top_symbols() -> set[str]:
     """Get top 1000 symbols from Dune/Coingecko."""

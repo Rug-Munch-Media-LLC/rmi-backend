@@ -210,10 +210,10 @@ async def record_implicit_unhelpful(query_id: str) -> dict[str, Any]:
     )
 
 __all__ = [
-    "record_feedback",
     "get_feedback",
     "get_feedback_counts",
     "get_recent_feedback",
+    "record_feedback",
     "record_implicit_helpful",
     "record_implicit_unhelpful",
 ]

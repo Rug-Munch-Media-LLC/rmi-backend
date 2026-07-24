@@ -5,8 +5,8 @@ Handles DexScreener and Birdeye API calls with rate limiting and URL validation.
 """
 
 from __future__ import annotations
+
 import asyncio
-import json
 import time
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -14,12 +14,11 @@ from urllib.parse import urlparse
 
 from app.core.logging import get_logger
 from app.token_supply_analyzer.models import (
+    MAX_HOLDER_SAMPLE,
     LockStatus,
     TokenSupplyProfile,
-    _validate_url,
     _normalize_address,
-    KNOWN_BURN_ADDRESSES,
-    MAX_HOLDER_SAMPLE,
+    _validate_url,
 )
 
 logger = get_logger("token_supply_analyzer")
@@ -203,13 +202,13 @@ async def parse_birdeye_data(profile: TokenSupplyProfile, birdeye_data: dict) ->
     profile.has_max_wallet_limit = birdeye_data.get("maxWallet", False)
 
 __all__ = [
-    "DEXSCREENER_TOKENS",
     "BIRDEYE_TOKEN",
-    "_fetch_dexscreener",
-    "_fetch_birdeye",
-    "_fetch_json",
+    "DEXSCREENER_TOKENS",
     "_compute_pair_age_days",
+    "_fetch_birdeye",
+    "_fetch_dexscreener",
+    "_fetch_json",
     "_rate_limit_host",
-    "parse_dexscreener_data",
     "parse_birdeye_data",
+    "parse_dexscreener_data",
 ]

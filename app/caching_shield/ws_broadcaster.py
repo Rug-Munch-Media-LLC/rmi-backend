@@ -22,15 +22,16 @@ Usage:
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import os
 import time
+from typing import Any
 
 import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("ws_broadcaster")
 

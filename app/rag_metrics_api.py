@@ -4,10 +4,12 @@ GET /api/v1/rag/metrics - embedding/retrieval latency, cache hit rate, errors.
 """
 
 from __future__ import annotations
+
+from typing import Any
+
 from fastapi import APIRouter, Request
 
 from app.rag_observability import get_metrics
-from typing import Any
 
 router = APIRouter(prefix="/api/v1/rag", tags=["rag-metrics"])
 

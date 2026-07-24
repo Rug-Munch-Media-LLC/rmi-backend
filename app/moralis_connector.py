@@ -8,6 +8,7 @@ Rate-limited to 3 req/sec with caching.
 """
 
 from __future__ import annotations
+
 import asyncio
 import os
 import time

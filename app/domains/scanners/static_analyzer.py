@@ -14,6 +14,7 @@ For Solana / non-Solidity: return gracefully with low-risk defaults.
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import os

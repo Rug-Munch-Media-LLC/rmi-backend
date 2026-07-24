@@ -6,10 +6,10 @@ and provides the public API. Singleton management.
 """
 
 from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any
 
 from app.cluster_detection.detectors import (
     detect_behavioral_clusters,
@@ -22,7 +22,7 @@ from app.cluster_detection.detectors_advanced import (
     detect_pattern_clusters,
     detect_sleeper_clusters,
 )
-from app.cluster_detection.models import ClusterType, FundingPath, WalletCluster
+from app.cluster_detection.models import FundingPath, WalletCluster
 from app.cluster_detection.scoring import (
     calculate_cluster_confidence,
     calculate_risk_score,

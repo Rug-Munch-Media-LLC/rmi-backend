@@ -14,6 +14,7 @@ Tables:
 """
 
 from __future__ import annotations
+
 import contextlib
 import os
 import time
@@ -110,13 +111,13 @@ def _load_real_cats(con, base_dir: str) -> dict:
         try:
             table = "criminal_addresses" if label_type == "criminal" else "benign_addresses"
             con.execute(
-                """
+                f"""
                 INSERT INTO {table} (address, chain, label, source)
                 SELECT col1, ?, ?, 'real-cats'
                 FROM read_csv_auto(?, delim='\\t', header=true, all_varchar=true,
                                     sample_size=50000)
                 WHERE col1 IS NOT NULL AND col1 != ''
-            """.format(table=table),
+            """,
                 [chain, label_type, fpath],
             )
             count = con.execute("SELECT changes()").fetchone()[0]
@@ -125,16 +126,16 @@ def _load_real_cats(con, base_dir: str) -> dict:
             # Fallback: try with first column as address
             try:
                 con.execute(
-                    """
+                    f"""
                     INSERT INTO {table} (address, chain, label, source)
                     SELECT column0, ?, ?, 'real-cats'
                     FROM read_csv_auto(?, delim='\\t', header=false, all_varchar=true)
                     WHERE column0 IS NOT NULL AND column0 != ''
-                """.format(table=table),
+                """,
                     [chain, label_type, fpath],
                 )
                 stats[label_type] += 1
-            except Exception as e2:  # noqa: BLE001
+            except Exception as e2:
                 stats["errors"].append(f"{fname}: {e2}")
 
     # Also load Identifier.tsv for address mapping
@@ -211,7 +212,7 @@ def _load_mbal(con, base_dir: str) -> dict:
                     "SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-10m'"
                 ).fetchone()[0]
                 stats["loaded"] = count
-            except Exception as e2:  # noqa: BLE001
+            except Exception as e2:
                 stats["errors"].append(f"mbal-10m: {e2}")
 
     # Training/test splits (smaller, faster)
@@ -229,7 +230,7 @@ def _load_mbal(con, base_dir: str) -> dict:
             continue
         try:
             con.execute(
-                """
+                f"""
                 INSERT INTO mbal_labels (address, chain, category, label, source)
                 SELECT
                     column0, 'unknown', ?, ?, 'mbal-{tag}'
@@ -237,7 +238,7 @@ def _load_mbal(con, base_dir: str) -> dict:
                                     sample_size=50000)
                 WHERE column0 IS NOT NULL AND column0 != ''
                 LIMIT 500000
-            """.format(tag=tag),
+            """,
                 [tag, tag, fpath],
             )
             c = con.execute("SELECT COUNT(*) FROM mbal_labels WHERE source=?").fetchone()[0]
@@ -643,7 +644,7 @@ async def _duckdb_query(sql: str = "", **kwargs) -> dict | None:
     try:
         rows = engine.execute_query(sql)
         return {"sql": sql, "rows": len(rows), "data": rows[:100], "truncated": len(rows) > 100}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"error": str(e)}
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ certificates, and Redis persistence helpers.
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import secrets
@@ -13,9 +14,8 @@ from fastapi import Request
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis
-
 from app.routers.scam_school.content import API_BASE, COURSES
-from app.routers.scam_school.models import CourseProgress, LessonProgress, UserProgress
+from app.routers.scam_school.models import UserProgress
 
 logger = get_logger("scam_school")
 
