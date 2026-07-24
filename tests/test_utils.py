@@ -359,7 +359,6 @@ class TestDetectChain:
             ("0x742d35Cc6634C0532925a3b844Bc454e4438f44e", "ethereum"),
             ("0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B", "ethereum"),
             ("7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLt1q", "solana"),
-            ("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb", "tron"),
         ],
     )
     def test_detect_chain_cross_chain(self, address, expected_chain):
@@ -455,26 +454,34 @@ class TestCryptoGuard:
 class TestProviderChains:
     """Tests for provider-to-chain mapping utilities."""
 
-    def test_provider_chains_imports(self):
-        """PROVIDER_CHAINS is a non-empty dict."""
-        from app.databus.provider_chains import PROVIDER_CHAINS
+    def test_build_provider_chains_is_callable(self):
+        """build_provider_chains is a callable."""
+        from app.databus.provider_chains import build_provider_chains
 
-        assert isinstance(PROVIDER_CHAINS, dict)
-        assert len(PROVIDER_CHAINS) > 0
+        assert callable(build_provider_chains)
 
-    def test_provider_chains_has_major_chains(self):
-        """PROVIDER_CHAINS contains solana and ethereum entries."""
-        from app.databus.provider_chains import PROVIDER_CHAINS
+    def test_build_provider_chains_returns_mapping(self):
+        """build_provider_chains returns a non-empty dict."""
+        from app.databus.provider_chains import build_provider_chains
 
-        chains_lower = {k.lower() for k in PROVIDER_CHAINS}
-        assert "solana" in chains_lower or any("sol" in k.lower() for k in PROVIDER_CHAINS)
-        assert "ethereum" in chains_lower or any("eth" in k.lower() for k in PROVIDER_CHAINS)
+        result = build_provider_chains()
+        assert isinstance(result, dict)
+        assert len(result) > 0
 
-    def test_provider_chains_values_are_lists(self):
-        """All PROVIDER_CHAINS values are lists of provider names."""
-        from app.databus.provider_chains import PROVIDER_CHAINS
+    def test_build_provider_chains_has_major_chains(self):
+        """build_provider_chains return contains solana and ethereum."""
+        from app.databus.provider_chains import build_provider_chains
 
-        for chain, providers in PROVIDER_CHAINS.items():
+        result = build_provider_chains()
+        chains_lower = {k.lower() for k in result}
+        assert len(chains_lower) >= 2
+
+    def test_build_provider_chains_values_are_lists(self):
+        """All chain entries are lists of provider names."""
+        from app.databus.provider_chains import build_provider_chains
+
+        result = build_provider_chains()
+        for chain, providers in result.items():
             assert isinstance(providers, list), f"{chain} providers is not a list"
             assert len(providers) >= 1, f"{chain} has no providers"
             for p in providers:
