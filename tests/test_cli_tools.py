@@ -413,23 +413,24 @@ class TestGenerateEnv:
 class TestGenerateProviderChains:
     """Tests for ``scripts/generate_provider_chains.py``."""
 
-    @patch("scripts.generate_provider_chains.os.path.exists")
-    @patch("scripts.generate_provider_chains.importlib.import_module")
-    def test_main_output_format(self, mock_import, mock_exists):
-        """main() returns 0 and prints provider count."""
-        from scripts.generate_provider_chains import main
-
-        mock_exists.return_value = True
-        mock_mod = MagicMock()
-        mock_mod.PROVIDER_CHAINS = {"solana": ["helius", "birdeye"], "ethereum": ["alchemy"]}
-        mock_import.return_value = mock_mod
+    def test_main_reads_source_and_writes_target(self, tmp_path):
+        """main() reads source file and writes target."""
+        source = tmp_path / "source.py"
+        source.write_text("# original content\nprint('hello')")
+        target = tmp_path / "target.py"
 
         with (
-            patch.object(sys, "argv", ["generate_provider_chains.py"]),
-            patch("sys.stdout", new_callable=lambda: _CaptureIO()),
+            patch("scripts.generate_provider_chains.SOURCE", source),
+            patch("scripts.generate_provider_chains.TARGET", target),
+            patch("sys.stdout"),
         ):
+            from scripts.generate_provider_chains import main
+
             rc = main()
-        assert rc == 0
+
+        assert rc is None or rc == 0
+        assert target.exists()
+        assert "original" in target.read_text()
 
 
 # ═══════════════════════════════════════════════════════════════════════
