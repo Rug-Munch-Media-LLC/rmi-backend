@@ -35,6 +35,27 @@ THRESHOLD_API_CATALOG_MS = 50.0           # static data
 THRESHOLD_VERSION_MS = 25.0               # trivial response
 
 
+# ── Auth headers for protected endpoints ───────────────────────────────
+_AUTH_TOKEN = "test-auth-token-32-chars-long!!"
+_CSRF_TOKEN = "test-csrf-token"
+_BENCHMARK_AUTH = {"X-API-Key": _AUTH_TOKEN, "X-CSRF-Token": _CSRF_TOKEN}
+
+
+def _csrf_safe_post(client: TestClient, path: str, json: dict) -> Any:
+    """POST with CSRF cookie set for the middleware.
+
+    The CSRF middleware requires the X-CSRF-Token header to match the
+    csrf_token cookie. TestClient doesn't persist cookies across requests
+    automatically, so we set the cookie manually before the POST.
+    """
+    # First, GET the endpoint to set the csrf_token cookie
+    from starlette.testclient import TestClient as TC
+    # Set cookie on the client's session
+    client.cookies.set("csrf_token", _CSRF_TOKEN)
+    # Now POST with matching header
+    return client.post(path, json=json, headers=_BENCHMARK_AUTH)
+
+
 # ── Helper ────────────────────────────────────────────────────────────
 
 
@@ -67,11 +88,23 @@ class TestHealthEndpointBenchmarks:
     def test_health_endpoint_response_time(
         self, benchmark_client: TestClient, assert_time: Any
     ) -> None:
-        """GET /health should respond in < 50ms (without deep store checks)."""
-        # /health checks all stores, which may fail in test mode.
-        # We still measure the endpoint's ability to respond quickly
-        # even when some checks fail.
-        elapsed_ms, resp = _time_request(benchmark_client, "GET", "/health")
+        """GET /health should respond in < 250ms (with mocked store checks).
+
+        Mocks the 7 store health checks so the benchmark measures only
+        the handler + serialization overhead. Real health endpoint
+        latency depends on store response times.
+        """
+        with patch("app.core.health_route._check_redis") as mock_r, \
+             patch("app.core.health_route._check_postgres") as mock_p, \
+             patch("app.core.health_route._check_neo4j") as mock_n, \
+             patch("app.core.health_route._check_qdrant") as mock_q, \
+             patch("app.core.health_route._check_clickhouse") as mock_c, \
+             patch("app.core.health_route._check_minio") as mock_m, \
+             patch("app.core.health_route._check_reth") as mock_e:
+            for m in (mock_r, mock_p, mock_n, mock_q, mock_c, mock_m, mock_e):
+                m.return_value = {"healthy": True, "latency_ms": 0}
+
+            elapsed_ms, resp = _time_request(benchmark_client, "GET", "/health")
 
         assert resp.status_code == 200, f"/health returned {resp.status_code}"
         body = resp.json()
@@ -125,11 +158,9 @@ class TestMarketEndpointBenchmarks:
 
         Mocks external HTTP calls to isolate handler performance.
         """
-        with patch("app.routers.market_intel.providers.httpx.AsyncClient.get") as mock_get:
+        with patch("app.routers.market_intel.providers._aget") as mock_aget:
             # Simulate a CoinGecko trending response
-            mock_response = mock_get.return_value
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
+            mock_aget.return_value = {
                 "coins": [
                     {
                         "item": {
@@ -148,6 +179,7 @@ class TestMarketEndpointBenchmarks:
 
             elapsed_ms, resp = _time_request(
                 benchmark_client, "GET", "/api/v1/market/trending?limit=8",
+                headers=_BENCHMARK_AUTH,
             )
 
         assert resp.status_code == 200, (
@@ -187,13 +219,13 @@ class TestScannerEndpointBenchmarks:
             "app.domains.wallet.unified_wallet_scanner.UnifiedWalletScanner.scan",
             new_callable=lambda: MockAsyncScan(mock_result),
         ):
-            elapsed_ms, resp = _time_request(
+            start = time.perf_counter()
+            resp = _csrf_safe_post(
                 benchmark_client,
-                "POST",
                 "/api/v2/scanner/wallet/scan",
                 json={"address": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18", "chain": "ethereum"},
-                headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
             )
+            elapsed_ms = (time.perf_counter() - start) * 1000
 
         assert resp.status_code in (200,), (
             f"Wallet scan returned {resp.status_code}: {resp.text[:200]}"
@@ -220,16 +252,16 @@ class TestScannerEndpointBenchmarks:
             "app.domains.scanner.unified_token_scanner.UnifiedTokenScanner.scan",
             new_callable=lambda: MockAsyncScan(mock_result),
         ):
-            elapsed_ms, resp = _time_request(
+            start = time.perf_counter()
+            resp = _csrf_safe_post(
                 benchmark_client,
-                "POST",
                 "/api/v2/scanner/token/scan",
                 json={
                     "address": "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
                     "chain": "ethereum",
                 },
-                headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
             )
+            elapsed_ms = (time.perf_counter() - start) * 1000
 
         assert resp.status_code in (200,), (
             f"Token scan returned {resp.status_code}: {resp.text[:200]}"
