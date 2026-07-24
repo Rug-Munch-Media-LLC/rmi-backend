@@ -14,6 +14,8 @@ Modules (populated by parallel DeepSeek tasks DS-1..DS-10):
     - dependencies: central DI hub (REFACTOR-2026-Q3)
     - base_router: CRUD router mixin (REFACTOR-2026-Q3)
     - base_service: standardised async service interface (REFACTOR-2026-Q3)
+    - events: EventBus, typed events, pub/sub (2026-07-24)
+    - cqrs: Command/Query separation, Mediator (2026-07-24)
 """
 
 from __future__ import annotations
@@ -38,6 +40,29 @@ from app.core.dependencies import (
 from app.core.base_router import CRUDRouter
 from app.core.base_service import BaseService
 
+# Re-export event bus + CQRS
+from app.core.events import (
+    EventBus,
+    get_event_bus,
+    reset_event_bus,
+    BaseEvent,
+    ScanCompleted,
+    WalletUpdated,
+    NewsIngested,
+    AlertTriggered,
+    PaymentReceived,
+)
+from app.core.cqrs import (
+    Mediator,
+    get_mediator,
+    reset_mediator,
+    Command,
+    Query,
+    CommandResult,
+    CommandHandler,
+    QueryHandler,
+)
+
 __all__ = [
     "get_settings",
     "get_db",
@@ -53,4 +78,23 @@ __all__ = [
     "close_http_client",
     "CRUDRouter",
     "BaseService",
+    # Event bus
+    "EventBus",
+    "get_event_bus",
+    "reset_event_bus",
+    "BaseEvent",
+    "ScanCompleted",
+    "WalletUpdated",
+    "NewsIngested",
+    "AlertTriggered",
+    "PaymentReceived",
+    # CQRS
+    "Mediator",
+    "get_mediator",
+    "reset_mediator",
+    "Command",
+    "Query",
+    "CommandResult",
+    "CommandHandler",
+    "QueryHandler",
 ]

@@ -299,13 +299,21 @@ class TestHashIdentifier:
         """Same input on different days should produce different hashes
         (the salt rotates daily). We can't fast-forward time here but
         we verify the salt is derived from today's date."""
+        import hashlib
+        import hmac
+        import os
+
+        # Simulate the env var being set for test
+        os.environ["RATE_LIMIT_SALT"] = "dev-only-rmi-salt-replace-in-prod"
+        # Reimport to pick up the env var
+        import importlib
+        from app.core import rate_limiter
+        importlib.reload(rate_limiter)
         from app.core.rate_limiter import _get_daily_salt
 
         salt = _get_daily_salt()
         today = _time.strftime("%Y-%m-%d")
         today_bytes = today.encode()
-        import hashlib
-        import hmac
 
         expected = hmac.new(
             b"dev-only-rmi-salt-replace-in-prod",
@@ -393,6 +401,7 @@ class TestStats:
     @pytest.mark.asyncio
     async def test_stats_no_redis(self) -> None:
         limiter = UnifiedRateLimiter()
+        limiter._redis_failed = True  # Simulate Redis being unavailable
         await limiter.acquire("stat-key", rate=1.0, burst=5)
         stats = await limiter.stats("stat-key")
         assert stats["redis_available"] is False

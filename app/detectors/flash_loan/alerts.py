@@ -150,10 +150,10 @@ async def _run_cli() -> None:
         logger.info("  Block:        #%s", attack.block_number)
         logger.info("  Tx Hash:      %s", attack.tx_hash[:66])
         logger.info("  Attacker:     %s", attack.attacker_address)
-        logger.info("  Profit:       $%s", attack.attacker_profit_usd:,.2f)
-        logger.info("  Victim Loss:  $%s", attack.victim_loss_usd:,.2f)
-        logger.info("  Confidence:   %s", attack.confidence:.0%)
-        logger.info("  Sophistication: %s/10", attack.sophistication_score:.1f)
+        logger.info("  Profit:       $%s", f"{attack.attacker_profit_usd:,.2f}")
+        logger.info("  Victim Loss:  $%s", f"{attack.victim_loss_usd:,.2f}")
+        logger.info("  Confidence:   %s", f"{attack.confidence:.0%}")
+        logger.info("  Sophistication: %s/10", f"{attack.sophistication_score:.1f}")
 
         if attack.tags:
             logger.info("  Tags:         %s", ', '.join(attack.tags))
@@ -171,7 +171,7 @@ async def _run_cli() -> None:
     logger.info("\n%s", '═' * 60)
     logger.info("Total: %s attack(s) detected", len(filtered))
     total_impact = sum(a.attacker_profit_usd + a.victim_loss_usd for a in filtered)
-    logger.info("Total financial impact: $%s", total_impact:,.2f)
+    logger.info("Total financial impact: $%s", f"{total_impact:,.2f}")
     logger.info("%s", '═' * 60)
 
     if args.monitor:

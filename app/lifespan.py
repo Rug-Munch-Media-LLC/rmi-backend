@@ -2,7 +2,8 @@
 
 Per v4.0 §T01 + ADR-0001, lifespan wires up cross-cutting concerns:
   - Structured logging (structlog)
-  - Typed error handlers (AppError → JSON)
+  - Typed error handlers (AppError -> JSON)
+  - Event bus + CQRS mediator
   - Long-term memory (M1: fact_store seed)
   - Observability (M4: OpenTelemetry + Langfuse)
 
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Wire cross-cutting at startup. Failures are logged, never fatal."""
@@ -37,12 +39,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     try:
         admin_key = os.getenv("ADMIN_API_KEY", "")
         if not admin_key:
-            log.critical("ADMIN_API_KEY not configured — admin endpoints will reject all requests")
+            log.critical("ADMIN_API_KEY not configured - admin endpoints will reject all requests")
         else:
             log.info("admin_api_key_configured")
         rmi_token = os.getenv("RMI_AUTH_TOKEN", "")
         if not rmi_token:
-            log.critical("RMI_AUTH_TOKEN not configured — API auth is disabled")
+            log.critical("RMI_AUTH_TOKEN not configured - API auth is disabled")
         else:
             log.info("rmi_auth_token_configured")
     except Exception as exc:
@@ -66,7 +68,25 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("error_handlers_skipped err=%s", exc)
 
-    # 3. M1 - long-term memory (fact_store seed)
+    # 3. Event bus + CQRS mediator (added 2026-07-24)
+    try:
+        from app.core.events import get_event_bus, register_core_subscribers
+
+        bus = get_event_bus()
+        register_core_subscribers()
+        log.info("event_bus_initialized subscribers=%d", len(bus._subscriptions))  # type: ignore[arg-type]
+    except Exception as exc:
+        log.warning("event_bus_init_failed err=%s", exc)
+
+    try:
+        from app.core.cqrs import get_mediator
+
+        get_mediator()
+        log.info("cqrs_mediator_initialized")
+    except Exception as exc:
+        log.warning("cqrs_mediator_init_failed err=%s", exc)
+
+    # 4. M1 - long-term memory (fact_store seed)
     try:
         from app.agents.fact_store import seed_facts
 
@@ -75,7 +95,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("fact_store_seed_skipped err=%s", exc)
 
-    # 4. M4 - OpenTelemetry tracing
+    # 5. M4 - OpenTelemetry tracing
     try:
         from app.core.tracing import setup_otel
 
@@ -84,7 +104,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("otel_init_failed err=%s", exc)
 
-    # 5. M4 - Langfuse (LLM tracing)
+    # 6. M4 - Langfuse (LLM tracing)
     try:
         from app.core.langfuse import init_langfuse
 
@@ -93,7 +113,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("langfuse_init_failed err=%s", exc)
 
-    # 6. T07 - GlitchTip error tracking
+    # 7. T07 - GlitchTip error tracking
     try:
         from app.core.observability import setup_sentry
 
@@ -102,7 +122,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("sentry_init_failed err=%s", exc)
 
-    # 7. T12 - CertStream phishing domain monitor (background task)
+    # 8. T12 - CertStream phishing domain monitor (background task)
     certstream_task = None
     try:
         from app.domains.threat.certstream_listener import start_listener
@@ -114,7 +134,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     yield
 
-    # ── Shutdown ──────────────────────────────────────────────────────────
+    # -- Shutdown --------------------------------------------------------------
     # Cleanup order: network clients first, then observability flushes.
     try:
         from app.core.dependencies import close_http_client
