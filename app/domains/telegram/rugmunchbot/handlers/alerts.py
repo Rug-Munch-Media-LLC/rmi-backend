@@ -227,7 +227,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     ts = a["alert_triggered_at"]
                     if "T" in ts:
                         ts_str = f" \u2014 {ts[:10]}"
-                except Exception:  # noqa: BLE001
+                except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
                     pass
             text += f"  \u2022 <b>{a.get('symbol', '???')}</b> \U0001f514 {fmt_number(a['alert_price'])}{ts_str}\n"
         if len(triggered_alerts) > 5:

@@ -32,7 +32,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid?limit={limit}")
                 if r.status_code == 200:
                     return r.json()
-        except Exception:
+        except (httpx.HTTPError):
             pass
         return None
 
@@ -54,7 +54,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 )
                 if r.status_code == 200:
                     return r.json()
-        except Exception:
+        except (httpx.HTTPError):
             pass
         return None
 
@@ -82,7 +82,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 )
                 if r.status_code == 200:
                     return r.json()
-        except Exception:
+        except (httpx.HTTPError):
             pass
         return None
 
@@ -107,7 +107,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 )
                 if r.status_code == 200:
                     return r.json()
-        except Exception:
+        except (httpx.HTTPError):
             pass
         return None
 

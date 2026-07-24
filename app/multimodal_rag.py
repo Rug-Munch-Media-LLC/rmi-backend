@@ -77,7 +77,7 @@ def compute_image_hash(image_bytes: bytes, hash_size: int = 16) -> str:
         # Fallback: hash raw bytes (file-level similarity)
         return _hash_from_raw(image_bytes, 1, len(image_bytes), hash_size)
 
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     # Ultimate fallback: SHA-based hash of raw bytes
@@ -117,7 +117,7 @@ def _hash_from_raw(data: bytes, width: int, height: int, hash_size: int) -> str:
         # Convert to hex
         return hex(int(bits, 2))[2:].zfill(hash_size * 2 // 4)
 
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return hashlib.sha256(data).hexdigest()[: hash_size * 2]
 
 
@@ -314,7 +314,7 @@ def extract_text_from_image_hints(image_bytes: bytes) -> dict[str, list[str]]:
         text = "".join(chr(b) for b in image_bytes if 32 <= b < 127)
         # Limit to first 10K chars
         text = text[:10000]
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     results = {

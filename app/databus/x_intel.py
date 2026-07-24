@@ -305,7 +305,7 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict]:
                     for item in data:
                         if isinstance(item, dict) and "text" in item:
                             posts.append(item)
-            except Exception:  # noqa: BLE001
+            except (json.JSONDecodeError):  # noqa: BLE001
                 continue
         return posts
     except Exception as e:  # noqa: BLE001
@@ -573,7 +573,7 @@ def score_ct_post(post: dict, account: dict) -> float:
                 datetime.now(UTC) - datetime.fromisoformat(created.replace("Z", "+00:00"))
             ).total_seconds() / 3600
             score += max(0, 5 - age_hours * 0.5)  # 5 points now, 0 after 10 hours
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
 
     # Content signals

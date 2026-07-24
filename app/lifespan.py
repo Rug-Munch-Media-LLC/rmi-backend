@@ -118,7 +118,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         from app.domains.threat.certstream_listener import stop_listener
 
         await stop_listener(certstream_task)
-    except Exception:
+    except (AttributeError, ImportError):
         pass
     try:
         from app.core.langfuse import flush_langfuse
@@ -128,6 +128,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         flush_sentry(timeout=2.0)
         flush_langfuse()
         shutdown_otel()
-    except Exception:
+    except (AttributeError, ImportError):
         pass
     log.info("rmi_backend_shutdown")

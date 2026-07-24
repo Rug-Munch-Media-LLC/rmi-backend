@@ -95,7 +95,7 @@ async def _gather_all_data() -> dict:
         from app.databus.news_provider import get_market_brief
 
         data["market"] = await get_market_brief()
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         pass
 
     # News intel
@@ -103,7 +103,7 @@ async def _gather_all_data() -> dict:
         from app.databus.news_intel import aggregate_all_news
 
         data["news"] = await aggregate_all_news(limit=20)
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         pass
 
     # CT Rundown
@@ -111,7 +111,7 @@ async def _gather_all_data() -> dict:
         from app.databus.x_intel import fetch_ct_rundown
 
         data["ct"] = await fetch_ct_rundown(limit=15)
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         pass
 
     # Social metrics
@@ -119,7 +119,7 @@ async def _gather_all_data() -> dict:
         from app.databus.social_intel import get_social_metrics
 
         data["social"] = await get_social_metrics()
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         pass
 
     # Fear & Greed
@@ -127,7 +127,7 @@ async def _gather_all_data() -> dict:
         from app.databus.news_provider import get_fear_greed
 
         data["fear_greed"] = await get_fear_greed()
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         pass
 
     # Prediction markets
@@ -135,7 +135,7 @@ async def _gather_all_data() -> dict:
         from app.databus.news_provider import get_prediction_markets
 
         data["prediction_markets"] = await get_prediction_markets(limit=5)
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         pass
 
     return data

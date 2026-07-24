@@ -40,7 +40,7 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
             # Defensive JSON parsing
             try:
                 data = resp.json()
-            except Exception:  # noqa: BLE001
+            except (httpx.HTTPError):  # noqa: BLE001
                 logger.debug("goplus_json_parse_failed", chain=chain)
                 return {"check": "goplus", "result": "error", "error": "Invalid JSON response"}
 

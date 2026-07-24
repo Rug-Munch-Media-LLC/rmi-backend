@@ -252,7 +252,7 @@ async def _fetch_jupiter_token_info(token_address: str) -> dict | list | None:
             data = await _fetch_json(url)
             if data:
                 return data
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             continue
     return None
 

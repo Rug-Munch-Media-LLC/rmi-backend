@@ -49,7 +49,7 @@ async def process_tasks() -> None:
 
     try:
         r = redis.from_url(REDIS_URL, decode_responses=True)
-    except Exception:
+    except (ConnectionError, OSError):
         return
 
     while True:
@@ -108,5 +108,5 @@ async def get_queue_stats() -> dict:
             "delayed": r.zcard("rmi:task_queue:delayed"),
             "dead": r.llen("rmi:task_queue:dead"),
         }
-    except Exception:
+    except (ConnectionError, OSError):
         return {"error": "redis unavailable"}

@@ -84,7 +84,7 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
                     "risk_score": risk,
                     "risk_level": level,
                 }
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 pass
     except Exception as e:
         logger.warning(f"Label fetch error: {e}")

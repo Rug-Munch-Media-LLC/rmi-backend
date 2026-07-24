@@ -55,10 +55,6 @@ class TestCostBuffer:
         buffer.record("t1", "r1", 0.0, 0.0)
         buffer.record("t1", "r2", 999.99, 1.5)
         buffer.record("t1", "r3", 0.0001, 0.05)
-        assert (
-            buffer.get_total("t1") == 1000.0
-        )  # 0 + 999.99 + 0.0001 = 999.9901, rounds to 999.9901
-        # Let's compute exactly
         assert buffer.get_total("t1") == pytest.approx(999.9901, rel=1e-6)
 
     def test_queue_overflow_does_not_lose_totals(self) -> None:

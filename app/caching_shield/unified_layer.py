@@ -372,7 +372,7 @@ class UnifiedDataLayer:
 
             label = await lookup_wallet_label(address)
             return {"label": label} if label else None
-        except Exception:
+        except (AttributeError, ImportError, httpx.HTTPError):
             return None
 
     async def _helius_txs(self, address: str, **kw) -> dict[str, Any | None]:

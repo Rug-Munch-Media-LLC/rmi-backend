@@ -417,7 +417,7 @@ class HoneypotDetector:
                 slippage_pct=round(slippage, 2),
                 simulation_failed=False,
             )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return self._fail_sim(sell_amt, expected_sol)
 
     @staticmethod

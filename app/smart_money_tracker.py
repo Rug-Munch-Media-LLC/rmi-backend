@@ -752,7 +752,7 @@ class SmartMoneyTracker:
             if os.path.exists(self._move_history_file):
                 with open(self._move_history_file) as f:
                     return json.load(f)
-        except Exception:
+        except (AttributeError, ImportError):
             pass
         return {}
 

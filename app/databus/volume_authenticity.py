@@ -560,7 +560,7 @@ async def analyze_volume_authenticity(
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL, json.dumps(output, default=str))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (json.JSONDecodeError):  # noqa: BLE001
         pass
 
     return output

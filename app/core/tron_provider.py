@@ -67,6 +67,6 @@ async def tron_transactions(address: str, limit: int = 10) -> dict | None:
                     "count": len(txs),
                     "provider": "trongrid",
                 }
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
     return None

@@ -401,7 +401,7 @@ async def _is_contract(address: str, chain_id: int) -> bool:
         if result and result.value:
             code = result.value
             return code != "0x" and len(str(code)) > 4
-    except Exception:
+    except (AttributeError, ConnectionError, ImportError, TimeoutError, httpx.HTTPError):
         pass
     return False
 
@@ -443,5 +443,5 @@ def _parse_timestamp(ts: str) -> int:
 
         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         return int(dt.timestamp())
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return 0

@@ -30,7 +30,7 @@ Usage — inline (recommended for connectors with own caching):
                 await _cb.record_failure(is_server_error=True)
             else:
                 await _cb.record_failure(is_server_error=False)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             await _cb.record_failure(is_server_error=True)
             raise
 
@@ -260,7 +260,7 @@ class AsyncCircuitBreaker:
             result = await coro_factory()
             await self.record_success()
             return result
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             await self.record_failure(is_server_error=True)
             raise
 
@@ -290,7 +290,7 @@ class AsyncCircuitBreaker:
                     result = await func(*args, **kwargs)
                     await breaker.record_success()
                     return result
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError):
                     await breaker.record_failure(is_server_error=True)
                     raise
 
@@ -338,7 +338,7 @@ class SimpleCircuitBreaker:
                 ...
                 _cb.set_stale_result(data)
                 _cb.record_success()
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 _cb.record_failure(is_server_error=True)
 
     .. note::

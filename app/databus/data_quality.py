@@ -646,7 +646,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
         r = _r()
         r.setex(cache_key, 300, json.dumps(base_report, default=str))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (json.JSONDecodeError):  # noqa: BLE001
         pass
 
     return base_report

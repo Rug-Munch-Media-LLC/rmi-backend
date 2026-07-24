@@ -108,7 +108,7 @@ MORALIS_API_KEY = ""
 try:
     with open("/root/.secrets/moralis_api_key") as f:
         MORALIS_API_KEY = f.read().strip()
-except Exception:
+except (ConnectionError, TimeoutError, httpx.HTTPError):
     logger.warning("Moralis API key not found at /root/.secrets/moralis_api_key")
 
 # ─── MORALIS RPC ENDPOINTS ────────────────────────────────────────
@@ -177,7 +177,7 @@ class EVMClient:
         """Check if blockchain is reachable."""
         try:
             return self.w3.is_connected()
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return False
 
     def get_block_number(self) -> int:

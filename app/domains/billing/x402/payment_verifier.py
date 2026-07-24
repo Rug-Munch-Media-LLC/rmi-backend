@@ -81,7 +81,7 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
                 return payload
         except (MemoryError, KeyboardInterrupt, SystemExit):
             raise
-        except Exception:  # noqa: BLE001
+        except (json.JSONDecodeError):  # noqa: BLE001
             pass
 
         if stripped.startswith("x402 "):
@@ -428,7 +428,7 @@ async def self_verify_evm_usdc(
                     status="fulfilled",
                 )
             )
-        except Exception:  # noqa: BLE001
+        except (AttributeError, ImportError):  # noqa: BLE001
             pass
 
         logger.info(

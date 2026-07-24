@@ -97,7 +97,7 @@ async def compute_deployer_posterior(
                 import json as _json
 
                 return _json.loads(cached)
-        except Exception:
+        except (ConnectionError, OSError, json.JSONDecodeError):
             pass
 
     # ── Update prior from observations ──
@@ -159,7 +159,7 @@ async def compute_deployer_posterior(
             import json as _json
 
             await catalog._redis.setex(cache_key, 3600, _json.dumps(result))
-        except Exception:
+        except (ConnectionError, OSError, json.JSONDecodeError):
             pass
 
     return result

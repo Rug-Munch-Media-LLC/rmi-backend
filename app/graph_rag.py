@@ -75,7 +75,7 @@ async def detect_communities(
                     b.decode() if isinstance(b, bytes) else b for b in node_ids
                 }:
                     adjacency[nid].add(target)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     # 3. Label propagation
@@ -131,7 +131,7 @@ async def detect_communities(
                     data = json.loads(node_data) if node_data.startswith("{") else {}
                     ntype = data.get("type", "unknown")
                     node_types[ntype] += 1
-            except Exception:
+            except (json.JSONDecodeError):
                 node_types["unknown"] += 1
 
         # Get internal edges
@@ -213,7 +213,7 @@ What is the risk profile? Limit to 3 sentences."""
             )
             if resp.status_code == 200:
                 return resp.json()["choices"][0]["message"]["content"]
-    except Exception:
+    except (httpx.HTTPError):
         pass
 
     return heuristic

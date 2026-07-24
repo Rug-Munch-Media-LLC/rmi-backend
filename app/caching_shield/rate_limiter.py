@@ -230,7 +230,7 @@ class RpcRateLimiter:
                     last_b = await redis.get(f"{BURST_PREFIX}{p}")
                     tokens = float(tokens_b) if tokens_b else pl[1]
                     last = float(last_b or 0)
-                except Exception:
+                except (ConnectionError, OSError):
                     tokens = pl[1]
                     last = 0
             else:
@@ -262,7 +262,7 @@ class RpcRateLimiter:
                 last = await redis.get(f"{BURST_PREFIX}{provider}")
                 if tokens is not None and last is not None:
                     return (float(tokens), float(last), 0)
-            except Exception:
+            except (ConnectionError, OSError):
                 pass
         async with self._mem_lock:
             bucket = self._mem_buckets.get(provider)

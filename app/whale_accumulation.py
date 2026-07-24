@@ -234,7 +234,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
                 total_supply = float(supply_data.get("value", {}).get("uiAmount", 0))
                 result["analysis"]["total_supply"] = total_supply
                 result["sources_used"].append("solana_rpc")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         # Try Birdeye for holder data
@@ -284,7 +284,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
                     signal_messages.append(
                         f"🟢 Smart money activity: {len(sigs)} recent transactions detected"
                     )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     # ── Step 6: Wallet age analysis ───────────────────────────────
@@ -301,7 +301,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
                     signal_messages.append(
                         f"🆕 Very new token ({wallet_age_days}d old) - higher accumulation uncertainty"
                     )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     # ── Step 7: Compute accumulation score ────────────────────────

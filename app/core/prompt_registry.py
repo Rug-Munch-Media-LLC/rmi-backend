@@ -36,7 +36,7 @@ def load_all_prompts() -> dict[str, dict]:
                     "max_tokens": data.get("max_tokens", 1024),
                     "file": str(f),
                 }
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
     return _registry
 

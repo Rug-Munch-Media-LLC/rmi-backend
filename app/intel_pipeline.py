@@ -100,7 +100,7 @@ async def classify_scam_risk(text: str) -> dict:
             for label, keywords in SCAM_KEYWORDS.items():
                 if any(kw in content for kw in keywords):
                     scores[label] = scores.get(label, 0) + 0.1
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
     if not scores:
@@ -242,7 +242,7 @@ async def label_wallet(wallet_data: dict) -> dict:
                         if label not in confidence_scores:
                             confidence_scores[label] = 0
                         confidence_scores[label] = min(confidence_scores[label] + 0.15, 1.0)
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
     labels = [

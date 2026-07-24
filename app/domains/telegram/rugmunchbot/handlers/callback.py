@@ -286,7 +286,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text(
                 "\u2705 Alert dismissed.", parse_mode=ParseMode.HTML,
             )
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
         await query.answer("Alert dismissed.")
     elif data == "menu_watchlist":

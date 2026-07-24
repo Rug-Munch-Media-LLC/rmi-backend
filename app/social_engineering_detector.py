@@ -532,7 +532,7 @@ async def detect_social_engineering(
                                     )
                 except (TimeoutError, Exception):
                     pass
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     # ── Final scoring ──

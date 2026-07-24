@@ -112,7 +112,7 @@ class ChainClient:
                         if r.status_code == 429:
                             logger.debug("Helius rate limited, rotating key")
                             continue
-                except Exception:
+                except (ConnectionError, TimeoutError, httpx.HTTPError):
                     continue
 
         # Try QuickNode fallback
@@ -127,7 +127,7 @@ class ChainClient:
                         all_failed = False
                         await _chain_cb.record_success()
                         return r.json()
-            except Exception:
+            except (httpx.HTTPError):
                 pass
 
         if all_failed:
@@ -175,7 +175,7 @@ class ChainClient:
                 else:
                     await _chain_cb.record_failure(is_server_error=False)
                     return None
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             await _chain_cb.record_failure(is_server_error=True)
         return None
 

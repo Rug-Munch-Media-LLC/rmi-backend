@@ -512,7 +512,7 @@ class LiquidityVerifier:
                 if "lp burned" in description or "liquidity burned" in description:
                     # Weak signal - corroborate with burn-address check
                     pass
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         return False

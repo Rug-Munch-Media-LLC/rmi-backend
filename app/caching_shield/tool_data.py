@@ -72,7 +72,7 @@ class ToolData:
                 if isinstance(result, dict) and set(result.keys()) <= {"error"}:
                     return None
                 return result
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 pass
 
         try:
@@ -84,7 +84,7 @@ class ToolData:
                 if set(result.keys()) <= {"error", "tool"}:
                     return None
                 return result
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
         # Tool not available via DataBus - return None so middleware falls back

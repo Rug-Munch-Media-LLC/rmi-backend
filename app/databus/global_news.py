@@ -127,11 +127,11 @@ def fetch_rss(source, url, limit=30) -> Any:
         # Some feeds have HTML entities that break XML parsing
         try:
             root = SafeET.fromstring(resp.content)
-        except Exception:  # noqa: BLE001
+        except (httpx.HTTPError):  # noqa: BLE001
             try:
                 cleaned = resp.text.replace("&", "&amp;").replace("&amp;amp;", "&amp;")
                 root = SafeET.fromstring(cleaned.encode())
-            except Exception:  # noqa: BLE001
+            except (httpx.HTTPError):  # noqa: BLE001
                 return results
 
         items = (

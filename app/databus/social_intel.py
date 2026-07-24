@@ -212,7 +212,7 @@ async def detect_shill_campaigns(posts: list[dict] | None = None, **kw) -> dict:
                                 "detected_at": datetime.now(UTC).isoformat(),
                             }
                         )
-                except Exception:  # noqa: BLE001
+                except (ConnectionError, OSError, TimeoutError):
                     pass
 
     # Store detected campaigns
@@ -299,21 +299,21 @@ async def generate_daily_intel(**kw) -> dict:
         from app.databus.news_provider import get_market_brief
 
         brief = await get_market_brief()
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         brief = {}
 
     try:
         from app.databus.news_intel import aggregate_all_news
 
         news = await aggregate_all_news(limit=15)
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         news = {"articles": []}
 
     try:
         from app.databus.x_intel import fetch_ct_rundown
 
         ct = await fetch_ct_rundown(limit=10)
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         ct = {"rundown": []}
 
     # Build context for Groq
@@ -415,7 +415,7 @@ async def get_social_metrics(**kw) -> dict:
         from app.databus.news_intel import aggregate_all_news
 
         news = await aggregate_all_news(limit=50)
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):
         news = {"articles": [], "stats": {}}
 
     # Trending topics from categories

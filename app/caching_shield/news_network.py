@@ -353,7 +353,7 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
 
                         _db[aid] = article
                         new_articles.append(article)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     await asyncio.gather(*[fetch_source(s) for s in NEWS_SOURCES])

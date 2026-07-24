@@ -864,7 +864,7 @@ class LiquidationCascadeAnalyzer:
                 total_debt_raw = data[1]
                 liq_threshold_raw = data[3]
                 health_factor_raw = data[5]
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 # User may not have a position
                 return None
 

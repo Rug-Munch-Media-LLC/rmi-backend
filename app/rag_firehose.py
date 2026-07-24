@@ -187,7 +187,7 @@ class IngestionPipeline:
             )
             if resp.status_code == 200:
                 return resp.json().get("exists", False)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
         return False
 
@@ -369,7 +369,7 @@ class IngestionPipeline:
                 json={"hash": content_hash, "collection": collection, "ttl": ttl},
                 timeout=5,
             )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     async def ingest_batch(self, docs: list[dict]) -> dict[str, int]:

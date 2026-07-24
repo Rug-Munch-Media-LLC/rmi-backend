@@ -72,7 +72,7 @@ async def _load_csv_labels(
                     f"Source '{src}' already has {existing[0][0]:,} labels in CH - skipping re-import"
                 )
                 return existing[0][0]
-        except Exception:
+        except (ConnectionError, OSError):
             pass
 
     count = 0

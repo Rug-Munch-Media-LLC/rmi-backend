@@ -140,7 +140,7 @@ async def _get_quote(
             if data.get("outAmount"):
                 return data
         return None
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return None
 
 
@@ -258,7 +258,7 @@ async def _simulate_uniswap_sell(client: httpx.AsyncClient, rpc_url: str, token:
             raw = result["result"]
             return {"success": True, "output_amount": int(raw, 16) / 1e18}
         return {"success": False}
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return {"success": False}
 
 

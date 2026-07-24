@@ -106,6 +106,6 @@ async def mistral_moderate(text: str) -> dict | None:
             )
             if r.status_code == 200:
                 return {"flagged": False, "provider": "mistral"}
-    except Exception:
+    except (httpx.HTTPError):
         pass
     return None

@@ -73,7 +73,7 @@ class EVMDeployer(ChainDeployer):
         }
         try:
             tx["gas"] = self.w3.eth.estimate_gas(tx)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             tx["gas"] = 3000000
 
         signed = self.w3.eth.account.sign_transaction(tx, self.private_key)

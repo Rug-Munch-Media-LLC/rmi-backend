@@ -161,7 +161,7 @@ class SolanaDeployer(ChainDeployer):
         try:
             from metaplex.metadata import get_metadata
             metadata = get_metadata(self.client, contract_address)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
         return {"address": contract_address, "decimals": decimals,
                 "supply": str(supply), "metadata": metadata}

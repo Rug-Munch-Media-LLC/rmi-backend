@@ -34,7 +34,7 @@ async def cache_middleware(request: Request, call_next) -> Any:
     try:
         body = await request.body()
         params = json.loads(body) if body else {}
-    except Exception:
+    except (json.JSONDecodeError):
         return await call_next(request)
 
     try:
@@ -43,7 +43,7 @@ async def cache_middleware(request: Request, call_next) -> Any:
         cached = get_cached(tool, params)
         if cached:
             return JSONResponse(content=cached, headers={"X-Cache": "HIT", "X-Cache-TTL": "60"})
-    except Exception:
+    except (AttributeError, ImportError, json.JSONDecodeError):
         pass
 
     response = await call_next(request)
@@ -59,7 +59,7 @@ async def cache_middleware(request: Request, call_next) -> Any:
                 status_code=response.status_code,
                 headers={**dict(response.headers), "X-Cache": "MISS"},
             )
-        except Exception:
+        except (json.JSONDecodeError):
             pass
     return response
 
@@ -94,7 +94,7 @@ async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
                         "detail": "System is in emergency lockdown.",
                     },
                 )
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
     return await call_next(request)
 

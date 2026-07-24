@@ -191,7 +191,7 @@ async def usage(request: Request) -> UsageResponse:
             day = datetime.now(UTC).strftime("%Y%m%d")
             key = f"x402:rl:{agent_id}:{day}"
             daily_calls = int(await catalog._redis.get(key) or 0)
-        except Exception:
+        except (ConnectionError, OSError):
             pass
     if catalog._health.postgres:
         try:

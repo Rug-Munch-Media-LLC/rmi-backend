@@ -122,7 +122,7 @@ def _load_real_cats(con, base_dir: str) -> dict:
             )
             count = con.execute("SELECT changes()").fetchone()[0]
             stats[label_type] += count if count else 0
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError):
             # Fallback: try with first column as address
             try:
                 con.execute(
@@ -188,7 +188,7 @@ def _load_mbal(con, base_dir: str) -> dict:
             ).fetchone()[0]
             stats["loaded"] = count
             stats["time_s"] = round(elapsed, 1)
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError):
             # Try simpler approach - just grab first column as address
             try:
                 con.execute(
@@ -244,7 +244,7 @@ def _load_mbal(con, base_dir: str) -> dict:
             )
             c = con.execute("SELECT COUNT(*) FROM mbal_labels WHERE source=?").fetchone()[0]
             stats["loaded"] += c
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError):
             pass
 
     return stats
@@ -303,13 +303,13 @@ def _build_index(con) -> None:
     try:
         con.execute("DROP INDEX IF EXISTS idx_address")
         con.execute("CREATE INDEX idx_address ON address_index (address)")
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError):
         pass
 
     try:
         con.execute("DROP INDEX IF EXISTS idx_chain")
         con.execute("CREATE INDEX idx_chain ON address_index (chain)")
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError):
         pass
 
 
@@ -354,7 +354,7 @@ class DuckDBAnalytics:
                             "index": count,
                         },
                     }
-            except Exception:  # noqa: BLE001
+            except (ConnectionError, OSError):
                 pass
 
         # Create schema

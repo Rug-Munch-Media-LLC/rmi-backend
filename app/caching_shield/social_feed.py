@@ -211,7 +211,7 @@ async def get_twitter_feed(limit: int = 30) -> dict:
                                     "type": "tweet",
                                 }
                             )
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 continue
 
     result = {
@@ -260,7 +260,7 @@ async def get_reddit_feed(limit: int = 20) -> dict:
                                 "type": "post",
                             }
                         )
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 continue
 
     result = {

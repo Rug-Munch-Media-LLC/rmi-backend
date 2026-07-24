@@ -323,7 +323,7 @@ class GoogleCloudManager:
                     json={"lifecycle": {"rule": rules}},
                 )
                 return r.status_code == 200
-        except Exception:
+        except (httpx.HTTPError):
             return False
 
     def health(self) -> dict:

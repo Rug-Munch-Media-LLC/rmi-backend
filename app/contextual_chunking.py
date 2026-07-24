@@ -128,7 +128,7 @@ def chunk_document(
                 return [Chunk(index=i, content=c) for i, c in enumerate(ast_chunks[:max_chunks])]
         except ImportError:
             pass
-        except Exception:
+        except (AttributeError, ImportError):
             pass
 
     chunks = []

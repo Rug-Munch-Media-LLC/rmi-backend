@@ -55,7 +55,7 @@ async def _helius_call(method: str, params: list) -> dict | None:
                         return data
                 if resp.status_code in (401, 429):
                     continue
-        except Exception:
+        except (ConnectionError, TimeoutError, httpx.HTTPError):
             logger.debug("helius call failed, trying next key", exc_info=True)
             continue
     return None
@@ -175,7 +175,7 @@ async def _fetch_moralis_wallet(address: str, chain: str) -> dict[str, Any]:
                     txs = wallet_data["transactions"]
                     result["tx_count"] = len(txs)
                     result["data_sources"] = [*result.get("data_sources", []), "moralis_tx"]
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         logger.debug("moralis wallet fetch failed", exc_info=True)
 
     return result
@@ -230,7 +230,7 @@ async def _fetch_etherscan_wallet(address: str, chain: str) -> dict[str, Any]:
                             result["last_tx"] = last_ts
                         result["tx_count_sample"] = len(txs)
                         result["data_sources"] = ["etherscan"]
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         logger.debug("etherscan wallet fetch failed", exc_info=True)
 
     return result

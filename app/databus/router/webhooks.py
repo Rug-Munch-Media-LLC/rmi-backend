@@ -27,7 +27,7 @@ async def receive_webhook(service: str, request: Request) -> Any:
 
     try:
         payload = await request.json()
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):  # noqa: BLE001
         payload = {}
 
     result = await handle_webhook(service, payload, headers, raw_body)

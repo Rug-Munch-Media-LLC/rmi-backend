@@ -15,7 +15,7 @@ def _read_env_file() -> dict[str, str]:
                 if b"=" in chunk:
                     k, _, v = chunk.partition(b"=")
                     env[k.decode("utf-8", "replace")] = v.decode("utf-8", "replace")
-    except Exception:
+    except (AttributeError, ImportError):
         pass
     return env
 

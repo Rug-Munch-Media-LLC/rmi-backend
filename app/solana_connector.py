@@ -214,7 +214,7 @@ class SolanaClient:
             return False
         try:
             return self.client.get_health()
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return False
 
     def _stub_account(self, address: str) -> SolanaAccount:
@@ -262,7 +262,7 @@ def check_solana_connection() -> bool:
     try:
         client = get_solana_client()
         return client.get_health()
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return False
 
 # ─── CIRCUIT BREAKER ──────────────────────────────────────────────

@@ -542,7 +542,7 @@ async def build_bm25_from_redis(
 
             load_dotenv(env_path, override=True)
             break
-        except Exception:
+        except (ConnectionError, OSError):
             pass
 
     if collections is None:

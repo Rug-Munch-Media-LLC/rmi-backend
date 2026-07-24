@@ -586,7 +586,7 @@ class DevReputationEngine:
                             "has_activity": "true",
                         }
                     )
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 continue
 
         return cross_chain

@@ -48,7 +48,7 @@ async def ollama_chat(prompt: str, model: str = "phi3:mini", system: str = "") -
                         "completion_tokens": data.get("eval_count", 0),
                     },
                 }
-    except Exception as e:
+    except (httpx.HTTPError, TimeoutError, OSError) as e:
         logger.debug(f"Ollama unavailable: {e}")
     return {"error": "Ollama unavailable"}
 
@@ -60,7 +60,7 @@ async def ollama_list_models() -> list[str]:
             r = await c.get(f"{OLLAMA_URL}/api/tags")
             if r.status_code == 200:
                 return [m["name"] for m in r.json().get("models", [])]
-    except Exception:
+    except (httpx.HTTPError, TimeoutError, OSError):
         pass
     return []
 
@@ -121,7 +121,7 @@ def cast_contract_info(address: str, chain: str = "ethereum") -> dict:
             "balance_wei": balance.stdout.strip(),
             "balanced_checked": datetime.now(UTC).isoformat(),
         }
-    except Exception as e:
+    except (subprocess.TimeoutExpired, OSError) as e:
         return {
             "address": address,
             "chain": chain,
@@ -148,7 +148,7 @@ def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict:
         )
         if result.returncode == 0:
             return json.loads(result.stdout)
-    except Exception:
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
         pass
     return {"error": "Decode failed", "tx_hash": tx_hash}
 
@@ -171,7 +171,7 @@ def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict:
             "analysis": result.stdout[:2000] if result.returncode == 0 else result.stderr[:500],
             "success": result.returncode == 0,
         }
-    except Exception as e:
+    except (subprocess.TimeoutExpired, OSError) as e:
         return {"error": str(e), "slither_available": False}
 
 
@@ -209,7 +209,7 @@ def ccxt_get_prices(symbols: list[str] | None = None) -> dict:
                             "change_24h": ticker.get("percentage", ticker.get("change", 0)),
                             "volume_24h": ticker.get("quoteVolume", ticker.get("baseVolume", 0)),
                         }
-                except Exception:
+                except (ConnectionError, TimeoutError, OSError):
                     pass
         return {
             "prices": results,
@@ -218,7 +218,7 @@ def ccxt_get_prices(symbols: list[str] | None = None) -> dict:
         }
     except ImportError:
         return {"error": "ccxt not installed", "prices": {}}
-    except Exception as e:
+    except (subprocess.TimeoutExpired, OSError) as e:
         return {"error": str(e), "prices": {}}
 
 
@@ -279,7 +279,7 @@ def web3_wallet_balance(address: str, chain: str = "ethereum") -> dict:
         }
     except ImportError:
         return {"error": "web3 not installed"}
-    except Exception as e:
+    except (subprocess.TimeoutExpired, OSError) as e:
         return {"error": str(e), "address": address, "chain": chain}
 
 
@@ -310,8 +310,8 @@ def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict:
         if result.returncode == 0:
             posts = json.loads(result.stdout) if result.stdout.strip() else []
             return {"feed": feed_url, "posts": posts, "count": len(posts)}
-    except Exception:
-        pass
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as e:
+        logger.debug(f"blogwatcher failed: {e}")
     return {"feed": feed_url, "posts": [], "error": "blogwatcher unavailable"}
 
 
@@ -344,7 +344,7 @@ async def vault_get_secret(path: str) -> dict | None:
             r = await client.get(f"{VAULT_ADDR}/v1/{path}", headers={"X-Vault-Token": "root"})
             if r.status_code == 200:
                 return r.json().get("data", {}).get("data", {})
-    except Exception:
+    except (httpx.HTTPError, TimeoutError, OSError):
         pass
     return None
 
@@ -358,7 +358,7 @@ async def vault_list_secrets(path: str = "secret") -> list[str]:
             )
             if r.status_code == 200:
                 return r.json().get("data", {}).get("keys", [])
-    except Exception:
+    except (httpx.HTTPError, TimeoutError, OSError):
         pass
     return []
 

@@ -462,7 +462,7 @@ async def generate_wallet_report(
         try:
             r = await llm.chat(prompt, model=model, max_tokens=400)
             return r if r else _template_fallback(name, sections_ctx[name])
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return _template_fallback(name, sections_ctx[name])
 
     tasks = [_section(n, REPORT_PROMPTS[n].format(**ctx)) for n, ctx in sections_ctx.items()]

@@ -400,7 +400,7 @@ def create_placeholder_marketing_template(template_name: str, config: dict) -> I
     title = config["name"]
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 72)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         font = ImageFont.load_default()
 
     bbox = draw.textbbox((0, 0), title, font=font)
@@ -412,7 +412,7 @@ def create_placeholder_marketing_template(template_name: str, config: dict) -> I
     # Add watermark
     try:
         watermark_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         watermark_font = font
 
     draw.text(
@@ -454,7 +454,7 @@ def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> d
         try:
             font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
             base_font = ImageFont.truetype(font_path, 32)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             base_font = ImageFont.load_default()
 
         # Overlay dynamic data if provided
@@ -469,7 +469,7 @@ def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> d
 
                         try:
                             font = ImageFont.truetype(font_path, font_size)
-                        except Exception:
+                        except (ConnectionError, OSError, TimeoutError):
                             font = base_font
 
                         draw.text(position, str(value), fill=color, font=font)

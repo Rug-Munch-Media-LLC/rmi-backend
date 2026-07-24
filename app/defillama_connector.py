@@ -102,7 +102,7 @@ class DeFiLlamaClient:
         try:
             response = httpx.get(f"{self.base}/protocols", timeout=5)
             return response.status_code == 200
-        except Exception:
+        except (httpx.HTTPError):
             return False
 
     def _request(
@@ -120,7 +120,7 @@ class DeFiLlamaClient:
         except httpx.HTTPError:
             _defillama_cb.record_failure(is_server_error=True)
             return None
-        except Exception:
+        except (httpx.HTTPError):
             _defillama_cb.record_failure(is_server_error=True)
             return None
 

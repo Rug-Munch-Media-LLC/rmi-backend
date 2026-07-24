@@ -30,7 +30,7 @@ def load_key(name: str) -> str:
                 key = f.read().strip()
                 if key:
                     return key
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     # 3. Central secrets file
@@ -43,7 +43,7 @@ def load_key(name: str) -> str:
                         key = line.split("=", 1)[1].split("#")[0].strip()
                         if key:
                             return key
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return ""

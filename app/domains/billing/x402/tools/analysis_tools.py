@@ -296,7 +296,7 @@ async def _twitter_profile(query: str) -> dict:
                 result["source"] = "nitter"
                 result["sources_used"].append("nitter")
                 break
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
 
     # Layer 2: DuckDuckGo search
@@ -307,7 +307,7 @@ async def _twitter_profile(query: str) -> dict:
         if data:
             result["duckduckgo_results"] = True
             result["sources_used"].append("duckduckgo")
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
         pass
 
     return result
@@ -352,7 +352,7 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
             )
             if data:
                 tweets.append({"source": "duckduckgo"})
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
 
         await record_x402_payment("tw_timeline", "0.01", query)
@@ -388,7 +388,7 @@ async def twitter_search(req: GenericRequest) -> dict[str, str]:
             )
             if data:
                 results.append({"source": "duckduckgo"})
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
 
         await record_x402_payment("tw_search", "0.01", query)

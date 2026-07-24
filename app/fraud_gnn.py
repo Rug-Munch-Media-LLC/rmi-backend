@@ -96,7 +96,7 @@ class FraudGNNDetector:
                 with open(scaler_path, "rb") as f:
                     # SECURITY: pickle loads are safe here because models are bundled in Docker image
                     self.scaler = pickle.load(f, usedforsecurity=False)
-            except Exception:
+            except (ConnectionError, OSError, TimeoutError):
                 self.scaler = None
 
             self.model_type = f"huggingface:{model_path}"

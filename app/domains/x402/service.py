@@ -124,7 +124,7 @@ class X402Service:
                     tools.append(entry)
                     if entry.category:
                         categories.add(entry.category)
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError):
                     continue
         return ToolCatalog(
             tools=tools,

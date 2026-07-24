@@ -155,7 +155,7 @@ class LocalMCPClient:
                         return {"command": ["node", bin_val]}
                     if isinstance(bin_val, dict):
                         return {"command": ["node", next(iter(bin_val.values()))]}
-            except Exception:
+            except (json.JSONDecodeError):
                 pass
 
         # Check for Python entrypoint

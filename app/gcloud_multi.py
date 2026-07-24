@@ -70,7 +70,7 @@ class GCloudAccount:
             async with httpx.AsyncClient(timeout=8) as c:
                 r = await c.get(url, headers=self.headers())
                 return r.status_code in (200, 404, 403)  # 403=disabled, 404=not found, 200=ok
-        except Exception:
+        except (httpx.HTTPError):
             return False
 
     async def probe(self) -> dict:
@@ -109,7 +109,7 @@ class GCloudAccount:
                     elif r.status_code == 429:
                         return None
                 return vectors if vectors else None
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return None
 
 

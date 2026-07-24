@@ -182,7 +182,7 @@ async def hyde_transform(query: str) -> str:
         if cached:
             logger.debug(f"HyDE cache hit: {query[:60]}")
             return cached
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     # Try LLM-based HyDE
@@ -205,7 +205,7 @@ async def hyde_transform(query: str) -> str:
     try:
         r = await _get_redis()
         await r.setex(cache_key, 86400, result)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result

@@ -621,7 +621,7 @@ async def aggregate_all_news(limit: int = 50, **kw) -> dict:
         from app.domains.news.news_service import fetch_all_news
 
         tasks.append(fetch_all_news())
-    except Exception:  # noqa: BLE001
+    except (AttributeError, ImportError):  # noqa: BLE001
         pass
 
     # X/Twitter

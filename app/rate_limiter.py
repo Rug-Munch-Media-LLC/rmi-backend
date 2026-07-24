@@ -248,7 +248,7 @@ class RateTracker:
                     "minute": int(minute or 0),
                     "total": int(total or 0),
                 }
-            except Exception:
+            except (ConnectionError, OSError):
                 pass
 
         # Fallback to memory
@@ -269,7 +269,7 @@ class RateTracker:
                 pipe.incr(f"rmi:rate:{provider_id}:total")
                 await pipe.execute()
                 return
-            except Exception:
+            except (ConnectionError, OSError):
                 pass
 
         # Memory fallback
@@ -391,7 +391,7 @@ class EmbeddingCache:
             # Save 500 most recent entries with full vectors
             entries = {k: [v[0], v[1]] for k, v in list(self._cache.items())[-500:]}
             r.setex("embed_cache:data", 86400, json.dumps(entries))
-        except Exception:
+        except (json.JSONDecodeError):
             pass
 
     def load_from_redis(self) -> None:
@@ -590,7 +590,7 @@ class EmbeddingDispatcher:
 
             dims = next((p.dims for p in PROVIDERS if p.name == provider), 0)
             await stream_embedding_usage(provider, task, dims, count)
-        except Exception:
+        except (AttributeError, ImportError):
             pass
 
     async def _embed_api(
@@ -647,7 +647,7 @@ class EmbeddingDispatcher:
                 self._local_model = sentence_transformers.SentenceTransformer(
                     "BAAI/bge-small-en-v1.5", device="cpu"
                 )
-            except Exception:
+            except (AttributeError, ImportError):
                 return None
         loop = asyncio.get_event_loop()
         vecs = await loop.run_in_executor(

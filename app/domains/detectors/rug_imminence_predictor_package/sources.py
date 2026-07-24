@@ -34,7 +34,7 @@ async def fetch_dexscreener_pool(address: str, chain: str) -> dict | None:
                 pairs = data.get("pairs", [])
                 if pairs:
                     return data
-    except Exception:
+    except (httpx.HTTPError):
         logger.debug("dexscreener fetch failed", exc_info=True)
     return None
 
@@ -53,7 +53,7 @@ async def resolve_deployer(address: str, chain: str) -> str | None:
             rpc = "https://eth.llamarpc.com"
             async with httpx.AsyncClient(timeout=8) as client:
                 resp = await client.post(rpc, json={"jsonrpc": "2.0", "id": 1, "method": "eth_getTransactionReceipt", "params": [address]})
-    except Exception:
+    except (ConnectionError, TimeoutError, httpx.HTTPError):
         logger.debug("deployer resolve failed", exc_info=True)
     return None
 
@@ -74,7 +74,7 @@ async def check_wallet_age(wallet: str, chain: str) -> dict | None:
                             age_days = (time.time() - block_time) / 86400
                             return {"age_days": round(age_days, 1), "first_tx": sigs[0].get("signature", "")}
         return None
-    except Exception:
+    except (httpx.HTTPError):
         return None
 
 
@@ -134,6 +134,6 @@ async def fetch_holder_data(address: str, chain: str) -> dict | None:
                             "holders_24h_ago": len(holders),
                             "top10_pct": (top10 / total_supply * 100) if total_supply > 0 else 0,
                         }
-    except Exception:
+    except (httpx.HTTPError):
         logger.debug("holder data fetch failed", exc_info=True)
     return None

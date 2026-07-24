@@ -24,7 +24,7 @@ async def analyze_lp_health(result: RIPResult) -> None:
         try:
             from app.domains.detectors.rug_imminence_predictor_package.sources import fetch_dexscreener_pool
             dex_data = await fetch_dexscreener_pool(result.token_address, result.chain)
-        except Exception:
+        except (AttributeError, ImportError):
             result.sources_failed.append("dexscreener")
 
         if dex_data and dex_data.get("pairs"):
@@ -91,7 +91,7 @@ async def analyze_lp_health(result: RIPResult) -> None:
                     sig.score += 10
                     sig.flags.append("unknown_lock_status")
                     sig.evidence.append("LP lock status unknown - assume unlocked")
-            except Exception:
+            except (AttributeError, ImportError):
                 sig.score += 5
                 result.sources_failed.append("lp_lock_check")
         else:
@@ -209,7 +209,7 @@ async def analyze_smart_money_flow(result: RIPResult) -> None:
                     sig.score += 15
                     sig.flags.append("concentrated_holdings")
                     sig.evidence.append(f"Top 10 holders own {holder_data['top10_pct']:.0f}% of supply")
-        except Exception:
+        except (AttributeError, ImportError):
             result.sources_failed.append("holder_data")
 
         sig.confidence = min(0.8, 0.3 + (sig.score / 50))
@@ -404,7 +404,7 @@ async def analyze_liquidity_migration(result: RIPResult) -> None:
                         sig.score += 15
                         sig.flags.append("liquidity_drop")
                         sig.evidence.append(f"Liquidity dropped {abs(liq_change):.0f}% in 24h")
-            except Exception:
+            except (AttributeError, ImportError):
                 logger.debug("liquidity change parse failed", exc_info=True)
 
         sig.confidence = min(0.7, 0.3 + (sig.score / 40))

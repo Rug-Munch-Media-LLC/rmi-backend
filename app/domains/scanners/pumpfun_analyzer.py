@@ -354,7 +354,7 @@ class PumpFunAnalyzer:
             resp = await self.client.post(url, json=payload, timeout=10)
             if resp.status_code == 200:
                 return resp.json().get("result")
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
         return None
 

@@ -87,7 +87,7 @@ async def edit_or_reply(
             await update.callback_query.edit_message_text(
                 text, reply_markup=keyboard, parse_mode=parse_mode
             )
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             await update.callback_query.message.reply_text(
                 text, reply_markup=keyboard, parse_mode=parse_mode
             )
@@ -800,7 +800,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text(
                 f"⚠️ Error: {str(e)[:200]}", reply_markup=back_button("main")
             )
-        except Exception:  # noqa: BLE001
+        except (httpx.HTTPError):  # noqa: BLE001
             pass
 
 
@@ -814,7 +814,7 @@ async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if isinstance(update, Update) and update.effective_message:
         try:
             await update.effective_message.reply_text(f"⚠️ Operation failed: {str(ctx.error)[:200]}")
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
 
 

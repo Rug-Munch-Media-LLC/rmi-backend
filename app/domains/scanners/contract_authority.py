@@ -219,7 +219,7 @@ class ContractAuthorityScanner:
                     try:
                         raw = base64.b64decode(data[0])
                         parsed_data = self._parse_spl_mint_raw(raw, token_address)
-                    except Exception:
+                    except (ConnectionError, OSError, TimeoutError):
                         pass
                 elif isinstance(data, dict):
                     parsed_data = data

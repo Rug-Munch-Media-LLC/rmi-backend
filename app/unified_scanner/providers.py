@@ -102,7 +102,7 @@ async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
                 "risk_flags": scan.risk_flags,
                 "enrichments": enrich,
             }
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             return None
 
     try:
@@ -295,7 +295,7 @@ async def _trace_funding_source(address: str, chain: str) -> dict[str, Any]:
                     "hops": 1,
                 }
         return {"source": "unknown", "hops": 0}
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return {"source": "unknown", "hops": 0}
 
 
@@ -316,7 +316,7 @@ async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
             return {"label": label, "source": "wallet_labels", "chains": [chain]}
 
         return {"label": "unknown", "source": "none", "chains": [chain]}
-    except Exception:
+    except (AttributeError, ImportError):
         return {"label": "unknown", "source": "none", "chains": [chain]}
 
 
@@ -352,7 +352,7 @@ async def _calculate_basic_pnl(
             "priced_tokens": min(len(tokens), 5),
             "method": "jupiter" if total_value > native_balance else "native_only",
         }
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return {
             "estimated_value_usd": round(native_balance, 2),
             "token_count": len(tokens),

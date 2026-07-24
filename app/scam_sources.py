@@ -379,7 +379,7 @@ class ScamIngestionPipeline:
                                 metadata=meta,
                             )
                             count += 1
-                        except Exception:
+                        except (AttributeError, ImportError):
                             pass
                     stats["sources"][source_name] = count
                     stats["total"] += count

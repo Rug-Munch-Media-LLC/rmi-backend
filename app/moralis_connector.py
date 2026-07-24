@@ -260,7 +260,7 @@ class MoralisConnector:
                 if r.status_code in (200, 201):
                     return r.json()  # Contains JWT token
                 return None
-        except Exception:
+        except (httpx.HTTPError):
             return None
 
     async def verify_solana_signature(self, message: str, signature: str) -> dict | None:
@@ -279,7 +279,7 @@ class MoralisConnector:
                 if r.status_code in (200, 201):
                     return r.json()  # Contains JWT token
                 return None
-        except Exception:
+        except (httpx.HTTPError):
             return None
 
     # ── Data API (Key 1) ──────────────────────────────────

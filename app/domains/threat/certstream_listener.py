@@ -212,7 +212,7 @@ async def _process_message(msg: dict) -> int:
     if not_before:
         try:
             issued_at = datetime.fromisoformat(not_before.replace("Z", "+00:00"))
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             issued_at = datetime.now(UTC)
     if issued_at is None:
         issued_at = datetime.now(UTC)

@@ -97,7 +97,7 @@ async def full_investigation(req: ScanRequest) -> dict:
 
         label = await lookup_wallet_label(req.address)
         labels = [{"address": req.address, "label": label}] if label else []
-    except Exception:
+    except (AttributeError, ImportError):
         labels = []
 
     # Trace

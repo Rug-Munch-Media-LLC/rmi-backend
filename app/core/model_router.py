@@ -122,6 +122,6 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> No
                 if r.status_code == 200:
                     return {"response": r.json()["response"], "model": model, "provider": "ollama"}
         # DeepSeek, Groq, Gemini handled via existing DataBus providers
-    except Exception:
+    except (AttributeError, ImportError, httpx.HTTPError):
         pass
     return None

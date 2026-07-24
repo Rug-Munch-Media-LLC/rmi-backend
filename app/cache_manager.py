@@ -229,7 +229,7 @@ class RMICache:
                 decode_responses=True,
             )
             self._redis_available = True
-        except Exception:
+        except (ConnectionError, OSError):
             self._redis_available = False
 
     async def _redis_ping(self) -> bool:
@@ -238,7 +238,7 @@ class RMICache:
         try:
             await self._redis.ping()
             return True
-        except Exception:
+        except (ConnectionError, OSError):
             self._redis_available = False
             return False
 
@@ -248,7 +248,7 @@ class RMICache:
                 raw = await self._redis.get(f"rmi:cache:{key}")
                 if raw:
                     return json.loads(raw)
-        except Exception:
+        except (ConnectionError, OSError, json.JSONDecodeError):
             pass
         return None
 
@@ -256,7 +256,7 @@ class RMICache:
         try:
             if await self._redis_ping():
                 await self._redis.setex(f"rmi:cache:{key}", ttl, json.dumps(value, default=str))
-        except Exception:
+        except (ConnectionError, OSError, json.JSONDecodeError):
             pass
 
     def _mem_get(self, key: str) -> Any | None:
@@ -360,7 +360,7 @@ class RMICache:
                         json.dumps(data, default=str)
                     )
             return data
-        except Exception:
+        except (json.JSONDecodeError):
             return None
 
     def get_stats(self) -> dict[str, Any]:
@@ -415,7 +415,7 @@ class RMICache:
         try:
             if self._redis and self._redis_available:
                 await self._redis.delete(f"rmi:cache:{key}")
-        except Exception:
+        except (ConnectionError, OSError):
             pass
         self._memory.pop(key, None)
 

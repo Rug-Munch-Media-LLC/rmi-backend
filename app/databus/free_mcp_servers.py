@@ -86,7 +86,7 @@ def resolve_wallet(address: str, fingerprint: str = "anon") -> dict:
             result["chains_found"].append(chain)
         cur.close()
         pg.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError):  # noqa: BLE001
         pass
     # Also check Redis cache
     for chain in ["ethereum", "solana", "bsc", "polygon"]:

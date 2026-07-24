@@ -156,7 +156,7 @@ class CrossEncoderReranker:
         try:
             total_params = sum(p.numel() for p in self._model.model.parameters())
             self._memory_estimate_mb = round(total_params * 4 / (1024 * 1024), 1)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             self._memory_estimate_mb = 420.0
 
         logger.info(
@@ -299,7 +299,7 @@ class CrossEncoderReranker:
                 _INFERENCE_TIMEOUT_SECS,
                 query,
             )
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             logger.exception(
                 "Cross-encoder inference failed - falling back to vector-only ranking for query: %.80s",
                 query,
@@ -397,7 +397,7 @@ class CrossEncoderReranker:
                 _INFERENCE_TIMEOUT_SECS,
             )
             return texts[:top_k]
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             logger.exception(
                 "rerank_only: cross-encoder failed - returning texts in original order",
             )

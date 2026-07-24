@@ -214,8 +214,8 @@ class UnifiedDataEngine:
                 if r.status_code == 200:
                     data = r.json()
                     return {"price_usd": float(data.get("outAmount", 0)) / 1e6, "source": "jupiter"}
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _tracker_price(self, mint: str, **kw) -> dict | None:
@@ -246,8 +246,8 @@ class UnifiedDataEngine:
                             "price_usd": float(pairs[0].get("priceUsd", 0)),
                             "source": "dexscreener",
                         }
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _binance_price(self, mint: str, **kw) -> dict | None:
@@ -258,8 +258,8 @@ class UnifiedDataEngine:
                 r = await c.get("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT")
                 if r.status_code == 200:
                     return {"price_usd": float(r.json().get("price", 0)), "source": "binance"}
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _coingecko_price(self, mint: str, **kw) -> dict | None:
@@ -275,8 +275,8 @@ class UnifiedDataEngine:
                     price = data.get(mint.lower(), {}).get("usd")
                     if price:
                         return {"price_usd": price, "source": "coingecko"}
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     # ── TOKEN METADATA ──
@@ -326,8 +326,8 @@ class UnifiedDataEngine:
                                 "decimals": t.get("decimals", 0),
                                 "source": "jupiter",
                             }
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _dexscreener_meta(self, mint: str, **kw) -> dict | None:
@@ -343,8 +343,8 @@ class UnifiedDataEngine:
                         "symbol": p.get("baseToken", {}).get("symbol", ""),
                         "source": "dexscreener",
                     }
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     # ── WALLET BALANCE ──
@@ -403,8 +403,8 @@ class UnifiedDataEngine:
                 if r.status_code == 200:
                     val = r.json().get("result", {}).get("value", 0)
                     return {"balance_lamports": val, "source": "publicnode"}
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     # ── RISK SCAN ──
@@ -424,8 +424,8 @@ class UnifiedDataEngine:
                         "risk_score": 100 - int(data.get("trust_score", 50)),
                         "source": "goplus",
                     }
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _rugcheck_scan(self, address: str, **kw) -> dict | None:
@@ -440,8 +440,8 @@ class UnifiedDataEngine:
                         r.get("name", "") for r in data.get("risks", []) if r.get("score", 0) > 1000
                     ]
                     return {"risks": risks, "score": data.get("score", 0), "source": "rugcheck"}
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _honeypot_scan(self, address: str, **kw) -> dict | None:
@@ -458,8 +458,8 @@ class UnifiedDataEngine:
                         "is_honeypot": data.get("honeypotResult", {}).get("isHoneypot", False),
                         "source": "honeypot",
                     }
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _local_labels(self, address: str, **kw) -> dict | None:
@@ -469,8 +469,8 @@ class UnifiedDataEngine:
             label = await lookup_wallet_label(address)
             if label:
                 return {"label": label, "source": "local_labels"}
-        except Exception:
-            pass
+        except (ImportError, AttributeError):
+            logger.debug("Wallet label lookup unavailable")
         return None
 
     # ── FUNDING SOURCE (EVM) ──
@@ -555,8 +555,8 @@ class UnifiedDataEngine:
                                     "source": "helius",
                                 }
                     return {"signatures_found": len(sigs), "source": "helius"}
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _tracker_sol_funding(self, address: str, **kw) -> dict | None:
@@ -589,8 +589,8 @@ class UnifiedDataEngine:
                 if r.status_code == 200:
                     sigs = r.json().get("result", [])
                     return {"signatures_found": len(sigs), "source": "public_rpc"} if sigs else None
-        except Exception:
-            pass
+        except (httpx.HTTPError, TimeoutError, OSError):
+            logger.debug(f"Data source failed", exc_info=True)
         return None
 
     async def _local_wallet_labels(self, address: str, **kw) -> dict | None:
@@ -616,8 +616,8 @@ class UnifiedDataEngine:
                     ),
                     "source": "local_wallet_labels",
                 }
-        except Exception:
-            pass
+        except (ImportError, AttributeError):
+            logger.debug("Wallet label lookup unavailable")
         return None
 
     # ═══════════════════════════════════════════════════════════════════════

@@ -69,7 +69,7 @@ def log_cost_sync(
             [(model_name, agent_name, tokens_in, tokens_out, cost, int(latency_ms), status)],
         )
         client.disconnect()
-    except Exception:
+    except (ConnectionError, OSError):
         _buffer.append(
             (model_name, agent_name, tokens_in, tokens_out, cost, int(latency_ms), status)
         )
@@ -108,7 +108,7 @@ async def get_usage(limit: int = 50) -> dict:
             {"limit": limit},
         )
         client.disconnect()
-    except Exception:
+    except (ConnectionError, OSError):
         return {"total_cost_usd": 0, "total_tokens": 0, "entries": 0, "log": []}
 
     log = [
@@ -162,7 +162,7 @@ async def get_daily_summary(days: int = 7) -> dict:
             {"days": days},
         )
         client.disconnect()
-    except Exception:
+    except (ConnectionError, OSError):
         return {"days": days, "total_cost": 0, "total_tokens": 0, "total_calls": 0, "by_day": []}
 
     return {

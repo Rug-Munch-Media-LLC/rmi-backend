@@ -177,7 +177,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["bundle_scan"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -324,7 +324,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["cluster_map"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -466,7 +466,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["dev_finder"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -595,7 +595,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["sniper_detect"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -622,7 +622,7 @@ async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | 
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["bot_farm"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -643,7 +643,7 @@ async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["copy_trading"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -665,7 +665,7 @@ async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> d
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["insider_signals"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -688,7 +688,7 @@ async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["wash_trading"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -710,7 +710,7 @@ async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["mev_sandwich"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result
@@ -734,7 +734,7 @@ async def detect_fresh_wallets(address: str, chain: str = "solana", **kw) -> dic
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL["fresh_wallets"], json.dumps(result))
         r.close()
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         pass
 
     return result

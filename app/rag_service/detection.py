@@ -76,7 +76,7 @@ async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dic
                     "vector": pattern_result.vector, "dims": pattern_result.dims,
                     "model": pattern_result.model, "head": pattern_result.head,
                 }))
-            except Exception:
+            except (json.JSONDecodeError):
                 pass
 
         pat_total = len(pattern_result.vector)

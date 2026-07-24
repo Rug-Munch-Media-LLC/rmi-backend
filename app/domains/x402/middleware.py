@@ -160,7 +160,7 @@ try:
         ["tool", "tier"],
         registry=_X402_REGISTRY,
     )
-except Exception:
+except (ConnectionError, OSError, TimeoutError):
     # Prometheus not available - use no-op counter stubs
     class _Stub:
         def labels(self, **kw) -> None:
@@ -193,7 +193,7 @@ def get_tool_price_usd(tool: str) -> float:
         _ensure_tool_prices()
         fp = _FALLBACK_PRICES.get(tool, {})
         return fp.get("price_usd", 0.01)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         return p.get("pro_cents", 1) / 100.0
 
 
@@ -328,7 +328,7 @@ def verify_payment_header(x_payment: str, expected_amount_usd: float) -> tuple[s
         decoded = base64.b64decode(x_payment).decode()
         data = json.loads(decoded)
         return data.get("tx_hash", ""), data.get("signature", "")
-    except Exception:
+    except (json.JSONDecodeError):
         return None
 
 

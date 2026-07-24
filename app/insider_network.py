@@ -148,7 +148,7 @@ def _validate_eip55_checksum(address: str) -> bool:
                 if not should_be_upper and ch.isupper():
                     return False
         return True
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError):
         # If keccak unavailable, accept basic hex format
         return bool(ADDRESS_PATTERN_EVM.match(address))
 

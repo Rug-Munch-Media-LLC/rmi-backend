@@ -68,7 +68,7 @@ class OllamaBGEEmbedder:
                         if len(vec) == self.DIMS:
                             results.append(vec)
                             continue
-                except Exception:
+                except (httpx.HTTPError):
                     pass
                 results.append([0.0] * self.DIMS)
         return results

@@ -47,7 +47,7 @@ def _time_ago(dt_iso: str | None) -> str:
         if total_secs < 86400:
             return f"{int(total_secs / 3600)}h ago"
         return f"{diff.days}d ago"
-    except Exception:  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
         return ""
 
 

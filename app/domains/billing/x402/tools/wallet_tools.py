@@ -50,7 +50,7 @@ async def _profile_wallet(address: str, chain: str) -> dict:
             if balance is not None:
                 result["balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_rpc")
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
 
         # Get recent transactions
@@ -356,7 +356,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
             if balance is not None:
                 result["sol_balance"] = balance / 1e9
                 result["sources_used"].append("solana_rpc")
-        except Exception:  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
             pass
 
         try:
@@ -393,7 +393,7 @@ async def _whale_decoder(address: str, chain: str) -> dict:
                 result["native_balance_wei"] = balance
                 result["native_balance_eth"] = int(balance, 16) / 1e18
                 result["sources_used"].append(f"{chain}_rpc")
-        except Exception:  # noqa: BLE001
+        except (httpx.HTTPError):  # noqa: BLE001
             pass
 
     # DexScreener for recent activity
@@ -471,7 +471,7 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
                 if balance is not None:
                     wallet_data["sol_balance"] = balance / 1e9
                     result["sources_used"].append("solana_rpc")
-            except Exception:  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
                 pass
 
         # EVM balance
@@ -481,7 +481,7 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
                 if balance:
                     wallet_data["native_balance"] = int(balance, 16) / 1e18
                     result["sources_used"].append(f"{chain}_rpc")
-            except Exception:  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
                 pass
 
         result["wallets"].append(wallet_data)
