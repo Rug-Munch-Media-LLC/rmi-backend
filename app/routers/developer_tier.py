@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 RMI Developer Tier System
 ==========================
@@ -15,6 +14,8 @@ Tiers:
 Author: RMI Development
 Date: 2026-06-05
 """
+
+from __future__ import annotations
 
 import email
 import json

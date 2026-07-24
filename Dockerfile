@@ -40,3 +40,11 @@ EXPOSE 8000
 # Use Tini as PID 1 to properly reap zombie processes and forward signals
 ENTRYPOINT ["/tini", "--"]
 CMD ["gunicorn", "main:app", "-k", "uvicorn.workers.UvicornWorker", "-w", "4", "--bind", "0.0.0.0:8000", "--timeout", "120", "--keep-alive", "5", "--worker-tmp-dir", "/dev/shm"]
+
+# Security hardening (applied at runtime via docker run --read-only --cap-drop=ALL):
+#   --read-only                    Makes rootfs read-only (writes go to /tmp, /dev/shm)
+#   --cap-drop=ALL                 Drops all Linux capabilities
+#   --security-opt=no-new-privileges  Prevents privilege escalation
+#   --tmpfs /tmp                   Writable tmpfs for runtime temp files
+#   --tmpfs /dev/shm               Writable tmpfs for gunicorn worker temp dir
+# These are documented in the startup-order guide at docs/production/startup-order.md

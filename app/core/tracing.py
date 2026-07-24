@@ -34,7 +34,7 @@ def setup_tracing(app: FastAPI) -> None:
 
         return response
 
-    @app.get("/api/v1/traces/recent")
+    @app.get("/api/v1/traces/recent", tags=["observability"], summary="Recent Traces", description="View recent OpenTelemetry traces. When OTEL is enabled, traces are exported to Grafana Tempo and available at the Tempo UI (:3000). Returns an empty list when tracing is disabled.")
     async def recent_traces(limit: int = 20) -> dict[str, Any]:
         return {
             "traces": [],

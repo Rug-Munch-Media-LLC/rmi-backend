@@ -1,8 +1,9 @@
 """Dynamic MCP Tool Catalog - reads from gateway configs + external MCP servers
-from __future__ import annotations
 
 Expanded to include 200+ tools across 40+ services
 """
+
+from __future__ import annotations
 
 import os
 import re

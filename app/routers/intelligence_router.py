@@ -1,9 +1,10 @@
 """
-from __future__ import annotations
 
 Intelligence Router - Market, Premium, and Security Intelligence.
 Receives data from n8n workflows, provides query endpoints for users.
 """
+
+from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
@@ -308,7 +309,7 @@ async def receive_security_update(update: MarketUpdate) -> dict[str, str]:
 # ── Market Intelligence Endpoints ─────────────────────────────
 
 
-@router.get("/market/trending")
+@router.get("/market/trending", summary="Get Trending Tokens", description="Fetch trending tokens across multiple chains from DexScreener and CoinGecko. Returns tokens ranked by volume and social momentum. Supports chain and limit filtering.")
 async def get_trending_tokens(
     chain: str = Query("solana", description="Blockchain"),
     limit: int = Query(50, description="Number of results"),
@@ -331,7 +332,7 @@ async def get_trending_tokens(
     return {"tokens": result or []}
 
 
-@router.get("/market/whales")
+@router.get("/market/whales", summary="Get Whale Movements", description="Detect large wallet transactions and whale movements across supported chains. Returns recent high-value transfers with entity labels when available.")
 async def get_whale_movements(
     chain: str = Query("solana"),
     min_amount_usd: float = Query(10000),
@@ -356,7 +357,7 @@ async def get_whale_movements(
     return {"movements": result or []}
 
 
-@router.get("/market/volume-spikes")
+@router.get("/market/volume-spikes", summary="Get Volume Spikes", description="Alert on sudden volume spikes indicating coordinated trading activity or potential pump-and-dump events. Configurable threshold via query params.")
 async def get_volume_spikes(
     chain: str = Query("solana"),
     min_change_pct: float = Query(100),
@@ -436,7 +437,7 @@ async def get_exchange_flows(
 # ── Security Intelligence Endpoints ──────────────────────────
 
 
-@router.get("/security/scams")
+@router.get("/security/scams", summary="Get Scam Alerts", description="Real-time scam alerts aggregated from community reports, on-chain analysis, and threat intel feeds. Includes contract addresses, scam type classification, and severity ratings.")
 async def get_scam_alerts(
     scam_type: str | None = None,
     confirmed_only: bool = Query(False),
@@ -461,7 +462,7 @@ async def get_scam_alerts(
     return {"scams": result or []}
 
 
-@router.get("/security/rugpulls")
+@router.get("/security/rugpulls", summary="Get Rugpull Alerts", description="Real-time rugpull alerts with liquidity analysis, deployer history, and honeypot detection. Flags tokens showing rugpull indicators within the configured time window.")
 async def get_rugpull_alerts(
     limit: int = Query(50),
 ) -> dict:
@@ -485,7 +486,7 @@ async def get_rugpull_alerts(
 # ── User Intelligence Alerts ─────────────────────────────────
 
 
-@router.get("/me/alerts")
+@router.get("/me/alerts", summary="Get My Alerts", description="Get intelligence alerts for the authenticated user. Returns personalized alerts based on watched wallets, tokens, and configured notification preferences.")
 async def get_my_alerts(
     unread_only: bool = Query(False),
     severity: str | None = None,
@@ -531,7 +532,7 @@ async def get_my_alerts(
     return {"alerts": result or []}
 
 
-@router.post("/me/alerts/{alert_id}/dismiss")
+@router.post("/me/alerts/{alert_id}/dismiss", summary="Dismiss Alert", description="Dismiss a specific intelligence alert. The alert will be removed from the active queue but retained in history for audit.")
 async def dismiss_alert(
     alert_id: str,
     authorization: str = Header(None),
@@ -560,7 +561,7 @@ async def dismiss_alert(
 # ── Health ───────────────────────────────────────────────────
 
 
-@router.get("/health")
+@router.get("/health", summary="Intelligence Health", description="Intelligence service health check. Verifies connectivity to n8n, Supabase, and internal intelligence pipelines. Returns status for each subsystem.")
 async def intelligence_health() -> dict[str, str]:
     """Intelligence service health check."""
     return {
@@ -621,7 +622,7 @@ async def generate_card(card_type: str, data: dict) -> Any:
         raise AppError(message=str(e)[:200]) from e
 
 
-@router.get("/cards/templates")
+@router.get("/cards/templates", summary="Get Card Templates", description="List available intelligence card templates for generating shareable security/market insight graphics.")
 async def get_card_templates() -> dict[str, list[dict]]:
     """Get available card templates."""
     try:
@@ -688,7 +689,7 @@ async def generate_all_feature_cards_endpoint() -> dict:
         raise AppError(message=str(e)[:200]) from e
 
 
-@router.post("/marketing/generate/stats")
+@router.post("/marketing/generate/stats", summary="Generate Stats Graphic", description="Generate a stats/metrics marketing graphic from the provided stat value, label, and context. Returns a rendered image URL.")
 async def generate_stats_graphic(stat_value: str, stat_label: str, context: str = "") -> Any:
     """Generate stats/metrics graphic."""
     try:
@@ -707,7 +708,7 @@ async def generate_stats_graphic(stat_value: str, stat_label: str, context: str 
         raise AppError(message=str(e)[:200]) from e
 
 
-@router.post("/marketing/generate/pricing")
+@router.post("/marketing/generate/pricing", summary="Generate Pricing Graphic", description="Generate a pricing tier marketing graphic with the given tier name, price, and feature list. Returns a rendered image URL.")
 async def generate_pricing_graphic(tier_name: str, price: float, features: list[str]) -> Any:
     """Generate pricing tier graphic."""
     try:

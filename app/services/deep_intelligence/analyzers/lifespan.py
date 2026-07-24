@@ -1,11 +1,12 @@
 """
-from __future__ import annotations
 
 Token Lifespan Predictor
 =========================
 AI-driven survival analysis. Compare against historical rug patterns.
 Predict survival probability at 7d, 30d, 90d.
 """
+
+from __future__ import annotations
 
 from typing import Any
 from datetime import UTC, datetime

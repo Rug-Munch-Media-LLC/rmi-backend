@@ -1,6 +1,5 @@
 """Deep Intelligence Router - 12 Unaccounted Features API
 
-from __future__ import annotations
 
 Endpoints for:
 1. Deployer Reputation Score
@@ -17,6 +16,8 @@ Endpoints for:
 12. Social-Onchain Correlation
 + Composite full report
 """
+
+from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 

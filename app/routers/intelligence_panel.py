@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 Intelligence Panel Router
 =========================
@@ -12,6 +11,8 @@ Data sources:
   - Crypto Fear Index (aggregated risk from prediction markets)
   - Bulletin posts (community intelligence)
 """
+
+from __future__ import annotations
 
 from datetime import UTC, datetime
 

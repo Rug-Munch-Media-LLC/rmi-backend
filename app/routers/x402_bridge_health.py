@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 RMI x402 Bridge Health Monitor - Pay-per-call API endpoint
 ===========================================================
@@ -16,6 +15,8 @@ TIER  : premium ($0.10)
 TRIAL : 2 free scans per wallet per 24h
 ROUTER: /api/v1/x402-tools/bridge_health
 """
+
+from __future__ import annotations
 
 import json
 import os

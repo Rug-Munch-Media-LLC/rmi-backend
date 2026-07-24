@@ -1,11 +1,12 @@
 """
-from __future__ import annotations
 
 Post-Purchase Monitor
 ======================
 Detect changes AFTER buying: contract modifications, new admin functions,
 fee structure changes, liquidity unlocks, wallet behavior shifts.
 """
+
+from __future__ import annotations
 
 from typing import Any
 from datetime import UTC, datetime

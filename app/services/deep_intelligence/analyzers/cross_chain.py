@@ -1,11 +1,12 @@
 """
-from __future__ import annotations
 
 Cross-Chain Identity Resolution
 =================================
 Same entity, multiple chains. Detect deployer patterns, funding correlation,
 simultaneous launches, shared wallet infrastructure.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

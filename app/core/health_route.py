@@ -362,7 +362,7 @@ async def readiness() -> ReadinessResponse:
     return ReadinessResponse(status="ready" if all_ok else "not_ready", checks=checks)
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get("/health", response_model=HealthResponse, summary="Full Health Check", description="Comprehensive system health check. Probes Redis, PostgreSQL, Neo4j, Qdrant, ClickHouse, MinIO, and Ethereum RPC. Returns aggregated status with per-store health, latency, and config validation.")
 async def health() -> HealthResponse:
     started = time.monotonic()
     store_checks = {

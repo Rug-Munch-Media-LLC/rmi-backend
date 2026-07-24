@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """#15 - Chain Comparability Index. Compare tokens across chains: price, liquidity,
-from __future__ import annotations
 
 volume, tx count. Detect arbitrage and inflated-volume scams."""
+
+from __future__ import annotations
 
 import httpx
 from fastapi import APIRouter, Query

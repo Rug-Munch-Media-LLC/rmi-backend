@@ -126,7 +126,7 @@ class AlertAckRequest(BaseModel):
 # ─── CONTRACT ANALYSIS ─────────────────────────────────────
 
 
-@router.get("/contract/{address}")
+@router.get("/contract/{address}", summary="Get Contract Intelligence", description="Get contract security intelligence including Mythril and Slither analysis results, known vulnerabilities, and risk scoring.")
 async def contract_analysis(address: str, chain: str = "ethereum", deep: bool = False) -> Any:
     """Analyze contract - bytecode scan + optional Slither/Mythril deep scan."""
 

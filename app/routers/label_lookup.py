@@ -1,9 +1,10 @@
 """
-from __future__ import annotations
 
 Lightweight wallet label lookup endpoint for CF Worker enrichment.
 Called by Workers to annotate tool responses with label data.
 """
+
+from __future__ import annotations
 
 import json
 import os

@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 MBAL (Multi-blockchain Anti-Laundering) Label Integration
 
@@ -10,6 +9,8 @@ across Bitcoin, Ethereum, and 15+ major chains.
 API Documentation: https://mbal.io/api
 Rate Limits: Free tier - 100 queries/day, Pro - 1000/day, Enterprise - Unlimited
 """
+
+from __future__ import annotations
 
 import asyncio
 import json

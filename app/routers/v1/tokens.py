@@ -23,7 +23,7 @@ class TokenSummary(BaseModel):
     price_usd: float | None = None
 
 
-@router.get("/{address}", response_model=TokenSummary)
+@router.get("/{address}", response_model=TokenSummary, summary="Get Token Info", description="Fetch basic token metadata including name, symbol, decimals, total supply, and contract verification status by address and chain.")
 async def get_token_info(address: str, chain: str = "ethereum") -> None:
     """Get token summary by address.
 
@@ -35,7 +35,7 @@ async def get_token_info(address: str, chain: str = "ethereum") -> None:
     )
 
 
-@router.get("/{address}/risk")
+@router.get("/{address}/risk", summary="Get Token Risk", description="Get token risk assessment with security analysis, rugpull indicators, liquidity health, and community reports. Supports all EVM chains and Solana.")
 async def get_token_risk(address: str, chain: str = "ethereum") -> None:
     """Get token risk assessment."""
     raise ServiceUnavailableError(

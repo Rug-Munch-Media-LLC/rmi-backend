@@ -1,10 +1,11 @@
 """
-from __future__ import annotations
 
 Deep Intelligence Engine — Shared Data Models
 ===============================================
 Type aliases and result model hints for the deep intelligence system.
 """
+
+from __future__ import annotations
 
 from typing import Any, TypedDict
 

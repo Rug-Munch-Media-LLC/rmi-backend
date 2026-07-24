@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 RMI x402 Payment Middleware - Proper x402 Protocol Integration
 ================================================================
@@ -15,6 +14,8 @@ Components:
 Author: RMI Development
 Date: 2026-05-03
 """
+
+from __future__ import annotations
 
 import contextlib
 import hashlib

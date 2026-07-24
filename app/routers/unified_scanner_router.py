@@ -1,10 +1,11 @@
 """Unified Scanner Router v3 - matches WalletScanner v3 fields.
 
-from __future__ import annotations
 
 Dependency injection: ``UnifiedTokenScanner`` and ``UnifiedWalletScanner``
 are injected via ``Depends()`` so they can be mocked in tests.
 """
+
+from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel

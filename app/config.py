@@ -43,13 +43,27 @@ class Settings(BaseSettings):
     )
 
     # ── Database / Cache ────────────────────────────────────────────────
-    database_url: str = "postgresql+asyncpg://rmi:rmi@localhost/rmi"
-    redis_url: str = "redis://localhost:6379/0"
-    redis_host: str = "localhost"
+    database_url: str = Field(
+        default="postgresql+asyncpg://rmi:rmi@localhost/rmi",
+        description=(
+            "PostgreSQL async connection string. "
+            "MUST be overridden in production. "
+            "Set DATABASE_URL env var."
+        ),
+    )
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description=(
+            "Redis connection string. "
+            "MUST be overridden in production with auth. "
+            "Set REDIS_URL env var (e.g. redis://:password@rmi-redis:6379/0)."
+        ),
+    )
+    redis_host: str = "rmi-redis"
     redis_port: int = 6379
     redis_password: str = ""
     redis_cache_url: str = Field(
-        default="redis://localhost:6379/1",
+        default="redis://:__SET_REDIS_PASSWORD__@rmi-redis:6379/1",
         description="Separate Redis DB for LLM cache. Set REDIS_CACHE_URL env var.",
     )
     llm_cache_ttl: int = 3600
@@ -291,11 +305,18 @@ class Settings(BaseSettings):
     @classmethod
     def _jwt_secret_must_be_set_in_prod(cls, v: str) -> str:
         """Reject the dev default in production."""
-        if v == "dev-secret-CHANGE-ME" and os.getenv("ENVIRONMENT", "dev") == "prod":
-            raise ValueError(
-                "jwt_secret must be set to a non-default value in production. "
-                "Set via gopass (rmi/prod/jwt_secret) or JWT_SECRET env var."
-            )
+        _dev_defaults = (
+            "dev-secret-CHANGE-ME",
+            "dev-secret-please-set-JWT_SECRET-env-var-32chars",
+        )
+        if v in _dev_defaults or len(v) < 32:
+            env = os.getenv("ENVIRONMENT", "dev")
+            if env == "prod":
+                raise ValueError(
+                    "jwt_secret must be set to a secure random value (>=32 chars) in production. "
+                    "Generate with: openssl rand -hex 32. "
+                    "Set via gopass (rmi/prod/jwt_secret) or JWT_SECRET env var."
+                )
         return v
 
 

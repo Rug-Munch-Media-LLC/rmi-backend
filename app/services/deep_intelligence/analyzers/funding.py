@@ -1,11 +1,12 @@
 """
-from __future__ import annotations
 
 Funding Source Tracer
 ======================
 Trace where a wallet got its initial ETH/SOL from.
 Detect: Exchange withdrawals, mixer usage, fresh wallet patterns.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

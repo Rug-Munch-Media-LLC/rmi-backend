@@ -1,10 +1,11 @@
 """
-from __future__ import annotations
 
 Threat Intel Check
 ===================
 Aggregate on-chain threat intelligence from GoPlus, Webacy, and Chainabuse.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

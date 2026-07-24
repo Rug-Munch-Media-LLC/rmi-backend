@@ -1,5 +1,4 @@
 """
-from __future__ import annotations
 
 Premium x402 tools - reputation scoring, investigation reports, webhook alerts.
 
@@ -8,6 +7,8 @@ These are the standout tools that make the RMI MCP server worth paying for:
 - investigation_report: AI-generated human-readable dossier
 - webhook_register: Register callbacks for monitoring alerts
 """
+
+from __future__ import annotations
 
 import json
 import os
