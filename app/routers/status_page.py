@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI Public Status Page
 =======================
 Public-facing status page showing health of all RMI services.

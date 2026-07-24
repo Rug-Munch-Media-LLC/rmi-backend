@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI x402 Payment Middleware - Proper x402 Protocol Integration
 ================================================================
 Uses the official x402 SDK for payment verification, receipt validation,

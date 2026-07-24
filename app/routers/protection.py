@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+from __future__ import annotations
+
 Protection Suite API Endpoints
 Provides safety checking for URLs, wallets, and tokens.
 

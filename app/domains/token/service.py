@@ -2,22 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from app.core.base_service import BaseService
 from app.core.logging import get_logger
 from app.domains.token.analyzer import TokenAnalyzer
-from app.domains.token.models import (
-    TokenDetail,
-    TokenHolder,
-    TokenLiquidity,
-    TokenRisk,
-    TokenScanRequest,
-    TokenScanResult,
-)
+from app.domains.token.models import TokenDetail, TokenHolder, TokenLiquidity, TokenRisk, TokenScanRequest, TokenScanResult
 from app.domains.token.repository import TokenRepository
 
 log = get_logger(__name__)
 
 
-class TokenService:
+class TokenService(BaseService[TokenDetail]):
     """Orchestrates token data fetch and analysis."""
 
     def __init__(
@@ -28,7 +24,17 @@ class TokenService:
         self._repo = repo or TokenRepository()
         self._analyzer = analyzer or TokenAnalyzer()
 
+    # ── CRUD ──────────────────────────────────────────────────────────
+
+    async def get(self, id_: str, **kwargs: Any) -> TokenDetail | None:
+        """Get token detail by address."""
+        chain = kwargs.get("chain", "solana")
+        return await self._repo.get_detail(id_, chain)
+
+    # ── Domain-specific ───────────────────────────────────────────────
+
     async def get_detail(self, address: str, chain: str = "solana") -> TokenDetail:
+        """Fetch token metadata + supply."""
         return await self._repo.get_detail(address, chain)
 
     async def get_holders(
@@ -37,9 +43,11 @@ class TokenService:
         chain: str = "solana",
         limit: int = 100,
     ) -> list[TokenHolder]:
+        """Fetch top holders for a token."""
         return await self._repo.get_holders(address, chain, limit=limit)
 
     async def get_liquidity(self, address: str, chain: str = "solana") -> TokenLiquidity:
+        """Fetch liquidity + pool info."""
         return await self._repo.get_liquidity(address, chain)
 
     async def get_risk(self, address: str, chain: str = "solana") -> TokenRisk:
@@ -67,7 +75,6 @@ class TokenService:
         detail = await self._repo.get_detail(req.address, req.chain)
         risk = await self.get_risk(req.address, req.chain)
 
-        # Convert risk flags to the legacy format (list of strings)
         risk_flags: list[str] = []
         warnings: list[str] = []
         for flag in risk.flags:
@@ -78,7 +85,6 @@ class TokenService:
             if message:
                 warnings.append(message)
 
-        # Heuristic safety score (inverse of risk, 0-100)
         safety_score = max(0.0, 100.0 - float(risk.risk_score))
 
         result = TokenScanResult(

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI Facilitator Health Monitor
 ===============================
 Periodically pings all x402 payment facilitators and tracks:

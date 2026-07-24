@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Darkroom Admin Extensions Router
 =================================
 Backend endpoints for the darkroom admin panel:

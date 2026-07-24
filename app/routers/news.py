@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 News Router - THE Crypto News Aggregator Feed
 =============================================
 200+ sources. Real data only. No fake articles.

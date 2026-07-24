@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """#8 - Real-CATS Criminal Cluster Explorer. Interactive graph of 153K labeled tokens.
+from __future__ import annotations
+
 Shows relationships: same deployer, funding source, code patterns. Rug adjacency graph."""
 
 import os

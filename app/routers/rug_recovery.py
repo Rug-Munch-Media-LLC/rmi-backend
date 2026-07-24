@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """#18 - Rug Recovery Indexer. When a rug is detected by SENTINEL, tracks all outbound
+from __future__ import annotations
+
 txs from deployer. Builds trace graph of stolen funds. Premium: notify affected addresses."""
 
 import json

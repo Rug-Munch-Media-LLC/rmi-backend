@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI x402 Analytics Dashboard Endpoint
 =======================================
 GET /api/v1/x402/dashboard - Public analytics endpoint returning:

@@ -58,6 +58,50 @@ class LabelService:
         except (AttributeError, ImportError):
             pass
 
+
+    @staticmethod
+    def _build_static_label(label_data: dict, chain: str) -> dict:
+        """Build a label dict from static Redis label data."""
+        return {
+            "source": f"static_{label_data.get('chain', chain)}",
+            "label": label_data.get("address_name")
+                     or label_data.get("dapp_name")
+                     or label_data.get("protocol_name")
+                     or label_data.get("label_type", ""),
+            "category": label_data.get("label_type") or label_data.get("label_subtype", ""),
+            "confidence": 0.95,
+        }
+
+    @staticmethod
+    def _build_ofac_label(ofac_data: dict) -> dict:
+        """Build a label dict from OFAC sanctions data."""
+        return {
+            "source": "ofac",
+            "label": ofac_data.get("name", "OFAC Sanctioned"),
+            "category": "sanctioned",
+            "confidence": 1.0,
+        }
+
+    @staticmethod
+    def _build_wallet_label(wallet_data: dict, category: str) -> dict:
+        """Build a label dict from Omega Forensic wallet data."""
+        return {
+            "source": "omega_forensic",
+            "label": wallet_data.get("display_name") or wallet_data.get("category", ""),
+            "category": category,
+            "confidence": 0.9,
+        }
+
+    @staticmethod
+    def _build_cex_label(name: str) -> dict:
+        """Build a label dict for a built-in CEX address."""
+        return {
+            "source": "builtin_cex",
+            "label": name,
+            "category": "exchange",
+            "confidence": 1.0,
+        }
+
     async def resolve(self, address: str, chain: str) -> dict[str, Any] | None:
         """
         Resolve an address across all label sources.
@@ -109,24 +153,7 @@ class LabelService:
 
                 if label_json:
                     label_data = json.loads(label_json)
-                    all_labels.append(
-                        {
-                            "source": f"static_{label_data.get('chain', chain)}",
-                            "label": label_data.get(
-                                "address_name",
-                                label_data.get(
-                                    "dapp_name",
-                                    label_data.get(
-                                        "protocol_name", label_data.get("label_type", "")
-                                    ),
-                                ),
-                            ),
-                            "category": label_data.get(
-                                "label_type", label_data.get("label_subtype", "")
-                            ),
-                            "confidence": 0.95,  # Static labels are high confidence
-                        }
-                    )
+                    all_labels.append(self._build_static_label(label_data, chain))
 
                 # Check OFAC
                 ofac_json = await redis.get(f"rmi:label:ofac:{addr}")
@@ -134,14 +161,7 @@ class LabelService:
                     ofac_data = json.loads(ofac_json)
                     flags["is_sanctioned"] = True
                     flags["is_known_scam"] = True
-                    all_labels.append(
-                        {
-                            "source": "ofac",
-                            "label": ofac_data.get("name", "OFAC Sanctioned"),
-                            "category": "sanctioned",
-                            "confidence": 1.0,
-                        }
-                    )
+                    all_labels.append(self._build_ofac_label(ofac_data))
 
                 # Check wallet database (Omega Forensic)
                 wallet_json = await redis.get(f"rmi:wallet:labeled:{addr}")
@@ -150,16 +170,7 @@ class LabelService:
                     cat = wallet_data.get("category", "")
                     if cat in ("rug_puller", "scammer", "hacker", "phisher"):
                         flags["is_known_scam"] = True
-                    all_labels.append(
-                        {
-                            "source": "omega_forensic",
-                            "label": wallet_data.get(
-                                "display_name", wallet_data.get("category", "")
-                            ),
-                            "category": cat,
-                            "confidence": 0.9,
-                        }
-                    )
+                    all_labels.append(self._build_wallet_label(wallet_data, cat))
         except Exception as e:
             logger.debug(f"Static label lookup failed for {addr}: {e}")
 
@@ -167,14 +178,7 @@ class LabelService:
         if addr in self._builtin_cex:
             label = self._builtin_cex[addr]
             flags["is_exchange"] = True
-            all_labels.append(
-                {
-                    "source": "builtin_cex",
-                    "label": label,
-                    "category": "exchange",
-                    "confidence": 1.0,
-                }
-            )
+            all_labels.append(self._build_cex_label(label))
 
         # ── Source 3: Etherscan API (live, EVM only) ──────────────
         if is_evm(chain) and self._etherscan_key:

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Deep Intelligence Engine — Core Infrastructure
 ================================================
 Configuration, multi-chain data client, and module-level instances.

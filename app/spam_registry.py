@@ -11,6 +11,8 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
+from http import HTTPStatus
+
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -205,7 +207,15 @@ class SpamRegistry:
         return domain.lower() in self._phishing_domains
 
     def check_token(self, address: str, chain: str = "solana") -> dict:
-        """Full spam/sanctions check for a token address."""
+        """Full spam/sanctions check for a token address.
+
+        Args:
+            address: Token or wallet address to check.
+            chain: Blockchain identifier (default: "solana").
+
+        Returns:
+            Dict with is_spam, is_sanctioned, is_known_scam flags and sources checked.
+        """
         self._ensure_loaded()
         return {
             "address": address,
@@ -239,6 +249,7 @@ class SpamRegistry:
         return clean, spam
 
     def stats(self) -> dict:
+        """Get registry statistics."""
         self._ensure_loaded()
         return {
             **self._stats,
@@ -266,7 +277,7 @@ def seed_spam_data() -> None:
                 r = await client.get(
                     "https://api.goldrush.dev/spam/tokens?chain=ethereum&limit=1000"
                 )
-                if r.status_code == 200:
+                if r.status_code == HTTPStatus.OK:
                     data = r.json()
                     with open(SPAM_DATA_DIR / "goldrush_spam_ethereum.json", "w") as f:
                         json.dump(data, f)
@@ -282,7 +293,7 @@ def seed_spam_data() -> None:
                 r = await client.get(
                     "https://raw.githubusercontent.com/scamsniffer/scam-database/main/blacklist/address.json"
                 )
-                if r.status_code == 200:
+                if r.status_code == HTTPStatus.OK:
                     with open(SPAM_DATA_DIR / "scamsniffer_blacklist.json", "w") as f:
                         f.write(r.text)
                     logger.info("Seeded Scam Sniffer blacklist")

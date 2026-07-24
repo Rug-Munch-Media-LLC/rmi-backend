@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Token Lifespan Predictor
 =========================
 AI-driven survival analysis. Compare against historical rug patterns.

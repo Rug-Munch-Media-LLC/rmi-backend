@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """#3 - Token Death Clock. Predicts time-to-rug using Real-CATS labeled data.
+from __future__ import annotations
+
 Lightweight model trained on 153K tokens (criminal+benign). Paid API endpoint."""
 
 import math

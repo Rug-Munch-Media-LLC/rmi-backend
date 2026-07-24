@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI Wallet Scanner v3 - AI-Powered, World-Class
 ================================================
 10 improvements over any wallet scanner on the market:

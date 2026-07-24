@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+from __future__ import annotations
+
 Supabase vector search helper (RAG integration).
 Uses the existing search_embeddings RPC already installed on the project.
 No pinecone/weaviate needed - SQL + pgvector.

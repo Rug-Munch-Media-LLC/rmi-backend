@@ -1,5 +1,7 @@
 """JWT token creation, verification, and helpers."""
 
+from __future__ import annotations
+
 import hashlib
 import os
 import secrets

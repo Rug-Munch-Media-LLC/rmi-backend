@@ -1,5 +1,7 @@
 """TOTP/2FA helpers and API endpoints."""
 
+from __future__ import annotations
+
 import base64
 import io
 import json

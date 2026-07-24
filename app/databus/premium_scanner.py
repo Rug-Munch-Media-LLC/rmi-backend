@@ -17,6 +17,8 @@ from datetime import UTC, datetime
 import httpx
 import redis
 
+from http import HTTPStatus
+
 from app.core.logging import get_logger
 from typing import Any
 
@@ -95,7 +97,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
                         "params": [address, {"limit": 100}],
                     },
                 )
-                if resp.status_code == 200:
+                if resp.status_code == HTTPStatus.OK:
                     txs = resp.json().get("result", [])
 
                     # Step 2: Group transactions by time proximity
@@ -121,7 +123,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
                                         "params": [tx["signature"], {"encoding": "jsonParsed"}],
                                     },
                                 )
-                                if sig_resp.status_code == 200:
+                                if sig_resp.status_code == HTTPStatus.OK:
                                     tx_data = sig_resp.json().get("result", {})
                                     signer = (
                                         tx_data.get("transaction", {})
@@ -226,7 +228,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
                             params={"limit": 25},
                             headers={"API-Key": arkham_key},
                         )
-                        if resp.status_code == 200:
+                        if resp.status_code == HTTPStatus.OK:
                             data = resp.json()
                             counterparties = data.get("counterparties", [])
 
@@ -270,7 +272,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
                                 "params": [current, {"limit": 20}],
                             },
                         )
-                        if resp.status_code == 200:
+                        if resp.status_code == HTTPStatus.OK:
                             txs = resp.json().get("result", [])
                             nodes.append({"id": current, "type": "wallet", "depth": current_depth})
 
@@ -333,6 +335,38 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
 # ── 3. DEV FINDER ────────────────────────────────────────────────
 
 
+
+
+async def _helius_rpc_call(client: httpx.AsyncClient, api_key: str, method: str, params: list | dict) -> dict | None:
+    """Make a Helius RPC call and return the result dict, or None on failure."""
+    try:
+        json_body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params if isinstance(params, list) else [params]}
+        resp = await client.post(
+            f"https://mainnet.helius-rpc.com/?api-key={api_key}",
+            json=json_body,
+        )
+        if resp.status_code == HTTPStatus.OK:
+            return resp.json().get("result")
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+        pass
+    return None
+
+
+async def _arkham_enrich(client: httpx.AsyncClient, address: str, api_key: str) -> str:
+    """Enrich an address with Arkham intelligence entity name."""
+    if not address or not api_key:
+        return ""
+    try:
+        resp = await client.get(
+            f"https://api.arkhamintelligence.com/intelligence/address/{address}",
+            headers={"API-Key": api_key},
+        )
+        if resp.status_code == HTTPStatus.OK:
+            entity = resp.json().get("arkhamEntity", {})
+            return entity.get("name", "")
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+        pass
+    return ""
 async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> dict | None:
     """Find the developer/creator wallets behind a token.
     Traces: deployer → funding source → LP creator → team wallets.
@@ -365,7 +399,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
                         "params": [token_address],
                     },
                 )
-                if resp.status_code == 200:
+                if resp.status_code == HTTPStatus.OK:
                     asset = resp.json().get("result", {})
                     mint_authority = asset.get("ownership", {}).get("delegated", "")
                     creator = asset.get("creators", [{}])[0].get("address", "")
@@ -387,7 +421,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
                                     "params": [addr, {"limit": 50}],
                                 },
                             )
-                            if sig_resp.status_code == 200:
+                            if sig_resp.status_code == HTTPStatus.OK:
                                 sigs = sig_resp.json().get("result", [])
                                 if sigs:
                                     first_tx = sigs[-1]  # oldest first
@@ -403,7 +437,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
                                             ],
                                         },
                                     )
-                                    if tx_resp.status_code == 200:
+                                    if tx_resp.status_code == HTTPStatus.OK:
                                         tx_data = tx_resp.json().get("result", {})
                                         funder = (
                                             tx_data.get("transaction", {})
@@ -435,7 +469,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
                                 f"https://api.arkhamintelligence.com/intelligence/address/{addr}",
                                 headers={"API-Key": arkham_key},
                             )
-                            if ark_resp.status_code == 200:
+                            if ark_resp.status_code == HTTPStatus.OK:
                                 entity = ark_resp.json().get("arkhamEntity", {})
                                 dw["entity_name"] = entity.get("name", "")
                         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
@@ -446,7 +480,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
                                 f"https://api.arkhamintelligence.com/intelligence/address/{funder}",
                                 headers={"API-Key": arkham_key},
                             )
-                            if ark_resp.status_code == 200:
+                            if ark_resp.status_code == HTTPStatus.OK:
                                 entity = ark_resp.json().get("arkhamEntity", {})
                                 dw["funder_entity"] = entity.get("name", "")
                         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
@@ -540,7 +574,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
                         "params": [address, {"limit": 200}],
                     },
                 )
-                if resp.status_code == 200:
+                if resp.status_code == HTTPStatus.OK:
                     sigs = resp.json().get("result", [])
 
                     # Find first 20 blocks of token existence

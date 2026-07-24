@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Market Intelligence Router - /api/v1/market/*
 BACKWARD COMPATIBILITY SHIM — delegates to app.routers.market_intel package.
 All code has been refactored into app/routers/market_intel/:

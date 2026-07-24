@@ -108,12 +108,26 @@ def _resolve_rate_limit(path: str) -> tuple[float, float]:
 # Redis helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
-REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
-REDIS_URL = os.getenv("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/3")
+def _get_limiter_settings():
+    """Load rate limiter config from settings, falling back to env vars."""
+    try:
+        from app.config import settings as _s
+        host = _s.redis_host
+        port = _s.redis_port
+        password = _s.redis_password
+        db = _s.rate_limiter_redis_db
+        salt = _s.rate_limit_salt
+    except Exception:
+        host = os.getenv("REDIS_HOST", "rmi-redis")
+        port = int(os.getenv("REDIS_PORT", "6379"))
+        password = os.getenv("REDIS_PASSWORD", "")
+        db = int(os.getenv("RATE_LIMITER_REDIS_DB", "4"))
+        salt = os.getenv("RATE_LIMIT_SALT", "")
+    return host, port, password, db, salt
 
-RATE_LIMITER_REDIS_DB = int(os.getenv("RATE_LIMITER_REDIS_DB", "4"))
+REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, RATE_LIMITER_REDIS_DB, _rate_salt = _get_limiter_settings()
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/3"
+RATE_LIMIT_SALT_SECRET = _rate_salt
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI Bulletin Board API Router
 ===============================
 Full REST API for bulletin board management.

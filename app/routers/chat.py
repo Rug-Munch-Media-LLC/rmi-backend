@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 AI Chat API
 ===========
 Intelligent crypto chatbot interface for Rug Munch Intelligence.

@@ -2,7 +2,13 @@
 
 Win #14 degradation: if Redis is down, the in-process LRU cache serves
 stale data. Callers check get_redis_degraded() to detect degraded mode.
+
+CONSOLIDATION (2026-07-24): Now uses ``app.config.settings``
+instead of direct os.getenv(). Falls back to os.getenv during early
+bootstrapping before settings is fully initialized.
 """
+
+from __future__ import annotations
 
 import os
 from typing import Any, TYPE_CHECKING
@@ -15,10 +21,20 @@ if TYPE_CHECKING:
     import redis
     import redis.asyncio as aioredis
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+
+def _get_redis_url() -> str:
+    """Get Redis URL from settings, falling back to direct env var during boot."""
+    try:
+        from app.config import settings as _s
+
+        if _s.redis_url:
+            return _s.redis_url
+    except Exception:
+        pass
+    return os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+
+REDIS_URL = _get_redis_url()
 
 _redis_client: "redis.Redis | aioredis.Redis | None" = None  # type: ignore[type-arg]
 _sync_pool: "redis.ConnectionPool | None" = None

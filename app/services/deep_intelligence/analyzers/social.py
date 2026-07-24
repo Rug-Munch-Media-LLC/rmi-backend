@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Social-Onchain Correlation
 ===========================
 Map hype cycle: wallet activity spikes correlated with social mentions.

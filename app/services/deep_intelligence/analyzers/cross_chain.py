@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Cross-Chain Identity Resolution
 =================================
 Same entity, multiple chains. Detect deployer patterns, funding correlation,

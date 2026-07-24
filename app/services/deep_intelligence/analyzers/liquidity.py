@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Liquidity Lock Authenticity
 ============================
 Not just "is it locked?" but meaningful analysis of the lock.

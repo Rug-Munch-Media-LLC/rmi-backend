@@ -1,5 +1,7 @@
 """x402 scanner tools - run_scan, get_scan_result."""
 
+from __future__ import annotations
+
 from typing import Any
 
 

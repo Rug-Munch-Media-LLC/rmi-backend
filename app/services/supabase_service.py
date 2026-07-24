@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+from __future__ import annotations
+
 RMI Supabase Service - Unified backend layer for all Supabase tables.
 Replaces scattered REST calls with a clean, typed service interface.
 

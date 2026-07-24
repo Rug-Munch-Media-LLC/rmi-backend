@@ -66,7 +66,11 @@ def setup_sentry() -> bool:
     Returns True if initialized, False if DSN not configured or
     sentry_sdk is not installed (graceful - backend still works).
     """
-    dsn = os.getenv("GLITCHTIP_DSN") or os.getenv("SENTRY_DSN")
+    try:
+        from app.config import settings as _s
+        dsn = _s.glitchtip_dsn or _s.sentry_dsn
+    except Exception:
+        dsn = os.getenv("GLITCHTIP_DSN") or os.getenv("SENTRY_DSN")
     if not dsn:
         log.info("sentry_disabled no_dsn")
         return False
@@ -80,8 +84,13 @@ def setup_sentry() -> bool:
         log.info(f"sentry_sdk_not_installed err={exc}")
         return False
 
-    env = os.getenv("ENVIRONMENT", DEFAULT_ENV)
-    traces_sample_rate = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", DEFAULT_SAMPLE_RATE))
+    try:
+        from app.config import settings as _s
+        env = _s.environment
+        traces_sample_rate = _s.sentry_traces_sample_rate
+    except Exception:
+        env = os.getenv("ENVIRONMENT", DEFAULT_ENV)
+        traces_sample_rate = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", DEFAULT_SAMPLE_RATE))
 
     sentry_sdk.init(
         dsn=dsn,

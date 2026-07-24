@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Wallet Authentication Helpers
 =============================
 Wallet signature verification and user creation.

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI News Aggregation Service - THE Crypto News Aggregator
 ==========================================================
 This file has been modularized into app/domains/news/news_service/ package.

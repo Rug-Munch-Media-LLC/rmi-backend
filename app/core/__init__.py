@@ -12,6 +12,8 @@ Modules (populated by parallel DeepSeek tasks DS-1..DS-10):
     - websocket: connection manager (DS-9)
     - tracing: OpenTelemetry + Langfuse v4 (DS-10)
     - dependencies: central DI hub (REFACTOR-2026-Q3)
+    - base_router: CRUD router mixin (REFACTOR-2026-Q3)
+    - base_service: standardised async service interface (REFACTOR-2026-Q3)
 """
 
 from __future__ import annotations
@@ -32,6 +34,10 @@ from app.core.dependencies import (
     close_http_client,
 )
 
+# Re-export base classes
+from app.core.base_router import CRUDRouter
+from app.core.base_service import BaseService
+
 __all__ = [
     "get_settings",
     "get_db",
@@ -45,4 +51,6 @@ __all__ = [
     "get_pryscraper_client",
     "get_client_ip",
     "close_http_client",
+    "CRUDRouter",
+    "BaseService",
 ]

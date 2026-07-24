@@ -1,5 +1,7 @@
 """x402 wallet tools - get_wallet_analysis, get_wallet_history, wallet_profiler."""
 
+from __future__ import annotations
+
 from typing import Any
 
 

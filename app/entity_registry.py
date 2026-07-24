@@ -177,38 +177,53 @@ class EntityRegistry:
             os.path.expanduser("~/data/wallet_labels.json"),
         ]
         for path in label_paths:
+            if not os.path.exists(path):
+                continue
             try:
-                if os.path.exists(path):
-                    with open(path) as f:
-                        data = json.load(f)
-                    if isinstance(data, dict):
-                        for addr, info in data.items():
-                            if isinstance(info, dict):
-                                labels = info.get("labels", [])
-                                if "exchange" in labels or "cex" in labels:
-                                    key = str(addr).lower()
-                                    self._exchange_addrs.add(key)
-                                    self._all_known[key] = EntityMatch(
-                                        address=addr,
-                                        entity_name="labeled_cex",
-                                        entity_type=ENTITY_TYPE_EXCHANGE,
-                                        source="local_labels",
-                                    )
-                                for label in labels:
-                                    if (
-                                        "scam" in str(label).lower()
-                                        or "phish" in str(label).lower()
-                                    ):
-                                        key = str(addr).lower()
-                                        self._scam_addrs.add(key)
-                                        self._all_known[key] = EntityMatch(
-                                            address=addr,
-                                            entity_name=str(label),
-                                            entity_type=ENTITY_TYPE_KNOWN_SCAM,
-                                            source="local_labels",
-                                        )
+                self._process_label_file(path)
             except (ConnectionError, OSError, TimeoutError):
                 pass
+
+    def _process_label_file(self, path: str) -> None:
+        """Process a single label file, extracting exchange and scam labels."""
+        with open(path) as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return
+        for addr, info in data.items():
+            if not isinstance(info, dict):
+                continue
+            labels = info.get("labels", [])
+            self._register_exchange_label(addr, labels)
+            self._register_scam_labels(addr, labels)
+
+    def _register_exchange_label(self, addr: str, labels: list) -> None:
+        """Register address as an exchange if matching labels exist."""
+        if "exchange" not in labels and "cex" not in labels:
+            return
+        key = str(addr).lower()
+        self._exchange_addrs.add(key)
+        self._all_known[key] = EntityMatch(
+            address=addr,
+            entity_name="labeled_cex",
+            entity_type=ENTITY_TYPE_EXCHANGE,
+            source="local_labels",
+        )
+
+    def _register_scam_labels(self, addr: str, labels: list) -> None:
+        """Register address as known scam if labels indicate scam/phishing."""
+        for label in labels:
+            label_str = str(label).lower()
+            if "scam" not in label_str and "phish" not in label_str:
+                continue
+            key = str(addr).lower()
+            self._scam_addrs.add(key)
+            self._all_known[key] = EntityMatch(
+                address=addr,
+                entity_name=str(label),
+                entity_type=ENTITY_TYPE_KNOWN_SCAM,
+                source="local_labels",
+            )
 
     def classify_address(self, address: str) -> EntityMatch | None:
         """Classify an address as exchange, DeFi, mixer, scam, or unknown."""

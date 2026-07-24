@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 MBAL (Multi-blockchain Anti-Laundering) Label Integration
 
 Integrates with MBAL's 10M+ wallet labels via the MBAL API or direct ClickHouse access.

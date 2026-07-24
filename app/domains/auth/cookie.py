@@ -1,5 +1,7 @@
 """HttpOnly cookie helpers for JWT and CSRF tokens."""
 
+from __future__ import annotations
+
 import secrets
 
 from fastapi import Request, Response

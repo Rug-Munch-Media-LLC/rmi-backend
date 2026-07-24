@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 RMI Developer Tier System
 ==========================
 Free developer API keys with 100 calls/day. No payment required.
