@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # ── Auth ────────────────────────────────────────────────────────
     jwt_secret: str = Field(  # required, no default, fail-fast in prod
+        default="dev-secret-please-set-JWT_SECRET-env-var-32chars",
         min_length=32,
         description=(
             "HMAC secret for JWT (HS256 fallback). Required. Must be >= 32 chars. "
