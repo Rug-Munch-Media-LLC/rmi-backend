@@ -1,22 +1,23 @@
 """RMI Backend - Auth middleware and API key verification.
 
 Uses a WHITELIST approach: only explicitly listed paths are public.
-Everything else — including all /api/v1/* routes not in the whitelist —
-requires authentication.
+Unknown paths (no matching route) pass through to the 404 handler which
+returns proper RFC 7807 Problem Details.
 """
 
 from __future__ import annotations
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.routing import Mount, Route as StarletteRoute
 
 from app.config import settings
+from app.core.problem_details import ProblemDetail
 from app.core.logging import get_logger
 from typing import Any
 
 log = get_logger(__name__)
 
-# Load auth token from Settings (which reads from .env / env vars).
 RMI_AUTH_TOKEN = settings.rmi_auth_token
 
 if not RMI_AUTH_TOKEN:
@@ -27,10 +28,6 @@ if not RMI_AUTH_TOKEN:
         "Generate with: openssl rand -hex 32. "
         f"Environment: {env}"
     )
-
-# ── Whitelist of truly public paths (no auth required) ─────────────────
-# Only these exact paths and prefixes bypass auth. Everything else —
-# including all /api/v1/* routes not listed here — requires authentication.
 
 # Exact path matches (case-sensitive, any method)
 PUBLIC_EXACT_PATHS = frozenset(
@@ -48,7 +45,6 @@ PUBLIC_EXACT_PATHS = frozenset(
     }
 )
 
-# Path prefixes that are always public (any method, any path under prefix)
 PUBLIC_PREFIXES = (
     "/api/v1/auth/",
     "/api/v1/public/",
@@ -56,17 +52,39 @@ PUBLIC_PREFIXES = (
 )
 
 def is_public_path(path: str, method: str) -> bool:
-    """Check if a path is publicly accessible without auth (whitelist).
-
-    Only paths in PUBLIC_EXACT_PATHS or matching a PUBLIC_PREFIXES entry
-    are considered public. All other routes — including /api/v1/token/*,
-    /api/v1/databus/*, /api/v1/scanner/*, /api/v1/wallet/*, etc. —
-    require authentication.
-    """
     if path in PUBLIC_EXACT_PATHS:
         return True
-
     return any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
+
+def _path_has_route(path: str, routes: list) -> bool:
+    """Check if a path matches any registered route. Simple prefix-based approach."""
+    from starlette.routing import Mount, Route as StarletteRoute
+    
+    for route in routes:
+        if isinstance(route, Mount):
+            # Check if path starts with mount prefix
+            if route.path != "" and (path == route.path or path.startswith(route.path.rstrip("/") + "/")):
+                if route.routes:
+                    # Check sub-routes
+                    sub_path = path[len(route.path):] if route.path != "/" else path
+                    if _path_has_route(sub_path, route.routes):
+                        return True
+                # Mount with no sub-routes — assume it handles all paths under prefix
+                if route.path != "/":
+                    return True
+        elif isinstance(route, StarletteRoute):
+            # Simple path matching
+            route_path = getattr(route, "path", "")
+            if not route_path:
+                continue
+            # Convert Starlette route pattern to match against path
+            # Strip path params like {param_id}
+            import re
+            pattern = re.sub(r"\{[^}]+\}", "[^/]+", route_path)
+            pattern = "^" + re.escape(pattern).replace(r"\[^/\]\+", "[^/]+") + "$"
+            if re.match(pattern, path):
+                return True
+    return False
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Any:
@@ -77,40 +95,41 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if is_public_path(path, method):
             return await call_next(request)
 
+        # Check if this path actually exists as a route
+        try:
+            if not _path_has_route(path, self.app.routes):
+                return await call_next(request)  # Let 404 handler return RFC 7807
+        except Exception as exc:
+            log.warning("route_check_failed path=%s err=%s", path, exc)
+            # If route check fails, pass through — let normal auth handle it
+
         # Protected route — require authentication
         api_key = request.headers.get("X-API-Key", "")
 
         if not RMI_AUTH_TOKEN:
-            # No token configured at all — this is a misconfiguration
             env = settings.environment
             if env == "prod":
-                # Production: reject with 503 — service is misconfigured
-                return JSONResponse(
-                    status_code=503,
-                    content={
-                        "detail": "Service misconfigured — RMI_AUTH_TOKEN not set",
-                    },
-                )
-            # Dev mode: only bypass if DEV_BYPASS_AUTH is explicitly set
+                return ProblemDetail.create(
+                    status=503,
+                    detail="Service misconfigured — RMI_AUTH_TOKEN not set",
+                    code="auth.misconfigured",
+                ).as_response()
             if settings.dev_bypass_auth and api_key:
-                log.warning(
-                    "DEV MODE: Authentication bypassed via DEV_BYPASS_AUTH",
-                    path=path,
-                )
+                log.warning("DEV MODE: Auth bypassed via DEV_BYPASS_AUTH", path=path)
                 return await call_next(request)
-            # All other cases: reject
-            log.warning("Auth denied (no RMI_AUTH_TOKEN configured)", path=path)
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Unauthorized — X-API-Key header required"},
-            )
+            log.warning("Auth denied (no RMI_AUTH_TOKEN)", path=path)
+            return ProblemDetail.create(
+                status=401,
+                detail="Unauthorized — X-API-Key header required",
+                code="auth.missing_token",
+            ).as_response()
 
-        # Token configured — must match exactly
         if api_key != RMI_AUTH_TOKEN:
             log.warning("Auth denied: invalid X-API-Key", path=path)
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Unauthorized — invalid X-API-Key"},
-            )
+            return ProblemDetail.create(
+                status=401,
+                detail="Unauthorized — invalid X-API-Key",
+                code="auth.invalid_key",
+            ).as_response()
 
         return await call_next(request)
