@@ -8,11 +8,11 @@ Auto-detect contract addresses, $TOKEN lookups, and tiered AI chat
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -33,6 +33,9 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, main_menu_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.states import check_spam
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
 

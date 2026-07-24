@@ -2,4 +2,4 @@
 
 from __future__ import annotations
 
-from app.domains.scanner.entity_graph import *  # noqa: F403
+from app.domains.scanner.entity_graph import *

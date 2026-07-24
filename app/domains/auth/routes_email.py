@@ -13,6 +13,8 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
+from typing import TYPE_CHECKING
+
 from app.core.slowrate import limiter
 from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie
 from app.domains.auth.jwt import (
@@ -25,8 +27,10 @@ from app.domains.auth.jwt import (
 )
 from app.domains.auth.passwords import hash_password, verify_password
 from app.domains.auth.router import router
-from app.domains.auth.schemas import EmailLoginRequest, EmailRegisterRequest
 from app.domains.auth.store import _get_user_by_email, _is_valid_email
+
+if TYPE_CHECKING:
+    from app.domains.auth.schemas import EmailLoginRequest, EmailRegisterRequest
 
 
 @router.post("/register")

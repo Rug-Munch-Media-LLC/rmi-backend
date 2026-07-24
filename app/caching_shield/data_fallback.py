@@ -23,11 +23,14 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger("data_fallback")
 

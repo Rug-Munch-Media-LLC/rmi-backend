@@ -4,8 +4,8 @@ Server admin endpoints (processes, disk, network deep-dive).
 
 from __future__ import annotations
 
+import contextlib
 import logging
-from typing import Any
 
 import psutil
 from fastapi import APIRouter, Depends, Request
@@ -25,7 +25,7 @@ async def admin_processes(
     try:
         processes = []
         for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent", "status"]):
-            try:
+            with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
                 processes.append({
                     "pid": proc.info["pid"],
                     "name": proc.info["name"],
@@ -33,8 +33,6 @@ async def admin_processes(
                     "memory": round(proc.info["memory_percent"] or 0, 1),
                     "status": proc.info["status"],
                 })
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
         processes.sort(key=lambda p: p["memory"], reverse=True)
         return {"processes": processes[:50], "total": len(processes)}
     except Exception as e:

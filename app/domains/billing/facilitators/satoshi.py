@@ -139,7 +139,7 @@ class SatoshiFacilitator(Facilitator):
                     )
 
                 if data.get("isValid") or data.get("verified"):
-                    settlement_chain = data.get("settlementChain", "base" if not is_btc else "base")  # noqa: RUF034
+                    settlement_chain = data.get("settlementChain", "base" if not is_btc else "base")
                     return self._format_success(
                         tx_hash=data.get("txHash") or data.get("btcTxid"),
                         payer=data.get("payer") or data.get("btcAddress"),

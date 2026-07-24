@@ -17,7 +17,7 @@ Endpoints:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -27,7 +27,9 @@ from app.core.dependencies import get_pryscraper_client
 from app.core.errors import UpstreamError
 from app.core.logging import get_logger
 from app.core.rate_limiter import get_rate_limit_dependency
-from app.services.pryscraper_client import PryscraperClient
+
+if TYPE_CHECKING:
+    from app.services.pryscraper_client import PryscraperClient
 
 logger = get_logger(__name__)
 

@@ -26,7 +26,8 @@ async def fetch_coingecko(svc: NewsService, limit: int = 15) -> list[dict[str, A
         async with httpx.AsyncClient(timeout=10.0) as client:
             headers = {"x-cg-demo-api-key": COINGECKO_API_KEY} if COINGECKO_API_KEY else {}
             resp = await client.get("https://api.coingecko.com/api/v3/news", params={"per_page": limit}, headers=headers)
-            if resp.status_code != 200: return []
+            if resp.status_code != 200:
+                return []
             data = resp.json()
         articles = []
         for item in data.get("data", []):
@@ -34,10 +35,13 @@ async def fetch_coingecko(svc: NewsService, limit: int = 15) -> list[dict[str, A
             desc = item.get("description", "") or title
             pub_str = item.get("updated_at", item.get("created_at", ""))
             ch = hashlib.sha256(f"cg:{title}:{url}".encode()).hexdigest()
-            if ch in svc.seen_hashes: continue
+            if ch in svc.seen_hashes:
+                continue
             svc.seen_hashes.add(ch)
-            try: published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
-            except (ValueError, TypeError): published = datetime.now(UTC).isoformat()
+            try:
+                published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
+            except (ValueError, TypeError):
+                published = datetime.now(UTC).isoformat()
             tfa = f"{title} {desc}"
             articles.append({
                 "id": f"cg-{ch[:12]}", "title": title, "url": url, "description": desc[:300],
@@ -61,7 +65,8 @@ async def fetch_cryptopanic(svc: NewsService, limit: int = 15) -> list[dict[str,
             url = "https://cryptopanic.com/api/free/v1/posts/"
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url, params=params)
-            if resp.status_code != 200: return []
+            if resp.status_code != 200:
+                return []
             data = resp.json()
         articles = []
         for item in data.get("results", []):
@@ -70,10 +75,13 @@ async def fetch_cryptopanic(svc: NewsService, limit: int = 15) -> list[dict[str,
             source_title = src.get("title", "CryptoPanic") if isinstance(src, dict) else "CryptoPanic"
             pub_str = item.get("published_at", item.get("created_at", ""))
             ch = hashlib.sha256(f"cp:{title}:{url}".encode()).hexdigest()
-            if ch in svc.seen_hashes: continue
+            if ch in svc.seen_hashes:
+                continue
             svc.seen_hashes.add(ch)
-            try: published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
-            except (ValueError, TypeError): published = datetime.now(UTC).isoformat()
+            try:
+                published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
+            except (ValueError, TypeError):
+                published = datetime.now(UTC).isoformat()
             votes = item.get("votes", {})
             bull = votes.get("positive", 0) if isinstance(votes, dict) else 0
             bear = votes.get("negative", 0) if isinstance(votes, dict) else 0
@@ -94,21 +102,29 @@ async def fetch_rmi_scanner(svc: NewsService) -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(f"{BACKEND_URL}/api/v1/scanner/recent?limit=10")
-            if resp.status_code != 200: return []
+            if resp.status_code != 200:
+                return []
             data = resp.json()
         articles = []
-        for scan in data[:10]:
+        for scan in data[:
+            10]:
             token = scan.get("token_name", "Unknown Token")
             address = scan.get("contract_address", scan.get("token_address", ""))
-            chain = scan.get("chain", ""); risk = scan.get("risk_score", 0)
+            chain = scan.get("chain", "")
+            risk = scan.get("risk_score", 0)
             flags = []
-            if scan.get("is_honeypot"): flags.append("HONEYPOT")
-            if scan.get("is_rug_pull"): flags.append("RUG PULL RISK")
-            if not scan.get("liquidity_locked"): flags.append("UNLOCKED LP")
-            if scan.get("has_mint_authority"): flags.append("MINTABLE")
+            if scan.get("is_honeypot"):
+                flags.append("HONEYPOT")
+            if scan.get("is_rug_pull"):
+                flags.append("RUG PULL RISK")
+            if not scan.get("liquidity_locked"):
+                flags.append("UNLOCKED LP")
+            if scan.get("has_mint_authority"):
+                flags.append("MINTABLE")
             flag_str = ", ".join(flags) if flags else "clean"
             ch = hashlib.sha256(f"scanner:{address}:{chain}".encode()).hexdigest()
-            if ch in svc.seen_hashes: continue
+            if ch in svc.seen_hashes:
+                continue
             svc.seen_hashes.add(ch)
             sentiment = "bearish" if risk > 60 else "slightly_bearish" if risk > 30 else "neutral"
             articles.append({
@@ -130,14 +146,17 @@ async def fetch_rmi_alerts(svc: NewsService) -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(f"{BACKEND_URL}/api/v1/rag/search?q=scam exploit hack rug drain alert&limit=5")
-            if resp.status_code != 200: return []
+            if resp.status_code != 200:
+                return []
             data = resp.json()
         articles = []
-        for r in (data.get("results", data.get("data", [])))[:5]:
+        for r in (data.get("results", data.get("data", [])))[:
+            5]:
             title = (r.get("title", r.get("content", "")) or "")[:120]
             content = (r.get("content", r.get("description", "")) or "")[:300]
             ch = hashlib.sha256(f"alert:{title}".encode()).hexdigest()
-            if ch in svc.seen_hashes: continue
+            if ch in svc.seen_hashes:
+                continue
             svc.seen_hashes.add(ch)
             articles.append({
                 "id": f"alert-{ch[:12]}", "title": f"🚨 {title}", "url": r.get("url", "https://rugmunch.io/alerts"),
@@ -152,7 +171,8 @@ async def fetch_rmi_alerts(svc: NewsService) -> list[dict[str, Any]]:
         return []
 
 async def fetch_ghost(svc: NewsService, limit: int = 5) -> list[dict[str, Any]]:
-    if not GHOST_CONTENT_KEY: return []
+    if not GHOST_CONTENT_KEY:
+        return []
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(f"{GHOST_URL}/ghost/api/content/posts/", params={

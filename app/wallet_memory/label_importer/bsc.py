@@ -73,4 +73,4 @@ async def _load_bsc_detail(storage) -> int:
     logger.info(f"Loaded {count} BSC detail labels")
     return count
 
-import os  # noqa: E402
+import os

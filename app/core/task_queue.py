@@ -6,9 +6,12 @@ import asyncio
 import json
 import os
 import time
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger(__name__)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")

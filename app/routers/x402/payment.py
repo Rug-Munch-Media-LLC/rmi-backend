@@ -6,13 +6,15 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import Request
 from pydantic import BaseModel
 
 from app.core.errors import PaymentRequiredError
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 logger = get_logger("x402_databus_payment")
 

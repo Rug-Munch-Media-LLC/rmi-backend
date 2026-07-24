@@ -55,19 +55,19 @@ _pattern_cache_loaded = False
 _redis_pool = None
 
 # Re-exports
-from app.rag_service.cache import _get_redis  # noqa: E402
-from app.rag_service.detection import (  # noqa: E402
+from app.rag_service.cache import _get_redis
+from app.rag_service.detection import (
     detect_scam_patterns,
     get_goplus_analysis,
 )
-from app.rag_service.indexing import (  # noqa: E402
+from app.rag_service.indexing import (
     _embed_by_collection,
     _preembed_scam_patterns,
     ingest_document,
     ingest_forensic_report,
     seed_known_scams,
 )
-from app.rag_service.retrieval import (  # noqa: E402
+from app.rag_service.retrieval import (
     _classify_query,
     _enrich_ann_results,
     _rrf_fuse,
@@ -77,7 +77,7 @@ from app.rag_service.retrieval import (  # noqa: E402
     search_with_transform,
     three_pillar_search,
 )
-from app.rag_service.stats import (  # noqa: E402
+from app.rag_service.stats import (
     get_stats,
 )
 

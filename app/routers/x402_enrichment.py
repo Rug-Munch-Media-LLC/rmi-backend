@@ -349,7 +349,8 @@ def search_similar_patterns(
         if not embedder:
             return [], 0
 
-        for addr in addresses[:10]:  # Max 10 RAG queries per call
+        for addr in addresses[:
+            10]:  # Max 10 RAG queries per call
             # Check cache first
             cache_key = f"x402:enrich:rag:{addr}"
             if r:
@@ -381,7 +382,8 @@ def search_similar_patterns(
                                 "type": h.get("metadata", {}).get("type", ""),
                                 "description": h.get("metadata", {}).get("description", "")[:200],
                             }
-                            for h in hits[:2]
+                            for h in hits[:
+                                2]
                         ],
                     }
                     patterns.append(pattern)
@@ -492,7 +494,8 @@ def enrich_tool_response(
 
         from app.rag_service import detect_scam_patterns
 
-        for addr in addresses[:5]:
+        for addr in addresses[:
+            5]:
             try:
                 result = asyncio.run(
                     detect_scam_patterns({"address": addr, "chain": "ethereum"}, 0.65)
@@ -578,7 +581,8 @@ def enrich_tool_response(
     # 8. Track addresses for RAG discovery pipeline
     if addresses:
         try:
-            for addr in addresses[:5]:
+            for addr in addresses[:
+                5]:
                 r.lpush(
                     "x402:recent:addresses",
                     json.dumps(
@@ -784,7 +788,8 @@ def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict
     import urllib.parse
     import urllib.request
 
-    for addr in addresses[:20]:  # Max 20 per call (free tier 5/sec + timeout budget)
+    for addr in addresses[:
+        20]:  # Max 20 per call (free tier 5/sec + timeout budget)
         try:
             params = {
                 "chainid": cid,
@@ -812,10 +817,12 @@ def preload_enrichment_cache(addresses: list[str]) -> None:
     Background preload: fetch and cache enrichment for hot addresses.
     Intended for high-traffic addresses (top wallets, trending tokens).
     """
-    for addr in addresses[:50]:
+    for addr in addresses[:
+        50]:
         try:
             r = _redis()
-            if r.exists(f"x402:enrich:{addr}"):
+            if r.exists(f"x402:
+                enrich:{addr}"):
                 continue
             result, _ = lookup_labels([addr])
             labels = result.get(addr, [])

@@ -63,7 +63,7 @@ async def check_http_service(url: str, timeout: float = 5.0) -> dict[str, Any]:
 
     start = time.monotonic()
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:  # noqa: SIM117
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
             async with session.get(url) as resp:
                 latency_ms = (time.monotonic() - start) * 1000
                 if resp.status == 200:
@@ -235,7 +235,7 @@ def get_uptime_history(days: int = 30) -> dict[str, Any]:
         return {"error": "redis_unavailable"}
 
     history = {}
-    for service_name in SERVICES:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    for service_name in SERVICES:
         daily_uptime = []
         for i in range(days):
             day = (datetime.now(UTC) - timedelta(days=i)).strftime("%Y-%m-%d")
@@ -263,7 +263,7 @@ async def run_all_checks() -> None:
     results = {}
     overall_status = "operational"
 
-    for name, config in SERVICES.items():  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    for name, config in SERVICES.items():
         try:
             result = await check_service(name, config)
             results[name] = result
@@ -324,7 +324,7 @@ async def get_status() -> Any:
             "timestamp": datetime.now(UTC).isoformat(),
             "services": {},
         }
-        for name, config in SERVICES.items():  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        for name, config in SERVICES.items():
             try:
                 result = await check_service(name, config)
                 overall["services"][name] = result
@@ -413,7 +413,7 @@ async def list_services() -> Any:
                     "critical": config.get("critical", False),
                     "check_type": config.get("check_type", "http"),
                 }
-                for name, config in SERVICES.items()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+                for name, config in SERVICES.items()
             }
         }
     )

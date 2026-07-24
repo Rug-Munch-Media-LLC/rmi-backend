@@ -136,7 +136,7 @@ async def get_all_health() -> Any:
     """Get health status for all facilitators."""
     result = {}
     for name in FACILITATORS:
-        result[name] = get_facilitator_health(name)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        result[name] = get_facilitator_health(name)
 
     # Summary
     healthy = sum(1 for v in result.values() if v.get("status") == "healthy")
@@ -171,12 +171,12 @@ async def get_facilitator_status(name: str) -> Any:
             },
         )
 
-    return JSONResponse(content=get_facilitator_health(name))  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    return JSONResponse(content=get_facilitator_health(name))
 
 @router.get("/chains/{chain}")
 async def get_facilitators_for_chain(chain: str) -> Any:
     """Get healthy facilitators for a specific chain."""
-    facilitators = get_healthy_facilitators_for_chain(chain)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    facilitators = get_healthy_facilitators_for_chain(chain)
     return JSONResponse(
         content={
             "chain": chain,
@@ -195,8 +195,8 @@ async def trigger_health_check(name: str) -> Any:
         )
 
     config = FACILITATORS[name]
-    result = await ping_facilitator(name, config)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-    record_health(name, result)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    result = await ping_facilitator(name, config)
+    record_health(name, result)
 
     return JSONResponse(
         content={

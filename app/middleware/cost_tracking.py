@@ -78,7 +78,7 @@ class CostBuffer:
 
     def record(self, tenant_id: str, route: str, cost_usd: float, latency_s: float) -> None:
         """Record a single cost event."""
-        try:  # noqa: SIM105
+        try:
             self._buffer.put_nowait((tenant_id, cost_usd, latency_s, time.monotonic()))
         except asyncio.QueueFull:
             # Drop oldest if full (acceptable - we keep running totals)

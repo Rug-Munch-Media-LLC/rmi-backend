@@ -6,10 +6,11 @@ Background price alert checker and alert management commands.
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -26,6 +27,9 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
 from app.domains.telegram.rugmunchbot.states import check_alert_rate_limit
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
 
@@ -118,10 +122,7 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
         target_price = alert["alert_price"]
         direction = alert["alert_direction"]
 
-        if target_price > 0:
-            change_pct = abs((current_price - target_price) / target_price) * 100
-        else:
-            change_pct = 0.0
+        change_pct = abs((current_price - target_price) / target_price) * 100 if target_price > 0 else 0.0
 
         direction_emoji = "\U0001f4c8" if direction == "above" else "\U0001f4c9" if direction == "below" else "\U0001f4ca"
         direction_label = DIRECTION_LABELS.get(direction, direction)

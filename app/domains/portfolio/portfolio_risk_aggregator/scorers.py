@@ -1,6 +1,7 @@
 """Token risk scoring and pricing."""
 from __future__ import annotations
 
+import contextlib
 import importlib
 from typing import Any
 
@@ -23,10 +24,8 @@ class TokenRiskScorer:
         self._try_import_scanner()
 
     def _try_import_scanner(self) -> None:
-        try:
+        with contextlib.suppress(ImportError):
             self._scanner_available = importlib.util.find_spec("app.unified_scanner") is not None
-        except ImportError:
-            pass
 
     async def score_token(self, chain: str, address: str, symbol: str) -> dict[str, Any]:
         if not address or address == "0x0000000000000000000000000000000000000000":

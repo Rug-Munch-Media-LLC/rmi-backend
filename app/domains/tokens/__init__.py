@@ -9,7 +9,7 @@ lives in app.tokens.deployer (moved verbatim from app.token_deployer on
 
 from __future__ import annotations
 
-from app.domains.tokens.deployer import (  # noqa: F401
+from app.domains.tokens.deployer import (
     ChainDeployer,
     DeploymentStorage,
     DeployParams,

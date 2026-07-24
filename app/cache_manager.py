@@ -29,8 +29,10 @@ import contextlib
 import json
 import os
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ═══════════════════════════════════════════════════════════════
 # PROVIDER CONFIG - TTLs, rate limits, credit tracking

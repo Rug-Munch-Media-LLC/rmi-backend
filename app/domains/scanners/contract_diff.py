@@ -388,7 +388,7 @@ class ContractDiffAnalyzer:
         return report
 
     # Chain name → chain ID mapping for EVM chains
-    CHAIN_TO_ID = {  # noqa: RUF012
+    CHAIN_TO_ID = {
         "ethereum": 1,
         "eth": 1,
         "bsc": 56,

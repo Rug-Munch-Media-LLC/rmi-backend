@@ -9,6 +9,3 @@ Regenerate via: scripts/generate_provider_chains.py
 
 from __future__ import annotations
 
-from app.domains.databus._generated.provider_chains import (  # noqa: F401
-    build_provider_chains,
-)

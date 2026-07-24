@@ -7,9 +7,11 @@ Shared dataclasses and enums used across the cluster detection modules.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ClusterType(Enum):

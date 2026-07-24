@@ -5,7 +5,7 @@ Provides the `get_db` FastAPI dependency for request-scoped sessions.
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -14,6 +14,9 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import settings
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 engine = create_async_engine(
     settings.database_url,

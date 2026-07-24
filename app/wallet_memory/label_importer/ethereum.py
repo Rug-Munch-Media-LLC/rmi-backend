@@ -62,7 +62,7 @@ async def _load_etherscan_combined(storage) -> int:
     logger.info(f"Loaded {count} etherscan combined labels")
     return count
 
-import os  # noqa: E402
+import os
 
 
 async def _load_etherscan_phish_hack(storage) -> int:

@@ -11,7 +11,7 @@ import json
 import os
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
@@ -19,7 +19,9 @@ from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.routers.x402_advanced_tools.cache import get_cached, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
-from app.routers.x402_advanced_tools.models import HistoryRequest
+
+if TYPE_CHECKING:
+    from app.routers.x402_advanced_tools.models import HistoryRequest
 
 logger = get_logger("x402.history")
 

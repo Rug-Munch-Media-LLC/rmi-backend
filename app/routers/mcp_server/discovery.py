@@ -126,7 +126,7 @@ async def llms_txt() -> Any:
     data = _get_tools()
     prices = data["prices"]
     chains = data["chains"]
-    fac_count = _get_facilitator_count()
+    _get_facilitator_count()
     cats = {}
     for _tool_id, pricing in prices.items():
         cat = pricing.get("category", "analysis")

@@ -117,7 +117,7 @@ async def detect_communities(
     )
 
     result = []
-    for comm_id, (label, members) in enumerate(sorted_communities[:max_communities]):  # noqa: B007
+    for comm_id, (label, members) in enumerate(sorted_communities[:max_communities]):
         if len(members) < min_community_size:
             break
 

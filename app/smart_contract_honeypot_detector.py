@@ -12,7 +12,7 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.detectors.smart_contract_honeypot_detector import *  # noqa: F403
+from app.domains.detectors.smart_contract_honeypot_detector import *
 
 if __name__ == "__main__":
     from app.domains.detectors.smart_contract_honeypot_detector import main as _main

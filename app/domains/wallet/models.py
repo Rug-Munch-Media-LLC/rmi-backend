@@ -83,12 +83,12 @@ def _build_registry() -> dict[str, ChainMeta]:
     reg: dict[str, ChainMeta] = {}
 
     # ── EVM Chains (secp256k1, BIP44) ────────────────────────
-    evm_def = dict(
-        derivation="bip44",
-        curve="secp256k1",
-        address_pattern=r"^0x[a-fA-F0-9]{40}$",
-        address_prefix="0x",
-    )
+    evm_def = {
+        "derivation": "bip44",
+        "curve": "secp256k1",
+        "address_pattern": r"^0x[a-fA-F0-9]{40}$",
+        "address_prefix": "0x",
+    }
     evm_chains: list[tuple[str, str, str, int]] = [
         ("eth", "Ethereum", "ETH", 18),
         ("base", "Base", "ETH", 18),
@@ -104,7 +104,7 @@ def _build_registry() -> dict[str, ChainMeta]:
         reg[key] = ChainMeta(key=key, name=name, native_symbol=sym, native_decimals=dec, **evm_def)  # type: ignore[arg-type]
 
     # ── Bitcoin Family (secp256k1) ───────────────────────────
-    btc_def: dict[str, Any] = dict(curve="secp256k1", address_prefix="")
+    btc_def: dict[str, Any] = {"curve": "secp256k1", "address_prefix": ""}
     for key, name, sym, der in [
         ("btc", "Bitcoin", "BTC", "bip44"),
         ("btc-segwit", "Bitcoin SegWit", "BTC", "bip49"),
@@ -130,11 +130,11 @@ def _build_registry() -> dict[str, ChainMeta]:
     )
 
     # ── Cosmos / IBC ─────────────────────────────────────────
-    cosmos_def: dict[str, Any] = dict(
-        derivation="bip44_cosmos",
-        curve="secp256k1",
-        address_pattern=r"^(cosmos|osmo|juno|secret|inj)1[a-z0-9]{38}$",
-    )
+    cosmos_def: dict[str, Any] = {
+        "derivation": "bip44_cosmos",
+        "curve": "secp256k1",
+        "address_pattern": r"^(cosmos|osmo|juno|secret|inj)1[a-z0-9]{38}$",
+    }
     cosmos: list[tuple[str, str, str]] = [
         ("atom", "Cosmos Hub", "ATOM"),
         ("osmo", "Osmosis", "OSMO"),

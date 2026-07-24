@@ -6,7 +6,7 @@ This stub re-exports everything for backward compatibility.
 """
 from __future__ import annotations
 
-from app.domains.analysis.liquidation import *  # noqa: F403
+from app.domains.analysis.liquidation import *
 
 __all__ = [
     "CascadeScenario",

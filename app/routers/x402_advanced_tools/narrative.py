@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
@@ -18,7 +18,9 @@ from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.routers.x402_advanced_tools.cache import get_cached, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
-from app.routers.x402_advanced_tools.models import NarrativeRequest
+
+if TYPE_CHECKING:
+    from app.routers.x402_advanced_tools.models import NarrativeRequest
 
 logger = get_logger("x402.narrative")
 

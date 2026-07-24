@@ -378,7 +378,7 @@ class ConsensusRpcClient:
 
         # Find the winning value (most votes)
         best_sources: list[str] = []
-        for norm, sources in vote_counts.items():  # noqa: B007
+        for norm, sources in vote_counts.items():
             if len(sources) > len(best_sources):
                 best_sources = sources
 
@@ -552,7 +552,7 @@ class ConsensusRpcClient:
             vote_counts.setdefault(norm, []).append(name)
 
         best_sources: list[str] = []
-        for norm, sources in vote_counts.items():  # noqa: B007
+        for norm, sources in vote_counts.items():
             if len(sources) > len(best_sources):
                 best_sources = sources[:]
 

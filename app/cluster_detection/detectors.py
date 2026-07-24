@@ -57,7 +57,7 @@ async def detect_temporal_clusters(
     # Find wallets appearing together frequently
     cooccurrence = defaultdict(lambda: defaultdict(int))
 
-    for window, window_wallets in time_windows.items():  # noqa: B007
+    for window, window_wallets in time_windows.items():
         if len(window_wallets) < 2:
             continue
         wallet_list = list(window_wallets)
@@ -233,7 +233,7 @@ async def detect_behavioral_clusters(
     # Cluster using connected components
     graph = defaultdict(set)
 
-    for (w1, w2), sim in similarity_matrix.items():  # noqa: B007
+    for (w1, w2), sim in similarity_matrix.items():
         graph[w1].add(w2)
         graph[w2].add(w1)
 

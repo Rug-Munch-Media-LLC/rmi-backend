@@ -200,7 +200,7 @@ def _analyze_url(url: str) -> dict:
                 indicators.append(f"brand_impersonation:{brand}")
 
     # Indicator 3: Homograph attacks (lookalike chars)
-    if any(c in domain for c in "а ο е ｒ ｎ"):  # Cyrillic lookalikes  # noqa: RUF001
+    if any(c in domain for c in "а ο е ｒ ｎ"):  # Cyrillic lookalikes
         risk_score += 30
         indicators.append("homograph_attack")
 

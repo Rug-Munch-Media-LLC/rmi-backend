@@ -8,6 +8,7 @@ Paper ref: Article 3, Section 2 - Free Datasets and Labelled-Address Repositorie
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from dataclasses import dataclass
@@ -179,10 +180,8 @@ class EntityRegistry:
         for path in label_paths:
             if not os.path.exists(path):
                 continue
-            try:
+            with contextlib.suppress(ConnectionError, OSError, TimeoutError):
                 self._process_label_file(path)
-            except (ConnectionError, OSError, TimeoutError):
-                pass
 
     def _process_label_file(self, path: str) -> None:
         """Process a single label file, extracting exchange and scam labels."""

@@ -98,7 +98,7 @@ class BlocklistManager:
         """Load OFAC SDN dataset (cached)."""
         self.ofac_sdn = self._get_ofac_sdn()
 
-    @lru_cache(maxsize=1)  # noqa: B019
+    @lru_cache(maxsize=1)
     def _get_ofac_sdn(self) -> set[str]:
         """Fetch and cache OFAC SDN dataset."""
         try:

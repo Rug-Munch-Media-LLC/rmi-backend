@@ -491,9 +491,8 @@ class ContractAuthorityScanner:
                 func_names.add(entry.get("name", ""))
 
         # Transparent proxies have admin functions on the proxy itself
-        if "upgradeTo" in func_names or "upgradeToAndCall" in func_names:
-            if proxy_info.admin_address:
-                return "OZ_Transparent"
+        if ("upgradeTo" in func_names or "upgradeToAndCall" in func_names) and proxy_info.admin_address:
+            return "OZ_Transparent"
 
         # UUPS proxies include upgrade logic in the implementation
         if "upgradeTo" in func_names or "upgradeToAndCall" in func_names:

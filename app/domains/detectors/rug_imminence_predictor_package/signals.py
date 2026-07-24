@@ -6,8 +6,12 @@ Each function operates on a RIPResult and updates one signal category.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from app.core.logging import get_logger
-from app.domains.detectors.rug_imminence_predictor_package.types import RIPResult
+
+if TYPE_CHECKING:
+    from app.domains.detectors.rug_imminence_predictor_package.types import RIPResult
 
 logger = get_logger(__name__)
 

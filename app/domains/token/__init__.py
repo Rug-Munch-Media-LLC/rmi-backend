@@ -9,7 +9,7 @@ from app.core.health import DomainHealth
 async def _health_check() -> DomainHealth:
     """Token health: DataBus is importable."""
     try:
-        import app.databus  # noqa: F401
+        import app.databus
 
         return DomainHealth(
             name="token",
@@ -22,8 +22,8 @@ async def _health_check() -> DomainHealth:
 health_mod.register_health_check("token", _health_check)
 
 # Public API
-from app.domains.token.analyzer import TokenAnalyzer  # noqa: E402
-from app.domains.token.models import (  # noqa: E402
+from app.domains.token.analyzer import TokenAnalyzer
+from app.domains.token.models import (
     RiskLevel,
     Token,
     TokenDetail,
@@ -33,8 +33,8 @@ from app.domains.token.models import (  # noqa: E402
     TokenScanRequest,
     TokenScanResult,
 )
-from app.domains.token.repository import TokenRepository  # noqa: E402
-from app.domains.token.service import TokenService  # noqa: E402
+from app.domains.token.repository import TokenRepository
+from app.domains.token.service import TokenService
 
 __all__ = [
     "RiskLevel",

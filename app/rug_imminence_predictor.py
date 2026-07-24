@@ -12,4 +12,4 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.detectors.rug_imminence_predictor import *  # noqa: F403
+from app.domains.detectors.rug_imminence_predictor import *

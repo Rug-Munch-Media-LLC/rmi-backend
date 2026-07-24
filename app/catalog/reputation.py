@@ -69,7 +69,7 @@ def _beta_credible_interval_95(alpha: float, beta: float) -> tuple[float, float]
 
 async def compute_deployer_posterior(
     deployer: Deployer,
-    catalog: CatalogService,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    catalog: CatalogService,
 ) -> dict:
     """Compute Bayesian reputation for a deployer.
 
@@ -165,7 +165,7 @@ async def compute_deployer_posterior(
 
 async def compute_deployer_reputation(
     deployer: Deployer,
-    catalog: CatalogService,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    catalog: CatalogService,
 ) -> int:
     """Legacy 0-100 reputation score.
 

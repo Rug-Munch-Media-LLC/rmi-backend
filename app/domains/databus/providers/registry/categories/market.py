@@ -4,6 +4,8 @@ Market provider chains.
 
 from __future__ import annotations
 
+import contextlib
+
 from ...base import Provider, ProviderChain, ProviderTier
 
 
@@ -12,10 +14,8 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict
     # ── Conditional imports for optional databus modules ──
-    try:
-        from app.databus.bitquery_provider import BitqueryProvider
-    except ImportError:
-        BitqueryProvider = None
+    with contextlib.suppress(ImportError):
+        pass
     try:
         from app.databus.ohlcv_engine import fetch_ohlcv, ingest_trade_data
     except ImportError:

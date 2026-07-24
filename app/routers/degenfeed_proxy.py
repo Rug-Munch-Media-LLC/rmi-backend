@@ -32,16 +32,16 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
-from app.core.rate_limiter import get_rate_limiter, RateLimitDependency
+from app.core.rate_limiter import RateLimitDependency, get_rate_limiter
 from app.services.degenfeed_cache import (
     get_cached_feed,
-    set_cached_feed,
-    get_cached_post,
-    set_cached_post,
     get_cached_identity,
-    set_cached_identity,
-    invalidate_feed,
+    get_cached_post,
     health_check as cache_health,
+    invalidate_feed,
+    set_cached_feed,
+    set_cached_identity,
+    set_cached_post,
 )
 
 log = get_logger(__name__)
@@ -330,7 +330,7 @@ async def create_post(
             results[target] = f"error: {exc!s}"
 
     # Invalidate cached feeds for affected protocols
-    for p in [protocol] + body.cross_post_to:
+    for p in [protocol, *body.cross_post_to]:
         await invalidate_feed(p, "global")
 
     return {

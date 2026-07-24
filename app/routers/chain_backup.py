@@ -104,8 +104,8 @@ def _check_rclone_connectivity() -> dict[str, Any]:
         start = time.monotonic()
         # S603/S607: rclone path is controlled by the system, not user input.
         # The bucket/path vars come from env or hardcoded defaults.
-        result = subprocess.run(  # noqa: S603
-            ["rclone", "ls", f"{R2_REMOTE}:{R2_BUCKET}/{R2_PATH_PREFIX}/"],  # noqa: S607
+        result = subprocess.run(
+            ["rclone", "ls", f"{R2_REMOTE}:{R2_BUCKET}/{R2_PATH_PREFIX}/"],
             capture_output=True,
             text=True,
             timeout=15,

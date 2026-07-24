@@ -10,14 +10,16 @@ so they can be mocked in tests.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from fastapi import APIRouter, Depends, Query
 
-from app.config import Settings
 from app.core.dependencies import get_http_client, get_settings
 from app.core.internal_key import INTERNAL_API_KEY
+
+if TYPE_CHECKING:
+    from app.config import Settings
 
 router = APIRouter(prefix="/api/v1/contract-analyzer", tags=["contract-analyzer"])
 

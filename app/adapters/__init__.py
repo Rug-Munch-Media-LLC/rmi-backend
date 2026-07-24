@@ -9,4 +9,4 @@ Submodules:
 
 from __future__ import annotations
 
-from app.adapters.binance_web3 import *  # noqa: F403
+from app.adapters.binance_web3 import *

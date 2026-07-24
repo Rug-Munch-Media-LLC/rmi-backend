@@ -34,12 +34,14 @@ import importlib.util
 import os
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger("rmi_plugin_system")
 
@@ -109,7 +111,7 @@ class Plugin(ABC):
             logger.error(f"Plugin {self.name} initialization failed: {e}")
             return False
 
-    def _setup(self) -> None:  # noqa: B027
+    def _setup(self) -> None:
         """Override for setup logic."""
 
     def health_check(self) -> dict[str, Any]:

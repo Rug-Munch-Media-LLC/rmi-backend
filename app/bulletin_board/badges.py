@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .manager import BulletinBoardManager
-from .models import Post
+
+if TYPE_CHECKING:
+    from .models import Post
 
 BADGES = {
     "first_post": {"name": "First Words", "icon": "💬", "desc": "Made your first post", "tier": "bronze"},

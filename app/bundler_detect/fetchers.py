@@ -8,11 +8,12 @@ Supports DexScreener, Birdeye, and Solscan APIs.
 from __future__ import annotations
 
 import logging
-from typing import Any
-
-import httpx
+from typing import TYPE_CHECKING, Any
 
 from app.bundler_detect.models import BIRDEYE_PUBLIC, DEXSCREENER_API
+
+if TYPE_CHECKING:
+    import httpx
 
 logger = logging.getLogger(__name__)
 

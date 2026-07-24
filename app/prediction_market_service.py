@@ -12,4 +12,4 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.prediction.prediction_market_service import *  # noqa: F403
+from app.domains.prediction.prediction_market_service import *

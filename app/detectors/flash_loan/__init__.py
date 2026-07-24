@@ -55,17 +55,6 @@ from app.detectors.flash_loan.models import (
 )
 
 __all__ = [
-    # Detector
-    "FlashLoanAttackDetector",
-    # Models
-    "FlashLoanProtocol",
-    "AttackType",
-    "AttackSeverity",
-    "DetectionMethod",
-    "FlashLoanCall",
-    "TransactionTrace",
-    "FlashLoanAttack",
-    "ScanReport",
     # Algorithm constants
     "AAVE_V2_FLASHLOAN_SIG",
     "AAVE_V3_FLASHLOAN_SIG",
@@ -82,6 +71,17 @@ __all__ = [
     "SILO_FLASHLOAN_SIG",
     "SPARK_FLASHLOAN_SIG",
     "UNISWAP_V3_FLASH_SIG",
+    "AttackSeverity",
+    "AttackType",
+    "DetectionMethod",
+    "FlashLoanAttack",
+    # Detector
+    "FlashLoanAttackDetector",
+    "FlashLoanCall",
+    # Models
+    "FlashLoanProtocol",
+    "ScanReport",
+    "TransactionTrace",
     # Algorithm functions
     "_calculate_severity",
     "_detect_attack_type",

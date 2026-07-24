@@ -90,9 +90,8 @@ def score_launch_timing(
             score += 20
 
     holder_count = len(holders)
-    if holder_count > 0 and total > 0:
-        if total / holder_count >= 3:
-            score += 15
+    if holder_count > 0 and total > 0 and total / holder_count >= 3:
+        score += 15
 
     return min(score, 100)
 

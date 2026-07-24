@@ -28,7 +28,7 @@ async def _health_check() -> DomainHealth:
 health_mod.register_health_check("x402", _health_check)
 
 # Re-export models for backward compat with v1 routers and tests
-from app.domains.x402.models import (  # noqa: E402
+from app.domains.x402.models import (
     PaymentFacilitator,
     PaymentReceipt,
     ToolCatalog,
@@ -38,8 +38,8 @@ from app.domains.x402.models import (  # noqa: E402
 )
 
 # Re-export the new T34 router
-from app.domains.x402.router import router  # noqa: E402
-from app.domains.x402.service import X402Service  # noqa: E402
+from app.domains.x402.router import router
+from app.domains.x402.service import X402Service
 
 __all__ = [
     "PaymentFacilitator",

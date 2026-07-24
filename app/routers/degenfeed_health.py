@@ -60,7 +60,7 @@ async def protocol_health() -> dict[str, Any]:
 
     protocols: dict[str, Any] = {}
     all_healthy = True
-    for (name, _url), result in zip(probes.items(), results):
+    for (name, _url), result in zip(probes.items(), results, strict=False):
         if isinstance(result, Exception):
             protocols[name] = {"healthy": False, "error": str(result)[:200]}
             all_healthy = False

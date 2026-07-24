@@ -62,9 +62,8 @@ class RateLimitTracker:
         if self._day[provider] >= rpd:
             return False, f"{provider}: Daily limit ({rpd}/day) exhausted"
 
-        if provider == "mistral" and limits.get("rps", 1):
-            if self._minute[provider] >= 58:
-                return False, "mistral: nearing RPS limit"
+        if provider == "mistral" and limits.get("rps", 1) and self._minute[provider] >= 58:
+            return False, "mistral: nearing RPS limit"
 
         return True, ""
 

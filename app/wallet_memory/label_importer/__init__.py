@@ -181,7 +181,7 @@ async def load_all_static_labels() -> dict[str, int]:
     _last_load_counts = counts
     return counts
 
-import os  # noqa: E402 (used in load_all_static_labels)
+import os
 
 __all__ = [
     "get_last_load_counts",

@@ -4,14 +4,18 @@ RugMunchBot -- Inline query handler.
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from telegram import (
     InlineQueryResultArticle,
     InputTextMessageContent,
     Update,
 )
-from telegram.ext import ContextTypes
 
 from app.domains.telegram.rugmunchbot.formatters import is_evm, is_sol, short_addr
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 
 async def handle_inline(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

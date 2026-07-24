@@ -186,7 +186,7 @@ class MultiChainAirdropManager:
             raise ValueError(f"Campaign not ready for distribution: {campaign.status}")
 
         # Get deployer for target chain
-        deployer = TokenDeployerFactory.get_deployer(campaign.target_chain)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        deployer = TokenDeployerFactory.get_deployer(campaign.target_chain)
 
         # Distribute to all qualified holders
         total_distributed = 0

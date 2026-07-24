@@ -114,7 +114,7 @@ class LLMRouter:
 
     async def analyze_news(
         self,
-        news_item: NewsItem,  # type: ignore  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        news_item: NewsItem,  # type: ignore
     ) -> str | None:
         """Generate AI analysis for a NewsItem. Per v4.0 §T28."""
         prompt = NEWS_ANALYSIS_PROMPT.format(

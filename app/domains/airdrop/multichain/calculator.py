@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from app.core.logging import get_logger
-from app.domains.airdrop.multichain.models import AirdropTier, CrossChainHolder, TokenSource
+
+if TYPE_CHECKING:
+    from app.domains.airdrop.multichain.models import AirdropTier, CrossChainHolder, TokenSource
 
 logger = get_logger("darkroom_multichain_airdrop")
 

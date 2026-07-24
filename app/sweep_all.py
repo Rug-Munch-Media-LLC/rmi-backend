@@ -38,7 +38,7 @@ args = parser.parse_args()
 
 from typing import Any
 
-from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402
+from app.wallet_manager_v2 import get_wallet_manager_v2
 
 mgr = get_wallet_manager_v2(os.environ.get("WALLET_VAULT_PASSWORD", ""))
 
@@ -211,8 +211,8 @@ for w in sweepable:
                 raise RuntimeError("Address mismatch")
 
             async def _sweep_sol() -> tuple[str, Any]:
-                async with AsyncClient(rpc) as client:  # noqa: B023
-                    resp = await client.get_balance(keypair.pubkey(), commitment=Confirmed)  # noqa: B023
+                async with AsyncClient(rpc) as client:
+                    resp = await client.get_balance(keypair.pubkey(), commitment=Confirmed)
                     lamports = resp.value
                     if lamports == 0:
                         raise RuntimeError("On-chain balance is 0")
@@ -224,14 +224,14 @@ for w in sweepable:
                     sweep = lamports - reserve
                     ix = transfer(
                         TransferParams(
-                            from_pubkey=keypair.pubkey(),  # noqa: B023
-                            to_pubkey=SoldersPubkey.from_string(owner),  # noqa: B023
+                            from_pubkey=keypair.pubkey(),
+                            to_pubkey=SoldersPubkey.from_string(owner),
                             lamports=sweep,
                         )
                     )
                     tx = Transaction().add(ix)
-                    tx.sign(keypair)  # noqa: B023
-                    result_tx = await client.send_transaction(tx, keypair)  # noqa: B023
+                    tx.sign(keypair)
+                    result_tx = await client.send_transaction(tx, keypair)
                     return str(result_tx.value), sweep
 
             import asyncio

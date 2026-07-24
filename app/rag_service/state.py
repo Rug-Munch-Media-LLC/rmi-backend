@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from app.core.logging import get_logger
-from app.crypto_embeddings import EmbeddingResult
+
+if TYPE_CHECKING:
+    from app.crypto_embeddings import EmbeddingResult
 
 logger = get_logger(__name__)
 

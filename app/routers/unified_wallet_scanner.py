@@ -94,9 +94,9 @@ class WalletScanResult:
 class UnifiedWalletScanner:
     """THE wallet scanner. Beats anything on the market."""
 
-    CORE = ["wallet_labels", "wallet_tokens", "wallet_net_worth"]  # noqa: RUF012
-    DEEP = ["wallet_transactions", "entity_intel", "cross_chain_entity"]  # noqa: RUF012
-    PREMIUM = ["arkham_counterparties", "arkham_portfolio"]  # noqa: RUF012
+    CORE = ["wallet_labels", "wallet_tokens", "wallet_net_worth"]
+    DEEP = ["wallet_transactions", "entity_intel", "cross_chain_entity"]
+    PREMIUM = ["arkham_counterparties", "arkham_portfolio"]
 
     async def scan(
         self, address: str, chain: str = "solana", tier: str = "free", admin_key: str | None = None

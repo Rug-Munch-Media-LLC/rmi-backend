@@ -683,7 +683,7 @@ def get_explorer_url(chain_name: str, address: str, tx: str = "") -> str:
     if not cfg:
         return ""
     if tx:
-        return f"{cfg.explorer_url}/tx/{tx}" if cfg.is_evm else f"{cfg.explorer_url}/tx/{tx}"  # noqa: RUF034
+        return f"{cfg.explorer_url}/tx/{tx}" if cfg.is_evm else f"{cfg.explorer_url}/tx/{tx}"
     if cfg.is_solana:
         return f"{cfg.explorer_url}/account/{address}"
     return f"{cfg.explorer_url}/address/{address}"

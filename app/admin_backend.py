@@ -12,4 +12,4 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.admin.admin_backend import *  # noqa: F403
+from app.domains.admin.admin_backend import *

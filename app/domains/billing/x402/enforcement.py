@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import Request, Response  # noqa: TC002
+from fastapi import Request, Response
 
 from app.core.logging import get_logger
 from app.domains.billing.x402.admin_endpoints import (

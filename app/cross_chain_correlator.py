@@ -49,7 +49,7 @@ class CrossChainCorrelator:
     """Multi-chain entity resolution engine."""
 
     # Known CEX deposit addresses (common pivot points)
-    CEX_PATTERNS = {  # noqa: RUF012
+    CEX_PATTERNS = {
         "binance": [
             "Binance",
             "Binance 1",
@@ -68,7 +68,7 @@ class CrossChainCorrelator:
     }
 
     # Name resolution providers
-    NAME_PROVIDERS = {  # noqa: RUF012
+    NAME_PROVIDERS = {
         "ethereum": "https://api.ensideas.com/ens/resolve/",
         "solana": "https://sns-sdk.solana.domain/",
     }

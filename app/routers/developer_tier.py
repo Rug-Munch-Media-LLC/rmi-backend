@@ -63,7 +63,7 @@ def verify_solana_signature(address: str, message: str, signature: str) -> bool:
 
         from nacl.signing import VerifyKey
 
-        from app.core.redis import get_redis  # noqa: F401
+        from app.core.redis import get_redis
 
         pubkey = VerifyKey(base64.b58decode(address))
         msg_bytes = message.encode("utf-8")
@@ -128,7 +128,7 @@ TIERS = {
 
 def create_tier(tier: str) -> dict[str, Any] | None:
     """Create a new developer API key."""
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()
     if not r:
         return None
 
@@ -136,7 +136,7 @@ def create_tier(tier: str) -> dict[str, Any] | None:
         return None
 
     key = generate_api_key()
-    hashed = hash_api_key(key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    hashed = hash_api_key(key)
     created_at = datetime.now(UTC).isoformat()
 
     key_info = {
@@ -144,7 +144,7 @@ def create_tier(tier: str) -> dict[str, Any] | None:
         "hashed_key": hashed,
         "email": email,
         "tier": tier,
-        "wallet_address": wallet_address,  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        "wallet_address": wallet_address,
         "created_at": created_at,
         "status": "active",
         "total_calls": 0,
@@ -169,7 +169,7 @@ def create_tier(tier: str) -> dict[str, Any] | None:
 
 def get_usage_for_key(hashed_key: str) -> dict[str, Any]:
     """Get usage stats for an API key."""
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()
     if not r:
         return {"error": "redis_unavailable"}
 
@@ -233,7 +233,7 @@ async def register_developer(req: RegisterRequest) -> Any:
         return JSONResponse(status_code=400, content={"error": "Invalid email address"})
 
     # Check if email already has a key
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()
     if r:
         existing = r.smembers(f"rmi:dev:email:{req.email}")
         if existing:
@@ -277,7 +277,7 @@ async def verify_key(req: VerifyRequest) -> Any:
     if not req.api_key:
         return JSONResponse(status_code=400, content={"error": "api_key required"})
 
-    hashed = hash_api_key(req.api_key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    hashed = hash_api_key(req.api_key)
     usage = get_usage_for_key(hashed)
 
     if "error" in usage:
@@ -291,8 +291,8 @@ async def get_usage(req: UsageRequest) -> Any:
     if not req.api_key:
         return JSONResponse(status_code=400, content={"error": "api_key required"})
 
-    hashed = hash_api_key(req.api_key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    hashed = hash_api_key(req.api_key)
+    r = get_redis()
     if not r:
         return JSONResponse(status_code=500, content={"error": "redis_unavailable"})
 
@@ -381,7 +381,7 @@ async def verify_wallet_identity(req: WalletVerifyRequest) -> Any:
         )
 
     # Store wallet identity in Redis
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()
     if not r:
         return JSONResponse(status_code=500, content={"error": "redis_unavailable"})
 
@@ -418,8 +418,8 @@ async def get_wallet_challenge(req: VerifyRequest) -> Any:
     """Get a challenge message to sign with your wallet."""
     # If they have an API key, generate a challenge for that key
     if req.api_key:
-        hashed = hash_api_key(req.api_key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-        key_data = get_redis().get(f"rmi:dev:key:{hashed}") if get_redis() else None  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        hashed = hash_api_key(req.api_key)
+        key_data = get_redis().get(f"rmi:dev:key:{hashed}") if get_redis() else None
         if key_data:
             info = json.loads(key_data)
             address = info.get("wallet_address", "")
@@ -445,7 +445,7 @@ async def get_wallet_challenge(req: VerifyRequest) -> Any:
 @router.get("/wallet/status/{chain}/{address}")
 async def wallet_status(chain: str, address: str) -> Any:
     """Check wallet verification status and benefits."""
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    r = get_redis()
     if not r:
         return JSONResponse(status_code=500, content={"error": "redis_unavailable"})
 
@@ -479,8 +479,8 @@ async def check_developer_key(request: Request) -> dict[str, Any] | None:
     if not dev_key:
         return None
 
-    hashed = hash_api_key(dev_key)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-    r = get_redis()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    hashed = hash_api_key(dev_key)
+    r = get_redis()
     if not r:
         return {"error": "redis_unavailable", "deny": True}
 

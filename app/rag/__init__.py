@@ -41,7 +41,7 @@ health_mod.register_health_check("rag", _health_check)
 # Public API
 # ── New pipeline exports ─────────────────────────────────────────────
 # Config
-from app.rag.config import (  # noqa: E402
+from app.rag.config import (
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
     RAG_COLLECTIONS as PIPELINE_COLLECTIONS,
@@ -54,7 +54,7 @@ from app.rag.config import (  # noqa: E402
 )
 
 # Ingestion pipeline
-from app.rag.ingestion import (  # noqa: E402
+from app.rag.ingestion import (
     BatchIngestor,
     DocumentProcessor,
     IngestionScheduler,
@@ -72,7 +72,7 @@ from app.rag.ingestion import (  # noqa: E402
     ingest_scan_result,
     ingest_wallet_profile,
 )
-from app.rag.models import (  # noqa: E402
+from app.rag.models import (
     COLLECTIONS,
     EmbeddingProvider,
     FeedbackRecord,
@@ -84,7 +84,7 @@ from app.rag.models import (  # noqa: E402
 )
 
 # Retrieval
-from app.rag.retrieval import (  # noqa: E402
+from app.rag.retrieval import (
     ContextBuilder,
     ContextWindow,
     HybridRetriever,
@@ -95,19 +95,10 @@ from app.rag.retrieval import (  # noqa: E402
     expand_query,
     search as hybrid_search,
 )
-from app.rag.service import RAGService, init_rag  # noqa: E402
+from app.rag.service import RAGService, init_rag
 
 __all__ = [
     "COLLECTIONS",
-    "EmbeddingProvider",
-    "FeedbackRecord",
-    "IngestRequest",
-    "IngestResult",
-    "RAGService",
-    "SearchHit",
-    "SearchRequest",
-    "SearchResponse",
-    "init_rag",
     # Config
     "PIPELINE_COLLECTIONS",
     "RAG_CHUNK_OVERLAP",
@@ -120,29 +111,38 @@ __all__ = [
     "RAG_SPAM_REPETITION_THRESHOLD",
     # Ingestion
     "BatchIngestor",
+    # Retrieval
+    "ContextBuilder",
+    "ContextWindow",
     "DocumentProcessor",
+    "EmbeddingProvider",
+    "FeedbackRecord",
+    "HybridRetriever",
+    "IngestReport",
+    "IngestRequest",
+    "IngestResult",
     "IngestionScheduler",
     "IngestionStatus",
-    "IngestReport",
     "QualityFilter",
+    "QueryExpander",
+    "RAGService",
     "RateLimiter",
+    "RelevanceScorer",
+    "ScoredHit",
+    "SearchHit",
+    "SearchRequest",
+    "SearchResponse",
+    "build_context",
+    "expand_query",
     "get_ingestor",
     "get_processor",
     "get_rate_limiter",
     "get_scheduler",
+    "hybrid_search",
     "ingest_news_article",
     "ingest_research_post",
-    "ingest_scan_result",
     "ingest_scam_pattern",
+    "ingest_scan_result",
     "ingest_wallet_profile",
-    # Retrieval
-    "ContextBuilder",
-    "ContextWindow",
-    "HybridRetriever",
-    "QueryExpander",
-    "RelevanceScorer",
-    "ScoredHit",
-    "build_context",
-    "expand_query",
-    "hybrid_search",
+    "init_rag",
 ]

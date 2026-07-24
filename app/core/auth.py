@@ -7,15 +7,17 @@ returns proper RFC 7807 Problem Details.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.routing import Mount, Route as StarletteRoute
 
 from app.config import settings
 from app.core.logging import get_logger
 from app.core.problem_details import ProblemDetail
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 log = get_logger(__name__)
 

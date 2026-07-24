@@ -18,11 +18,14 @@ from __future__ import annotations
 import hashlib
 import time
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import httpx
 
 from app.core.logging import get_logger
-from app.databus.cache import CacheLayer
+
+if TYPE_CHECKING:
+    from app.databus.cache import CacheLayer
 
 logger = get_logger("databus.social")
 

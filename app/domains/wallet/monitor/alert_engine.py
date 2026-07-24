@@ -1,10 +1,13 @@
 """Wallet Monitor — Alert Engine."""
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from app.domains.wallet.monitor.config import CONFIG
 from app.domains.wallet.monitor.models import WalletAlert, WalletTx
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class AlertEngine:

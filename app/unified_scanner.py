@@ -8,7 +8,7 @@ Import directly from app.unified_scanner for new code.
 
 from __future__ import annotations
 
-from app.unified_scanner import *  # noqa: F403
+from app.unified_scanner import *
 
 __all__ = [
     "CHAINS",

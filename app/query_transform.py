@@ -188,7 +188,7 @@ async def hyde_transform(query: str) -> str:
         max_tokens=300,
     )
 
-    if llm_result:  # noqa: SIM108
+    if llm_result:
         result = llm_result
     else:
         # Rule-based fallback: prepend crypto-specific context

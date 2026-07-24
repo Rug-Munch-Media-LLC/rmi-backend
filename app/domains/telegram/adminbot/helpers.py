@@ -6,13 +6,15 @@ Owner gating, message editing, keyboard builders for the admin bot.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot.config import OWNER_IDS
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 
 def is_owner(update: Update) -> bool:
@@ -120,7 +122,7 @@ def logs_menu() -> Any:
         "rmi-backend", "rmi-postgres", "rmi-redis", "rmi-clickhouse",
         "rmi-neo4j", "rmi-qdrant", "rmi-prometheus", "rmi-mcp-x402",
     ]
-    for i, svc in enumerate(services):
+    for _i, svc in enumerate(services):
         row.append(InlineKeyboardButton(svc, callback_data=f"logs_{svc}"))
         if len(row) == 2:
             buttons.append(row)

@@ -26,7 +26,7 @@ OLLAMA_MODEL = "qwen2.5-coder:7b"  # Fast, good quality
 
 def news_sentiment_analysis(query: str = "", limit: int = 20) -> dict:
     """AI-powered sentiment analysis across 500+ crypto news sources."""
-    articles = get_news_articles(limit, query)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    articles = get_news_articles(limit, query)
     if not articles:
         return {"error": "No articles found", "query": query}
 
@@ -41,7 +41,7 @@ HEADLINES:
 
 Respond in JSON format: {{"sentiment": "...", "confidence": ..., "top_stories": [{{"title": "...", "impact": "..."}}]}}"""
 
-    ai_response = ask_ollama(prompt, 300)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    ai_response = ask_ollama(prompt, 300)
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
     except (json.JSONDecodeError):
@@ -59,7 +59,7 @@ Respond in JSON format: {{"sentiment": "...", "confidence": ..., "top_stories": 
 # ── TOOL 2: Market Sentiment Summary ──
 def market_sentiment_summary() -> dict:
     """AI-generated market mood summary from 500+ sources."""
-    articles = get_news_articles(50)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    articles = get_news_articles(50)
     if not articles:
         return {"error": "No articles available"}
 
@@ -75,7 +75,7 @@ HEADLINES:
 
 Respond in JSON: {{"mood_summary": "...", "bullish_themes": ["...","...","..."], "bearish_themes": ["...","...","..."], "contrarian_signal": "..."}}"""
 
-    ai_response = ask_ollama(prompt, 400)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    ai_response = ask_ollama(prompt, 400)
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
     except (json.JSONDecodeError):
@@ -92,7 +92,7 @@ Respond in JSON: {{"mood_summary": "...", "bullish_themes": ["...","...","..."],
 # ── TOOL 3: Trending Narratives ──
 def trending_narratives(min_mentions: int = 3) -> dict:
     """AI-identified trending crypto narratives from 500+ sources."""
-    articles = get_news_articles(100)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    articles = get_news_articles(100)
     if not articles:
         return {"error": "No articles available"}
 
@@ -107,7 +107,7 @@ HEADLINES:
 
 Respond in JSON: {{"narratives": [{{"name": "...", "mentions": ..., "summary": "..."}}]}}"""
 
-    ai_response = ask_ollama(prompt, 400)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    ai_response = ask_ollama(prompt, 400)
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
     except (json.JSONDecodeError):
@@ -124,7 +124,7 @@ Respond in JSON: {{"narratives": [{{"name": "...", "mentions": ..., "summary": "
 # ── TOOL 4: News Impact Analysis ──
 def news_impact_analysis(token: str) -> dict:
     """Analyze how recent news impacts a specific crypto token."""
-    articles = get_news_articles(30, token)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    articles = get_news_articles(30, token)
     if not articles:
         return {"token": token, "error": "No relevant news found"}
 
@@ -138,7 +138,7 @@ HEADLINES about/may impact {token}:
 
 Respond in JSON: {{"token": "{token}", "impact": "POSITIVE/NEGATIVE/NEUTRAL", "confidence": ..., "rationale": "..."}}"""
 
-    ai_response = ask_ollama(prompt, 250)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    ai_response = ask_ollama(prompt, 250)
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
     except (json.JSONDecodeError):
@@ -161,7 +161,7 @@ Respond in JSON: {{"token": "{token}", "impact": "POSITIVE/NEGATIVE/NEUTRAL", "c
 # ── TOOL 5: Daily Intel Brief ──
 def daily_intel_brief() -> dict:
     """AI-generated daily crypto intelligence briefing."""
-    articles = get_news_articles(60)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    articles = get_news_articles(60)
     if not articles:
         return {"error": "No articles available"}
 
@@ -180,7 +180,7 @@ HEADLINES:
 
 Respond in JSON: {{"mood": "...", "top_stories": [{{"title": "...", "impact": "..."}}], "tickers_to_watch": ["..."], "risk_to_monitor": "..."}}"""
 
-    ai_response = ask_ollama(prompt, 500)  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    ai_response = ask_ollama(prompt, 500)
     try:
         brief = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
     except (json.JSONDecodeError):

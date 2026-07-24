@@ -70,7 +70,7 @@ class HolderAnalyzer:
     """
 
     # Known dead/burn addresses
-    DEAD_ADDRESSES = {  # noqa: RUF012
+    DEAD_ADDRESSES = {
         "solana": [
             "11111111111111111111111111111111",  # System program
             "1nc1nerator11111111111111111111111111111111",  # Incinerator
@@ -394,7 +394,7 @@ class HolderAnalyzer:
             if px != py:
                 parent[px] = py
 
-        for wallet, cluster_indices in wallet_to_clusters.items():  # noqa: B007
+        for wallet, cluster_indices in wallet_to_clusters.items():
             if len(cluster_indices) > 1:
                 indices = list(cluster_indices)
                 for i in range(1, len(indices)):

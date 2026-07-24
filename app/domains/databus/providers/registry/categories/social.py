@@ -23,8 +23,7 @@ def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             post_bb_article,
         )
     except ImportError:
-        fetch_news_intel = get_weekly_best = get_academic_papers = get_social_feed = None
-        get_article_reactions = get_article_comments = post_bb_article = None
+        get_weekly_best = get_academic_papers = get_social_feed = None
     try:
         from app.databus.x_intel import fetch_ct_rundown, track_ct_accounts
     except ImportError:
@@ -43,8 +42,8 @@ def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             track_kol,
         )
     except ImportError:
-        track_kol = get_kol_profile = get_kol_leaderboard = detect_shill_patterns = None
-        monitor_scam_campaigns = get_social_metrics = None
+        get_kol_profile = get_kol_leaderboard = None
+        get_social_metrics = None
 
     chains["news"] = ProviderChain(
         data_type="news",

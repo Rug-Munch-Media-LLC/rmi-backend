@@ -81,7 +81,7 @@ class SleepCycleAnalyzer:
 
     # UTC hours considered "abnormal" - midnight to 5am
     # These are sleep hours for Western timezones but productive hours in Asia
-    ABNORMAL_HOURS = list(range(6))  # 12am-5am UTC  # noqa: RUF012
+    ABNORMAL_HOURS = list(range(6))  # 12am-5am UTC
 
     def __init__(self) -> None:
         pass

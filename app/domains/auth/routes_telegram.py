@@ -16,11 +16,15 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
+from typing import TYPE_CHECKING
+
 from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie
 from app.domains.auth.jwt import _create_jwt
 from app.domains.auth.router import router
-from app.domains.auth.schemas import TelegramAuthRequest
 from app.domains.auth.store import _get_user
+
+if TYPE_CHECKING:
+    from app.domains.auth.schemas import TelegramAuthRequest
 
 
 @router.post("/telegram")

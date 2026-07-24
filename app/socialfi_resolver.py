@@ -21,7 +21,7 @@ ENS_RPC_URLS = [
 ]
 
 # Etherscan key from env
-import os as _os  # noqa: E402
+import os as _os
 
 _ETHERSCAN_KEY = _os.getenv("ETHERSCAN_API_KEY", "")
 

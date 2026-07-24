@@ -11,11 +11,13 @@ pure cosine similarity will almost never surface the right document.
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.entity_extraction.extractor import extract_entities
 from app.entity_extraction.lookup import EntityLookup
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 

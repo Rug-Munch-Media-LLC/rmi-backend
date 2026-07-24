@@ -12,4 +12,4 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.wallet.wallet_monitor import *  # noqa: F403
+from app.domains.wallet.wallet_monitor import *

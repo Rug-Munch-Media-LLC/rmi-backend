@@ -6,11 +6,4 @@ This shim re-exports the public surface for legacy callers.
 
 from __future__ import annotations
 
-from app.domains.auth.wallet import *  # noqa: F403
-from app.domains.auth.wallet import (  # noqa: F401
-    decode_signature,
-    get_or_create_wallet_user,
-    logger,
-    verify_auth_token,
-    verify_wallet_signature,
-)
+from app.domains.auth.wallet import *

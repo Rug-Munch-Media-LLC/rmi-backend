@@ -6,7 +6,7 @@ This stub re-exports everything for backward compatibility.
 """
 from __future__ import annotations
 
-from app.domains.admin.backend import *  # noqa: F403
+from app.domains.admin.backend import *
 
 __all__ = [
     "PERMISSIONS",

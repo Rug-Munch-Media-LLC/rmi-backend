@@ -8,7 +8,6 @@ from app.core.logging import get_logger
 from app.domains.scanner.rag_scam_check import check_scam as _rag_check_scam
 
 # Re-export volume_analysis for backward compat
-from app.domains.scanner.service.volume_analysis import _check_volume_anomaly  # noqa: F401
 
 logger = get_logger(__name__)
 

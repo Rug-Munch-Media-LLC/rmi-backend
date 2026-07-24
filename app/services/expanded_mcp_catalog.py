@@ -586,8 +586,8 @@ EXTERNAL_MCP_SERVICES = [
 ]
 
 if __name__ == "__main__":
-    logger.info(f"Total external MCP tools: {len(EXTERNAL_MCP_TOOLS)}")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-    logger.info(f"Services: {len(EXTERNAL_MCP_SERVICES)}")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
-    logger.info()  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+    logger.info(f"Total external MCP tools: {len(EXTERNAL_MCP_TOOLS)}")
+    logger.info(f"Services: {len(EXTERNAL_MCP_SERVICES)}")
+    logger.info()
     for svc in EXTERNAL_MCP_SERVICES:
-        logger.info(f"  {svc['icon']} {svc['name']}: {svc['tools_count']} tools ({svc['license']})")  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+        logger.info(f"  {svc['icon']} {svc['name']}: {svc['tools_count']} tools ({svc['license']})")

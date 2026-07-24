@@ -126,9 +126,8 @@ def lookup_entity(address: str, chain: str = "") -> dict | None:
     # Case-insensitive match (EVM addresses)
     addr_lower = address.lower()
     for known_addr, entity in KNOWN_ENTITIES.items():
-        if known_addr.lower() == addr_lower:
-            if not chain or chain in entity.get("chains", []):
-                return entity
+        if known_addr.lower() == addr_lower and (not chain or chain in entity.get("chains", [])):
+            return entity
 
     return None
 

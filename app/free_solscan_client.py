@@ -397,7 +397,7 @@ KNOWN_EXCHANGE_WALLETS = {
     "7CNAohxBYpFi8zAAfNcRpt7Hjn2FyuKVs2aHXV5Wpump": "OKX",
     "BHwdGGP9LFLBdPZWuY6mk8mGG9i7WwfUuRG4vxWaFkqA": "OKX",
     # Bybit
-    "AC5RDfQFmDS1deWZos921JfqscXdByf8BKHs5ACWJTSc": "Bybit",  # noqa: F601
+    "AC5RDfQFmDS1deWZos921JfqscXdByf8BKHs5ACWJTSc": "Bybit",
     "6FzX58J2q7Wd1j5GmU5uZJhKLnG9zQZxYGvZk2Jx6WqD": "Bybit",
     # Jupiter / DEX aggregator
     "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": "Jupiter DEX",

@@ -7,7 +7,6 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
-import logging
 import os
 import time
 from datetime import UTC, datetime
@@ -18,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.errors import AppError, NotFoundError, ServiceUnavailableError, ValidationError
 from app.core.logging import get_logger
+
 from . import router
 from .verifier import PaymentVerifier
 

@@ -6,7 +6,7 @@ This stub re-exports everything for backward compatibility.
 """
 from __future__ import annotations
 
-from app.domains.wallet.monitor import *  # noqa: F403
+from app.domains.wallet.monitor import *
 
 __all__ = [
     "AlertChannel", "AlertEngine", "AutoLabeler", "BurstDetector",

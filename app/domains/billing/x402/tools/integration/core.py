@@ -262,6 +262,8 @@ async def mcp_proxy(req: Any) -> dict[str, Any]:
 # Bundle Pricing Endpoints
 # ═══════════════════════════════════════════════════════════════
 
+import contextlib
+
 from app.domains.billing.x402.shared import (
     BUNDLES as _BUNDLES,
     BundleRequest,
@@ -491,10 +493,8 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
         if injected_chain:
             result["chain"] = injected_chain
 
-    try:
+    with contextlib.suppress(ImportError, Exception):
         result = await enrich_response(tool_id, result, body, request)
-    except (ImportError, Exception):
-        pass
 
     return JSONResponse(content=result, status_code=200)
 
@@ -534,10 +534,8 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
                     result["alias_of"] = "databus"
                     if injected_chain:
                         result["chain"] = injected_chain
-                try:
+                with contextlib.suppress(ImportError, Exception):
                     result = await enrich_response(tool_id, result, body, request)
-                except (ImportError, Exception):
-                    pass
                 return JSONResponse(content=result, status_code=200)
         except (ImportError, Exception):
             pass
@@ -603,9 +601,7 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
         if injected_chain:
             result["chain"] = injected_chain
 
-    try:
+    with contextlib.suppress(ImportError, Exception):
         result = await enrich_response(tool_id, result, body, request)
-    except (ImportError, Exception):
-        pass
 
     return JSONResponse(content=result, status_code=resp.status_code, headers=rh)

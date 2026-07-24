@@ -10,13 +10,15 @@ import json
 import os
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.wallets.chain_registry import SUPPORTED_CHAINS
 from app.wallets.crypto import encrypt_key
 from app.wallets.generation import GENERATORS
-from app.wallets.models import WalletResult
+
+if TYPE_CHECKING:
+    from app.wallets.models import WalletResult
 
 logger = get_logger("wallet_factory")
 

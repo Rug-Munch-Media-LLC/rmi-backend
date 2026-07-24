@@ -6,11 +6,15 @@ AI model query gateway for the admin bot.
 
 from __future__ import annotations
 
-from telegram import Update
+from typing import TYPE_CHECKING
+
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot.helpers import owner_only
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 try:
     from app.domains.telegram.adminbot import admin_ai  # type: ignore[import-untyped]

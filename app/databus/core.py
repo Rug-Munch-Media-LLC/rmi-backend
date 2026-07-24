@@ -312,7 +312,7 @@ class DataBus:
         while self._warm_running:
             try:
                 for item in self._warm_types:
-                    try:  # noqa: SIM105
+                    try:
                         await self.fetch(
                             data_type=item["data_type"],
                             force_fresh=True,

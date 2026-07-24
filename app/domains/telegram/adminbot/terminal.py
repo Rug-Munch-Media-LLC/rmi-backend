@@ -6,12 +6,16 @@ Terminal mode handlers: enter, handle messages, exit.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot import admin_terminal
 from app.domains.telegram.adminbot.helpers import is_owner, main_menu_keyboard, owner_only
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 
 @owner_only

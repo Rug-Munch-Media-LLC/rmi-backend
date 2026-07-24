@@ -12,7 +12,7 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.portfolio.portfolio_risk_aggregator import *  # noqa: F403
+from app.domains.portfolio.portfolio_risk_aggregator import *
 
 if __name__ == "__main__":
     from app.domains.portfolio.portfolio_risk_aggregator import main as _main

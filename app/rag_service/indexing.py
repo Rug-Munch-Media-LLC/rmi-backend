@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -47,13 +48,11 @@ async def _preembed_scam_patterns() -> None:
                 severity=pattern.get("severity", "high"),
             )
             _pattern_cache[pattern_name] = result
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 await r.setex(redis_key, 86400 * 30, json.dumps({
                     "vector": result.vector, "dims": result.dims,
                     "model": result.model, "head": result.head,
                 }))
-            except (json.JSONDecodeError):
-                pass
             logger.info(f"Pre-embedded scam pattern: {pattern_name}")
         except Exception as e:
             logger.warning(f"Failed to pre-embed pattern {pattern_name}: {e}")

@@ -31,10 +31,10 @@ def _L(module_path) -> Any:
     return _lazy_cache[module_path]
 
 # Lightweight imports (eager - these are fast)
-from fastapi import APIRouter  # noqa: E402
-from pydantic import BaseModel, Field  # noqa: E402
+from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
-from app.cross_chain_correlator import ChainFingerprint, CrossChainCorrelator  # noqa: E402
+from app.cross_chain_correlator import ChainFingerprint, CrossChainCorrelator
 
 router = APIRouter(prefix="/api/v1/security", tags=["security"])
 
@@ -44,7 +44,7 @@ _sentinel_manager = None
 _wallet_detector = None
 _token_detector = None
 
-async def get_sentinel() -> SentinelManager:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+async def get_sentinel() -> SentinelManager:
     global _sentinel_manager
     if _sentinel_manager is None:
         _sentinel_manager = _L("app.mempool_sentinel").SentinelManager()
@@ -57,7 +57,7 @@ async def get_wallet_detector() -> Any:
         _wallet_detector = _ml.WalletAnomalyDetector(contamination=0.05)
     return _wallet_detector
 
-async def get_token_detector() -> TokenMetricAnomalyDetector:  # noqa: F821  -- pre-existing bug, see fix(f821) tracking issue
+async def get_token_detector() -> TokenMetricAnomalyDetector:
     global _token_detector
     if _token_detector is None:
         _ml = _L("app.ml_anomaly")

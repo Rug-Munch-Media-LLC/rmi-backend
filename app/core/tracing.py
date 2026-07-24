@@ -5,10 +5,11 @@ from __future__ import annotations
 import os
 import time
 import uuid
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from fastapi import FastAPI, Request
-from starlette.responses import Response
+if TYPE_CHECKING:
+    from fastapi import FastAPI, Request
+    from starlette.responses import Response
 
 try:
     from app.config import settings as _s

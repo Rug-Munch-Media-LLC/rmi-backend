@@ -55,7 +55,7 @@ class IntelligentWebhookProcessor:
     WHALE_THRESHOLD_USD = 100000.0  # USD
 
     # Known scam patterns
-    SCAM_PATTERNS = {  # noqa: RUF012
+    SCAM_PATTERNS = {
         "dust_attack": {
             "min_amount": 0.000001,
             "max_amount": 0.001,

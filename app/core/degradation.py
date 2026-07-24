@@ -35,13 +35,15 @@ import functools
 import threading
 import time
 from collections import OrderedDict
-from collections.abc import Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger(__name__)
 
@@ -446,7 +448,6 @@ class DegradationChain:
         if stale_cache_key:
             cached = self._registry.lru.get(stale_cache_key)
             if cached is not None:
-                ttl = stale_cache_ttl or (self._store.stale_cache_ttl if self._store else 300)
                 logger.info(f"Serving stale cache for {store_name}: {stale_cache_key}")
                 return DegradationResult(
                     data=cached,
@@ -576,10 +577,8 @@ def degradable(
             # Generate stale cache key if needed
             cache_key = None
             if stale_cache_key_fn:
-                try:
+                with suppress(ConnectionError, OSError, TimeoutError):
                     cache_key = stale_cache_key_fn(*args, **kwargs)
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
 
             result = await chain.execute(
                 primary=primary_call,

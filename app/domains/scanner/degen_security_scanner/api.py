@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from typing import TYPE_CHECKING
 
-from .models import SecurityReport
 from .scanner import DegenSecurityScanner
+
+if TYPE_CHECKING:
+    from .models import SecurityReport
 
 
 async def scan_token(token_address: str, quick: bool = False) -> SecurityReport:

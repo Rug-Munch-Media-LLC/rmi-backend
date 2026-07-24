@@ -320,7 +320,7 @@ class CacheLayer:
                 self._type_stats[dtype]["hits"] += 1
             # SWR: schedule background refresh if stale and callback is set
             if is_stale and self.stale_refresh_callback:
-                try:  # noqa: SIM105
+                try:
                     asyncio.create_task(self.stale_refresh_callback(key))
                 except (ConnectionError, OSError, TimeoutError):
                     pass  # Best-effort refresh
