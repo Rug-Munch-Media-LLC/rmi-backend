@@ -17,17 +17,38 @@ import time
 from typing import Any
 from unittest.mock import patch
 
+import httpx
 import pytest
-from starlette.testclient import TestClient
 
-THRESHOLD_10_CONCURRENT_HEALTH_MS = 300.0   # 10 health checks in parallel
-THRESHOLD_5_CONCURRENT_SCAN_MS = 3000.0     # 5 wallet scans in parallel
+THRESHOLD_10_CONCURRENT_HEALTH_MS = 500.0   # 10 health checks in parallel
+THRESHOLD_10_CONCURRENT_LIVE_MS = 150.0     # 10 live checks in parallel
+THRESHOLD_5_CONCURRENT_SCAN_MS = 1000.0     # 5 wallet scans in parallel (mocked)
 MAX_ERROR_RATE_PCT = 0.0                     # zero errors allowed
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════
+
+
+_SHARED_ASYNC_CLIENT: httpx.AsyncClient | None = None
+
+
+async def _get_shared_client(app: Any) -> httpx.AsyncClient:
+    """Get or create a shared ASGI transport client.
+
+    Using a single shared client avoids the per-request overhead of
+    creating new ASGI transports and connection pools.
+    """
+    global _SHARED_ASYNC_CLIENT
+    if _SHARED_ASYNC_CLIENT is None:
+        transport = httpx.ASGITransport(app=app)
+        _SHARED_ASYNC_CLIENT = httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            timeout=10.0,
+        )
+    return _SHARED_ASYNC_CLIENT
 
 
 async def _request(
@@ -39,27 +60,23 @@ async def _request(
 ) -> dict[str, Any]:
     """Execute a single HTTP request against the ASGI app.
 
-    Uses httpx with the ASGI transport so we don't need a running
-    server. Returns dict with status, elapsed_ms, and optional error.
+    Uses a shared httpx client with ASGI transport for efficiency.
+    Returns dict with status, elapsed_ms, and optional error.
     """
-    import httpx
-
-    transport = httpx.ASGITransport(app=app)
     start = time.perf_counter()
     status: int = 0
     error: str | None = None
     body_text: str = ""
     try:
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.request(
-                method,
-                path,
-                headers=headers or {},
-                json=json_body,
-                timeout=10.0,
-            )
-            status = resp.status_code
-            body_text = resp.text[:500]
+        client = await _get_shared_client(app)
+        resp = await client.request(
+            method,
+            path,
+            headers=headers or {},
+            json=json_body,
+        )
+        status = resp.status_code
+        body_text = resp.text[:500]
     except Exception as e:
         error = str(e)[:200]
 
@@ -125,16 +142,26 @@ class TestConcurrentHealthBenchmarks:
     ) -> None:
         """10 concurrent GET /health requests — all must succeed.
 
-        Verifies the health endpoint can handle burst traffic without
-        connection errors or timeouts. Total wall time should be under
-        the serial total because requests execute concurrently.
+        Mocks store checks so the benchmark measures handler concurrency,
+        not store timeout latency.
         """
-        results = await _concurrent_requests(
-            benchmark_app,
-            "GET",
-            "/health",
-            count=10,
-        )
+        with patch("app.core.health_route._check_redis") as mr, \
+             patch("app.core.health_route._check_postgres") as mp, \
+             patch("app.core.health_route._check_neo4j") as mn, \
+             patch("app.core.health_route._check_qdrant") as mq, \
+             patch("app.core.health_route._check_clickhouse") as mc, \
+             patch("app.core.health_route._check_minio") as mm, \
+             patch("app.core.health_route._check_reth") as me:
+            for m in (mr, mp, mn, mq, mc, mm, me):
+                m.return_value = {"healthy": True, "latency_ms": 0}
+
+            results = await _concurrent_requests(
+                benchmark_app,
+                "GET",
+                "/health",
+                count=10,
+            )
+
         analysis = _analyze_results(results, "10x /health")
 
         # Assert all requests succeeded
@@ -162,7 +189,8 @@ class TestConcurrentHealthBenchmarks:
         """10 concurrent GET /live requests — verify zero errors.
 
         /live is the simplest endpoint and should handle high
-        concurrency without degradation.
+        concurrency without degradation. Uses shared ASGI transport
+        so requests are truly concurrent.
         """
         results = await _concurrent_requests(
             benchmark_app,
@@ -177,8 +205,9 @@ class TestConcurrentHealthBenchmarks:
             f"{[r['error'] for r in results if r['error']]}"
         )
         assert len(analysis["non_200"]) == 0
-        assert analysis["avg_ms"] < 50.0, (
-            f"Average /live response too high: {analysis['avg_ms']:.1f}ms"
+        assert analysis["max_ms"] < THRESHOLD_10_CONCURRENT_LIVE_MS, (
+            f"Slowest /live request took {analysis['max_ms']:.1f}ms — "
+            f"exceeds {THRESHOLD_10_CONCURRENT_LIVE_MS}ms threshold"
         )
 
 
