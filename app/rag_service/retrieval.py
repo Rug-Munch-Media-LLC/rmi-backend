@@ -14,8 +14,10 @@ logger = get_logger(__name__)
 
 
 async def search_similar(
-    query: str, collection: str = "wallet_profiles",
-    limit: int = 10, min_similarity: float = 0.0,
+    query: str,
+    collection: str = "wallet_profiles",
+    limit: int = 10,
+    min_similarity: float = 0.0,
 ) -> list[dict[str, Any]]:
     """Semantic search across any collection. Uses FAISS ANN index with semantic cache."""
     t0 = time.time()
@@ -25,12 +27,14 @@ async def search_similar(
     cache_hit = False
     try:
         from app.semantic_cache import get_semantic_cache
+
         cache = get_semantic_cache()
         cached = await cache.check(query_vec)
         if cached is not None:
             cache_hit = True
             try:
                 from app.rag_observability import trace_retrieval
+
                 trace_retrieval((time.time() - t0) * 1000, collection, len(cached), cache_hit=True)
             except (ImportError, AttributeError):
                 pass
@@ -41,38 +45,54 @@ async def search_similar(
     results = []
     try:
         from app.ann_index import get_ann_index
+
         ann = get_ann_index()
         if ann.is_built(collection):
-            ann_results = await ann.search(query_embedding=query_vec, collection=collection, limit=limit, min_similarity=min_similarity)
+            ann_results = await ann.search(
+                query_embedding=query_vec,
+                collection=collection,
+                limit=limit,
+                min_similarity=min_similarity,
+            )
             if ann_results:
                 needs_enrich = [r for r in ann_results if "content" not in r]
-                enriched = await _enrich_ann_results(collection, needs_enrich) if needs_enrich else []
+                enriched = (
+                    await _enrich_ann_results(collection, needs_enrich) if needs_enrich else []
+                )
                 results = [r for r in ann_results if "content" in r] + enriched
         else:
             logger.info(f"FAISS not built for {collection}, using brute-force fallback")
-            results = await embedder.search(query=query, collection=collection, limit=limit, min_similarity=min_similarity)
+            results = await embedder.search(
+                query=query, collection=collection, limit=limit, min_similarity=min_similarity
+            )
     except Exception as e:
         logger.warning(f"ANN/pgvector search failed, falling back to brute-force: {e}")
-        results = await embedder.search(query=query, collection=collection, limit=limit, min_similarity=min_similarity)
+        results = await embedder.search(
+            query=query, collection=collection, limit=limit, min_similarity=min_similarity
+        )
 
     if results:
         try:
             from app.semantic_cache import get_semantic_cache
+
             cache = get_semantic_cache()
             await cache.store(query_vec, results)
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     try:
         from app.rag_observability import trace_retrieval
+
         trace_retrieval((time.time() - t0) * 1000, collection, len(results), cache_hit=cache_hit)
-    except Exception:
+    except (ImportError, AttributeError):
         pass
 
     return results
 
 
-async def _enrich_ann_results(collection: str, ann_results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+async def _enrich_ann_results(
+    collection: str, ann_results: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Fetch full documents from Redis for ANN results."""
     if not ann_results:
         return []
@@ -88,20 +108,26 @@ async def _enrich_ann_results(collection: str, ann_results: list[dict[str, Any]]
             continue
         try:
             doc = json.loads(data)
-            enriched.append({
-                "id": doc.get("id", ar["id"]), "similarity": ar["similarity"],
-                "content": doc.get("content", "")[:500],
-                "metadata": doc.get("metadata", {}), "model": doc.get("model", ""),
-                "collection": doc.get("collection", collection),
-            })
+            enriched.append(
+                {
+                    "id": doc.get("id", ar["id"]),
+                    "similarity": ar["similarity"],
+                    "content": doc.get("content", "")[:500],
+                    "metadata": doc.get("metadata", {}),
+                    "model": doc.get("model", ""),
+                    "collection": doc.get("collection", collection),
+                }
+            )
         except json.JSONDecodeError:
             enriched.append(ar)
     return enriched
 
 
 async def search_multi_collection(
-    query: str, collections: list[str] | None = None,
-    limit: int = 10, min_similarity: float = 0.5,
+    query: str,
+    collections: list[str] | None = None,
+    limit: int = 10,
+    min_similarity: float = 0.5,
 ) -> list[dict[str, Any]]:
     """Search across multiple collections and merge results."""
     if collections is None:
@@ -109,7 +135,9 @@ async def search_multi_collection(
 
     async def _search_one(coll: str) -> list[dict[str, Any]]:
         try:
-            results = await search_similar(query, collection=coll, limit=limit, min_similarity=min_similarity)
+            results = await search_similar(
+                query, collection=coll, limit=limit, min_similarity=min_similarity
+            )
             for r in results:
                 if "collection" not in r:
                     r["collection"] = coll
@@ -130,16 +158,34 @@ def _classify_query(query: str) -> str:
     if re.search(r"0x[a-f0-9]{6,}", q) or re.search(r"\$[a-z]{2,10}", q):
         return "entity_heavy"
     words = q.split()
-    if len(words) <= 3 and not any(w in q for w in ["what", "how", "why", "when", "explain", "describe", "compare", "analyze"]):
+    if len(words) <= 3 and not any(
+        w in q for w in ["what", "how", "why", "when", "explain", "describe", "compare", "analyze"]
+    ):
         return "keyword_heavy"
-    if any(w in q for w in ["what is", "how does", "why did", "explain", "describe", "compare", "analyze", "tell me", "show me", "find"]):
+    if any(
+        w in q
+        for w in [
+            "what is",
+            "how does",
+            "why did",
+            "explain",
+            "describe",
+            "compare",
+            "analyze",
+            "tell me",
+            "show me",
+            "find",
+        ]
+    ):
         return "semantic_heavy"
     return "balanced"
 
 
 def _rrf_fuse(
-    ranked_lists: list[list[dict[str, Any]]], k: int = 60,
-    entity_boost: float = 1.5, entity_doc_ids: set | None = None,
+    ranked_lists: list[list[dict[str, Any]]],
+    k: int = 60,
+    entity_boost: float = 1.5,
+    entity_doc_ids: set | None = None,
     pillar_weights: list[float] | None = None,
 ) -> list[dict[str, Any]]:
     """Reciprocal Rank Fusion of multiple result lists."""
@@ -173,11 +219,16 @@ def _rrf_fuse(
 
 
 async def three_pillar_search(
-    query: str, collections: list[str] | None = None,
-    limit: int = 10, min_similarity: float = 0.5,
-    entity_boost: float = 1.5, use_mmr: bool = True,
-    mmr_lambda: float = 0.6, use_kg: bool = True,
-    use_parent_child: bool = True, use_reranker: bool = False,
+    query: str,
+    collections: list[str] | None = None,
+    limit: int = 10,
+    min_similarity: float = 0.5,
+    entity_boost: float = 1.5,
+    use_mmr: bool = True,
+    mmr_lambda: float = 0.6,
+    use_kg: bool = True,
+    use_parent_child: bool = True,
+    use_reranker: bool = False,
 ) -> dict[str, Any]:
     """Three-pillar hybrid search with KG expansion, MMR dedup, and parent-child retrieval."""
     if collections is None:
@@ -191,6 +242,7 @@ async def three_pillar_search(
     pillar1_results: list[dict[str, Any]] = []
     try:
         from app.semantic_cache import get_semantic_cache
+
         cache = get_semantic_cache()
         cached = await cache.check(query_vec)
         if cached is not None:
@@ -201,34 +253,47 @@ async def three_pillar_search(
             for coll in collections:
                 try:
                     from app.ann_index import get_ann_index
+
                     ann = get_ann_index()
-                    ann_hits = await ann.search(query_embedding=query_vec, collection=coll, limit=limit, min_similarity=min_similarity)
+                    ann_hits = await ann.search(
+                        query_embedding=query_vec,
+                        collection=coll,
+                        limit=limit,
+                        min_similarity=min_similarity,
+                    )
                     enriched = await _enrich_ann_results(coll, ann_hits)
                     for r in enriched:
                         r["pillar"] = "dense"
                     pillar1_results.extend(enriched)
-                except Exception:
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.debug(f"ANN search failed for {coll}: {e}")
                     try:
-                        hits = await embedder.search(query, coll, limit=limit, min_similarity=min_similarity)
+                        hits = await embedder.search(
+                            query, coll, limit=limit, min_similarity=min_similarity
+                        )
                         for r in hits:
                             r["pillar"] = "dense"
                         pillar1_results.extend(hits)
-                    except Exception:
-                        pass
+                    except (ConnectionError, OSError, TimeoutError) as e2:
+                        logger.debug(f"Fallback search failed for {coll}: {e2}")
             if pillar1_results:
                 await cache.store(query_vec, pillar1_results)
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.debug(f"Semantic cache check failed: {e}")
         try:
-            pillar1_results = await search_multi_collection(query, collections, limit=limit * 2, min_similarity=min_similarity)
+            pillar1_results = await search_multi_collection(
+                query, collections, limit=limit * 2, min_similarity=min_similarity
+            )
             for r in pillar1_results:
                 r["pillar"] = "dense"
-        except Exception:
-            pass
+        except Exception as e2:
+            logger.debug(f"Full search fallback failed: {e2}")
 
     # ── Pillar 2: Sparse text search ──
     pillar2_results: list[dict[str, Any]] = []
     try:
         from app.splade_bm25 import splade_search
+
         pillar2_results = await splade_search(query, collections, limit=limit * 2)
         for r in pillar2_results:
             r["pillar"] = "sparse"
@@ -253,6 +318,7 @@ async def three_pillar_search(
     entity_doc_ids: set = set()
     try:
         from app.entity_extraction import EntityLookup, extract_entities
+
         entity_extraction = extract_entities(query)
         if entity_extraction.has_entities:
             lookup = EntityLookup.get_instance()
@@ -267,8 +333,11 @@ async def three_pillar_search(
             if use_kg:
                 try:
                     from app.knowledge_graph import get_knowledge_graph
+
                     kg = await get_knowledge_graph()
-                    kg_results = await kg.expand_query_entities(entity_extraction.all_entities(), max_depth=2)
+                    kg_results = await kg.expand_query_entities(
+                        entity_extraction.all_entities(), max_depth=2
+                    )
                     if kg_results:
                         for r in kg_results:
                             r["pillar"] = "entity+kg"
@@ -285,17 +354,28 @@ async def three_pillar_search(
     # ── RRF fusion ──
     query_type = _classify_query(query)
     WEIGHTS = {
-        "entity_heavy": (0.3, 0.2, 0.5), "keyword_heavy": (0.3, 0.6, 0.1),
-        "semantic_heavy": (0.7, 0.2, 0.1), "balanced": (0.4, 0.4, 0.2),
+        "entity_heavy": (0.3, 0.2, 0.5),
+        "keyword_heavy": (0.3, 0.6, 0.1),
+        "semantic_heavy": (0.7, 0.2, 0.1),
+        "balanced": (0.4, 0.4, 0.2),
     }
     w_dense, w_sparse, w_entity = WEIGHTS.get(query_type, WEIGHTS["balanced"])
 
     p1_ranked = sorted(pillar1_results, key=lambda x: x.get("similarity", 0), reverse=True)
-    p2_ranked = sorted(pillar2_results, key=lambda x: x.get("text_score", 0) or x.get("sparse_score", 0) or x.get("bm25_score", 0), reverse=True)
+    p2_ranked = sorted(
+        pillar2_results,
+        key=lambda x: x.get("text_score", 0) or x.get("sparse_score", 0) or x.get("bm25_score", 0),
+        reverse=True,
+    )
     p3_ranked = sorted(pillar3_results, key=lambda x: x.get("score", 0), reverse=True)
 
-    fused = _rrf_fuse([p1_ranked, p2_ranked, p3_ranked], k=60, entity_boost=entity_boost,
-                      entity_doc_ids=entity_doc_ids, pillar_weights=[w_dense, w_sparse, w_entity])
+    fused = _rrf_fuse(
+        [p1_ranked, p2_ranked, p3_ranked],
+        k=60,
+        entity_boost=entity_boost,
+        entity_doc_ids=entity_doc_ids,
+        pillar_weights=[w_dense, w_sparse, w_entity],
+    )
 
     # Pillar attribution
     pillar_map: dict[str, list[str]] = {}
@@ -322,8 +402,14 @@ async def three_pillar_search(
     if use_mmr and len(fused) > limit:
         try:
             from app.mmr_dedup import mmr_dedup_results
-            fused = await mmr_dedup_results(fused, query_score_field="rrf_score", content_field="content",
-                                             lambda_param=mmr_lambda, top_k=limit * 3)
+
+            fused = await mmr_dedup_results(
+                fused,
+                query_score_field="rrf_score",
+                content_field="content",
+                lambda_param=mmr_lambda,
+                top_k=limit * 3,
+            )
             mmr_applied = True
         except Exception:
             pass
@@ -333,6 +419,7 @@ async def three_pillar_search(
     if use_reranker and fused:
         try:
             from app.cross_encoder_reranker import get_reranker
+
             for r in fused:
                 r["similarity"] = r.get("rrf_score", 0.0)
             reranker = await get_reranker()
@@ -346,7 +433,7 @@ async def three_pillar_search(
     if use_parent_child and fused:
         try:
             expanded_results = []
-            for r in fused[:limit * 2]:
+            for r in fused[: limit * 2]:
                 content = r.get("content", "") or ""
                 metadata = r.get("metadata", {}) or {}
                 parent_id = metadata.get("parent_id") or r.get("parent_id")
@@ -377,6 +464,7 @@ async def three_pillar_search(
     confidence = None
     try:
         from app.confidence import score_confidence
+
         entity_list = list(entity_doc_ids)[:5] if entity_doc_ids else []
         confidence = score_confidence(final_results, query=query, entity_matches=entity_list)
     except Exception:
@@ -385,36 +473,52 @@ async def three_pillar_search(
     return {
         "results": final_results,
         "pillar_summary": {
-            "dense_hits": len(pillar1_results), "sparse_hits": len(pillar2_results),
-            "entity_hits": len(pillar3_results), "entity_doc_ids": list(entity_doc_ids),
-            "pillars_used": [p for p, n in [
-                ("dense", len(pillar1_results)), ("sparse", len(pillar2_results)),
-                ("entity", len(pillar3_results)),
-            ] if n > 0],
-            "mmr_applied": mmr_applied, "mmr_lambda": mmr_lambda if mmr_applied else None,
+            "dense_hits": len(pillar1_results),
+            "sparse_hits": len(pillar2_results),
+            "entity_hits": len(pillar3_results),
+            "entity_doc_ids": list(entity_doc_ids),
+            "pillars_used": [
+                p
+                for p, n in [
+                    ("dense", len(pillar1_results)),
+                    ("sparse", len(pillar2_results)),
+                    ("entity", len(pillar3_results)),
+                ]
+                if n > 0
+            ],
+            "mmr_applied": mmr_applied,
+            "mmr_lambda": mmr_lambda if mmr_applied else None,
             "pre_mmr_count": pre_mmr_count,
             "post_mmr_count": len(fused) if mmr_applied else pre_mmr_count,
             "kg_expansion": len([r for r in pillar3_results if r.get("pillar") == "entity+kg"]),
-            "parent_child_applied": parent_child_applied, "reranker_applied": reranker_applied,
+            "parent_child_applied": parent_child_applied,
+            "reranker_applied": reranker_applied,
         },
         "entity_extraction": entity_extraction.to_dict() if entity_extraction else None,
-        "query": query, "query_type": query_type,
+        "query": query,
+        "query_type": query_type,
         "fusion_weights": {"dense": w_dense, "sparse": w_sparse, "entity": w_entity},
-        "collections": collections, "confidence": confidence,
+        "collections": collections,
+        "confidence": confidence,
     }
 
 
 async def search_with_transform(
-    query: str, collection: str = "wallet_profiles",
-    limit: int = 10, strategy: str = "auto",
+    query: str,
+    collection: str = "wallet_profiles",
+    limit: int = 10,
+    strategy: str = "auto",
 ) -> dict[str, Any]:
     """Search with query transformation."""
     from app.query_transform import transform_query
+
     transformed = await transform_query(query, strategy=strategy)
     all_result_lists = []
     for tq in transformed.transformed_queries:
         try:
-            results = await search_similar(tq, collection=collection, limit=limit, min_similarity=0.3)
+            results = await search_similar(
+                tq, collection=collection, limit=limit, min_similarity=0.3
+            )
             if results:
                 all_result_lists.append(results)
         except Exception:
@@ -422,9 +526,15 @@ async def search_with_transform(
 
     if len(all_result_lists) <= 1:
         results = all_result_lists[0] if all_result_lists else []
-        return {"query": query, "collection": collection, "results": results[:limit],
-                "total": len(results), "strategy": transformed.strategy,
-                "transformed_queries": transformed.transformed_queries, "metadata": transformed.metadata}
+        return {
+            "query": query,
+            "collection": collection,
+            "results": results[:limit],
+            "total": len(results),
+            "strategy": transformed.strategy,
+            "transformed_queries": transformed.transformed_queries,
+            "metadata": transformed.metadata,
+        }
 
     rrf_k = 60
     scores: dict[str, float] = {}
@@ -445,12 +555,20 @@ async def search_with_transform(
         entry = dict(doc_data[doc_id])
         entry["rrf_score"] = round(scores[doc_id], 6)
         merged.append(entry)
-    return {"query": query, "collection": collection, "results": merged[:limit],
-            "total": len(merged), "strategy": transformed.strategy,
-            "transformed_queries": transformed.transformed_queries, "metadata": transformed.metadata}
+    return {
+        "query": query,
+        "collection": collection,
+        "results": merged[:limit],
+        "total": len(merged),
+        "strategy": transformed.strategy,
+        "transformed_queries": transformed.transformed_queries,
+        "metadata": transformed.metadata,
+    }
 
 
-async def _sparse_text_search(query: str, collections: list[str], limit: int = 20) -> list[dict[str, Any]]:
+async def _sparse_text_search(
+    query: str, collections: list[str], limit: int = 20
+) -> list[dict[str, Any]]:
     """Simple keyword-based text search over Redis-stored documents."""
     r = await _get_redis()
     query_tokens = set(query.lower().split())
@@ -484,11 +602,16 @@ async def _sparse_text_search(query: str, collections: list[str], limit: int = 2
                 score = len(matching) / (len(query_tokens) + 0.5)
                 if query.lower() in content:
                     score *= 2.0
-                results.append({
-                    "id": doc.get("id", ""), "doc_id": doc.get("id", ""),
-                    "text_score": round(score, 4), "content": doc.get("content", "")[:500],
-                    "metadata": doc.get("metadata", {}), "collection": coll,
-                })
+                results.append(
+                    {
+                        "id": doc.get("id", ""),
+                        "doc_id": doc.get("id", ""),
+                        "text_score": round(score, 4),
+                        "content": doc.get("content", "")[:500],
+                        "metadata": doc.get("metadata", {}),
+                        "collection": coll,
+                    }
+                )
         except Exception:
             pass
     results.sort(key=lambda x: x["text_score"], reverse=True)
