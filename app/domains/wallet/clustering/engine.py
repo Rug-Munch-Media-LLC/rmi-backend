@@ -8,6 +8,7 @@ and provides the main API for cluster analysis.
 import logging
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
 from app.domains.wallet.clustering.models import (
     Transaction,
@@ -120,18 +121,18 @@ class WalletClusteringEngine:
         return merged
 
     def get_connections_for_bubble_map(self, center_wallet: str, depth: int = 2,
-                                        min_strength: float | None = None, max_wallets: int = 250):
+                                        min_strength: float | None = None, max_wallets: int = 250) -> tuple[list[str], list[Connection]]:
         return get_connections_for_bubble_map(
             self.connections, self.wallets, center_wallet, depth,
             min_strength or self.MIN_CONNECTION_STRENGTH, max_wallets,
         )
 
-    def generate_bubble_map_data(self, center_wallet: str, depth: int = 2, max_wallets: int = 250):
+    def generate_bubble_map_data(self, center_wallet: str, depth: int = 2, max_wallets: int = 250) -> dict:
         return generate_bubble_map_data(self.connections, self.wallets, center_wallet, depth, max_wallets)
 
     def generate_ai_forensic_breakdown(self, center_wallet: str, initial_depth: int = 2,
                                         initial_max_wallets: int = 250, max_expansion_depth: int = 5,
-                                        absolute_max_wallets: int = 1000):
+                                        absolute_max_wallets: int = 1000) -> dict:
         return generate_ai_forensic_breakdown(
             self.connections, self.wallets, self.transactions, center_wallet,
             initial_depth, initial_max_wallets, max_expansion_depth, absolute_max_wallets,

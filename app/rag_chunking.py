@@ -376,5 +376,5 @@ def chunk_batch(
                 }
             )
 
-    logger.info(f"Chunked {len(documents)} docs → {len(chunks)} chunks ({skipped} skipped)")
+    logger.info("Chunked %d docs → %d chunks (%d skipped)", len(documents), len(chunks), skipped)
     return chunks

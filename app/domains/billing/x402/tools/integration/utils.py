@@ -359,6 +359,6 @@ async def enrich_response(
         opt_out = request.query_params.get("enrich", "").lower() == "false"
         from app.routers.x402_enrichment import enrich_tool_response
 
-        return enrich_tool_response(tool_id, result, request_params=body, opt_out=opt_out)
+        return await asyncio.to_thread(enrich_tool_response, tool_id, result, request_params=body, opt_out=opt_out)
     except (ImportError, Exception):
         return result

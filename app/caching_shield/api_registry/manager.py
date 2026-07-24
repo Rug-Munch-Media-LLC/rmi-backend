@@ -4,6 +4,8 @@ API Registry - Unified API Manager
 UnifiedApiManager singleton, get_api_manager, capacity_report.
 """
 
+from typing import Any
+
 from app.core.logging import get_logger
 
 from .config import PROVIDER_REGISTRY
@@ -29,7 +31,7 @@ class UnifiedApiManager:
     def reload(self) -> None:
         self._load()
 
-    async def acquire(self, provider: str):
+    async def acquire(self, provider: str) -> Any:
         pool = self.pools.get(provider)
         if pool:
             return await pool.acquire()
@@ -50,7 +52,7 @@ class UnifiedApiManager:
         if pool:
             pool.mark_error(key, error)
 
-    def get_pool(self, provider: str):
+    def get_pool(self, provider: str) -> KeyPool | None:
         return self.pools.get(provider)
 
     def list_providers(self) -> list[str]:

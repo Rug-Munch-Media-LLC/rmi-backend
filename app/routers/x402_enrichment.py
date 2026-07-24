@@ -645,7 +645,8 @@ def _synthesize_enrichment(risk_summary: str, scam_flags: list, tool_name: str) 
     try:
         import json
         import os
-        import urllib.request
+
+        import httpx as _httpx
 
         key_b64 = os.getenv("LLM_API_KEY_B64", "")
         if not key_b64:
@@ -660,23 +661,20 @@ def _synthesize_enrichment(risk_summary: str, scam_flags: list, tool_name: str) 
             f"Scam patterns detected: {json.dumps(scam_flags)[:500]}. "
             f"Write ONE sentence (max 80 chars) summarizing the key risk finding concisely."
         )
-        body = json.dumps(
-            {
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 60,
-                "temperature": 0.3,
-            }
-        ).encode()
-        req = urllib.request.Request(
-            "https://api.deepseek.com/v1/chat/completions",
-            data=body,
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-        )
-        r = urllib.request.urlopen(req, timeout=5)
-        d = json.loads(r.read())
+        with _httpx.Client(timeout=5) as client:
+            r = client.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 60,
+                    "temperature": 0.3,
+                },
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+        d = r.json()
         return d["choices"][0]["message"]["content"].strip().strip('"')
-    except (urllib.error.URLError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
+    except (_httpx.HTTPError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
         return ""  # Best-effort - never block enrichment on LLM failure
 
 

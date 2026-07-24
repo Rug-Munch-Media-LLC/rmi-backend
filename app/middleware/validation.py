@@ -84,7 +84,7 @@ class WalletRequest(BaseModel):
     def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
         if v not in VALID_CHAINS:
-            logger.warning(f"Unknown chain '{v}', allowing anyway for flexibility")
+            logger.warning("Unknown chain '%s', allowing anyway for flexibility", v)
         return v.lower()
 
 
@@ -114,7 +114,7 @@ class BatchWalletRequest(BaseModel):
     def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
         if v not in VALID_CHAINS:
-            logger.warning(f"Unknown chain '{v}', allowing anyway")
+            logger.warning("Unknown chain '%s', allowing anyway", v)
         return v.lower()
 
 

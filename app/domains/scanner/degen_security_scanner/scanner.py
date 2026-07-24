@@ -811,7 +811,8 @@ class DegenSecurityScanner:
                 "method": "getAsset",
                 "params": {"id": token_address},
             }
-            resp = httpx.post(url, json=payload, timeout=10)
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(url, json=payload)
             if resp.status_code == 200:
                 result = resp.json().get("result")
                 if result:

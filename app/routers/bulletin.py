@@ -71,22 +71,25 @@ def _sb() -> tuple[Any, dict]:
     }
 
 
-def _sb_get(table: str, params: dict | None = None) -> list:
+async def _sb_get(table: str, params: dict | None = None) -> list:
     url, headers = _sb()
-    r = httpx.get(f"{url}/rest/v1/{table}", headers=headers, params=params, timeout=10)
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(f"{url}/rest/v1/{table}", headers=headers, params=params)
     return r.json() if r.status_code == 200 else []
 
 
-def _sb_post(table: str, data: dict) -> list:
+async def _sb_post(table: str, data: dict) -> list:
     url, headers = _sb()
-    r = httpx.post(f"{url}/rest/v1/{table}", headers=headers, json=data, timeout=10)
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.post(f"{url}/rest/v1/{table}", headers=headers, json=data)
     return r.json() if r.status_code in (200, 201) else []
 
 
-def _sb_patch(table: str, data: dict, match: dict) -> list:
+async def _sb_patch(table: str, data: dict, match: dict) -> list:
     url, headers = _sb()
     params = "&".join(f"{k}=eq.{v}" for k, v in match.items())
-    r = httpx.patch(f"{url}/rest/v1/{table}?{params}", headers=headers, json=data, timeout=10)
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.patch(f"{url}/rest/v1/{table}?{params}", headers=headers, json=data)
     return r.json() if r.status_code == 200 else []
 
 
@@ -181,10 +184,10 @@ async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public
         raise AppError("Failed to create post")
     if post.is_bot and result.get("id"):
         with contextlib.suppress(Exception):
-            _sb_patch(
-                "bulletin_posts", {"is_bot": True, "bot_id": post.bot_id}, {"id": result["id"]}
+            await _sb_patch(
+                "bulletin_posts", {"is_bot": True, "bot_id": bot_id}, {"id": result["id"]}
             )
-    return result
+        return result
 
 
 @router.post(
@@ -212,7 +215,7 @@ async def create_comment(
     # Let's use a simple in-memory store or supabase if available.
     # Since supabase_service doesn't have create_comment, we'll add a basic implementation.
     try:
-        result = _sb_post(
+        result = await _sb_post(
             "bulletin_comments",
             {
                 "post_id": post_id,
@@ -242,7 +245,7 @@ async def create_comment(
 async def get_comments(post_id: int) -> dict | dict[str, list]:
     """Get comments for a bulletin post."""
     try:
-        comments = _sb_get(
+        comments = await _sb_get(
             "bulletin_comments", {"post_id": f"eq.{post_id}", "order": "created_at.asc"}
         )
         return {"comments": comments}
@@ -260,7 +263,7 @@ async def register_bot(bot: BotRegistrationIn) -> dict:
     """Register a new bot account. Bot must pay a fee to participate."""
     # Create the bot profile
     try:
-        profiles = _sb_post(
+        profiles = await _sb_post(
             "profiles",
             {
                 "username": bot.bot_name,
@@ -282,7 +285,7 @@ async def register_bot(bot: BotRegistrationIn) -> dict:
 
     # Create bot registration record
     try:
-        regs = _sb_post(
+        regs = await _sb_post(
             "bot_registrations",
             {
                 "bot_user_id": bot_profile["id"],
@@ -302,7 +305,7 @@ async def register_bot(bot: BotRegistrationIn) -> dict:
     # Log the fee payment
     if bot.fee_paid > 0:
         with contextlib.suppress(Exception):
-            _sb_post(
+            await _sb_post(
                 "bot_fee_log",
                 {
                     "bot_id": bot_profile["id"],
@@ -332,19 +335,19 @@ async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict:
     }
     if status:
         params["status"] = f"eq.{status}"
-    result = _sb_get("bot_registrations", params)
+    result = await _sb_get("bot_registrations", params)
     return {"bots": result, "total": len(result)}
 
 
 @router.get("/bots/{bot_id}/fee-status", summary="Bot Fee Status", description="Check a specific bot's fee payment status including amount due, last payment date, and next billing date.")
 async def bot_fee_status(bot_id: str) -> dict:
     """Check a bot's fee payment status."""
-    reg = _sb_get("bot_registrations", {"bot_user_id": f"eq.{bot_id}", "limit": "1"})
+    reg = await _sb_get("bot_registrations", {"bot_user_id": f"eq.{bot_id}", "limit": "1"})
     if not reg:
         raise NotFoundError("Bot not registered")
     registration = reg[0]
 
-    fees = _sb_get("bot_fee_log", {"bot_id": f"eq.{bot_id}", "order": "created_at.desc"})
+    fees = await _sb_get("bot_fee_log", {"bot_id": f"eq.{bot_id}", "order": "created_at.desc"})
     total_paid = sum(f.get("amount", 0) for f in fees)
     return {
         "bot_id": bot_id,
@@ -362,7 +365,7 @@ async def pay_bot_fee(
 ) -> dict:
     """Record a bot fee payment."""
     try:
-        _sb_post(
+        await _sb_post(
             "bot_fee_log",
             {
                 "bot_id": bot_id,
@@ -375,11 +378,11 @@ async def pay_bot_fee(
     except Exception as e:
         raise AppError(f"Fee logging failed: {e}") from e
 
-    fees = _sb_get("bot_fee_log", {"bot_id": f"eq.{bot_id}", "select": "amount"})
+    fees = await _sb_get("bot_fee_log", {"bot_id": f"eq.{bot_id}", "select": "amount"})
     total_paid = sum(f.get("amount", 0) for f in fees)
     if total_paid >= BOT_FEE_USD:
-        _sb_patch("bot_registrations", {"status": "active"}, {"bot_user_id": bot_id})
-        _sb_patch("profiles", {"bot_fee_paid": total_paid}, {"id": bot_id})
+        await _sb_patch("bot_registrations", {"status": "active"}, {"bot_user_id": bot_id})
+        await _sb_patch("profiles", {"bot_fee_paid": total_paid}, {"id": bot_id})
 
     return {
         "amount_paid": amount,
@@ -392,7 +395,7 @@ async def pay_bot_fee(
 @router.post("/bots/{bot_id}/post")
 async def bot_create_post(bot_id: str, post: BulletinPostIn) -> Any:
     """Bot creates a post - must be registered and fee-paid."""
-    reg = _sb_get(
+    reg = await _sb_get(
         "bot_registrations", {"bot_user_id": f"eq.{bot_id}", "status": "eq.active", "limit": "1"}
     )
     if not reg:
@@ -423,7 +426,7 @@ async def bot_create_post(bot_id: str, post: BulletinPostIn) -> Any:
         raise AppError("Failed to create post")
 
     with contextlib.suppress(Exception):
-        _sb_patch("bulletin_posts", {"is_bot": True, "bot_id": bot_id}, {"id": result["id"]})
+        await _sb_patch("bulletin_posts", {"is_bot": True, "bot_id": bot_id}, {"id": result["id"]})
     return result
 
 
@@ -449,7 +452,7 @@ class ModerationActionIn(BaseModel):
 @router.post("/reports", summary="Create Report", description="Submit a report on a bulletin board post for moderation review. Include reason, evidence links, and category.")
 async def create_report(report: ReportIn) -> Any:
     """Submit a report on a post."""
-    result = _sb_post(
+    result = await _sb_post(
         "bulletin_reports",
         {
             "post_id": report.post_id,
@@ -471,7 +474,7 @@ async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, l
     params: dict = {"order": "created_at.desc", "limit": str(limit)}
     if status:
         params["status"] = f"eq.{status}"
-    result = _sb_get("bulletin_reports", params)
+    result = await _sb_get("bulletin_reports", params)
     return {"reports": result, "total": len(result)}
 
 
@@ -479,7 +482,7 @@ async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, l
 async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
     """Take a moderation action."""
     # Log the action
-    _sb_post(
+    await _sb_post(
         "bulletin_moderation_log",
         {
             "admin_id": moderation.admin_id,
@@ -494,23 +497,23 @@ async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
     if moderation.target_type == "post":
         match = {"id": moderation.target_id}
         if moderation.action == "remove":
-            _sb_patch(
+            await _sb_patch(
                 "bulletin_posts", {"removed": True, "removed_reason": moderation.reason}, match
             )
         elif moderation.action == "restore":
-            _sb_patch("bulletin_posts", {"removed": False, "removed_reason": None}, match)
+            await _sb_patch("bulletin_posts", {"removed": False, "removed_reason": None}, match)
         elif moderation.action == "pin":
-            _sb_patch("bulletin_posts", {"pinned": True}, match)
+            await _sb_patch("bulletin_posts", {"pinned": True}, match)
         elif moderation.action == "unpin":
-            _sb_patch("bulletin_posts", {"pinned": False}, match)
+            await _sb_patch("bulletin_posts", {"pinned": False}, match)
         elif moderation.action == "lock":
-            _sb_patch("bulletin_posts", {"locked": True}, match)
+            await _sb_patch("bulletin_posts", {"locked": True}, match)
         elif moderation.action == "unlock":
-            _sb_patch("bulletin_posts", {"locked": False}, match)
+            await _sb_patch("bulletin_posts", {"locked": False}, match)
 
     elif moderation.target_type == "bot":
         if moderation.action == "ban_user":
-            _sb_patch(
+            await _sb_patch(
                 "bot_registrations", {"status": "banned"}, {"bot_user_id": moderation.target_id}
             )
 
@@ -524,7 +527,7 @@ async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
 @router.get("/moderation/log", summary="Moderation Log", description="View the moderation action history log. Returns timestamp, moderator, action type, and target.")
 async def moderation_log(limit: int = Query(50)) -> dict:
     """View moderation log."""
-    result = _sb_get("bulletin_moderation_log", {"order": "created_at.desc", "limit": str(limit)})
+    result = await _sb_get("bulletin_moderation_log", {"order": "created_at.desc", "limit": str(limit)})
     return {"log": result, "total": len(result)}
 
 
@@ -605,25 +608,25 @@ async def community_stats() -> dict:
     total_alerts = 0
 
     try:
-        posts = _sb_get("bulletin_posts", {"select": "id", "limit": "1000"})
+        posts = await _sb_get("bulletin_posts", {"select": "id", "limit": "1000"})
         total_posts = len(posts)
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     try:
-        profiles = _sb_get("profiles", {"select": "id", "limit": "1000"})
+        profiles = await _sb_get("profiles", {"select": "id", "limit": "1000"})
         total_users = len(profiles)
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     try:
-        bots = _sb_get("profiles", {"select": "id", "is_bot": "eq.true", "limit": "100"})
+        bots = await _sb_get("profiles", {"select": "id", "is_bot": "eq.true", "limit": "100"})
         total_bots = len(bots)
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass
 
     try:
-        alerts = _sb_get("alerts", {"select": "id", "limit": "500"})
+        alerts = await _sb_get("alerts", {"select": "id", "limit": "500"})
         total_alerts = len(alerts)
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         pass

@@ -229,7 +229,7 @@ def get_market_context() -> dict[str, Any]:
 
         return asyncio.run(_fetch())
     except Exception as e:
-        logger.warning(f"Failed to fetch market context: {e}")
+        logger.warning("Failed to fetch market context: %s", e)
         return {"fear_greed_value": 50, "fear_greed_classification": "Unknown"}
 
 
