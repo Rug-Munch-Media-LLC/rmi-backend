@@ -1,0 +1,398 @@
+"""
+Market provider chains.
+"""
+
+from ..base import Provider, ProviderChain, ProviderTier
+
+
+def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
+    """Build market provider chains."""
+    chains: dict[str, ProviderChain] = {}
+    _g = locals_dict
+
+    chains["token_price"] = ProviderChain(
+        data_type="token_price",
+        description="Token price across DEXs and CEXs",
+        providers=[
+            Provider("local_price", ProviderTier.LOCAL, _local_token_price, weight=10.0),
+            Provider(
+                "solana_tracker",
+                ProviderTier.FREEMIUM,
+                _solana_tracker_price,
+                weight=8.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="SOLANATRACKER_API_KEY",
+                monthly_quota=5000,
+            ),
+            Provider(
+                "dexscreener",
+                ProviderTier.FREE_API,
+                _dexscreener_price,
+                weight=5.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider("coingecko", ProviderTier.FREE_API, _coingecko_price, weight=5.0),
+            Provider(
+                "moralis",
+                ProviderTier.PAID,
+                _moralis_price,
+                weight=1.0,
+                requires_key=True,
+                key_env="MORALIS_API_KEY",
+                monthly_quota=5000,
+            ),
+        ],
+    )
+
+
+    chains["market_overview"] = ProviderChain(
+        data_type="market_overview",
+        description="Global market cap, BTC/ETH/SOL prices, fear & greed",
+        providers=[
+            Provider(
+                "rmi_market_overview", ProviderTier.LOCAL, _passthrough_market_overview, weight=10.0
+            ),
+            Provider(
+                "coingecko_global",
+                ProviderTier.FREEMIUM,
+                _coingecko_price,
+                weight=5.0,
+                requires_key=True,
+                key_env="COINGECKO_API_KEY",
+            ),
+        ],
+    )
+
+
+    chains["trending"] = ProviderChain(
+        data_type="trending",
+        description="Trending tokens across chains",
+        providers=[
+            Provider("rmi_trending", ProviderTier.LOCAL, _passthrough_trending, weight=10.0),
+            Provider(
+                "solana_tracker_trending",
+                ProviderTier.FREEMIUM,
+                _solana_tracker_trending,
+                weight=8.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="SOLANATRACKER_API_KEY",
+                monthly_quota=5000,
+            ),
+            Provider(
+                "dexscreener_trending",
+                ProviderTier.FREE_API,
+                _dexscreener_price,
+                weight=5.0,
+                rate_limit_rps=1.0,
+            ),
+        ],
+    )
+
+
+    chains["token_trades"] = ProviderChain(
+        data_type="token_trades",
+        description="Live token trades (buys/sells) from DexScreener",
+        providers=[
+            Provider(
+                "dexscreener_trades",
+                ProviderTier.FREE_API,
+                _dexscreener_trades,
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+        ],
+    )
+
+
+    chains["top_traders"] = ProviderChain(
+        data_type="top_traders",
+        description="Top profitable traders and win rates for a token",
+        providers=[
+            Provider(
+                "dexscreener_top_traders",
+                ProviderTier.FREE_API,
+                _dexscreener_top_traders,
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+        ],
+    )
+
+
+    chains["dune_early_buyers"] = ProviderChain(
+        data_type="dune_early_buyers",
+        description="First 5-minute buyers of a token (Dune Analytics, low-CU cached query)",
+        providers=[
+            Provider(
+                "dune_early_buyers_api",
+                ProviderTier.FREEMIUM,
+                _dune_early_buyers,
+                weight=10.0,
+                rate_limit_rps=0.5,
+                requires_key=True,
+                key_env="DUNE_API_KEY",
+                monthly_quota=10000,
+            ),
+        ],
+    )
+
+
+    chains["holder_data"] = ProviderChain(
+            "holder_data",
+            description="Token holder distribution (DexScreener free → Bitquery freemium)",
+            providers=[
+                Provider(
+                    "dexscreener_holders",
+                    ProviderTier.FREE_API,
+                    _dexscreener_holders,
+                    weight=10.0,
+                    rate_limit_rps=2.0,
+                ),
+                Provider(
+                    "bitquery_holders",
+                    ProviderTier.FREEMIUM,
+                    _bq_holder_data,
+                    weight=5.0,
+                    rate_limit_rps=1.0,
+                    requires_key=True,
+                    key_env="BITQUERY_API_KEY",
+                    monthly_quota=10000,
+                ),
+            ],
+        )
+
+    chains["tx_trace"] = ProviderChain(
+            "tx_trace",
+            description="Transaction traces (Etherscan free → Bitquery freemium)",
+            providers=[
+                Provider(
+                    "etherscan_trace",
+                    ProviderTier.FREE_API,
+                    _etherscan_tx_trace,
+                    weight=10.0,
+                    rate_limit_rps=3.0,
+                ),
+                Provider(
+                    "bitquery_trace",
+                    ProviderTier.FREEMIUM,
+                    _bq_tx_trace,
+                    weight=5.0,
+                    rate_limit_rps=1.0,
+                    requires_key=True,
+                    key_env="BITQUERY_API_KEY",
+                    monthly_quota=10000,
+                ),
+            ],
+        )
+
+    chains["cross_chain"] = ProviderChain(
+            "cross_chain",
+            description="Cross-chain transfer tracking and bridge monitoring",
+            providers=[
+                Provider(
+                    "bitquery_cross_chain",
+                    ProviderTier.FREEMIUM,
+                    _bq_cross_chain,
+                    weight=5.0,
+                    rate_limit_rps=1.0,
+                    requires_key=True,
+                    key_env="BITQUERY_API_KEY",
+                    monthly_quota=10000,
+                )
+            ],
+        )
+
+    chains["defillama_tvl"] = ProviderChain(
+        data_type="defillama_tvl",
+        description="Global DeFi TVL and top protocols (completely free)",
+        providers=[
+            Provider(
+                "defillama_tvl_api",
+                ProviderTier.FREE_API,
+                _defillama_tvl,
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+        ],
+    )
+
+    chains["defillama_chains"] = ProviderChain(
+        data_type="defillama_chains",
+        description="TVL breakdown by blockchain (completely free)",
+        providers=[
+            Provider(
+                "defillama_chains_api",
+                ProviderTier.FREE_API,
+                _defillama_chains,
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+        ],
+    )
+
+
+    chains["blockchair_address"] = ProviderChain(
+        data_type="blockchair_address",
+        description="Multi-chain address balance and tx count (BTC, ETH, SOL, etc.)",
+        providers=[
+            Provider(
+                "blockchair_addr_api",
+                ProviderTier.FREE_API,
+                _blockchair_address,
+                weight=10.0,
+                rate_limit_rps=3.0,
+            ),
+        ],
+    )
+
+    chains["blockchair_stats"] = ProviderChain(
+        data_type="blockchair_stats",
+        description="Multi-chain network statistics and mempool data",
+        providers=[
+            Provider(
+                "blockchair_stats_api",
+                ProviderTier.FREE_API,
+                _blockchair_stats,
+                weight=10.0,
+                rate_limit_rps=3.0,
+            ),
+        ],
+    )
+
+
+    chains["birdeye_overview"] = ProviderChain(
+        data_type="birdeye_overview",
+        description="Token overview, liquidity, and holder stats (Solana/EVM)",
+        providers=[
+            Provider(
+                "birdeye_overview_api",
+                ProviderTier.FREEMIUM,
+                _birdeye_overview,
+                weight=10.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+            ),
+        ],
+    )
+
+    chains["birdeye_price"] = ProviderChain(
+        data_type="birdeye_price",
+        description="Real-time token price from Birdeye",
+        providers=[
+            Provider(
+                "birdeye_price_api",
+                ProviderTier.FREEMIUM,
+                _birdeye_price,
+                weight=5.0,
+                rate_limit_rps=5.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+            ),
+            Provider(
+                "dexscreener_price",
+                ProviderTier.FREE_API,
+                _dexscreener_price,
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+        ],
+    )
+
+
+    chains["ohlcv"] = ProviderChain(
+            "ohlcv",
+            description="Real-time OHLCV candle aggregation (1m/5m/15m/1h/4h/1d) with authenticity scoring",
+            providers=[
+                Provider(
+                    "ohlcv_fetcher",
+                    ProviderTier.LOCAL,
+                    fetch_ohlcv,
+                    weight=10.0,
+                    rate_limit_rps=20.0,
+                ),
+                Provider(
+                    "ohlcv_ingest",
+                    ProviderTier.LOCAL,
+                    ingest_trade_data,
+                    weight=5.0,
+                    rate_limit_rps=50.0,
+                ),
+            ],
+        )
+
+    chains["live_prices"] = ProviderChain(
+            "live_prices",
+            description="Live crypto prices - CoinGecko free tier, multi-coin",
+            providers=[
+                Provider(
+                    "coingecko_prices",
+                    ProviderTier.LOCAL,
+                    get_market_prices,
+                    weight=10.0,
+                    rate_limit_rps=10.0,
+                )
+            ],
+        )
+
+    chains["trending_coins"] = ProviderChain(
+            "trending_coins",
+            description="Trending coins - CoinGecko search, top 10",
+            providers=[
+                Provider(
+                    "coingecko_trending",
+                    ProviderTier.LOCAL,
+                    get_trending_coins,
+                    weight=10.0,
+                    rate_limit_rps=5.0,
+                )
+            ],
+        )
+
+    chains["fear_greed"] = ProviderChain(
+            "fear_greed",
+            description="Crypto Fear & Greed Index - Alternative.me, free, no key",
+            providers=[
+                Provider(
+                    "fear_greed_index",
+                    ProviderTier.LOCAL,
+                    get_fear_greed,
+                    weight=10.0,
+                    rate_limit_rps=10.0,
+                )
+            ],
+        )
+
+    chains["prediction_markets"] = ProviderChain(
+            "prediction_markets",
+            description="Prediction market events - Polymarket, free, no key",
+            providers=[
+                Provider(
+                    "polymarket_events",
+                    ProviderTier.LOCAL,
+                    get_prediction_markets,
+                    weight=10.0,
+                    rate_limit_rps=5.0,
+                )
+            ],
+        )
+
+    chains["market_brief"] = ProviderChain(
+            "market_brief",
+            description="One-call market overview: prices + fear/greed + trending + prediction markets",
+            providers=[
+                Provider(
+                    "market_briefing",
+                    ProviderTier.LOCAL,
+                    get_market_brief,
+                    weight=10.0,
+                    rate_limit_rps=5.0,
+                )
+            ],
+        )
+
+    return chains
