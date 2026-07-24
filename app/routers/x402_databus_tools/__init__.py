@@ -34,6 +34,21 @@ Security:
 # ── Re-export all public symbols for backward compatibility ─────
 
 from __future__ import annotations
+
+# Import submodules to register routes on the router
+from app.routers.x402_databus_tools import (
+    analysis_tools,  # noqa: F401
+    market_tools,  # noqa: F401
+    wallet_tools,  # noqa: F401
+)
+from app.routers.x402_databus_tools.auth import _clean_response, verify_x402_payment
+from app.routers.x402_databus_tools.models import (
+    AddressDepthRequest,
+    AddressRequest,
+    GenericDataRequest,
+    MintRequest,
+    QueryRequest,
+)
 from app.routers.x402_databus_tools.pricing import X402_TOOL_PRICING
 from app.routers.x402_databus_tools.rate_limit import (
     TRIAL_REDIS_PREFIX,
@@ -41,35 +56,22 @@ from app.routers.x402_databus_tools.rate_limit import (
     check_trial,
     consume_trial,
 )
-from app.routers.x402_databus_tools.auth import _clean_response, verify_x402_payment
-from app.routers.x402_databus_tools.models import (
-    AddressRequest,
-    MintRequest,
-    QueryRequest,
-    AddressDepthRequest,
-    GenericDataRequest,
-)
-
-# Import submodules to register routes on the router
-from app.routers.x402_databus_tools import market_tools  # noqa: F401
-from app.routers.x402_databus_tools import analysis_tools  # noqa: F401
-from app.routers.x402_databus_tools import wallet_tools  # noqa: F401
 
 # Re-export the combined router for app.mount()
 from app.routers.x402_databus_tools.router import router
 
 __all__ = [
-    "X402_TOOL_PRICING",
     "TRIAL_REDIS_PREFIX",
     "TRIAL_WINDOW_SECONDS",
-    "check_trial",
-    "consume_trial",
-    "_clean_response",
-    "verify_x402_payment",
+    "X402_TOOL_PRICING",
+    "AddressDepthRequest",
     "AddressRequest",
+    "GenericDataRequest",
     "MintRequest",
     "QueryRequest",
-    "AddressDepthRequest",
-    "GenericDataRequest",
+    "_clean_response",
+    "check_trial",
+    "consume_trial",
     "router",
+    "verify_x402_payment",
 ]

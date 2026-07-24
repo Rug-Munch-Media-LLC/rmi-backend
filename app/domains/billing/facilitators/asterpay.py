@@ -9,6 +9,7 @@ pay in EUR or crypto and receive EUR via SEPA.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import aiohttp

@@ -1,6 +1,7 @@
 """Scanner module — split from modules.py for maintainability."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -8,9 +9,9 @@ import httpx
 from app.domains.scanner.modules._core import (
     GOPLUS_CHAIN_IDS,
     _fetch_dexscreener,
-    _fetch_with_fallback,
     logger,
 )
+
 
 async def _check_goplus_security(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check token security via GoPlus Security API (free, 21+ chains).

@@ -1,10 +1,12 @@
 """Clean data label loader — from label quality fixer."""
 
 from __future__ import annotations
+
 import csv
 import os
 
 from app.core.logging import get_logger
+
 from .config import CLEAN_DIR
 
 logger = get_logger("wallet_memory.label_importer")

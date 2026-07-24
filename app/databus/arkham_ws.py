@@ -8,6 +8,7 @@ WS Key: from ARKHAM_WS_KEY env var (set in /etc/secrets or docker env)
 """
 
 from __future__ import annotations
+
 import os
 from datetime import UTC, datetime
 
@@ -111,5 +112,5 @@ async def broadcast_ws_update(address: str, update: dict) -> None:
                 "timestamp": datetime.now(UTC).isoformat(),
             },
         )
-    except (AttributeError, ImportError):  # noqa: BLE001
+    except (AttributeError, ImportError):
         pass

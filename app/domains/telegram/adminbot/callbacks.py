@@ -5,6 +5,7 @@ All inline keyboard callback routing for the admin bot.
 """
 
 from __future__ import annotations
+
 import logging
 
 import httpx
@@ -13,7 +14,14 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot import admin_ops, admin_terminal
-from app.domains.telegram.adminbot.helpers import back_button, docker_menu, is_owner, logs_menu, main_menu_keyboard, service_action_keyboard
+from app.domains.telegram.adminbot.helpers import (
+    back_button,
+    docker_menu,
+    is_owner,
+    logs_menu,
+    main_menu_keyboard,
+    service_action_keyboard,
+)
 
 logger = logging.getLogger("admin_bot")
 

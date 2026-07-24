@@ -22,15 +22,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.logging import get_logger
-from app.rag.ann_index import Hit
 
 # ── Config ───────────────────────────────────────────────────────────
-
 # Will be imported after config module is ready
 from app.rag.config import (
     RAG_EXPANSION_TERMS,
     RAG_HYBRID_ALPHA,
-    RAG_RRF_K,
 )
 
 log = get_logger(__name__)
@@ -297,7 +294,7 @@ class HybridRetriever:
                     min_similarity=min_similarity,
                 )
                 results[col] = hits
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.warning("multi_retrieve_failed", collection=col, error=str(e))
                 results[col] = []
 

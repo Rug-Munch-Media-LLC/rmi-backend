@@ -5,6 +5,7 @@ Pulls from ALL our data sources to create comprehensive daily analysis.
 """
 
 from __future__ import annotations
+
 import asyncio
 import os
 from datetime import UTC, datetime

@@ -5,9 +5,11 @@ Enums and dataclasses for oracle manipulation detection.
 """
 
 from __future__ import annotations
+
 import json
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+
 
 class OracleType(Enum):
     """Supported oracle types."""
@@ -21,7 +23,7 @@ class OracleType(Enum):
     CUSTOM = "custom"
 
     @classmethod
-    def from_string(cls, s: str) -> "OracleType":
+    def from_string(cls, s: str) -> OracleType:
         for member in cls:
             if member.value == s.lower():
                 return member

@@ -7,6 +7,7 @@ Unified wallet intelligence endpoints for both:
 """
 
 from __future__ import annotations
+
 import contextlib
 from datetime import UTC, datetime
 from typing import Any

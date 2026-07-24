@@ -11,6 +11,7 @@ Produces entity_id (deterministic hash) for each resolved entity group.
 """
 
 from __future__ import annotations
+
 import hashlib
 from typing import Any
 

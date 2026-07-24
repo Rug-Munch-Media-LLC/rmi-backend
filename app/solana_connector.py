@@ -7,6 +7,7 @@ This package provides a high-level synchronous API.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -261,7 +262,7 @@ def check_solana_connection() -> bool:
 # Prevents cascading failures when Solana RPC endpoints are degraded.
 # Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
 
-from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+from app.core.circuit_breaker import AsyncCircuitBreaker
 
 _solana_rpc_cb = AsyncCircuitBreaker(
     name="solana_rpc",

@@ -8,14 +8,13 @@ from __future__ import annotations
 import os
 import secrets
 import time
+from typing import Any
 
 from fastapi import APIRouter, Query
-
-from app.core.errors import NotFoundError
 from fastapi.responses import HTMLResponse
 
+from app.core.errors import NotFoundError
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("x402.growth")
 

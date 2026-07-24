@@ -6,29 +6,28 @@ and provides the main API for cluster analysis.
 """
 
 from __future__ import annotations
-import logging
-from collections import defaultdict
-from datetime import datetime
-from typing import Any
 
-from app.domains.wallet.clustering.models import (
-    Transaction,
-    WalletProfile,
-    Cluster,
-    Connection,
-)
+import logging
+from datetime import datetime
+
 from app.domains.wallet.clustering.detection import (
-    detect_temporal_clusters,
     detect_common_counterparty_clusters,
-    detect_pattern_clusters,
     detect_funding_clusters,
+    detect_pattern_clusters,
+    detect_temporal_clusters,
     merge_clusters,
 )
+from app.domains.wallet.clustering.models import (
+    Cluster,
+    Connection,
+    Transaction,
+    WalletProfile,
+)
 from app.domains.wallet.clustering.visualization import (
-    get_connections_for_bubble_map,
-    generate_bubble_map_data,
     generate_ai_forensic_breakdown,
+    generate_bubble_map_data,
     get_cluster_report,
+    get_connections_for_bubble_map,
 )
 
 logger = logging.getLogger(__name__)

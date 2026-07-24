@@ -6,6 +6,7 @@ wallet labeling via RAG pattern matching, Supabase hybrid storage.
 """
 
 from __future__ import annotations
+
 import hashlib
 import os
 from datetime import UTC, datetime

@@ -18,15 +18,16 @@ Services wrapped:
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import os
 import time
+from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("service_mcp")
 

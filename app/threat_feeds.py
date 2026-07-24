@@ -4,6 +4,7 @@ Paper ref: Article 3, Section 2 & Section 6 - Free Datasets and APIs.
 """
 
 from __future__ import annotations
+
 import httpx
 
 from app.core.logging import get_logger

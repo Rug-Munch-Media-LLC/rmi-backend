@@ -14,11 +14,11 @@ from app.domains.detectors.pump_dump_detector_package.signals_accum import (
     score_to_level,
 )
 from app.domains.detectors.pump_dump_detector_package.types import (
+    PUMP_DUMP_THRESHOLDS,
     CoordinatedBuyGroup,
     FindingSeverity,
     ManipulationFinding,
     ManipulationType,
-    PUMP_DUMP_THRESHOLDS,
     PrePumpAccumulation,
     PricePumpSignal,
     PumpDumpAnalysisResult,
@@ -27,11 +27,11 @@ from app.domains.detectors.pump_dump_detector_package.types import (
 )
 
 __all__ = [
+    "PUMP_DUMP_THRESHOLDS",
     "CoordinatedBuyGroup",
     "FindingSeverity",
     "ManipulationFinding",
     "ManipulationType",
-    "PUMP_DUMP_THRESHOLDS",
     "PrePumpAccumulation",
     "PricePumpSignal",
     "PumpDumpAnalysisResult",

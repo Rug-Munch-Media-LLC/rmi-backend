@@ -7,7 +7,14 @@ from typing import Any
 from app.core.base_service import BaseService
 from app.core.logging import get_logger
 from app.domains.token.analyzer import TokenAnalyzer
-from app.domains.token.models import TokenDetail, TokenHolder, TokenLiquidity, TokenRisk, TokenScanRequest, TokenScanResult
+from app.domains.token.models import (
+    TokenDetail,
+    TokenHolder,
+    TokenLiquidity,
+    TokenRisk,
+    TokenScanRequest,
+    TokenScanResult,
+)
 from app.domains.token.repository import TokenRepository
 
 log = get_logger(__name__)

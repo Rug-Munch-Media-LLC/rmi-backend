@@ -1,15 +1,17 @@
 """Payment ORM model."""
 
 from __future__ import annotations
+
 import uuid
 from typing import Any
 
-from sqlalchemy import Index, JSON, String
+from sqlalchemy import JSON, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
 from app.models.base import TimestampMixin
+
 
 class Payment(Base, TimestampMixin):
     __tablename__ = "payments"

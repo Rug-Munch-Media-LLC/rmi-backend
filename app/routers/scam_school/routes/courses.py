@@ -3,7 +3,9 @@ Scam School — course content delivery endpoints.
 """
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -11,8 +13,6 @@ from app.core.errors import NotFoundError
 from app.core.redis import get_redis
 from app.routers.scam_school.content import COURSES
 from app.routers.scam_school.progress import ACHIEVEMENTS, BADGES, LEVELS
-
-from typing import Any
 
 courses_router = APIRouter(tags=["scam-school"])
 

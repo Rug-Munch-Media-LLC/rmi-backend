@@ -4,6 +4,7 @@ Provides the `get_db` FastAPI dependency for request-scoped sessions.
 """
 
 from __future__ import annotations
+
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (

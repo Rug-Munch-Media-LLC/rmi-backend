@@ -1,10 +1,12 @@
 """Temporal workflows for rmi-backend."""
 
 from __future__ import annotations
+
 from datetime import timedelta
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
+
 
 @workflow.defn
 class TokenScannerWorkflow:

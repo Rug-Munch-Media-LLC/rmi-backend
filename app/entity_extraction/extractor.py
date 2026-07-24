@@ -5,8 +5,8 @@ Regex-based crypto entity extraction. No I/O, runs in microseconds.
 """
 
 from __future__ import annotations
+
 import re
-from typing import Any
 
 from app.entity_extraction.models import EntityExtractionResult
 from app.entity_extraction.patterns import (
@@ -19,6 +19,7 @@ from app.entity_extraction.patterns import (
     TOKEN_SYMBOL_RE,
     TX_HASH_RE,
 )
+
 
 def extract_entities(text: str) -> EntityExtractionResult:
     """

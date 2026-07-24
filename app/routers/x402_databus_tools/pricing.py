@@ -12,6 +12,7 @@ Free Trials:
 price_atoms = price_usd * 1_000_000 (1 atom = $0.000001)
 """
 from __future__ import annotations
+
 X402_TOOL_PRICING = {
     # ═══ BASIC TIER ($0.01-0.02) - Quick Scans & Lookups ═══
     "token_price": {

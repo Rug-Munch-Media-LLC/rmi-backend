@@ -16,9 +16,11 @@ Architecture:
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.domains.scanner.models import ScanResult
+
 
 def quick_scan_text(*args, **kwargs) -> Any:
     """Lazy import to avoid circular dependency with modules package."""

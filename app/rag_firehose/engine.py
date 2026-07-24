@@ -6,11 +6,10 @@ through the ingestion pipeline on configurable cadences.
 """
 
 from __future__ import annotations
+
 import asyncio
 import contextlib
-import logging
 import time
-from typing import Any
 
 import httpx
 

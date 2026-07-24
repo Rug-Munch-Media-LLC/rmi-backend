@@ -17,6 +17,7 @@ Runs: weekly (Sunday 2am) for historical sources.
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import re

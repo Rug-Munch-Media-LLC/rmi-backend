@@ -11,6 +11,7 @@ Submodules:
 """
 
 from __future__ import annotations
-from app.helius_tools.helius_whale_watcher import *  # noqa: F401, F403
-from app.helius_tools.helius_syndicate_tracker import *  # noqa: F401, F403
-from app.helius_tools.helius_sniper_detector import *  # noqa: F401, F403
+
+from app.helius_tools.helius_sniper_detector import *  # noqa: F403
+from app.helius_tools.helius_syndicate_tracker import *  # noqa: F403
+from app.helius_tools.helius_whale_watcher import *  # noqa: F403

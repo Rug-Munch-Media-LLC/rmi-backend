@@ -12,6 +12,7 @@ Combines 7 signals:
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import time
@@ -19,9 +20,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
-from app.core.errors import AppError
 
 from app.config import settings
+from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.routers.x402_advanced_tools.cache import get_cached, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
@@ -64,7 +65,7 @@ async def rug_probability(req: AddressRequest) -> Any:
                             "detail": data.get("reason", "Cannot sell - confirmed honeypot"),
                         })
                     sources.append("honeypot_check")
-        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+        except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"Honeypot check failed: {e}")
 
         # ── Signal 2: DexScreener Liquidity & Age ──
@@ -114,7 +115,7 @@ async def rug_probability(req: AddressRequest) -> Any:
                             elif pc < -20:
                                 probability += 8
                                 signals.append({"signal": "price_declining", "weight": 8, "detail": f"Down {pc:.0f}% in 24h"})
-        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+        except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"DexScreener failed: {e}")
 
         # ── Signal 3: Holder Concentration ──
@@ -129,7 +130,7 @@ async def rug_probability(req: AddressRequest) -> Any:
                         attrs = data.get("data", {}).get("attributes", {})
                         if attrs:
                             sources.append("geckoterminal")
-        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+        except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"GeckoTerminal failed: {e}")
 
         # ── Signal 4: Deployer History ──
@@ -162,7 +163,7 @@ async def rug_probability(req: AddressRequest) -> Any:
                             if len(posts) > 20:
                                 probability += 5
                                 signals.append({"signal": "social_spike", "weight": 5, "detail": f"{len(posts)} social mentions"})
-        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+        except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"CryptoPanic failed: {e}")
 
         probability = max(0, min(100, probability))

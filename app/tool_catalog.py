@@ -19,6 +19,7 @@ Categories:
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 # ── Tool Categories with SEO metadata ──────────────────────────

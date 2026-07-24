@@ -10,6 +10,7 @@ alongside tool definitions. Each skill teaches a specific workflow.
 # ═══════════════════════════════════════════════════════════════════════════
 
 from __future__ import annotations
+
 AGENT_SKILLS = {
     "token_vetting": {
         "name": "Pre-Buy Token Vetting",

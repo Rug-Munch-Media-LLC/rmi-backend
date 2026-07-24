@@ -9,9 +9,11 @@ Chains: solana, ethereum, base, bsc, arbitrum, polygon, avalanche,
 """
 
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
 from enum import Enum
+
 
 class ChainFamily(Enum):
     """Blockchain family classification."""

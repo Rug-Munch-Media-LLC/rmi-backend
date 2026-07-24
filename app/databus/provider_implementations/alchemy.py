@@ -1,9 +1,11 @@
 """Alchemy API providers for DataBus."""
 
 from __future__ import annotations
+
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
+
 
 async def _alchemy_token_balances(
     address: str = "", network: str = "eth-mainnet", **kw

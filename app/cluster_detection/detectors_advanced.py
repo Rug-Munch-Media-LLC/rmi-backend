@@ -5,14 +5,15 @@ ML-based and sleeper detection methods.
 """
 
 from __future__ import annotations
+
 from collections import defaultdict
 from datetime import datetime
-from typing import Any
 
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 
 from app.cluster_detection.models import ClusterSignal, ClusterType, WalletCluster
+
 
 async def detect_pattern_clusters(
     wallet_profiles: dict[str, dict],

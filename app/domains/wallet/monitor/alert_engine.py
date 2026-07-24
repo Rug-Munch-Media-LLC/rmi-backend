@@ -6,6 +6,7 @@ from collections.abc import Callable
 from app.domains.wallet.monitor.config import CONFIG
 from app.domains.wallet.monitor.models import WalletAlert, WalletTx
 
+
 class AlertEngine:
     """Configurable rules engine that evaluates each incoming tx against wallet history."""
 

@@ -5,6 +5,7 @@ Includes: CoinGecko, DeFiLlama, Blockchair, Etherscan.
 """
 
 from __future__ import annotations
+
 import httpx
 
 from app.core.logging import get_logger

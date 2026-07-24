@@ -1,10 +1,12 @@
 """DataBus Router sub-module. Webhooks endpoints."""
 
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException, Query, Request
+
 from typing import Any
+
+from fastapi import APIRouter, HTTPException, Request
+
 from app.core.logging import get_logger
-from app.databus.core import databus
 
 logger = get_logger("databus.router.webhooks")
 router = APIRouter(tags=["databus"])
@@ -28,7 +30,7 @@ async def receive_webhook(service: str, request: Request) -> Any:
 
     try:
         payload = await request.json()
-    except (AttributeError, ImportError):  # noqa: BLE001
+    except (AttributeError, ImportError):
         payload = {}
 
     result = await handle_webhook(service, payload, headers, raw_body)

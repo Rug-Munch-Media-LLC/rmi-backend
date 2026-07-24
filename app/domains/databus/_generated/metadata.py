@@ -11,6 +11,7 @@ Source: app/domains/databus/_generated/provider_chains.py (original god file).
 # This dict is populated on import from build_provider_chains() output
 # for introspection purposes.
 from __future__ import annotations
+
 CHAIN_METADATA: dict[str, dict] = {
     "token_price": {
         "description": "Token price across DEXs and CEXs",

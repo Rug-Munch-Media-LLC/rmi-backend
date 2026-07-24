@@ -1,6 +1,7 @@
 """Scanner module — split from modules.py for maintainability."""
 
 from __future__ import annotations
+
 import time
 from typing import Any
 
@@ -8,10 +9,10 @@ from app.domains.scanner.modules._core import (
     GOPLUS_CHAIN_IDS,
     _fetch_dexscreener,
     _fetch_json,
-    _fetch_with_fallback,
     _solana_rpc_call,
     logger,
 )
+
 
 async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get holder distribution data from chain RPC or DexScreener.

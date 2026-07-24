@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from app.domains.wallet.monitor.config import CONFIG, get_redis
 from app.domains.wallet.monitor.models import BurstSignal
 
+
 class BurstDetector:
     """Tracks tx velocity per wallet using a rolling Redis sorted set of timestamps."""
 

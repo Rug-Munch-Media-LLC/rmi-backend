@@ -8,8 +8,6 @@ Configuration, multi-chain data client, and module-level instances.
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
-from typing import Any
 
 import httpx
 

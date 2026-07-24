@@ -11,4 +11,5 @@ Usage:
 """
 
 from __future__ import annotations
-from app.domains.admin.admin_backend import *  # noqa: F401, F403
+
+from app.domains.admin.admin_backend import *  # noqa: F403

@@ -1,6 +1,7 @@
 """Semantic LLM Cache for DataBus - caches identical + similar prompts. Redis-backed."""
 
 from __future__ import annotations
+
 import hashlib
 import json
 import os

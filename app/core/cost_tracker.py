@@ -2,6 +2,7 @@
 Auto-routes to cheapest model that meets quality threshold."""
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Query

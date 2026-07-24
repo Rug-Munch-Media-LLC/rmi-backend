@@ -6,6 +6,7 @@ DexScreener market data with CoinGecko price history fallback.
 """
 
 from __future__ import annotations
+
 import httpx
 
 from app.core.logging import get_logger

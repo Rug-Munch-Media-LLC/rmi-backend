@@ -13,6 +13,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 from app.knowledge_graph.engine import (
     KnowledgeGraph,
     build_graph_from_rag,

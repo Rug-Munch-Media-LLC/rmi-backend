@@ -1,6 +1,7 @@
 """Phase 2 Detection Methods — All insider detection algorithms."""
 
 from __future__ import annotations
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines import gmgn_client as gmgn
 from app.domains.scanner.engines.known_entities import label_wallet

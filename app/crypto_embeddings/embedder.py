@@ -1,11 +1,11 @@
 """CryptoEmbedder - multi-head embedding engine for crypto scam detection."""
 
 from __future__ import annotations
+
 import hashlib
 import json
 import os
 import re
-import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -15,15 +15,22 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.crypto_embeddings.models import (
-    COLLECTIONS, DIMS, HEAD_DEFAULTS, EmbeddingResult,
-)
 from app.crypto_embeddings.features import (
-    extract_contract_features, extract_transaction_features, extract_wallet_features,
+    extract_contract_features,
+    extract_transaction_features,
+    extract_wallet_features,
+)
+from app.crypto_embeddings.models import (
+    COLLECTIONS,
+    DIMS,
+    EmbeddingResult,
 )
 from app.crypto_embeddings.providers import (
-    HuggingFaceEmbedder, LocalBGEEmbedder, OllamaBGEEmbedder,
-    OpenRouterEmbedder, ContractCodeEmbedder,
+    ContractCodeEmbedder,
+    HuggingFaceEmbedder,
+    LocalBGEEmbedder,
+    OllamaBGEEmbedder,
+    OpenRouterEmbedder,
 )
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
@@ -224,7 +231,7 @@ Code patterns: {'; '.join(code_snippets or [])[:3000]}"""
         )
 
     async def embed_contract(self, address: str, code: str, chain: str = "ethereum", verified: bool = False) -> EmbeddingResult:
-        import numpy as np  # noqa: F811
+        import numpy as np
         result = await ContractCodeEmbedder.embed(code, semantic_embedder=self._openrouter)
         dims_val = len(result)
         return EmbeddingResult(vector=result.tolist() if isinstance(result, np.ndarray) else result,

@@ -3,6 +3,7 @@ Honeypot Detector — HTTP utilities
 Async fetch with retry and fallback across multiple URLs.
 """
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger

@@ -7,6 +7,7 @@ This module contains NO external API implementations.
 """
 
 from __future__ import annotations
+
 import os
 import time
 from collections.abc import Callable

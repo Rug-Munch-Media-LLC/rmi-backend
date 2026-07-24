@@ -8,6 +8,7 @@ Algorithm: engagement-weighted, diversity-scored, entity-resolved.
 """
 
 from __future__ import annotations
+
 import html
 import json
 import os
@@ -305,10 +306,10 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict]:
                     for item in data:
                         if isinstance(item, dict) and "text" in item:
                             posts.append(item)
-            except (json.JSONDecodeError):  # noqa: BLE001
+            except (json.JSONDecodeError):
                 continue
         return posts
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.debug(f"xurl search failed: {e}")
         return []
 
@@ -566,7 +567,7 @@ def score_ct_post(post: dict, account: dict) -> float:
                 datetime.now(UTC) - datetime.fromisoformat(created.replace("Z", "+00:00"))
             ).total_seconds() / 3600
             score += max(0, 5 - age_hours * 0.5)  # 5 points now, 0 after 10 hours
-        except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+        except (ConnectionError, OSError, TimeoutError):
             pass
 
     # Content signals
@@ -607,7 +608,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
                 all_posts.extend(posts)
                 if not source_method or source_method == "none":
                     source_method = "xurl_oauth"
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         errors.append(f"xurl: {e}")
 
     # ── Method 2: Cookie scraping ──
@@ -617,7 +618,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
             if cookie_posts:
                 all_posts.extend(cookie_posts)
                 source_method = source_method or "cookie_scrape"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             errors.append(f"cookies: {e}")
 
     # ── Method 3: Web scraping fallback (DuckDuckGo + embed) ──
@@ -627,7 +628,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
             if scrape_posts:
                 all_posts.extend(scrape_posts)
                 source_method = source_method or "web_scrape"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             errors.append(f"web_scrape: {e}")
 
     # ── Method 4: xurl search (broad) ──

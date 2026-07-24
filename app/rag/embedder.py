@@ -201,7 +201,7 @@ class BGE_M3_Embedder(EmbedderProtocol):
                             )
                         self._validate(vecs)
                         return vecs
-                    except (httpx.HTTPError, OSError, RuntimeError, json.JSONDecodeError) as exc:
+                    except (httpx.HTTPError, OSError, RuntimeError, json.JSONDecodeError):
                         if attempt < self._max_retries:
                             await asyncio.sleep(0.5 * (attempt + 1))
                         else:

@@ -267,6 +267,7 @@ from app.domains.billing.x402.shared import (
     BundleRequest,
 )
 
+
 @sub_router.get("/bundles")
 async def list_bundles() -> dict[str, dict]:
     """List all available tool bundles with pricing and savings."""

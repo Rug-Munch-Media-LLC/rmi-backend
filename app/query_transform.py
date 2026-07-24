@@ -12,16 +12,17 @@ All strategies have LLM-backed and rule-based fallback paths.
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import os
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

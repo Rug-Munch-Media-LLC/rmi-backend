@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.deep_intelligence.core import client, logger
+from app.services.deep_intelligence.core import client
+
 
 async def preflight_simulate(
     token_address: str, wallet_address: str, buy_amount_usd: float = 100, chain: str = "sol"

@@ -10,6 +10,7 @@ Usage (unchanged):
 # ruff: noqa: F401
 
 from __future__ import annotations
+
 from app.wallets.chain_registry import SUPPORTED_CHAINS, ChainConfig, ChainFamily
 from app.wallets.crypto import _has_cryptography, decrypt_key, encrypt_key
 from app.wallets.factory import WalletFactory, _factory, get_wallet_factory

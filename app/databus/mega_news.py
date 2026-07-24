@@ -4,6 +4,7 @@ RMI Mega News Aggregator - Largest Free Crypto News Pipeline
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -278,7 +279,7 @@ def fetch_all_feeds(db=None) -> dict:
             cur.close()
             pg.close()
             stats["in_postgres"] = len(results)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             stats["postgres_error"] = str(e)[:100]
 
     except (ConnectionError, OSError, TimeoutError) as e:

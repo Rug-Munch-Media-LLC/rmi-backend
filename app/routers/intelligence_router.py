@@ -8,14 +8,14 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Query
-from app.core.errors import AuthError, AppError, ServiceUnavailableError, ValidationError
 from pydantic import BaseModel
 
+from app.core.errors import AppError, AuthError, ServiceUnavailableError, ValidationError
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

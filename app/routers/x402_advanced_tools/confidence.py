@@ -6,7 +6,6 @@ and flags such as freshness indicators.
 """
 
 from __future__ import annotations
-from typing import Any
 
 logger = __import__("logging").getLogger("x402.confidence")
 

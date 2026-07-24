@@ -11,4 +11,5 @@ Usage:
 """
 
 from __future__ import annotations
-from app.domains.scanner.degen_security_scanner import *  # noqa: F401, F403
+
+from app.domains.scanner.degen_security_scanner import *  # noqa: F403

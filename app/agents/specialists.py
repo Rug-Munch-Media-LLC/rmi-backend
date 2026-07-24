@@ -1,7 +1,9 @@
 """Specialist agents pre-configured for RMI domains."""
 
 from __future__ import annotations
+
 from .base import BaseAgent
+
 
 def create_scanner() -> BaseAgent:
     return BaseAgent(name="scanner", model="deepseek-chat")

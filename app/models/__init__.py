@@ -14,7 +14,9 @@ Model files organized by domain:
 """
 
 from __future__ import annotations
+
 from sqlalchemy.orm import DeclarativeBase
+
 
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base for all ORM models.
@@ -22,7 +24,6 @@ class Base(DeclarativeBase):
     All models inherit from this and TimestampMixin (created_at, updated_at).
     Managed by Alembic migrations in alembic/versions/.
     """
-    pass
 
 from app.models.alert import Alert, AlertSubscription  # noqa: E402
 from app.models.label import Label  # noqa: E402

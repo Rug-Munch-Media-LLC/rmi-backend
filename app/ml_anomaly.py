@@ -1,7 +1,9 @@
 """Stub ml_anomaly - ML-based anomaly detection"""
 
 from __future__ import annotations
+
 from typing import Any
+
 
 class WalletAnomalyDetector:
     """Detect anomalous wallet behavior."""

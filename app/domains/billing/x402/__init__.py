@@ -8,6 +8,7 @@ middleware. Implementation lives in app.billing.x402.enforcement
 """
 
 from __future__ import annotations
+
 from app.domains.billing.x402.enforcement import (  # noqa: F401
     CHAIN_USDC,
     EVM_PAY_TO,

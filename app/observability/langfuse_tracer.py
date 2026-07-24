@@ -1,12 +1,13 @@
 """Langfuse LLM observability integration for rmi-backend agents."""
 
 from __future__ import annotations
+
 import os
+from typing import Any
 
 from langfuse import Langfuse
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

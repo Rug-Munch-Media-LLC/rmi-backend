@@ -3,13 +3,13 @@ RugCharts Intel Cache Layer — Redis helpers and configuration.
 """
 
 from __future__ import annotations
-import json
+
 import os
+from typing import Any
 
 import redis
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("rugcharts_intel")
 

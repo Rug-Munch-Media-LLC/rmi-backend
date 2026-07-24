@@ -16,6 +16,7 @@ from app.domains.auth.router import router
 from app.domains.auth.schemas import UserResponse
 from app.domains.auth.store import _get_user
 
+
 @router.get("/user/me", response_model=UserResponse)
 async def user_profile_me(request: Request) -> dict:
     """Get current authenticated user profile."""

@@ -5,13 +5,8 @@ Lazy-initialized module singletons and _ensure_modules() factory.
 """
 
 from __future__ import annotations
-from typing import Any
-
-import httpx
 
 from app.core.logging import get_logger
-
-from .config import SentinelConfig
 
 # Module scanner imports - all known scanners
 from ..address_labeler import AddressLabeler
@@ -42,6 +37,7 @@ from ..sleep_cycle_scanner import SleepCycleAnalyzer
 from ..social_velocity import SocialVelocityAnalyzer
 from ..static_analyzer import StaticAnalyzer
 from ..wash_trading import WashTradingDetector
+from .config import SentinelConfig
 
 # Wallet Memory Bank integration
 try:

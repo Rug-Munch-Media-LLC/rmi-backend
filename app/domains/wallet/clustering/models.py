@@ -6,9 +6,11 @@ used by all clustering detection methods and visualization.
 """
 
 from __future__ import annotations
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+
 
 @dataclass
 class Transaction:
@@ -106,4 +108,4 @@ class Connection:
     first_connection: datetime | None = None
     last_connection: datetime | None = None
 
-__all__ = ["Transaction", "WalletProfile", "Cluster", "Connection"]
+__all__ = ["Cluster", "Connection", "Transaction", "WalletProfile"]

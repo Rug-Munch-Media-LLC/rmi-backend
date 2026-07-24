@@ -6,13 +6,14 @@ with confidence scoring and shill detection.
 """
 
 from __future__ import annotations
-import asyncio
+
 import json
 import time
 from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
+
 from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.routers.x402_advanced_tools.cache import get_cached, set_cached
@@ -55,7 +56,7 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
                                     - r.get("votes", {}).get("negative", 0),
                                     "created": r.get("created_at", ""),
                                 })
-        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+        except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"CryptoPanic fetch failed: {e}")
 
         # ── Reddit ──
@@ -86,7 +87,7 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
                                         d.get("created_utc", 0)
                                     ).isoformat() if d.get("created_utc") else "",
                                 })
-        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+        except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"Reddit fetch failed: {e}")
 
         total_posts = len(posts)

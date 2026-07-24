@@ -1,7 +1,9 @@
 """Temporal activities wrapping rmi-backend operations."""
 
 from __future__ import annotations
+
 from temporalio import activity
+
 
 @activity.defn
 async def scan_token(chain: str, address: str) -> dict:

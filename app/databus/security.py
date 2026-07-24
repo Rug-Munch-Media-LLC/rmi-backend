@@ -11,6 +11,7 @@ Never exposes API keys in responses. Never leaks internal data to public users.
 """
 
 from __future__ import annotations
+
 import os
 
 from fastapi import Request

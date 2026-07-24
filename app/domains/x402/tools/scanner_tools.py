@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 async def run_scan(token_address: str, chain: str = "solana") -> dict[str, Any]:
     """Run full SENTINEL scan."""
     return {

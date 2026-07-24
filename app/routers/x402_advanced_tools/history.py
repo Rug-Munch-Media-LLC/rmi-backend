@@ -6,7 +6,7 @@ a configurable lookback window.
 """
 
 from __future__ import annotations
-import asyncio
+
 import json
 import os
 import time
@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
+
 from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.routers.x402_advanced_tools.cache import get_cached, set_cached
@@ -99,7 +100,7 @@ async def token_history(req: HistoryRequest) -> Any:
                                 "is_current": True,
                             }
                             data_points.append(current)
-        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+        except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"DexScreener snapshot failed: {e}")
 
         # Compute trends

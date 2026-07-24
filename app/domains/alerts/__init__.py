@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.core import health as health_mod
 from app.core.health import DomainHealth
 
+
 def _read_env_file() -> dict[str, str]:
     """Read env from /proc/self/environ (process env, not the mutable os.environ)."""
     env: dict[str, str] = {}

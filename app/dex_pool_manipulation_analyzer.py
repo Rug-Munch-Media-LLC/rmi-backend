@@ -23,14 +23,14 @@ Endpoint: POST /api/v1/x402-tools/dex_pool_manipulation
 """
 
 from __future__ import annotations
-import re
+
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
 from app.core.logging import get_logger
-from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE, is_valid_address
+from app.core.shared_utils import is_valid_address
 
 logger = get_logger("dex_pool_manipulation_analyzer")
 

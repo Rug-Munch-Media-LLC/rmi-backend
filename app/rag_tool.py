@@ -16,6 +16,7 @@ from typing import Any
 sys.path.insert(0, str(Path.home() / ".hermes" / "scripts"))
 from rag_system_v2 import RMIRAGSystem
 
+
 class RagToolInterface:
     """2026 Agentic RAG tool wrapper."""
 

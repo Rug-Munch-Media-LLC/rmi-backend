@@ -1,13 +1,13 @@
 """RMI Backend - Core Middleware."""
 
 from __future__ import annotations
+
 import json
-import os
 import uuid
+from typing import Any
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from typing import Any
 
 # ═══════════════════════════════════════════════════════════════
 # Rate-limit config

@@ -7,15 +7,14 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Query
-
-from app.core.errors import NotFoundError
 from pydantic import BaseModel
-from typing import Any
 
 from app.config import settings
+from app.core.errors import NotFoundError
 
 router = APIRouter(prefix="/api/v1/whale-alerts", tags=["whale-alerts"])
 

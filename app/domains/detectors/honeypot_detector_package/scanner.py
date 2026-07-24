@@ -4,6 +4,7 @@ Analyzes token contracts for honeypot mechanisms, rug-pull patterns, and
 malicious functionality across EVM chains.
 """
 from __future__ import annotations
+
 import os
 import re
 import time

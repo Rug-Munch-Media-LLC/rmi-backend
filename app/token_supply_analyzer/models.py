@@ -3,6 +3,7 @@ Token Supply Analyzer — Data models, enums, and constants.
 """
 
 from __future__ import annotations
+
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -132,15 +133,15 @@ def _normalize_address(address: str) -> str:
     return address.lower().strip()
 
 __all__ = [
-    "SupplyRisk",
-    "LockStatus",
-    "TokenSupplyProfile",
+    "CONCENTRATION_THRESHOLD_PCT",
     "KNOWN_BURN_ADDRESSES",
     "MAX_HOLDER_SAMPLE",
-    "CONCENTRATION_THRESHOLD_PCT",
     "SUPPLY_RISK_RATIO",
-    "_validate_url",
+    "LockStatus",
+    "SupplyRisk",
+    "TokenSupplyProfile",
     "_classify_risk",
     "_detect_chain",
     "_normalize_address",
+    "_validate_url",
 ]

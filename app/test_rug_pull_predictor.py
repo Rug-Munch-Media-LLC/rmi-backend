@@ -1,6 +1,7 @@
 """Tests for rug_pull_predictor - Exit Scam Forecaster."""
 
 from __future__ import annotations
+
 import asyncio
 import os
 import sys
@@ -14,6 +15,7 @@ from app.rug_pull_predictor import (
     is_valid_address,
     predict_rug_pull,
 )
+
 
 def test_validator() -> None:
     """Address validation works correctly."""

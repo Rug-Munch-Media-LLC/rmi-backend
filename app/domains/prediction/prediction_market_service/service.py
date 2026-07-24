@@ -1,14 +1,19 @@
 """Main prediction market service."""
 from __future__ import annotations
-import asyncio, hashlib, json, os
+
+import asyncio
+import json
+import os
 from datetime import UTC, datetime
 from typing import Any
+
 import httpx
+
 from app.core.logging import get_logger
-from .models import PredictionMarket, PredictionDigest
-from .models import SECURITY_KEYWORDS, CRYPTO_KEYWORDS
+
 from .keywords import _extract_token_symbols
-from .utils import _cache_hash, _market_to_dict, _dict_to_market, _digest_to_dict, _dict_to_digest
+from .models import PredictionDigest, PredictionMarket
+from .utils import _cache_hash, _dict_to_digest, _dict_to_market, _digest_to_dict, _market_to_dict
 
 logger = get_logger("prediction_market")
 

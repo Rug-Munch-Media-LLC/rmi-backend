@@ -12,6 +12,7 @@ from typing import Any
 
 from app.services.deep_intelligence.core import cfg, client
 
+
 async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, Any]:
     """
     Trace where a wallet got its initial ETH/SOL from.

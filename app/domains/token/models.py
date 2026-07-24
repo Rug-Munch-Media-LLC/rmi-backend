@@ -11,6 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+
 class RiskLevel(StrEnum):
     """Token risk classification."""
 

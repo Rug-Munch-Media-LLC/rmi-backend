@@ -20,6 +20,7 @@ No single provider outage blocks any feature.
 """
 
 from __future__ import annotations
+
 import os
 import time
 from collections.abc import Callable
@@ -213,7 +214,7 @@ class UnifiedDataEngine:
                     data = r.json()
                     return {"price_usd": float(data.get("outAmount", 0)) / 1e6, "source": "jupiter"}
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _tracker_price(self, mint: str, **kw) -> dict | None:
@@ -245,7 +246,7 @@ class UnifiedDataEngine:
                             "source": "dexscreener",
                         }
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _binance_price(self, mint: str, **kw) -> dict | None:
@@ -257,7 +258,7 @@ class UnifiedDataEngine:
                 if r.status_code == 200:
                     return {"price_usd": float(r.json().get("price", 0)), "source": "binance"}
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _coingecko_price(self, mint: str, **kw) -> dict | None:
@@ -274,7 +275,7 @@ class UnifiedDataEngine:
                     if price:
                         return {"price_usd": price, "source": "coingecko"}
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     # ── TOKEN METADATA ──
@@ -325,7 +326,7 @@ class UnifiedDataEngine:
                                 "source": "jupiter",
                             }
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _dexscreener_meta(self, mint: str, **kw) -> dict | None:
@@ -342,7 +343,7 @@ class UnifiedDataEngine:
                         "source": "dexscreener",
                     }
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     # ── WALLET BALANCE ──
@@ -402,7 +403,7 @@ class UnifiedDataEngine:
                     val = r.json().get("result", {}).get("value", 0)
                     return {"balance_lamports": val, "source": "publicnode"}
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     # ── RISK SCAN ──
@@ -423,7 +424,7 @@ class UnifiedDataEngine:
                         "source": "goplus",
                     }
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _rugcheck_scan(self, address: str, **kw) -> dict | None:
@@ -439,7 +440,7 @@ class UnifiedDataEngine:
                     ]
                     return {"risks": risks, "score": data.get("score", 0), "source": "rugcheck"}
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _honeypot_scan(self, address: str, **kw) -> dict | None:
@@ -457,7 +458,7 @@ class UnifiedDataEngine:
                         "source": "honeypot",
                     }
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _local_labels(self, address: str, **kw) -> dict | None:
@@ -554,7 +555,7 @@ class UnifiedDataEngine:
                                 }
                     return {"signatures_found": len(sigs), "source": "helius"}
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _tracker_sol_funding(self, address: str, **kw) -> dict | None:
@@ -588,7 +589,7 @@ class UnifiedDataEngine:
                     sigs = r.json().get("result", [])
                     return {"signatures_found": len(sigs), "source": "public_rpc"} if sigs else None
         except (httpx.HTTPError, TimeoutError, OSError):
-            logger.debug(f"Data source failed", exc_info=True)
+            logger.debug("Data source failed", exc_info=True)
         return None
 
     async def _local_wallet_labels(self, address: str, **kw) -> dict | None:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,9 @@ parser.add_argument("--dry-run", action="store_true", help="Preview only, no tra
 parser.add_argument("--force", action="store_true", help="Skip threshold (sweeps everything)")
 args = parser.parse_args()
 
-from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402
 from typing import Any
+
+from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402
 
 mgr = get_wallet_manager_v2(os.environ.get("WALLET_VAULT_PASSWORD", ""))
 

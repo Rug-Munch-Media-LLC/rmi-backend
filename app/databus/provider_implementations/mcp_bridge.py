@@ -1,12 +1,14 @@
 """MCP Bridge — Call local MCP servers from DataBus."""
 
 from __future__ import annotations
+
 import json as _json
 import subprocess
 
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
+
 
 async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | None:
     """Universal MCP bridge - calls any local MCP server tool.

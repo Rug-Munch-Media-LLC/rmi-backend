@@ -1,6 +1,7 @@
 """News & market endpoints — /mcp/news, /mcp/news/summary, etc."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter

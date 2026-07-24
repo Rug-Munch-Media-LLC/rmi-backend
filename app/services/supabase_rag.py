@@ -15,6 +15,7 @@ import httpx
 
 from app.core.secrets import get_secret_or_none
 
+
 def _get_url() -> Any | None:
     return os.environ.get("SUPABASE_URL", "")
 
@@ -109,7 +110,7 @@ async def get_namespace_stats(namespace: str = "default") -> dict:
 # Prevents cascading failures when Supabase RAG is degraded.
 # Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
 
-from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+from app.core.circuit_breaker import AsyncCircuitBreaker
 
 _supabase_rag_cb = AsyncCircuitBreaker(
     name="supabase_rag",

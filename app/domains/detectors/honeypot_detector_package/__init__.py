@@ -10,6 +10,7 @@ Usage:
     result = await detector.analyze_token("0x...", chain="ethereum")
 """
 from __future__ import annotations
+
 from app.domains.detectors.honeypot_detector_package.models import (
     FindingSeverity,
     HoneypotAnalysisResult,

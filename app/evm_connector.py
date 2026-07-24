@@ -12,6 +12,7 @@ Includes:
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -334,7 +335,7 @@ def get_evm_client(
 # Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
 # See app.core.circuit_breaker for the implementation.
 
-from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+from app.core.circuit_breaker import AsyncCircuitBreaker
 
 _evm_rpc_cb = AsyncCircuitBreaker(
     name="evm_rpc",

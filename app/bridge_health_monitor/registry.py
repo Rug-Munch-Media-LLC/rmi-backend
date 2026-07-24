@@ -6,6 +6,7 @@ audit recency, exploit history, validator count, and upgrade/pause status.
 """
 
 from __future__ import annotations
+
 from app.bridge_health_monitor.types import TrustModel
 
 BRIDGE_REGISTRY = {

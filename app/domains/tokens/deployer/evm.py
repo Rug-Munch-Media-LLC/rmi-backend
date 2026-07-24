@@ -1,6 +1,7 @@
 """EVM token deployer (Ethereum, Base, BSC)."""
 
 from __future__ import annotations
+
 import os
 
 from app.core.logging import get_logger

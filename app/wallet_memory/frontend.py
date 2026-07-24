@@ -6,9 +6,11 @@ Hits /api/v1/wallet/* endpoints directly via fetch().
 """
 
 from __future__ import annotations
+
+from typing import Any
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-from typing import Any
 
 router = APIRouter(tags=["walletsafe"])
 

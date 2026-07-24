@@ -25,8 +25,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
-
-from app.core.errors import AppError, ServiceUnavailableError
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.logging import get_logger

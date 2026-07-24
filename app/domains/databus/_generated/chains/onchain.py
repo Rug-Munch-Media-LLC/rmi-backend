@@ -8,6 +8,7 @@ Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
 from __future__ import annotations
+
 from app.core.logging import get_logger
 from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 from app.databus.provider_implementations import (

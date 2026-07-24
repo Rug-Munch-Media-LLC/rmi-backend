@@ -1,8 +1,11 @@
 """Shared utilities for DataBus router sub-modules."""
 
 from __future__ import annotations
+
 import os
+
 from fastapi import Request
+
 from app.core.logging import get_logger
 
 logger = get_logger("databus.router")

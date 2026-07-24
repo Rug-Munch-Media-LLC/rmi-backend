@@ -3,6 +3,7 @@ Portfolio Risk — Token Risk Scorer
 Scores tokens using heuristics or the unified scanner when available.
 """
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger

@@ -5,11 +5,13 @@ Listed on Smithery, Glama, mcp.so for maximum discoverability.
 """
 
 from __future__ import annotations
+
 import json
 import os
 
 from app.core.redis import get_redis
 from app.routers.x402_databus_tools import check_trial
+
 
 # ═══════════════════════════════════════════════════
 # SHARED: Redis + x402 trial tracker
@@ -85,7 +87,7 @@ def resolve_wallet(address: str, fingerprint: str = "anon") -> dict:
             result["chains_found"].append(chain)
         cur.close()
         pg.close()
-    except (ConnectionError, OSError):  # noqa: BLE001
+    except (ConnectionError, OSError):
         pass
     # Also check Redis cache
     for chain in ["ethereum", "solana", "bsc", "polygon"]:

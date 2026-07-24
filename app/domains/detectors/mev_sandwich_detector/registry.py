@@ -1,5 +1,6 @@
 """Known MEV bot registry."""
 from __future__ import annotations
+
 from typing import Any
 
 KNOWN_MEV_BOTS: dict[str, dict[str, Any]] = {

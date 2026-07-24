@@ -5,6 +5,7 @@ Command-line interface for running scans.
 """
 
 from __future__ import annotations
+
 import argparse
 import asyncio
 import json

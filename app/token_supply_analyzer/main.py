@@ -5,30 +5,30 @@ Entry point for the full token supply analysis pipeline.
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
-import time
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from app.core.logging import get_logger
+from app.token_supply_analyzer.analyzers import (
+    _analyze_concentration,
+    _analyze_liquidity,
+    _analyze_supply_mechanics,
+    _compute_overall_risk,
+)
+from app.token_supply_analyzer.fetchers import (
+    _fetch_birdeye,
+    _fetch_dexscreener,
+    parse_birdeye_data,
+    parse_dexscreener_data,
+)
 from app.token_supply_analyzer.models import (
     SupplyRisk,
     TokenSupplyProfile,
     _detect_chain,
-)
-from app.token_supply_analyzer.fetchers import (
-    _fetch_dexscreener,
-    _fetch_birdeye,
-    parse_dexscreener_data,
-    parse_birdeye_data,
-)
-from app.token_supply_analyzer.analyzers import (
-    _analyze_supply_mechanics,
-    _analyze_concentration,
-    _analyze_liquidity,
-    _compute_overall_risk,
 )
 
 logger = get_logger("token_supply_analyzer")
@@ -159,4 +159,4 @@ async def main() -> None:
 if __name__ == "__main__":
     asyncio.run(main())
 
-__all__ = ["analyze_token_supply", "analyze_multiple_tokens", "main"]
+__all__ = ["analyze_multiple_tokens", "analyze_token_supply", "main"]

@@ -10,15 +10,16 @@ If both are down, returns empty results with a warning.
 """
 
 from __future__ import annotations
+
 import contextlib
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("wallet_memory.storage")
 

@@ -21,6 +21,7 @@ import httpx
 
 from app.core.secrets import get_secret_or_none
 
+
 def _get_url() -> str:
     return os.environ.get("SUPABASE_URL", "")
 
@@ -698,7 +699,7 @@ async def ensure_x402_payments_table() -> bool:
 # Prevents cascading failures when Supabase is degraded.
 # Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
 
-from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+from app.core.circuit_breaker import AsyncCircuitBreaker
 
 _supabase_cb = AsyncCircuitBreaker(
     name="supabase",

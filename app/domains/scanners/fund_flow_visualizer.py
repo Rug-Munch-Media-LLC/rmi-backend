@@ -14,6 +14,7 @@ layout, color-coded roles, and edge thickness proportional to amount.
 """
 
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from typing import Any

@@ -1,6 +1,7 @@
 """Scanner service — external API check functions."""
 
 from __future__ import annotations
+
 import os
 from typing import Any
 

@@ -7,10 +7,10 @@ the ingestion pipeline.
 """
 
 from __future__ import annotations
+
 import csv
 import os
 from datetime import UTC, datetime
-from typing import Any
 
 import httpx
 

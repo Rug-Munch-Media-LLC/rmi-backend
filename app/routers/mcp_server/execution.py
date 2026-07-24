@@ -1,18 +1,18 @@
 """Tool execution — /mcp/call/{tool_id}."""
 
 from __future__ import annotations
+
 import json
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from app.core.errors import NotFoundError, UpstreamError
-
-from typing import Any
-
 from app.config import settings
+from app.core.errors import NotFoundError, UpstreamError
 from app.core.logging import get_logger
-from .config import _get_tools, SERVER_NAME, SERVER_VERSION
+
+from .config import _get_tools
 
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_execution"])

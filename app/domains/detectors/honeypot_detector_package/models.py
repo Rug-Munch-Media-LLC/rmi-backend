@@ -3,11 +3,13 @@ Honeypot Detector — Data Models
 Enums, dataclasses, and result types for honeypot/malicious token analysis.
 """
 from __future__ import annotations
+
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
 
 class FindingSeverity(Enum):
     CRITICAL = "critical"

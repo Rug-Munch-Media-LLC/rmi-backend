@@ -28,7 +28,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Request
 from pydantic import BaseModel, Field
 
-from app.domains.admin.admin_backend import AuditLogger, require_admin
 from app.bulletin_board import (
     BulletinBoardManager,
     PostCategory,
@@ -40,6 +39,7 @@ from app.core.errors import (
     NotFoundError,
     ValidationError,
 )
+from app.domains.admin.admin_backend import AuditLogger, require_admin
 
 router = APIRouter(prefix="/api/v1/bulletin-board", tags=["bulletin-board"])
 

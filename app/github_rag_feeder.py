@@ -17,6 +17,7 @@ Config format (add to SOURCES list):
 """
 
 from __future__ import annotations
+
 import asyncio
 import glob
 import json
@@ -24,9 +25,9 @@ import logging
 import os
 import re
 import subprocess
+from typing import Any
 
 import httpx
-from typing import Any
 
 logger = logging.getLogger(__name__)
 

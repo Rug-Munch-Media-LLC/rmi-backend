@@ -4,16 +4,17 @@ Grabs EVERYTHING crypto. Biggest free news DB on the internet.
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import logging
 import time
+from typing import Any
 
 import httpx
 from defusedxml import ElementTree as SafeET
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("rmi.scraper")
 
@@ -214,7 +215,7 @@ def store_all() -> dict[str, int] | dict[str, str]:
             pg.commit()
             cur.close()
             pg.close()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"Postgres: {e}")
 
         return {

@@ -10,6 +10,7 @@ Endpoint: POST /api/v1/x402-tools/whale_accumulation
 """
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
 

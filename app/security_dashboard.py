@@ -1,7 +1,9 @@
 """Stub security_dashboard - security alert aggregation"""
 
 from __future__ import annotations
+
 from typing import Any
+
 
 class SecurityDashboard:
     """Security dashboard for monitoring alerts."""

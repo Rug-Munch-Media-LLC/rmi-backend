@@ -1,11 +1,13 @@
 """Shared CSV loading and storage helper functions."""
 
 from __future__ import annotations
+
 import csv
 import json
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
+
 from .config import WALLET_LABELS_DDL
 
 logger = get_logger("wallet_memory.label_importer")
@@ -130,6 +132,7 @@ async def _load_csv_labels(
     return count
 
 import os  # noqa: E402 (used in _load_csv_labels)
+
 
 async def _ensure_wallet_labels_table(storage) -> None:
     """Create the wallet_labels table in ClickHouse if it doesn't exist."""

@@ -10,11 +10,12 @@ smollm2:1.7b - ultra-fast simple tasks
 """
 
 from __future__ import annotations
+
 import json
 import os
+from typing import Any
 
 import httpx as req
-from typing import Any
 
 OLLAMA = "http://ollama:11434/api/generate"
 

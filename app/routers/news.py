@@ -19,15 +19,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from app.core.errors import AppError, ValidationError
-
 from app.auth import require_public_profile
+from app.core.errors import AppError, ValidationError
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

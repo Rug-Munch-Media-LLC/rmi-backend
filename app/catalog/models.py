@@ -28,6 +28,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
+
 # ── Enums ───────────────────────────────────────────────────────────
 class Chain(StrEnum):
     """All chains the platform indexes. Per v4.0 §T27."""

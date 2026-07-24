@@ -7,13 +7,18 @@ Split into: models, features, providers, embedder, seed.
 """
 
 from __future__ import annotations
-from app.crypto_embeddings.models import (
-    COLLECTIONS, DIMS, HEAD_DEFAULTS, EmbeddingResult,
-)
+
+from app.crypto_embeddings.embedder import CryptoEmbedder
 from app.crypto_embeddings.features import (
     extract_contract_features,
     extract_transaction_features,
     extract_wallet_features,
+)
+from app.crypto_embeddings.models import (
+    COLLECTIONS,
+    DIMS,
+    HEAD_DEFAULTS,
+    EmbeddingResult,
 )
 from app.crypto_embeddings.providers import (
     ContractCodeEmbedder,
@@ -22,7 +27,6 @@ from app.crypto_embeddings.providers import (
     OllamaBGEEmbedder,
     OpenRouterEmbedder,
 )
-from app.crypto_embeddings.embedder import CryptoEmbedder
 from app.crypto_embeddings.seed import KNOWN_SCAM_PATTERNS
 
 # ── Singleton ──
@@ -36,11 +40,19 @@ async def get_embedder() -> CryptoEmbedder:
     return _embedder
 
 __all__ = [
-    "COLLECTIONS", "DIMS", "HEAD_DEFAULTS", "EmbeddingResult",
-    "extract_contract_features", "extract_transaction_features",
+    "COLLECTIONS",
+    "DIMS",
+    "HEAD_DEFAULTS",
+    "KNOWN_SCAM_PATTERNS",
+    "ContractCodeEmbedder",
+    "CryptoEmbedder",
+    "EmbeddingResult",
+    "HuggingFaceEmbedder",
+    "LocalBGEEmbedder",
+    "OllamaBGEEmbedder",
+    "OpenRouterEmbedder",
+    "extract_contract_features",
+    "extract_transaction_features",
     "extract_wallet_features",
-    "ContractCodeEmbedder", "HuggingFaceEmbedder",
-    "LocalBGEEmbedder", "OllamaBGEEmbedder", "OpenRouterEmbedder",
-    "CryptoEmbedder", "KNOWN_SCAM_PATTERNS",
     "get_embedder",
 ]

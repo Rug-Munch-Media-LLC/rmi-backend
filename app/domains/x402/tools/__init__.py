@@ -16,6 +16,7 @@ Registry shape:
 """
 
 from __future__ import annotations
+
 from app.domains.x402.tools.label_tools import get_entity_labels, get_wallet_labels
 from app.domains.x402.tools.market_tools import get_market_overview, get_trending
 from app.domains.x402.tools.news_tools import get_news, get_news_sentiment

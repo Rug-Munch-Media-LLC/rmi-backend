@@ -1,9 +1,11 @@
 """Passthrough/local providers — call our own backend endpoints."""
 
 from __future__ import annotations
+
 import httpx
 
 from sdks.python.x402_frameworks.autogen_adapter import logger
+
 
 async def _passthrough_market_overview(**kwargs) -> dict | None:
     """Market overview from our own /api/v1/content/market-overview."""

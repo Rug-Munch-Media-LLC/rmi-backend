@@ -21,7 +21,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from datetime import UTC, datetime
@@ -248,8 +247,8 @@ def get_jwks() -> dict[str, Any]:
     # Extract modulus (n) and exponent (e) from PEM
     # This is a simplified approach; for production use python-jose's RS256 key loading
     try:
-        from jose.constants import Algorithms
         from jose.backends.rsa_backend import RSAKey
+        from jose.constants import Algorithms
 
         rsa_key = RSAKey(pub_key, algorithm=Algorithms.RS256)
         jwk = rsa_key.to_dict()

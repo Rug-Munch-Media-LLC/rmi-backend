@@ -24,6 +24,7 @@ Modules:
 """
 
 from __future__ import annotations
+
 from .address_labeler import AddressLabeler, AddressLabelReport  # noqa: F401
 from .block_zero_sniper import BlockZeroReport, BlockZeroSniperAnalyzer  # noqa: F401
 from .bundle_detector import BundleDetector  # noqa: F401

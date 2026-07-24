@@ -4,9 +4,10 @@ Hyperliquid perp markets, funding rates, and action data.
 """
 
 from __future__ import annotations
+
 from fastapi import APIRouter, Query, Request
 
-from app.routers.market_intel.providers import _hyperliquid_markets, _hyperliquid_funding, _hyperliquid_action
+from app.routers.market_intel.providers import _hyperliquid_action, _hyperliquid_funding, _hyperliquid_markets
 from app.routers.market_intel.utils import _now
 
 router = APIRouter(tags=["market-intel"])

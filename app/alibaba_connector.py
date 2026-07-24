@@ -4,13 +4,14 @@ Generate professional graphics for cards, scorecards, marketing assets.
 """
 
 from __future__ import annotations
+
 import os
+from typing import Any
 
 import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

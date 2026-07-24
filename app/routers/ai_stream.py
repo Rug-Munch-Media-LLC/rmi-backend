@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -11,7 +12,6 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.core.model_router import TaskType, route_task
-from typing import Any
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai-streaming"])
 

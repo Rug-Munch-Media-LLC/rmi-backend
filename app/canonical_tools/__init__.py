@@ -12,9 +12,10 @@ Split from monolithic canonical_tools.py into category files:
 """
 
 from __future__ import annotations
+
+from app.canonical_tools.intelligence_premium import INTELLIGENCE_PREMIUM_TOOLS
 from app.canonical_tools.market_basic import MARKET_BASIC_TOOLS
 from app.canonical_tools.security_analysis import SECURITY_ANALYSIS_TOOLS
-from app.canonical_tools.intelligence_premium import INTELLIGENCE_PREMIUM_TOOLS
 
 # Merge all category dicts into the canonical tool prices
 CANONICAL_TOOL_PRICES: dict = {}

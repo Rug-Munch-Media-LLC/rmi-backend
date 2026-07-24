@@ -5,6 +5,7 @@ for all external API calls to avoid connection pool fragmentation.
 """
 
 from __future__ import annotations
+
 import httpx
 
 _client: httpx.AsyncClient | None = None

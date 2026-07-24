@@ -4,8 +4,10 @@ All endpoints are free and require no authentication.
 """
 
 from __future__ import annotations
-import httpx
+
 from typing import Any
+
+import httpx
 
 BASE_URL = "https://web3.binance.com"
 

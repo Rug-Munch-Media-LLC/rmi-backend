@@ -1,10 +1,12 @@
 """Data models for MEV sandwich detection."""
 from __future__ import annotations
+
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
-import re
+
 
 class MEVAttackType(Enum):
     SANDWICH = "sandwich"

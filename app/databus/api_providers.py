@@ -9,6 +9,7 @@ Three free/freemium API providers for enhanced crypto intelligence.
 """
 
 from __future__ import annotations
+
 from app.core.logging import get_logger
 
 logger = get_logger("databus.api_providers")

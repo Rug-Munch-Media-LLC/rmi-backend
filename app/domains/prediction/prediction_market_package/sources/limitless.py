@@ -3,6 +3,7 @@ Prediction Market — Limitless Source
 REST API /markets (Base chain, crypto-native).
 """
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
 

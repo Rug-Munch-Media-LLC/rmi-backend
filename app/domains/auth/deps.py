@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request
 from app.domains.auth.jwt import _verify_jwt
 from app.domains.auth.store import _get_user
 
+
 def _extract_token(request: Request) -> str | None:
     """Extract JWT from cookie first, then Authorization header fallback."""
     cookie_token = request.cookies.get("rmi_token")

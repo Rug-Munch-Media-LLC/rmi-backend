@@ -23,6 +23,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
 
@@ -97,6 +98,7 @@ MIXER_PATTERNS = [
 MAX_TRACE_DEPTH = 3
 MAX_TX_TO_CHECK = 20
 
+
 @dataclass
 class FundingTrace:
     """Result of a funding source trace."""
@@ -113,6 +115,7 @@ class FundingTrace:
     funding_timestamp: int = 0
     hops: list[dict] = field(default_factory=list)  # trace chain
     errors: list[str] = field(default_factory=list)
+
 
 async def trace_funding_source(
     wallet: str,
@@ -196,6 +199,7 @@ async def trace_funding_source(
 
     return trace
 
+
 async def _get_wallet_transactions(address: str, chain_id: int) -> list[dict]:
     """Get recent transactions for a wallet using Blockscout or Etherscan.
 
@@ -213,6 +217,7 @@ async def _get_wallet_transactions(address: str, chain_id: int) -> list[dict]:
 
     # Final fallback: use public RPC with eth_getLogs for Transfer events
     return await _fetch_rpc_transfers(address, chain_id)
+
 
 async def _fetch_blockscout_txs(address: str, chain_id: int, api_key: str) -> list[dict]:
     """Fetch transactions via Blockscout v2 API.
@@ -253,6 +258,7 @@ async def _fetch_blockscout_txs(address: str, chain_id: int, api_key: str) -> li
         logger.debug(f"Blockscout v2 fetch failed for {address}: {e}")
     return []
 
+
 async def _fetch_etherscan_txs(address: str, api_key: str) -> list[dict]:
     """Fetch transactions via Etherscan API."""
     import httpx
@@ -280,6 +286,7 @@ async def _fetch_etherscan_txs(address: str, api_key: str) -> list[dict]:
     except Exception as e:
         logger.debug(f"Etherscan fetch failed for {address}: {e}")
     return []
+
 
 async def _fetch_rpc_transfers(address: str, chain_id: int) -> list[dict]:
     """Fallback: get transactions via public RPC getLogs for Transfer events."""
@@ -325,6 +332,7 @@ async def _fetch_rpc_transfers(address: str, chain_id: int) -> list[dict]:
 
     return []
 
+
 def _find_earliest_inbound(txs: list[dict], wallet: str) -> dict | None:
     """Find the earliest transaction where this wallet received ETH."""
     wallet_lower = wallet.lower()
@@ -334,6 +342,7 @@ def _find_earliest_inbound(txs: list[dict], wallet: str) -> dict | None:
         if to_addr == wallet_lower and value > 0:
             return tx
     return None
+
 
 async def _classify_address(address: str, chain_id: int) -> tuple[str, str]:
     """Classify an address as CEX, DEX, bridge, mixer, contract, or EOA.
@@ -379,6 +388,7 @@ async def _classify_address(address: str, chain_id: int) -> tuple[str, str]:
     # Strategy 3: Default - it's an externally owned account
     return ("eoa", "")
 
+
 async def _is_contract(address: str, chain_id: int) -> bool:
     """Check if an address is a contract by calling eth_getCode."""
     try:
@@ -393,9 +403,10 @@ async def _is_contract(address: str, chain_id: int) -> bool:
         if result and result.value:
             code = result.value
             return code != "0x" and len(str(code)) > 4
-    except (AttributeError, ConnectionError, ImportError, TimeoutError, httpx.HTTPError):
+    except (AttributeError, ConnectionError, ImportError, TimeoutError):
         pass
     return False
+
 
 def _confidence_for_type(source_type: str) -> float:
     """Return confidence score for a source classification."""
@@ -411,16 +422,19 @@ def _confidence_for_type(source_type: str) -> float:
     }
     return scores.get(source_type, 10.0)
 
+
 def _pad_address(address: str) -> str:
     """Pad address to 32 bytes for log topics."""
     addr = address.lower().replace("0x", "")
     return "0x" + addr.zfill(64)
+
 
 def _unpad_address(hex_str: str) -> str:
     """Extract 20-byte address from 32-byte padded topic."""
     if hex_str and len(hex_str) >= 42:
         return "0x" + hex_str[-40:]
     return hex_str
+
 
 def _parse_timestamp(ts: str) -> int:
     """Parse ISO timestamp to Unix epoch int."""

@@ -3,6 +3,7 @@ RMI Agent Skills - Extended Pack. More workflows for more agent types.
 """
 
 from __future__ import annotations
+
 AGENT_SKILLS_EXTENDED = {
     "mev_avoidance": {
         "name": "MEV/Sandwich Attack Avoidance",

@@ -5,8 +5,8 @@ Main run_sentinel_scan orchestrator plus dynamically-generated standalone runner
 """
 
 from __future__ import annotations
+
 import asyncio
-from functools import partial
 from typing import Any
 
 import httpx
@@ -15,7 +15,6 @@ from app.core.logging import get_logger
 
 from .config import SentinelConfig, SentinelReport, dataclass_to_dict
 from .modules import (
-    _WALLET_MEMORY_AVAILABLE,
     _address_labeler,
     _block_zero_sniper,
     _bundle_detector,
@@ -24,6 +23,7 @@ from .modules import (
     _contract_diff,
     _decompiler_analyzer,
     _dev_reputation,
+    _ensure_modules,
     _exchange_funder,
     _flash_loan_detector,
     _fund_flow_visualizer,
@@ -44,7 +44,6 @@ from .modules import (
     _social_velocity,
     _static_analyzer,
     _wash_trading,
-    _ensure_modules,
 )
 from .risk import (
     _collect_red_flags,
@@ -123,7 +122,7 @@ async def run_sentinel_scan(
         coros["gas_trace"] = _gas_trace.analyze(dev_address, chain)
     else:
         for k in ("dev_reputation", "guilt_association", "sleep_cycle", "gas_trace"):
-            report.errors[k] = f"skipped: no dev_address provided"
+            report.errors[k] = "skipped: no dev_address provided"
             coros[k] = None
 
     if _WALLET_MEMORY_AVAILABLE_LOCAL and dev_address:
@@ -242,7 +241,7 @@ async def run_sentinel_scan(
                 token=token_address,
                 score=composite,
             )
-        except httpx.HTTPError as e:
+        except httpx.HTTPError:
             logger.debug("wallet_memory_feedback_error", exc_info=True)
 
     return report

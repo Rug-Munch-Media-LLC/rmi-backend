@@ -9,6 +9,7 @@ FlashLoanAttackDetector class in the parent package.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.detectors.flash_loan.models import (

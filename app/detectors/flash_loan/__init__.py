@@ -15,19 +15,6 @@ Usage:
 
 # Re-export main detector class
 from __future__ import annotations
-from app.detectors.flash_loan.detector import FlashLoanAttackDetector
-
-# Re-export data models
-from app.detectors.flash_loan.models import (
-    AttackSeverity,
-    AttackType,
-    DetectionMethod,
-    FlashLoanAttack,
-    FlashLoanCall,
-    FlashLoanProtocol,
-    ScanReport,
-    TransactionTrace,
-)
 
 # Re-export algorithm constants
 from app.detectors.flash_loan.algorithms import (
@@ -52,6 +39,19 @@ from app.detectors.flash_loan.algorithms import (
     _is_known_flashloan_provider,
     _resolve_shared_aave_sig,
     _score_sophistication,
+)
+from app.detectors.flash_loan.detector import FlashLoanAttackDetector
+
+# Re-export data models
+from app.detectors.flash_loan.models import (
+    AttackSeverity,
+    AttackType,
+    DetectionMethod,
+    FlashLoanAttack,
+    FlashLoanCall,
+    FlashLoanProtocol,
+    ScanReport,
+    TransactionTrace,
 )
 
 __all__ = [

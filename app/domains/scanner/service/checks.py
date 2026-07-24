@@ -1,6 +1,7 @@
 """Scanner service — check functions (RAG scam check, cross-chain deployer)."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger

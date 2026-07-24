@@ -3,15 +3,16 @@ RMI Mega News v2 - Add Reddit + Twitter/Nitter RSS feeds
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import logging
 import time
+from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("rmi.news.social")
 

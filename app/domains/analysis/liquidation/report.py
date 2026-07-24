@@ -8,6 +8,7 @@ import json
 
 from app.domains.analysis.liquidation.models import LiquidationAnalysis, RiskTier
 
+
 def generate_report(analysis: LiquidationAnalysis, format: str = "text") -> str:
     """Generate a human-readable or JSON report."""
     if format == "json":

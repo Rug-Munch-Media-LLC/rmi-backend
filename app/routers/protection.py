@@ -19,11 +19,10 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-
-from app.core.errors import AppError, RateLimitError, ValidationError
 from pydantic import BaseModel
 
 from app.core.dependencies import get_http_client, get_rate_limiter
+from app.core.errors import AppError, RateLimitError, ValidationError
 from app.core.logging import get_logger
 from app.core.rate_limiter import UnifiedRateLimiter
 

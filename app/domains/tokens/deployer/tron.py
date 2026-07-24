@@ -1,6 +1,7 @@
 """TRON TRC-20 token deployer."""
 
 from __future__ import annotations
+
 import time
 
 from app.core.logging import get_logger

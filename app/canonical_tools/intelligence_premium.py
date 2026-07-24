@@ -3,6 +3,7 @@ Canonical Tool Prices — Intelligence, Premium, Elite, Social, and Launchpad ca
 """
 
 from __future__ import annotations
+
 INTELLIGENCE_PREMIUM_TOOLS = {
     # ── intelligence ──
     "airdrop_finder": {"price_usd": 0.05, "price_atoms": "50000", "category": "intelligence", "trial_free": 2, "description": "airdrop_finder"},

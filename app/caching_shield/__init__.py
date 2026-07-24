@@ -40,6 +40,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 from app.caching_shield.api_registry import (
     PROVIDER_REGISTRY,
     ApiKey,

@@ -8,8 +8,9 @@ These are standalone functions (no class dependency) used by the detector.
 """
 
 from __future__ import annotations
+
 import math
-from typing import Any
+
 
 def gini_coefficient(values: list[float]) -> float:
     """Compute Gini coefficient (0=equal, 1=max concentration)."""

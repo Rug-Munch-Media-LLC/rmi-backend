@@ -7,12 +7,13 @@ Connects to /api/v1/rugmaps/*
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Query
-from app.core.errors import AppError, ServiceUnavailableError, ValidationError
 from pydantic import BaseModel
 
+from app.core.errors import AppError, ServiceUnavailableError, ValidationError
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

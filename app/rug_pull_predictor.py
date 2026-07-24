@@ -30,10 +30,10 @@ Data Sources (all free):
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import logging
-import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -43,8 +43,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
-from app.core.shared_utils import normalize_chain as _normalize_chain
-from app.core.shared_utils import EVM_ADDRESS_RE as EVM_ADDR_RE, SOLANA_ADDRESS_RE as SOLANA_ADDR_RE, is_valid_address
+from app.core.shared_utils import is_valid_address, normalize_chain as _normalize_chain
 
 __all__ = ["RiskLevel", "RugPullAnalysis", "SignalResult", "analyze", "predict_rug_pull"]
 

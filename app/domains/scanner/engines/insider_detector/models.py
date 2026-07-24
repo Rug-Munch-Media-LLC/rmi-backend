@@ -1,8 +1,10 @@
 """Data structures for insider detection reports."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+
 
 class InsiderType:
     """Type classification for insider detection methods."""

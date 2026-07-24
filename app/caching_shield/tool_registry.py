@@ -14,6 +14,7 @@ Gets called by x402_catalog.py for accurate tool counts.
 """
 
 from __future__ import annotations
+
 import os
 from pathlib import Path
 

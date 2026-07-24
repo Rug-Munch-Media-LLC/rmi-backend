@@ -3,6 +3,7 @@ Prediction Market — Main Service
 Multi-source prediction market data aggregation with parallel fetching + caching.
 """
 from __future__ import annotations
+
 import asyncio
 import json
 import os

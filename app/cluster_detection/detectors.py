@@ -16,12 +16,9 @@ Methods:
 """
 
 from __future__ import annotations
-from collections import defaultdict
-from datetime import datetime, timedelta
-from typing import Any
 
-from sklearn.cluster import DBSCAN
-from sklearn.preprocessing import StandardScaler
+from collections import defaultdict
+from datetime import datetime
 
 from app.cluster_detection.models import (
     ClusterSignal,
@@ -32,6 +29,7 @@ from app.cluster_detection.scoring import (
     calculate_behavioral_similarity,
     distribution,
 )
+
 
 async def detect_temporal_clusters(
     wallet_profiles: dict[str, dict],

@@ -6,6 +6,7 @@ the full bridge health analysis pipeline.
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import time
@@ -13,6 +14,7 @@ from typing import Any
 
 import aiohttp
 
+from app.bridge_health_monitor.registry import BRIDGE_REGISTRY
 from app.bridge_health_monitor.types import (
     BridgeHealthReport,
     BridgeSecurityScore,
@@ -21,7 +23,6 @@ from app.bridge_health_monitor.types import (
     RiskTier,
     TrustModel,
 )
-from app.bridge_health_monitor.registry import BRIDGE_REGISTRY
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)

@@ -7,6 +7,7 @@ Split into: models, base, evm, solana, tron, factory, storage.
 """
 
 from __future__ import annotations
+
 from app.domains.tokens.deployer.base import ChainDeployer
 from app.domains.tokens.deployer.evm import EVMDeployer
 from app.domains.tokens.deployer.factory import TokenDeployerFactory

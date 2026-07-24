@@ -5,9 +5,10 @@ Delegates to the root /version handler.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
-from typing import Any
 
 router = APIRouter(tags=["version-v1"])
 

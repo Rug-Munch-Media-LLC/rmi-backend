@@ -1,6 +1,7 @@
 """Scanner module — split from modules.py for maintainability."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -13,6 +14,7 @@ from app.domains.scanner.modules._core import (
     _fetch_with_fallback,
     logger,
 )
+
 
 async def _get_price_consensus(
     token_address: str, chain: str, market_price: float = 0

@@ -8,10 +8,11 @@ This package splits the original monolithic dict into:
 """
 
 from __future__ import annotations
-from app.routers._expanded_tools.core_tools import CORE_TOOLS
+
 from app.routers._expanded_tools.chain_variants import CHAIN_VARIANTS
+from app.routers._expanded_tools.core_tools import CORE_TOOLS
 from app.routers._expanded_tools.sentinel_modules import SENTINEL_MODULES
 
 ADDITIONAL_TOOLS = {**CORE_TOOLS, **CHAIN_VARIANTS, **SENTINEL_MODULES}
 
-__all__ = ["ADDITIONAL_TOOLS", "CORE_TOOLS", "CHAIN_VARIANTS", "SENTINEL_MODULES"]
+__all__ = ["ADDITIONAL_TOOLS", "CHAIN_VARIANTS", "CORE_TOOLS", "SENTINEL_MODULES"]

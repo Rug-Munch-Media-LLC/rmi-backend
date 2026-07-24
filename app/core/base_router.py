@@ -16,9 +16,9 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.core.errors import NotFoundError, ValidationError
 from app.core.logging import get_logger

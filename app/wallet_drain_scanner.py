@@ -19,11 +19,10 @@ Endpoint: POST /api/v1/x402-tools/wallet_drain
 """
 
 from __future__ import annotations
+
 import re
 from datetime import UTC, datetime
 from typing import Any
-
-from http import HTTPStatus
 
 from app.core.logging import get_logger
 

@@ -1,6 +1,7 @@
 """LlamaIndex RAG adapter — Phase 0: drop-in wrapper alongside existing RAG pipeline."""
 
 from __future__ import annotations
+
 import os
 
 from llama_index.core import Settings, StorageContext, VectorStoreIndex
@@ -10,6 +11,7 @@ from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 
 from app.config import settings as app_settings
+
 
 class LlamaRAGAdapter:
     """Drop-in wrapper for LlamaIndex RAG pipeline.

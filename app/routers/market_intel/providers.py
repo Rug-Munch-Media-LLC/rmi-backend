@@ -5,11 +5,13 @@ All endpoints have in-memory caching and graceful fallbacks.
 """
 
 from __future__ import annotations
+
 import json
 from typing import Any
 
 import httpx
 
+from app.core.logging import get_logger
 from app.routers.market_intel.cache import (
     COINGECKO_API_KEY,
     COINGECKO_BASE,
@@ -18,7 +20,6 @@ from app.routers.market_intel.cache import (
     _cset,
 )
 from app.routers.market_intel.utils import _safe_float
-from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 

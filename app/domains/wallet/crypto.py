@@ -5,6 +5,7 @@ Extracted from manager.py during god-file split (2026-07-23).
 """
 
 from __future__ import annotations
+
 import base64
 import hashlib
 import os

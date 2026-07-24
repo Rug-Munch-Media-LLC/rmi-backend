@@ -5,13 +5,14 @@ All graphics follow EXACT brand guidelines. Uploads to Dropbox automatically.
 """
 
 from __future__ import annotations
+
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 

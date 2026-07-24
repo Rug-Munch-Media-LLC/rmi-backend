@@ -20,6 +20,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
 
+
 async def cmd_watchlist(update: Update, ctx) -> None:
     user = update.effective_user
     if user is None:

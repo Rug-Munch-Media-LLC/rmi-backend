@@ -18,6 +18,7 @@ when fetching data for multiple tokens/wallets simultaneously.
 """
 
 from __future__ import annotations
+
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass

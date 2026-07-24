@@ -14,8 +14,10 @@ Endpoints:
 """
 
 from __future__ import annotations
+
 import os
 import time
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -24,7 +26,6 @@ from app.caching_shield.rate_limiter import get_rate_limiter
 from app.caching_shield.rpc_cache import get_rpc_cache
 from app.caching_shield.ws_broadcaster import get_ws_manager
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("caching_shield.router")
 router = APIRouter(prefix="/api/v1/cache", tags=["caching-shield"])

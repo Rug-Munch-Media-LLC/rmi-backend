@@ -11,6 +11,7 @@ from __future__ import annotations
 from app.core import health as health_mod
 from app.core.health import DomainHealth
 
+
 async def _health_check() -> DomainHealth:
     """x402 health: catalog + middleware available."""
     try:

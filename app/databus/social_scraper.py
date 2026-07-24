@@ -14,6 +14,7 @@ Cron: Every 6 hours, discover new tweets, extract content, update metrics.
 """
 
 from __future__ import annotations
+
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger

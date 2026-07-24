@@ -18,6 +18,7 @@ Sources (all free):
 """
 
 from __future__ import annotations
+
 import asyncio
 import hashlib
 import os
@@ -612,7 +613,7 @@ async def aggregate_all_news(limit: int = 50, **kw) -> dict:
         from app.domains.news.news_service import fetch_all_news
 
         tasks.append(fetch_all_news())
-    except (AttributeError, ImportError):  # noqa: BLE001
+    except (AttributeError, ImportError):
         pass
 
     # X/Twitter

@@ -21,7 +21,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -29,7 +28,6 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
-from app.core.shared_utils import EVM_ADDRESS_RE
 
 logger = get_logger(__name__)
 

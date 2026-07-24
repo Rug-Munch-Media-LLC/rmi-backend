@@ -1,6 +1,7 @@
 """Earnings dashboard — wallet balances, revenue by source."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter

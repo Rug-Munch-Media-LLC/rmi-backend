@@ -18,13 +18,14 @@ Alert flow:
 """
 
 from __future__ import annotations
+
 import json
 import os
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("alert_pipeline")
 

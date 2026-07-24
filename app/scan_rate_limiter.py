@@ -1,6 +1,7 @@
 # DEPRECATED: Use app.core.rate_limiter (UnifiedRateLimiter) instead.
 # Remove after migration verified. Consolidates 7 rate limiters into 1.
 from __future__ import annotations
+
 """
 RMI Freemium Scan Rate Limiter
 ===============================

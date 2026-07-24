@@ -14,6 +14,7 @@ Helius (Solana program info), DexScreener.
 """
 
 from __future__ import annotations
+
 import hashlib
 import os
 from dataclasses import dataclass, field

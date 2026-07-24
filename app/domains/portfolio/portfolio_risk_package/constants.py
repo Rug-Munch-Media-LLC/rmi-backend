@@ -3,6 +3,7 @@ Portfolio Risk — Constants
 Chain configurations, ERC20 ABI, address validation, and defaults.
 """
 from __future__ import annotations
+
 import json
 from typing import Any
 

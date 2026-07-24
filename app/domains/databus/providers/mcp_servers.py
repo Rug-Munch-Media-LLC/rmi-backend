@@ -7,6 +7,7 @@ Re-exports the MCP bridge provider function from
 """
 
 from __future__ import annotations
+
 from app.databus.providers import (  # noqa: F401
     _mcp_bridge,
 )

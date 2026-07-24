@@ -6,6 +6,7 @@ net worth, and token search.
 """
 
 from __future__ import annotations
+
 import httpx
 
 from app.core.logging import get_logger

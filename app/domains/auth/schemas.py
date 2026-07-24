@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+
 class EmailLoginRequest(BaseModel):
     email: str
     password: str

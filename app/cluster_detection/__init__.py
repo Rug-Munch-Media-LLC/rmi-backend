@@ -11,6 +11,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 from app.cluster_detection.detectors import (
     detect_behavioral_clusters,
     detect_counterparty_clusters,

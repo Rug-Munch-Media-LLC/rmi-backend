@@ -25,6 +25,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
+
 class MCPToolManifest(BaseModel):
     """Versioned, authenticated, discoverable description of one MCP tool."""
 

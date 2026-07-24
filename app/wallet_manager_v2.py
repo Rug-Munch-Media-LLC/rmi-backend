@@ -6,11 +6,23 @@ This shim re-exports the public surface for legacy callers.
 """
 
 # Core manager classes
+# Crypto
+from app.domains.wallet.crypto import (
+    ShamirSecretSharing,
+    WalletEncryption,
+    ZKAddressVerifier,
+)
+
+# Labels
+from app.domains.wallet.labels import import_legacy_wallets
+
+# Logger (module-level)
 from app.domains.wallet.manager import (
-    WalletManagerV2,
     WalletManagerFacade,
+    WalletManagerV2,
     _wallet_manager_instance,
     get_wallet_manager_v2,
+    logger as _logger,
 )
 
 # Data models
@@ -26,19 +38,6 @@ from app.domains.wallet.models import (
     WalletTier,
     _build_registry,
 )
-
-# Crypto
-from app.domains.wallet.crypto import (
-    ShamirSecretSharing,
-    WalletEncryption,
-    ZKAddressVerifier,
-)
-
-# Labels
-from app.domains.wallet.labels import import_legacy_wallets
-
-# Logger (module-level)
-from app.domains.wallet.manager import logger as _logger
 
 logger = _logger
 

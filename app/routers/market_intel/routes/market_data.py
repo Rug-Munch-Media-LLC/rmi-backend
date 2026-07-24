@@ -4,11 +4,12 @@ Token launches, trending, whales, predictions, insiders, dex flows, liquidations
 """
 
 from __future__ import annotations
+
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Query, Request
 
-from app.routers.market_intel.providers import _cg, _ds, _polymarket, _binance_funding
+from app.routers.market_intel.providers import _binance_funding, _cg, _ds, _polymarket
 from app.routers.market_intel.utils import _now, _safe_float
 
 router = APIRouter(tags=["market-intel"])

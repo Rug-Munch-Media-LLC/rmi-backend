@@ -8,8 +8,8 @@ Extracted from ClusterDetectionPro methods to reduce module size.
 """
 
 from __future__ import annotations
+
 from collections import defaultdict
-from typing import Any
 
 from app.cluster_detection.models import ClusterType, WalletCluster
 

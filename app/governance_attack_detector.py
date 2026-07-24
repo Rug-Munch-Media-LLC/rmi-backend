@@ -18,6 +18,7 @@ Endpoint: POST /api/v1/x402-tools/governance_attack
 """
 
 from __future__ import annotations
+
 import contextlib
 import os
 from dataclasses import asdict, dataclass, field

@@ -5,6 +5,7 @@ All /command handler functions for the RMI Admin Bot.
 """
 
 from __future__ import annotations
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes

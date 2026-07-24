@@ -19,6 +19,7 @@ Data Sources (all free):
 """
 
 from __future__ import annotations
+
 import asyncio
 import os
 from contextlib import suppress
@@ -521,9 +522,9 @@ async def _cross_reference_whales(
 
 # ── Public API ────────────────────────────────────────────────────
 
-_instance: "CrossChainWhaleTracker | None" = None
+_instance: CrossChainWhaleTracker | None = None
 
-def get_whale_tracker() -> "CrossChainWhaleTracker":
+def get_whale_tracker() -> CrossChainWhaleTracker:
     """Get or create the singleton CrossChainWhaleTracker instance."""
     global _instance
     if _instance is None:

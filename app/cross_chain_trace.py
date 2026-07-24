@@ -18,6 +18,7 @@ Endpoint: POST /api/v1/x402-tools/cross_chain_trace
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import re
@@ -28,7 +29,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 from app.core.logging import get_logger
-from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE, is_valid_address
 
 logger = get_logger("cross_chain_trace")
 

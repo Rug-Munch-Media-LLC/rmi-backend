@@ -1,6 +1,7 @@
 """Auto-generated tool definitions for CORE_TOOLS."""
 
 from __future__ import annotations
+
 CORE_TOOLS = {
     "contract_upgrade_monitor": {
         "price_usd": 0.05,

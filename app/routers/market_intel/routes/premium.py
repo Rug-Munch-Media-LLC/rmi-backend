@@ -4,11 +4,11 @@ Premium features: likely rugs, alpha signals, smart money, bundled detection, in
 """
 
 from __future__ import annotations
+
 from fastapi import APIRouter, Query, Request
 
-from app.routers.market_intel.utils import _now, _safe_float
-from app.routers.market_intel.providers import _cg
 from app.core.logging import get_logger
+from app.routers.market_intel.utils import _now
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["market-intel"])

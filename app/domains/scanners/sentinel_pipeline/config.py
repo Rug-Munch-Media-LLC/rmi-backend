@@ -5,6 +5,7 @@ SentinelConfig, SentinelReport, and the dataclass_to_dict utility.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 from typing import Any

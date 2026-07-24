@@ -16,6 +16,7 @@ Union-Find for O(alpha(n)) merges. Results persisted to storage.py.  # noqa: RUF
 """
 
 from __future__ import annotations
+
 from collections import defaultdict
 from datetime import datetime
 

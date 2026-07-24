@@ -1,5 +1,6 @@
 """Volume anomaly and price pump detection signals."""
 from __future__ import annotations
+
 from app.domains.detectors.pump_dump_detector_package.types import (
     PUMP_DUMP_THRESHOLDS,
     FindingSeverity,
@@ -7,6 +8,7 @@ from app.domains.detectors.pump_dump_detector_package.types import (
     PricePumpSignal,
     VolumeAnomaly,
 )
+
 
 async def detect_volume_anomalies(pairs_data: dict) -> dict:
     """Detect abnormal volume patterns indicating manipulation."""

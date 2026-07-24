@@ -28,6 +28,7 @@ benefits from 3072-dimension embeddings.
 # ──────────────────────────────────────────────────────────────
 
 from __future__ import annotations
+
 TIER_PROVIDERS = {
     "critical": {"gemini_1", "gemini_2", "gemini_3"},  # 3072d only - highest quality
     "standard": {"nv_direct", "mistral", "nv_openrouter"},  # 1024-2048d - good quality, free

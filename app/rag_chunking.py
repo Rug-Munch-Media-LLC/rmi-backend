@@ -21,6 +21,7 @@ Standards (2026 consensus):
 """
 
 from __future__ import annotations
+
 import hashlib
 import re
 

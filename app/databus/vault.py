@@ -16,6 +16,7 @@ Architecture:
 """
 
 from __future__ import annotations
+
 import asyncio
 import os
 import subprocess
@@ -409,7 +410,7 @@ class DataBusVault:
                     val = result.stdout.strip()
                     if val and val not in ("", "None", "***"):
                         return val
-            except (subprocess.TimeoutExpired):  # noqa: BLE001
+            except (subprocess.TimeoutExpired):
                 pass  # Vault unavailable, fall back to env
 
         # Fallback to env var

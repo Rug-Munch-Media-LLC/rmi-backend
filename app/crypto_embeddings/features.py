@@ -1,11 +1,13 @@
 """Crypto-aware feature extractors for smart contracts, transactions, and wallets."""
 
 from __future__ import annotations
+
 import hashlib
 import time
 from datetime import datetime
 
 import numpy as np
+
 
 def extract_contract_features(code: str) -> np.ndarray:
     """

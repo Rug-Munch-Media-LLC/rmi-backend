@@ -10,6 +10,7 @@ Endpoint: POST /api/v1/x402-tools/wash_trade_detect
 """
 
 from __future__ import annotations
+
 import re
 from typing import Any
 

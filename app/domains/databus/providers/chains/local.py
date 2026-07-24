@@ -5,6 +5,7 @@ These are always preferred (Tier.LOCAL) because they're instant and free.
 """
 
 from __future__ import annotations
+
 import json
 import os
 from typing import Any

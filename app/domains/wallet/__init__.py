@@ -16,6 +16,7 @@ Modules:
 """
 
 from __future__ import annotations
+
 from app.domains.wallet.crypto import (
     ShamirSecretSharing,
     WalletEncryption,

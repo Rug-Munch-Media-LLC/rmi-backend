@@ -8,6 +8,7 @@ Split from oracle_manipulation_detector.py into: constants, models, utils, detec
 """
 
 from __future__ import annotations
+
 from .cli import main
 from .constants import (
     CEX_DEX_DIVERGENCE_THRESHOLD,

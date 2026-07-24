@@ -6,10 +6,11 @@ for deep wallet cluster analysis.
 """
 
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Any
 
 from app.domains.wallet.clustering.models import Cluster, Connection, WalletProfile
+
 
 def get_connections_for_bubble_map(
     connections: dict[tuple[str, str], Connection],
@@ -246,8 +247,8 @@ def get_cluster_report(cluster: Cluster, wallets: dict[str, WalletProfile], conn
     return report
 
 __all__ = [
-    "get_connections_for_bubble_map",
-    "generate_bubble_map_data",
     "generate_ai_forensic_breakdown",
+    "generate_bubble_map_data",
     "get_cluster_report",
+    "get_connections_for_bubble_map",
 ]

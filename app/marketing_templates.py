@@ -6,6 +6,7 @@ Professional copy for wins, losses, KOL scorecards, security alerts.
 # ── X/Twitter Post Templates ──────────────────────────────────
 
 from __future__ import annotations
+
 X_TEMPLATES = {
     "big_win": """🎉 BIG WIN ALERT! 🎉
 

@@ -14,17 +14,12 @@ Public API (unchanged):
 
 from __future__ import annotations
 
-import os
 from typing import Final
 
 from app.config import settings
 from app.core.logging import get_logger
 from app.rag.embedder import (
-    BGE_M3_Embedder,
-    CachedEmbedder,
     EmbedderProtocol,
-    FallbackEmbedder,
-    OllamaEmbedder,
     get_default_embedder,
     lookup_dim,
     normalize_dim,
@@ -124,9 +119,9 @@ def create_embedder(
 __all__ = [
     "EMBEDDING_DIM",
     "RAGUnavailableError",
+    "_resize",
     "create_embedder",
     "current_backend",
     "get_embedding",
     "get_embeddings",
-    "_resize",
 ]

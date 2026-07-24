@@ -19,9 +19,9 @@ Data Sources (all free):
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
-import re
 import time
 from collections import defaultdict
 from contextlib import suppress
@@ -31,7 +31,6 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
-from app.core.shared_utils import EVM_ADDRESS_RE as ADDRESS_PATTERN_EVM, SOLANA_ADDRESS_RE as ADDRESS_PATTERN_SOLANA
 
 logger = get_logger(__name__)
 

@@ -18,9 +18,9 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
+from typing import Any
 
 from app.core.logging import get_logger
-from typing import Any
 
 log = get_logger(__name__)
 
@@ -143,7 +143,7 @@ def is_duplicate(content_hash: str, collection: str) -> bool:
     """Has this exact content already been ingested into the collection?"""
     try:
         return bool(_get_redis().sismember(f"rag:hashes:{collection}", content_hash))
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         log.warning("dedup_check_failed: %s", e)
         return False
 

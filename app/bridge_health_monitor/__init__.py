@@ -9,6 +9,9 @@ Split from monolithic bridge_health_monitor.py into:
   - cli.py       Standalone CLI entry point
 """
 
+from app.bridge_health_monitor.cli import main
+from app.bridge_health_monitor.monitor import BridgeHealthMonitor
+from app.bridge_health_monitor.registry import BRIDGE_REGISTRY
 from app.bridge_health_monitor.types import (
     BridgeHealthReport,
     BridgeSecurityScore,
@@ -17,18 +20,15 @@ from app.bridge_health_monitor.types import (
     RiskTier,
     TrustModel,
 )
-from app.bridge_health_monitor.registry import BRIDGE_REGISTRY
-from app.bridge_health_monitor.monitor import BridgeHealthMonitor
-from app.bridge_health_monitor.cli import main
 
 __all__ = [
-    "RiskTier",
-    "TrustModel",
-    "BridgeTVLSnapshot",
-    "BridgeSecurityScore",
-    "ExploitSignal",
-    "BridgeHealthReport",
     "BRIDGE_REGISTRY",
     "BridgeHealthMonitor",
+    "BridgeHealthReport",
+    "BridgeSecurityScore",
+    "BridgeTVLSnapshot",
+    "ExploitSignal",
+    "RiskTier",
+    "TrustModel",
     "main",
 ]

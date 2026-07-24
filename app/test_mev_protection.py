@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ from app.mev_protection import (
     analyze_transaction_risk,
     mev_shield_analysis,
 )
+
 
 async def test_mempool_risk() -> None:
     """Test mempool activity risk assessment."""

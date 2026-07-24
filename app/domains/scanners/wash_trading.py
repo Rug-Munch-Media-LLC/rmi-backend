@@ -18,6 +18,7 @@ Data sources (direct API calls - no self.api_base):
 """
 
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -534,7 +535,7 @@ class WashTradingDetector:
 
     # ── Graph & cycle detection ────────────────────────────────
 
-    def build_transfer_graph(self, transfers: list[TransferRecord]) -> "nx.DiGraph":
+    def build_transfer_graph(self, transfers: list[TransferRecord]) -> nx.DiGraph:
         """Build directed graph of transfers for cycle detection."""
         if not HAS_NETWORKX:
             raise ImportError("networkx required for wash trading detection")

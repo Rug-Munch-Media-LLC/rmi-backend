@@ -10,6 +10,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 from app.bundler_detect.detector import BundlerDetector
 from app.bundler_detect.fetchers import (
     fetch_buys,

@@ -1,8 +1,11 @@
 """CLI entry points for MEV sandwich detector."""
 from __future__ import annotations
+
 import asyncio
 import logging
+
 from app.core.logging import get_logger
+
 from .detector import MEVSandwichDetector
 
 logger = get_logger(__name__)

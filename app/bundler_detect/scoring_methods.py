@@ -6,10 +6,12 @@ These are pure functions; the detector passes parameters explicitly.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.bundler_detect.models import BUNDLER_SCORE_WEIGHTS, BundledBuy, BundlerReport, HolderCluster
 from app.bundler_detect.scoring import entropy, gini_coefficient
+
 
 def score_supply_concentration(holders: list[dict[str, Any]], top10_pct: float) -> float:
     """Score supply distribution risk (0-100)."""

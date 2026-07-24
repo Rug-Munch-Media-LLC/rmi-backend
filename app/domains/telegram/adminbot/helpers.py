@@ -5,6 +5,7 @@ Owner gating, message editing, keyboard builders for the admin bot.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -12,6 +13,7 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from app.domains.telegram.adminbot.config import OWNER_IDS
+
 
 def is_owner(update: Update) -> bool:
     """Check if the user is a known owner."""

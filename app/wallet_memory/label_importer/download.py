@@ -1,13 +1,24 @@
 """Download helpers for wallet label datasets."""
 
 from __future__ import annotations
-import json
+
 import os
 
 import httpx
 
 from app.core.logging import get_logger
-from .config import LABELS_DIR, SOLANA_LABELS_REPO, BSC_LABELS_REPO, ETH_EXCHANGE_LABELS_REPO, ETH_CLUSTER_LABELS_REPO, ETH_CONTRACT_LABELS_REPO, SOLANA_CSV_SPECS, ETH_CSV_SPECS, _EXCHANGE_WALLET_FILES
+
+from .config import (
+    _EXCHANGE_WALLET_FILES,
+    BSC_LABELS_REPO,
+    ETH_CLUSTER_LABELS_REPO,
+    ETH_CONTRACT_LABELS_REPO,
+    ETH_CSV_SPECS,
+    ETH_EXCHANGE_LABELS_REPO,
+    LABELS_DIR,
+    SOLANA_CSV_SPECS,
+    SOLANA_LABELS_REPO,
+)
 
 logger = get_logger("wallet_memory.label_importer")
 

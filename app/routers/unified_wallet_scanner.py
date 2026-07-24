@@ -26,13 +26,13 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger(__name__)
 
@@ -166,7 +166,7 @@ class UnifiedWalletScanner:
                 return c, await asyncio.wait_for(
                     databus.fetch(c, admin_key=admin_key, **params), timeout
                 )
-            except (asyncio.TimeoutError, Exception) as e:
+            except (TimeoutError, Exception) as e:
                 logger.debug(f"DataBus fetch failed for {c}: {e}")
                 return c, None
 

@@ -18,6 +18,8 @@ Endpoints for:
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
@@ -36,7 +38,6 @@ from app.services.deep_intelligence import (
     token_lifespan_predictor,
     volume_authenticity,
 )
-from typing import Any
 
 logger = get_logger("deep_intel_router")
 
@@ -79,7 +80,7 @@ async def api_deployer_reputation(
     try:
         result = await deployer_reputation(address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Deployer reputation error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -96,7 +97,7 @@ async def api_preflight_simulate(
     try:
         result = await preflight_simulate(token_address, wallet, amount_usd, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Preflight simulation error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -111,7 +112,7 @@ async def api_liquidity_lock(
     try:
         result = await liquidity_lock_authenticity(token_address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Liquidity lock error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -126,7 +127,7 @@ async def api_volume_authenticity(
     try:
         result = await volume_authenticity(token_address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Volume authenticity error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -141,7 +142,7 @@ async def api_slow_rug_detector(
     try:
         result = await slow_rug_detector(token_address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Slow rug detector error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -156,7 +157,7 @@ async def api_funding_source(
     try:
         result = await funding_source_tracer(address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Funding source error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -171,7 +172,7 @@ async def api_ownership_theater(
     try:
         result = await ownership_theater_detector(token_address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Ownership theater error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -187,7 +188,7 @@ async def api_exit_liquidity(
     try:
         result = await exit_liquidity_calculator(token_address, position_usd, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Exit liquidity error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -202,7 +203,7 @@ async def api_lifespan_predictor(
     try:
         result = await token_lifespan_predictor(token_address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Lifespan predictor error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -217,7 +218,7 @@ async def api_post_purchase_monitor(
     try:
         result = await post_purchase_monitor(token_address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Post purchase monitor error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -232,7 +233,7 @@ async def api_cross_chain_identity(
     try:
         result = await cross_chain_identity(address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Cross-chain identity error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -247,7 +248,7 @@ async def api_social_onchain_correlation(
     try:
         result = await social_onchain_correlation(token_address, chain)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Social correlation error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -263,7 +264,7 @@ async def api_full_report(
     try:
         result = await full_deep_intel(token_address, chain, wallet)
         return result
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Full deep intel error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -284,6 +285,6 @@ async def api_batch_report(
             try:
                 report = await full_deep_intel(addr, chain)
                 results.append(report)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 results.append({"address": addr, "error": str(e)})
     return {"results": results, "count": len(results)}

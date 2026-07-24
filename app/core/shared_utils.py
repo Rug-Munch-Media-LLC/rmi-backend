@@ -17,7 +17,6 @@ Usage::
 from __future__ import annotations
 
 import re
-from typing import Any
 
 # ── Address regex patterns (single source of truth) ────────────────
 # These replace the 12+ identical copies scattered across the codebase.

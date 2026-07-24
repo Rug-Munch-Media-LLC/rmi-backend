@@ -11,6 +11,7 @@ Key schema:
 """
 
 from __future__ import annotations
+
 import json
 import os
 import threading
@@ -32,7 +33,7 @@ class EntityLookup:
     the entity (caller-supplied, defaults vary by type).
     """
 
-    _instance: "EntityLookup" | None = None
+    _instance: EntityLookup | None = None
     _lock = threading.Lock()
 
     def __init__(
@@ -51,7 +52,7 @@ class EntityLookup:
     # ── Singleton ──────────────────────────────────────────────────
 
     @classmethod
-    def get_instance(cls, **kwargs: Any) -> "EntityLookup":
+    def get_instance(cls, **kwargs: Any) -> EntityLookup:
         """Return (and lazily create) the singleton EntityLookup."""
         if cls._instance is None:
             with cls._lock:
@@ -193,7 +194,7 @@ class EntityLookup:
     async def batch_index(
         self, doc_id: str, text: str, collection: str,
         metadata: dict[str, Any] | None = None,
-    ) -> "EntityExtractionResult":
+    ) -> EntityExtractionResult:
         """Extract entities from text and index them all in one call."""
         from app.entity_extraction.extractor import extract_entities
 

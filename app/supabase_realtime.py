@@ -4,6 +4,7 @@ Uses proper WebSocket protocol via 'websockets' library (httpx doesn't support W
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import os

@@ -5,8 +5,10 @@ Dataclasses for token security analysis reports.
 """
 
 from __future__ import annotations
+
 import json
 from dataclasses import asdict, dataclass, field
+
 
 @dataclass
 class HolderProfile:

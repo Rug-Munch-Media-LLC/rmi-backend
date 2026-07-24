@@ -11,17 +11,18 @@ Reference: Cong et al. (2023), Victor & Weintraud (2021), Niedermayer (2024)
 """
 
 from __future__ import annotations
+
 import json
 import math
 import os
 from collections import defaultdict
 from datetime import UTC, datetime
+from typing import Any
 
 import numpy as np
 import redis
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("volume_authenticity")
 
@@ -543,7 +544,7 @@ async def analyze_volume_authenticity(
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL, json.dumps(output, default=str))
         r.close()
-    except (json.JSONDecodeError):  # noqa: BLE001
+    except (json.JSONDecodeError):
         pass
 
     return output

@@ -7,11 +7,10 @@ from __future__ import annotations
 
 import httpx
 from fastapi import APIRouter, Query
-
-from app.core.errors import UpstreamError
 from pydantic import BaseModel
 
 from app.config import settings
+from app.core.errors import UpstreamError
 
 router = APIRouter(prefix="/api/v1/honeypot-map", tags=["honeypot-map"])
 

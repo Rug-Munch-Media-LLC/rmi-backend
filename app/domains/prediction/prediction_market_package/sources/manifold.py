@@ -3,6 +3,7 @@ Prediction Market — Manifold Source
 Play-money, open-source sentiment signals.
 """
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
 

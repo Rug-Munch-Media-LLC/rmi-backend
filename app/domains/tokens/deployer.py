@@ -7,6 +7,7 @@ Import directly from app.domains.tokens.deployer for new code.
 """
 
 from __future__ import annotations
+
 from app.domains.tokens.deployer import *  # noqa: F403
 
 __all__ = [

@@ -21,6 +21,7 @@ from app.domains.telegram.rugmunchbot.config import (
 )
 from app.domains.telegram.rugmunchbot.formatters import dex_buttons, web_scan_button
 
+
 def main_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [

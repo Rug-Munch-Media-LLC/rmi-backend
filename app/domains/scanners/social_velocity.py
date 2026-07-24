@@ -18,6 +18,7 @@ Input: list of mention dicts
 """
 
 from __future__ import annotations
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime

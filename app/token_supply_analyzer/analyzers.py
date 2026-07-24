@@ -5,14 +5,15 @@ Each function mutates the TokenSupplyProfile in-place with scores, patterns, and
 """
 
 from __future__ import annotations
+
 from app.token_supply_analyzer.models import (
-    SupplyRisk,
-    LockStatus,
-    TokenSupplyProfile,
     CONCENTRATION_THRESHOLD_PCT,
     SUPPLY_RISK_RATIO,
+    LockStatus,
+    TokenSupplyProfile,
     _classify_risk,
 )
+
 
 def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
     """Analyze token supply data for dilution risk and manipulation patterns."""
@@ -283,8 +284,8 @@ def _compute_overall_risk(profile: TokenSupplyProfile) -> None:
     profile.overall_risk = _classify_risk(profile.overall_risk_score)
 
 __all__ = [
-    "_analyze_supply_mechanics",
     "_analyze_concentration",
     "_analyze_liquidity",
+    "_analyze_supply_mechanics",
     "_compute_overall_risk",
 ]

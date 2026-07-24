@@ -5,6 +5,7 @@ Direct API callers for OpenRouter, Groq, Mistral and the ai_call router.
 """
 
 from __future__ import annotations
+
 import os
 
 import httpx

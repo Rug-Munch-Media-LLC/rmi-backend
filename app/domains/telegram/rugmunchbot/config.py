@@ -11,6 +11,7 @@ import subprocess
 
 import httpx
 
+
 # ══════════════════════════════════════════════
 # BOT TOKEN (gopass → env fallback)
 # ══════════════════════════════════════════════

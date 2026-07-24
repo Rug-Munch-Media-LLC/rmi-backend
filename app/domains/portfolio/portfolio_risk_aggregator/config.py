@@ -1,6 +1,8 @@
 """Configuration constants for portfolio risk aggregation."""
 from __future__ import annotations
-import json, re
+
+import json
+import re
 from typing import Any
 
 DEFAULT_TIMEOUT = 15

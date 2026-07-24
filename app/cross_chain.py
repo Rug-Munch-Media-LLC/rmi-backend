@@ -16,6 +16,7 @@ Output: Linked addresses on other chains with confidence + evidence
 """
 
 from __future__ import annotations
+
 import re
 from typing import Any
 

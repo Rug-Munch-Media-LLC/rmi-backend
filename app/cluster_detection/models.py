@@ -5,10 +5,12 @@ Shared dataclasses and enums used across the cluster detection modules.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
+
 
 class ClusterType(Enum):
     """Types of wallet clusters."""

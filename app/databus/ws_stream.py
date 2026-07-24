@@ -15,15 +15,16 @@ Date: 2026-06-02
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import time
 from collections import defaultdict
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("databus.ws_stream")
 
@@ -63,7 +64,7 @@ class WSConnectionManager:
             try:
                 await ws.send_json(data)
                 self._total_messages += 1
-            except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+            except (ConnectionError, OSError, TimeoutError):
                 dead.append((ws, tier))
         for ws, tier in dead:
             self._connections[channel].discard((ws, tier))
@@ -173,7 +174,7 @@ async def databus_websocket(ws: WebSocket, channel: str) -> None:
                 # No message for 60s - send keepalive ping
                 try:
                     await ws.send_json({"type": "ping", "ts": int(time.time())})
-                except (json.JSONDecodeError):  # noqa: BLE001
+                except (json.JSONDecodeError):
                     break
             except WebSocketDisconnect:
                 break

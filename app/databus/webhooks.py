@@ -10,17 +10,18 @@ Architecture:
 """
 
 from __future__ import annotations
+
 import hashlib
 import hmac
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 import redis
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("webhooks")
 
@@ -124,7 +125,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
             ),
         )
         r.close()
-    except (json.JSONDecodeError):  # noqa: BLE001
+    except (json.JSONDecodeError):
         pass
 
     # ── 4. Index in RAG for intelligence ──
@@ -186,7 +187,7 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
     try:
         expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
-    except (ConnectionError, OSError, TimeoutError):  # noqa: BLE001
+    except (ConnectionError, OSError, TimeoutError):
         return False
 
 def _get_scan_triggers(service: str, event_type: str, payload: dict) -> list[str]:

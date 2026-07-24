@@ -17,6 +17,7 @@ Database:  scam_bytecode_db.json  (auto-created, maintained in this directory)
 """
 
 from __future__ import annotations
+
 import hashlib
 import json
 import os

@@ -12,6 +12,11 @@ Split from monolithic x402_advanced_tools.py into:
 """
 
 from __future__ import annotations
+
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Query
+
 from app.routers.x402_advanced_tools.cache import get_cached, invalidate_cache, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
 from app.routers.x402_advanced_tools.history import token_history
@@ -19,9 +24,6 @@ from app.routers.x402_advanced_tools.models import AddressRequest, HistoryReques
 from app.routers.x402_advanced_tools.narrative import narrative_engine
 from app.routers.x402_advanced_tools.rug_probability import rug_probability
 from app.routers.x402_advanced_tools.stream import sse_alert_stream
-
-from fastapi import APIRouter, Query
-from datetime import UTC, datetime
 
 router = APIRouter()
 
@@ -45,8 +47,9 @@ async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
 async def cache_stats() -> dict[str, int] | dict[str, str]:
     """Get cache hit/miss statistics."""
     try:
-        from app.routers.x402_advanced_tools.cache import _redis_conn
         import json
+
+        from app.routers.x402_advanced_tools.cache import _redis_conn
 
         r = _redis_conn()
         keys = list(r.scan_iter("x402:cache:*"))
@@ -59,16 +62,16 @@ async def cache_stats() -> dict[str, int] | dict[str, str]:
         return {"error": str(e), "cached_entries": 0}
 
 __all__ = [
-    "router",
-    "get_cached",
-    "set_cached",
-    "invalidate_cache",
-    "compute_confidence",
     "AddressRequest",
     "HistoryRequest",
     "NarrativeRequest",
-    "rug_probability",
-    "token_history",
+    "compute_confidence",
+    "get_cached",
+    "invalidate_cache",
     "narrative_engine",
+    "router",
+    "rug_probability",
+    "set_cached",
     "sse_alert_stream",
+    "token_history",
 ]

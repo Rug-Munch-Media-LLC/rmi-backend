@@ -5,6 +5,7 @@ Visualize wallet connections and fund flow clusters for a token.
 """
 
 from __future__ import annotations
+
 import httpx
 
 from app.core.logging import get_logger

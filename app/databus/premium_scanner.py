@@ -11,17 +11,17 @@ Arkham + Helius + Moralis + local data. Multi-method fallbacks.
 """
 
 from __future__ import annotations
+
 import json
 import os
 from datetime import UTC, datetime
+from http import HTTPStatus
+from typing import Any
 
 import httpx
 import redis
 
-from http import HTTPStatus
-
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("premium_scanner")
 

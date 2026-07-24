@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 async def get_wallet_labels(wallet_address: str) -> dict[str, Any]:
     """Get labels for a wallet."""
     return {

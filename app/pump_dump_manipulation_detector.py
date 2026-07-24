@@ -15,8 +15,8 @@ CLI:
 """
 
 from __future__ import annotations
-import sys as _sys
-from app.domains.detectors.pump_dump_manipulation_detector import *  # noqa: F401, F403
+
+from app.domains.detectors.pump_dump_manipulation_detector import *  # noqa: F403
 
 if __name__ == "__main__":
     from app.domains.detectors.pump_dump_manipulation_detector import main as _main

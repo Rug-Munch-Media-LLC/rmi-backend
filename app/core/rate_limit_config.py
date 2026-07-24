@@ -1,7 +1,9 @@
 """Rate limit categories and path-to-category mappings for slowapi."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 
 @dataclass(frozen=True)
 class RateLimitRule:

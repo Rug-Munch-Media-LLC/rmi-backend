@@ -5,14 +5,15 @@ Langfuse primary, Redis metrics fallback when Langfuse unavailable.
 """
 
 from __future__ import annotations
+
 import json
 import os
 import time
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
+from typing import Any
 
 from app.core.logging import get_logger
-from typing import Any
 
 logger = get_logger("rag.observability")
 

@@ -6,6 +6,7 @@ Reads from Redis alert queues.
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import os
