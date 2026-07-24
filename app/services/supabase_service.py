@@ -15,12 +15,8 @@ import os
 from datetime import UTC, datetime
 
 import httpx
-from dotenv import load_dotenv
 
 from app.core.secrets import get_secret_or_none
-
-# Ensure .env is loaded before reading env vars - override stale Docker env
-load_dotenv("/app/.env", override=True)
 
 
 def _get_url() -> str:

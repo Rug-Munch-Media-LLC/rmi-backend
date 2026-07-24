@@ -46,7 +46,15 @@ def create_app() -> FastAPI:
       - app.middleware_setup.register    middleware
       - app.error_handlers.register      exception handlers
       - app.mount.mount_all              every router
+
+    Note: load_dotenv is called here (not in lifespan) so env vars are
+    available before any app module is imported (e.g. supabase_vector,
+    db_client, intel_pipeline read env at module level).
     """
+    from dotenv import load_dotenv
+
+    load_dotenv("/app/.env", override=True)
+
     from app.error_handlers import register_error_handlers
     from app.lifespan import lifespan
     from app.middleware_setup import register_middleware

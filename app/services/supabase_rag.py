@@ -9,12 +9,8 @@ import os
 from typing import Any
 
 import httpx
-from dotenv import load_dotenv
 
 from app.core.secrets import get_secret_or_none
-
-# Load env vars dynamically - override stale Docker env
-load_dotenv("/app/.env", override=True)
 
 
 def _get_url() -> Any | None:
