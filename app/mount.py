@@ -226,6 +226,9 @@ ROUTER_MODULES: Final[list[str]] = [
     # Newsletter system — auto-send, crypto payments, cross-platform publishing — mounted 2026-07-26
     "app.domains.newsletter.router",  # /api/v1/newsletter/* (14 routes)
     #
+    # Postiz Premium — 30+ platform cross-posting — mounted 2026-07-26
+    "app.domains.postiz",  # /api/v1/postiz/* (20 routes, 30+ platforms)
+    #
     # NOT YET MOUNTED (deferred):
     #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict
     #     with app.api.v1.mcp (already mounted at /mcp). Needs reconciliation.
