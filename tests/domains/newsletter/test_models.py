@@ -26,13 +26,19 @@ class TestNewsletterModel:
             creator_id="0xcreator123",
             title="Test Newsletter",
             content_html="<h1>Hello</h1><p>World</p>",
+            status="draft",
+            segment="all",
+            total_recipients=0,
+            total_opened=0,
+            total_clicked=0,
+            total_revenue=0.0,
         )
         assert nl.id is not None
         assert isinstance(nl.id, UUID)
         assert nl.creator_id == "0xcreator123"
         assert nl.title == "Test Newsletter"
-        assert nl.status == "draft"  # default
-        assert nl.segment == "all"  # default
+        assert nl.status == "draft"
+        assert nl.segment == "all"
         assert nl.total_recipients == 0
         assert nl.total_opened == 0
         assert nl.total_clicked == 0
