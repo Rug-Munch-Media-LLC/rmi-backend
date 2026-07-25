@@ -25,20 +25,41 @@ class Base(DeclarativeBase):
     Managed by Alembic migrations in alembic/versions/.
     """
 
+
 from app.models.alert import Alert, AlertSubscription
 from app.models.label import Label
+from app.models.live import (
+    AchievementDef,
+    BattleGift,
+    Challenge,
+    CreatorStreak,
+    LiveBattle,
+    LiveEvent,
+    UserAchievement,
+    UserChallenge,
+    ViewerXPTransaction,
+)
 from app.models.payment import Payment
 from app.models.scan import ScanResult
 from app.models.token import Token
 from app.models.user import User
 
 __all__ = [
+    "AchievementDef",
     "Alert",
     "AlertSubscription",
     "Base",
+    "BattleGift",
+    "Challenge",
+    "CreatorStreak",
     "Label",
+    "LiveBattle",
+    "LiveEvent",
     "Payment",
     "ScanResult",
     "Token",
     "User",
+    "UserAchievement",
+    "UserChallenge",
+    "ViewerXPTransaction",
 ]

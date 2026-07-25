@@ -33,6 +33,16 @@ MODEL_TABLES: set[str] = {
     "labels",
     "scan_results",
     "payments",
+    # Live gamification (2026-07-25)
+    "live_battles",
+    "battle_gifts",
+    "viewer_xp_transactions",
+    "challenges",
+    "user_challenges",
+    "achievement_defs",
+    "user_achievements",
+    "creator_streaks",
+    "live_events",
 }
 
 target_metadata = Base.metadata
