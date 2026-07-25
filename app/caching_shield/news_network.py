@@ -20,6 +20,7 @@ import feedparser
 import httpx
 
 from app.core.logging import get_logger
+from app.feed_quality_pipeline import LRUCache
 
 logger = get_logger("news_network")
 
@@ -255,6 +256,7 @@ SENTIMENT_DICT = {
     "liquidation": -0.8,
 }
 
+
 @dataclass
 class Article:
     id: str
@@ -275,10 +277,34 @@ class Article:
     comments: list[dict] = field(default_factory=list)
     bookmarks: int = 0
 
+
+# Bounded LRU cache prevents OOM — holds at most 5000 articles
 _db: dict[str, Article] = {}
+_NEWS_CACHE = LRUCache(maxsize=5000)
+
+
+def _article_is_seen(aid: str) -> bool:
+    """Check if article already stored (uses bounded LRU cache)."""
+    return _NEWS_CACHE.get(aid) is not None or aid in _db
+
+
+def _store_article(aid: str, article: Article) -> None:
+    """Store article in bounded cache."""
+    # Use the LRU cache (bounded), fallback to dict for backward compat
+    _NEWS_CACHE.set(aid, article, ttl=86400)  # 24h TTL
+    _db[aid] = article
+    # Enforce bound on _db too (prevent unbounded growth)
+    if len(_db) > 10000:
+        # Remove oldest 2000 entries
+        excess = sorted(_db.keys(), key=lambda k: _db[k].published, reverse=True)[:8000]
+        keep = set(excess)
+        for k in list(_db.keys()):
+            if k not in keep:
+                del _db[k]
+
 
 async def fetch_all(max_per_source: int = 8) -> list[Article]:
-    """Fetch from all 30 sources in parallel."""
+    """Fetch from all 30+ sources in parallel."""
     new_articles = []
 
     async def fetch_source(source) -> None:
@@ -289,7 +315,7 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
                     feed = feedparser.parse(r.text)
                     for entry in feed.entries[:max_per_source]:
                         aid = hashlib.sha256((entry.link or entry.title).encode()).hexdigest()[:12]
-                        if aid in _db:
+                        if _article_is_seen(aid):
                             continue
 
                         summary = entry.get("summary", entry.get("description", ""))
@@ -320,9 +346,7 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
                         for word, weight in SENTIMENT_DICT.items():
                             if word in text:
                                 score += weight
-                        article.sentiment_score = (
-                            round(score / max(abs(score), 1), 2) if score != 0 else 0
-                        )
+                        article.sentiment_score = round(score / max(abs(score), 1), 2) if score != 0 else 0
                         article.sentiment_label = (
                             "bullish"
                             if article.sentiment_score > 0.15
@@ -339,22 +363,20 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
                         article.impact_level = (
                             "high"
                             if abs(article.sentiment_score) > 0.5
-                            or any(
-                                kw in text
-                                for kw in ["hack", "exploit", "crash", "surge", "breakout"]
-                            )
+                            or any(kw in text for kw in ["hack", "exploit", "crash", "surge", "breakout"])
                             else "medium"
                             if abs(article.sentiment_score) > 0.2
                             else "low"
                         )
 
-                        _db[aid] = article
+                        _store_article(aid, article)
                         new_articles.append(article)
         except (ConnectionError, OSError, TimeoutError):
             pass
 
     await asyncio.gather(*[fetch_source(s) for s in NEWS_SOURCES])
     return new_articles
+
 
 def get_feed(
     category: str | None = None,
@@ -434,6 +456,7 @@ def get_feed(
         },
     }
 
+
 def vote_article(article_id: str, direction: str) -> dict:
     a = _db.get(article_id)
     if not a:
@@ -443,6 +466,7 @@ def vote_article(article_id: str, direction: str) -> dict:
     elif direction == "down":
         a.votes_down += 1
     return {"id": article_id, "votes_up": a.votes_up, "votes_down": a.votes_down}
+
 
 def add_comment(article_id: str, user: str, text: str) -> dict:
     a = _db.get(article_id)
@@ -458,9 +482,11 @@ def add_comment(article_id: str, user: str, text: str) -> dict:
     a.comments.append(comment)
     return comment
 
+
 def get_comments(article_id: str) -> list[dict]:
     a = _db.get(article_id)
     return sorted(a.comments, key=lambda c: c.get("votes", 0), reverse=True) if a else []
+
 
 def bookmark(article_id: str) -> dict:
     a = _db.get(article_id)
@@ -468,6 +494,7 @@ def bookmark(article_id: str) -> dict:
         a.bookmarks += 1
         return {"id": article_id, "bookmarks": a.bookmarks}
     return {"error": "Not found"}
+
 
 def get_categories() -> list:
     cats = set()
@@ -490,6 +517,7 @@ def get_categories() -> list:
         "General": "📰",
     }
     return [{"name": c, "icon": icons.get(c, "📌")} for c in sorted(cats)]
+
 
 def search_articles(query: str, limit: int = 20) -> list:
     q = query.lower()

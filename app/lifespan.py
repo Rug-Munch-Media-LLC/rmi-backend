@@ -143,6 +143,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("http_client_close_failed err=%s", exc)
 
+    # Telegram headless client shutdown
+    try:
+        from app.domains.telegram.headless import shutdown_headless_client
+
+        await shutdown_headless_client()
+        log.info("telegram_headless_client_shutdown")
+    except Exception as exc:
+        log.debug("telegram_headless_shutdown_skipped err=%s", exc)
+
     try:
         from app.domains.threat.certstream_listener import stop_listener
 
