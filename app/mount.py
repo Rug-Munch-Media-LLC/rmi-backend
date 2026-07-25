@@ -206,6 +206,9 @@ ROUTER_MODULES: Final[list[str]] = [
     # Pryscraper integration — mounted 2026-07-23
     "app.routers.pryscraper_bridge",  # /api/v1/scrape, /api/v1/extract, /api/v1/news/search, /api/v1/pryscraper/*
     #
+    # Telegram integration — mounted 2026-07-25
+    "app.domains.telegram.router",  # /api/v1/telegram/* (voice chat, groups, headless client)
+    #
     # DegenFeed protocol proxy — mounted 2026-07-24
     "app.routers.degenfeed_proxy",  # /api/v1/degenfeed/* (proxy, cache, rate limits)
     "app.routers.degenfeed_health",  # /api/v1/degenfeed/status (protocol health)
@@ -225,6 +228,7 @@ ROUTER_MODULES: Final[list[str]] = [
     #     app.routers.label_lookup already serves /api/v1/labels/*.
 ]
 
+
 def mount_all(app: Any) -> int:
     """Mount every router. Returns count of successful mounts.
 
@@ -242,6 +246,7 @@ def mount_all(app: Any) -> int:
     _log_deprecation_warning()
 
     return mounted
+
 
 def _log_deprecation_warning() -> None:
     """Log a startup warning listing all root-level routes that are deprecated."""
@@ -263,6 +268,7 @@ def _log_deprecation_warning() -> None:
             len(mcp_level),
         )
 
+
 def _try_mount(app: Any, module_path: str) -> bool:
     """Try to import + mount a single router. Returns True on success."""
     try:
@@ -282,6 +288,7 @@ def _try_mount(app: Any, module_path: str) -> bool:
             exc,
         )
         return False
+
 
 def register_external_router(module_path: str) -> None:
     """Allow third-party code to register additional routers at runtime.

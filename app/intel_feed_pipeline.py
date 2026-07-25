@@ -21,6 +21,7 @@ Architecture:
   Prometheus → every N minutes pull RSS → extract entities → embed → store
   New token event → quick keyword scan → if suspicious → deep embed → alert
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -208,6 +209,7 @@ ENTITY_PATTERNS = {
 # FEED PROCESSORS
 # ══════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class IntelItem:
     id: str
@@ -220,6 +222,7 @@ class IntelItem:
     severity: str
     entities: dict[str, list[str]] = field(default_factory=dict)
     raw: dict = field(default_factory=dict)
+
 
 class RSSProcessor:
     """Process standard RSS/Atom feeds into IntelItems."""
@@ -252,9 +255,7 @@ class RSSProcessor:
                 # Extract entities
                 entities = RSSProcessor._extract_entities(content)
 
-                item_id = hashlib.sha256(
-                    f"{feed_config['name']}:{entry.get('link', title)}".encode()
-                ).hexdigest()[:16]
+                item_id = hashlib.sha256(f"{feed_config['name']}:{entry.get('link', title)}".encode()).hexdigest()[:16]
 
                 items.append(
                     IntelItem(
@@ -285,6 +286,7 @@ class RSSProcessor:
                 found[entity_type] = list(set(matches))[:10]
         return found
 
+
 class NitterProcessor(RSSProcessor):
     """Process Nitter (Twitter mirror) RSS feeds."""
 
@@ -301,9 +303,11 @@ class NitterProcessor(RSSProcessor):
             item.content = html.unescape(item.content)
         return items
 
+
 # ══════════════════════════════════════════════════════════════════════
 # ON-CHAIN SCANNER
 # ══════════════════════════════════════════════════════════════════════
+
 
 class OnChainScanner:
     """Scan new tokens on Solana/Ethereum for immediate risk assessment."""
@@ -372,9 +376,7 @@ class OnChainScanner:
     async def check_token_security(address: str, chain: str = "solana") -> dict[str, Any]:
         """Check a token via GoPlus security API (free, no key needed)."""
         try:
-            chain_id = {"solana": "solana", "ethereum": "1", "bsc": "56", "base": "8453"}.get(
-                chain, chain
-            )
+            chain_id = {"solana": "solana", "ethereum": "1", "bsc": "56", "base": "8453"}.get(chain, chain)
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(
                     f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}",
@@ -383,13 +385,15 @@ class OnChainScanner:
                 if resp.status_code == 200:
                     data = resp.json()
                     return data.get("result", {}).get(address.lower(), {})
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
         return {}
+
 
 # ══════════════════════════════════════════════════════════════════════
 # INTELLIGENCE PIPELINE ORCHESTRATOR
 # ══════════════════════════════════════════════════════════════════════
+
 
 class IntelPipeline:
     """
@@ -526,6 +530,12 @@ class IntelPipeline:
         self._last_run = now
         self._total_ingested += stats["total"]
 
+        # Prune seen_ids to prevent OOM (unbounded growth)
+        MAX_SEEN_IDS = 50000
+        if len(self._seen_ids) > MAX_SEEN_IDS:
+            self._seen_ids = set(list(self._seen_ids)[-MAX_SEEN_IDS // 2 :])
+            logger.info("pruned_seen_ids", count=len(self._seen_ids))
+
         # Cleanup old entries (older than 7 days)
         try:
             old_cutoff = (now - timedelta(days=7)).isoformat()
@@ -539,9 +549,9 @@ class IntelPipeline:
                             if doc.get("stored_at", "") < old_cutoff:
                                 await r.delete(f"rag:{coll}:{did}")
                                 await r.srem(f"rag:idx:{coll}", did)
-                        except (json.JSONDecodeError):
+                        except json.JSONDecodeError:
                             pass
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             pass
 
         return {
@@ -574,9 +584,7 @@ class IntelPipeline:
                         results.append(
                             {
                                 "id": doc["id"],
-                                "title": doc.get("metadata", {}).get(
-                                    "name", doc.get("content", "")[:100]
-                                ),
+                                "title": doc.get("metadata", {}).get("name", doc.get("content", "")[:100]),
                                 "content": doc.get("content", "")[:500],
                                 "source": doc.get("source", coll),
                                 "severity": doc.get("severity", "medium"),
@@ -593,11 +601,13 @@ class IntelPipeline:
         results.sort(key=lambda x: x.get("stored_at", ""), reverse=True)
         return results[:limit]
 
+
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ══════════════════════════════════════════════════════════════════════
 
 _pipeline: IntelPipeline | None = None
+
 
 async def get_pipeline() -> IntelPipeline:
     global _pipeline

@@ -9,6 +9,7 @@ import json
 import logging
 import time
 from typing import Any
+from xml.etree import ElementTree as ET
 
 import httpx
 
@@ -55,6 +56,7 @@ TWITTER_ACCOUNTS = [
     ("twitter-duneanalytics", "DuneAnalytics"),
 ]
 
+
 def fetch_reddit(db_r=None) -> Any:
     """Fetch Reddit RSS feeds. Returns list of articles."""
     results = []
@@ -97,6 +99,7 @@ def fetch_reddit(db_r=None) -> Any:
             logger.warning(f"  {source}: {str(e)[:60]}")
     return results
 
+
 def fetch_nitter(db_r=None) -> Any:
     """Fetch Twitter via Nitter RSS. Returns list of articles."""
     results = []
@@ -115,9 +118,7 @@ def fetch_nitter(db_r=None) -> Any:
                     desc = (item.findtext("description", "") or "").strip()
                     if not title:
                         continue
-                    doc_id = (
-                        "twitter:" + hashlib.sha256((username + title).encode()).hexdigest()[:16]
-                    )
+                    doc_id = "twitter:" + hashlib.sha256((username + title).encode()).hexdigest()[:16]
                     results.append(
                         {
                             "id": doc_id,
@@ -131,12 +132,11 @@ def fetch_nitter(db_r=None) -> Any:
                             "ingested_at": time.time(),
                         }
                     )
-                logger.info(
-                    f"  @{username}: {len([r for r in results if r['source'] == username])} tweets"
-                )
+                logger.info(f"  @{username}: {len([r for r in results if r['source'] == username])} tweets")
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                 pass  # Try next instance
     return results
+
 
 def merge_into_redis(articles, prefix="rmi:news") -> Any | int:
     """Merge social articles into existing Redis news index."""
@@ -149,9 +149,7 @@ def merge_into_redis(articles, prefix="rmi:news") -> Any | int:
 
         import redis
 
-        r = redis.Redis(
-            host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True
-        )
+        r = redis.Redis(host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
         count = 0
         for a in articles:
             exists = r.exists(f"{prefix}:article:{a['id']}")
@@ -163,6 +161,7 @@ def merge_into_redis(articles, prefix="rmi:news") -> Any | int:
     except (ConnectionError, OSError, TimeoutError) as e:
         logger.error(f"Redis merge failed: {e}")
         return 0
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [social] %(message)s")

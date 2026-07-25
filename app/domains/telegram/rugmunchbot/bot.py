@@ -7,6 +7,7 @@ Command handlers and business logic live in handlers/ and supporting modules.
 
 Run: cd /root/backend && python3 -m app.domains.telegram.rugmunchbot.bot
 """
+
 from __future__ import annotations
 
 import random
@@ -78,8 +79,15 @@ from app.domains.telegram.rugmunchbot.handlers.watchlist import (
     cmd_watch,
     cmd_watchlist,
 )
+from app.domains.telegram.rugmunchbot.handlers.groups import (
+    cmd_banuser,
+    cmd_groupinfo,
+    cmd_mygroup,
+    cmd_voicechat,
+)
 
 logger = get_logger("rmi_bot")
+
 
 async def setup_bot_profile(app: Application) -> None:
     """Set bot description, about text, and command list via BotFather API."""
@@ -87,13 +95,13 @@ async def setup_bot_profile(app: Application) -> None:
     try:
         await bot.set_my_description(description=BOT_DESCRIPTION)
         logger.info("Bot description set")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("setup_bot_profile_error", exc_info=True)
         logger.warning(f"Could not set description: {e}")
     try:
         await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
         logger.info("Bot short description set")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("setup_bot_profile_error", exc_info=True)
         logger.warning(f"Could not set short description: {e}")
     try:
@@ -122,12 +130,16 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("smartmoney", "Detect smart money wallets"),
             BotCommand("rugmap", "Wallet cluster visualization"),
             BotCommand("news", "Latest crypto news"),
+            BotCommand("mygroup", "Your creator coin group"),
+            BotCommand("groupinfo", "Group stats (admin)"),
+            BotCommand("voicechat", "Manage voice chat (admin)"),
         ]
         await bot.set_my_commands(commands)
         logger.info("Bot commands registered")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Could not set commands: {e}")
+
 
 async def daily_scam_tip(ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not CHANNELS.get("main"):
@@ -143,12 +155,11 @@ async def daily_scam_tip(ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f'\U0001f310 <a href="{WEBSITE_URL}">rugmunch.io</a>'
     )
     try:
-        await ctx.bot.send_message(
-            CHANNELS["main"], text, parse_mode="HTML", disable_web_page_preview=True
-        )
-    except (KeyError, TypeError) as e :
+        await ctx.bot.send_message(CHANNELS["main"], text, parse_mode="HTML", disable_web_page_preview=True)
+    except (KeyError, TypeError) as e:
         logger.debug("daily_scam_tip_error", exc_info=True)
         logger.error(f"Daily tip failed: {e}")
+
 
 def main() -> None:
     if not BOT_TOKEN:
@@ -201,6 +212,12 @@ def main() -> None:
     app.add_handler(CommandHandler("admin_broadcast", cmd_admin_broadcast))
     app.add_handler(CommandHandler("admin_ban", cmd_admin_ban))
 
+    # Group management commands
+    app.add_handler(CommandHandler("mygroup", cmd_mygroup))
+    app.add_handler(CommandHandler("groupinfo", cmd_groupinfo))
+    app.add_handler(CommandHandler("voicechat", cmd_voicechat))
+    app.add_handler(CommandHandler("banuser", cmd_banuser))
+
     # Inline, callbacks, messages
     app.add_handler(InlineQueryHandler(handle_inline))
     app.add_handler(CallbackQueryHandler(handle_callback))
@@ -228,6 +245,7 @@ def main() -> None:
 
     logger.info("\U0001f6e1\ufe0f CryptoRugMunch Bot v6 starting...")
     app.run_polling(drop_pending_updates=True)
+
 
 if __name__ == "__main__":
     main()

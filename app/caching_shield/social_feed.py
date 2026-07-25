@@ -17,6 +17,7 @@ import httpx
 from defusedxml import ElementTree as SafeET
 
 from app.core.logging import get_logger
+from app.feed_quality_pipeline import LRUCache
 
 logger = get_logger("social_feed")
 
@@ -154,19 +155,17 @@ TTL_TWITTER = 300  # 5 min
 TTL_REDDIT = 600  # 10 min
 TTL_NITTER = 900  # 15 min (fallback, longer cache)
 
-_cache: dict[str, tuple] = {}
+# Use bounded LRU cache instead of unbounded dict (prevents OOM)
+_cache: LRUCache = LRUCache(maxsize=500)
+
 
 def _cache_get(key: str) -> dict | None:
-    entry = _cache.get(key)
-    if entry:
-        expiry, data = entry
-        if time.monotonic() < expiry:
-            return data
-        del _cache[key]
-    return None
+    return _cache.get(key)
+
 
 def _cache_set(key: str, data: dict, ttl: int) -> None:
-    _cache[key] = (time.monotonic() + ttl, data)
+    _cache.set(key, data, ttl)
+
 
 async def get_twitter_feed(limit: int = 30) -> dict:
     """Get top crypto tweets via Nitter (free, no auth, cached)."""
@@ -188,12 +187,8 @@ async def get_twitter_feed(limit: int = 30) -> dict:
                     for item in root.findall(".//item")[:3]:
                         title = item.find("title").text if item.find("title") is not None else ""
                         link = item.find("link").text if item.find("link") is not None else ""
-                        item.find("description").text if item.find(
-                            "description"
-                        ) is not None else ""
-                        pubdate = (
-                            item.find("pubDate").text if item.find("pubDate") is not None else ""
-                        )
+                        item.find("description").text if item.find("description") is not None else ""
+                        pubdate = item.find("pubDate").text if item.find("pubDate") is not None else ""
 
                         if title and "RT @" not in title:
                             tweets.append(
@@ -223,6 +218,7 @@ async def get_twitter_feed(limit: int = 30) -> dict:
     _cache_set(cache_key, result, TTL_NITTER if tweets else 60)
     return result
 
+
 async def get_reddit_feed(limit: int = 20) -> dict:
     """Get top crypto Reddit posts (free, no auth, cached)."""
     cache_key = f"reddit_feed_{limit}"
@@ -251,9 +247,7 @@ async def get_reddit_feed(limit: int = 20) -> dict:
                                 "score": d["score"],
                                 "num_comments": d["num_comments"],
                                 "url": f"https://reddit.com{d['permalink']}",
-                                "published": datetime.fromtimestamp(
-                                    d["created_utc"], UTC
-                                ).isoformat(),
+                                "published": datetime.fromtimestamp(d["created_utc"], UTC).isoformat(),
                                 "source": "reddit",
                                 "type": "post",
                             }
@@ -269,6 +263,7 @@ async def get_reddit_feed(limit: int = 20) -> dict:
 
     _cache_set(cache_key, result, TTL_REDDIT)
     return result
+
 
 async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> dict:
     """Get combined social feed - X + Reddit, sorted by recency."""
@@ -287,6 +282,7 @@ async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> di
         "total_social_sources": len(TOP_CRYPTO_ACCOUNTS) + len(REDDIT_SUBS),
         "updated": datetime.now(UTC).isoformat(),
     }
+
 
 def get_top_accounts() -> list:
     """Get the list of monitored X accounts with profile pics."""
