@@ -217,8 +217,14 @@ ROUTER_MODULES: Final[list[str]] = [
     # Live gamification — mounted 2026-07-25
     "app.routers.live",  # /api/v1/live/* (battles, XP, challenges, achievements, events)
     #
+    # Creator Analytics — mounted 2026-07-26
+    "app.domains.analytics",  # /api/v1/analytics/* (views, engagement, cross-protocol, insights, audience)
+    #
     # Standardized Private Chat — Matrix fabric + Signal Protocol — mounted 2026-07-25
     "app.routers.chat_standard",  # /api/v1/chat/* (DM, group, bridge, keys, E2E encryption)
+    #
+    # Newsletter system — auto-send, crypto payments, cross-platform publishing — mounted 2026-07-26
+    "app.domains.newsletter.router",  # /api/v1/newsletter/* (14 routes)
     #
     # NOT YET MOUNTED (deferred):
     #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict

@@ -45,11 +45,7 @@ class Settings(BaseSettings):
     # ── Database / Cache ────────────────────────────────────────────────
     database_url: str = Field(
         default="postgresql+asyncpg://rmi:rmi@localhost/rmi",
-        description=(
-            "PostgreSQL async connection string. "
-            "MUST be overridden in production. "
-            "Set DATABASE_URL env var."
-        ),
+        description=("PostgreSQL async connection string. MUST be overridden in production. Set DATABASE_URL env var."),
     )
     redis_url: str = Field(
         default="redis://localhost:6379/0",
@@ -286,6 +282,50 @@ class Settings(BaseSettings):
         description="Enable LlamaIndex-based RAG pipeline. Set LLAMA_RAG_ENABLED env var.",
     )
 
+    # ── Newsletter System ───────────────────────────────────────────────
+    # Ghost (headless CMS)
+    ghost_url: str = Field(
+        default="",
+        description="Headless Ghost instance URL. Set GHOST_URL env var.",
+    )
+    ghost_admin_api_key: str = Field(
+        default="",
+        description="Ghost Admin API key. Set GHOST_ADMIN_API_KEY env var.",
+    )
+    # Cross-platform publishing
+    mirror_api_key: str = Field(default="", description="Mirror.xyz API key. Set MIRROR_API_KEY.")
+    paragraph_api_key: str = Field(default="", description="Paragraph.xyz API key. Set PARAGRAPH_API_KEY.")
+    medium_api_token: str = Field(default="", description="Medium API token. Set MEDIUM_API_TOKEN.")
+    medium_author_id: str = Field(default="", description="Medium author ID. Set MEDIUM_AUTHOR_ID.")
+    substack_session_id: str = Field(default="", description="Substack session cookie. Set SUBSTACK_SESSION_ID.")
+    substack_newsletter: str = Field(default="", description="Substack newsletter slug. Set SUBSTACK_NEWSLETTER.")
+    # Nostr
+    nostr_private_key: str = Field(default="", description="Nostr nsec hex. Set NOSTR_PRIVATE_KEY.")
+    nostr_relays: str = Field(
+        default="wss://relay.damus.io,wss://relay.nostr.band", description="Nostr relays. Set NOSTR_RELAYS."
+    )
+    # Farcaster
+    farcaster_api_key: str = Field(default="", description="Neynar API key. Set FARCASTER_API_KEY.")
+    farcaster_signer_uuid: str = Field(default="", description="Neynar signer UUID. Set FARCASTER_SIGNER_UUID.")
+    # Bluesky
+    bluesky_identifier: str = Field(default="", description="Bluesky handle. Set BLUESKY_IDENTIFIER.")
+    bluesky_app_password: str = Field(default="", description="Bluesky app password. Set BLUESKY_APP_PASSWORD.")
+    # Mastodon
+    mastodon_access_token: str = Field(default="", description="Mastodon access token. Set MASTODON_ACCESS_TOKEN.")
+    mastodon_instance_url: str = Field(default="", description="Mastodon instance URL. Set MASTODON_INSTANCE_URL.")
+    # Email delivery
+    newsletter_from_email: str = Field(
+        default="newsletter@rugmunch.io", description="From address for newsletters. Set NEWSLETTER_FROM_EMAIL."
+    )
+    postmark_api_key: str = Field(default="", description="Postmark server token. Set POSTMARK_API_KEY.")
+    mailgun_api_key: str = Field(default="", description="Mailgun API key. Set MAILGUN_API_KEY.")
+    mailgun_domain: str = Field(default="", description="Mailgun sending domain. Set MAILGUN_DOMAIN.")
+    aws_ses_key: str = Field(default="", description="AWS SES API key. Set AWS_SES_KEY.")
+    # Platform wallet (receives subscription payments)
+    platform_wallet_address: str = Field(
+        default="", description="Platform wallet for subscription fees. Set PLATFORM_WALLET_ADDRESS."
+    )
+
     # ── Embedder ────────────────────────────────────────────────────────
     bge_m3_url: str = Field(
         default="http://localhost:8001",
@@ -320,8 +360,7 @@ class Settings(BaseSettings):
         env = os.getenv("ENVIRONMENT", "dev")
         if (v == ["*"] or not v) and env == "prod":
             raise ValueError(
-                "cors_origins must be an explicit non-empty list of origins in production. "
-                "Set CORS_ORIGINS env var."
+                "cors_origins must be an explicit non-empty list of origins in production. Set CORS_ORIGINS env var."
             )
         return v
 
@@ -343,11 +382,12 @@ class Settings(BaseSettings):
                 )
         return v
 
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Cached settings instance."""
     return Settings()
 
+
 # Module-level singleton for convenience.
 settings = get_settings()
-

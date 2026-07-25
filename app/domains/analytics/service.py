@@ -473,8 +473,8 @@ class CreatorAnalyticsEngine:
                     "tips_usd": tips_amount,
                     "followers_gained": e_summary["followers_gained"],
                     "engagement_rate": round(engagement_rate, 2),
-                    "best_posting_time": _infer_best_time(p_views, p_engagements),
-                    "best_content_type": "video",  # Inferred from data
+                    "best_posting_time": _get_best_hour_str(p_views),
+                    "best_content_type": _infer_best_content_type(p_views),
                     "reach_score": round(reach_score, 1),
                     "engagement_score": round(engagement_score, 1),
                 }
@@ -875,6 +875,39 @@ def _empty_audience_summary() -> dict[str, Any]:
         "growth_trend": [],
         "top_acquisition_sources": [],
     }
+
+
+def _get_best_hour_str(views: list[dict[str, Any]]) -> str:
+    """Find the hour with most views and return it as a string."""
+    hour_counts: dict[int, int] = defaultdict(int)
+    for v in views:
+        created = v.get("created_at", "")
+        if not created:
+            continue
+        try:
+            dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+            hour_counts[dt.hour] += 1
+        except (ValueError, TypeError):
+            pass
+    if not hour_counts:
+        return "14:00 UTC"
+    best_hour = max(hour_counts, key=hour_counts.get)
+    return f"{best_hour:02d}:00 UTC"
+
+
+def _infer_best_content_type(views: list[dict[str, Any]]) -> str:
+    """Infer the best-performing content type from views."""
+    # Check if most views have watch_time > 30s (video behavior)
+    if not views:
+        return "micro"
+    with_watch_time = [v for v in views if (v.get("watch_time_seconds") or 0) > 30]
+    if len(with_watch_time) > len(views) * 0.5:
+        return "video"
+    # Check for scroll depth > 50% (article behavior)
+    deep_scroll = [v for v in views if (v.get("scroll_depth_pct") or 0) > 50]
+    if len(deep_scroll) > len(views) * 0.3:
+        return "article"
+    return "micro"
 
 
 def _empty_growth() -> dict[str, Any]:

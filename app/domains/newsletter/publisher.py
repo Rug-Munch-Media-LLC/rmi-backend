@@ -23,7 +23,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from app.config import settings
+from app.config import settings as _settings
 from app.core.http import get_http_client
 from app.core.logging import get_logger
 
@@ -88,8 +88,8 @@ async def _publish_to_ghost(
     Requires GHOST_ADMIN_API_KEY env var (Admin API key).
     Endpoint: POST /ghost/api/admin/posts/
     """
-    api_key = settings.get("ghost_admin_api_key", "")
-    ghost_url = settings.get("ghost_url", "")
+    api_key = getattr(_settings, "ghost_admin_api_key", "")
+    ghost_url = getattr(_settings, "ghost_url", "")
 
     if not api_key or not ghost_url:
         return PublishResult("ghost", False, error_message="Ghost API key or URL not configured")
@@ -152,7 +152,7 @@ async def _publish_to_mirror(
 
     This is an async process: submit to Mirror's API, they write to Arweave.
     """
-    api_key = settings.get("mirror_api_key", "")
+    api_key = getattr(_settings, "mirror_api_key", "")
 
     if not api_key:
         return PublishResult("mirror", False, error_message="Mirror API key not configured")
@@ -212,7 +212,7 @@ async def _publish_to_paragraph(
     Requires PARAGRAPH_API_KEY env var.
     Docs: https://docs.paragraph.xyz/api
     """
-    api_key = settings.get("paragraph_api_key", "")
+    api_key = getattr(_settings, "paragraph_api_key", "")
 
     if not api_key:
         return PublishResult("paragraph", False, error_message="Paragraph API key not configured")
@@ -267,8 +267,8 @@ async def _publish_to_medium(
     Requires MEDIUM_API_TOKEN env var.
     Docs: https://github.com/Medium/medium-api-docs
     """
-    api_token = settings.get("medium_api_token", "")
-    medium_author_id = settings.get("medium_author_id", "")
+    api_token = getattr(_settings, "medium_api_token", "")
+    medium_author_id = getattr(_settings, "medium_author_id", "")
 
     if not api_token or not medium_author_id:
         return PublishResult("medium", False, error_message="Medium API token or author ID not configured")
@@ -335,8 +335,8 @@ async def _publish_to_substack(
 
     For now: logs intent and returns. Requires SUBSTACK_SESSION_ID.
     """
-    session_id = settings.get("substack_session_id", "")
-    substack_newsletter = settings.get("substack_newsletter", "")
+    session_id = getattr(_settings, "substack_session_id", "")
+    substack_newsletter = getattr(_settings, "substack_newsletter", "")
 
     if not session_id or not substack_newsletter:
         return PublishResult("substack", False, error_message="Substack session or newsletter not configured")
@@ -398,8 +398,8 @@ async def _publish_to_nostr(
 
     If python-nostr is not installed, falls back to HTTP relay API.
     """
-    nsec = settings.get("nostr_private_key", "")
-    relays_str = settings.get("nostr_relays", "wss://relay.damus.io,wss://relay.nostr.band")
+    nsec = getattr(_settings, "nostr_private_key", "")
+    relays_str = getattr(_settings, "nostr_relays", "wss://relay.damus.io,wss://relay.nostr.band")
 
     if not nsec:
         return PublishResult("nostr", False, error_message="Nostr private key not configured")
@@ -473,8 +473,8 @@ async def _publish_to_farcaster(
     Requires FARCASTER_API_KEY (Neynar API key) and FARCASTER_SIGNER_UUID.
     Uses Neynar API for reliable publishing.
     """
-    api_key = settings.get("farcaster_api_key", "")
-    signer_uuid = settings.get("farcaster_signer_uuid", "")
+    api_key = getattr(_settings, "farcaster_api_key", "")
+    signer_uuid = getattr(_settings, "farcaster_signer_uuid", "")
 
     if not api_key or not signer_uuid:
         return PublishResult("farcaster", False, error_message="Farcaster API key or signer not configured")
@@ -539,8 +539,8 @@ async def _publish_to_bluesky(
     Requires BLUESKY_IDENTIFIER and BLUESKY_APP_PASSWORD env vars.
     Uses the atproto library or direct AT Protocol HTTP calls.
     """
-    identifier = settings.get("bluesky_identifier", "")
-    app_password = settings.get("bluesky_app_password", "")
+    identifier = getattr(_settings, "bluesky_identifier", "")
+    app_password = getattr(_settings, "bluesky_app_password", "")
 
     if not identifier or not app_password:
         return PublishResult("bluesky", False, error_message="Bluesky credentials not configured")
@@ -629,8 +629,8 @@ async def _publish_to_mastodon(
 
     Requires MASTODON_ACCESS_TOKEN and MASTODON_INSTANCE_URL env vars.
     """
-    access_token = settings.get("mastodon_access_token", "")
-    instance_url = settings.get("mastodon_instance_url", "")
+    access_token = getattr(_settings, "mastodon_access_token", "")
+    instance_url = getattr(_settings, "mastodon_instance_url", "")
 
     if not access_token or not instance_url:
         return PublishResult("mastodon", False, error_message="Mastodon credentials not configured")
