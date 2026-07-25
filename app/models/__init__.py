@@ -64,11 +64,7 @@ __all__ = [
     "Challenge",
     "CreatorStreak",
     "Label",
-    "Newsletter",
-    "NewsletterCrosspost",
-    "NewsletterDelivery",
-    "NewsletterPayment",
-    "NewsletterSub",
+    # Newsletter models: import directly from app.domains.newsletter.models
     "LiveBattle",
     "LiveEvent",
     "Payment",
