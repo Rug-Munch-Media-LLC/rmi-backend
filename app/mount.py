@@ -146,6 +146,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.intelligence_router",  # /api/v1/intelligence/*  (19 routes, n8n-fed)
     "app.routers.intelligence_panel",  # /api/v1/intelligence/*  (4 routes, /feed /latest /crypto-fear-index)
     "app.routers.chat",  # /api/v1/chat/*  (5 routes, AI chat surface)
+    "app.routers.web3_chat",  # /api/v1/chat/web3/*  (18 routes, Web3 chat: payments, tokens, NFTs)
     "app.routers.address_profiler",  # /api/v1/address-profiler/*  (1 route, scanner ext)
     "app.routers.chain_comparability",  # /api/v1/chain-compare/*  (2 routes, multi-chain)
     "app.routers.honeypot_map",  # /api/v1/honeypot-map/*  (3 routes, unique viz)
@@ -215,6 +216,9 @@ ROUTER_MODULES: Final[list[str]] = [
     #
     # Live gamification — mounted 2026-07-25
     "app.routers.live",  # /api/v1/live/* (battles, XP, challenges, achievements, events)
+    #
+    # Standardized Private Chat — Matrix fabric + Signal Protocol — mounted 2026-07-25
+    "app.routers.chat_standard",  # /api/v1/chat/* (DM, group, bridge, keys, E2E encryption)
     #
     # NOT YET MOUNTED (deferred):
     #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict
