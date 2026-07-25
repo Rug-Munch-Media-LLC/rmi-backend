@@ -213,6 +213,9 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.degenfeed_proxy",  # /api/v1/degenfeed/* (proxy, cache, rate limits)
     "app.routers.degenfeed_health",  # /api/v1/degenfeed/status (protocol health)
     #
+    # Live gamification — mounted 2026-07-25
+    "app.routers.live",  # /api/v1/live/* (battles, XP, challenges, achievements, events)
+    #
     # NOT YET MOUNTED (deferred):
     #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict
     #     with app.api.v1.mcp (already mounted at /mcp). Needs reconciliation.
