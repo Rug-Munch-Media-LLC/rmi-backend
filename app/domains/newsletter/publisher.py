@@ -681,6 +681,7 @@ PLATFORM_PUBLISHERS: dict[str, Any] = {
     "farcaster": _publish_to_farcaster,
     "bluesky": _publish_to_bluesky,
     "mastodon": _publish_to_mastodon,
+    "email": lambda title, *args, **kwargs: PublishResult("email", True, platform_id="email_scheduled"),
 }
 
 
@@ -700,7 +701,7 @@ async def publish_to_all(
     Each platform publisher runs concurrently. Failures are isolated.
     Returns a list of PublishResult objects (one per platform).
     """
-    targets = platforms or ALL_PLATFORMS
+    targets = platforms if platforms is not None else ALL_PLATFORMS
     extras = platform_extras or {}
 
     async def _publish_one(platform: str) -> PublishResult:
@@ -724,10 +725,6 @@ async def publish_to_all(
             return await publisher(title, content_html, excerpt, tags)
         elif platform in ("farcaster", "bluesky", "mastodon"):
             return await publisher(title, content_html, excerpt, canonical_url)
-        elif platform == "email":
-            # Email sending is handled by the newsletter service (SMTP/Postmark)
-            # The publisher just records intent — actual email delivery is async
-            return PublishResult("email", True, platform_id="email_scheduled")
         else:
             return PublishResult(platform, False, error_message=f"No publisher for: {platform}")
 
