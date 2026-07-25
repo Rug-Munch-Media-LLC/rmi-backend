@@ -26,6 +26,13 @@ class Base(DeclarativeBase):
     """
 
 
+from app.models.analytics import (
+    AudienceFollower,
+    ContentPost,
+    CreatorProfile,
+    EngagementEvent,
+    ViewEvent,
+)
 from app.models.alert import Alert, AlertSubscription
 from app.models.label import Label
 from app.models.live import (
@@ -48,7 +55,11 @@ __all__ = [
     "AchievementDef",
     "Alert",
     "AlertSubscription",
+    "AudienceFollower",
     "Base",
+    "ContentPost",
+    "CreatorProfile",
+    "EngagementEvent",
     "BattleGift",
     "Challenge",
     "CreatorStreak",
@@ -61,5 +72,6 @@ __all__ = [
     "User",
     "UserAchievement",
     "UserChallenge",
+    "ViewEvent",
     "ViewerXPTransaction",
 ]
