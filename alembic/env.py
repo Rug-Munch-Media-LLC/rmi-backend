@@ -43,6 +43,12 @@ MODEL_TABLES: set[str] = {
     "user_achievements",
     "creator_streaks",
     "live_events",
+    # Newsletter system (2026-07-26)
+    "newsletters",
+    "newsletter_subs",
+    "newsletter_payments",
+    "newsletter_deliveries",
+    "newsletter_crossposts",
 }
 
 target_metadata = Base.metadata
