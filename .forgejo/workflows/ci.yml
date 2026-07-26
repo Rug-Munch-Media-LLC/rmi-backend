@@ -142,13 +142,13 @@ jobs:
         run: |
           source .venv/bin/activate
           python -c "
-import json, sys
-sys.path.insert(0, '.')
-from app.main import app
-schema = app.openapi()
-with open('openapi.json', 'w') as f:
-    json.dump(schema, f, indent=2)
-"
+          import json, sys
+          sys.path.insert(0, '.')
+          from app.main import app
+          schema = app.openapi()
+          with open('openapi.json', 'w') as f:
+              json.dump(schema, f, indent=2)
+          "
       - name: Lint OpenAPI with Spectral
         run: spectral lint openapi.json --ruleset .spectral.yaml --fail-severity=error
       - uses: actions/upload-artifact@v4
@@ -367,7 +367,7 @@ with open('openapi.json', 'w') as f:
       - name: Scan backend image for CVEs
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'backend-rmi-backend:latest'
+          image-ref: 'registry.rugmunch.io/rmi-backend:${{ github.sha }}'
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
