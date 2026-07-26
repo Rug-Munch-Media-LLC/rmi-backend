@@ -1,0 +1,54 @@
+# Draugr Saga — Supply chain security descriptor
+# Single source of truth for all security scanning
+# Docs: https://github.com/draugr-dev/draugr
+
+apiVersion: v1alpha1
+kind: Saga
+metadata:
+  name: rmi-backend
+  description: RugMunch backend — FastAPI + PostgreSQL + Redis
+
+# Components define what to scan
+components:
+  - name: backend-source
+    type: repository
+    path: .
+    exposure: external
+    criticality: high
+    controls:
+      - sca        # Dependency vulnerabilities (Trivy)
+      - secrets    # Hardcoded secrets (Gitleaks)
+      - sast       # Code vulnerabilities (Semgrep)
+      - iac        # Infrastructure-as-Code (Trivy config)
+
+  - name: backend-container
+    type: container
+    image: registry.rugmunch.io/rmi-backend:latest
+    exposure: external
+    criticality: critical
+    controls:
+      - images     # Container image scanning (Trivy)
+
+# Quality gate policy
+policy:
+  fail_on:
+    priority: P2   # Fail on P1 (critical) and P2 (high)
+
+  # Risk scoring: CVSS × Reachability × Exposure × Criticality
+  risk_scoring:
+    enrich_epss: true   # Exploit Prediction Scoring System
+    enrich_kev: true     # Known Exploited Vulnerabilities catalog
+
+# Output
+output:
+  format: sarif
+  path: draugr-results.sarif
+
+# Exclusions
+exclude:
+  paths:
+    - "**/tests/**"
+    - "**/alembic/**"
+    - "**/_archive/**"
+    - "**/node_modules/**"
+  findings: []

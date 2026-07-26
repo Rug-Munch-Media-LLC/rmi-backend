@@ -492,3 +492,33 @@ with open('openapi.json', 'w') as f:
             echo "archfit not installed — skipping (non-blocking)"
           fi
         continue-on-error: true
+
+  draugr:
+    runs-on: docker-x64
+    container:
+      image: golang:1.22-bookworm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Draugr
+        run: go install github.com/draugr-dev/draugr@latest || echo "Draugr install skipped"
+        continue-on-error: true
+      - name: Install scanner tools
+        run: |
+          if command -v draugr &>/dev/null; then
+            draugr tools install || echo "Tool provisioning skipped"
+          fi
+        continue-on-error: true
+      - name: Run supply chain security scan
+        run: |
+          if command -v draugr &>/dev/null; then
+            draugr scan draugr.saga.yaml --fail-on warning --format sarif -o draugr-out/ || echo "Supply chain findings exist"
+          else
+            echo "Draugr not installed — skipping (use individual scanners instead)"
+          fi
+        continue-on-error: true
+      - name: Upload Draugr SARIF
+        uses: actions/upload-artifact@v4
+        with:
+          name: draugr-sarif
+          path: draugr-out/
+        continue-on-error: true
