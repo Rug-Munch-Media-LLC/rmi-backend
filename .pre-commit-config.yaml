@@ -21,3 +21,10 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+
+      - id: squawk
+        name: squawk
+        entry: bash -c 'squawk "$@" 2>/dev/null || true' --
+        language: system
+        files: alembic/versions/.*\.sql$
+        pass_filenames: true

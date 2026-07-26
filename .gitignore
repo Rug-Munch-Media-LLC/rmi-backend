@@ -52,6 +52,9 @@ security-reports/
 *.gitleaks.json
 trivy*.json
 
+# archfit cache
+.archfit-cache/
+
 # Internal docs — company confidential
 *INTERNAL*
 PRIVATE*

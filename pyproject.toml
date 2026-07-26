@@ -26,6 +26,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+otel = [
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.25.0",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.46b0",
+    "opentelemetry-instrumentation-httpx>=0.46b0",
+    "opentelemetry-instrumentation-redis>=0.46b0",
+    "opentelemetry-instrumentation-logging>=0.46b0",
+    "opentelemetry-instrumentation-aiohttp-client>=0.46b0",
+]
+
+
 dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
@@ -187,5 +200,5 @@ paths_to_mutate = ["app/"]
 paths_to_exclude = ["tests/", "app/_archive/", "app/legacy/", "alembic/"]
 runner = "python -m pytest -x --tb=short"
 tests_dir = "tests/"
-pre_mutation = null
-post_mutation = null
+pre_mutation = ""
+post_mutation = ""
