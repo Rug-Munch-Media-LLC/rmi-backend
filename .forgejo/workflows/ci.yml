@@ -261,6 +261,35 @@ with open('openapi.json', 'w') as f:
         run: source .venv/bin/activate && mutmut run --paths-to-mutate app/ || echo "Mutation score noted (non-blocking)"
         continue-on-error: true
 
+  crucible-gate:
+    runs-on: docker-x64
+    needs: build-and-test
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps + uv + mutmut
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python mutmut
+          # Install crucible if available
+          pip install crucible-harden 2>/dev/null || echo "Crucible not on PyPI yet — gate runs mutmut directly"
+      - name: Crucible mutation gate (score only, no AI)
+        run: |
+          source .venv/bin/activate
+          if command -v crucible &>/dev/null; then
+            crucible score . --module app/core || echo "Crucible gate noted"
+          else
+            # Fallback: run mutmut directly for the mutation gate
+            mutmut run --paths-to-mutate app/core/ 2>/dev/null && mutmut results || echo "Mutation gate noted (non-blocking)"
+          fi
+        continue-on-error: true
+
   trivy-scan:
     runs-on: docker-x64
     needs: build-and-test
@@ -357,3 +386,66 @@ with open('openapi.json', 'w') as f:
             registry.rugmunch.io/rmi-backend:${{ github.sha }}
         env:
           COSIGN_EXPERIMENTAL: "1"
+
+  ocr-review:
+    runs-on: docker-x64
+    container:
+      image: node:22-bookworm-slim
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Open Code Review
+        run: npm install -g @alibaba-group/open-code-review@latest || echo "OCR install skipped (will retry next run)"
+        continue-on-error: true
+      - name: Configure OCR
+        env:
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          OCR_LLM_MODEL: ${{ secrets.OCR_LLM_MODEL }}
+        run: |
+          if command -v ocr &>/dev/null; then
+            ocr config set llm.url "$OCR_LLM_URL"
+            ocr config set llm.auth_token "$OCR_LLM_AUTH_TOKEN"
+            ocr config set llm.model "$OCR_LLM_MODEL"
+            ocr config set llm.use_anthropic false
+            ocr config set llm.extra_body '{"thinking": {"type": "disabled"}}'
+            ocr config set language English
+          else
+            echo "OCR not installed — skipping config"
+          fi
+        continue-on-error: true
+      - name: Run OCR code review
+        env:
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          OCR_LLM_MODEL: ${{ secrets.OCR_LLM_MODEL }}
+        run: |
+          if command -v ocr &>/dev/null; then
+            TARGET_BRANCH="${GITHUB_BASE_REF:-main}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            if [ -n "$HEAD_SHA" ]; then
+              git fetch origin "$TARGET_BRANCH" 2>/dev/null || true
+              ocr review \
+                --from "origin/$TARGET_BRANCH" \
+                --to "$HEAD_SHA" \
+                --format json \
+                > /tmp/ocr-result.json 2>/tmp/ocr-stderr.log || echo "OCR review completed with findings"
+              echo "=== OCR result ==="
+              cat /tmp/ocr-result.json
+            else
+              echo "Not a PR event — skipping review"
+            fi
+          else
+            echo "OCR not installed — skipping (non-blocking)"
+          fi
+        continue-on-error: true
+      - name: Upload OCR report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocr-review-report
+          path: |
+            /tmp/ocr-result.json
+            /tmp/ocr-stderr.log
+        continue-on-error: true
