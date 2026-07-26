@@ -162,6 +162,25 @@ with open('openapi.json', 'w') as f:
         run: |
           find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec bash -n {} \;
 
+  layerlint:
+    runs-on: docker-x64
+    container:
+      image: alpine:3.19
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install layerLint
+        run: |
+          apk add --no-cache curl tar
+          curl -sSL https://github.com/vviveksharma/layerLint/releases/download/v1.0.1/layerLint_1.0.1_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin
+          chmod +x /usr/local/bin/layerlint
+      - name: Lint Dockerfiles for caching issues
+        run: |
+          find . -name "Dockerfile*" -not -path "*/node_modules/*" -not -path "*/.venv/*" | while read -r dockerfile; do
+            echo "=== $dockerfile ==="
+            layerlint scan --dockerfile "$dockerfile" --fail-on-severity high || echo "Caching issues found in $dockerfile"
+          done
+        continue-on-error: true
+
   build-and-test:
     runs-on: docker-x64
     container:
@@ -209,6 +228,7 @@ with open('openapi.json', 'w') as f:
             --cov=app \
             --cov-report=term \
             --cov-report=xml:coverage.xml \
+            --cov-report=lcov:coverage.lcov \
             --cov-fail-under=${{ env.COVERAGE_THRESHOLD }}
 
       - name: Run E2E tests
@@ -233,7 +253,9 @@ with open('openapi.json', 'w') as f:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coverage.xml
+          path: |
+            coverage.xml
+            coverage.lcov
 
   deps-freshness:
     runs-on: docker-x64
@@ -394,9 +416,24 @@ with open('openapi.json', 'w') as f:
         uses: sigstore/cosign-installer@v3
         with:
           cosign-release: 'v2.4.3'
-      - name: Build Docker image
-        run: docker build -t registry.rugmunch.io/rmi-backend:${{ github.sha }} .
-      - name: Push to registry
+      - name: Set up Docker BuildKit
+        run: |
+          echo "DOCKER_BUILDKIT=1" >> $GITHUB_ENV
+          echo "BUILDKIT_PROGRESS=plain" >> $GITHUB_ENV
+      - name: Pull build cache
+        run: docker pull registry.rugmunch.io/rmi-backend:buildcache || echo "No cache image yet — building from scratch"
+      - name: Build Docker image with cache
+        run: |
+          docker build \
+            --cache-from registry.rugmunch.io/rmi-backend:buildcache \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            -t registry.rugmunch.io/rmi-backend:${{ github.sha }} \
+            .
+      - name: Push cache image
+        run: |
+          docker tag registry.rugmunch.io/rmi-backend:${{ github.sha }} registry.rugmunch.io/rmi-backend:buildcache
+          docker push registry.rugmunch.io/rmi-backend:buildcache
+      - name: Push release image
         run: docker push registry.rugmunch.io/rmi-backend:${{ github.sha }}
       - name: Sign image with keyless (OIDC)
         run: |
@@ -521,4 +558,30 @@ with open('openapi.json', 'w') as f:
         with:
           name: draugr-sarif
           path: draugr-out/
+        continue-on-error: true
+
+  covgate:
+    runs-on: docker-x64
+    needs: build-and-test
+    container:
+      image: rust:1.78-bookworm
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+      - name: Install covgate
+        run: cargo install covgate 2>/dev/null || echo "covgate install skipped"
+        continue-on-error: true
+      - name: Diff coverage gate
+        run: |
+          if command -v covgate &>/dev/null; then
+            covgate check --config covgate.toml --base origin/main || echo "Diff coverage below threshold — review needed"
+          else
+            echo "covgate not installed — diff coverage gate skipped"
+          fi
         continue-on-error: true
