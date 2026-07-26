@@ -74,5 +74,8 @@ deps-freshness: ## Check how stale dependencies are
 	pip install pip-tools libyear 2>/dev/null || true
 	libyear --file requirements.txt || true
 
+db-lint: ## Lint Postgres migrations with Squawk
+	squawk alembic/versions/*.sql || true
+
 clean: ## Remove build artifacts
 	rm -rf dist build *.egg-info .pytest_cache .mypy_cache .ruff_cache

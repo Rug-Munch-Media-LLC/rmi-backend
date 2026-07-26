@@ -1,0 +1,19 @@
+# Squawk configuration — Postgres migration safety linter
+# Docs: https://squawkhq.com/docs/rules
+
+# Postgres version
+pg_version = "15"
+
+# Assume each migration file is wrapped in a transaction
+assume_in_transaction = true
+
+# Excluded rules (add rules you intentionally break here)
+# exclude = ["require-concurrent-index-creation"]
+
+# Rules are all enabled by default.
+# Squawk has 50+ rules in these categories:
+# - ban-* (dangerous operations: ban-drop-database, ban-drop-table, ban-char-field)
+# - prefer-* (best practices: prefer-timestamptz, prefer-text-field, prefer-identity, prefer-bigint-over-int)
+# - require-* (safety: require-concurrent-index-creation, require-concurrent-index-deletion, require-lock-timeout)
+# - constraint-* (constraint safety: constraint-missing-not-valid, adding-field-with-default)
+# - changing-column-type, adding-foreign-key-constraint, adding-not-nullable-field
