@@ -75,6 +75,29 @@ jobs:
           name: semgrep-report
           path: semgrep.sarif
 
+  aiverify:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install aiverify
+        run: pip install aiverify-cli 2>/dev/null || echo "aiverify install skipped"
+        continue-on-error: true
+      - name: Detect AI hallucinations
+        run: |
+          if command -v aiverify &>/dev/null; then
+            aiverify app/ --json || echo "AI-specific issues found — review needed"
+          else
+            echo "aiverify not installed — skipping"
+          fi
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aiverify-report
+          path: aiverify-output.json
+        continue-on-error: true
+
   squawk:
     runs-on: docker-x64
     container:

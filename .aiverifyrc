@@ -1,0 +1,15 @@
+{
+  "rules": {
+    "PY001": true,
+    "PY002": true,
+    "PY003": true,
+    "PY004": true,
+    "PY005": true,
+    "GEN001": true,
+    "GEN002": true,
+    "GEN003": true,
+    "GEN004": true,
+    "GEN005": false
+  },
+  "severity_threshold": "warning"
+}
