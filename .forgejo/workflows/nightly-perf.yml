@@ -1,0 +1,23 @@
+name: Nightly Performance
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 3 AM UTC daily
+  workflow_dispatch:       # Manual trigger
+
+jobs:
+  k6-load:
+    runs-on: docker-x64
+    container:
+      image: grafana/k6:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run k6 load test
+        run: |
+          k6 run tests/k6/load.js \
+            -e BASE_URL=http://rmi-backend:8000 \
+            --summary-export=tests/k6/results/load-summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: k6-load-report
+          path: tests/k6/results/

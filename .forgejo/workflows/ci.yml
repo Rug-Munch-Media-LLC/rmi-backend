@@ -14,6 +14,100 @@ env:
   PYTHON_VERSION: "3.11"
 
 jobs:
+  pre-commit-mirror:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps + pre-commit
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
+          rm -rf /var/lib/apt/lists/*
+          pip install pre-commit
+      - name: Run ALL pre-commit hooks on all files
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  commitlint:
+    runs-on: docker-x64
+    container:
+      image: node:22-bookworm-slim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to check all commits in PR
+      - name: Install commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+      - name: Validate all commits in PR
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Check all commits in the PR
+            git log --format="%H %s" origin/main..HEAD | while read hash msg; do
+              echo "$hash $msg" | commitlint --from="$hash^" --to="$hash" || exit 1
+            done
+          else
+            # On push to main, just check the latest commit
+            npx commitlint --from=HEAD~1 --to=HEAD
+          fi
+
+  semgrep:
+    runs-on: docker-x64
+    container:
+      image: python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Semgrep SAST scan (community rules)
+        run: |
+          semgrep --config=auto \
+            --error \
+            --severity=ERROR \
+            --exclude='tests/' \
+            --exclude='alembic/' \
+            --exclude='app/_archive/' \
+            --exclude='app/legacy/' \
+            --sarif=semgrep.sarif \
+            app/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep.sarif
+
+  api-lint:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates nodejs npm && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+      - name: Install Spectral
+        run: npm install -g @stoplight/spectral-cli
+      - name: Export OpenAPI schema
+        run: |
+          source .venv/bin/activate
+          python -c "
+import json, sys
+sys.path.insert(0, '.')
+from app.main import app
+schema = app.openapi()
+with open('openapi.json', 'w') as f:
+    json.dump(schema, f, indent=2)
+"
+      - name: Lint OpenAPI with Spectral
+        run: spectral lint openapi.json --ruleset .spectral.yaml --fail-severity=error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema
+          path: openapi.json
+
   bandit:
     runs-on: docker-x64
     container:
@@ -101,11 +195,71 @@ jobs:
             --cov-report=xml:coverage-e2e.xml \
             --cov-fail-under=${{ env.COVERAGE_THRESHOLD }} || echo "E2E tests noted (non-blocking for coverage)"
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          flags: unittests
+          name: rmi-backend
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.xml
+
+  deps-freshness:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check dependency freshness
+        run: |
+          pip install libyear 2>/dev/null || true
+          if [ -f requirements.txt ]; then
+            pip install pip-tools && libyear --file requirements.txt || echo "Dep freshness check noted"
+          fi
+        continue-on-error: true
+
+  k6-smoke:
+    runs-on: docker-x64
+    container:
+      image: grafana/k6:latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run k6 smoke test
+        run: |
+          k6 run tests/k6/smoke.js \
+            -e BASE_URL=http://rmi-backend:8000 \
+            --summary-export=tests/k6/results/smoke-summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: k6-smoke-report
+          path: tests/k6/results/
+
+  mutation-test:
+    runs-on: docker-x64
+    needs: build-and-test
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]" mutmut
+      - name: Mutation testing (informational)
+        run: source .venv/bin/activate && mutmut run --paths-to-mutate app/ || echo "Mutation score noted (non-blocking)"
+        continue-on-error: true
 
   trivy-scan:
     runs-on: docker-x64
@@ -119,3 +273,87 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
           vuln-type: 'os,library'
+
+  fuzz:
+    runs-on: docker-x64
+    needs: build-and-test
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]" hypothesis
+      - name: Run fuzz tests
+        run: |
+          source .venv/bin/activate
+          HYPOTHESIS_PROFILE=ci python -m pytest tests/fuzz/ -v --tb=short || echo "Fuzz tests noted"
+        continue-on-error: true
+
+  contract-verify:
+    runs-on: docker-x64
+    needs: build-and-test
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv + deps
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]" pact-python
+      - name: Verify provider contracts
+        run: source .venv/bin/activate && python -m pytest tests/contract/ -v --tb=short -m integration || echo "Provider verification noted (needs Pact Broker)"
+        continue-on-error: true
+
+  sbom:
+    runs-on: docker-x64
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output: sbom.spdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+  sign-image:
+    runs-on: docker-x64
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.3'
+      - name: Build Docker image
+        run: docker build -t registry.rugmunch.io/rmi-backend:${{ github.sha }} .
+      - name: Push to registry
+        run: docker push registry.rugmunch.io/rmi-backend:${{ github.sha }}
+      - name: Sign image with keyless (OIDC)
+        run: |
+          cosign sign --yes registry.rugmunch.io/rmi-backend:${{ github.sha }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+      - name: Verify signature
+        run: |
+          cosign verify \
+            --certificate-identity "https://git.rugmunch.io/RugMunchMedia/rmi-backend/.forgejo/workflows/ci.yml@refs/heads/main" \
+            --certificate-oidc-issuer "https://git.rugmunch.io" \
+            registry.rugmunch.io/rmi-backend:${{ github.sha }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
