@@ -1,4 +1,4 @@
-.PHONY: help install dev build lint format check test typecheck security quality ci clean
+.PHONY: help install dev build lint api-lint format check test test-mutation test-mutation-report test-all test-ci typecheck security quality ci perf-smoke perf-load clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -16,6 +16,10 @@ build: ## Build Docker image
 
 lint: ## Lint with ruff (error/flynt/bug/sim/async rules)
 	ruff check app/ --select=E,F,B,SIM,ASYNC --ignore=S104,S311
+
+api-lint: ## Lint OpenAPI schema with Spectral
+	python -c "import json; from app.main import app; json.dump(app.openapi(), open('openapi.json','w'), indent=2)"
+	npx @stoplight/spectral-cli lint openapi.json --ruleset .spectral.yaml
 
 format: ## Format with ruff (writes)
 	ruff format app/ tests/
@@ -36,8 +40,17 @@ typecheck: ## MyPy type check
 test: ## Run tests with coverage
 	python3 -m pytest tests/ -v --tb=short --cov=app --cov-report=term
 
+test-mutation: ## Run mutation testing on changed files
+	mutmut run --paths-to-mutate app/
+
+test-mutation-report: ## Mutation test HTML report
+	mutmut html
+
 test-all: ## Run ALL tests including integration
 	python3 -m pytest tests/ -q
+
+test-contract: ## Verify provider against Pact contracts
+	python3 -m pytest tests/contract/ -v --tb=short -m integration
 
 test-ci: ## Tests with coverage (CI gate)
 	python3 -m pytest tests/ -v --tb=short --cov=app.domains.scanner --cov=app --cov-report=term --cov-fail-under=15
@@ -50,6 +63,16 @@ ci: ## Full CI pipeline
 	ruff format --check app/ tests/
 	mypy app/ --ignore-missing-imports
 	python3 -m pytest tests/ -x -q -m "not integration"
+
+perf-smoke: ## Run k6 smoke test (10 VUs, 30s)
+	k6 run tests/k6/smoke.js -e BASE_URL=http://localhost:8000
+
+perf-load: ## Run k6 load test (50 VUs, 6min)
+	k6 run tests/k6/load.js -e BASE_URL=http://localhost:8000
+
+deps-freshness: ## Check how stale dependencies are
+	pip install pip-tools libyear 2>/dev/null || true
+	libyear --file requirements.txt || true
 
 clean: ## Remove build artifacts
 	rm -rf dist build *.egg-info .pytest_cache .mypy_cache .ruff_cache
