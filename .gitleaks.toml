@@ -83,6 +83,8 @@ tags = ["rmi", "critical"]
 [allowlist]
 description = "Build artifacts + specific known false positives (no blanket directory excludes)"
 paths = [
+  # Pre-commit methodology check: detection patterns (scanner, not leak)
+  '''scripts/pre-commit-methodology-check\.sh''',
   '''node_modules/''',
   '''\.git/''',
   '''__pycache__/''',
