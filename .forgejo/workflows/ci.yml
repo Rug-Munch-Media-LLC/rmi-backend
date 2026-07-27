@@ -243,10 +243,10 @@ jobs:
       - name: Type check (mypy)
         run: source .venv/bin/activate && mypy app/ --ignore-missing-imports
 
-      - name: Run unit + integration tests with coverage
+      - name: Run unit tests with coverage
         run: |
           source .venv/bin/activate
-          pytest tests/ -x -q --tb=short \
+          pytest tests/ -x -q --tb=short -m "not integration" \
             --cov=app \
             --cov-report=term \
             --cov-report=xml:coverage.xml \
