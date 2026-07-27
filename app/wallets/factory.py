@@ -86,7 +86,7 @@ class WalletFactory:
     # ── Storage ─────────────────────────────────────────────────
 
     def save_to_vault(
-        self, wallet: WalletResult, vault_path: str = "/root/.rmi/wallets/vault.json"
+        self, wallet: WalletResult, vault_path: str = os.getenv("WALLET_VAULT_PATH", "/path/to/wallets/vault.json")
     ) -> None:
         """Save wallet to encrypted vault."""
         os.makedirs(os.path.dirname(vault_path), exist_ok=True, mode=0o700)
@@ -116,7 +116,7 @@ class WalletFactory:
     # ── Rotation ────────────────────────────────────────────────
 
     def rotate(
-        self, chain_key: str, vault_path: str = "/root/.rmi/wallets/vault.json"
+        self, chain_key: str, vault_path: str = os.getenv("WALLET_VAULT_PATH", "/path/to/wallets/vault.json")
     ) -> WalletResult:
         """Generate a new wallet and mark it as the active rotation for this chain."""
         wallet = self.generate(

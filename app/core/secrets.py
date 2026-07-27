@@ -8,7 +8,7 @@ Priority: gopass > env var > crash
 Usage:
     from app.core.secrets import get_secret
 
-    key = get_secret("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+    key = get_secret("SUPABASE_SERVICE_KEY", "")
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 def _from_gopass(path: str) -> str | None:
     """Try to read a secret from gopass. Returns None if gopass not available."""
     try:
-        # nosec: path is hardcoded by callers (e.g., "rmi/prod/supabase_service_key"),
+        # nosec: path is hardcoded by callers (e.g., ""),
         # not from user input. gopass is always PATH-resolvable in production.
         result = subprocess.run(  # noqa: S603
             ["gopass", "show", "-o", path],  # noqa: S607
