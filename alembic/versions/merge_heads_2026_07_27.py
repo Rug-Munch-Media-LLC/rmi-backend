@@ -19,27 +19,22 @@ individual branch migrations above.
 
 from __future__ import annotations
 
-from typing import Sequence, Union
-
-from alembic import op
-import sqlalchemy as sa
+from collections.abc import Sequence
 
 # revision identifiers, used by Alembic.
 revision: str = "merge_heads_2026_07_27"
-down_revision: Union[str, Sequence[str], None] = (
+down_revision: str | Sequence[str] | None = (
     "b6e2f4a1c9d0",
     "e7f8a9b0c1d2",
     "f7e8d9c0b1a2",
 )
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Merge three parallel branches — no schema changes."""
-    pass
 
 
 def downgrade() -> None:
     """Reverse merge — no schema changes."""
-    pass
