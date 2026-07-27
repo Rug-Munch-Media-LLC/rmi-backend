@@ -24,11 +24,11 @@ DataBus chains, wallet labels, scanner modules.
 
 Read these files in order:
   1. ~/AGENTS.md          — fleet-wide contract, product table, git policy
-  2. ~/CONVENTIONS.md     — shared patterns (coding, naming, testing)
+  2. ~/STYLE.md           — coding conventions and patterns
   3. ./AGENTS.md (this)   — backend-specific instructions
   4. ./README.md          — full project overview
   5. ~/STANDARDS.md       — linting, testing, quality gates
-  6. ~/TOOLCHAIN.md       — developer tool inventory
+  6. ~/TOOLS.md           — developer tool inventory
 
 ## Development Workflow
 
@@ -95,7 +95,7 @@ database schemas visible in this repo are open source. The core admin backend,
 proprietary scoring algorithms, and production deployment configurations remain
 private as part of the RugMunch managed platform at rugmunch.io.
 
-See [METHODOLOGY-PROTECTION.md](https://github.com/RugMunchMedia/standards/blob/main/METHODOLOGY-PROTECTION.md)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for project methodology.
 for details on what information belongs in public vs private repos.
 
 ## Git
