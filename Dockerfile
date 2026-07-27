@@ -1,10 +1,16 @@
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 WORKDIR /app
 
 # System deps + solc + Foundry + Tini (consolidated for smaller layer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev curl git ca-certificates && \
+    gcc=4:14.2.0-1 \
+    libpq-dev=17.10-0+deb13u1 \
+    curl=8.14.1-2+deb13u4 \
+    git=1:2.47.3-0+deb13u1 \
+    ca-certificates=20250419 && \
     curl -sL https://github.com/krallin/tini/releases/download/v0.19.0/tini -o /tini && \
     chmod +x /tini && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
@@ -21,7 +27,7 @@ RUN curl -sL https://foundry.paradigm.xyz | bash && \
 # Python deps (ordered for layer caching: requirements first, then app)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir slither-analyzer && \
+    pip install --no-cache-dir slither-analyzer==0.11.5 && \
     rm -rf /root/.cache/pip
 
 # Copy app (HF models excluded via .dockerignore — they download at runtime)
