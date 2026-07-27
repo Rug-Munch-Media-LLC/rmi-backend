@@ -26,7 +26,7 @@
 | **Container** | `rmi-postgres` |
 | **Image** | `postgres:16-alpine` |
 | **Port** | `5432` |
-| **Host** | `rmi-postgres` (Docker), `talos.rugmunch.io` (external) |
+| **Host** | `rmi-postgres` (Docker), `[INTERNAL_HOST]` (external) |
 | **Database** | `rmi` |
 | **User** | `rmi` |
 | **Connection** | `DATABASE_URL` / `ALEMBIC_DATABASE_URL` env var |

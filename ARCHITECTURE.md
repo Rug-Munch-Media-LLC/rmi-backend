@@ -185,11 +185,11 @@ app/domains/
 
 | System | Stack | Endpoint |
 |--------|-------|----------|
-| Metrics | Prometheus + Grafana | `/metrics`, `grafana.talos.rugmunch.io` |
+| Metrics | Prometheus + Grafana | `/metrics`, `[INTERNAL_HOST]` |
 | Logs | structlog + Loki | JSON structured |
-| Traces | OpenTelemetry + Langfuse | `langfuse.talos.rugmunch.io` (10% sampling) |
+| Traces | OpenTelemetry + Langfuse | `[INTERNAL_HOST]` (10% sampling) |
 | Alerts | Prometheus → Alertmanager → PagerDuty / n8n |
-| Status | Uptime Kuma | `status.talos.rugmunch.io` |
+| Status | Uptime Kuma | `[INTERNAL_HOST]` |
 
 ## Security Architecture
 

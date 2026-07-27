@@ -120,7 +120,7 @@ wrapper_prompt: |
 
 security:
   internal_only: true
-  allowed_ips: ["100.98.27.49", "100.100.18.18", "127.0.0.1"]
+  allowed_ips: ["[INTERNAL_IP]", "[INTERNAL_IP]", "127.0.0.1"]
   require_admin_key: true
   audit_logging: langfuse
   sql_readonly: true
