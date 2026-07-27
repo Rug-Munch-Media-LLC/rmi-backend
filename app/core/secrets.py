@@ -12,6 +12,7 @@ Usage:
 """
 
 from __future__ import annotations
+
 import os
 import subprocess
 
@@ -48,7 +49,7 @@ def get_secret(env_var: str, gopass_path: str | None = None) -> str:
 
     Args:
         env_var: Environment variable name (fallback).
-        gopass_path: gopass path (e.g., 'rmi/prod/supabase_service_key').
+        gopass_path: gopass path (e.g., 'path/to/secret').
 
     Returns:
         The secret value as a string.

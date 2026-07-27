@@ -203,7 +203,7 @@ async def _section_transactions(subject_id: str, chain: str) -> dict[str, Any]:
 async def _section_news(subject_id: str) -> dict[str, Any]:
     """Fetch news/sentiment section."""
     try:
-        # Try rmi-netcup MCP via direct HTTP or fall back
+        # Try private intel MCP via direct HTTP or fall back
         from app.domains.x402.tools.news_tools import get_news_sentiment
 
         result = await get_news_sentiment(subject_id)

@@ -43,16 +43,13 @@ from app.rag.engine import (
 
 log = get_logger(__name__)
 
-# ── Connection config (from env, with sensible defaults to netcup IPs) ──
-# These defaults point to the actual IPs on netcup rmi_network.
-# Override via env vars in docker-compose.yml for portability.
+# ── Connection config (from env, with sensible defaults for local dev) ──
+# Override via env vars in docker-compose.yml for production.
 DEFAULT_CONFIG: dict[str, Any] = {
     "redis": {
         "host": os.getenv("REDIS_HOST", "rmi-redis"),
         "port": int(os.getenv("REDIS_PORT", "6379")),
-        "password": os.getenv(
-            "REDIS_PASSWORD", "508042d92b89ee1a65397927f7b4d00ca2bab053850919fbb5103bb183962159"
-        ),  # Rotated 2026-07-17
+        "password": os.getenv("REDIS_PASSWORD", ""),
         "db": int(os.getenv("REDIS_DB", "0")),
     },
     "postgres": {

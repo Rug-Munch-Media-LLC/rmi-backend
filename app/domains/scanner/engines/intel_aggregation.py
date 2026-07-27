@@ -15,7 +15,7 @@ Sources aggregated:
   FREE API:     DexScreener, GoPlus, CoinGecko, DefiLlama, CoinPaprika,
                 Blockscout, Etherscan, BscScan, TradingView, RugCheck,
                 Fear&Greed, Jupiter API, DexPaprika, CoinStats, Birdeye
-  MCP SERVERS:  rmi-netcup, rugmunch-data, helius, eth-labels, blockscout,
+  MCP SERVERS:  [refer to config]
                 dexpaprika, coingecko, defillama, dexscreener, coinstats,
                 tradingview, solana-private, alchemy, rugcheck
   EXTERNAL:     GMGN patterns, Pump.fun, Birdeye, Jupiter
@@ -281,11 +281,11 @@ class IntelligenceAggregationLayer:
             "coinstats",
             "birdeye",
             # MCP servers
-            "rmi_netcup",
-            "rugmunch_data",
+            "private_intel_mcp",
+            "internal_data_mcp",
             "helius_mcp",
             "eth_labels_mcp",
-            "solana_private",
+            "solana_data_mcp",
             "alchemy_mcp",
             # External intelligence
             "gmgn_patterns",
@@ -314,8 +314,8 @@ class IntelligenceAggregationLayer:
             ("neo4j_entities", self._check_neo4j),
             ("blockscout", self._check_blockscout),
             ("etherscan", self._check_etherscan),
-            ("rmi_netcup", self._check_rmi_netcup),
-            ("rugmunch_data", self._check_rugmunch_data),
+            ("private_intel_mcp", self._check_private_intel),
+            ("internal_data_mcp", self._check_internal_data),
             ("known_entities", self._check_known_entities),
             ("gmgn_patterns", self._check_gmgn_pattern),
             ("birdeye", self._check_birdeye),
@@ -352,7 +352,7 @@ class IntelligenceAggregationLayer:
             elif source_count == 1 and label.sources[0] in (
                 "eth_labels_mcp",
                 "clickhouse_labels",
-                "rmi_netcup",
+                "private_intel_mcp",
             ):
                 label.confidence = LabelConfidence.MEDIUM
             else:
@@ -383,11 +383,11 @@ class IntelligenceAggregationLayer:
         """Check Etherscan/BscScan labels."""
         return None
 
-    def _check_rmi_netcup(self, address: str, chain: str) -> str | None:
-        """Check rmi-netcup entity resolution."""
+    def _check_private_intel(self, address: str, chain: str) -> str | None:
+        """Check private intel entity resolution."""
         return None
 
-    def _check_rugmunch_data(self, address: str, chain: str) -> str | None:
+    def _check_internal_data(self, address: str, chain: str) -> str | None:
         """Check rugmunch-data cross-chain profile."""
         return None
 

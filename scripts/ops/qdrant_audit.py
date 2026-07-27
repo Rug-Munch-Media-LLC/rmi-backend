@@ -18,7 +18,7 @@ Usage:
     # CI gate mode (exit 1 if any test_col_* found):
     python scripts/ops/qdrant_audit.py --check
 
-Cron suggestion (netcup):
+Cron suggestion:
     # Daily audit, notify if anything leaked:
     0 6 * * * python3 /root/scripts/qdrant_audit.py --audit-only | \\
         curl -s --data-binary @- http://localhost:9080/rmi-info || true

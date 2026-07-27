@@ -2,7 +2,7 @@
 
 This repository is part of RugMunch's open-core product.
 
-The code here is **fully functional open source** (MIT). You can self-host, modify, and contribute.
+The publicly visible scanner modules, API patterns, and database schemas are **open source** under a source-available license. You can self-host, modify, and contribute to the OSS portions.
 
 RugMunch offers a **managed platform** at [rugmunch.io](https://rugmunch.io) that includes:
 - One-click deployment

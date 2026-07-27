@@ -59,7 +59,7 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
             import subprocess
 
             result = subprocess.run(
-                ["gopass", "show", "-o", "rmi/infra/metasleuth_labels_api_key"],
+                ["gopass", "show", "-o", "path/to/metasleuth_api_key"],
                 capture_output=True,
                 text=True,
                 timeout=2,

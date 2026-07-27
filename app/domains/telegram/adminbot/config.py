@@ -14,7 +14,7 @@ def _get_admin_token() -> str:
     try:
         token = (
             subprocess.check_output(
-                ["gopass", "show", "rmi/infra/telegram_admin_bot_token"],
+                ["gopass", "show", "path/to/admin_bot_token"],
                 stderr=subprocess.DEVNULL,
                 timeout=5,
             )
