@@ -7,9 +7,12 @@ All powered by MiniMax-Text-01 ($20/mo flat, 1M context)
 """
 
 import json
+import logging
 import os
 import urllib.request
 from datetime import UTC, datetime
+
+logger = logging.getLogger(__name__)
 
 KEY = os.getenv("MINIMAX_API_KEY", "")
 if not KEY:
@@ -101,7 +104,7 @@ def warm_support_cache():
     """Pre-generate answers for common questions."""
     for q in COMMON_QUESTIONS:
         a = answer_question(q)
-        print(f"  {q[:40]}... → {a[:60]}...")
+        logger.info("  %s... → %s...", q[:40], a[:60])
 
 
 # ═══════════════════════════════════════════
@@ -129,26 +132,27 @@ def health_narrative(metrics: dict) -> str:
 # MAIN - Run all three
 # ═══════════════════════════════════════════
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     import sys
 
     cmd = sys.argv[1] if len(sys.argv) > 1 else "all"
 
     if cmd in ("social", "all"):
-        print("=== SOCIAL THREAD ===")
+        logger.info("=== SOCIAL THREAD ===")
         try:
             r = urllib.request.urlopen(f"{BACKEND}/api/v1/scanner/stats", timeout=5)
             data = json.loads(r.read())
             thread = generate_social_thread(json.dumps(data)[:3000])
-            print(thread[:400])
+            logger.info("Thread output: %s", thread[:400])
         except Exception as e:
-            print(f"Social thread failed: {e}")
+            logger.error("Social thread failed: %s", e)
 
     if cmd in ("warm", "all"):
-        print("\n=== WARMING SUPPORT CACHE ===")
+        logger.info("=== WARMING SUPPORT CACHE ===")
         warm_support_cache()
 
     if cmd in ("health", "all"):
-        print("\n=== HEALTH NARRATIVE ===")
+        logger.info("=== HEALTH NARRATIVE ===")
         metrics = {
             "timestamp": datetime.now(UTC).isoformat(),
             "backend": "alive",
@@ -159,4 +163,4 @@ if __name__ == "__main__":
             "rag_docs": 20985,
         }
         report = health_narrative(metrics)
-        print(report[:400])
+        logger.info("Health report: %s", report[:400])

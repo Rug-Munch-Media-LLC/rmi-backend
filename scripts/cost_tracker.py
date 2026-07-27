@@ -12,9 +12,12 @@ Usage:
 """
 
 import argparse
+import logging
 import os
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 CLICKHOUSE_HOST = os.getenv("CH_HOST", "rmi-clickhouse")
 CLICKHOUSE_PORT = int(os.getenv("CH_PORT", "9000"))
@@ -50,15 +53,13 @@ def poll_litellm():
             timeout=10,
         )
         if resp.status_code != 200:
-            print(
-                f"[cost_tracker] Watchdog poll failed: HTTP {resp.status_code} - {resp.text[:200]}"
-            )
+            logger.error("Watchdog poll failed: HTTP %s - %s", resp.status_code, resp.text[:200])
             return
         data = resp.json()
         if not data:
             return
     except httpx.RequestError as e:
-        print(f"[cost_tracker] Watchdog connection error: {e}")
+        logger.error("Watchdog connection error: %s", e)
         return
 
     rows = []
@@ -76,7 +77,7 @@ def poll_litellm():
         )
 
     if not rows:
-        print("[cost_tracker] No spend data from LiteLLM")
+        logger.warning("No spend data from LiteLLM")
         return
 
     try:
@@ -86,9 +87,9 @@ def poll_litellm():
             rows,
         )
         client.disconnect()
-        print(f"[cost_tracker] Inserted {len(rows)} cost rows from LiteLLM")
+        logger.info("Inserted %s cost rows from LiteLLM", len(rows))
     except Exception as e:
-        print(f"[cost_tracker] ClickHouse insert error: {e}")
+        logger.error("ClickHouse insert error: %s", e)
 
 
 def push_sample():
@@ -107,9 +108,9 @@ def push_sample():
             samples,
         )
         client.disconnect()
-        print(f"[cost_tracker] Inserted {len(samples)} sample rows")
+        logger.info("Inserted %s sample rows", len(samples))
     except Exception as e:
-        print(f"[cost_tracker] Error: {e}")
+        logger.error("Sample insert error: %s", e)
 
 
 def show_summary():
@@ -129,7 +130,7 @@ def show_summary():
         )
         client.disconnect()
     except Exception as e:
-        print(f"[cost_tracker] Query error: {e}")
+        logger.error("Query error: %s", e)
         return
 
     print(f"{'Date':<14} {'Model':<22} {'Cost $':<12} {'Tokens':<12} {'Calls':<8}")
@@ -138,12 +139,11 @@ def show_summary():
         print(f"{r[0]!s:<14} {r[1]!s:<22} {round(r[2], 6):<12} {r[3]:<12} {r[4]:<8}")
     print("-" * 68)
     if total and total[0]:
-        print(
-            f"{'TOTAL':<14} {'':<22} {round(total[0][0], 6):<12} {total[0][1]:<12} {total[0][2]:<8}"
-        )
+        print(f"{'TOTAL':<14} {'':<22} {round(total[0][0], 6):<12} {total[0][1]:<12} {total[0][2]:<8}")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     parser = argparse.ArgumentParser(description="AI cost tracker")
     parser.add_argument("--test", action="store_true", help="Insert sample data")
     parser.add_argument("--summary", action="store_true", help="Show summary")
