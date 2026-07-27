@@ -173,6 +173,7 @@ markers = [
     "property: marks property-based tests using Hypothesis",
     "benchmark: marks performance benchmark tests",
     "e2e: marks end-to-end tests that need full system running",
+    "data_quality: marks data/schema quality tests that need a running PostgreSQL instance",
 ]
 
 # Hypothesis profiles are registered in conftest.py via hypothesis.settings.register_profile().

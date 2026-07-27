@@ -308,6 +308,58 @@ jobs:
             coverage.xml
             coverage.lcov
 
+  migration-test:
+    runs-on: docker-x64
+    needs: build-and-test
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: rmi_test_migrations
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: |
+          pip install alembic sqlalchemy psycopg2-binary
+          pip install -r requirements.txt 2>/dev/null || true
+      - name: Apply all migrations
+        run: |
+          export ALEMBIC_DATABASE_URL=postgresql://postgres:test@postgres:5432/rmi_test_migrations
+          alembic upgrade head && echo "✅ All migrations applied cleanly" || { echo "❌ Migration apply failed"; exit 1; }
+      - name: Verify migration history
+        run: |
+          export ALEMBIC_DATABASE_URL=postgresql://postgres:test@postgres:5432/rmi_test_migrations
+          CURRENT=$(alembic current 2>/dev/null | head -1)
+          echo "  Current revision: $CURRENT"
+          HEAD=$(alembic heads | head -1)
+          echo "  Head revision:    $HEAD"
+          if [ "$CURRENT" = "$HEAD" ]; then
+            echo "✅ At head revision"
+          else
+            echo "❌ Not at head ($CURRENT vs $HEAD)"
+            exit 1
+          fi
+      - name: Rollback and re-apply
+        run: |
+          export ALEMBIC_DATABASE_URL=postgresql://postgres:test@postgres:5432/rmi_test_migrations
+          # Downgrade one revision (informational — some migrations lack downgrade)
+          if alembic downgrade -1 2>/dev/null; then
+            echo "✅ Rollback successful"
+            # Re-apply after rollback
+            alembic upgrade head && echo "✅ Re-apply successful after rollback" || { echo "❌ Re-apply failed"; exit 1; }
+          else
+            echo "⚠️  Rollback skipped (migration lacks downgrade path)"
+          fi
+
   deps-freshness:
     runs-on: docker-x64
     container:
@@ -509,6 +561,14 @@ jobs:
         with:
           format: cyclonedx-json
           output: sbom.spdx.json
+      - name: Verify SBOM (blocking — bad SBOM = broken build)
+        run: |
+          if [ -f sbom.spdx.json ]; then
+            bash scripts/sbom-verify.sh sbom.spdx.json
+          else
+            echo "❌ SBOM file not generated"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
