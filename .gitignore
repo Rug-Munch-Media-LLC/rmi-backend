@@ -1,5 +1,4 @@
 # === RUGMUNCH STANDARD GITIGNORE — 2026-07-22 ===
-
 # Secrets & Credentials — NEVER commit
 *.env
 *.key
@@ -11,7 +10,6 @@ secrets*
 .env.*
 !.env.example
 !.env.sample
-
 # Python
 __pycache__/
 *.py[cod]
@@ -23,47 +21,37 @@ venv/
 .ruff_cache/
 .pytest_cache/
 .hypothesis/
-
 # Node
 node_modules/
 .npm/
 .yarn/
-
 # Build
 dist/
 build/
 *.pyc
-
 # OS
 .DS_Store
 Thumbs.db
-
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-
 # Logs
 *.log
-
 # Security reports — stored in R2, not git
 security-reports/
 *.gitleaks.json
 trivy*.json
-
 # archfit cache
 .archfit-cache/
-
 # Internal docs — company confidential
 *INTERNAL*
 PRIVATE*
 ADMIN-ACCESS*
 EDGE*
 secret-rotation*
-
 # === REPO-SPECIFIC ENTRIES (preserved) ===
-
 !*.example.json
 !actor.json
 !package*.json
@@ -116,11 +104,9 @@ sdks/typescript/node_modules/
 tools/VarLifter/
 RADICLE.md
 backend.log
-
 # Large tracked data files (un-tracking from git — kept on disk for dev)
 data/etherscan_combined_labels.csv
 data/cryptoscamdb_urls.yaml
-
 # Proprietary files moved to private fleet-infra
 x402_REVENUE.md
 x402_STRATEGY.md
@@ -142,3 +128,10 @@ EMAIL_SETUP.md
 RAG_R2_SETUP.md
 ROADMAP.md
 TODO.md
+# Missing common patterns (added by fleet standardization)
+.turbo/
+.next/
+.nuxt/
+coverage/
+htmlcov/
+
