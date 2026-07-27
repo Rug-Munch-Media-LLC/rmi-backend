@@ -5,6 +5,8 @@ Alerts on LP withdrawals, depletion, single-holder dominance."""
 
 from __future__ import annotations
 
+import json
+import os
 from datetime import UTC, datetime
 
 import httpx
@@ -25,6 +27,7 @@ TG_BOT = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 # Tracked LPs (in-memory, Redis in prod)
 _tracked_lps: dict[str, dict] = {}  # lp_id -> tracking config
 
+
 class LPHealthResult(BaseModel):
     lp_address: str
     chain: str
@@ -36,6 +39,7 @@ class LPHealthResult(BaseModel):
     lp_locked_pct: float
     health_score: int  # 0-100
     alerts: list[str]
+
 
 def _compute_health(ll: dict) -> tuple[int, list[str]]:
     """Compute LP health score from metrics."""
@@ -69,6 +73,7 @@ def _compute_health(ll: dict) -> tuple[int, list[str]]:
 
     return max(0, score), alerts
 
+
 @router.get("/check/{lp_address}")
 async def check_lp_health(lp_address: str, chain: str = Query("ethereum")) -> dict | dict[str, str]:
     """Check health of a specific liquidity pool."""
@@ -95,10 +100,9 @@ async def check_lp_health(lp_address: str, chain: str = Query("ethereum")) -> di
     except Exception as e:
         return {"lp_address": lp_address, "chain": chain, "error": str(e)}
 
+
 @router.post("/track")
-async def track_lp(
-    lp_address: str, chain: str = Query("ethereum"), notify_tg: bool = Query(True)
-) -> dict:
+async def track_lp(lp_address: str, chain: str = Query("ethereum"), notify_tg: bool = Query(True)) -> dict:
     """Start tracking an LP for health changes."""
     lp_id = f"{chain}:{lp_address}"
     _tracked_lps[lp_id] = {
@@ -109,15 +113,22 @@ async def track_lp(
     }
     return {"id": lp_id, "status": "tracking"}
 
+
 @router.delete("/track/{lp_id}")
 async def untrack_lp(lp_id: str) -> dict:
     """Stop tracking an LP."""
     _tracked_lps.pop(lp_id, None)
     return {"id": lp_id, "status": "removed"}
 
-@router.get("/tracked", summary="List Tracked LPs", description="List all liquidity pools currently being monitored for health changes.")
+
+@router.get(
+    "/tracked",
+    summary="List Tracked LPs",
+    description="List all liquidity pools currently being monitored for health changes.",
+)
 async def list_tracked() -> dict[str, list]:
     return {"tracked": list(_tracked_lps.values()), "count": len(_tracked_lps)}
+
 
 @router.get("/unhealthy")
 async def find_unhealthy_pools(
