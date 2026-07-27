@@ -42,6 +42,7 @@ from app.databus.vault import DataBusVault, get_vault
 
 logger = get_logger("databus.core")
 
+
 class RequestDeduplicator:
     """Deduplicate in-flight requests for the same data.
 
@@ -89,6 +90,7 @@ class RequestDeduplicator:
             "saved_api_calls": self._dedup_saved_calls,
         }
 
+
 class ProviderHealthTracker:
     """Track per-provider health: success/failure rates, latency, availability."""
 
@@ -131,9 +133,7 @@ class ProviderHealthTracker:
         if p["consecutive_failures"] >= 3:
             p["circuit_open_until"] = time.monotonic() + 30
             p["is_available"] = False
-            logger.warning(
-                f"Provider '{provider_name}' circuit breaker OPEN (3 consecutive failures)"
-            )
+            logger.warning(f"Provider '{provider_name}' circuit breaker OPEN (3 consecutive failures)")
 
     def is_available(self, provider_name: str) -> bool:
         p = self._providers[provider_name]
@@ -161,6 +161,7 @@ class ProviderHealthTracker:
                 else 0,
             }
         return result
+
 
 class DataBus:
     """
@@ -296,9 +297,7 @@ class DataBus:
             {"data_type": "live_prices", "kwargs": {}},
         ]
         self._warm_task = asyncio.create_task(self._warm_loop(interval_seconds))
-        logger.info(
-            f"Cache warm started (interval={interval_seconds}s, {len(self._warm_types)} FREE types)"
-        )
+        logger.info(f"Cache warm started (interval={interval_seconds}s, {len(self._warm_types)} FREE types)")
 
     async def stop_cache_warm(self) -> None:
         """Stop the cache warm task."""
@@ -525,24 +524,78 @@ class DataBus:
         Returns formatted result dict if found, None if we need external APIs.
         """
         address = (
-            kwargs.get("address", "")
-            or kwargs.get("mint", "")
-            or kwargs.get("contract", "")
-            or kwargs.get("token", "")
+            kwargs.get("address", "") or kwargs.get("mint", "") or kwargs.get("contract", "") or kwargs.get("token", "")
         )
         query = kwargs.get("query", "")
         chain = kwargs.get("chain", "") or kwargs.get("network", "")
 
         try:
-            # ── WALLET LABELS: check our 190K database ──
+            # ── WALLET LABELS: ClickHouse (39.4M) → Redis (190K hot) ──
             if data_type in ("wallet_labels", "entity_intel") and address:
+                # Layer 1: ClickHouse — 39.4M labels, first-class source
                 try:
-                    import json
+                    from app.domains.labels.sources.clickhouse_labels import (
+                        query_clickhouse_labels,
+                    )
+
+                    ch_labels = await query_clickhouse_labels(address, chain or "ethereum")
+                    if ch_labels:
+                        label_dicts = [
+                            {
+                                "source": "clickhouse_wallet_memory",
+                                "label": lbl.label_value,
+                                "category": lbl.label_type,
+                                "confidence": lbl.confidence,
+                                "chain": lbl.chain,
+                            }
+                            for lbl in ch_labels
+                        ]
+                        # Write-through to Redis cache
+                        try:
+                            import os
+
+                            import redis as sync_redis
+
+                            r = sync_redis.Redis(
+                                host=os.getenv("REDIS_HOST", "rmi-redis"),
+                                port=6379,
+                                password=os.getenv("REDIS_PASSWORD", ""),
+                                decode_responses=True,
+                                socket_connect_timeout=2,
+                            )
+                            for label_d in label_dicts:
+                                lc = label_d.get("chain", chain or "ethereum")
+                                r.setex(
+                                    f"rmi:label:{lc}:{address}",
+                                    3600,
+                                    json.dumps(label_d),
+                                )
+                            r.close()
+                        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+                            pass
+
+                        return {
+                            "data": {
+                                "labels": label_dicts,
+                                "address": address,
+                                "source": "clickhouse_wallet_memory",
+                                "total": "39.4M+",
+                            },
+                            "source": "clickhouse_wallet_memory",
+                            "tier": "local",
+                            "is_local": True,
+                            "cached": False,
+                        }
+                except (ValueError, ConnectionError, TimeoutError, RuntimeError, ImportError):
+                    pass
+
+                # Layer 2: Redis hot cache — 190K frequently-accessed labels
+                try:
                     import os
 
-                    import redis
+                    import redis as sync_redis
 
-                    r = redis.Redis(
+                    r = sync_redis.Redis(
                         host=os.getenv("REDIS_HOST", "rmi-redis"),
                         port=6379,
                         password=os.getenv("REDIS_PASSWORD", ""),
@@ -592,11 +645,7 @@ class DataBus:
                         decode_responses=True,
                         socket_connect_timeout=2,
                     )
-                    scan_key = (
-                        f"sentinelscan:{address}"
-                        if not chain
-                        else f"sentinelscan:{chain}:{address}"
-                    )
+                    scan_key = f"sentinelscan:{address}" if not chain else f"sentinelscan:{chain}:{address}"
                     cached = r.get(scan_key)
                     if cached:
                         r.close()
@@ -777,6 +826,7 @@ class DataBus:
     def get_stats(self) -> dict:
         """Return fetch statistics."""
         return dict(self._stats)
+
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
 

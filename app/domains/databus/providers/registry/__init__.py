@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("databus.providers.registry")
 
+
 def build_provider_chains() -> dict[str, ProviderChain]:
     """Build all fallback chains for every data type."""
     chains: dict[str, ProviderChain] = {}
@@ -71,6 +72,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _virustotal_url_scan,
     )
     from ..chains.local import (
+        _clickhouse_wallet_labels,
         _local_token_price,
         _local_wallet_labels,
         _passthrough_alerts,
@@ -84,6 +86,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _passthrough_scanner,
         _passthrough_trending,
     )
+    from ..chains.intel_provider import _scraped_intel_provider
     from ..chains.mcp_bridge import _mcp_bridge
     from ..chains.moralis import (
         _moralis_price,
@@ -139,7 +142,6 @@ def build_provider_chains() -> dict[str, ProviderChain]:
                 _rate_limiters[provider.name] = _RateLimiter(rps=provider.rate_limit_rps)
 
     logger.info(
-        f"Built {len(chains)} provider chains with "
-        f"{sum(len(c.providers) for c in chains.values())} total providers"
+        f"Built {len(chains)} provider chains with {sum(len(c.providers) for c in chains.values())} total providers"
     )
     return chains

@@ -39,6 +39,7 @@ _ROLODETH_CACHE: dict[str, list[dict]] | None = None
 _ROLODETH_LAST_FETCH: float = 0.0
 _ROLODETH_TTL = 3600  # 1 hour
 
+
 class LabelService:
     """Unified label resolution across static + live + built-in sources."""
 
@@ -65,9 +66,9 @@ class LabelService:
         return {
             "source": f"static_{label_data.get('chain', chain)}",
             "label": label_data.get("address_name")
-                     or label_data.get("dapp_name")
-                     or label_data.get("protocol_name")
-                     or label_data.get("label_type", ""),
+            or label_data.get("dapp_name")
+            or label_data.get("protocol_name")
+            or label_data.get("label_type", ""),
             "category": label_data.get("label_type") or label_data.get("label_subtype", ""),
             "confidence": 0.95,
         }
@@ -132,6 +133,56 @@ class LabelService:
             "is_bridge": False,
             "is_sanctioned": False,
         }
+
+        # ── Source 0: ClickHouse — 39.4M wallet_labels (FASTEST, LOCAL) ──
+        try:
+            from app.domains.labels.sources.clickhouse_labels import (
+                query_clickhouse_labels,
+            )
+
+            ch_labels = await query_clickhouse_labels(addr, chain)
+            for lbl in ch_labels:
+                label_dict = {
+                    "source": "clickhouse_wallet_memory",
+                    "label": lbl.label_value,
+                    "category": lbl.label_type,
+                    "confidence": lbl.confidence,
+                }
+                all_labels.append(label_dict)
+                # Set flags based on label attributes
+                cat = lbl.label_type.lower()
+                if cat == "exchange":
+                    flags["is_exchange"] = True
+                elif cat == "mev":
+                    flags["is_mev_bot"] = True
+                elif cat in ("scam", "phishing", "hack", "exploit", "fraud", "category"):
+                    flags["is_known_scam"] = True
+                elif cat == "defi":
+                    flags["is_defi_protocol"] = True
+                elif cat == "bridge":
+                    flags["is_bridge"] = True
+                # Check attributes for sanctioned flag
+                if lbl.attributes.get("is_sanctioned"):
+                    flags["is_sanctioned"] = True
+
+                # Write-through to Redis for future fast lookups
+                try:
+                    from .storage import get_storage
+
+                    storage = get_storage()
+                    redis = await storage._get_redis() if hasattr(storage, "_get_redis") else None
+                    if not redis:
+                        await storage._ensure_connections()
+                        redis = storage._redis
+                    if redis:
+                        cache_key = f"rmi:label:{lbl.chain}:{addr}"
+                        import json as _json
+
+                        await redis.setex(cache_key, 3600, _json.dumps(label_dict))
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"ClickHouse label lookup failed for {addr}: {e}")
 
         # ── Source 1: Static Redis labels (wallet_label_loader) ───
         try:
@@ -296,9 +347,7 @@ class LabelService:
         now = time.time()
         if _ROLODETH_CACHE is None or (now - _ROLODETH_LAST_FETCH) > _ROLODETH_TTL:
             try:
-                resp = await self._http.get(
-                    "https://raw.githubusercontent.com/RoleTiker/rolodETH/main/rolodETH.json"
-                )
+                resp = await self._http.get("https://raw.githubusercontent.com/RoleTiker/rolodETH/main/rolodETH.json")
                 if resp.status_code == 200:
                     _ROLODETH_CACHE = resp.json()
                     _ROLODETH_LAST_FETCH = now
@@ -456,9 +505,11 @@ class LabelService:
 
         return max(0, min(40, score))
 
+
 # ── Global singleton ────────────────────────────────────────────
 
 _label_service: LabelService | None = None
+
 
 def get_label_service() -> LabelService:
     global _label_service
