@@ -37,8 +37,8 @@ def _get_key() -> str:
     Falls back from SUPABASE_SERVICE_KEY to SUPABASE_SERVICE_ROLE_KEY
     for backward compatibility.
     """
-    # Try SUPABASE_SERVICE_KEY first (primary), with gopass path
-    key = get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+    # Try SUPABASE_SERVICE_KEY first (primary)
+    key = get_secret_or_none("SUPABASE_SERVICE_KEY", "")
     if key:
         return key
     # Fall back to SUPABASE_SERVICE_ROLE_KEY (legacy naming)

@@ -88,6 +88,16 @@ CRITICAL: Never call our own x402 endpoints internally.
 9. No circular API calls — scanner modules don't call our own endpoints
 10. Don't add to main.py (28 lines, by design) — use app/mount.py
 
+## Open-Core Protection
+
+This repo follows the open-core model. Scanner pipelines, API patterns, and
+database schemas visible in this repo are open source. The core admin backend,
+proprietary scoring algorithms, and production deployment configurations remain
+private as part of the RugMunch managed platform at rugmunch.io.
+
+See [METHODOLOGY-PROTECTION.md](https://github.com/RugMunchMedia/standards/blob/main/METHODOLOGY-PROTECTION.md)
+for details on what information belongs in public vs private repos.
+
 ## Git
 
 - Classification: INTERNAL (core) + OSS (scanners)

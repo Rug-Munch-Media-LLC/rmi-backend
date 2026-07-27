@@ -6,12 +6,12 @@ Defines the schema for versioning, auth, and discovery of every tool in the
 MCP mesh. See DESIGN.md §M2.
 
 Schema:
-    name: "{server}:{tool}" e.g. "rmi-netcup:docker_ps"
+    name: "{server}:{tool}" e.g. "infra:docker_ps"
     version: "MAJOR.MINOR.PATCH" semantic
     server: server slug
     description: human-readable, max 200 chars
     input_schema/output_schema: JSON Schema
-    auth_scope: gopass path e.g. "rmi/infra/netcup/ssh"
+    auth_scope: secrets path e.g. "infra/ssh_key"
     deprecated: bool
     successor: optional replacement name
 
@@ -35,7 +35,7 @@ class MCPToolManifest(BaseModel):
         ...,
         pattern=r"^[a-z][a-z0-9-]*:[a-z][a-z0-9_]*$",
         description='Format "{server}:{tool}" - lowercase, hyphens for server, underscores for tool.',
-        examples=["rmi-netcup:docker_ps", "coingecko:simple_price"],
+        examples=["infra:docker_ps", "coingecko:simple_price"],
     )
     version: str = Field(
         ...,
@@ -61,7 +61,7 @@ class MCPToolManifest(BaseModel):
         ...,
         pattern=r"^[a-z][a-z0-9/_-]*$",
         description="Gopass path. Resolved at tool-call time, never exposed to agents.",
-        examples=["rmi/infra/netcup/ssh", "rmi/api/coingecko/key"],
+        examples=["infra/ssh_key", "api/coingecko_key"],
     )
     deprecated: bool = False
     successor: str | None = Field(

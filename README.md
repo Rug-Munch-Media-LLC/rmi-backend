@@ -1,6 +1,5 @@
 # RMI Backend — Rug Munch Intelligence
 
-**Repo:** `git.rugmunch.io/RugMunchMedia/rmi-backend`
 **Docs:** `/docs` (Swagger) | `/redoc` (ReDoc) | `/openapi.json`
 
 ## What It Is
@@ -31,7 +30,7 @@ FastAPI monolith serving the RMI crypto intelligence platform — **token risk s
 
 ```bash
 # Clone
-git clone https://git.rugmunch.io/RugMunchMedia/rmi-backend.git
+git clone https://github.com/RugMunchMedia/rmi-backend.git
 cd rmi-backend
 
 # Local dev
@@ -63,9 +62,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full details.
 
 | Resource | Location |
 |----------|----------|
-| Swagger UI | `https://api.rugmunch.io/docs` |
-| ReDoc | `https://api.rugmunch.io/redoc` |
-| OpenAPI Spec | `https://api.rugmunch.io/openapi.json` |
+| Swagger UI | `/docs` (when running) |
+| ReDoc | `/redoc` (when running) |
+| OpenAPI Spec | `/openapi.json` (when running) |
 | API Reference | [`docs/API.md`](docs/API.md) |
 | x402 API Reference | [`docs/x402_API_REFERENCE.md`](docs/x402_API_REFERENCE.md) |
 | MCP User Guide | [`docs/MCP-USER-GUIDE.md`](docs/MCP-USER-GUIDE.md) |
@@ -122,6 +121,14 @@ For self-hosting, build the Docker image and run with Docker Compose.
 Refer to `docker-compose.yml` for service configuration. All secrets
 should be provided via environment variables or Docker secrets.
 
+## Open-Core Model
+
+This repo follows the open-core model. The publicly visible scanner modules,
+API patterns, and database schemas are open source. The core admin backend,
+proprietary scoring algorithms, and production infrastructure are private.
+
+See [OPEN-CORE.md](OPEN-CORE.md) for details.
+
 ## Security
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting and security practices.
@@ -135,4 +142,4 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting and security practice
 
 ## License
 
-Proprietary — Rug Munch Media LLC. See [LICENSE](LICENSE).
+Source Available — Rug Munch Media LLC. See [LICENSE](LICENSE).

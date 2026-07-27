@@ -164,7 +164,7 @@ class TestProviderHealthTracker:
 
         tracker = ProviderHealthTracker()
         # Access provider via bracket to trigger defaultdict creation
-        _ = tracker._providers["new_provider"]  # noqa: SLF001
+        _ = tracker._providers["new_provider"]
         health = tracker.get_health("new_provider")
         assert health["total_calls"] == 0
         assert health["successes"] == 0

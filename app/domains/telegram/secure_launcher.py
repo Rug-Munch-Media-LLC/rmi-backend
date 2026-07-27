@@ -12,7 +12,7 @@ This ensures the token:
   - Lives ONLY in gopass (encrypted git-based password store)
 
 Usage (systemd ExecStart):
-  /srv/work/repos/rmi-backend/.venv/bin/python -m app.domains.telegram.secure_launcher <bot_name>
+  /path/to/venv/bin/python -m app.domains.telegram.secure_launcher <bot_name>
 
 Where <bot_name> is 'rugmunchbot' or 'adminbot'.
 """
@@ -29,22 +29,18 @@ install_token_filter()
 suppress_httpx_urls()
 
 GOPASS_PATHS = {
-    "rugmunchbot": "rmi/infra/telegram_rugmunch_bot_token",
-    "adminbot": "rmi/infra/telegram_admin_bot_token",
+    "rugmunchbot": "path/to/bot_token_in_secret_store",
+    "adminbot": "path/to/admin_bot_token_in_secret_store",
 }
 
 ENV_KEYS = {
-    "rugmunchbot": [
-        "RUGMUNCH_BOT_TOKEN",
-        "TELEGRAM_RUGMUNCH_BOT_TOKEN",
-        "TELEGRAM_BOT_TOKEN",
-    ],
+    "rugmunchbot": ["BOT_TOKEN"],
     "adminbot": ["ADMIN_BOT_TOKEN"],
 }
 
 MODULES = {
-    "rugmunchbot": "app.domains.telegram.rugmunchbot.bot",
-    "adminbot": "app.domains.telegram.adminbot.bot",
+    "rugmunchbot": "app.bot_module",
+    "adminbot": "app.admin_bot_module",
 }
 
 def _fetch_from_gopass(gopass_path: str) -> str:

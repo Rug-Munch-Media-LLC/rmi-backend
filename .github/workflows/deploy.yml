@@ -17,9 +17,9 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /root/backend
+            cd /path/to/app
             git pull origin main
-            cd /srv/rugmuncher-backend
+            cd /path/to/deploy
             docker compose up -d backend
             sleep 10
             docker exec rmi-backend curl -sf http://localhost:8000/health && echo "DEPLOY OK" || echo "HEALTH CHECK FAILED"

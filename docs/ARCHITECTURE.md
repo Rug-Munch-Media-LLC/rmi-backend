@@ -400,23 +400,19 @@ graph LR
 
 ## 9. Deployment
 
-RMI runs as a single Docker container on a bare-metal VPS (Talos, netcup):
+RMI runs as a Docker container on a production VPS:
 
 | Property | Value |
 |----------|-------|
-| **Host** | Talos (netcup) — 12 CPU, 32 GB RAM |
-| **Containers** | 93 total (across ~20 compose files) |
 | **API Port** | 8000 |
 | **Resource Limits** | 2 CPU, 2 GB RAM |
 | **Build** | Multi-stage Dockerfile (`Dockerfile.multistage`) |
 | **Entrypoint** | Tini → `python -u main.py` |
-| **DNS** | dnsmasq proxy (rmi-dns-proxy) |
 
 **Deploy flow:**
 ```bash
-cd /srv/work/repos/rmi-backend
 docker build -f Dockerfile.multistage -t backend-rmi-backend:latest .
-docker compose -f /srv/rmi-infra/docker-compose.backend.yml up -d rmi-backend
+docker compose up -d rmi-backend
 ```
 
 See [`DEPLOYMENT.md`](DEPLOYMENT.md) for full deployment procedures.

@@ -96,7 +96,7 @@ def _get_api_credentials() -> tuple[str, int, str]:
     try:
         api_id_str = (
             subprocess.check_output(
-                ["gopass", "show", "rmi/telegram/api_id"],
+                ["gopass", "show", "path/to/telegram_api_id"],
                 stderr=subprocess.DEVNULL,
                 timeout=5,
             )
@@ -105,7 +105,7 @@ def _get_api_credentials() -> tuple[str, int, str]:
         )
         api_hash = (
             subprocess.check_output(
-                ["gopass", "show", "rmi/telegram/api_hash"],
+                ["gopass", "show", "path/to/telegram_api_hash"],
                 stderr=subprocess.DEVNULL,
                 timeout=5,
             )
@@ -114,7 +114,7 @@ def _get_api_credentials() -> tuple[str, int, str]:
         )
         phone = (
             subprocess.check_output(
-                ["gopass", "show", "rmi/telegram/phone"],
+                ["gopass", "show", "path/to/telegram_phone"],
                 stderr=subprocess.DEVNULL,
                 timeout=5,
             )

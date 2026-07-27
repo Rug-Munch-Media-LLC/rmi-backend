@@ -6,7 +6,7 @@ Import: `from app.config import settings`
 CONSOLIDATION NOTICE (2026-07-24):
   All configuration values must live here. Do NOT use os.getenv() in
   non-config files. Import `settings` from this module and use the
-  typed attribute. See `app/core/secrets.py` for secrets (gopass).
+  typed attribute. See `app/core/secrets.py` for secrets.
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ class Settings(BaseSettings):
         description=(
             "HMAC secret for JWT (HS256 fallback). Required. Must be >= 32 chars. "
             "Generate with: openssl rand -hex 32. "
-            "Set via gopass (rmi/prod/jwt_secret) or JWT_SECRET env var."
+            "Set via secrets manager or JWT_SECRET env var."
         ),
     )
     jwt_algorithm: str = "RS256"
@@ -103,7 +103,7 @@ class Settings(BaseSettings):
             "RSA PRIVATE KEY in PEM format (for RS256 signing). "
             "Provide the key string directly, or a file path readable by the app. "
             "Generate with: openssl genrsa -out jwt-private.pem 2048. "
-            "Set via gopass (rmi/prod/jwt_private_key) or JWT_PRIVATE_KEY env var."
+            "Set via secrets manager or JWT_PRIVATE_KEY env var."
         ),
     )
     jwt_public_key: str = Field(
@@ -112,7 +112,7 @@ class Settings(BaseSettings):
             "RSA PUBLIC KEY in PEM format (for RS256 verification). "
             "Provide the key string directly, or a file path readable by the app. "
             "Derive from private key: openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem. "
-            "Set via gopass (rmi/prod/jwt_public_key) or JWT_PUBLIC_KEY env var."
+            "Set via secrets manager or JWT_PUBLIC_KEY env var."
         ),
     )
     jwt_expire_minutes: int = 60 * 24
@@ -378,7 +378,7 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "jwt_secret must be set to a secure random value (>=32 chars) in production. "
                     "Generate with: openssl rand -hex 32. "
-                    "Set via gopass (rmi/prod/jwt_secret) or JWT_SECRET env var."
+                    "Set via secrets manager or JWT_SECRET env var."
                 )
         return v
 

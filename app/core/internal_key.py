@@ -22,7 +22,7 @@ def get_internal_key() -> str:
     if not key:
         raise RuntimeError(
             "RMI_INTERNAL_KEY environment variable is required. "
-            "Generate one with: gopass generate rmi/prod/internal_key 32"
+            "Generate one with: gopass generate <path> 32"
         )
     return key
 
