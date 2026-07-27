@@ -68,8 +68,8 @@ exclude = ["app._archive*", "app._archive.**"]
 namespaces = false
 
 [tool.ruff]
+extend = "../standards/templates/ruff-base.toml"
 line-length = 120
-target-version = "py311"
 extend-exclude = [
     "_legacy_main.py",
     "app/legacy/",
@@ -77,32 +77,6 @@ extend-exclude = [
     "alembic/versions/",
     "build/",
     "dist/",
-]
-
-[tool.ruff.lint]
-# Modern 2026 default rule set. Strict but practical.
-select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "I",    # isort
-    "N",    # pep8-naming
-    "UP",   # pyupgrade
-    "B",    # flake8-bugbear
-    "C4",   # flake8-comprehensions
-    "SIM",  # flake8-simplify
-    "TCH",  # flake8-type-checking
-    "RUF",  # ruff-specific
-    "ASYNC",# flake8-async
-    "S",    # flake8-bandit (security)
-    "PIE",  # flake8-pie
-    "PT",   # flake8-pytest-style
-]
-ignore = [
-    "E501",   # line length (handled by formatter)
-    "B008",   # function calls in defaults (FastAPI Depends)
-    "S101",   # assert (we use it in dev paths)
-    "N818",   # exception naming (we use Error suffix)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -116,7 +90,6 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
-combine-as-imports = true
 
 [tool.mypy]
 python_version = "3.11"
