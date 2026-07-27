@@ -8,14 +8,21 @@ Falls back to the local development default if neither is set.
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
+
 
 @pytest.fixture(scope="session")
-def db_engine():
+def db_engine() -> Generator[Engine, None, None]:
     """Create a SQLAlchemy engine for the test database.
 
     Uses ALEMBIC_DATABASE_URL first (for alignment with migration tests),
@@ -35,7 +42,7 @@ def db_engine():
 
 
 @pytest.fixture
-def db_session(db_engine):
+def db_session(db_engine: Engine) -> Generator[Session, None, None]:
     """Provide a transactional database session per test function."""
     connection = db_engine.connect()
     transaction = connection.begin()
