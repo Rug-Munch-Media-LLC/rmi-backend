@@ -1,8 +1,7 @@
 # RMI Backend — Deployment Guide
 
-> **Host:** Talos (netcup) — 12 CPU, 32 GB RAM, ~193 GB SSD  
-> **OS:** Ubuntu Linux  
-> **Containers:** 93 total across ~20 Docker Compose files  
+> **Host:** Production Linux server  
+> **Containers:** Multiple services across Docker Compose files  
 > **Last updated:** 2026-07-23
 
 ---
@@ -11,16 +10,15 @@
 
 ```mermaid
 graph TB
-    LB[Traffic] --> RMI[rmi-backend<br/>Port 8000]
-    RMI --> PG[(rmi-postgres<br/>Port 5432)]
-    RMI --> CH[(rmi-clickhouse<br/>Port 8123)]
-    RMI --> NEO[(rmi-neo4j<br/>Port 7687)]
-    RMI --> QD[(rmi-qdrant<br/>Port 6333)]
-    RMI --> DRAG[(rmi-redis/dragonfly<br/>Port 6379)]
-    RMI --> MIN[(rmi-minio<br/>Port 9092)]
+    LB[Traffic] --> RMI[Backend Application]
+    RMI --> PG[(PostgreSQL)]
+    RMI --> CH[(ClickHouse)]
+    RMI --> NEO[(Neo4j)]
+    RMI --> QD[(Qdrant)]
+    RMI --> DRAG[(Redis)]
+    RMI --> MIN[(MinIO)]
     
-    PG -.->|Pooled| PGB[rmi-pgbouncer<br/>Port 6432]
-    RMI --> DNS[rmi-dns-proxy<br/>dnsmasq]
+    PG -.->|Pooled| PGB[PgBouncer]
 ```
 
 The RMI backend is a **single Docker container** deployed via Docker Compose on Talos. It depends on 6 infrastructure containers (databases, cache, object storage) that are deployed separately via `docker-compose.infrastructure.yml`.
