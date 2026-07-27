@@ -18,7 +18,6 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import text as sa_text
 
-
 # Expected tables derived from app/models/*.py + app/domains/newsletter/models.py
 # Each entry corresponds to a SQLAlchemy model's __tablename__.
 EXPECTED_TABLES: set[str] = {
@@ -160,5 +159,5 @@ def test_table_row_counts(db_session):
     print("  Table row counts:")
     for table in tables:
         # table name validated against EXPECTED_TABLES set above — safe from injection
-        count = db_session.execute(sa_text(f"SELECT count(*) FROM {table}")).scalar()
+        count = db_session.execute(sa_text(f"SELECT count(*) FROM {table}")).scalar()  # noqa: S608
         print(f"    {table}: {count}")
