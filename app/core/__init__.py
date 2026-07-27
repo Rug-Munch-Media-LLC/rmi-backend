@@ -23,6 +23,14 @@ from __future__ import annotations
 # Re-export base classes
 from app.core.base_router import CRUDRouter
 from app.core.base_service import BaseService
+
+# Re-export circuit breaker
+from app.core.circuit_breaker import (
+    AsyncCircuitBreaker,
+    CircuitBreakerOpenError,
+    SimpleCircuitBreaker,
+    State,
+)
 from app.core.cqrs import (
     Command,
     CommandHandler,
@@ -65,9 +73,11 @@ from app.core.events import (
 
 __all__ = [
     "AlertTriggered",
+    "AsyncCircuitBreaker",
     "BaseEvent",
     "BaseService",
     "CRUDRouter",
+    "CircuitBreakerOpenError",
     "Command",
     "CommandHandler",
     "CommandResult",
@@ -80,6 +90,8 @@ __all__ = [
     "Query",
     "QueryHandler",
     "ScanCompleted",
+    "SimpleCircuitBreaker",
+    "State",
     "WalletUpdated",
     "close_http_client",
     "get_chain_client",
