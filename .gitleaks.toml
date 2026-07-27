@@ -81,7 +81,7 @@ tags = ["rmi", "critical"]
 # ─── ALLOWLIST ──────────────────────────────────────────────────────────────
 
 [allowlist]
-description = "Global allowlist — applies to all repos"
+description = "Build artifacts + specific known false positives (no blanket directory excludes)"
 paths = [
   '''node_modules/''',
   '''\.git/''',
@@ -96,14 +96,15 @@ paths = [
   '''vendor/''',
   # Specific file: third-party scam address database (hex strings resemble keys)
   '''data/cryptoscamdb_urls\.yaml''',
+  # Security scanner: rule definitions match private-repo-reference by design
+  '''scripts/enterprise-firewall\.py''',
+  '''scripts/proprietary-firewall\.py''',
+  # Test fixtures: internal IPs used intentionally
+  '''tests/integration/test_scanner_pipeline\.py''',
 ]
 
 regexTarget = "line"
 regexes = [
   # Gopass documentation references (instructions, not actual secrets)
   '''gopass\s+(?:show|generate)\s+rmi/''',
-  # BIP39 standard test vector mnemonic (repeated 'abandon' — never a real mnemonic)
-  '''abandon\s+abandon\s+abandon\s+abandon\s+abandon\s+abandon''',
 ]
-
-# Stopwords (false-positive patterns to ignore)
