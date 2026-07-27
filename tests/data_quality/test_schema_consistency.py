@@ -15,8 +15,13 @@ Markers:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 from sqlalchemy import text as sa_text
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 # Expected tables derived from app/models/*.py + app/domains/newsletter/models.py
 # Each entry corresponds to a SQLAlchemy model's __tablename__.
@@ -58,15 +63,15 @@ REQUIRED_NOT_NULL_COLUMNS: set[str] = {"id", "created_at"}
 
 
 @pytest.mark.data_quality
-def test_all_expected_tables_exist(db_session):
+def test_all_expected_tables_exist(db_session: Session) -> None:
     """Verify every ORM-model table exists in the database.
 
     This catches schema drift — when a migration is missing or a table
     was accidentally dropped.
     """
     result = db_session.execute(
-        """SELECT table_name FROM information_schema.tables
-           WHERE table_schema = 'public'"""
+        sa_text("""SELECT table_name FROM information_schema.tables
+           WHERE table_schema = 'public'""")
     )
     actual_tables: set[str] = {row[0] for row in result}
 
@@ -85,18 +90,18 @@ def test_all_expected_tables_exist(db_session):
 
 
 @pytest.mark.data_quality
-def test_no_nullable_required_columns(db_session):
+def test_no_nullable_required_columns(db_session: Session) -> None:
     """Verify columns that MUST be NOT NULL actually are.
 
     Checks id, created_at across all tables. These are foundational
     columns that should never be nullable in production.
     """
     result = db_session.execute(
-        """SELECT table_name, column_name, data_type
+        sa_text("""SELECT table_name, column_name, data_type
            FROM information_schema.columns
            WHERE table_schema = 'public'
              AND is_nullable = 'YES'
-             AND column_name = ANY(:required)""",
+             AND column_name = ANY(:required)"""),
         {"required": list(REQUIRED_NOT_NULL_COLUMNS)},
     )
     nullable = [(row[0], row[1]) for row in result]
@@ -106,7 +111,7 @@ def test_no_nullable_required_columns(db_session):
 
 
 @pytest.mark.data_quality
-def test_migration_history_complete(db_session):
+def test_migration_history_complete(db_session: Session) -> None:
     """Verify that alembic_version has exactly one row matching HEAD.
 
     This detects migrations that were applied out of order or that
@@ -114,18 +119,18 @@ def test_migration_history_complete(db_session):
     """
     # Check the alembic_version table
     result = db_session.execute(
-        """SELECT EXISTS (
+        sa_text("""SELECT EXISTS (
                SELECT FROM information_schema.tables
                WHERE table_schema = 'public'
                AND table_name = 'alembic_version'
-           )"""
+           )""")
     )
     has_alembic_table = result.scalar()
 
     if not has_alembic_table:
         pytest.skip("alembic_version table not found — no migrations applied")
 
-    version_count = db_session.execute("SELECT count(*) FROM alembic_version").scalar()
+    version_count = db_session.execute(sa_text("SELECT count(*) FROM alembic_version")).scalar() or 0
 
     if version_count == 0:
         print("  [warn] alembic_version table exists but is empty")
@@ -133,23 +138,23 @@ def test_migration_history_complete(db_session):
         print(f"  [warn] Multiple revisions in alembic_version ({version_count}) - possible branch/resolution issue")
     else:
         # Single version — get it for informational display
-        current = db_session.execute("SELECT version_num FROM alembic_version").scalar()
+        current = db_session.execute(sa_text("SELECT version_num FROM alembic_version")).scalar()
         print(f"  [ok] Single migration revision: {current}")
 
 
 @pytest.mark.data_quality
-def test_table_row_counts(db_session):
+def test_table_row_counts(db_session: Session) -> None:
     """Report approximate row counts for all tables.
 
     This is purely informational — helps detect unexpectedly empty
     or overfull tables after migrations.
     """
     result = db_session.execute(
-        """SELECT table_name FROM information_schema.tables
+        sa_text("""SELECT table_name FROM information_schema.tables
            WHERE table_schema = 'public'
            AND table_type = 'BASE TABLE'
            AND table_name != 'alembic_version'
-           ORDER BY table_name"""
+           ORDER BY table_name""")
     )
     tables = [row[0] for row in result]
 

@@ -116,3 +116,29 @@ sdks/typescript/node_modules/
 tools/VarLifter/
 RADICLE.md
 backend.log
+
+# Large tracked data files (un-tracking from git — kept on disk for dev)
+data/etherscan_combined_labels.csv
+data/cryptoscamdb_urls.yaml
+
+# Proprietary files moved to private fleet-infra
+x402_REVENUE.md
+x402_STRATEGY.md
+RMI_SYSTEM_MAP.md
+X402_ARCHITECTURE.md
+SECURITY_STACK.md
+RATE_LIMITER_AUDIT.md
+PRICING_ARCHITECTURE.md
+LICENSING_PRICING_STRATEGY.md
+DARKROOM_ADMIN_V2.md
+PRODUCT.md
+STATUS.md
+AUDIT-2026-Q3.md
+CLEANUP.md
+PORT_MAP.md
+PROPRIETARY_REGISTRATION.txt
+RELEASE_CHECKLIST.md
+EMAIL_SETUP.md
+RAG_R2_SETUP.md
+ROADMAP.md
+TODO.md
