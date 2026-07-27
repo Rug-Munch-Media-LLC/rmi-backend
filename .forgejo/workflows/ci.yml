@@ -242,7 +242,6 @@ jobs:
 
       - name: Type check (mypy)
         run: source .venv/bin/activate && mypy app/ --ignore-missing-imports
-        continue-on-error: true
 
       - name: Run unit + integration tests with coverage
         run: |
