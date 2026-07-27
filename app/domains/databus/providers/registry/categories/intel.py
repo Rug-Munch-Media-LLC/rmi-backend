@@ -19,10 +19,21 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
 
     chains["entity_intel"] = ProviderChain(
         data_type="entity_intel",
-        description="Entity resolution and risk scoring (local labels → Arkham free → Moralis)",
+        description="Entity resolution: ClickHouse (39.4M) → Redis (190K) → Arkham → Moralis",
         providers=[
             Provider(
-                "wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0
+                "clickhouse_wallet_memory",
+                ProviderTier.LOCAL,
+                _g["_clickhouse_wallet_labels"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse wallet_labels table — 39.4M curated labels",
+            ),
+            Provider(
+                "wallet_labels_local",
+                ProviderTier.LOCAL,
+                _g["_local_wallet_labels"],
+                weight=10.0,
             ),
             Provider(
                 "arkham_entity",
@@ -50,8 +61,14 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         description="Entity labels with confidence scores (local → Arkham free trial)",
         providers=[
             Provider(
-                "wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0
+                "clickhouse_wallet_memory",
+                ProviderTier.LOCAL,
+                _g["_clickhouse_wallet_labels"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse wallet_labels table — 39.4M curated labels",
             ),
+            Provider("wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0),
             Provider(
                 "arkham_labels_api",
                 ProviderTier.FREEMIUM,
@@ -129,6 +146,21 @@ def build_intel_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 requires_key=True,
                 key_env="ARKHAM_API_KEY",
                 monthly_quota=100000,
+            ),
+        ],
+    )
+
+    chains["scraped_intel"] = ProviderChain(
+        data_type="scraped_intel",
+        description="Scraped intelligence from Pryscraper (scam reports, threat intel, blockchain data)",
+        providers=[
+            Provider(
+                "scraped_intel_local",
+                ProviderTier.LOCAL,
+                _g["_scraped_intel_provider"],
+                weight=10.0,
+                is_local=True,
+                description="Scraped intel from pryscraper Postgres",
             ),
         ],
     )

@@ -14,10 +14,23 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
 
     chains["wallet_labels"] = ProviderChain(
         data_type="wallet_labels",
-        description="Address labels and entity identification (190K local + external)",
+        description="Address labels: ClickHouse (39.4M) → Redis (190K hot) → external APIs",
         providers=[
             Provider(
-                "wallet_memory_bank", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0
+                "clickhouse_wallet_memory",
+                ProviderTier.LOCAL,
+                _g["_clickhouse_wallet_labels"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse wallet_labels table — 39.4M curated labels",
+            ),
+            Provider(
+                "wallet_memory_bank",
+                ProviderTier.LOCAL,
+                _g["_local_wallet_labels"],
+                weight=10.0,
+                is_local=True,
+                description="Redis hot cache — 190K+ wallet labels",
             ),
             Provider(
                 "nansen_labels",

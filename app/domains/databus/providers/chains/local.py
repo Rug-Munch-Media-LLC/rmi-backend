@@ -17,6 +17,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.local")
 
+
 async def _local_token_price(**kwargs) -> dict | None:
     """Get price from our own data (Redis/ClickHouse)."""
     try:
@@ -37,8 +38,9 @@ async def _local_token_price(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
-    """Get wallet labels from our Wallet Memory Bank."""
+    """Get wallet labels from our Wallet Memory Bank (HTTP passthrough)."""
     if not address:
         return None
     try:
@@ -52,6 +54,73 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
+
+async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict | None:
+    """Get wallet labels from ClickHouse directly — 39.4M labels, LOCAL tier.
+
+    This is the FIRST provider in the wallet_labels chain.
+    If ClickHouse has labels, we return them immediately.
+    No external API calls, no credit usage, sub-10ms latency.
+    Results are cached in Redis on read (write-through).
+    """
+    if not address:
+        return None
+    try:
+        from app.domains.labels.sources.clickhouse_labels import (
+            query_clickhouse_labels,
+        )
+
+        chain = kw.get("chain", kw.get("network", ""))
+        labels = await query_clickhouse_labels(address, chain)
+
+        if labels:
+            # Convert Label objects to dicts
+            label_dicts = []
+            for lbl in labels:
+                d = lbl.to_dict()
+                d["source"] = "clickhouse_wallet_memory"
+                label_dicts.append(d)
+
+            result = {
+                "labels": label_dicts,
+                "address": address,
+                "chain": chain or "any",
+                "source": "clickhouse_wallet_memory",
+                "total_labels": "39.4M+",
+                "tier": "local",
+                "is_local": True,
+            }
+
+            # ── Write-through to Redis cache ──
+            try:
+                import os
+
+                import redis as sync_redis
+
+                r = sync_redis.Redis(
+                    host=os.getenv("REDIS_HOST", "rmi-redis"),
+                    port=int(os.getenv("REDIS_PORT", "6379")),
+                    password=os.getenv("REDIS_PASSWORD", ""),
+                    decode_responses=True,
+                    socket_connect_timeout=2,
+                )
+                for lbl in label_dicts:
+                    lchain = chain
+                    if not lchain:
+                        lchain = lbl.get("chain", "ethereum")
+                    key = f"rmi:label:{lchain}:{address}"
+                    r.setex(key, 3600, json.dumps(lbl))
+                r.close()
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+                logger.debug("write-through to Redis for ClickHouse labels failed")
+
+            return result
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, ImportError) as e:
+        logger.debug(f"ClickHouse wallet labels error: {e}")
+
+    return None
+
+
 async def _passthrough_market_overview(**kwargs) -> dict | None:
     """Market overview from our own backend."""
     try:
@@ -62,6 +131,7 @@ async def _passthrough_market_overview(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _passthrough_trending(**kwargs) -> dict | None:
     """Trending tokens from our own backend."""
@@ -74,6 +144,7 @@ async def _passthrough_trending(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _passthrough_news(**kwargs) -> dict | None:
     """News from our own backend."""
     try:
@@ -85,6 +156,7 @@ async def _passthrough_news(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _passthrough_alerts(**kwargs) -> dict | None:
     """Active alerts from our own backend."""
     try:
@@ -95,6 +167,7 @@ async def _passthrough_alerts(**kwargs) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Token security scan via our SENTINEL scanner."""
@@ -109,6 +182,7 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
         logger.warning("provider error")
     return None
 
+
 async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict | None:
     """RAG search against our vector store."""
     try:
@@ -122,7 +196,9 @@ async def _passthrough_rag(query: str = "", collection: str = "known_scams", **k
         logger.warning("provider error")
     return None
 
+
 # ── Inline passthrough functions (originally in build_provider_chains) ──
+
 
 async def _passthrough_hyperliquid(**kwargs: Any) -> dict | None:
     """Hyperliquid perp markets from our own backend."""
@@ -135,6 +211,7 @@ async def _passthrough_hyperliquid(**kwargs: Any) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _passthrough_hyperliquid_action(**kwargs: Any) -> dict | None:
     """Hyperliquid action (gain/loss, squeezes) from our own backend."""
@@ -150,6 +227,7 @@ async def _passthrough_hyperliquid_action(**kwargs: Any) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _passthrough_insider_wallets(**kwargs: Any) -> dict | None:
     """Insider wallets from our own backend."""
     try:
@@ -164,6 +242,7 @@ async def _passthrough_insider_wallets(**kwargs: Any) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _passthrough_prediction_signals(**kwargs: Any) -> dict | None:
     """Prediction market signals from our own backend."""

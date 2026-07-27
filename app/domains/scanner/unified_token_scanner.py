@@ -21,6 +21,7 @@ Architecture:
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -33,6 +34,7 @@ logger = get_logger(__name__)
 # ═══════════════════════════════════════════════════════════════
 # DATA TYPES
 # ═══════════════════════════════════════════════════════════════
+
 
 @dataclass
 class ScanResult:
@@ -78,9 +80,11 @@ class ScanResult:
     tier: str = "free"
     scan_duration_ms: float = 0.0
 
+
 # ═══════════════════════════════════════════════════════════════
 # SCANNER ORCHESTRATOR
 # ═══════════════════════════════════════════════════════════════
+
 
 class UnifiedTokenScanner:
     """
@@ -167,21 +171,43 @@ class UnifiedTokenScanner:
 
             # ── Phase 3: Premium (tier-gated) ──
             if tier in ("pro", "elite", "admin"):
-                premium_results = await self._fetch_batch(
-                    self.PREMIUM_CHAINS, params, admin_key, timeout=30
-                )
+                premium_results = await self._fetch_batch(self.PREMIUM_CHAINS, params, admin_key, timeout=30)
                 self._merge_premium(result, premium_results)
 
             # ── Phase 4: Intel (free enrichment) ──
-            intel_results = await self._fetch_batch(
-                self.INTEL_CHAINS, params, admin_key, timeout=20
-            )
+            intel_results = await self._fetch_batch(self.INTEL_CHAINS, params, admin_key, timeout=20)
             self._merge_intel(result, intel_results)
 
             # ── Score ──
             self._compute_score(result)
 
-        except (ValueError, TypeError, KeyError, OSError) as e :
+            # ── Publish high-risk findings to RAG pipeline ──
+            if result.risk_level in ("high", "critical"):
+                # 1. Publish via EventBus (in-process subscribers + Redis event channel)
+                try:
+                    from app.core.events import get_event_bus, ScanCompleted  # noqa: I001
+
+                    bus = get_event_bus()
+                    await bus.publish(
+                        ScanCompleted(
+                            token_address=result.token_address,
+                            chain=result.chain,
+                            safety_score=result.safety_score,
+                            risk_level=result.risk_level,
+                            risk_flags=result.risk_flags,
+                            modules_run=result.modules_run,
+                        )
+                    )
+                except Exception as e:
+                    logger.debug("scan_event_publish_failed", error=str(e)[:80])
+
+                # 2. Publish direct JSON to rmi:rag:ingest for rmi-rag subscriber
+                try:
+                    await self._publish_rag_finding(result)
+                except Exception as e:
+                    logger.debug("rag_finding_publish_failed", error=str(e)[:80])
+
+        except (ValueError, TypeError, KeyError, OSError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Scan failed for {address}: {e}")
             result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
@@ -194,7 +220,7 @@ class UnifiedTokenScanner:
         chains: list[str],
         params: dict,
         admin_key: str | None,
-        timeout: float = 30,
+        timeout: float = 30,  # noqa: ASYNC109
     ) -> dict[str, Any]:
         """Parallel DataBus fetch for multiple chains."""
         from app.databus import databus
@@ -209,7 +235,7 @@ class UnifiedTokenScanner:
             except TimeoutError:
                 logger.warning(f"DataBus chain '{chain_name}' timed out after {timeout}s")
                 return chain_name, None
-            except (ValueError, TypeError, KeyError, OSError) as e :
+            except (ValueError, TypeError, KeyError, OSError) as e:
                 logger.debug("_fetch_one_error", exc_info=True)
                 logger.warning(f"DataBus chain '{chain_name}' failed: {e}")
                 return chain_name, None
@@ -407,11 +433,53 @@ class UnifiedTokenScanner:
         r.risk_flags = flags
         r.green_flags = green
 
+    # ── RAG Pipeline Integration ─────────────────────────────────
+
+    async def _publish_rag_finding(self, result: ScanResult) -> None:
+        """Publish high-risk scan finding to rmi-rag via Redis channel ``rmi:rag:ingest``.
+
+        rmi-rag's ``scanner_subscriber`` listens on this channel, generates embeddings,
+        and upserts into Qdrant ``threat_intel`` collection for live threat search.
+        """
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            logger.warning("Redis unavailable — skipping RAG finding publish")
+            return
+
+        payload = {
+            "token_address": result.token_address,
+            "chain": result.chain,
+            "name": result.name,
+            "symbol": result.symbol,
+            "safety_score": result.safety_score,
+            "confidence": result.confidence,
+            "risk_level": result.risk_level,
+            "risk_flags": result.risk_flags[:20],
+            "green_flags": result.green_flags[:10],
+            "price_usd": result.price_usd,
+            "liquidity_usd": result.liquidity_usd,
+            "age_hours": result.age_hours,
+            "scanned_at": result.scanned_at,
+            "modules_run": result.modules_run[:30],
+        }
+
+        await r.publish("rmi:rag:ingest", json.dumps(payload))
+        logger.info(
+            "rag_finding_published",
+            token=result.token_address,
+            chain=result.chain,
+            risk=result.risk_level,
+        )
+
+
 # ═══════════════════════════════════════════════════════════════
 # SINGLETON
 # ═══════════════════════════════════════════════════════════════
 
 _scanner: UnifiedTokenScanner | None = None
+
 
 def get_token_scanner() -> UnifiedTokenScanner:
     global _scanner

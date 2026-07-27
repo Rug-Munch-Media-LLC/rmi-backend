@@ -33,6 +33,7 @@ from app.domains.databus.providers.registry import build_provider_chains
 # Lazy-import provider functions on demand
 _imported_names = {}
 
+
 def __getattr__(name: str) -> Any:
     """Lazy-import provider functions from chains/ modules."""
     if name in _imported_names:
@@ -43,6 +44,7 @@ def __getattr__(name: str) -> Any:
         # Local
         "_local_token_price": "chains.local",
         "_local_wallet_labels": "chains.local",
+        "_clickhouse_wallet_labels": "chains.local",
         "_passthrough_market_overview": "chains.local",
         "_passthrough_trending": "chains.local",
         "_passthrough_news": "chains.local",
@@ -97,6 +99,8 @@ def __getattr__(name: str) -> Any:
         "_dune_early_buyers": "chains.freemium_apis",
         # MCP Bridge
         "_mcp_bridge": "chains.mcp_bridge",
+        # Intel providers
+        "_scraped_intel_provider": "chains.intel_provider",
     }
 
     module_path = _chain_map.get(name)
@@ -118,6 +122,7 @@ def __getattr__(name: str) -> Any:
         return val
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     # Core classes
@@ -153,6 +158,7 @@ __all__ = [
     "_etherscan_tx_trace",
     # Provider functions (lazy-loaded)
     "_local_token_price",
+    "_clickhouse_wallet_labels",
     "_local_wallet_labels",
     "_mcp_bridge",
     "_messari_news",
@@ -176,6 +182,7 @@ __all__ = [
     "_solana_tracker_price",
     "_solana_tracker_token",
     "_solana_tracker_trending",
+    "_scraped_intel_provider",
     "_spl_metadata_decoder_provider",
     "_virustotal_url_scan",
     # Main builder
