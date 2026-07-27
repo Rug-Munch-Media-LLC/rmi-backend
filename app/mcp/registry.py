@@ -16,19 +16,19 @@ log = get_logger(__name__)
 # O(1) lookup index built once at module load
 _TOOL_BY_NAME: dict[str, dict] = {t["name"]: t for t in TOOL_CATALOG}
 
-# Synthetic auth_scope mapping for each tool (gopass path)
+# Auth scope tiers: free, x402-paywalled, internal, public
 TOOL_AUTH_SCOPES: dict[str, str] = {
-    "get_token_risk": "rmi/api/free",
-    "get_wallet_analysis": "rmi/api/free",
-    "get_deployer_reputation": "rmi/api/free",
-    "get_news_sentiment": "rmi/api/free",
-    "generate_report": "rmi/api/x402",
-    "query_catalog": "rmi/api/x402",
-    "find_similar_tokens": "rmi/api/x402",
-    "resolve_entity": "rmi/api/x402",
-    "analytics_query": "rmi/api/internal",
-    "eth_labels_query": "rmi/api/internal",
-    "eth_labels_stats": "rmi/api/internal",
+    "get_token_risk": "scope:free",
+    "get_wallet_analysis": "scope:free",
+    "get_deployer_reputation": "scope:free",
+    "get_news_sentiment": "scope:free",
+    "generate_report": "scope:x402",
+    "query_catalog": "scope:x402",
+    "find_similar_tokens": "scope:x402",
+    "resolve_entity": "scope:x402",
+    "analytics_query": "scope:internal",
+    "eth_labels_query": "scope:internal",
+    "eth_labels_stats": "scope:internal",
     "mcp_discover": "public",
     "status_check": "public",
 }
