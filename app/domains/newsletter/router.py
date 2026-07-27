@@ -22,11 +22,9 @@ Every endpoint follows RFC 7807 error handling and Stripe-style envelopes.
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -44,11 +42,11 @@ from app.domains.newsletter.schemas import (
     PublishResponse,
     ScheduleRequest,
     SendRequest,
+    SubscribeRequest,
     SubscriberImportRequest,
     SubscriberImportResponse,
     SubscriberListResponse,
     SubscriberOut,
-    SubscribeRequest,
 )
 from app.domains.newsletter.service import NewsletterService
 

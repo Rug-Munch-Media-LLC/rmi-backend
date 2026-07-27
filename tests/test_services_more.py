@@ -18,12 +18,9 @@ os.environ["JWT_SECRET"] = "a" * 32
 os.environ["ENVIRONMENT"] = "dev"
 os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
 
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-import pytest
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # ── Supabase Service Tests

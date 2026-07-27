@@ -15,12 +15,10 @@ Run:  cd /srv/work/repos/rmi-backend && python3 -m pytest tests/contract/test_ap
 from __future__ import annotations
 
 import os
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 

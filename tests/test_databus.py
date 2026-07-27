@@ -14,7 +14,6 @@ os.environ["JWT_SECRET"] = "a" * 32
 os.environ["ENVIRONMENT"] = "dev"  # override .env default 'development' which is invalid
 
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -24,12 +23,11 @@ from app.databus.provider_core import (
     ProviderChain,
     ProviderTier,
     _CircuitBreaker,
-    _RateLimiter,
     _quota_usage,
+    _RateLimiter,
     reset_state,
 )
 from app.databus.response_schema import SchemaValidator, schema_validator
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # ── SchemaValidator tests

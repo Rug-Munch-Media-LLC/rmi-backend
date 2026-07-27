@@ -25,7 +25,7 @@ import os
 import subprocess
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -37,7 +37,7 @@ _telethon_available: bool | None = None
 
 if TYPE_CHECKING:
     from telethon import TelegramClient
-    from telethon.tl.types import Chat, Channel, User, InputPeerChannel
+    from telethon.tl.types import User
 
 
 logger = get_logger("telegram.headless")
@@ -505,7 +505,6 @@ class HeadlessTelegramClient:
         if not self._client:
             raise RuntimeError("Client not started")
 
-        from telethon.tl.functions.messages import GetFullChatRequest
 
         await self._rate_limit()
         try:
@@ -626,7 +625,6 @@ class HeadlessTelegramClient:
         if not self._client:
             raise RuntimeError("Client not started")
 
-        from datetime import timedelta
         from telethon.tl.functions.channels import EditBannedRequest
         from telethon.tl.types import ChatBannedRights
 
@@ -756,8 +754,8 @@ class HeadlessTelegramClient:
 
         # Voice chat is started via the Telegram bot API (python-telegram-bot)
         # rather than MTProto. This method delegates to the bot.
-        from app.domains.telegram.voice_chat import create_voice_chat
         from app.domains.telegram.rugmunchbot.config import BOT_TOKEN
+        from app.domains.telegram.voice_chat import create_voice_chat
 
         if not BOT_TOKEN:
             logger.error("BOT_TOKEN not available for voice chat")
@@ -785,8 +783,8 @@ class HeadlessTelegramClient:
 
     async def end_voice_chat(self, chat_id: int) -> bool:
         """End an active voice/video chat."""
-        from app.domains.telegram.voice_chat import end_voice_chat
         from app.domains.telegram.rugmunchbot.config import BOT_TOKEN
+        from app.domains.telegram.voice_chat import end_voice_chat
 
         if not BOT_TOKEN:
             logger.error("BOT_TOKEN not available")

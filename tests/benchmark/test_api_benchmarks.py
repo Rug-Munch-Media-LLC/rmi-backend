@@ -7,7 +7,6 @@ and handler execution). Thresholds are set for CI environments.
 
 from __future__ import annotations
 
-import json
 import time
 from typing import Any
 from unittest.mock import patch
@@ -49,7 +48,6 @@ def _csrf_safe_post(client: TestClient, path: str, json: dict) -> Any:
     automatically, so we set the cookie manually before the POST.
     """
     # First, GET the endpoint to set the csrf_token cookie
-    from starlette.testclient import TestClient as TC
     # Set cookie on the client's session
     client.cookies.set("csrf_token", _CSRF_TOKEN)
     # Now POST with matching header

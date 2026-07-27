@@ -23,7 +23,6 @@ from __future__ import annotations
 import base64
 import json
 import os
-import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -41,9 +40,7 @@ os.environ.setdefault("RMI_JWT_SECRET", "x" * 32)
 import httpx
 import jwt as pyjwt
 import pytest
-
 from fastapi.testclient import TestClient
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # HELPERS
@@ -98,8 +95,6 @@ def _register_user(client, email: str) -> dict:
     # If CSRF blocked it, try with CSRF cookie + header
     if resp.status_code == 403:
         # Pre-fetch a CSRF token cookie
-        from app.domains.auth.cookie import _set_csrf_cookie
-        from fastapi.responses import JSONResponse
 
         resp2 = client.post(
             "/register",
@@ -364,7 +359,7 @@ class TestUnifiedAuthIntegration:
     @pytest.mark.e2e
     def test_token_issued_by_backend_validated_by_shared_library(self, client):
         """JWT created by _create_jwt passes validate_token() (used by WalletPress)."""
-        from app.domains.auth import _create_jwt, JWT_SECRET, JWT_ALGORITHM
+        from app.domains.auth import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         token = _create_jwt("user-wp-1", "walletpress@rugmunch.io", "PRO", "USER", "0xWallet")
 
@@ -919,7 +914,7 @@ class TestMultiAppAuth:
         use the same validate_token() function. If it passes here, it passes
         everywhere.
         """
-        from app.domains.auth import _create_jwt, JWT_SECRET, JWT_ALGORITHM
+        from app.domains.auth import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         token = _create_jwt(
             "contract-test",
@@ -943,8 +938,8 @@ class TestMultiAppAuth:
 
             importlib.reload(jwt_validation)
             from app.auth.jwt_validation import (
-                validate_token,
                 extract_token_from_request,
+                validate_token,
             )
 
             claims = validate_token(token)

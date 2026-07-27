@@ -8,12 +8,7 @@ calls mocked).
 
 from __future__ import annotations
 
-import os
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
-
 import pytest
-from fastapi import FastAPI, status
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 

@@ -20,7 +20,6 @@ import hashlib
 import json
 import os
 import secrets
-import struct
 import tempfile
 from pathlib import Path
 
@@ -31,8 +30,7 @@ os.environ.setdefault("LOG_LEVEL", "CRITICAL")
 
 import base58
 import pytest
-from hypothesis import assume, given, settings
-from hypothesis import strategies as st
+from hypothesis import assume, given, settings, strategies as st
 
 # ── Crypto library availability checks ──────────────────────────
 
@@ -61,9 +59,8 @@ except ImportError:
     pass
 
 try:
-    from nacl.signing import SigningKey as NaClSigningKey
-    from nacl.signing import VerifyKey
     from nacl.encoding import RawEncoder
+    from nacl.signing import SigningKey as NaClSigningKey, VerifyKey
 
     _HAS_NACL = True
 except ImportError:
@@ -498,8 +495,8 @@ class TestEVMSigning:
         encoded = encode_defunct(text=message)
         signed = Account.sign_message(encoded, acct.key)
 
+        from datetime import UTC, datetime
         from unittest.mock import MagicMock
-        from datetime import datetime, UTC
 
         now = datetime.now(UTC)
         mock_redis = MagicMock()
@@ -704,9 +701,10 @@ class TestReplayAttackProtection:
 
     def test_replay_expired_nonce_rejected(self):
         """Expired nonce (>5 minutes) is rejected."""
+        from datetime import UTC, datetime, timedelta
+        from unittest.mock import MagicMock, patch
+
         from app.domains.auth.wallet import verify_wallet_signature
-        from unittest.mock import patch, MagicMock
-        from datetime import datetime, timedelta, UTC
 
         mock_redis = MagicMock()
         # Nonce data with timestamp 10 minutes ago
@@ -725,8 +723,9 @@ class TestReplayAttackProtection:
 
     def test_replay_nonce_reused_rejected(self):
         """Already-used nonce is rejected (deleted after first use)."""
+        from unittest.mock import MagicMock, patch
+
         from app.domains.auth.wallet import verify_wallet_signature
-        from unittest.mock import patch, MagicMock
 
         mock_redis = MagicMock()
         # First call returns the nonce
@@ -757,8 +756,9 @@ class TestReplayAttackProtection:
 
     def test_replay_wrong_address_for_nonce_rejected(self):
         """Nonce issued for address A fails with address B's signature."""
+        from unittest.mock import MagicMock, patch
+
         from app.domains.auth.wallet import verify_wallet_signature
-        from unittest.mock import patch, MagicMock
 
         mock_redis = MagicMock()
         # Nonce was issued for address 0xAAA...
@@ -856,7 +856,7 @@ class TestWalletEncryption:
         salt+nonce per call. In DEV fallback mode, base64 encoding is
         deterministic.
         """
-        from app.domains.wallet.crypto import WalletEncryption, _HAS_CRYPTO
+        from app.domains.wallet.crypto import _HAS_CRYPTO, WalletEncryption
 
         password = "same-password"
         ct1 = WalletEncryption.encrypt("same-data", password)
@@ -1237,7 +1237,7 @@ class TestPasswordChange:
         NOTE: In DEV fallback mode, passwords are not used for actual encryption,
         so old passwords don't fail. This test only validates the real crypto path.
         """
-        from app.domains.wallet.crypto import WalletEncryption, _HAS_CRYPTO
+        from app.domains.wallet.crypto import _HAS_CRYPTO, WalletEncryption
 
         if not _HAS_CRYPTO:
             pytest.skip("Real encryption not available (DEV fallback mode)")
@@ -1256,7 +1256,7 @@ class TestPasswordChange:
 
     def test_vault_password_change_preserves_all_wallets(self):
         """Changing vault password re-encrypts all wallets (data-level test)."""
-        from app.wallets.crypto import encrypt_key, decrypt_key
+        from app.wallets.crypto import decrypt_key, encrypt_key
 
         # Test the encrypt/decrypt cycle that the vault uses
         wallets_data = {
@@ -1354,8 +1354,9 @@ class TestChainRegistry:
 
     def test_chain_registry_address_patterns(self):
         """Chain address patterns match expected formats."""
-        from app.wallets.chain_registry import SUPPORTED_CHAINS
         import re
+
+        from app.wallets.chain_registry import SUPPORTED_CHAINS
 
         # EVM: 0x + 40 hex
         assert re.match(
@@ -1652,7 +1653,7 @@ class TestLegacyWalletCrypto:
 
     def test_legacy_encrypt_decrypt_roundtrip(self):
         """encrypt_key / decrypt_key roundtrip with same password."""
-        from app.wallets.crypto import encrypt_key, decrypt_key
+        from app.wallets.crypto import decrypt_key, encrypt_key
 
         plaintext = "deadbeef" * 8  # 64-char hex key
         password = "legacy-password"

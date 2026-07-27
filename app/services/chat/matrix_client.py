@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from typing import Any
 from uuid import uuid4
 
@@ -21,12 +20,6 @@ import httpx
 
 from app.core.logging import get_logger
 from app.services.chat.models import (
-    BridgeStatus,
-    ChatMessage,
-    ChatRoom,
-    EncryptionType,
-    MessageStatus,
-    Protocol,
     RoomType,
 )
 

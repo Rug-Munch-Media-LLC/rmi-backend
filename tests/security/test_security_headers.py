@@ -308,7 +308,7 @@ class TestSQLInjectionDefense:
             params={"q": injection_payload},
             headers={"X-API-Key": TEST_RMI_AUTH_TOKEN},
         )
-        assert resp.status_code != 500, f"SQL injection in query param caused 500"
+        assert resp.status_code != 500, "SQL injection in query param caused 500"
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -12,10 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.newsletter.schemas import (
     CryptoSubscribeRequest,
     NewsletterCreate,
-    NewsletterUpdate,
     SubscriberImportRow,
 )
-from app.domains.newsletter.service import NewsletterService, SUBSCRIPTION_TIERS
+from app.domains.newsletter.service import SUBSCRIPTION_TIERS, NewsletterService
 
 
 @pytest.fixture
@@ -312,8 +311,8 @@ class TestSchedule:
     @pytest.mark.asyncio
     async def test_schedule_past_fails(self, svc: NewsletterService):
         """Test scheduling in the past raises error."""
-        from app.domains.newsletter.models import Newsletter
         from app.core.errors import ValidationError
+        from app.domains.newsletter.models import Newsletter
 
         nl = Newsletter(
             id=UUID("70000000-0000-0000-0000-000000000007"),

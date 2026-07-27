@@ -57,7 +57,7 @@ class CreatorProfile(Base, TimestampMixin):
     total_views: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationships
-    posts: Mapped[list["ContentPost"]] = relationship("ContentPost", back_populates="creator", lazy="selectin")
+    posts: Mapped[list[ContentPost]] = relationship("ContentPost", back_populates="creator", lazy="selectin")
 
     __table_args__ = (
         Index("ix_creator_wallet", "wallet_address"),
@@ -112,9 +112,9 @@ class ContentPost(Base, TimestampMixin):
     mastodon_id: Mapped[str] = mapped_column(String(256), default="")
 
     # Relationships
-    creator: Mapped["CreatorProfile"] = relationship("CreatorProfile", back_populates="posts")
-    views: Mapped[list["ViewEvent"]] = relationship("ViewEvent", back_populates="post", lazy="selectin")
-    engagements: Mapped[list["EngagementEvent"]] = relationship(
+    creator: Mapped[CreatorProfile] = relationship("CreatorProfile", back_populates="posts")
+    views: Mapped[list[ViewEvent]] = relationship("ViewEvent", back_populates="post", lazy="selectin")
+    engagements: Mapped[list[EngagementEvent]] = relationship(
         "EngagementEvent", back_populates="post", lazy="selectin"
     )
 
@@ -194,7 +194,7 @@ class ViewEvent(Base, TimestampMixin):
     referrer: Mapped[str] = mapped_column(String(1024), default="")
 
     # Relationships
-    post: Mapped["ContentPost"] = relationship("ContentPost", back_populates="views")
+    post: Mapped[ContentPost] = relationship("ContentPost", back_populates="views")
 
     __table_args__ = (
         Index("ix_view_post", "post_id"),
@@ -263,7 +263,7 @@ class EngagementEvent(Base, TimestampMixin):
     )
 
     # Relationships
-    post: Mapped["ContentPost"] = relationship("ContentPost", back_populates="engagements")
+    post: Mapped[ContentPost] = relationship("ContentPost", back_populates="engagements")
 
     __table_args__ = (
         Index("ix_engagement_post", "post_id"),

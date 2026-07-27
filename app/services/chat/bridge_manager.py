@@ -31,9 +31,8 @@ from app.services.chat.models import (
     BridgeConfig,
     BridgeStatus,
     ChatMessage,
-    ChatRoom,
-    Protocol,
     MessageStatus,
+    Protocol,
 )
 
 logger = get_logger(__name__)

@@ -16,10 +16,9 @@ os.environ.setdefault("ENVIRONMENT", "dev")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
 
 # ═══════════════════════════════════════════════════════════════════════
 #  1. MEVSandwichDetector — MEV detection (4 tests)

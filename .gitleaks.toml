@@ -84,7 +84,6 @@ tags = ["rmi", "critical"]
 description = "Global allowlist — applies to all repos"
 paths = [
   '''node_modules/''',
-  '''docs/''',
   '''\.git/''',
   '''__pycache__/''',
   '''\.venv/''',
@@ -95,8 +94,6 @@ paths = [
   '''\.ruff_cache/''',
   '''\.mypy_cache/''',
   '''vendor/''',
-  '''scripts/''',
-  '''AGENTS\.md''',
 ]
 
 # Stopwords (false-positive patterns to ignore)

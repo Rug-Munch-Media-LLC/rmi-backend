@@ -508,8 +508,8 @@ class TestTokenPipeline:
     async def test_pipeline_error_recovery(self):
         """External APIs fail mid-pipeline → graceful degradation with partial results."""
         # Don't use _patch_full — manually patch with error-inducing mocks
-        from app.domains.scanner.service import scan_token
         import app.domains.scanner.service.scan as scan_mod
+        from app.domains.scanner.service import scan_token
 
         spam_reg = MagicMock()
         spam_reg.check_token.return_value = {
@@ -612,42 +612,38 @@ class TestTokenPipeline:
         with patch(
             "app.domains.scanner.modules._core._fetch_with_fallback",
             AsyncMock(return_value=(self._dexscreener_pairs(), "https://api.dexscreener.com/")),
+        ), patch(
+            "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
+        ), patch(
+            "app.domains.scanner.modules.security._check_goplus_security",
+            AsyncMock(
+                return_value={
+                    "check": "goplus",
+                    "result": "scanned",
+                    "is_honeypot": False,
+                    "risk_score": 0,
+                    "source": "goplus",
+                }
+            ),
+        ), patch(
+            "app.spam_registry.get_spam_registry",
+            return_value=MagicMock(
+                check_token=MagicMock(
+                    return_value={
+                        "is_spam": False,
+                        "is_sanctioned": False,
+                        "is_known_scam": False,
+                        "sources_checked": [],
+                    }
+                )
+            ),
+        ), patch(
+            "app.domains.scanner.modules._core._solana_rpc_call",
+            AsyncMock(return_value=None),
         ):
-            with patch(
-                "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
-            ):
-                with patch(
-                    "app.domains.scanner.modules.security._check_goplus_security",
-                    AsyncMock(
-                        return_value={
-                            "check": "goplus",
-                            "result": "scanned",
-                            "is_honeypot": False,
-                            "risk_score": 0,
-                            "source": "goplus",
-                        }
-                    ),
-                ):
-                    with patch(
-                        "app.spam_registry.get_spam_registry",
-                        return_value=MagicMock(
-                            check_token=MagicMock(
-                                return_value={
-                                    "is_spam": False,
-                                    "is_sanctioned": False,
-                                    "is_known_scam": False,
-                                    "sources_checked": [],
-                                }
-                            )
-                        ),
-                    ):
-                        with patch(
-                            "app.domains.scanner.modules._core._solana_rpc_call",
-                            AsyncMock(return_value=None),
-                        ):
-                            from app.domains.scanner.service import quick_scan_text
+            from app.domains.scanner.service import quick_scan_text
 
-                            text = await quick_scan_text(self.TOKEN, "ethereum")
+            text = await quick_scan_text(self.TOKEN, "ethereum")
 
         assert isinstance(text, str)
         assert self.TOKEN in text
@@ -1075,13 +1071,12 @@ class TestMEVSandwichDetection:
 
         detector = MEVSandwichDetector(chains=["ethereum"])
         # Patch _query_databus to return None (no data available)
-        with patch.object(detector, "_query_databus", AsyncMock(return_value=None)):
-            with patch.object(
-                detector,
-                "_analyze_pool_mev_risk",
-                AsyncMock(return_value={"pool_address": "0x0", "mev_vulnerability_score": 0}),
-            ):
-                report = await detector.scan()
+        with patch.object(detector, "_query_databus", AsyncMock(return_value=None)), patch.object(
+            detector,
+            "_analyze_pool_mev_risk",
+            AsyncMock(return_value={"pool_address": "0x0", "mev_vulnerability_score": 0}),
+        ):
+            report = await detector.scan()
         assert report is not None
         assert isinstance(report, MEVScanReport)
         assert report.transactions_analyzed == 0
@@ -1090,7 +1085,7 @@ class TestMEVSandwichDetection:
     async def test_mev_sandwich_scan_with_mocked_pools(self):
         """MEV scan processes mocked pool data without errors."""
         from app.domains.detectors.mev_sandwich_detector import MEVSandwichDetector
-        from app.domains.detectors.mev_sandwich_detector.models import PoolInfo, PoolDexType
+        from app.domains.detectors.mev_sandwich_detector.models import PoolDexType, PoolInfo
 
         detector = MEVSandwichDetector(chains=["ethereum"])
         pool = PoolInfo(
@@ -1104,15 +1099,14 @@ class TestMEVSandwichDetection:
         )
         detector._pools[pool.address.lower()] = pool
 
-        with patch.object(detector, "_query_databus", AsyncMock(return_value=None)):
-            with patch.object(
-                detector,
-                "_analyze_pool_mev_risk",
-                AsyncMock(
-                    return_value={"pool_address": pool.address, "mev_vulnerability_score": 0.5}
-                ),
-            ):
-                report = await detector.scan()
+        with patch.object(detector, "_query_databus", AsyncMock(return_value=None)), patch.object(
+            detector,
+            "_analyze_pool_mev_risk",
+            AsyncMock(
+                return_value={"pool_address": pool.address, "mev_vulnerability_score": 0.5}
+            ),
+        ):
+            report = await detector.scan()
         assert report is not None
         assert report.pools_analyzed >= 1
 
@@ -1353,9 +1347,6 @@ class TestOracleManipulationDetection:
         """Oracle manipulation detector module imports cleanly."""
         from app.domains.detectors.oracle_manipulation_detector import (
             OracleManipulationDetector,
-            OracleType,
-            Severity,
-            TWAPWindow,
         )
 
         detector = OracleManipulationDetector(chains=["ethereum"])
@@ -1416,11 +1407,10 @@ class TestFlashLoanAttackDetection:
             }
         ]
 
-        with patch.object(detector, "_fetch_blocks", AsyncMock(return_value=mock_blocks)):
-            with patch.object(
-                detector, "_analyze_block_transactions", AsyncMock(return_value=(True, [], []))
-            ):
-                report = await detector.scan(blocks_back=1)
+        with patch.object(detector, "_fetch_blocks", AsyncMock(return_value=mock_blocks)), patch.object(
+            detector, "_analyze_block_transactions", AsyncMock(return_value=(True, [], []))
+        ):
+            report = await detector.scan(blocks_back=1)
 
         assert report.blocks_scanned == 1
 
@@ -1682,14 +1672,13 @@ class TestScannerEdgeCases:
         with patch(
             "app.domains.scanner.modules.security._check_goplus_security",
             AsyncMock(return_value={"check": "goplus", "result": "error", "error": "unavailable"}),
+        ), patch(
+            "app.domains.scanner.modules._core._fetch_with_fallback",
+            AsyncMock(return_value=(mock_dexscreener, "https://api.dexscreener.com/")),
         ):
-            with patch(
-                "app.domains.scanner.modules._core._fetch_with_fallback",
-                AsyncMock(return_value=(mock_dexscreener, "https://api.dexscreener.com/")),
-            ):
-                from app.domains.scanner.modules.security import _check_honeypot_is
+            from app.domains.scanner.modules.security import _check_honeypot_is
 
-                result = await _check_honeypot_is("0xtoken", "ethereum")
+            result = await _check_honeypot_is("0xtoken", "ethereum")
 
         assert result is not None
         assert result["check"] == "honeypot"
@@ -1699,14 +1688,13 @@ class TestScannerEdgeCases:
     @pytest.mark.asyncio
     async def test_deployer_info_no_explorer(self):
         """Deployer info with no explorer API returns unknown."""
-        with patch("app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)):
-            with patch(
-                "app.domains.scanner.modules._core._fetch_with_fallback",
-                AsyncMock(return_value=({}, "")),
-            ):
-                from app.domains.scanner.modules.deployer import _get_deployer_info
+        with patch("app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)), patch(
+            "app.domains.scanner.modules._core._fetch_with_fallback",
+            AsyncMock(return_value=({}, "")),
+        ):
+            from app.domains.scanner.modules.deployer import _get_deployer_info
 
-                result = await _get_deployer_info("0xunknown", "ethereum")
+            result = await _get_deployer_info("0xunknown", "ethereum")
 
         assert result is not None
         assert result["check"] == "deployer"
@@ -1771,40 +1759,37 @@ class TestBatchScanning:
         with patch(
             "app.domains.scanner.modules._core._fetch_with_fallback",
             AsyncMock(return_value=({}, "")),
+        ), patch(
+            "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
+        ), patch(
+            "app.domains.scanner.modules.security._check_goplus_security",
+            AsyncMock(
+                return_value={
+                    "check": "goplus",
+                    "result": "scanned",
+                    "is_honeypot": False,
+                    "risk_score": 0,
+                    "source": "goplus",
+                }
+            ),
+        ), patch(
+            "app.spam_registry.get_spam_registry",
+            return_value=MagicMock(
+                check_token=MagicMock(
+                    return_value={
+                        "is_spam": False,
+                        "is_sanctioned": False,
+                        "is_known_scam": False,
+                        "sources_checked": [],
+                    }
+                )
+            ),
         ):
-            with patch(
-                "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
-            ):
-                with patch(
-                    "app.domains.scanner.modules.security._check_goplus_security",
-                    AsyncMock(
-                        return_value={
-                            "check": "goplus",
-                            "result": "scanned",
-                            "is_honeypot": False,
-                            "risk_score": 0,
-                            "source": "goplus",
-                        }
-                    ),
-                ):
-                    with patch(
-                        "app.spam_registry.get_spam_registry",
-                        return_value=MagicMock(
-                            check_token=MagicMock(
-                                return_value={
-                                    "is_spam": False,
-                                    "is_sanctioned": False,
-                                    "is_known_scam": False,
-                                    "sources_checked": [],
-                                }
-                            )
-                        ),
-                    ):
-                        import asyncio
+            import asyncio
 
-                        results = await asyncio.gather(
-                            *[scan_token(addr, "ethereum", tiers=["free"]) for addr in self.TOKENS]
-                        )
+            results = await asyncio.gather(
+                *[scan_token(addr, "ethereum", tiers=["free"]) for addr in self.TOKENS]
+            )
 
         assert len(results) == len(self.TOKENS)
         for i, result in enumerate(results):
@@ -1823,45 +1808,43 @@ class TestBatchScanning:
             "not-valid",  # garbage
         ]
 
-        from app.domains.scanner.service import scan_token
         import asyncio
+
+        from app.domains.scanner.service import scan_token
 
         with patch(
             "app.domains.scanner.modules._core._fetch_with_fallback",
             AsyncMock(return_value=({}, "")),
+        ), patch(
+            "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
+        ), patch(
+            "app.domains.scanner.modules.security._check_goplus_security",
+            AsyncMock(
+                return_value={
+                    "check": "goplus",
+                    "result": "scanned",
+                    "is_honeypot": False,
+                    "risk_score": 0,
+                    "source": "goplus",
+                }
+            ),
+        ), patch(
+            "app.spam_registry.get_spam_registry",
+            return_value=MagicMock(
+                check_token=MagicMock(
+                    return_value={
+                        "is_spam": False,
+                        "is_sanctioned": False,
+                        "is_known_scam": False,
+                        "sources_checked": [],
+                    }
+                )
+            ),
         ):
-            with patch(
-                "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
-            ):
-                with patch(
-                    "app.domains.scanner.modules.security._check_goplus_security",
-                    AsyncMock(
-                        return_value={
-                            "check": "goplus",
-                            "result": "scanned",
-                            "is_honeypot": False,
-                            "risk_score": 0,
-                            "source": "goplus",
-                        }
-                    ),
-                ):
-                    with patch(
-                        "app.spam_registry.get_spam_registry",
-                        return_value=MagicMock(
-                            check_token=MagicMock(
-                                return_value={
-                                    "is_spam": False,
-                                    "is_sanctioned": False,
-                                    "is_known_scam": False,
-                                    "sources_checked": [],
-                                }
-                            )
-                        ),
-                    ):
-                        results = await asyncio.gather(
-                            *[scan_token(addr, "ethereum", tiers=["free"]) for addr in addresses],
-                            return_exceptions=True,
-                        )
+            results = await asyncio.gather(
+                *[scan_token(addr, "ethereum", tiers=["free"]) for addr in addresses],
+                return_exceptions=True,
+            )
 
         assert len(results) == len(addresses)
         for i, result in enumerate(results):

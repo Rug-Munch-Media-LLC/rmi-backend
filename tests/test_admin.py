@@ -12,11 +12,7 @@ import os
 os.environ["JWT_SECRET"] = "a" * 32
 os.environ["ENVIRONMENT"] = "dev"
 
-from dataclasses import asdict
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import AsyncMock, patch
 
 from app.domains.admin.backend.models import (
     PERMISSIONS,
@@ -25,7 +21,6 @@ from app.domains.admin.backend.models import (
     has_permission,
 )
 from app.domains.admin.backend.security import SecurityManager
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # ── AdminRole and Permission Matrix

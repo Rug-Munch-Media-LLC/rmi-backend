@@ -6,12 +6,11 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, select, func as sa_func, text
+from sqlalchemy import and_, func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.models.live import AchievementDef, CreatorStreak, UserAchievement
-from app.models.user import User
 
 log = get_logger(__name__)
 

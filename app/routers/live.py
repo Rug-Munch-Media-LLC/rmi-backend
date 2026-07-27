@@ -46,8 +46,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user, require_auth
 from app.core.dependencies import get_db
 from app.core.logging import get_logger
-from app.models.user import User
-
+from app.services.live.achievement_service import (
+    get_creator_streak as get_streak_svc,
+    get_user_achievements,
+    seed_achievements,
+)
 from app.services.live.battle_service import (
     accept_battle,
     auto_expire_battles,
@@ -59,6 +62,18 @@ from app.services.live.battle_service import (
     get_win_loss_record,
     record_gift,
 )
+from app.services.live.challenge_service import (
+    get_active_challenges as get_active_challenges_svc,
+    get_user_challenges,
+    seed_challenges,
+)
+from app.services.live.event_service import (
+    complete_event,
+    create_event as create_event_svc,
+    get_live_events,
+    get_upcoming_events,
+    start_event,
+)
 from app.services.live.xp_service import (
     award_chat_xp,
     award_gift_xp,
@@ -67,23 +82,6 @@ from app.services.live.xp_service import (
     get_recent_xp_transactions,
     get_user_xp_info,
     get_xp_leaderboard,
-)
-from app.services.live.challenge_service import (
-    get_active_challenges as get_active_challenges_svc,
-    get_user_challenges,
-    seed_challenges,
-)
-from app.services.live.achievement_service import (
-    get_user_achievements,
-    get_creator_streak as get_streak_svc,
-    seed_achievements,
-)
-from app.services.live.event_service import (
-    complete_event,
-    create_event as create_event_svc,
-    get_live_events,
-    get_upcoming_events,
-    start_event,
 )
 
 log = get_logger(__name__)

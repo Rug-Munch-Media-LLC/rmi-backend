@@ -11,10 +11,7 @@ import os
 os.environ["JWT_SECRET"] = "a" * 32
 os.environ["ENVIRONMENT"] = "dev"
 
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import AsyncMock, patch
 
 from app.domains.news.news_service.service import NewsService, get_news_service
 from app.domains.news.news_service.sources import (
@@ -24,7 +21,6 @@ from app.domains.news.news_service.sources import (
     REDDIT_SUBREDDITS,
     RSS_FEEDS,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # ── NewsService Initialization

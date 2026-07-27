@@ -14,20 +14,17 @@ here is for development and may be backed by Redis+Postgres.
 
 from __future__ import annotations
 
-import json
-import time
 from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
+from app.services.chat.models import ChatUser
 from app.services.chat.signal_protocol import (
     DoubleRatchetSession,
     KeyBundle,
     MegolmSession,
     SafetyNumber,
-    _generate_key,
 )
-from app.services.chat.models import ChatUser, Protocol
 
 logger = get_logger(__name__)
 

@@ -17,8 +17,8 @@ Single source of truth for every supported platform. Each platform has:
 from __future__ import annotations
 
 from typing import Any
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 # ── Platform definition ──────────────────────────────────────────────
 

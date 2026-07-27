@@ -9,8 +9,6 @@ Prefix: /api/v1/telegram
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 

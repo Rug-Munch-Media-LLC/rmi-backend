@@ -25,7 +25,7 @@ from __future__ import annotations
 import hashlib
 import time
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger

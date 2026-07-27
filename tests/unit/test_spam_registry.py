@@ -19,11 +19,11 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from app.spam_registry import SpamRegistry, get_spam_registry, seed_spam_data
+from app.spam_registry import SpamRegistry, get_spam_registry
 
 
 @pytest.fixture
@@ -249,123 +249,113 @@ class TestFileLoaders:
     def test_goldrush_list_format(self) -> None:
         """GoldRush data as a flat list of addresses."""
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "goldrush_spam_ethereum.json"
-                with open(cache_file, "w") as f:
-                    json.dump(["0xaddr1", "0xaddr2"], f)
-                reg._load_goldrush()
-                assert "0xaddr1" in reg._spam_tokens.get("ethereum", set())
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "goldrush_spam_ethereum.json"
+            with open(cache_file, "w") as f:
+                json.dump(["0xaddr1", "0xaddr2"], f)
+            reg._load_goldrush()
+            assert "0xaddr1" in reg._spam_tokens.get("ethereum", set())
 
     def test_scamsniffer_list_format(self) -> None:
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "scamsniffer_blacklist.json"
-                with open(cache_file, "w") as f:
-                    json.dump(["0xscam1", "0xscam2"], f)
-                reg._load_scamsniffer()
-                assert "0xscam1" in reg._scam_addresses
-                assert "0xscam2" in reg._scam_addresses
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "scamsniffer_blacklist.json"
+            with open(cache_file, "w") as f:
+                json.dump(["0xscam1", "0xscam2"], f)
+            reg._load_scamsniffer()
+            assert "0xscam1" in reg._scam_addresses
+            assert "0xscam2" in reg._scam_addresses
 
     def test_scamsniffer_dict_format(self) -> None:
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "scamsniffer_blacklist.json"
-                with open(cache_file, "w") as f:
-                    json.dump({"addresses": ["0xscam1"]}, f)
-                reg._load_scamsniffer()
-                assert "0xscam1" in reg._scam_addresses
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "scamsniffer_blacklist.json"
+            with open(cache_file, "w") as f:
+                json.dump({"addresses": ["0xscam1"]}, f)
+            reg._load_scamsniffer()
+            assert "0xscam1" in reg._scam_addresses
 
     def test_opensanctions_loading(self) -> None:
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "opensanctions_crypto.json"
-                with open(cache_file, "w") as f:
-                    json.dump(
-                        [
-                            {"address": "0xsanctioned1"},
-                            {"wallet": "0xsanctioned2"},
-                            {"address": "0xsanctioned3"},
-                        ],
-                        f,
-                    )
-                reg._load_opensanctions()
-                assert "0xsanctioned1" in reg._sanctioned_wallets
-                assert "0xsanctioned2" in reg._sanctioned_wallets
-                assert "0xsanctioned3" in reg._sanctioned_wallets
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "opensanctions_crypto.json"
+            with open(cache_file, "w") as f:
+                json.dump(
+                    [
+                        {"address": "0xsanctioned1"},
+                        {"wallet": "0xsanctioned2"},
+                        {"address": "0xsanctioned3"},
+                    ],
+                    f,
+                )
+            reg._load_opensanctions()
+            assert "0xsanctioned1" in reg._sanctioned_wallets
+            assert "0xsanctioned2" in reg._sanctioned_wallets
+            assert "0xsanctioned3" in reg._sanctioned_wallets
 
     def test_guardian_dict_format(self) -> None:
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "guardian_phishing.json"
-                with open(cache_file, "w") as f:
-                    json.dump({"domains": ["evil.com", "phish.net"]}, f)
-                reg._load_guardian()
-                assert "evil.com" in reg._phishing_domains
-                assert "phish.net" in reg._phishing_domains
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "guardian_phishing.json"
+            with open(cache_file, "w") as f:
+                json.dump({"domains": ["evil.com", "phish.net"]}, f)
+            reg._load_guardian()
+            assert "evil.com" in reg._phishing_domains
+            assert "phish.net" in reg._phishing_domains
 
     def test_guardian_list_format(self) -> None:
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "guardian_phishing.json"
-                with open(cache_file, "w") as f:
-                    json.dump(["scam.org", "fake.io"], f)
-                reg._load_guardian()
-                assert "scam.org" in reg._phishing_domains
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "guardian_phishing.json"
+            with open(cache_file, "w") as f:
+                json.dump(["scam.org", "fake.io"], f)
+            reg._load_guardian()
+            assert "scam.org" in reg._phishing_domains
 
     def test_cryptoscamdb_dict_format(self) -> None:
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "cryptoscamdb.json"
-                with open(cache_file, "w") as f:
-                    json.dump({"addresses": ["0xbad1", "0xbad2"]}, f)
-                reg._load_cryptoscamdb()
-                assert "0xbad1" in reg._scam_addresses
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "cryptoscamdb.json"
+            with open(cache_file, "w") as f:
+                json.dump({"addresses": ["0xbad1", "0xbad2"]}, f)
+            reg._load_cryptoscamdb()
+            assert "0xbad1" in reg._scam_addresses
 
     def test_cryptoscamdb_list_format(self) -> None:
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "cryptoscamdb.json"
-                with open(cache_file, "w") as f:
-                    json.dump(["0xbad1", "0xbad2"], f)
-                reg._load_cryptoscamdb()
-                assert "0xbad1" in reg._scam_addresses
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "cryptoscamdb.json"
+            with open(cache_file, "w") as f:
+                json.dump(["0xbad1", "0xbad2"], f)
+            reg._load_cryptoscamdb()
+            assert "0xbad1" in reg._scam_addresses
 
     def test_missing_cache_file_does_not_crash(self) -> None:
         """Loading when cache file is absent should gracefully do nothing."""
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                reg._load_goldrush()  # no files exist
-                reg._load_scamsniffer()
-                reg._load_opensanctions()
-                reg._load_guardian()
-                reg._load_cryptoscamdb()
-                # Should not raise
-                assert reg._stats == {
-                    "tokens": 0,
-                    "nfts": 0,
-                    "phishing": 0,
-                    "sanctioned": 0,
-                    "scam": 0,
-                }
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            reg._load_goldrush()  # no files exist
+            reg._load_scamsniffer()
+            reg._load_opensanctions()
+            reg._load_guardian()
+            reg._load_cryptoscamdb()
+            # Should not raise
+            assert reg._stats == {
+                "tokens": 0,
+                "nfts": 0,
+                "phishing": 0,
+                "sanctioned": 0,
+                "scam": 0,
+            }
 
     def test_corrupted_json_file(self) -> None:
         """Corrupted JSON should not crash the loader."""
         reg = SpamRegistry()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                cache_file = Path(tmpdir) / "goldrush_spam_ethereum.json"
-                with open(cache_file, "w") as f:
-                    f.write("not valid json{{{")
-                reg._load_goldrush()  # should not raise
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            cache_file = Path(tmpdir) / "goldrush_spam_ethereum.json"
+            with open(cache_file, "w") as f:
+                f.write("not valid json{{{")
+            reg._load_goldrush()  # should not raise
 
 
 class TestSingleton:
@@ -408,17 +398,15 @@ class TestSeedSpamData:
 
     def test_seed_http_failure_does_not_crash(self) -> None:
         """Simulating HTTP failure should not crash the loaders."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                reg = SpamRegistry()
-                # No files exist, ensure_loaded should not crash
-                stats = reg.stats()
-                assert stats["total"] == 0
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            reg = SpamRegistry()
+            # No files exist, ensure_loaded should not crash
+            stats = reg.stats()
+            assert stats["total"] == 0
 
     def test_seed_no_cache_files_graceful(self) -> None:
         """Seed function tolerates missing cache files."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
-                reg = SpamRegistry()
-                stats = reg.stats()
-                assert stats["total"] == 0
+        with tempfile.TemporaryDirectory() as tmpdir, patch("app.spam_registry.SPAM_DATA_DIR", Path(tmpdir)):
+            reg = SpamRegistry()
+            stats = reg.stats()
+            assert stats["total"] == 0

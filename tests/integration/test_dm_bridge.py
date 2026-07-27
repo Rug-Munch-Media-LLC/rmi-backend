@@ -10,12 +10,10 @@ Uses the existing integration test patterns from test_api_flows.py.
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, patch
 
 import pytest
 

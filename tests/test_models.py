@@ -13,8 +13,7 @@ import os
 os.environ["JWT_SECRET"] = "a" * 32
 os.environ["ENVIRONMENT"] = "dev"  # override .env default 'development' which is invalid
 
-from datetime import datetime, timezone
-from uuid import UUID, uuid4
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -172,6 +171,7 @@ class TestTokenModel:
     def test_column_types(self):
         """Token SQLAlchemy columns have correct types."""
         from sqlalchemy import inspect
+
         from app.models.token import Token
 
         mapper = inspect(Token)
@@ -254,6 +254,7 @@ class TestScanResultModel:
     def test_column_types(self):
         """ScanResult columns have correct Python types."""
         from sqlalchemy import inspect
+
         from app.models.scan import ScanResult
 
         mapper = inspect(ScanResult)
@@ -284,6 +285,7 @@ class TestUserModel:
     def test_column_types(self):
         """User columns have correct types."""
         from sqlalchemy import inspect
+
         from app.models.user import User
 
         mapper = inspect(User)
@@ -305,6 +307,7 @@ class TestLabelModel:
     def test_column_types(self):
         """Label columns have correct types."""
         from sqlalchemy import inspect
+
         from app.models.label import Label
 
         mapper = inspect(Label)
@@ -347,9 +350,8 @@ class TestAlertModel:
 
     def test_explicit_construction(self):
         from app.models.alert import Alert
-        from datetime import datetime, timezone
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         alert = Alert(
             token_address="0xabc",
             chain="solana",

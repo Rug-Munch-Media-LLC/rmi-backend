@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-import pytest
-
 from app.domains.newsletter.models import (
     Newsletter,
     NewsletterCrosspost,

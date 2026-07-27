@@ -7,15 +7,12 @@ Covers all edge cases from TASK 1-5.
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import pytest
 
 from app.feed_quality_pipeline import (
-    CIRCUIT_BREAKER_RESET_SEC,
     CIRCUIT_BREAKER_THRESHOLD,
     ContentDeduplicator,
     ContentValidator,
@@ -26,7 +23,6 @@ from app.feed_quality_pipeline import (
     ProviderHealthMonitor,
     ProviderStatus,
 )
-
 
 # ══════════════════════════════════════════════════════════════════════
 # Fixtures

@@ -16,14 +16,9 @@ import os
 os.environ["JWT_SECRET"] = "a" * 32
 os.environ["ENVIRONMENT"] = "dev"
 
-import json
-from datetime import datetime, timezone
-from unittest.mock import patch
-from uuid import uuid4
 
 import pytest
 from pydantic import BaseModel, ValidationError
-
 
 # ═══════════════════════════════════════════════════════════════
 # ── Unified Scanner Models
@@ -495,7 +490,6 @@ class TestRateLimiterModels:
 
     def test_pricing_tier_model_exists(self):
         """Verify that core offerings have Pydantic models."""
-        from pydantic import BaseModel
 
         # The pricing tiers are defined in rate_limiter
         from app.core.rate_limiter import (

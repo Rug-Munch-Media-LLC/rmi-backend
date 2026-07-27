@@ -54,7 +54,7 @@ class TestTokenScan:
         resp = client.post(
             "/api/v2/scanner/token/scan",
             json={"address": SOLANA_TOKEN, "chain": "solana"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         # 200 = success, 500 = scanner error (external deps down),
         # 404 = not mounted (fail), 422 = validation error
@@ -67,7 +67,7 @@ class TestTokenScan:
         assert "token" in body
         assert "safety_score" in body
         assert "risk_level" in body
-        assert body["chain"] == "solana" 
+        assert body["chain"] == "solana"
 
     @pytest.mark.integration
     def test_token_scan_ethereum(self, app) -> None:
@@ -78,7 +78,7 @@ class TestTokenScan:
         resp = client.post(
             "/api/v2/scanner/token/scan",
             json={"address": ETH_TOKEN, "chain": "ethereum"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         assert resp.status_code in (200, 422, 500), (
             f"Expected 200, 422, or 500, got {resp.status_code}"
@@ -96,7 +96,7 @@ class TestTokenScan:
         resp = client.post(
             "/api/v2/scanner/token/scan",
             json={"address": "", "chain": "solana"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         # Scanner gracefully handles empty addresses (returns scan without specific token)
         assert resp.status_code in (200, 422), (
@@ -112,7 +112,7 @@ class TestTokenScan:
         resp = client.post(
             "/api/v2/scanner/token/scan",
             json={"chain": "solana"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         assert resp.status_code in (200, 422)
 
@@ -125,7 +125,7 @@ class TestTokenScan:
         resp = client.post(
             "/api/v2/scanner/token/scan",
             json={"address": SOLANA_TOKEN, "chain": "invalid_chain_xyz"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         # Should either reject with 422 or attempt and return 500
         assert resp.status_code in (422, 500, 200)
@@ -165,13 +165,13 @@ class TestWalletScan:
         resp = client.post(
             "/api/v2/scanner/wallet/scan",
             json={"address": SOLANA_WALLET, "chain": "solana"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         assert resp.status_code == 200, (
             f"Should get 200, got {resp.status_code}: {resp.text[:200]}"
         )
         body = resp.json()
-        assert "address" in body or "status" in body 
+        assert "address" in body or "status" in body
 
     @pytest.mark.integration
     def test_wallet_scan_empty_address_returns_422(self, app) -> None:
@@ -182,7 +182,7 @@ class TestWalletScan:
         resp = client.post(
             "/api/v2/scanner/wallet/scan",
             json={"address": "", "chain": "solana"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         assert resp.status_code in (200, 422), (
             f"Expected 200 or 422 for empty address, got {resp.status_code}: {resp.text[:200]}"
@@ -198,7 +198,7 @@ class TestWalletScan:
         resp = client.post(
             "/api/v2/scanner/wallet/scan",
             json={},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         assert resp.status_code == 422
 
@@ -211,7 +211,7 @@ class TestWalletScan:
         resp = client.post(
             "/api/v2/scanner/wallet/scan",
             json={"address": ETH_WALLET, "chain": "ethereum"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         assert resp.status_code in (200, 422, 500), (
             f"Expected 200, 422, or 500, got {resp.status_code}"

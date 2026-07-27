@@ -26,7 +26,7 @@ from alembic import op
 revision: str = "a1b2c3d4e5f6"
 down_revision: str | Sequence[str] | None = "75c982fccbb8"
 branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = ("b6e2f4a1c9d0",)
 
 
 def upgrade() -> None:

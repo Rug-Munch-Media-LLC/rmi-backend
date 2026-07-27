@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
-from app.services.chat.models import BridgeConfig, ChatUser, Protocol
+from app.services.chat.models import ChatUser, Protocol
 
 logger = get_logger(__name__)
 

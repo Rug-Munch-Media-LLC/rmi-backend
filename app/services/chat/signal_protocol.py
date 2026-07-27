@@ -169,7 +169,6 @@ def _x3dh_key_agreement(
               DH(ephemeral_priv, identity_pub) ||
               DH(ephemeral_priv, pre_key_pub)
     """
-    from cryptography.hazmat.primitives.asymmetric import x25519
 
     # In production, each key would be a proper X25519 private key.
     # For this reference impl, we use the raw bytes to derive a shared secret.

@@ -7,9 +7,8 @@ startup needed. Mocked Redis for user lookups.
 
 from __future__ import annotations
 
-import time
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -123,12 +122,12 @@ class TestJWTCreation:
 
     def test_create_jwt_includes_iat_and_exp(self):
         """_create_jwt sets iat and exp claims."""
-        from app.domains.auth import JWT_EXPIRY_DAYS, _create_jwt
         from jose import jwt
+
+        from app.domains.auth import _create_jwt
 
         token = _create_jwt("uid", "e@mail.com")
         # Decode without verification to inspect claims
-        from app.domains.auth import JWT_ALGORITHM, JWT_SECRET
 
         header = jwt.get_unverified_header(token)
         assert header["alg"] in ("HS256", "RS256")
@@ -188,6 +187,7 @@ class TestJWTVerification:
     def test_verify_expired_token_returns_none(self):
         """_verify_jwt returns None for an expired token."""
         import jwt as pyjwt
+
         from app.domains.auth import JWT_SECRET
 
         # Create an already-expired token
@@ -209,6 +209,7 @@ class TestJWTVerification:
     def test_verify_token_missing_sub_returns_none(self):
         """_verify_jwt returns None when payload lacks 'sub'."""
         import jwt as pyjwt
+
         from app.domains.auth import JWT_SECRET
 
         token = pyjwt.encode(
@@ -348,8 +349,9 @@ class TestAuthDependencies:
     @pytest.mark.asyncio
     async def test_require_auth_raises_401_without_token(self):
         """require_auth raises 401 when no token."""
-        from app.domains.auth import require_auth
         from fastapi import HTTPException
+
+        from app.domains.auth import require_auth
 
         request = MagicMock()
         request.cookies = {}
@@ -522,8 +524,9 @@ class TestBackupCodes:
 
     def test_backup_code_format(self):
         """Backup codes have expected format: XXXX-XXXX."""
-        from app.domains.auth import _generate_backup_codes
         import re
+
+        from app.domains.auth import _generate_backup_codes
 
         codes = _generate_backup_codes()
         pattern = re.compile(r"^\d{4}-\d{4}$")
