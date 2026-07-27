@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import math
 
+from app.core.logging import get_logger
 from app.domains.scanner.rugmaps.models import BubbleLink, BubbleMap, BubbleNode
+
+logger = get_logger(__name__)
 
 
 def calculate_connection_strength(
@@ -51,7 +54,8 @@ async def add_or_update_node(
         layer=layer,
         risk=risk,
         risk_score=risk_score,
-        x=x, y=y,
+        x=x,
+        y=y,
         radius=radius,
         transaction_count=len(transactions or []),
         color=get_type_color(node_type),
@@ -77,6 +81,7 @@ async def add_center_node(bubble_map: BubbleMap, address: str, transactions: lis
         return center
 
     from app.domains.scanner.rugmaps.models import EntityInfo
+
     node = BubbleNode(
         id=address,
         label=f"{address[:8]}...{address[-4:]}",
@@ -84,7 +89,8 @@ async def add_center_node(bubble_map: BubbleMap, address: str, transactions: lis
         layer=0,
         risk=risk,
         risk_score=risk_score,
-        x=400.0, y=300.0,
+        x=400.0,
+        y=300.0,
         radius=35.0,
         transaction_count=len(transactions),
         color=get_type_color(node_type),
@@ -104,7 +110,9 @@ def add_or_update_link(
     transaction_hashes: list[str] | None = None,
 ) -> BubbleLink:
     """Add or update a link between two nodes."""
-    existing = next((l for l in bubble_map.links if l.source_id == source_id and l.target_id == target_id), None)
+    existing = next(
+        (lnk for lnk in bubble_map.links if lnk.source_id == source_id and lnk.target_id == target_id), None
+    )
     if existing:
         if transaction_hashes:
             existing.transaction_hashes = list(set(existing.transaction_hashes + transaction_hashes))
@@ -124,10 +132,30 @@ def add_or_update_link(
 
 
 async def classify_wallet(address: str, transactions: list | None = None) -> str:
-    """Classify wallet type based on its address and transaction patterns."""
+    """Classify wallet type based on Neo4j labels, address patterns, and transactions.
+
+    Priority order:
+      1. Neo4j label graph (from ClickHouse wallet_labels) — best signal
+      2. Transaction pattern analysis
+      3. Address heuristics
+    """
     if not address:
         return "unknown"
     addr_lower = address.lower()
+
+    # Phase 1: Neo4j entity resolution (labels from ClickHouse)
+    try:
+        from app.domains.wallet.neo4j_client import query_wallet_type
+
+        neo_type = await query_wallet_type(addr_lower)
+        if neo_type:
+            return neo_type
+    except ImportError:
+        pass  # Neo4j client not installed
+    except Exception as exc:
+        logger.debug("Neo4j classify_wallet failed for %s: %s", addr_lower[:12], exc)
+
+    # Phase 2: Transaction pattern analysis
     if transactions:
         unique_to = set()
         total_volume = 0.0
@@ -143,10 +171,12 @@ async def classify_wallet(address: str, transactions: list | None = None) -> str
         if any(tx.get("method") == "swap" for tx in transactions):
             return "defi_trader"
 
+    # Phase 3: Address heuristics
     if len(addr_lower) == 44 and addr_lower.startswith(("0x0000", "0xdead")):
         return "burn"
     if addr_lower.startswith("0x") and addr_lower[2:].isalnum():
         from app.domains.scanner.rugmaps.models import known_exchanges, known_scammers
+
         if addr_lower in {s.lower() for s in known_scammers}:
             return "scammer"
         if addr_lower in {e.lower() for e in known_exchanges}:
@@ -156,12 +186,28 @@ async def classify_wallet(address: str, transactions: list | None = None) -> str
 
 async def get_entity_info(address: str) -> dict | None:
     """Get entity info for a wallet address using clustering."""
+    # Phase 1: Neo4j label graph (primary — 163K+ wallets, 8K+ labels from ClickHouse)
     try:
-        from app.domains.wallet.clustering import get_wallet_entity
-        entity = await get_wallet_entity(address)
-        return entity
-    except (ImportError, Exception):
+        from app.domains.wallet.neo4j_client import query_wallet_entity
+
+        entity = await query_wallet_entity(address)
+        if entity:
+            return entity
+    except ImportError:
         pass
+    except Exception as exc:
+        logger.debug("Neo4j get_entity_info failed for %s: %s", address[:12], exc)
+
+    # Phase 2: On-chain clustering (transaction-based fallback)
+    try:
+        from app.domains.wallet.clustering import get_wallet_entity as get_cluster_entity
+
+        entity = await get_cluster_entity(address)
+        return entity
+    except ImportError:
+        pass
+    except Exception as exc:
+        logger.debug("Cluster get_entity_info failed for %s: %s", address[:12], exc)
     return None
 
 
@@ -191,10 +237,15 @@ def calculate_risk(transactions: list, node_count: int) -> tuple[float, str]:
 
     risk = min(suspicious_patterns * 20 + (total_value / 1_000_000) * 5, 100)
     risk_label = (
-        "critical" if risk >= 80 else
-        "high" if risk >= 60 else
-        "medium" if risk >= 40 else
-        "low" if risk >= 20 else "safe"
+        "critical"
+        if risk >= 80
+        else "high"
+        if risk >= 60
+        else "medium"
+        if risk >= 40
+        else "low"
+        if risk >= 20
+        else "safe"
     )
     return round(risk, 2), risk_label
 
@@ -231,7 +282,7 @@ def calculate_stats(bubble_map: BubbleMap) -> dict:
         return {}
 
     total_connections = len(bubble_map.links) * 2
-    avg_strength = sum(l.strength for l in bubble_map.links) / max(len(bubble_map.links), 1)
+    avg_strength = sum(lnk.strength for lnk in bubble_map.links) / max(len(bubble_map.links), 1)
     risk_levels: dict[str, int] = {}
     type_counts: dict[str, int] = {}
     for n in bubble_map.nodes:
@@ -252,10 +303,18 @@ def calculate_stats(bubble_map: BubbleMap) -> dict:
 def get_type_color(node_type: str) -> str:
     """Get color for a node type."""
     colors = {
-        "center": "#ff6b6b", "scammer": "#ff0000", "suspected_scammer": "#ff6b6b",
-        "exchange": "#4dabf7", "whale": "#ffd43b", "bot": "#9775fa",
-        "kol": "#69db7c", "dev": "#ff8787", "unknown": "#868e96",
-        "defi_trader": "#20c997", "burn": "#ff922b", "marketer": "#f783ac",
+        "center": "#ff6b6b",
+        "scammer": "#ff0000",
+        "suspected_scammer": "#ff6b6b",
+        "exchange": "#4dabf7",
+        "whale": "#ffd43b",
+        "bot": "#9775fa",
+        "kol": "#69db7c",
+        "dev": "#ff8787",
+        "unknown": "#868e96",
+        "defi_trader": "#20c997",
+        "burn": "#ff922b",
+        "marketer": "#f783ac",
     }
     return colors.get(node_type, "#868e96")
 
