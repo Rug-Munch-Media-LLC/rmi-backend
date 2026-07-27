@@ -13,6 +13,7 @@ Run as a cron itself: */5 * * * * /root/scripts/cron_health_check.py
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import subprocess
@@ -20,6 +21,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urljoin
+
+logger = logging.getLogger(__name__)
 
 # ── Config ─────────────────────────────────────────────────────────
 BACKEND_URL = os.getenv("RMI_BACKEND_URL", "http://127.0.0.1:8000")
@@ -52,7 +55,7 @@ def log(msg: str) -> None:
     ts = datetime.now(UTC).isoformat()
     with open(LOG_FILE, "a") as f:
         f.write(f"{ts} {msg}\n")
-    print(f"{ts} {msg}")
+    logger.info("%s", msg)
 
 
 def check_log_for_errors(log_file: str) -> tuple[bool, str]:

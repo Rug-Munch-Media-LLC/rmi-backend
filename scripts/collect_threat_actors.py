@@ -11,8 +11,11 @@ Sources:
 
 import csv
 import json
+import logging
 import os
 from collections import Counter, defaultdict
+
+logger = logging.getLogger(__name__)
 
 DATA_DIR = "/root/backend/data"
 CLEAN_DIR = os.path.join(DATA_DIR, "wallet-labels-clean")
@@ -127,12 +130,12 @@ def detect_repeat_deployers(eth_labels_path):
 
 
 def main():
-    print("=== Threat Actor Wallet Collector ===\n")
+    logger.info("=== Threat Actor Wallet Collector ===")
 
     all_labels = []
 
     # 1. Known Lazarus wallets
-    print("Adding known Lazarus/DPRK wallets...")
+    logger.info("Adding known Lazarus/DPRK wallets...")
     for addr, label in LAZARUS_WALLETS.items():
         all_labels.append(
             {
@@ -160,10 +163,10 @@ def main():
                 "verified": True,
             }
         )
-    print(f"  Lazarus/DPRK: {len(LAZARUS_WALLETS) + len(LAZARUS_SOL_WALLETS)} wallets")
+    logger.info("  Lazarus/DPRK: %s wallets", len(LAZARUS_WALLETS) + len(LAZARUS_SOL_WALLETS))
 
     # 2. US Govt seized
-    print("Adding US Government seized wallets...")
+    logger.info("Adding US Government seized wallets...")
     for addr, label in US_GOVT_WALLETS.items():
         chain = "ethereum" if addr.startswith("0x") else "bitcoin"
         all_labels.append(
@@ -178,10 +181,10 @@ def main():
                 "verified": True,
             }
         )
-    print(f"  US Govt seized: {len(US_GOVT_WALLETS)} wallets")
+    logger.info("  US Govt seized: %s wallets", len(US_GOVT_WALLETS))
 
     # 3. Other nation-state actors
-    print("Adding other nation-state threat actor wallets...")
+    logger.info("Adding other nation-state threat actor wallets...")
     for addr, label in NATION_STATE_WALLETS.items():
         all_labels.append(
             {
@@ -195,10 +198,10 @@ def main():
                 "verified": True,
             }
         )
-    print(f"  Other nation-state: {len(NATION_STATE_WALLETS)} wallets")
+    logger.info("  Other nation-state: %s wallets", len(NATION_STATE_WALLETS))
 
     # 4. Known scam operations
-    print("Adding known scam operation wallets...")
+    logger.info("Adding known scam operation wallets...")
     for addr, label in SCAM_OPERATIONS.items():
         all_labels.append(
             {
@@ -211,10 +214,10 @@ def main():
                 "verified": True,
             }
         )
-    print(f"  Scam operations: {len(SCAM_OPERATIONS)} wallets")
+    logger.info("  Scam operations: %s wallets", len(SCAM_OPERATIONS))
 
     # 5. Detect repeat deployers from our own data
-    print("Detecting repeat scam deployers from our data...")
+    logger.info("Detecting repeat scam deployers from our data...")
     eth_labels_path = os.path.join(CLEAN_DIR, "wallet_labels_ethereum.csv")
     if os.path.exists(eth_labels_path):
         repeat_deployers = detect_repeat_deployers(eth_labels_path)
@@ -232,9 +235,9 @@ def main():
                     "deployments": info["deployments"],
                 }
             )
-        print(f"  Repeat deployers detected: {len(repeat_deployers)}")
+        logger.info("  Repeat deployers detected: %s", len(repeat_deployers))
     else:
-        print("  Clean ETH labels not found - skipping deployer detection")
+        logger.warning("Clean ETH labels not found - skipping deployer detection")
 
     # 6. Deduplicate against existing labels
     existing = set()
@@ -247,8 +250,8 @@ def main():
 
     new_labels = [l for l in all_labels if l["address"].lower() not in existing]  # noqa: E741
     existing_dupes = len(all_labels) - len(new_labels)
-    print(f"\n  Already in database: {existing_dupes}")
-    print(f"  New threat actor labels: {len(new_labels)}")
+    logger.info("Already in database: %s", existing_dupes)
+    logger.info("New threat actor labels: %s", len(new_labels))
 
     # Save
     if new_labels:
@@ -271,21 +274,22 @@ def main():
             writer.writeheader()
             for label in new_labels:
                 writer.writerow(label)
-        print(f"\n  Saved to {OUTPUT}")
+        logger.info("Saved to %s", OUTPUT)
 
     # Summary
-    print("\n=== Summary ===")
-    print(f"  Total threat actor labels: {len(all_labels)}")
-    print(f"  New (not in DB): {len(new_labels)}")
-    print(f"  Already known: {existing_dupes}")
+    logger.info("=== Summary ===")
+    logger.info("Total threat actor labels: %s", len(all_labels))
+    logger.info("New (not in DB): %s", len(new_labels))
+    logger.info("Already known: %s", existing_dupes)
 
     # Category breakdown
     cats = Counter(l["entity_type"] for l in all_labels)  # noqa: E741
     for cat, count in cats.most_common():
-        print(f"    {cat}: {count}")
+        logger.info("  %s: %s", cat, count)
 
     return new_labels
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     main()

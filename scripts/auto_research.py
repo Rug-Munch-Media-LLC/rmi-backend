@@ -5,10 +5,13 @@ Fully automated: LLM writes → LLM reviews → publishes."""
 
 import asyncio
 import json
+import logging
 import os
 from datetime import UTC, datetime
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
 GHOST_URL = os.getenv("GHOST_URL", "http://localhost:2368")
@@ -21,21 +24,13 @@ async def fetch_market_data() -> dict:
     """Gather all market data for the report."""
     async with httpx.AsyncClient(timeout=30) as c:
         # Top tokens
-        trending = await c.get(
-            f"{BACKEND}/api/v1/databus/fetch/trending?limit=20", headers={"X-RMI-Key": RMI_KEY}
-        )
+        trending = await c.get(f"{BACKEND}/api/v1/databus/fetch/trending?limit=20", headers={"X-RMI-Key": RMI_KEY})
         # Market overview
-        market = await c.get(
-            f"{BACKEND}/api/v1/databus/fetch/market_overview", headers={"X-RMI-Key": RMI_KEY}
-        )
+        market = await c.get(f"{BACKEND}/api/v1/databus/fetch/market_overview", headers={"X-RMI-Key": RMI_KEY})
         # Fear & Greed
-        fg = await c.get(
-            f"{BACKEND}/api/v1/databus/fetch/fear_greed", headers={"X-RMI-Key": RMI_KEY}
-        )
+        fg = await c.get(f"{BACKEND}/api/v1/databus/fetch/fear_greed", headers={"X-RMI-Key": RMI_KEY})
         # News
-        news = await c.get(
-            f"{BACKEND}/api/v1/databus/fetch/news?limit=10", headers={"X-RMI-Key": RMI_KEY}
-        )
+        news = await c.get(f"{BACKEND}/api/v1/databus/fetch/news?limit=10", headers={"X-RMI-Key": RMI_KEY})
 
         return {
             "trending": trending.json() if trending.status_code == 200 else {},
@@ -112,7 +107,7 @@ No signal generated. Premium subscribers receive automated signals daily.
 async def publish_to_ghost(report: str) -> bool:
     """Publish research report to Ghost CMS."""
     if not GHOST_KEY:
-        print("Ghost not configured - report not published")
+        logger.warning("Ghost not configured - report not published")
         return False
 
     try:
@@ -133,24 +128,23 @@ async def publish_to_ghost(report: str) -> bool:
             )
             return r.status_code in (200, 201)
     except Exception as e:
-        print(f"Ghost publish failed: {e}")
+        logger.error("Ghost publish failed: %s", e)
     return False
 
 
 async def main():
-    print(f"RMI Auto-Research Agent - {datetime.now(UTC).isoformat()}")
-    print("=" * 60)
+    logger.info("RMI Auto-Research Agent - %s", datetime.now(UTC).isoformat())
 
     # 1. Gather data
-    print("Gathering market data...")
+    logger.info("Gathering market data...")
     data = await fetch_market_data()
-    print(f"  Trending: {len(str(data['trending']))} chars")
-    print(f"  Market: {len(str(data['market']))} chars")
-    print(f"  FG: {len(str(data['fear_greed']))} chars")
-    print(f"  News: {len(str(data['news']))} chars")
+    logger.info("  Trending: %s chars", len(str(data["trending"])))
+    logger.info("  Market: %s chars", len(str(data["market"])))
+    logger.info("  FG: %s chars", len(str(data["fear_greed"])))
+    logger.info("  News: %s chars", len(str(data["news"])))
 
     # 2. Generate report
-    print("Generating report via Ollama...")
+    logger.info("Generating report via Ollama...")
     report = await generate_report(data)
 
     # 3. Save locally
@@ -158,19 +152,20 @@ async def main():
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     with open(report_path, "w") as f:
         f.write(report)
-    print(f"Report saved: {report_path}")
+    logger.info("Report saved: %s", report_path)
 
     # 4. Publish to Ghost
     if await publish_to_ghost(report):
-        print("Published to Ghost CMS ✅")
+        logger.info("Published to Ghost CMS")
     else:
-        print("Ghost publish skipped (not configured)")
+        logger.info("Ghost publish skipped (not configured)")
 
     # 5. Summary
     lines = report.split("\n")
-    print(f"\nReport: {len(report)} chars, {len(lines)} lines")
-    print(report[:300])
+    logger.info("Report: %s chars, %s lines", len(report), len(lines))
+    logger.info("Preview:\n%s", report[:300])
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     asyncio.run(main())

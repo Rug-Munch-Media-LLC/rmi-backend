@@ -11,10 +11,13 @@ Nightly Wallet Label Backup & Sync
 import csv
 import hashlib
 import json
+import logging
 import os
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 DATA_DIR = os.environ.get("RMI_DATA_DIR", "/root/backend/data")
 CLEAN_DIR = os.path.join(DATA_DIR, "wallet-labels-clean")
@@ -32,7 +35,7 @@ MAX_BACKUPS = 30  # Keep 30 days of backups
 
 def validate_labels():
     """Validate all clean label files for integrity."""
-    print("Validating label data...")
+    logger.info("Validating label data...")
     results = {}
 
     for fname in ["wallet_labels_ethereum.csv", "wallet_labels_solana.csv"]:
@@ -65,8 +68,8 @@ def validate_labels():
             "invalids": invalids,
             "unique": len(seen),
         }
-        print(
-            f"  {fname}: {count:,} rows, {dupes} dupes, {invalids} invalid - {results[fname]['status']}"
+        logger.info(
+            "  %s: %s rows, %s dupes, %s invalid - %s", fname, f"{count:,}", dupes, invalids, results[fname]["status"]
         )
 
     # Validate manifest
@@ -129,10 +132,10 @@ def create_backup():
     while len(backups) > MAX_BACKUPS:
         oldest = backups.pop(0)
         oldest.unlink()
-        print(f"  Rotated out: {oldest.name}")
+        logger.info("  Rotated out: %s", oldest.name)
 
     size_mb = os.path.getsize(archive_path) / (1024 * 1024)
-    print(f"Backup created: {archive_path} ({size_mb:.1f} MB)")
+    logger.info("Backup created: %s (%.1f MB)", archive_path, size_mb)
 
     return archive_path
 
@@ -140,7 +143,7 @@ def create_backup():
 def upload_to_r2(archive_path: str) -> bool:
     """Upload backup to R2 cloud storage."""
     if not all([R2_ENDPOINT, R2_KEY, R2_SECRET]):
-        print("R2 not configured - skipping cloud upload")
+        logger.warning("R2 not configured - skipping cloud upload")
         return False
 
     try:
@@ -159,13 +162,13 @@ def upload_to_r2(archive_path: str) -> bool:
             R2_BUCKET,
             f"wallet-labels/{fname}",
         )
-        print(f"Uploaded to R2: wallet-labels/{fname}")
+        logger.info("Uploaded to R2: wallet-labels/%s", fname)
         return True
     except ImportError:
-        print("boto3 not installed - skipping R2 upload")
+        logger.warning("boto3 not installed - skipping R2 upload")
         return False
     except Exception as e:
-        print(f"R2 upload failed: {e}")
+        logger.error("R2 upload failed: %s", e)
         return False
 
 
@@ -182,7 +185,7 @@ def sync_to_redis():
         )
         r.ping()
     except Exception as e:
-        print(f"Redis not available: {e}")
+        logger.warning("Redis not available: %s", e)
         return 0
 
     synced = 0
@@ -218,12 +221,12 @@ def sync_to_redis():
             pipe.execute()
             synced += batch
 
-    print(f"Synced {synced:,} labels to Redis")
+    logger.info("Synced %s labels to Redis", f"{synced:,}")
     return synced
 
 
 def main():
-    print(f"=== Wallet Label Nightly Backup - {datetime.now().isoformat()} ===\n")
+    logger.info("=== Wallet Label Nightly Backup - %s ===", datetime.now().isoformat())
 
     # 1. Validate
     validation = validate_labels()
@@ -248,13 +251,14 @@ def main():
     with open(os.path.join(CLEAN_DIR, "nightly_manifest.json"), "w") as f:
         json.dump(manifest, f, indent=2, default=str)
 
-    print("\n=== Done ===")
-    print(f"Backup: {archive}")
-    print(f"Cloud: {'✓' if uploaded else '✗'}")
-    print(f"Redis: {synced:,} labels synced")
+    logger.info("=== Done ===")
+    logger.info("Backup: %s", archive)
+    logger.info("Cloud: %s", "yes" if uploaded else "no")
+    logger.info("Redis: %s labels synced", f"{synced:,}")
 
     return manifest
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     main()
