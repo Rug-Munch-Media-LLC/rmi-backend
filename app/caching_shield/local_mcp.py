@@ -28,7 +28,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("local_mcp")
 
-MCP_HOME = Path("/root/.hermes/mcp-servers")
+MCP_HOME = Path(os.getenv("MCP_HOME", "/path/to/mcp-servers"))
 
 class LocalMCPClient:
     """Pulls MCP servers from GitHub, runs them locally via stdio, caches results."""

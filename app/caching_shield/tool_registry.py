@@ -63,7 +63,7 @@ def _count_gateway_tools() -> int:
 
 def _count_our_mcp() -> int:
     """Count tools in our own MCP server."""
-    mcp_file = Path("/root/backend/app/routers/mcp_server.py")
+    mcp_file = Path(os.getenv("BACKEND_DIR", "/path/to/backend") + "/app/routers/mcp_server.py")
     if mcp_file.exists():
         content = mcp_file.read_text()
         import re
@@ -75,14 +75,14 @@ def _count_our_mcp() -> int:
 
 def _count_svm_tools() -> int:
     """Solana SVM MCP server - compiled Rust binary with 60+ RPC tools."""
-    binary = Path("/root/.hermes/mcp-servers/solana-svm/target/release/solana-mcp-server")
+    binary = Path(os.getenv("MCP_HOME", "/path/to/mcp-servers") + "/solana-svm/target/release/solana-mcp-server")
     if binary.exists():
         return 60  # getBalance, getAccountInfo, getTokenSupply, etc.
     return 0
 
 def _count_evm_tools() -> int:
     """EVM MCP server - 25 tools across 86 networks."""
-    entry = Path("/root/.hermes/mcp-servers/evm-direct/src/index.ts")
+    entry = Path(os.getenv("MCP_HOME", "/path/to/mcp-servers") + "/evm-direct/src/index.ts")
     if entry.exists():
         return 25  # verified: get_wallet_address through wait_for_transaction
     return 0
