@@ -8,7 +8,7 @@ WHAT IT BLOCKS:
 - References to private repos (standards, fleet-infra, fleet-template, rmi-security-framework)
 - Internal architecture docs (DISPATCH-MATRIX, PAYMENT-MODEL, SECURITY-FRAMEWORK)
 - Agent definitions and fleet configuration
-- Internal IPs and hostnames (100.104.x.x, 100.64.x.x, 100.74.x.x)
+- Internal IPs and hostnames (internal network ranges)
 - DDG MCP server code
 - Competitor teardown references (/tmp/compete/)
 - Payment model and cost structure
