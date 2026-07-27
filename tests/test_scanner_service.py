@@ -163,13 +163,13 @@ def test_scan_result_defaults():
 async def test_scan_token_free_tier():
     """scan_token with FREE tier runs core modules."""
     with (
-        patch("app.domains.scanner.service.fetch_market_data") as mock_md,
-        patch("app.domains.scanner.service._check_honeypot_is") as mock_hp,
-        patch("app.domains.scanner.service._check_goplus_security") as mock_gp,
-        patch("app.domains.scanner.service._check_copycat") as mock_cc,
-        patch("app.domains.scanner.service._check_spam") as mock_sp,
-        patch("app.domains.scanner.service._check_blockscout") as mock_bs,
-        patch("app.domains.scanner.service._check_defi_scanner") as mock_ds,
+        patch("app.domains.scanner.service.scan.fetch_market_data") as mock_md,
+        patch("app.domains.scanner.service.scan._check_honeypot_is") as mock_hp,
+        patch("app.domains.scanner.service.scan._check_goplus_security") as mock_gp,
+        patch("app.domains.scanner.service.scan._check_copycat") as mock_cc,
+        patch("app.domains.scanner.service.scan._check_spam") as mock_sp,
+        patch("app.domains.scanner.service.scan._check_blockscout") as mock_bs,
+        patch("app.domains.scanner.service.scan._check_defi_scanner") as mock_ds,
     ):
         mock_md.return_value = {"price": 1.0, "volume_24h": 50000}
         mock_hp.return_value = {"check": "honeypot", "result": "scanned", "is_honeypot": False}
@@ -198,13 +198,13 @@ async def test_scan_token_free_tier():
 async def test_scan_token_free_tier_honeypot():
     """scan_token FREE tier flags a honeypot correctly."""
     with (
-        patch("app.domains.scanner.service.fetch_market_data") as mock_md,
-        patch("app.domains.scanner.service._check_honeypot_is") as mock_hp,
-        patch("app.domains.scanner.service._check_goplus_security") as mock_gp,
-        patch("app.domains.scanner.service._check_copycat") as mock_cc,
-        patch("app.domains.scanner.service._check_spam") as mock_sp,
-        patch("app.domains.scanner.service._check_blockscout") as mock_bs,
-        patch("app.domains.scanner.service._check_defi_scanner") as mock_ds,
+        patch("app.domains.scanner.service.scan.fetch_market_data") as mock_md,
+        patch("app.domains.scanner.service.scan._check_honeypot_is") as mock_hp,
+        patch("app.domains.scanner.service.scan._check_goplus_security") as mock_gp,
+        patch("app.domains.scanner.service.scan._check_copycat") as mock_cc,
+        patch("app.domains.scanner.service.scan._check_spam") as mock_sp,
+        patch("app.domains.scanner.service.scan._check_blockscout") as mock_bs,
+        patch("app.domains.scanner.service.scan._check_defi_scanner") as mock_ds,
     ):
         mock_md.return_value = {"price": 0.001, "volume_24h": 100}
         mock_hp.return_value = {
@@ -240,18 +240,18 @@ async def test_scan_token_free_tier_honeypot():
 async def test_scan_token_pro_tier():
     """scan_token with PRO tier runs more modules."""
     with (
-        patch("app.domains.scanner.service.fetch_market_data") as mock_md,
-        patch("app.domains.scanner.service._check_honeypot_is") as mock_hp,
-        patch("app.domains.scanner.service._check_goplus_security") as mock_gp,
-        patch("app.domains.scanner.service._check_copycat") as mock_cc,
-        patch("app.domains.scanner.service._check_spam") as mock_sp,
-        patch("app.domains.scanner.service._check_blockscout") as mock_bs,
-        patch("app.domains.scanner.service._check_defi_scanner") as mock_ds,
-        patch("app.domains.scanner.service._get_deployer_info") as mock_di,
-        patch("app.domains.scanner.service._get_holder_data") as mock_hd,
-        patch("app.domains.scanner.service._check_contract_verification") as mock_cv,
-        patch("app.domains.scanner.service._check_liquidity_lock_multi") as mock_ll,
-        patch("app.domains.scanner.service._check_bundle") as mock_bd,
+        patch("app.domains.scanner.service.scan.fetch_market_data") as mock_md,
+        patch("app.domains.scanner.service.scan._check_honeypot_is") as mock_hp,
+        patch("app.domains.scanner.service.scan._check_goplus_security") as mock_gp,
+        patch("app.domains.scanner.service.scan._check_copycat") as mock_cc,
+        patch("app.domains.scanner.service.scan._check_spam") as mock_sp,
+        patch("app.domains.scanner.service.scan._check_blockscout") as mock_bs,
+        patch("app.domains.scanner.service.scan._check_defi_scanner") as mock_ds,
+        patch("app.domains.scanner.service.scan._get_deployer_info") as mock_di,
+        patch("app.domains.scanner.service.scan._get_holder_data") as mock_hd,
+        patch("app.domains.scanner.service.scan._check_contract_verification") as mock_cv,
+        patch("app.domains.scanner.service.scan._check_liquidity_lock_multi") as mock_ll,
+        patch("app.domains.scanner.service.scan._check_bundle") as mock_bd,
     ):
         for m in [
             mock_md,
@@ -287,13 +287,13 @@ async def test_scan_token_pro_tier():
 async def test_scan_token_module_failure():
     """scan_token handles a module failure gracefully."""
     with (
-        patch("app.domains.scanner.service.fetch_market_data") as mock_md,
-        patch("app.domains.scanner.service._check_honeypot_is") as mock_hp,
-        patch("app.domains.scanner.service._check_goplus_security") as mock_gp,
-        patch("app.domains.scanner.service._check_copycat") as mock_cc,
-        patch("app.domains.scanner.service._check_spam") as mock_sp,
-        patch("app.domains.scanner.service._check_blockscout") as mock_bs,
-        patch("app.domains.scanner.service._check_defi_scanner") as mock_ds,
+        patch("app.domains.scanner.service.scan.fetch_market_data") as mock_md,
+        patch("app.domains.scanner.service.scan._check_honeypot_is") as mock_hp,
+        patch("app.domains.scanner.service.scan._check_goplus_security") as mock_gp,
+        patch("app.domains.scanner.service.scan._check_copycat") as mock_cc,
+        patch("app.domains.scanner.service.scan._check_spam") as mock_sp,
+        patch("app.domains.scanner.service.scan._check_blockscout") as mock_bs,
+        patch("app.domains.scanner.service.scan._check_defi_scanner") as mock_ds,
     ):
         mock_md.side_effect = RuntimeError("API unavailable")
         mock_hp.side_effect = RuntimeError("Service down")

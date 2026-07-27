@@ -19,16 +19,13 @@ from __future__ import annotations
 import datetime
 import statistics
 import time
-from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.data_fusion.config import SOURCE_WEIGHTS
 from app.core.data_fusion.helpers import (
     _deduplicate_findings,
     _empty_result,
-    _extract_boolean,
     _extract_list,
-    _extract_numeric,
     _extract_price,
     _get_freshness,
     _merge_holder_lists,
@@ -89,6 +86,7 @@ class DataFusion:
         goplus_result: dict | None = None,
         dexscreener_result: dict | None = None,
         honeypot_result: dict | None = None,
+        sentinel_result: dict | None = None,
         additional: list[dict] | None = None,
     ) -> dict:
         self._stats["calls"] += 1
@@ -284,21 +282,21 @@ class DataFusion:
                 continue
 
             adjusted = v.weight * v.freshness
-            for field in ("risk_score", "confidence", "total_supply"):
-                raw = val.get(field)
+            for key in ("risk_score", "confidence", "total_supply"):
+                raw = val.get(key)
                 if isinstance(raw, (int, float)):
-                    numeric_weights.setdefault(field, []).append((float(raw), adjusted))
+                    numeric_weights.setdefault(key, []).append((float(raw), adjusted))
 
         fused: dict[str, float] = {}
         total_confidence = 0.0
 
-        for field, values in numeric_weights.items():
+        for key, values in numeric_weights.items():
             weighted_sum = sum(v * w for v, w in values)
             total_w = sum(w for _, w in values)
             if total_w > 0:
-                fused[field] = weighted_sum / total_w
+                fused[key] = weighted_sum / total_w
             else:
-                fused[field] = values[0][0]
+                fused[key] = values[0][0]
 
         if "confidence" in fused:
             total_confidence = fused["confidence"]
@@ -317,3 +315,7 @@ class DataFusion:
             "errors": self._stats["errors"],
             "avg_sources_per_fusion": (round(self._stats["sources_fused"] / max(self._stats["calls"], 1), 1)),
         }
+
+
+# Module-level singleton — used by scanner service and other consumers
+fusion = DataFusion()
