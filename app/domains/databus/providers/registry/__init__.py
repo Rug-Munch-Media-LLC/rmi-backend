@@ -71,6 +71,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _solana_tracker_trending,
         _virustotal_url_scan,
     )
+    from ..chains.intel_provider import _scraped_intel_provider
     from ..chains.local import (
         _clickhouse_wallet_labels,
         _local_token_price,
@@ -86,7 +87,6 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _passthrough_scanner,
         _passthrough_trending,
     )
-    from ..chains.intel_provider import _scraped_intel_provider
     from ..chains.mcp_bridge import _mcp_bridge
     from ..chains.moralis import (
         _moralis_price,
