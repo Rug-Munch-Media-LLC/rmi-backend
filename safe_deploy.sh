@@ -1,9 +1,15 @@
 #!/bin/bash
 # Safe RAG Deploy — NEVER deploys main.py
 # Deploys only RAG app files that are safe to overwrite.
-# Usage: cd ~/rmi/backend && bash safe_deploy.sh
+#
+# SECURITY: This file is in a public repo. Set VPS_HOST via env var
+# or SSH host alias — NEVER hardcode production IPs here.
+#
+# Usage:
+#   VPS_HOST=root@your-server bash safe_deploy.sh
+#   cd ~/rmi/backend && bash safe_deploy.sh
 
-VPS="root@152.53.80.39"
+VPS="${VPS_HOST:?Set VPS_HOST env var (e.g. root@hostname) or edit this file locally}"
 VPS_APP="/root/backend/app"
 
 FILES=(
