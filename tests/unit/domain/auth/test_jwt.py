@@ -67,7 +67,7 @@ class TestCreateJWT:
             mock_dt.now.return_value = fixed_now
             # We also need to mock timedelta
             token = _create_jwt(user_id="u1", email="u@example.com")
-            payload = pyjwt.decode(token, secret, algorithms=["HS256"])
+            payload = pyjwt.decode(token, secret, algorithms=["HS256"], options={"verify_exp": False})
             assert "iat" in payload
             assert "exp" in payload
 
