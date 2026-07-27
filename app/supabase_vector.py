@@ -38,7 +38,7 @@ def _get_headers() -> dict:
     service_role privileges. The anon key would be blocked by RLS policies.
     """
     key = (
-        get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+        get_secret_or_none("SUPABASE_SERVICE_KEY", "")
         or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
         or ""
     )
@@ -254,7 +254,7 @@ class SupabaseVectorStore:
                         )
             except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
                 logger.warning(
-                    "pgvector table not found. Run: /root/backend/supabase_pgvector_setup.sql in Supabase SQL Editor"
+                    "pgvector table not found. Run: /path/to/supabase_pgvector_setup.sql in Supabase SQL Editor"
                 )
                 logger.warning("Falling back to Redis vector store. Error: %s", e)
 

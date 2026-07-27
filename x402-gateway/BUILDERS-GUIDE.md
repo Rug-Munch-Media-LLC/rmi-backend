@@ -48,7 +48,7 @@
                            ▼
 ┌──────────────────────────────────────────────────────────────┐
 │              rugmunch.io (Docker)                             │
-│              /root/backend/ → rmi-backend:8000               │
+│              /path/to/backend/ → rmi-backend:8000               │
 │              FastAPI — 80+ modules                            │
 │              x402 enforcement, human payments, tools API      │
 └──────────────────────────────────────────────────────────────┘
@@ -60,15 +60,15 @@
 - **154 MCP tools** from 28 data providers
 - **10 payment facilitators** — Coinbase CDP, PayAI, Cloudflare, Pieverse (BNB), AsterPay (EUR/SEPA), MERX (TRON), Primev (fee-free ETH), Satoshi (BTC), x402-rs (self-hosted), EIP-7702 (universal EVM)
 - **13 payment chains** — Base, Solana, Ethereum, BSC, Polygon, Arbitrum, Optimism, TRON, Bitcoin, Avalanche, Fantom, Gnosis, SEPA/EUR
-- **1 Docker backend** — FastAPI at /root/backend/, mounted to rmi-backend container
+- **1 Docker backend** — FastAPI at /path/to/backend/, mounted to rmi-backend container
 - **Smart router** — Auto-picks best facilitator per chain/token with automatic fallback
 - **Cloudflare Tunnel** — rugmunch.io → rmi-backend:8000
 - **Source code** — github.com/Rug-Munch-Media-LLC/rugmuncher-backend
 
 ### WORKER CODE LOCATION
 ```
-/root/backend/x402-gateway/solana/    → Solana gateway
-/root/backend/x402-gateway/base/      → Base gateway
+/path/to/backend/x402-gateway/solana/    → Solana gateway
+/path/to/backend/x402-gateway/base/      → Base gateway
 ```
 Each has:
 - `index.ts` — THE ENTIRE WORKER (single file, ~3000 lines)
@@ -79,13 +79,13 @@ Each has:
 
 ### BACKEND CODE LOCATION
 ```
-/root/backend/                        → Docker context
-/root/backend/main.py                 → FastAPI entry point
-/root/backend/app/routers/x402_tools.py      → x402 tools + human payment
-/root/backend/app/routers/x402_enforcement.py → Payment middleware + smart router
-/root/backend/app/facilitators/       → 10 facilitator modules (pluggable registry)
-/root/backend/app/facilitators/router.py     → Smart router (auto-picks best facilitator)
-/root/backend/docker/x402-rs/         → Self-hosted Rust facilitator Docker config
+/path/to/backend/                        → Docker context
+/path/to/backend/main.py                 → FastAPI entry point
+/path/to/backend/app/routers/x402_tools.py      → x402 tools + human payment
+/path/to/backend/app/routers/x402_enforcement.py → Payment middleware + smart router
+/path/to/backend/app/facilitators/       → 10 facilitator modules (pluggable registry)
+/path/to/backend/app/facilitators/router.py     → Smart router (auto-picks best facilitator)
+/path/to/backend/docker/x402-rs/         → Self-hosted Rust facilitator Docker config
 ```
 
 ---
@@ -253,7 +253,7 @@ CF_TOKEN="cfat_YOUR_TOKEN"
 ACCT="8f9bd9165c1250b426c66dc1967deefd"
 
 # 1. Compile TypeScript
-cd /root/backend/x402-gateway/solana
+cd /path/to/backend/x402-gateway/solana
 npx esbuild index.ts --bundle --format=esm --platform=neutral \
   --target=es2022 --outfile=dist/worker.js --external:node:*
 
@@ -266,7 +266,7 @@ curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACCT/workers/scripts
 
 **Method 2: Wrangler (when auth works)**
 ```bash
-cd /root/backend/x402-gateway/solana
+cd /path/to/backend/x402-gateway/solana
 CLOUDFLARE_API_TOKEN=$CF_TOKEN npx wrangler deploy
 ```
 
@@ -328,8 +328,8 @@ DNS CNAME records point to the workers.dev subdomains with proxy enabled.
 |------|----------|---------|
 | `smithery.json` | Gateway root | Smithery listing |
 | `glama.json` | Gateway root | Glama listing |
-| `X402-SYSTEM.md` | /root/backend/x402-gateway/ | Multi-facilitator system documentation |
-| `BUILDERS-GUIDE.md` | /root/backend/x402-gateway/ | This guide |
+| `X402-SYSTEM.md` | /path/to/backend/x402-gateway/ | Multi-facilitator system documentation |
+| `BUILDERS-GUIDE.md` | /path/to/backend/x402-gateway/ | This guide |
 | README.md | Gateway root | Quick start |
 
 ### Bot Discovery Endpoints
@@ -370,7 +370,7 @@ in x402_enforcement.py and the bot-agent check exempts it.
 ### "Token expired / Invalid API Token"
 **Cause:** Cloudflare API tokens can be revoked or expire.
 **Fix:** Generate new token at dash.cloudflare.com → API Tokens.
-Current working token stored in `/root/.hermes/.env` as CLOUDFLARE_API_TOKEN.
+Current working token stored in `/path/to/hermes/.env` as CLOUDFLARE_API_TOKEN.
 
 ---
 
@@ -461,7 +461,7 @@ RESTART:       docker restart rmi-backend → wait 10s → curl health
 ADD TOOL:      RMI_TOOLS entry → dispatch case → function → compile → upload
 TEST:          curl POST /mcp tools/list → tools/call
 DEBUG:         docker logs rmi-backend --tail 50
-TOKEN:         /root/.hermes/.env CLOUDFLARE_API_TOKEN
+TOKEN:         /path/to/hermes/.env CLOUDFLARE_API_TOKEN
 ACCOUNT ID:    8f9bd9165c1250b426c66dc1967deefd
 ZONE rugmunch: 2c5c82d253dbfb7e091eb8b1dac4f0f8
 ZONE cryptorug: 25168c58ff5783c51f047378eac525cb

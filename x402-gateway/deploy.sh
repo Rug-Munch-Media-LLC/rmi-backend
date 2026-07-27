@@ -23,8 +23,8 @@ GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-BASE_DIR="/srv/x402-gateway-base"
-SOL_DIR="/root/backend/x402-gateway/solana"
+BASE_DIR="/path/to/x402-gateway-base"
+SOL_DIR="/path/to/x402-gateway/solana"
 ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-8f9bd9165c1250b426c66dc1967deefd}"
 TOKEN="${CLOUDFLARE_API_TOKEN:-}"
 

@@ -22,7 +22,7 @@ def _get_url() -> Any | None:
 def _get_key() -> Any:
     return (
         get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
-        or get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+        or get_secret_or_none("SUPABASE_SERVICE_KEY", "")
         or ""
     )
 

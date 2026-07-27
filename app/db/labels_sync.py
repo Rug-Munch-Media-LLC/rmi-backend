@@ -7,10 +7,10 @@ consumer that is populated separately.
 
 Usage:
     # Ingest public_labels.jsonl (smallest dataset, ~39K records)
-    python -m app.db.labels_sync /srv/data/labels/public_labels.jsonl
+    python -m app.db.labels_sync /path/to/labels/public_labels.jsonl
 
     # Dry-run everything else
-    python -m app.db.labels_sync /srv/data/labels/other.csv --dry-run
+    python -m app.db.labels_sync /path/to/labels/other.csv --dry-run
 """
 
 from __future__ import annotations

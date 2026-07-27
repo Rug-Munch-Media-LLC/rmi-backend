@@ -28,7 +28,7 @@ def _get_url() -> Any:
 def _get_key() -> Any:
     """Get Supabase service key for full CRUD access to intel tables."""
     return (
-        get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+        get_secret_or_none("SUPABASE_SERVICE_KEY", "")
         or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
         or ""
     )
