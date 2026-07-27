@@ -1,27 +1,25 @@
 # RMI Backend — Rug Munch Intelligence
 
 **Repo:** `git.rugmunch.io/RugMunchMedia/rmi-backend`
-**Deploy:** `/root/backend/` on Talos | **Container:** `rmi-backend`
-**Health:** `http://127.0.0.1:8000/health`
 **Docs:** `/docs` (Swagger) | `/redoc` (ReDoc) | `/openapi.json`
 
 ## What It Is
 
-FastAPI monolith serving the RMI crypto intelligence platform — **token risk scanning, wallet forensics, market data, Telegram bot, MCP agent tools, and x402-gated premium endpoints** across **96+ blockchains**.
+FastAPI monolith serving the RMI crypto intelligence platform — **token risk scanning, wallet forensics, market data, Telegram bot, MCP agent tools, and x402-gated premium endpoints** across **multiple blockchains**.
 
-| Service | Routes | Protocols | Active Users |
-|---------|--------|-----------|-------------|
-| HTTP API | 780+ routes | REST + WebSocket + MCP | 1,000+ MAU |
-| Telegram Bot | 40+ commands | `@rugmunchbot` | 500+ users |
-| MCP Tools | 221 tools | JSON-RPC / SSE | 50+ agents |
-| DataBus Chains | 89 providers | Unified data layer | All services |
+| Interface | Protocol | Description |
+|-----------|----------|-------------|
+| HTTP API | REST + WebSocket | Public and authenticated endpoints |
+| Telegram Bot | Polling/Webhook | Bot commands and alerts |
+| MCP Tools | JSON-RPC / SSE | Agent tool interfaces |
+| DataBus | Unified data layer | Multi-provider data aggregation |
 
 ## Feature Flags
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Token Security Scanning | ✅ Production | 21 SENTINEL modules |
-| Wallet Forensics | ✅ Production | 39.4M labeled addresses |
+| Token Security Scanning | ✅ Production | Multi-module risk analysis |
+| Wallet Forensics | ✅ Production | Address labeling and risk scoring |
 | Market Data Pipeline | ✅ Production | Live prices, OHLCV, social |
 | AI Reports | ✅ Production | LLM-powered investigation |
 | x402 Monetization | ✅ Production | Pay-per-call crypto payments |
@@ -52,11 +50,11 @@ make test-all      # all tests
 ## Architecture (5-minute overview)
 
 ```
-[Traffic] → nginx:8080 → rmi-backend:8000
+[Traffic] → Gateway → Application
   ├── Databases: Postgres · ClickHouse · Redis · Neo4j · Qdrant · DuckDB
-  ├── Background: Celery · Temporal · Cron
-  ├── AI: Ollama · LiteLLM · Langfuse
-  └── External: 30+ provider APIs (Helius, Birdeye, CoinGecko, etc.)
+  ├── Background: Task queue · Workflow engine · Scheduler
+  ├── AI: Local LLM · Model router · Tracing
+  └── External: 30+ blockchain and data provider APIs
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for full details.
@@ -80,7 +78,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full details.
 | Monolith over microservices | Team size, iteration speed, DB complexity | ADR-002 |
 | DataBus as single data layer | Consistent access, monitoring, caching | ADR-001 |
 | x402 payment-gated access | Crypto-native monetization | ADR-005 |
-| Multi-source fusion risk scoring | Higher accuracy, 92%+ confidence | ADR-004 |
+| Multi-source fusion risk scoring | Higher accuracy through ensembling | ADR-004 |
 | Redis hot + Postgres cold | Performance vs cost optimization | ADR-003 |
 
 ## Project Map
@@ -89,19 +87,19 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full details.
 app/
 ├── core/            # Cross-cutting: config, middleware, auth, logging
 ├── domains/         # Domain modules (DDD): auth, scanner, token, wallet, etc.
-├── databus/         # 89 data provider chains
+├── databus/         # Multi-provider data layer
 ├── routers/         # Legacy route modules (migrating to domains/)
 ├── middleware/      # Custom middleware: cost tracking, validation
 ├── models/          # SQLAlchemy ORM models
 ├── mcp/             # MCP tool definitions
-├── scanners/        # 21 SENTINEL scan modules
+├── scanners/        # Token risk scan modules
 ├── security/        # AI guardrails
 ├── services/        # Business logic services
 ├── detectors/       # DeFi attack detectors
 ├── factory.py       # FastAPI app factory
-├── mount.py         # Route mounting (53 routers)
-├── config.py        # Pydantic settings (350+ vars)
-└── main.py          # Entry point (28 lines, by design)
+├── mount.py         # Route mounting
+├── config.py        # Pydantic settings
+└── main.py          # Entry point
 ```
 
 ## Related Repositories
@@ -120,27 +118,20 @@ app/
 
 See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for full guide.
 
-```bash
-# Production deploy on Talos
-ssh netcup
-cd /srv/work/repos/rmi-backend
-docker build -f Dockerfile.multistage -t backend-rmi-backend:latest .
-docker compose -f /srv/rmi-infra/docker-compose.backend.yml up -d rmi-backend
-```
+For self-hosting, build the Docker image and run with Docker Compose.
+Refer to `docker-compose.yml` for service configuration. All secrets
+should be provided via environment variables or Docker secrets.
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for:
-- Vulnerability reporting (security@rugmunch.io)
-- Our security stack (pre-commit hooks, gitleaks, SAST, dependency scanning)
-- Container hardening standards
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and security practices.
 
 ## Observability
 
-- **Metrics:** Prometheus at `/metrics`
-- **Traces:** OpenTelemetry → Langfuse
-- **Logs:** Structured JSON via structlog → Loki
-- **Alerts:** Grafana dashboards + PagerDuty
+- **Metrics:** Prometheus endpoint at `/metrics`
+- **Traces:** OpenTelemetry
+- **Logs:** Structured JSON via structlog
+- **Alerts:** Configurable alerting
 
 ## License
 

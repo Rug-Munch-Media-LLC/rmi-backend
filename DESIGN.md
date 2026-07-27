@@ -2,7 +2,7 @@
 
 ## Why this exists
 
-The current backend (`/root/backend/`) has grown organically:
+The current backend has grown organically:
 - `main.py` is 10,305 lines
 - 124 router files flat in `app/routers/`
 - 14 RAG modules scattered at top of `app/`
@@ -17,7 +17,7 @@ The current backend (`/root/backend/`) has grown organically:
 ## Target Layout
 
 ```
-/root/backend/
+backend/
 ├── pyproject.toml              uv + ruff + mypy + pytest config (single source)
 ├── .pre-commit-config.yaml     ruff + mypy + size cap + gitleaks
 ├── Dockerfile

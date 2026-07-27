@@ -17,8 +17,8 @@ See [CLEANUP.md](CLEANUP.md) for cleanup history.
 
 ## What This Is
 
-rmi-backend — FastAPI crypto intelligence backend. 757+ routes, 221 MCP tools,
-89 DataBus chains, 39.4M wallet labels, 21 SENTINEL scanner modules.
+rmi-backend — FastAPI crypto intelligence backend. Routes, MCP tools,
+DataBus chains, wallet labels, scanner modules.
 
 ## Before You Start
 
@@ -30,25 +30,15 @@ Read these files in order:
   5. ~/STANDARDS.md       — linting, testing, quality gates
   6. ~/TOOLCHAIN.md       — developer tool inventory
 
-## The Server
+## Development Workflow
 
-ALL work happens on [INTERNAL_HOST].
-
-```
-ssh netcup
-cd /root/backend
-docker logs rmi-backend --tail 100
-docker restart rmi-backend
-curl localhost:8000/health
-```
-
-Code in /root/backend is Docker volume-mounted — changes go live on restart.
+Code in the backend directory is Docker volume-mounted — changes go live on restart.
 
 ## Testing
 
 ```
-docker exec rmi-backend pytest -p no:pytest-brownie -v
-docker exec rmi-backend pytest tests/unit/test_X.py -p no:pytest-brownie -v
+pytest -p no:pytest-brownie -v
+pytest tests/unit/test_X.py -p no:pytest-brownie -v
 ```
 
 The `-p no:pytest-brownie` is mandatory — eth-brownie tries to connect to ganache.
@@ -100,16 +90,6 @@ CRITICAL: Never call our own x402 endpoints internally.
 
 ## Git
 
-Internal primary: `root@talos:/srv/git/rmi-backend.git`
-Push `talos main` on every commit.
-
-External remotes: GitHub (LLC), GitLab, HuggingFace (see ~/AGENTS.md)
-
-## Git Policy
-
-See the master Git Policy at /root/AGENTS.md. This repo:
 - Classification: INTERNAL (core) + OSS (scanners)
-- Remotes: forgejo + codeberg + gitlab + radicle
-- Push: git push forgejo main && git push codeberg main && git push gitlab main && rad sync
 - Commits: type(scope): description
 - Never commit: .env, secrets, internal IPs, security reports

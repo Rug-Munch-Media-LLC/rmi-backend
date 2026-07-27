@@ -10,7 +10,7 @@
 
 FastAPI monolith (strangler fig pattern) serving crypto risk intelligence via HTTP API, WebSocket, Telegram bot, and MCP protocol. Six-database architecture with unified data access through DataBus.
 
-**Scale:** 780+ routes · 221 MCP tools · 89 DataBus chains · 39.4M wallet labels · 21 SENTINEL scanner modules
+**Scale:** Large route surface · Extensive MCP tools · Multi-provider DataBus · Large wallet label corpus · Multi-module scanner engine
 
 ---
 
@@ -21,8 +21,6 @@ FastAPI monolith (strangler fig pattern) serving crypto risk intelligence via HT
 │                        INFRASTRUCTURE LAYER                      │
 │  ┌──────────┐  ┌──────────┐  ┌──────┐  ┌──────┐  ┌─────────┐  │
 │  │ Postgres │  │ClickHouse│  │ Redis│  │ Neo4j│  │  Qdrant │  │
-│  │ rmi-pg   │  │ rmi-ch   │  │rmi-rl│  │rmi-n4j│  │ rmi-qd  │  │
-│  │ 5432     │  │ 8123     │  │ 6379 │  │ 7687 │  │ 6333    │  │
 │  └────┬─────┘  └────┬─────┘  └──┬───┘  └──┬───┘  └────┬────┘  │
 └───────┼─────────────┼───────────┼─────────┼───────────┼────────┘
         │             │           │         │           │         │
@@ -32,34 +30,32 @@ FastAPI monolith (strangler fig pattern) serving crypto risk intelligence via HT
 │  │                     APP LAYER                            │   │
 │  │  ┌──────────────────────────────────────────────────┐   │   │
 │  │  │            rmi-backend (FastAPI)                  │   │   │
-│  │  │  Port 8000 · 4GB RAM · read-only rootfs           │   │   │
+│  │  │  Port 8000 · read-only rootfs           │   │   │
 │  │  └──────────────────────────────────────────────────┘   │   │
 │  │         │          │           │                         │   │
 │  │  ┌──────┴──────┐ ┌─┴────────┐ ┌┴──────────┐             │   │
 │  │  │ HTTP API    │ │Telegram   │ │ MCP       │             │   │
-│  │  │ 780+ routes │ │@rugmunch  │ │ 221 tools │             │   │
+│  │  │ routes      │ │bot        │ │ tools     │             │   │
 │  │  └─────────────┘ └──────────┘ └───────────┘             │   │
 └───────┬──────────────────────────────────────────────────────┘
         │
 ┌───────┼──────────────────────────────────────────────────────┐
 │       ▼              GATEWAY LAYER                           │
 │  ┌──────────┐  ┌──────────────┐  ┌────────────┐             │
-│  │ nginx:8080│  │rmi-mcp-x402 │  │cloudflared  │             │
-│  │ route     │  │Port 8001    │  │TLS tunnel   │             │
-│  │ resolver  │  │x402 paid    │  │             │             │
+│  │  nginx   │  │  x402 Gateway│  │  TLS       │             │
+│  │  routing │  │  paid tools  │  │  termination│             │
 │  └──────────┘  └──────────────┘  └────────────┘             │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Service Count (Current)
+## Service Stack
 
-| Layer | Services | Details |
-|-------|----------|---------|
-| Core Backend | 2 | rmi-backend + rmi-mcp-x402 |
-| Databases | 6 | Postgres, ClickHouse, Redis, Neo4j, Qdrant, DuckDB |
-| Infrastructure | 8 | nginx, Prometheus, Grafana, MinIO, PgBouncer, DNS, LiteLLM, Temporal |
-| External APIs | 30+ | Helius, Birdeye, CoinGecko, Etherscan, etc. |
-| **Total** | **46+** | Across 20+ Docker Compose files |
+| Layer | Components |
+|-------|-----------|
+| Core Backend | FastAPI application |
+| Databases | Postgres, ClickHouse, Redis, Neo4j, Qdrant, DuckDB |
+| Infrastructure | nginx, Prometheus, Grafana, message queue |
+| External APIs | 30+ blockchain and data provider APIs |
 
 ## Data Flow
 
@@ -67,27 +63,27 @@ FastAPI monolith (strangler fig pattern) serving crypto risk intelligence via HT
 User/Agent Request
     │
     ▼
-[Cloudflare/CDN]  ← TLS termination
+[CDN]  ← TLS termination
     │
     ▼
-[nginx Gateway] ← Rate limiting · Path routing · Security headers
-    │                         ┌───────────────────┐
-    ├── /api/v1/x402/*  ─────▶│ rmi-mcp-x402:8001 │
-    │                         │ (paid tools)      │
-    ├── /.well-known/x402 ───▶│                   │
-    │                         └───────────────────┘
-    │                         ┌───────────────────┐
-    └── /* ──────────────────▶│ rmi-backend:8000  │
-                              │ (all other routes)│
-                              └───────────────────┘
+[Gateway] ← Rate limiting · Path routing · Security headers
+    │                         ┌──────────────────────┐
+    ├── /api/v1/x402/*  ─────▶│ x402 Gateway         │
+    │                         │ (paid tools)         │
+    ├── /.well-known/x402 ───▶│                      │
+    │                         └──────────────────────┘
+    │                         ┌──────────────────────┐
+    └── /* ──────────────────▶│ Backend Application  │
+                              │ (all other routes)   │
+                              └──────────────────────┘
                                     │
                     ┌───────────────┼───────────────────┐
                     ▼               ▼                   ▼
             [DataBus Layer]   [Auth Layer]        [Scanner Engine]
                     │               │                   │
                     ▼               ▼                   ▼
-            [External APIs]   [JWT/RS256]         [21 Modules]
-            [30+ providers]   [OAuth/Wallet]     [Fusion Engine]
+            [External APIs]   [JWT/RS256]         [Scanner Modules]
+            [30+ providers]   [OAuth/Wallet]     [Risk Engine]
 ```
 
 ## App Factory & Mounting
@@ -99,8 +95,8 @@ create_app() → FastAPI instance
   │   └── Shutdown: graceful drain, close connections
   ├── error handlers (app/core/errors.py)
   │   └── RFC 7807 Problem Details for all error responses
-  ├── middleware (14 registered via app/middleware_setup.py)
-  └── mount_all() (app/mount.py — 53 router modules)
+  ├── middleware (registered via app/middleware_setup.py)
+  └── mount_all() (app/mount.py — router modules)
 ```
 
 ### Middleware Stack (Registration Order)
@@ -137,7 +133,7 @@ app/domains/
 ├── news/        → News aggregation, sentiment, clusterer
 ├── reports/     → AI report generation
 ├── referral/    → Referral tracking
-├── scanner/     → Token risk scanners (SENTINEL)
+├── scanner/     → Token risk scanner modules
 ├── telegram/    → @rugmunchbot Telegram bot
 ├── threat/      → CertStream listener, threat intel
 ├── token/       → Token analysis, deployer
@@ -164,32 +160,23 @@ app/domains/
 └──────────────────────────────────────────────────────┘
 ```
 
-**Key files:** 30+ in `app/databus/`, providers in `app/databus/providers/`
-
-## Deployment Topology
-
-| Host | CPU | RAM | Role |
-|------|-----|-----|------|
-| **Talos** (netcup) | 12c | 31GB | Primary — all services |
-| **Hydra** (contabo) | 8c | 23GB | Standby, backup, CI |
-| **Cinnabox** (local) | 8c | 16GB | Development, testing |
+**Key files:** in `app/databus/`, providers in `app/databus/providers/`
 
 ## Scaling
 
-- **Horizontal:** Stateless backend behind nginx load balancer
-- **Vertical:** 2 CPU / 4GB RAM reserved for rmi-backend container
-- **Burst:** Hydra can take over if Talos fails
-- **Database:** Connection pooling via PgBouncer (Postgres), read replicas planned
+- **Horizontal:** Stateless backend behind load balancer
+- **Vertical:** Configurable CPU/memory allocation per environment
+- **Database:** Connection pooling, read replicas as needed
 
 ## Observability
 
-| System | Stack | Endpoint |
-|--------|-------|----------|
-| Metrics | Prometheus + Grafana | `/metrics`, `[INTERNAL_HOST]` |
-| Logs | structlog + Loki | JSON structured |
-| Traces | OpenTelemetry + Langfuse | `[INTERNAL_HOST]` (10% sampling) |
-| Alerts | Prometheus → Alertmanager → PagerDuty / n8n |
-| Status | Uptime Kuma | `[INTERNAL_HOST]` |
+| System | Stack |
+|--------|-------|
+| Metrics | Prometheus + Grafana |
+| Logs | Structured JSON logging |
+| Traces | OpenTelemetry |
+| Alerts | Prometheus Alertmanager |
+| Status | Uptime monitoring |
 
 ## Security Architecture
 
@@ -209,8 +196,7 @@ app/domains/
 │     ├── Content-Type: Enforce JSON on write endpoints            │
 │     └── Payload Limit: 1MB maximum                               │
 │  5. Container: read_only, cap_drop ALL, no-new-privileges        │
-│  6. Secrets: gopass → Infisical (migrating)                     │
-│  7. CI/CD: Gitleaks (pre-commit), Trivy (container), Bandit/SAST│
+│  6. CI/CD: Gitleaks (pre-commit), Trivy (container), Bandit/SAST│
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -218,11 +204,11 @@ app/domains/
 
 | Issue | Impact | Target |
 |-------|--------|--------|
-| 8.61% test coverage | Risk of regressions | >60% by Q4 2026 |
-| 399 `print()` calls | Poor log hygiene | Eliminate by Q4 2026 |
-| 17 `time.sleep()` | Blocking I/O | Replace with `asyncio.sleep()` |
-| `x402_tools.py` (212 KB) | God file | Split by domain |
-| CI `continue-on-error` | Silent failures | Hard gates by Q4 2026 |
+| Low test coverage | Risk of regressions | Improve coverage |
+| `print()` calls in production code | Poor log hygiene | Replace with structured logging |
+| `time.sleep()` usage | Blocking I/O | Replace with `asyncio.sleep()` |
+| Large module files | Maintainability | Split by domain |
+| CI soft failures | Silent regressions | Hard gates |
 
 ## Architecture Decision Records
 
