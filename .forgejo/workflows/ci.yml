@@ -401,14 +401,22 @@ jobs:
     runs-on: docker-x64
     needs: build-and-test
     steps:
-      - name: Scan backend image for CVEs
-        uses: aquasecurity/trivy-action@master
+      - uses: actions/checkout@v4
+      - name: Build image for scanning
+        run: docker build -t app:${{ github.sha }} .
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: 'registry.rugmunch.io/rmi-backend:${{ github.sha }}'
-          format: 'table'
+          image-ref: 'app:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
           vuln-type: 'os,library'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
 
   fuzz:
     runs-on: docker-x64
