@@ -94,13 +94,16 @@ paths = [
   '''\.ruff_cache/''',
   '''\.mypy_cache/''',
   '''vendor/''',
+  # Specific file: third-party scam address database (hex strings resemble keys)
+  '''data/cryptoscamdb_urls\.yaml''',
+]
+
+regexTarget = "line"
+regexes = [
+  # Gopass documentation references (instructions, not actual secrets)
+  '''gopass\s+(?:show|generate)\s+rmi/''',
+  # BIP39 standard test vector mnemonic (repeated 'abandon' — never a real mnemonic)
+  '''abandon\s+abandon\s+abandon\s+abandon\s+abandon\s+abandon''',
 ]
 
 # Stopwords (false-positive patterns to ignore)
-stopwords = [
-  "example-api-key",
-  "test-private-key",
-  "placeholder-secret",
-  "your-api-key-here",
-  "TODO: add real key",
-]
