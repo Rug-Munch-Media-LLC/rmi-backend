@@ -12,7 +12,7 @@ import os
 os.environ["JWT_SECRET"] = "a" * 32
 os.environ["ENVIRONMENT"] = "dev"  # override .env default 'development' which is invalid
 
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -24,7 +24,6 @@ from app.services.pryscraper_client import (
     ScrapeRequest,
     ScrapeResult,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # ── PryscraperClient tests

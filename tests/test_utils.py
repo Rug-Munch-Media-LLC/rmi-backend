@@ -4,11 +4,9 @@ converters, rate-limit helpers, and standalone utility modules.
 
 from __future__ import annotations
 
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # 1. cross_chain — chain detection & normalization
@@ -213,6 +211,7 @@ class TestFormatConverters:
     def test_format_timestamp_datetime(self):
         """_format_timestamp with datetime returns ISO string."""
         from datetime import UTC, datetime
+
         from app.domains.scanner.rugmaps.models import _format_timestamp
 
         dt = datetime(2026, 7, 1, tzinfo=UTC)
@@ -264,8 +263,9 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_token_bucket_concurrent_access(self):
         """Token bucket handles concurrent acquire calls."""
-        from app.chain_client import TokenBucket
         import asyncio
+
+        from app.chain_client import TokenBucket
 
         bucket = TokenBucket(rate=1000.0, burst=20)
         tasks = [bucket.acquire() for _ in range(10)]

@@ -22,14 +22,14 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import re
 import time
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from rapidfuzz import fuzz
 
@@ -834,7 +834,7 @@ class FeedQualityPipeline:
             return self.ProviderResult(
                 name=name,
                 posts=[],
-                error=f"Circuit breaker open, skipping until reset",
+                error="Circuit breaker open, skipping until reset",
             )
 
         start = self._health.record_fetch_start(name)
@@ -860,7 +860,7 @@ class FeedQualityPipeline:
                 elapsed_ms=elapsed_ms,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed = (time.monotonic() - start) * 1000
             error = f"Timeout after {timeout}s ({elapsed:.0f}ms)"
             self._health.record_fetch_failure(name, start, error)

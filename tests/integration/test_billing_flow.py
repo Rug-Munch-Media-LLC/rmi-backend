@@ -13,7 +13,6 @@ External Redis is mocked; all crypto/auth logic is tested directly.
 
 from __future__ import annotations
 
-import json
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -233,8 +232,9 @@ class TestJWTAuth:
 
     def test_jwt_has_standard_claims(self):
         """Every JWT should have sub, iat, exp, email."""
-        from app.domains.auth.jwt import JWT_SECRET, JWT_ALGORITHM, _create_jwt
         from jose import jwt
+
+        from app.domains.auth.jwt import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         token = _create_jwt(user_id="claims-test", email="claims@test.com")
         payload = jwt.decode(
@@ -247,8 +247,9 @@ class TestJWTAuth:
 
     def test_jwt_expiry_in_future(self):
         """JWT expiry should be ~7 days in the future."""
-        from app.domains.auth.jwt import JWT_SECRET, JWT_ALGORITHM, _create_jwt
         from jose import jwt
+
+        from app.domains.auth.jwt import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         token = _create_jwt(user_id="exp-test", email="exp@test.com")
         payload = jwt.decode(
@@ -260,8 +261,9 @@ class TestJWTAuth:
 
     def test_expired_token_returns_none(self):
         """Token with past expiry should fail verification."""
-        from app.domains.auth.jwt import JWT_SECRET, JWT_ALGORITHM, _create_jwt, _verify_jwt
         from jose import jwt as jose_jwt
+
+        from app.domains.auth.jwt import JWT_ALGORITHM, JWT_SECRET, _create_jwt, _verify_jwt
 
         token = _create_jwt(user_id="exp-test", email="exp@test.com")
         payload = jose_jwt.decode(
@@ -481,7 +483,7 @@ class TestTwoFactorAuth:
 
     def test_generate_totp_secret_is_valid_base32(self):
         """TOTP secret should be valid base32."""
-        from app.domains.auth.totp import _generate_totp_secret, PYOTP_AVAILABLE
+        from app.domains.auth.totp import PYOTP_AVAILABLE, _generate_totp_secret
 
         if not PYOTP_AVAILABLE:
             pytest.skip("pyotp not installed")

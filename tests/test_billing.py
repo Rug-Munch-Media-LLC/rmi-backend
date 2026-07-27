@@ -12,11 +12,7 @@ import os
 os.environ["JWT_SECRET"] = "a" * 32
 os.environ["ENVIRONMENT"] = "dev"
 
-from dataclasses import asdict
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from app.domains.billing.facilitators.base import (
     Facilitator,
@@ -31,7 +27,6 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config, reset_config
 from app.domains.billing.x402.tier_resolver import check_burst_limit, check_trial, consume_trial
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # ── VerificationResult & SettlementResult data classes

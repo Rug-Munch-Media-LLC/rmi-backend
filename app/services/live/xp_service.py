@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger

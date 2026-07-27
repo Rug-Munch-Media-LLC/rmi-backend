@@ -89,9 +89,9 @@ async def cmd_mygroup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         text = f"🏛️ **Your Creator Coin Group**\n\n🔗 {invite_link}\n\n_Share this link with your community!_"
     else:
         text = (
-            f"🏛️ **Your Creator Coin Group**\n\n"
-            f"Your group exists but no invite link is available.\n"
-            f"Ask an admin to generate one."
+            "🏛️ **Your Creator Coin Group**\n\n"
+            "Your group exists but no invite link is available.\n"
+            "Ask an admin to generate one."
         )
 
     await update.message.reply_text(text, parse_mode="Markdown")
@@ -129,8 +129,8 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Check voice chat status
     voice_status = "❌ None active"
     try:
-        from app.domains.telegram.voice_chat import get_voice_chat_status
         from app.domains.telegram.rugmunchbot.config import BOT_TOKEN
+        from app.domains.telegram.voice_chat import get_voice_chat_status
 
         if BOT_TOKEN:
             from telegram import Bot
@@ -139,7 +139,7 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             vc = await get_voice_chat_status(bot, chat_id)
             if vc:
                 voice_status = (
-                    f"✅ **Active** ({vc.is_video and '📹 Video' or '🎤 Audio'})\n"
+                    f"✅ **Active** ({(vc.is_video and '📹 Video') or '🎤 Audio'})\n"
                     f"   Participants: {vc.participant_count}\n"
                     f"   Duration: {vc.duration_seconds:.0f}s"
                 )

@@ -52,7 +52,7 @@ def _run_script_main(script_path: str, args: list[str]) -> tuple[int, str, str]:
             rc = 0
     except SystemExit as e:
         rc = e.code if e.code is not None else 0
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         rc = -1
         sys.stderr.write(f"Unhandled exception: {e}\n")
     finally:
@@ -317,8 +317,9 @@ class TestHealthMonitor:
         """Invalid JSON in cooldown file returns empty dict (graceful degrade)."""
         mock_exists.return_value = True
         with patch("builtins.open", MagicMock()):
-            from scripts.health_monitor import _load_cooldown_state
             import json
+
+            from scripts.health_monitor import _load_cooldown_state
 
             with patch.object(json, "load", side_effect=json.JSONDecodeError("err", "doc", 0)):
                 state = _load_cooldown_state()
@@ -355,8 +356,9 @@ class TestHealthMonitor:
     @patch("scripts.health_monitor.urllib.request.urlopen")
     def test_check_backend_timeout(self, mock_urlopen):
         """Connection timeout returns dict with status='down'."""
-        from scripts.health_monitor import check_backend
         import urllib.error
+
+        from scripts.health_monitor import check_backend
 
         mock_urlopen.side_effect = urllib.error.URLError("timeout")
 
@@ -397,8 +399,9 @@ class TestGenerateEnv:
 
     def test_generate_env_load_env_file(self):
         """load_env_file returns a dict."""
-        import generate_env
         from pathlib import Path
+
+        import generate_env
 
         # Provide a path that exists to avoid crash
         env = generate_env.load_env_file(Path(".env.example"))

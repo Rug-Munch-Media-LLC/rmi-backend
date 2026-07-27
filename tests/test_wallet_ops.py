@@ -16,11 +16,9 @@ os.environ.setdefault("ENVIRONMENT", "dev")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
-import json
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import pytest
-
 
 # ═══════════════════════════════════════════════════════════════════════
 #  1. Wallet Memory Label Importer (5 tests)
@@ -44,12 +42,10 @@ class TestLabelImporter:
         with patch(
             "app.wallet_memory.label_importer.download._get_http",
             AsyncMock(return_value=mock_client),
-        ):
-            with patch("builtins.open", mock_open()):
-                with patch("os.makedirs"):
-                    result = await _download_file(
-                        "https://example.com/labels.csv", "/tmp/labels.csv"
-                    )
+        ), patch("builtins.open", mock_open()), patch("os.makedirs"):
+            result = await _download_file(
+                "https://example.com/labels.csv", "/tmp/labels.csv"
+            )
         assert result is True
 
     @pytest.mark.asyncio
@@ -72,7 +68,7 @@ class TestLabelImporter:
     @pytest.mark.asyncio
     async def test_download_json_success(self):
         """_download_json returns parsed JSON on success."""
-        from app.wallet_memory.label_importer.download import _download_json, _get_http
+        from app.wallet_memory.label_importer.download import _download_json
 
         expected = {"key": "value"}
         mock_client = AsyncMock()
@@ -197,13 +193,12 @@ class TestWalletMonitorWatchlist:
 
         with patch(
             "app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)
-        ):
-            with patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
-                result = await WatchlistManager.add(
-                    "0x1234567890abcdef1234567890abcdef12345678",
-                    chain="ethereum",
-                    tags=["defi"],
-                )
+        ), patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
+            result = await WatchlistManager.add(
+                "0x1234567890abcdef1234567890abcdef12345678",
+                chain="ethereum",
+                tags=["defi"],
+            )
         assert result is True
         mock_redis.zadd.assert_called_once()
 
@@ -214,12 +209,11 @@ class TestWalletMonitorWatchlist:
 
         with patch(
             "app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)
-        ):
-            with patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
-                result = await WatchlistManager.remove(
-                    "0x1234567890abcdef1234567890abcdef12345678",
-                    chain="ethereum",
-                )
+        ), patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
+            result = await WatchlistManager.remove(
+                "0x1234567890abcdef1234567890abcdef12345678",
+                chain="ethereum",
+            )
         assert result is True
         mock_redis.zrem.assert_called_once()
 
@@ -230,12 +224,11 @@ class TestWalletMonitorWatchlist:
 
         with patch(
             "app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)
-        ):
-            with patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
-                result = await WatchlistManager.is_watched(
-                    "0x1234567890abcdef1234567890abcdef12345678",
-                    chain="ethereum",
-                )
+        ), patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
+            result = await WatchlistManager.is_watched(
+                "0x1234567890abcdef1234567890abcdef12345678",
+                chain="ethereum",
+            )
         assert result is True
 
     @pytest.mark.asyncio
@@ -246,12 +239,11 @@ class TestWalletMonitorWatchlist:
 
         with patch(
             "app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)
-        ):
-            with patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
-                result = await WatchlistManager.is_watched(
-                    "0xnonexistent",
-                    chain="ethereum",
-                )
+        ), patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
+            result = await WatchlistManager.is_watched(
+                "0xnonexistent",
+                chain="ethereum",
+            )
         assert result is False
 
     @pytest.mark.asyncio
@@ -261,9 +253,8 @@ class TestWalletMonitorWatchlist:
 
         with patch(
             "app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)
-        ):
-            with patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
-                wallets = await WatchlistManager.list(chain="ethereum")
+        ), patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()):
+            wallets = await WatchlistManager.list(chain="ethereum")
         assert len(wallets) == 2
         assert wallets[0]["wallet"] == "0xwallet1"
         assert set(wallets[0]["tags"]) == {"defi", "whale"}

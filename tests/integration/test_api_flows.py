@@ -12,7 +12,6 @@ Uses TestClient against the real FastAPI app factory.
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 

@@ -10,7 +10,6 @@ Single entry point for the entire standardized chat system:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -30,7 +29,7 @@ from app.services.chat.models import (
     RoomType,
 )
 from app.services.chat.protocol_selector import ProtocolSelector
-from app.services.chat.signal_protocol import SignalProtocol, _generate_key
+from app.services.chat.signal_protocol import SignalProtocol
 
 logger = get_logger(__name__)
 

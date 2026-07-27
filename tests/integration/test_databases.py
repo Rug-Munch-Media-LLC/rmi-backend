@@ -19,15 +19,14 @@ Markers:
 from __future__ import annotations
 
 import asyncio
-import httpx
 import json
 import os
 import time
 import uuid
-from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from datetime import datetime, timedelta
+from typing import Any
 
+import httpx
 import pytest
 
 # Qdrant REST API helpers — avoids importing the Python qdrant_client
@@ -1028,7 +1027,6 @@ class TestRedisCache:
 
     def test_set_get_json(self, redis_client):
         """JSON-serialized values round-trip correctly."""
-        import json
 
         key = _random_id("json:")
         data = {"chain": "solana", "address": "abc123", "score": 85}
@@ -1067,7 +1065,6 @@ class TestRedisTTL:
         key = _random_id("exp:")
         redis_client.set(key, "gone_soon", ex=1)
         assert redis_client.exists(key)
-        import time
 
         time.sleep(1.5)
         assert not redis_client.exists(key)
@@ -1091,7 +1088,6 @@ class TestRedisPubSub:
 
     def test_publish_subscribe(self, redis_client):
         """Message published on one channel is received by subscriber."""
-        import redis as sync_redis
 
         channel = _random_id("channel:")
         pubsub = redis_client.pubsub()
@@ -1631,15 +1627,14 @@ class TestHealthCheckReuse:
         # built-in _check_postgres connects via sync psycopg.
         sync_dsn = pg_dsn.replace("+asyncpg", "")
         os.environ["DATABASE_URL"] = sync_dsn
-        yield
+        return
         # Don't clear — other tests may rely on these
 
     async def test_redis_health_check(self):
         """Project's _check_redis works against test Redis."""
-        from app.core.health_route import _check_redis
-
         # Reset Redis module state
         import app.core.redis as redis_mod
+        from app.core.health_route import _check_redis
 
         redis_mod._sync_pool = None
         redis_mod._async_pool = None

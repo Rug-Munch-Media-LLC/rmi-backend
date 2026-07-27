@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 import time as _time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -301,12 +301,12 @@ class TestHashIdentifier:
         we verify the salt is derived from today's date."""
         import hashlib
         import hmac
-        import os
 
         # Simulate the env var being set for test
         os.environ["RATE_LIMIT_SALT"] = "dev-only-rmi-salt-replace-in-prod"
         # Reimport to pick up the env var
         import importlib
+
         from app.core import rate_limiter
         importlib.reload(rate_limiter)
         from app.core.rate_limiter import _get_daily_salt

@@ -19,17 +19,15 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Select, func as sa_func, select, text
+from sqlalchemy import func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.base_service import BaseService
-from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.errors import NotFoundError, ValidationError
 from app.core.http import get_http_client
 from app.core.logging import get_logger
 from app.domains.newsletter.models import (
@@ -39,13 +37,12 @@ from app.domains.newsletter.models import (
     NewsletterPayment,
     NewsletterSub,
 )
-from app.domains.newsletter.publisher import PublishResult, publish_to_all
+from app.domains.newsletter.publisher import publish_to_all
 from app.domains.newsletter.schemas import (
     CryptoSubscribeRequest,
     NewsletterCreate,
     NewsletterUpdate,
     PublishResponse,
-    SubscribeRequest,
     SubscriberImportRow,
 )
 

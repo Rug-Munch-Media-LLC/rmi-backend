@@ -21,7 +21,6 @@ from app.liquidation_cascade_analyzer import (
     CollateralPosition,
     DebtPosition,
     LiquidationAnalysis,
-    LiquidationCascadeAnalyzer,
     LiquidationCluster,
     ProtocolPosition,
     RiskTier,

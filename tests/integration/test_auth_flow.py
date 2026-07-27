@@ -13,7 +13,6 @@ JWT layer, and access control at the integration level.
 from __future__ import annotations
 
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -197,8 +196,9 @@ class TestJWTToken:
         """A token with past expiry should return None."""
         from datetime import UTC, datetime, timedelta
 
-        from app.domains.auth import JWT_ALGORITHM, JWT_SECRET, _create_jwt
         from jose import jwt as jose_jwt
+
+        from app.domains.auth import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         # Create a normal token
         token = _create_jwt(user_id="expiring-user", email="expiring@test.com")
@@ -226,9 +226,9 @@ class TestJWTToken:
     @pytest.mark.integration
     def test_token_has_standard_claims(self) -> None:
         """Every JWT should contain standard JWT claims (sub, iat, exp)."""
-        from app.domains.auth import JWT_SECRET, JWT_ALGORITHM
-        from app.domains.auth import _create_jwt
         from jose import jwt
+
+        from app.domains.auth import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         token = _create_jwt(user_id="claims-test", email="claims@test.com")
 
@@ -328,8 +328,9 @@ class TestJWTEndpointBehavior:
         """Simulate an expired JWT — the require_auth dependency should reject it."""
         from datetime import UTC, datetime, timedelta
 
-        from app.domains.auth import JWT_ALGORITHM, JWT_SECRET, _create_jwt
         from jose import jwt as jose_jwt
+
+        from app.domains.auth import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         # Create a normal token, then manually set its expiry to the past
         token = _create_jwt(user_id="exp-test", email="exp@test.com")

@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import AsyncGenerator, Generator
-from typing import Any, Protocol
+from typing import Any
 
 import pytest
-from typing_extensions import runtime_checkable
 
 # ── Required env vars for app factory boot ─────────────────────────────
 os.environ.setdefault("HF_HUB_DISABLE_IMPORT", "1")
@@ -59,7 +57,7 @@ class Timer:
         """Return elapsed time in milliseconds."""
         return self._elapsed * 1000
 
-    def measure(self, name: str = "") -> "TimerContext":
+    def measure(self, name: str = "") -> TimerContext:
         """Context manager that records elapsed time."""
         return TimerContext(self, name)
 
@@ -76,7 +74,7 @@ class TimerContext:
         self._name = name
         self._start: float = 0.0
 
-    def __enter__(self) -> "TimerContext":
+    def __enter__(self) -> TimerContext:
         self._start = time.perf_counter()
         return self
 

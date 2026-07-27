@@ -15,7 +15,6 @@ import os
 import sys
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -55,10 +54,10 @@ def _init_provider_tracking(chain: object) -> None:
     """
     from app.domains.databus.providers.base import ProviderChain
     from app.domains.databus.providers.circuit_breaker import (
-        _CircuitBreaker,
-        _RateLimiter,
         _circuit_breakers,
+        _CircuitBreaker,
         _rate_limiters,
+        _RateLimiter,
     )
 
     assert isinstance(chain, ProviderChain)
@@ -114,7 +113,7 @@ class TestProviderChainFallback:
     @pytest.mark.integration
     async def test_primary_provider_succeeds_returns_result(self) -> None:
         """When the highest-weighted provider returns data, chain returns it."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def primary(**kw: object) -> dict:
             return {"price": 100}
@@ -138,7 +137,7 @@ class TestProviderChainFallback:
     @pytest.mark.integration
     async def test_primary_fails_fallback_to_secondary(self) -> None:
         """When primary returns ``None``, chain tries the next provider."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def primary(**kw: object) -> None:
             return None
@@ -162,7 +161,7 @@ class TestProviderChainFallback:
     @pytest.mark.integration
     async def test_all_providers_fail_returns_none(self) -> None:
         """When every provider returns ``None``, chain returns ``None``."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def always_none(**kw: object) -> None:
             return None
@@ -184,7 +183,7 @@ class TestProviderChainFallback:
     @pytest.mark.integration
     async def test_provider_exception_triggers_fallback(self) -> None:
         """When a provider raises a ``ConnectionError``, fallback runs."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def broken(**kw: object) -> dict:
             raise ConnectionError("timeout")
@@ -208,7 +207,7 @@ class TestProviderChainFallback:
     @pytest.mark.integration
     async def test_timeout_exception_triggers_fallback(self) -> None:
         """A ``TimeoutError`` is caught and triggers the next provider."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def slow(**kw: object) -> dict:
             raise TimeoutError("timed out")
@@ -232,7 +231,7 @@ class TestProviderChainFallback:
     @pytest.mark.integration
     async def test_value_error_caught_as_failure(self) -> None:
         """Domain-level fetch catches ``ValueError`` and falls through."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def bad_value(**kw: object) -> dict:
             raise ValueError("bad data")
@@ -327,10 +326,10 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     async def test_chain_skips_open_breaker_provider(self) -> None:
         """Chain skips a provider whose circuit breaker is OPEN."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import (
-            _CircuitBreaker,
             _circuit_breakers,
+            _CircuitBreaker,
         )
 
         async def should_not_be_called(**kw: object) -> dict:
@@ -360,7 +359,7 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     async def test_fetch_records_failure_in_global_breaker(self) -> None:
         """A failed provider call increments its global circuit breaker counters."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import _circuit_breakers
 
         async def flaky(**kw: object) -> dict:
@@ -381,7 +380,7 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     async def test_chain_trips_cb_after_threshold(self) -> None:
         """After 5 failures through the chain, the breaker opens and skips."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import _circuit_breakers
 
         async def always_fail(**kw: object) -> dict:
@@ -457,10 +456,10 @@ class TestRateLimiterBehaviour:
     @pytest.mark.integration
     async def test_chain_skips_rate_limited_provider(self) -> None:
         """When a provider is rate-limited, the chain skips to the next."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import (
-            _RateLimiter,
             _rate_limiters,
+            _RateLimiter,
         )
 
         async def should_not_be_called(**kw: object) -> dict:
@@ -505,7 +504,7 @@ class TestQuotaTracking:
     @pytest.mark.integration
     async def test_quota_exceeded_skips_provider(self) -> None:
         """A provider whose ``monthly_quota`` is exhausted is skipped."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import _quota_usage
 
         async def should_not_be_called(**kw: object) -> dict:
@@ -537,7 +536,7 @@ class TestQuotaTracking:
     @pytest.mark.integration
     async def test_successful_call_increments_quota(self) -> None:
         """A successful fetch increments the ``_quota_usage`` counter."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import _quota_usage
 
         async def ok(**kw: object) -> dict:
@@ -563,7 +562,7 @@ class TestQuotaTracking:
     @pytest.mark.integration
     async def test_credit_pressure_reorders_providers(self) -> None:
         """When a paid provider is >80% used, free providers are tried first."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import _quota_usage
 
         call_order: list[str] = []
@@ -597,7 +596,7 @@ class TestQuotaTracking:
     @pytest.mark.integration
     async def test_no_credit_pressure_when_quota_low(self) -> None:
         """When quota usage is below 80%, providers are tried in weight order."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import _quota_usage
 
         call_order: list[str] = []
@@ -639,7 +638,7 @@ class TestProviderWeightOrdering:
     @pytest.mark.integration
     def test_providers_sorted_by_weight_descending(self) -> None:
         """Providers within the same tier are tried in descending weight order."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         chain = _make_chain(
             data_type="test",
@@ -658,7 +657,7 @@ class TestProviderWeightOrdering:
     @pytest.mark.integration
     def test_local_tried_before_external(self) -> None:
         """LOCAL providers come before FREE_API regardless of weight."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         chain = _make_chain(
             data_type="test",
@@ -682,7 +681,7 @@ class TestProviderWeightOrdering:
     @pytest.mark.integration
     async def test_fetch_respects_weight_order(self) -> None:
         """``fetch()`` calls providers in correct weight order."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         call_order: list[str] = []
 
@@ -724,7 +723,7 @@ class TestSpecificPriceChain:
     @pytest.mark.integration
     async def test_price_chain_local_price_success(self) -> None:
         """Local price provider is tried first and its result is returned."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def local_price(**kw: object) -> dict:
             return {"price": 1.50, "source": "local"}
@@ -748,7 +747,7 @@ class TestSpecificPriceChain:
     @pytest.mark.integration
     async def test_price_chain_fallback_to_dexscreener(self) -> None:
         """When local fails, falls back to DexScreener."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def local_price(**kw: object) -> None:
             return None
@@ -771,7 +770,7 @@ class TestSpecificPriceChain:
     @pytest.mark.integration
     async def test_price_chain_all_providers_fail(self) -> None:
         """When all price providers fail, chain returns ``None``."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def fail(**kw: object) -> None:
             return None
@@ -802,7 +801,7 @@ class TestSpecificWalletChain:
     @pytest.mark.integration
     async def test_wallet_tokens_alchemy_success(self) -> None:
         """Alchemy (first priority) returns wallet token data."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def alchemy(**kw: object) -> dict:
             return {"tokens": [{"symbol": "USDC", "balance": "100"}], "source": "alchemy"}
@@ -822,7 +821,7 @@ class TestSpecificWalletChain:
     @pytest.mark.integration
     async def test_wallet_tokens_fallback_to_moralis(self) -> None:
         """When Alchemy fails, chain falls back to Moralis."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def alchemy_fail(**kw: object) -> None:
             return None
@@ -855,7 +854,7 @@ class TestSpecificSecurityChain:
     @pytest.mark.integration
     async def test_security_scan_success(self) -> None:
         """Security scanner returns a risk score."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def sentinel(**kw: object) -> dict:
             return {"risk_score": 85, "flags": ["honeypot"], "source": "sentinel"}
@@ -875,7 +874,7 @@ class TestSpecificSecurityChain:
     @pytest.mark.integration
     async def test_security_scan_fails_returns_none(self) -> None:
         """When scanner fails, chain gracefully returns ``None``."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def fail(**kw: object) -> None:
             raise ConnectionError("scanner down")
@@ -903,7 +902,7 @@ class TestSpecificNewsChain:
     @pytest.mark.integration
     async def test_news_local_first(self) -> None:
         """Local news provider is tried before external sources."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def local_news(**kw: object) -> dict:
             return {"articles": [{"title": "Local news"}], "source": "local"}
@@ -922,7 +921,7 @@ class TestSpecificNewsChain:
     @pytest.mark.integration
     async def test_news_all_fail_returns_none(self) -> None:
         """When all news sources fail, chain returns ``None``."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def fail(**kw: object) -> None:
             return None
@@ -1253,7 +1252,7 @@ class TestStaleCacheFallback:
     @pytest.mark.integration
     async def test_chain_returns_none_when_all_providers_fail(self) -> None:
         """All providers fail → chain returns ``None``, enabling stale fallback."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         async def fail(**kw: object) -> None:
             return None
@@ -1272,7 +1271,7 @@ class TestStaleCacheFallback:
     @pytest.mark.integration
     async def test_caller_can_serve_stale_on_chain_none(self) -> None:
         """Simulates callers using stale cache when chain returns ``None``."""
-        from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier
+        from app.domains.databus.providers.base import Provider, ProviderTier
 
         stale_cache: dict = {"price": 150}  # last-known-good value
 

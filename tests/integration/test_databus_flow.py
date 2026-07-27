@@ -146,7 +146,7 @@ class TestX402DataBusCatalog:
         client = TestClient(app)
         resp = client.get(
             "/api/v1/x402-databus/trials/test-wallet-123",
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         assert resp.status_code in (200, 404), f"Expected 200 or 404, got {resp.status_code}"
         if resp.status_code == 200:
@@ -175,7 +175,7 @@ class TestX402DataBusCatalog:
         resp = client.post(
             "/api/v1/x402-databus/token-price",
             json={"mint": "So11111111111111111111111111111111111111112", "chain": "solana"},
-            headers={**_AUTH, **{"Authorization": "Bearer test-bearer-token"}},
+            headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
         # 402 = payment required, 403 = forbidden, 500 = server error
         assert resp.status_code in (402, 403, 500, 200), (

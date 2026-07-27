@@ -30,12 +30,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_db
 from app.core.logging import get_logger
 from app.domains.analytics.models import (
+    AudienceSummary,
     ContentInsightsResponse,
     CrossProtocolSummary,
     EngagementAnalyticsDetail,
     EngagementAnalyticsSummary,
     GrowthAnalytics,
-    AudienceSummary,
     ViewAnalyticsDetail,
     ViewAnalyticsSummary,
 )

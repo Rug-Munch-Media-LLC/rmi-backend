@@ -22,7 +22,7 @@ import pytest
 from jose import jwt as jose_jwt
 
 # Import test-level fixtures from this package's conftest
-from .conftest import TEST_RMI_AUTH_TOKEN, TEST_JWT_SECRET
+from .conftest import TEST_JWT_SECRET, TEST_RMI_AUTH_TOKEN
 
 # ═══════════════════════════════════════════════════════════════════════
 # Helpers
@@ -74,6 +74,7 @@ class TestJWTCreationAndValidation:
         ):
             # Force reload of jwt_validation module to pick up env
             import importlib
+
             from app import auth as auth_shim
 
             importlib.reload(auth_shim)
@@ -165,6 +166,7 @@ class TestJWTExpiry:
             clear=False,
         ):
             import importlib
+
             from app import auth as auth_shim
 
             importlib.reload(auth_shim)

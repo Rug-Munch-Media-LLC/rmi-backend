@@ -225,7 +225,7 @@ class TestTierLimits:
 
     def test_get_user_tier_defaults_to_free(self):
         """get_user_tier should return FREE for unknown users."""
-        from app.core.rate_limiter import get_user_tier, Tier
+        from app.core.rate_limiter import Tier, get_user_tier
 
         tier = get_user_tier("nonexistent-user-id")
         assert tier == Tier.FREE
@@ -307,7 +307,7 @@ class TestRedisFallback:
         redis = await limiter._ensure_redis()
         # Should return None because Redis ping failed
         # Note: this is during init, so _ensure_redis tries to connect
-        pass  # _ensure_redis would attempt connection
+        # _ensure_redis would attempt connection
 
     @pytest.mark.asyncio
     async def test_redis_reconnect_after_interval(self):

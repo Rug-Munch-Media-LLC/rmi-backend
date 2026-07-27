@@ -6,13 +6,12 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, select, func as sa_func
+from sqlalchemy import and_, func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.models.live import Challenge, UserChallenge
-from app.models.user import User
-from app.services.live.xp_service import award_xp, XP_CHALLENGE_BONUS
+from app.services.live.xp_service import award_xp
 
 log = get_logger(__name__)
 

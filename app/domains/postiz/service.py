@@ -12,7 +12,6 @@ Platform connections are managed in-memory with token refresh logic.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import uuid
 from collections import defaultdict
@@ -22,10 +21,8 @@ from typing import Any
 from app.core.logging import get_logger
 from app.domains.postiz.platforms import (
     PLATFORMS,
-    PlatformDefinition,
-    get_platform,
     get_decentralized_platforms,
-    platform_summary,
+    get_platform,
 )
 
 logger = get_logger(__name__)

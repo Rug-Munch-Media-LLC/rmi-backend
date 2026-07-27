@@ -30,16 +30,12 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from app.auth import get_current_user, require_auth
 from app.core.logging import get_logger
 from app.services.chat import (
-    BridgeStatus,
-    ChatRoom,
-    EncryptionType,
     Protocol,
-    RoomType,
 )
 from app.services.chat.orchestrator import get_orchestrator
 

@@ -16,7 +16,7 @@ os.environ.setdefault("ENVIRONMENT", "dev")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -93,22 +93,21 @@ class TestDegenSecurityScanner:
                     "supply": "1000000000",
                 }
             ),
+        ), patch.object(
+            scanner,
+            "_birdeye_token_data",
+            AsyncMock(
+                return_value={
+                    "price": 0.05,
+                    "mc": 50000,
+                    "v24hUSD": 10000,
+                    "priceChange24h": 12.0,
+                    "liquidity": 20000,
+                    "buySellRatio": 1.2,
+                }
+            ),
         ):
-            with patch.object(
-                scanner,
-                "_birdeye_token_data",
-                AsyncMock(
-                    return_value={
-                        "price": 0.05,
-                        "mc": 50000,
-                        "v24hUSD": 10000,
-                        "priceChange24h": 12.0,
-                        "liquidity": 20000,
-                        "buySellRatio": 1.2,
-                    }
-                ),
-            ):
-                report = await scanner.full_scan("FakeTokenMintAddress1111111111")
+            report = await scanner.full_scan("FakeTokenMintAddress1111111111")
 
         assert report.token_address == "FakeTokenMintAddress1111111111"
         assert report.token_name == "TestToken"
@@ -133,9 +132,8 @@ class TestDegenSecurityScanner:
                     "freezeAuthority": None,
                 }
             ),
-        ):
-            with patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
-                report = await scanner.full_scan("FakeRugTokenMint11111111111111", quick=True)
+        ), patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
+            report = await scanner.full_scan("FakeRugTokenMint11111111111111", quick=True)
 
         assert report.mint_authority_renounced is False
         assert report.authorities_risk == "CRITICAL" or report.authorities_risk == "HIGH"
@@ -157,9 +155,8 @@ class TestDegenSecurityScanner:
                     "freezeAuthority": "Freezer11111111111111111111111111",
                 }
             ),
-        ):
-            with patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
-                report = await scanner.full_scan("FreezeTokenMint1111111111111111", quick=True)
+        ), patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
+            report = await scanner.full_scan("FreezeTokenMint1111111111111111", quick=True)
 
         assert report.freeze_authority_renounced is False
         assert report.authorities_risk != "LOW"
@@ -180,9 +177,8 @@ class TestDegenSecurityScanner:
                     "decimals": 6,
                 }
             ),
-        ):
-            with patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
-                report = await scanner.full_scan("HeliusOnlyMint11111111111111111", quick=True)
+        ), patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
+            report = await scanner.full_scan("HeliusOnlyMint11111111111111111", quick=True)
 
         assert report.token_name == "HeliusToken"
         assert report.token_symbol == "HLT"
@@ -300,7 +296,6 @@ class TestOracleManipulationDetector:
             PriceSnapshot,
             TWAPWindow,
         )
-        from app.domains.detectors.oracle_manipulation_detector import OracleType
 
         snapshots = [
             PriceSnapshot(timestamp=1000.0, block_number=1, price=100.0),
@@ -432,7 +427,6 @@ class TestScannerInputValidation:
         """EVM address regex matches valid 0x addresses."""
         from app.domains.portfolio.portfolio_risk_aggregator import (
             EVM_ADDRESS_RE,
-            SOLANA_ADDRESS_RE,
         )
 
         assert EVM_ADDRESS_RE.match("0x1234567890abcdef1234567890abcdef12345678")

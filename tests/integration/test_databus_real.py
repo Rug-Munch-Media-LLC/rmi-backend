@@ -12,12 +12,9 @@ Tests REAL business logic:
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 import time
 from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -351,10 +348,10 @@ class TestProviderChain:
     def _setup_provider_state(self):
         """Pre-populate provider state to avoid pre-existing bugs."""
         from app.databus.provider_core import (
-            _rate_limiters,
-            _RateLimiter,
             _circuit_breakers,
             _CircuitBreaker,
+            _rate_limiters,
+            _RateLimiter,
         )
 
         provider_names = [

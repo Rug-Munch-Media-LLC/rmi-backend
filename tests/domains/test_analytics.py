@@ -30,7 +30,6 @@ from app.domains.analytics.service import (
     CreatorAnalyticsEngine,
 )
 
-
 # ── Fixtures ────────────────────────────────────────────────────────────
 
 

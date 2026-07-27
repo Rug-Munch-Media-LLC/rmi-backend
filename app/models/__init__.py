@@ -26,6 +26,7 @@ class Base(DeclarativeBase):
     """
 
 
+from app.models.alert import Alert, AlertSubscription
 from app.models.analytics import (
     AudienceFollower,
     ContentPost,
@@ -33,7 +34,6 @@ from app.models.analytics import (
     EngagementEvent,
     ViewEvent,
 )
-from app.models.alert import Alert, AlertSubscription
 from app.models.label import Label
 from app.models.live import (
     AchievementDef,

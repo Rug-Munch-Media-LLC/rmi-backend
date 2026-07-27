@@ -17,7 +17,6 @@ from app.pump_dump_manipulation_detector import (
     PrePumpAccumulation,
     PricePumpSignal,
     PumpDumpAnalysisResult,
-    PumpDumpDetector,
     VolumeAnomaly,
     WashTradeCluster,
     calculate_risk_score,

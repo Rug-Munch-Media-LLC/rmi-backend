@@ -12,9 +12,7 @@ Falls back to resource module (getrusage) when psutil isn't available.
 from __future__ import annotations
 
 import gc
-import os
 import time
-from typing import Any, Callable
 
 import pytest
 from starlette.testclient import TestClient

@@ -372,7 +372,6 @@ class TestGetMarketContext:
     """Fear & Greed index fetching."""
 
     def test_successful_fetch(self) -> None:
-        from unittest.mock import MagicMock
 
         mock_response = AsyncMock()
         mock_response.status_code = 200

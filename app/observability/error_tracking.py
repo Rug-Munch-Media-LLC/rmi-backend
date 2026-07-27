@@ -16,7 +16,6 @@ events leave the process.
 from __future__ import annotations
 
 import os
-from typing import Any
 
 from app.config import settings
 from app.core.logging import get_logger
@@ -28,8 +27,8 @@ log = get_logger(__name__)
 # This module wraps it with a cleaner public API.
 
 from app.core.observability import (
-    capture_exception as capture_exception,  # noqa: F401
-    capture_message as capture_message,  # noqa: F401
+    capture_exception as capture_exception,
+    capture_message as capture_message,
     flush_sentry as flush,  # noqa: F401
 )
 

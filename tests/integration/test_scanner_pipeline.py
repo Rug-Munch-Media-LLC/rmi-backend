@@ -12,9 +12,7 @@ External HTTP is mocked; internal logic is tested directly.
 from __future__ import annotations
 
 import sys
-import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

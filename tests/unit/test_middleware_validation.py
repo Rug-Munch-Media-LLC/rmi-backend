@@ -32,7 +32,6 @@ from app.middleware.validation import (
     validate_x402_payment,
 )
 
-
 # ── Regex pattern tests ────────────────────────────────────────
 
 
@@ -399,10 +398,10 @@ class TestValidationConstants:
 
     def test_length_constants_valid(self) -> None:
         from app.middleware.validation import (
-            MIN_ADDRESS_LENGTH,
             MAX_ADDRESS_LENGTH,
-            MIN_CHAIN_LENGTH,
             MAX_CHAIN_LENGTH,
+            MIN_ADDRESS_LENGTH,
+            MIN_CHAIN_LENGTH,
         )
 
         assert 38 <= MIN_ADDRESS_LENGTH <= MAX_ADDRESS_LENGTH

@@ -2,7 +2,6 @@
 import pytest
 from hypothesis import given, settings, strategies as st
 
-
 # Generate valid-looking hex addresses
 hex_address = st.text(
     alphabet="0123456789abcdefABCDEFx",

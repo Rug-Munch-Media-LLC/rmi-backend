@@ -7,11 +7,9 @@ and mock Redis/external crypto dependencies where needed.
 
 from __future__ import annotations
 
-import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ── Signature Verification (EVM) ─────────────────────────────────────────
 

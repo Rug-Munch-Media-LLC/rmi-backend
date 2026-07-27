@@ -12,7 +12,6 @@ external dependencies (HTTP, Redis) so they're repeatable in any environment.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -265,7 +264,7 @@ class TestCircuitBreaker:
         mock_redis.get.side_effect = lambda k: {
             "circuit:svc:state": "OPEN",
             "circuit:svc:opened_at": str(time.time()),
-        }.get(k, None)
+        }.get(k)
 
         with patch("app.circuit_breaker._get_redis", return_value=mock_redis):
             result = await check_circuit("svc")
@@ -472,7 +471,6 @@ class TestCacheBehavior:
     @pytest.mark.asyncio
     async def test_chain_cache_expiry(self) -> None:
         """ChainCache entries expire after TTL."""
-        import time
 
         from app.chain_cache import ChainCache
 
@@ -526,7 +524,7 @@ class TestCacheBehavior:
     @pytest.mark.integration
     def test_rmi_cache_provider_config(self) -> None:
         """RMICache has provider configurations for major APIs."""
-        from app.cache_manager import PROVIDER_CONFIG, FREE_PROVIDERS, KEYED_PROVIDERS
+        from app.cache_manager import FREE_PROVIDERS, KEYED_PROVIDERS, PROVIDER_CONFIG
 
         # Major providers must be configured
         for provider in ("coingecko", "dexscreener", "birdeye", "helius", "jupiter"):

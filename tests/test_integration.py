@@ -11,12 +11,9 @@ They do NOT start Docker containers or connect to real services.
 from __future__ import annotations
 
 import json
-import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
@@ -167,14 +164,14 @@ class TestWalletAuthFlow:
 
     def test_wallet_nonce_to_token_flow(self):
         """Wallet nonce generates properly structured response."""
+        from datetime import UTC, datetime
+
         from app.domains.auth import generate_nonce
-        from datetime import datetime, UTC
 
         nonce = generate_nonce()
         assert len(nonce) > 0
 
         # Simulate what the wallet_nonce endpoint does
-        import hashlib
 
         address = "0x1234567890123456789012345678901234567890"
         chain = "evm"
@@ -270,9 +267,8 @@ class TestAuthDependencyFlow:
     @pytest.mark.asyncio
     async def test_get_current_user_require_auth_composition(self):
         """get_current_user feeding into require_auth works end-to-end."""
+
         from app.domains.auth import _create_jwt, get_current_user, require_auth
-        from unittest.mock import MagicMock, patch
-        from fastapi import HTTPException
 
         token = _create_jwt("uid-1", "user@test.com")
         mock_user = {"id": "uid-1", "email": "user@test.com", "display_name": "Test"}
@@ -293,9 +289,9 @@ class TestAuthDependencyFlow:
     @pytest.mark.asyncio
     async def test_get_current_user_no_token_falls_to_require_auth(self):
         """Without token, get_current_user returns None and require_auth raises 401."""
-        from app.domains.auth import get_current_user, require_auth
-        from unittest.mock import MagicMock
         from fastapi import HTTPException
+
+        from app.domains.auth import get_current_user, require_auth
 
         request = MagicMock()
         request.cookies = {}
@@ -328,7 +324,6 @@ class TestProblemDetailFlow:
         )
         resp = pd.as_response()
         assert resp.status_code == 422
-        import json
 
         body = json.loads(resp.body)
         assert body["status"] == 422
@@ -351,7 +346,6 @@ class TestProblemDetailFlow:
             request_id="req-456",
         )
         assert resp.status_code == 429
-        import json
 
         body = json.loads(resp.body)
         assert body["detail"] == "Too many requests"
@@ -366,8 +360,9 @@ class TestNonceMessageFlow:
 
     def test_nonce_included_in_wallet_message(self):
         """Wallet auth message contains nonce, address, timestamp."""
+        from datetime import UTC, datetime
+
         from app.domains.auth import generate_nonce
-        from datetime import datetime, UTC
 
         nonce = generate_nonce()
         address = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"

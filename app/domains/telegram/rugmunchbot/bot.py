@@ -55,6 +55,12 @@ from app.domains.telegram.rugmunchbot.handlers.account import (
 from app.domains.telegram.rugmunchbot.handlers.alerts import check_alerts, cmd_alert, cmd_alerts
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
+from app.domains.telegram.rugmunchbot.handlers.groups import (
+    cmd_banuser,
+    cmd_groupinfo,
+    cmd_mygroup,
+    cmd_voicechat,
+)
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, cmd_trending
 from app.domains.telegram.rugmunchbot.handlers.message import handle_message
@@ -78,12 +84,6 @@ from app.domains.telegram.rugmunchbot.handlers.watchlist import (
     cmd_unwatch,
     cmd_watch,
     cmd_watchlist,
-)
-from app.domains.telegram.rugmunchbot.handlers.groups import (
-    cmd_banuser,
-    cmd_groupinfo,
-    cmd_mygroup,
-    cmd_voicechat,
 )
 
 logger = get_logger("rmi_bot")
