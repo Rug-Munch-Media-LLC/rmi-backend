@@ -253,6 +253,21 @@ jobs:
             --cov-report=lcov:coverage.lcov \
             --cov-fail-under=${{ env.COVERAGE_THRESHOLD }}
 
+      - name: Check coverage threshold
+        run: |
+          source .venv/bin/activate
+          python -c "
+import xml.etree.ElementTree as ET
+tree = ET.parse('coverage.xml')
+root = tree.getroot()
+line_rate = float(root.attrib.get('line-rate', 0))
+print(f'Coverage: {line_rate*100:.1f}%')
+if line_rate < 0.50:
+    print('❌ Coverage below 50% threshold')
+    exit(1)
+print('✅ Coverage threshold met')
+"
+
       - name: Run E2E tests
         run: |
           source .venv/bin/activate
@@ -602,8 +617,8 @@ jobs:
       - name: Diff coverage gate
         run: |
           if command -v covgate &>/dev/null; then
-            covgate check --config covgate.toml --base origin/main || echo "Diff coverage below threshold — review needed"
+            covgate check --config covgate.toml --base origin/main
           else
             echo "covgate not installed — diff coverage gate skipped"
+            exit 1
           fi
-        continue-on-error: true
