@@ -385,7 +385,12 @@ jobs:
     # in PR context. Runs on schedule against the live deployment instead.
     # To enable: set K6_TARGET_URL as a repo variable (vars) or secret
     # pointing to the deployed API (e.g., https://api.rugmunch.io).
+    #
+    # Non-blocking (continue-on-error) until the API is available in CI.
+    # Graduate to blocking by removing continue-on-error once a test
+    # environment is provisioned (e.g., ephemeral Docker Compose stack).
     if: github.event_name == 'schedule'
+    continue-on-error: true
     runs-on: docker-x64
     container:
       image: grafana/k6:latest
@@ -393,6 +398,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Create results directory
         run: mkdir -p tests/k6/results
+      - name: Connectivity pre-check
+        run: |
+          echo "🔍 Checking API reachability at ${{ vars.K6_TARGET_URL || 'https://api.rugmunch.io' }} ..."
+          curl -sSf -o /dev/null -w "HTTP %{http_code}\n" \
+            "${{ vars.K6_TARGET_URL || 'https://api.rugmunch.io' }}/health" \
+            --connect-timeout 10 --max-time 15 \
+            && echo "✅ API is reachable — proceeding with k6 smoke test" \
+            || echo "⚠️  API not reachable — k6 will report failures (non-blocking)"
+        continue-on-error: true
       - name: Run k6 smoke test against live deployment
         run: |
           k6 run tests/k6/smoke.js \
