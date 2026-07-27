@@ -56,7 +56,7 @@ def _sb() -> tuple[Any, dict]:
     - Reading all posts and profiles
     """
     key = (
-        get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+        get_secret_or_none("SUPABASE_SERVICE_KEY", "")
         or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
         or ""
     )

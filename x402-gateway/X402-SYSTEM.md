@@ -205,5 +205,5 @@ Multi-chain: pay on any supported chain with any supported token.
 Fee-free options: Coinbase CDP (1K tx/mo free) and Primev FastRPC (always free on Ethereum).
 
 ## Facilitator Registry
-Source: `/root/backend/app/facilitators/` — 14 modules, pluggable architecture.
+Source: `/path/to/backend/app/facilitators/` — 14 modules, pluggable architecture.
 Startup: `register_all_facilitators()` called from main.py — auto-detects and registers.

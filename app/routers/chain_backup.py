@@ -37,7 +37,7 @@ logger = get_logger("chain_backup")
 router = APIRouter(prefix="/api/v1/system", tags=["system", "backup"])
 
 # ── Configuration paths ──────────────────────────────────────
-BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/srv/backups/chain-data"))
+BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/path/to/backups"))
 BACKUP_LOG = Path(os.getenv("BACKUP_LOG", "/var/log/rmi-chain-backup.log"))
 LAST_BACKUP_FILE = BACKUP_DIR / "last_backup.json"
 

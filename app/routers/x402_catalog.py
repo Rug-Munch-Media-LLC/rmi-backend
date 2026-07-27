@@ -415,7 +415,7 @@ def get_catalog() -> Any:
     candidates = [
         os.environ.get("X402_GATEWAY_DIR"),
         "/srv/work/repos/rmi-mcp-x402",
-        "/srv/rmi/rmi-mcp-x402",
+        "/path/to/rmi-mcp-x402",
     ]
     gateway_base = None
     for c in candidates:

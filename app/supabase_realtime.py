@@ -20,7 +20,7 @@ logger = get_logger("supabase.realtime")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = (
-    get_secret_or_none("SUPABASE_SERVICE_KEY", "rmi/prod/supabase_service_key")
+    get_secret_or_none("SUPABASE_SERVICE_KEY", "")
     or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
     or ""
 )
