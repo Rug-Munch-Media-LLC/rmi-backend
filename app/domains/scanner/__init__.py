@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import app.domains.scanner.service  # noqa: F401 — ensure service package is importable for mock patches
 from app.domains.scanner.models import ScanResult
 
 
@@ -28,10 +29,12 @@ def quick_scan_text(*args, **kwargs) -> Any:
 
     return _f(*args, **kwargs)
 
+
 def scan_token(*args, **kwargs) -> Any:
     """Lazy import to avoid circular dependency with modules package."""
     from app.domains.scanner.service import scan_token as _f
 
     return _f(*args, **kwargs)
+
 
 __all__ = ["ScanResult", "quick_scan_text", "scan_token"]

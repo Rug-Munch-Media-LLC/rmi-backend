@@ -51,9 +51,7 @@ class TestDegenSecurityScanner:
 
     @pytest.fixture
     def scanner(self):
-        with patch(
-            "app.domains.scanner.degen_security_scanner.FreeSolscanClient"
-        ) as mock_solscan_cls:
+        with patch("app.free_solscan_client.FreeSolscanClient") as mock_solscan_cls:
             instance = mock_solscan_cls.return_value
             # Stub solscan sync methods
             instance.token_data.return_value = {
@@ -80,31 +78,36 @@ class TestDegenSecurityScanner:
     @pytest.mark.asyncio
     async def test_full_scan_returns_security_report(self, scanner):
         """full_scan() returns a SecurityReport with expected fields."""
-        with patch.object(
-            scanner,
-            "_helius_token_metadata",
-            AsyncMock(
-                return_value={
-                    "name": "TestToken",
-                    "symbol": "TST",
-                    "decimals": 9,
-                    "mintAuthority": None,
-                    "freezeAuthority": None,
-                    "supply": "1000000000",
-                }
+        from app.domains.scanner.degen_security_scanner import phases as degen_phases
+
+        with (
+            patch.object(
+                degen_phases,
+                "_helius_token_metadata",
+                AsyncMock(
+                    return_value={
+                        "name": "TestToken",
+                        "symbol": "TST",
+                        "decimals": 9,
+                        "mintAuthority": None,
+                        "freezeAuthority": None,
+                        "supply": "1000000000",
+                    }
+                ),
             ),
-        ), patch.object(
-            scanner,
-            "_birdeye_token_data",
-            AsyncMock(
-                return_value={
-                    "price": 0.05,
-                    "mc": 50000,
-                    "v24hUSD": 10000,
-                    "priceChange24h": 12.0,
-                    "liquidity": 20000,
-                    "buySellRatio": 1.2,
-                }
+            patch.object(
+                degen_phases,
+                "_birdeye_token_data",
+                AsyncMock(
+                    return_value={
+                        "price": 0.05,
+                        "mc": 50000,
+                        "v24hUSD": 10000,
+                        "priceChange24h": 12.0,
+                        "liquidity": 20000,
+                        "buySellRatio": 1.2,
+                    }
+                ),
             ),
         ):
             report = await scanner.full_scan("FakeTokenMintAddress1111111111")
@@ -120,19 +123,24 @@ class TestDegenSecurityScanner:
     @pytest.mark.asyncio
     async def test_full_scan_with_active_mint_authority_flag_critical(self, scanner):
         """Active mint authority produces a critical-level warning."""
-        with patch.object(
-            scanner,
-            "_helius_token_metadata",
-            AsyncMock(
-                return_value={
-                    "name": "RugToken",
-                    "symbol": "RUG",
-                    "decimals": 9,
-                    "mintAuthority": "DevWallet111111111111111111111111111111",
-                    "freezeAuthority": None,
-                }
+        from app.domains.scanner.degen_security_scanner import phases as degen_phases
+
+        with (
+            patch.object(
+                degen_phases,
+                "_helius_token_metadata",
+                AsyncMock(
+                    return_value={
+                        "name": "RugToken",
+                        "symbol": "RUG",
+                        "decimals": 9,
+                        "mintAuthority": "DevWallet111111111111111111111111111111",
+                        "freezeAuthority": None,
+                    }
+                ),
             ),
-        ), patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
+            patch.object(degen_phases, "_birdeye_token_data", AsyncMock(return_value={})),
+        ):
             report = await scanner.full_scan("FakeRugTokenMint11111111111111", quick=True)
 
         assert report.mint_authority_renounced is False
@@ -143,19 +151,24 @@ class TestDegenSecurityScanner:
     @pytest.mark.asyncio
     async def test_full_scan_with_freeze_authority_adds_risk(self, scanner):
         """Active freeze authority raises risk."""
-        with patch.object(
-            scanner,
-            "_helius_token_metadata",
-            AsyncMock(
-                return_value={
-                    "name": "FreezeToken",
-                    "symbol": "FRZ",
-                    "decimals": 9,
-                    "mintAuthority": None,
-                    "freezeAuthority": "Freezer11111111111111111111111111",
-                }
+        from app.domains.scanner.degen_security_scanner import phases as degen_phases
+
+        with (
+            patch.object(
+                degen_phases,
+                "_helius_token_metadata",
+                AsyncMock(
+                    return_value={
+                        "name": "FreezeToken",
+                        "symbol": "FRZ",
+                        "decimals": 9,
+                        "mintAuthority": None,
+                        "freezeAuthority": "Freezer11111111111111111111111111",
+                    }
+                ),
             ),
-        ), patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
+            patch.object(degen_phases, "_birdeye_token_data", AsyncMock(return_value={})),
+        ):
             report = await scanner.full_scan("FreezeTokenMint1111111111111111", quick=True)
 
         assert report.freeze_authority_renounced is False
@@ -167,17 +180,22 @@ class TestDegenSecurityScanner:
         scanner.solscan.token_data.return_value = None
         scanner.solscan.token_holders_total.return_value = None
 
-        with patch.object(
-            scanner,
-            "_helius_token_metadata",
-            AsyncMock(
-                return_value={
-                    "name": "HeliusToken",
-                    "symbol": "HLT",
-                    "decimals": 6,
-                }
+        from app.domains.scanner.degen_security_scanner import phases as degen_phases
+
+        with (
+            patch.object(
+                degen_phases,
+                "_helius_token_metadata",
+                AsyncMock(
+                    return_value={
+                        "name": "HeliusToken",
+                        "symbol": "HLT",
+                        "decimals": 6,
+                    }
+                ),
             ),
-        ), patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value={})):
+            patch.object(degen_phases, "_birdeye_token_data", AsyncMock(return_value={})),
+        ):
             report = await scanner.full_scan("HeliusOnlyMint11111111111111111", quick=True)
 
         assert report.token_name == "HeliusToken"
@@ -190,9 +208,13 @@ class TestDegenSecurityScanner:
         scanner.solscan.token_holders_total.return_value = None
         scanner.solscan.get_holder_wallets.return_value = []
 
-        with patch.object(scanner, "_helius_token_metadata", AsyncMock(return_value=None)):
-            with patch.object(scanner, "_birdeye_token_data", AsyncMock(return_value=None)):
-                report = await scanner.full_scan("DeadMint11111111111111111111111111", quick=True)
+        from app.domains.scanner.degen_security_scanner import phases as degen_phases
+
+        with (
+            patch.object(degen_phases, "_helius_token_metadata", AsyncMock(return_value=None)),
+            patch.object(degen_phases, "_birdeye_token_data", AsyncMock(return_value=None)),
+        ):
+            report = await scanner.full_scan("DeadMint11111111111111111111111111", quick=True)
 
         assert report.token_name == "Unknown"
         assert report.token_symbol == "???"
@@ -456,7 +478,7 @@ class TestScannerInputValidation:
             validate_wallet_address,
         )
 
-        valid, hint = validate_wallet_address("not-a-wallet!")
+        valid, _hint = validate_wallet_address("not-a-wallet!")
         assert valid is False
 
 

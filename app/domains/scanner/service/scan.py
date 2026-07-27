@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import httpx
+
 from app.core.data_fusion import fusion
 from app.core.logging import get_logger
 from app.domains.scanner.market_data import fetch_market_data
@@ -39,6 +41,7 @@ from app.domains.scanner.service.stubs import (
 
 logger = get_logger(__name__)
 
+
 async def scan_token(
     token_address: str,
     chain: str = "ethereum",
@@ -69,7 +72,7 @@ async def scan_token(
             r = await func(*args, **kwargs)
             result.modules_run.append({"module": name, "status": "success", "result": r})
             return r
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError, RuntimeError) as e:
             logger.debug("run_module_error", exc_info=True)
             logger.warning("module_failed", module=name, error=str(e))
             last_error = str(e)
@@ -89,11 +92,7 @@ async def scan_token(
         tasks.append(run_module("defiscanner", _check_defi_scanner, token_address, chain))
         # New FREE checks
         tasks.append(run_module("token_age", _check_token_age, token_address, chain))
-        tasks.append(
-            run_module(
-                "volume_liquidity_ratio", _check_volume_liquidity_ratio, token_address, chain
-            )
-        )
+        tasks.append(run_module("volume_liquidity_ratio", _check_volume_liquidity_ratio, token_address, chain))
 
     # ── PRO tier (Tier 2) — advanced checks ──
     if "pro" in tiers or "elite" in tiers:
@@ -147,11 +146,7 @@ async def scan_token(
             risk_flags.append("high_risk_deployer")
 
         risk_score = r.get("risk_score", 0)
-        if (
-            isinstance(risk_score, (int, float))
-            and risk_score >= 70
-            and module_name in ("goplus", "honeypot")
-        ):
+        if isinstance(risk_score, (int, float)) and risk_score >= 70 and module_name in ("goplus", "honeypot"):
             risk_flags.append("high_risk_score")
 
         # Concentration (existing)
@@ -197,9 +192,7 @@ async def scan_token(
     base_confidence = min(100, int((successful / total) * 100))
     # Add bonus for modules with real data (not pending)
     pending_count = sum(
-        1
-        for m in result.modules_run
-        if isinstance(m.get("result"), dict) and m["result"].get("result") == "pending"
+        1 for m in result.modules_run if isinstance(m.get("result"), dict) and m["result"].get("result") == "pending"
     )
     real_count = successful - pending_count
     result.confidence = min(100, base_confidence + real_count * 5)
@@ -241,17 +234,13 @@ async def scan_token(
             fused_safety = max(0, min(100, 100 - fused_risk))
             # Blend: 70% original scoring, 30% fusion (increase fusion weight with more sources)
             fusion_weight = min(0.5, 0.2 + len(fused.get("sources_used", [])) * 0.05)
-            result.safety_score = int(
-                result.safety_score * (1 - fusion_weight) + fused_safety * fusion_weight
-            )
+            result.safety_score = int(result.safety_score * (1 - fusion_weight) + fused_safety * fusion_weight)
             # Also apply high-severity findings as risk flags
             for finding in fused.get("risk_findings", []):
                 if finding.get("severity") in ("CRITICAL", "HIGH"):
                     flag_text = finding.get("finding", "")[:60]
                     if flag_text and flag_text not in result.risk_flags:
-                        result.risk_flags.append(
-                            f"fusion:{finding.get('source', 'unknown')}:{flag_text}"
-                        )
+                        result.risk_flags.append(f"fusion:{finding.get('source', 'unknown')}:{flag_text}")
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("data_fusion_skipped", error=str(e)[:100])
         result.fusion_brief = {"summary": "Fusion engine unavailable", "risk_score": None}
@@ -291,9 +280,7 @@ async def scan_token(
         }
         # Log what RAG contributed
         scam_count = len(rag_ctx.similar_scams)
-        scorching_find = any(
-            h.final_score > 0.7 for h in rag_ctx.similar_scams
-        )
+        scorching_find = any(h.final_score > 0.7 for h in rag_ctx.similar_scams)
         logger.info(
             "rag_enrichment_done",
             token=token_address[:16],
@@ -315,6 +302,7 @@ async def scan_token(
 
     return result
 
+
 async def quick_scan_text(token_address: str, chain: str = "solana") -> str:
     """Quick text scan for token."""
     result = await scan_token(token_address, chain, tiers=["free", "pro"])
@@ -324,4 +312,3 @@ async def quick_scan_text(token_address: str, chain: str = "solana") -> str:
         f"Confidence: {result.confidence}%. "
         f"Flags: {', '.join(result.risk_flags) if result.risk_flags else 'None'}"
     )
-
