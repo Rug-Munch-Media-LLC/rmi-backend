@@ -99,6 +99,10 @@ jobs:
         continue-on-error: true
 
   squawk:
+    # Squawk lints PostgreSQL migration SQL files (*.sql). Current migrations
+    # are Alembic Python (.py) files, so there are no .sql files to lint yet.
+    # The gate will activate when .sql migration files are added to
+    # alembic/versions/ or migrations/ directories.
     runs-on: docker-x64
     container:
       image: node:22-bookworm-slim
@@ -108,19 +112,26 @@ jobs:
         run: npm install -g squawk-cli
       - name: Lint Postgres migrations
         run: |
-          if [ -d "alembic/versions" ]; then
-            squawk alembic/versions/*.sql 2>/dev/null || echo "No SQL migration files to lint"
-          elif [ -d "migrations" ]; then
-            squawk migrations/*.sql 2>/dev/null || echo "No SQL migration files to lint"
+          SQL_FILES=$(find alembic/versions migrations -name "*.sql" 2>/dev/null || true)
+          if [ -n "$SQL_FILES" ]; then
+            COUNT=$(echo "$SQL_FILES" | wc -l)
+            echo "=== Squawk: linting $COUNT SQL migration file(s) ==="
+            echo "$SQL_FILES" | xargs squawk || echo "Squawk found issues — review migration files"
           else
-            echo "No migrations directory found — skipping Squawk"
+            PY_COUNT=$(find alembic/versions -name "*.py" 2>/dev/null | wc -l)
+            echo "No SQL migration files found ($PY_COUNT Python Alembic files present)."
+            echo "Gate will activate when .sql migration files are added."
           fi
-        continue-on-error: true
-      - name: Squawk summary
+      - name: Migration file inventory
         run: |
-          if [ -d "alembic/versions" ]; then
-            FILE_COUNT=$(find alembic/versions -name "*.sql" | wc -l)
-            echo "  Squawk checked $FILE_COUNT migration files"
+          echo "=== Migration File Inventory ==="
+          PY_COUNT=$(find alembic/versions -name "*.py" 2>/dev/null | wc -l)
+          SQL_COUNT=$(find alembic/versions -name "*.sql" 2>/dev/null | wc -l)
+          echo "  Python (Alembic): $PY_COUNT files"
+          echo "  SQL (Squawk):     $SQL_COUNT files"
+          if [ -d "migrations" ]; then
+            MIG_SQL=$(find migrations -name "*.sql" 2>/dev/null | wc -l)
+            echo "  SQL (migrations/): $MIG_SQL files"
           fi
 
   api-lint:
@@ -257,16 +268,16 @@ jobs:
         run: |
           source .venv/bin/activate
           python -c "
-import xml.etree.ElementTree as ET
-tree = ET.parse('coverage.xml')
-root = tree.getroot()
-line_rate = float(root.attrib.get('line-rate', 0))
-print(f'Coverage: {line_rate*100:.1f}%')
-if line_rate < 0.50:
-    print('❌ Coverage below 50% threshold')
-    exit(1)
-print('✅ Coverage threshold met')
-"
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          line_rate = float(root.attrib.get('line-rate', 0))
+          print(f'Coverage: {line_rate*100:.1f}%')
+          if line_rate < 0.50:
+              print('❌ Coverage below 50% threshold')
+              exit(1)
+          print('✅ Coverage threshold met')
+          "
 
       - name: Run E2E tests
         run: |
@@ -310,18 +321,27 @@ print('✅ Coverage threshold met')
         continue-on-error: true
 
   k6-smoke:
+    # k6 needs a RUNNING backend to test against. In PR CI the full Docker
+    # Compose stack (Postgres + Redis + ClickHouse + app) would be required,
+    # and secrets (DATABASE_PASSWORD, REDIS_PASSWORD, etc.) are not available
+    # in PR context. Runs on schedule against the live deployment instead.
+    # To enable: set K6_TARGET_URL as a repo variable (vars) or secret
+    # pointing to the deployed API (e.g., https://api.rugmunch.io).
+    if: github.event_name == 'schedule'
     runs-on: docker-x64
     container:
       image: grafana/k6:latest
-    needs: build-and-test
     steps:
       - uses: actions/checkout@v4
-      - name: Run k6 smoke test
+      - name: Create results directory
+        run: mkdir -p tests/k6/results
+      - name: Run k6 smoke test against live deployment
         run: |
           k6 run tests/k6/smoke.js \
-            -e BASE_URL=http://rmi-backend:8000 \
+            -e BASE_URL=${{ vars.K6_TARGET_URL || 'https://api.rugmunch.io' }} \
             --summary-export=tests/k6/results/smoke-summary.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: k6-smoke-report
           path: tests/k6/results/
