@@ -17,7 +17,7 @@ LAYERS:
 
 BLOCKED CONTENT CATEGORIES:
   PRIVATE_REPO_REF — References to standards, fleet-infra, fleet-template, rmi-security-framework
-  INTERNAL_IP — 100.104.x.x, 100.64.x.x, 100.74.x.x, talos.rugmunch.io
+  INTERNAL_IP — 100.104.x.x, 100.64.x.x, 100.74.x.x, [INTERNAL_HOSTNAME]
   CLASSIFICATION_BANNER — Missing or invalid file classification
   COMPETITOR_INTEL — /tmp/compete/, teardown references
   PAYMENT_MODEL — Cost structures, pricing ladders
@@ -110,7 +110,7 @@ ENCRYPTED_PATTERNS = [
     ("standards.*(?:DISPATCH|PAYMENT|SECURITY.FRAMEWORK)", "PRIVATE_REPO_REF"),
     ("fleet-infra|fleet-template|rmi-security-framework", "PRIVATE_REPO_REF"),
     ("100\\.(?:104|64|74)\\.\\d+\\.\\d+", "INTERNAL_IP"),
-    ("talos\\.rugmunch\\.io|cinnabox", "INTERNAL_HOSTNAME"),
+    ("INTERNAL_HOSTNAME_PATTERN", "INTERNAL_HOSTNAME"),
     ("gopass\\s+(?:show|ls|insert)", "SECRET_REFERENCE"),
     ("rmi/(?:codeberg|gitlab|forgejo|github)/", "SECRET_REFERENCE"),
     ("OPENROUTER_API_KEY=|DEEPSEEK_API_KEY=", "SECRET_REFERENCE"),
@@ -232,9 +232,7 @@ def check_entropy(content):
             if entropy > ENTROPY_THRESHOLD:
                 # Avoid flagging known-safe patterns (base64, hashes)
                 if not re.match(r"^[A-Za-z0-9+/=]+$", stripped):
-                    findings.append(
-                        (f"High entropy ({entropy:.1f}) at line {i}", "HIGH_ENTROPY")
-                    )
+                    findings.append((f"High entropy ({entropy:.1f}) at line {i}", "HIGH_ENTROPY"))
     return findings
 
 
@@ -271,9 +269,7 @@ def check_file(filepath):
 
 def main():
     # Get staged files
-    result = subprocess.run(
-        ["git", "diff", "--cached", "--name-only"], capture_output=True, text=True
-    )
+    result = subprocess.run(["git", "diff", "--cached", "--name-only"], capture_output=True, text=True)
     staged = [f for f in result.stdout.strip().split("\n") if f and os.path.exists(f)]
 
     if not staged:
@@ -328,12 +324,8 @@ def main():
 
         print(f"\n  {len(all_findings)} violation(s). Commit blocked.")
         print("  This content is proprietary to Rug Munch Media LLC.")
-        print(
-            "  Public repos: rmi-backend, rmi-frontend, pryscraper, walletpress, degenfeed-web, rugmunchbot"
-        )
-        print(
-            "  Private repos: standards, fleet-infra, fleet-template, rmi-security-framework"
-        )
+        print("  Public repos: rmi-backend, rmi-frontend, pryscraper, walletpress, degenfeed-web, rugmunchbot")
+        print("  Private repos: standards, fleet-infra, fleet-template, rmi-security-framework")
         print("=" * 72 + "\n")
         return 1
 

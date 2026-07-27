@@ -2,7 +2,7 @@
 DuckDB Offline Analytics Engine
 =================================
 
-Local forensic analytics on cinnabox - no VPS needed.
+Local forensic analytics on [INTERNAL_HOST] — no VPS needed.
 Loads Real-CATS (153K addresses) and MBAL (10M addresses) into
 DuckDB for instant SQL queries, risk scoring, and label lookups.
 
@@ -84,11 +84,13 @@ CREATE TABLE IF NOT EXISTS address_index (
 
 # ── Data loading ────────────────────────────────────────────────
 
+
 def _find_dir(candidates: list[str]) -> str | None:
     for d in candidates:
         if os.path.isdir(d) and os.listdir(d):
             return d
     return None
+
 
 def _load_real_cats(con, base_dir: str) -> dict:
     """Load Real-CATS dataset into criminal_addresses and benign_addresses."""
@@ -154,6 +156,7 @@ def _load_real_cats(con, base_dir: str) -> dict:
 
     return stats
 
+
 def _load_mbal(con, base_dir: str) -> dict:
     """Load MBAL 10M address labels into mbal_labels."""
     stats = {"loaded": 0, "errors": []}
@@ -182,9 +185,7 @@ def _load_mbal(con, base_dir: str) -> dict:
                 [primary],
             )
             elapsed = time.time() - start
-            count = con.execute(
-                "SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-10m'"
-            ).fetchone()[0]
+            count = con.execute("SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-10m'").fetchone()[0]
             stats["loaded"] = count
             stats["time_s"] = round(elapsed, 1)
         except (ConnectionError, OSError):
@@ -208,9 +209,7 @@ def _load_mbal(con, base_dir: str) -> dict:
                 """,
                     [primary],
                 )
-                count = con.execute(
-                    "SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-10m'"
-                ).fetchone()[0]
+                count = con.execute("SELECT COUNT(*) FROM mbal_labels WHERE source='mbal-10m'").fetchone()[0]
                 stats["loaded"] = count
             except Exception as e2:
                 stats["errors"].append(f"mbal-10m: {e2}")
@@ -224,9 +223,7 @@ def _load_mbal(con, base_dir: str) -> dict:
         # Security: validate tag and path don't contain SQL-injectable characters
         if "'" in fpath:
             continue
-        if not tag or any(
-            c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in tag
-        ):
+        if not tag or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in tag):
             continue
         try:
             con.execute(
@@ -247,6 +244,7 @@ def _load_mbal(con, base_dir: str) -> dict:
             pass
 
     return stats
+
 
 def _build_index(con) -> None:
     """Build unified address_index from all loaded data."""
@@ -310,10 +308,12 @@ def _build_index(con) -> None:
     except (ConnectionError, OSError):
         pass
 
+
 # ── Public API ───────────────────────────────────────────────────
 
+
 class DuckDBAnalytics:
-    """Offline analytics engine using DuckDB on cinnabox."""
+    """Offline analytics engine using DuckDB on [INTERNAL_HOST]."""
 
     def __init__(self, db_path: str = DB_PATH) -> None:
         self.db_path = db_path
@@ -340,12 +340,8 @@ class DuckDBAnalytics:
                         "status": "already_loaded",
                         "total_indexed": count,
                         "tables": {
-                            "criminal": con.execute(
-                                "SELECT COUNT(*) FROM criminal_addresses"
-                            ).fetchone()[0],
-                            "benign": con.execute(
-                                "SELECT COUNT(*) FROM benign_addresses"
-                            ).fetchone()[0],
+                            "criminal": con.execute("SELECT COUNT(*) FROM criminal_addresses").fetchone()[0],
+                            "benign": con.execute("SELECT COUNT(*) FROM benign_addresses").fetchone()[0],
                             "mbal": con.execute("SELECT COUNT(*) FROM mbal_labels").fetchone()[0],
                             "index": count,
                         },
@@ -362,12 +358,8 @@ class DuckDBAnalytics:
         cats_dir = _find_dir(REAL_CATS_DIRS)
         if cats_dir:
             cats_stats = _load_real_cats(con, cats_dir)
-            stats["tables"]["criminal"] = con.execute(
-                "SELECT COUNT(*) FROM criminal_addresses"
-            ).fetchone()[0]
-            stats["tables"]["benign"] = con.execute(
-                "SELECT COUNT(*) FROM benign_addresses"
-            ).fetchone()[0]
+            stats["tables"]["criminal"] = con.execute("SELECT COUNT(*) FROM criminal_addresses").fetchone()[0]
+            stats["tables"]["benign"] = con.execute("SELECT COUNT(*) FROM benign_addresses").fetchone()[0]
             stats["real_cats"] = cats_stats
         else:
             stats["tables"]["criminal"] = 0
@@ -542,19 +534,11 @@ class DuckDBAnalytics:
         con = self.connect()
         try:
             return {
-                "criminal_addresses": con.execute(
-                    "SELECT COUNT(*) FROM criminal_addresses"
-                ).fetchone()[0],
-                "benign_addresses": con.execute("SELECT COUNT(*) FROM benign_addresses").fetchone()[
-                    0
-                ],
+                "criminal_addresses": con.execute("SELECT COUNT(*) FROM criminal_addresses").fetchone()[0],
+                "benign_addresses": con.execute("SELECT COUNT(*) FROM benign_addresses").fetchone()[0],
                 "mbal_labels": con.execute("SELECT COUNT(*) FROM mbal_labels").fetchone()[0],
-                "indexed_addresses": con.execute("SELECT COUNT(*) FROM address_index").fetchone()[
-                    0
-                ],
-                "chains": con.execute(
-                    "SELECT DISTINCT chain FROM address_index WHERE chain IS NOT NULL"
-                ).fetchall(),
+                "indexed_addresses": con.execute("SELECT COUNT(*) FROM address_index").fetchone()[0],
+                "chains": con.execute("SELECT DISTINCT chain FROM address_index WHERE chain IS NOT NULL").fetchall(),
                 "categories": con.execute("""
                     SELECT category, COUNT(*) as cnt
                     FROM address_index
@@ -580,9 +564,11 @@ class DuckDBAnalytics:
             self._con.close()
             self._con = None
 
+
 # ── DataBus provider functions ───────────────────────────────────
 
 _engine: DuckDBAnalytics | None = None
+
 
 def _get_engine() -> DuckDBAnalytics:
     global _engine
@@ -591,12 +577,14 @@ def _get_engine() -> DuckDBAnalytics:
         _engine.initialize()
     return _engine
 
+
 async def _duckdb_lookup(address: str = "", **kwargs) -> dict | None:
     """Look up address in local DuckDB analytics."""
     if not address:
         return None
     engine = _get_engine()
     return engine.lookup_address(address)
+
 
 async def _duckdb_batch_lookup(addresses: list | None = None, **kwargs) -> dict | None:
     """Batch look up addresses in local DuckDB analytics."""
@@ -610,6 +598,7 @@ async def _duckdb_batch_lookup(addresses: list | None = None, **kwargs) -> dict 
         "found": sum(1 for r in results if r["found"]),
     }
 
+
 async def _duckdb_risk_score(address: str = "", **kwargs) -> dict | None:
     """Get risk score for an address."""
     if not address:
@@ -618,9 +607,8 @@ async def _duckdb_risk_score(address: str = "", **kwargs) -> dict | None:
     score = engine.risk_score(address)
     return {"address": address, "risk_score": score, "source": "duckdb_offline"}
 
-async def _duckdb_search_labels(
-    query: str = "", chain: str | None = None, limit: int = 50, **kwargs
-) -> dict | None:
+
+async def _duckdb_search_labels(query: str = "", chain: str | None = None, limit: int = 50, **kwargs) -> dict | None:
     """Search labels by keyword."""
     if not query:
         return None
@@ -628,10 +616,12 @@ async def _duckdb_search_labels(
     results = engine.search_labels(query, chain, limit)
     return {"query": query, "chain": chain, "results": results, "count": len(results)}
 
+
 async def _duckdb_stats(**kwargs) -> dict | None:
     """Get DuckDB analytics statistics."""
     engine = _get_engine()
     return engine.stats()
+
 
 async def _duckdb_query(sql: str = "", **kwargs) -> dict | None:
     """Run arbitrary SQL on DuckDB (admin only)."""
@@ -646,6 +636,7 @@ async def _duckdb_query(sql: str = "", **kwargs) -> dict | None:
         return {"sql": sql, "rows": len(rows), "data": rows[:100], "truncated": len(rows) > 100}
     except Exception as e:
         return {"error": str(e)}
+
 
 if __name__ == "__main__":
     import asyncio

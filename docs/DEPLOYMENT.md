@@ -71,7 +71,7 @@ The RMI backend is a **single Docker container** deployed via Docker Compose on 
 | `PORT` | `8000` | Listen port |
 | `LOG_LEVEL` | `info` | Logging verbosity |
 | `OTEL_ENABLED` | `false` | OpenTelemetry tracing |
-| `OLLAMA_URL` | `http://100.104.130.92:11434` | Local LLM endpoint |
+| `OLLAMA_URL` | `http://[INTERNAL_HOST]:11434` | Local LLM endpoint |
 | `ETH_RPC_URL` | `http://127.0.0.1:8545` | Local Ethereum RPC |
 
 ### JWT
@@ -307,7 +307,7 @@ curl http://localhost:8000/metrics
 
 ### Grafana Dashboards
 
-Available at `https://grafana.talos.rugmunch.io:3000` (or local port 3000 on Talos)
+Available at `http://localhost:3000` (port-forwarded from internal host)
 
 | Dashboard | Contents |
 |-----------|----------|
@@ -428,7 +428,7 @@ netstat -tlnp | grep 8000
 docker exec rmi-backend getent hosts rmi-postgres
 
 # SSL cert check
-echo | openssl s_client -connect talos.rugmunch.io:443 2>/dev/null | openssl x509 -noout -dates
+echo | openssl s_client -connect localhost:443 2>/dev/null | openssl x509 -noout -dates
 ```
 
 ---
