@@ -456,9 +456,48 @@ jobs:
           uv python install 3.11 && uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -r requirements.txt
           uv pip install --python .venv/bin/python -e ".[dev]" pact-python
-      - name: Verify provider contracts
-        run: source .venv/bin/activate && python -m pytest tests/contract/ -v --tb=short -m integration || echo "Provider verification noted (needs Pact Broker)"
+      - name: Download pact files (from consumer CI)
+        uses: actions/download-artifact@v4
         continue-on-error: true
+        with:
+          name: pacts
+          path: tests/contract/pacts/
+      - name: Verify provider contracts (Pact Broker)
+        id: contract-broker
+        continue-on-error: true
+        run: |
+          source .venv/bin/activate
+          if [ -n "$PACT_BROKER_URL" ]; then
+            python -m pytest tests/contract/ -v --tb=short -m integration
+          else
+            echo "ℹ️  PACT_BROKER_URL not set — skip broker verification"
+          fi
+        env:
+          PACT_BROKER_URL: ${{ secrets.PACT_BROKER_URL }}
+      - name: Verify provider against local pact files
+        if: steps.contract-broker.outcome == 'skipped' || steps.contract-broker.outcome == 'failure'
+        run: |
+          source .venv/bin/activate
+          if [ -d "tests/contract/pacts" ] && ls tests/contract/pacts/*.json 2>/dev/null; then
+            PACT_FILE=$(ls tests/contract/pacts/*.json 2>/dev/null | head -1)
+            echo "=== Verifying pact: $PACT_FILE ==="
+            pact-verifier --provider-base-url http://localhost:8000 \
+              --pact-url "$PACT_FILE" \
+              --provider-app-version "${{ github.sha }}" \
+            || { echo "❌ Pact verification failed against $PACT_FILE"; exit 1; }
+          elif [ -n "${{ secrets.PACT_BROKER_URL }}" ]; then
+            echo "ℹ️  Broker verification already attempted — see step above"
+          else
+            echo "ℹ️  No local pact files and no Pact Broker configured — publish consumer pacts first"
+          fi
+      - name: Upload provider verification results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: provider-verification
+          path: |
+            tests/contract/pacts/
+            /tmp/pact-verification-*.log
 
   sbom:
     runs-on: docker-x64
@@ -592,11 +631,10 @@ jobs:
       - name: Run architecture fitness check
         run: |
           if command -v archfit &>/dev/null; then
-            archfit analyze || echo "Architecture fitness: review needed"
+            archfit analyze
           else
             echo "archfit not installed — skipping (non-blocking)"
           fi
-        continue-on-error: true
 
   draugr:
     runs-on: docker-x64
