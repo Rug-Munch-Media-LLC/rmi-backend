@@ -466,6 +466,23 @@ jobs:
           fi
         continue-on-error: true
 
+  pip-audit:
+    runs-on: docker-x64
+    needs: build-and-test
+    container:
+      image: python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pip-audit + deps
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          pip install pip-audit
+          pip install -r requirements.txt
+      - name: Run pip-audit (blocking on HIGH/CRITICAL)
+        run: |
+          pip-audit --fail-on=high --desc --ignore-vulns PYSEC-2024-100 2>&1 || { echo "❌ pip-audit found HIGH/CRITICAL vulnerabilities — fix before merge"; exit 1; }
+
   trivy-scan:
     runs-on: docker-x64
     needs: build-and-test
