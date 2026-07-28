@@ -13,8 +13,12 @@ services:
     networks:
       - rmi_network
     ports:
-      - "172.20.0.1:8888:8888"
+      - "127.0.0.1:8888:8888"
     volumes:
       - /srv/snappymail/data:/var/lib/snappymail
     environment:
       - TZ=UTC
+
+networks:
+  rmi_network:
+    external: true
