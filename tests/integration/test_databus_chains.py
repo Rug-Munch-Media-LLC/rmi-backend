@@ -52,8 +52,8 @@ def _init_provider_tracking(chain: object) -> None:
     ``build_provider_chains()`` does this during startup; manual test chains
     need the same initialisation.
     """
-    from app.domains.databus.providers.base import ProviderChain
     from app.core.circuit_breaker import SimpleCircuitBreaker
+    from app.domains.databus.providers.base import ProviderChain
     from app.domains.databus.providers.circuit_breaker import (
         _circuit_breakers,
         _rate_limiters,

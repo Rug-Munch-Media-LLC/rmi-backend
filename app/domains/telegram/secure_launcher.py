@@ -29,8 +29,8 @@ install_token_filter()
 suppress_httpx_urls()
 
 GOPASS_PATHS = {
-    "rugmunchbot": "path/to/bot_token_in_secret_store",
-    "adminbot": "path/to/admin_bot_token_in_secret_store",
+    "rugmunchbot": "rmi/rugmunchbot/bot_token",
+    "adminbot": "rmi/rugmunchbot/admin_bot_token",
 }
 
 ENV_KEYS = {

@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from app.core.circuit_breaker import SimpleCircuitBreaker
 from app.core.logging import get_logger
 
 from ..base import Provider, ProviderTier
-from app.core.circuit_breaker import SimpleCircuitBreaker
 from ..circuit_breaker import _circuit_breakers, _rate_limiters, _RateLimiter
 
 if TYPE_CHECKING:

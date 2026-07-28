@@ -38,7 +38,7 @@ def _get_token(gopass_path: str, env_keys: list[str]) -> str:
     return ""
 
 BOT_TOKEN = _get_token(
-    "/path/to/bot_token",
+    "rmi/rugmunchbot/bot_token",
     ["RUGMUNCH_BOT_TOKEN", "TELEGRAM_RUGMUNCH_BOT_TOKEN", "TELEGRAM_BOT_TOKEN"],
 )
 OWNER_IDS = {

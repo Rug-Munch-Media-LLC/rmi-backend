@@ -115,6 +115,7 @@ KNOWN_ENTITIES = {
     },
 }
 
+
 def lookup_entity(address: str, chain: str = "") -> dict | None:
     """Check if an address is a known entity."""
     # Exact match
@@ -131,10 +132,12 @@ def lookup_entity(address: str, chain: str = "") -> dict | None:
 
     return None
 
+
 def is_wallet_not_token(address: str, chain: str = "") -> bool:
     """Detect if an address is likely a wallet, not a token contract."""
     entity = lookup_entity(address, chain)
     return bool(entity and entity.get("type") in ("individual", "exchange", "burn"))
+
 
 def get_trust_bonus(address: str, chain: str = "") -> tuple[int, str]:
     """Get trust bonus (score reduction) for known entities.
@@ -158,9 +161,11 @@ def get_trust_bonus(address: str, chain: str = "") -> tuple[int, str]:
 
     return 0, ""
 
+
 # ═══════════════════════════════════════════════════════════════════════
 # 2. DATA ENRICHMENT - Inject wallet labels, Arkham, RAG everywhere
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _r() -> Any:
     return redis.Redis(
@@ -169,10 +174,11 @@ def _r() -> Any:
         password=REDIS_PASSWORD,
         decode_responses=True,
         socket_connect_timeout=2,
-)
+    )
+
 
 async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
-    """Look up wallet labels from our 190K-label Redis store."""
+    """Look up wallet labels from our 4.29M-label Redis store."""
     labels = {}
     try:
         r = _r()
@@ -188,6 +194,7 @@ async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
         logger.debug(f"Label enrichment failed: {e}")
     return labels
 
+
 async def enrich_with_arkham(address: str) -> dict | None:
     """Enrich an address with Arkham entity data."""
     arkham_key = os.getenv("ARKHAM_API_KEY", "")
@@ -201,7 +208,7 @@ async def enrich_with_arkham(address: str) -> dict | None:
             r = await c.get(
                 f"https://api.arkhamintelligence.com/intelligence/address/{address}",
                 headers={"API-Key": arkham_key},
-)
+            )
             if r.status_code == 200:
                 data = r.json()
                 return {
@@ -214,6 +221,7 @@ async def enrich_with_arkham(address: str) -> dict | None:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     return None
+
 
 async def enrich_response(result: dict, address: str, chain: str) -> dict:
     """Universal response enrichment - injects labels, entities, trust into any result."""
@@ -248,7 +256,7 @@ async def enrich_response(result: dict, address: str, chain: str) -> dict:
             "DANGER",
             "CRITICAL",
             "HIGH",
-):
+        ):
             enriched["risk_band"] = "SAFE"
             enriched["risk_level"] = "LOW"
             enriched["risk_color"] = "#00FF88"
@@ -256,9 +264,7 @@ async def enrich_response(result: dict, address: str, chain: str) -> dict:
     # 2. Wallet vs token detection
     if is_wallet_not_token(address, chain):
         enriched["address_type"] = "wallet"
-        enriched["wallet_note"] = (
-            "This is a wallet address, not a token contract. Token-specific checks may not apply."
-)
+        enriched["wallet_note"] = "This is a wallet address, not a token contract. Token-specific checks may not apply."
     else:
         enriched["address_type"] = "token"
 
@@ -266,6 +272,7 @@ async def enrich_response(result: dict, address: str, chain: str) -> dict:
     enriched["enriched_at"] = datetime.now(UTC).isoformat()
 
     return enriched
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # 3. SMART TIERING - Clear free/premium/admin boundaries
@@ -352,15 +359,18 @@ TIER_DEFINITIONS = {
     },
 }
 
+
 def get_tier_info(tier: str) -> dict:
     """Get tier definition."""
     return TIER_DEFINITIONS.get(tier, TIER_DEFINITIONS["free"])
+
 
 def tier_allows(tier: str, data_type: str) -> bool:
     """Check if a tier can access a data type."""
     tier_def = TIER_DEFINITIONS.get(tier, TIER_DEFINITIONS["free"])
     allowed = tier_def["allowed_data_types"]
     return "*" in allowed or data_type in allowed
+
 
 def tier_comparison_table() -> list[dict]:
     """Generate competitive comparison table."""
@@ -463,9 +473,11 @@ def tier_comparison_table() -> list[dict]:
         },
     ]
 
+
 # ═══════════════════════════════════════════════════════════════════════
 # 4. ENHANCED TOKEN REPORT - Smart verdicts, narratives, comparables
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def smart_verdict(report: dict) -> str:
     """Generate an intelligent, nuanced verdict instead of just 'EXTREME RISK'."""
@@ -485,7 +497,9 @@ def smart_verdict(report: dict) -> str:
         elif etype == "stablecoin":
             return f"KNOWN STABLECOIN - {known['name']}. Established, high-liquidity asset. Standard risk profile for stablecoins."
         elif etype == "protocol_token":
-            return f"CORE PROTOCOL - {known['name']}. Fundamental blockchain infrastructure token. Extremely low rug risk."
+            return (
+                f"CORE PROTOCOL - {known['name']}. Fundamental blockchain infrastructure token. Extremely low rug risk."
+            )
         elif etype == "exchange":
             return f"EXCHANGE WALLET - {known['name']}. This is an exchange hot wallet, not a token address."
         return f"KNOWN SAFE ENTITY - {known['name']}. Verified by RugCharts entity registry."
@@ -538,6 +552,7 @@ def smart_verdict(report: dict) -> str:
     else:
         return f"MINOR CONCERNS - {'; '.join(risks)}. Standard due diligence recommended."
 
+
 async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> dict | None:
     """Enhanced token report with smart verdicts, enrichment, and tier info."""
 
@@ -580,7 +595,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
                 "CRITICAL",
                 "HIGH",
                 "DANGER",
-):
+            ):
                 base_report["overall_risk"]["level"] = "LOW"
                 base_report["overall_risk"]["color"] = "#88FF00"
 
@@ -607,9 +622,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
     }
 
     # ── Data Quality Score ──
-    sections_with_data = sum(
-        1 for s in base_report.get("sections", {}).values() if s and not s.get("error")
-)
+    sections_with_data = sum(1 for s in base_report.get("sections", {}).values() if s and not s.get("error"))
     base_report["data_quality"] = {
         "score": min(100, sections_with_data * 15),
         "level": "EXCELLENT"
@@ -632,14 +645,16 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
         r = _r()
         r.setex(cache_key, 300, json.dumps(base_report, default=str))
         r.close()
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         pass
 
     return base_report
 
+
 # ═══════════════════════════════════════════════════════════════════════
 # 5. TIER COMPARISON ENDPOINT DATA
 # ═══════════════════════════════════════════════════════════════════════
+
 
 async def get_tier_comparison(**kw) -> dict:
     """Return the competitive tier comparison table."""
@@ -649,9 +664,7 @@ async def get_tier_comparison(**kw) -> dict:
                 "name": v["name"],
                 "rate_limit_rpm": v["rate_limit_rpm"],
                 "price": v.get("price_monthly", 0),
-                "features": len(v["allowed_data_types"])
-                if v["allowed_data_types"] != ["*"]
-                else 49,
+                "features": len(v["allowed_data_types"]) if v["allowed_data_types"] != ["*"] else 49,
             }
             for k, v in TIER_DEFINITIONS.items()
         },

@@ -67,6 +67,7 @@ class ProviderChain:
         """
         # Lazy import to avoid circular dependency at module level
         from app.core.circuit_breaker import SimpleCircuitBreaker
+
         from .circuit_breaker import (
             _circuit_breakers,
             _quota_usage,
