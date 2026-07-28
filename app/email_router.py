@@ -18,11 +18,12 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/email", tags=["email"])
 
-LISTMONK_URL = "http://127.0.0.1:9001/api"
-LISTMONK_USER = "admin"
-LISTMONK_PASS = "rugmunch2024"
+LISTMONK_URL = os.getenv("LISTMONK_URL", "http://127.0.0.1:9001/api")
+LISTMONK_USER = os.getenv("LISTMONK_USER", "")
+LISTMONK_PASS = os.getenv("LISTMONK_PASS", "")
 
 _token_cache = {"token": None, "expires": 0}
+
 
 async def _get_token() -> str:
     """Get listmonk API token, cached."""
@@ -44,6 +45,7 @@ async def _get_token() -> str:
             return token
     raise HTTPException(status_code=500, detail="Listmonk auth failed")
 
+
 # ═══════════════════════════════════════════════════════════
 # SUBSCRIBERS
 # ═══════════════════════════════════════════════════════════
@@ -53,6 +55,7 @@ async def list_subscribers() -> Any:
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(f"{LISTMONK_URL}/subscribers", headers={"Authorization": f"Bearer {token}"})
         return r.json()
+
 
 @router.post("/subscribers")
 async def add_subscriber(data: dict) -> Any:
@@ -68,6 +71,7 @@ async def add_subscriber(data: dict) -> Any:
             json={"email": email, "name": name, "status": "enabled"},
         )
         return r.json()
+
 
 # ═══════════════════════════════════════════════════════════
 # NEWSLETTER CAMPAIGNS
@@ -95,12 +99,14 @@ async def create_campaign(data: dict) -> Any:
         )
         return r.json()
 
+
 @router.get("/campaigns")
 async def list_campaigns() -> Any:
     token = await _get_token()
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(f"{LISTMONK_URL}/campaigns", headers={"Authorization": f"Bearer {token}"})
         return r.json()
+
 
 # ═══════════════════════════════════════════════════════════
 # TRANSACTIONAL - Direct Gmail SMTP
@@ -144,6 +150,7 @@ async def send_transactional(data: dict) -> dict[str, str]:
             "error": str(e),
             "hint": "Gmail App Password required. Set GMAIL_APP_PASSWORD env var",
         }
+
 
 @router.get("/status")
 async def email_status() -> dict[str, str]:
