@@ -33,6 +33,7 @@ from typing import Any
 
 from rapidfuzz import fuzz
 
+from app.core.circuit_breaker import SimpleCircuitBreaker, State
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -181,64 +182,6 @@ class LRUCache:
 # ══════════════════════════════════════════════════════════════════════
 # CIRCUIT BREAKER
 # ══════════════════════════════════════════════════════════════════════
-
-
-class CircuitBreaker:
-    """
-    Per-provider circuit breaker.
-    Prevents hammering a provider that's already failing.
-
-    States: CLOSED (normal) → OPEN (failing) → HALF_OPEN (probing)
-    """
-
-    def __init__(
-        self,
-        name: str,
-        failure_threshold: int = CIRCUIT_BREAKER_THRESHOLD,
-        reset_timeout: int = CIRCUIT_BREAKER_RESET_SEC,
-    ) -> None:
-        self.name = name
-        self.failure_threshold = failure_threshold
-        self.reset_timeout = reset_timeout
-        self.failure_count = 0
-        self.last_failure_time = 0.0
-        self.state = ProviderStatus.HEALTHY
-        self.last_error = ""
-
-    def record_success(self) -> None:
-        """Successful call — reset failure count."""
-        self.failure_count = 0
-        self.state = ProviderStatus.HEALTHY
-        self.last_error = ""
-
-    def record_failure(self, error: str) -> None:
-        """Failed call — increment counter, possibly open circuit."""
-        self.failure_count += 1
-        self.last_failure_time = time.monotonic()
-        self.last_error = error[:200]
-        if self.failure_count >= self.failure_threshold:
-            self.state = ProviderStatus.CIRCUIT_OPEN
-            logger.warning(
-                "circuit_breaker_opened",
-                provider=self.name,
-                failures=self.failure_count,
-                error=error[:100],
-            )
-
-    def can_proceed(self) -> bool:
-        """Check if request can proceed based on circuit state."""
-        if self.state == ProviderStatus.CIRCUIT_OPEN:
-            elapsed = time.monotonic() - self.last_failure_time
-            if elapsed >= self.reset_timeout:
-                # Half-open: allow a probe request
-                self.state = ProviderStatus.DEGRADED
-                logger.info("circuit_breaker_half_open", provider=self.name)
-                return True
-            return False
-        return True
-
-    def get_status(self) -> ProviderStatus:
-        return self.state
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -653,13 +596,17 @@ class ProviderHealthMonitor:
 
     def __init__(self) -> None:
         self._providers: dict[str, ProviderHealth] = {}
-        self._circuit_breakers: dict[str, CircuitBreaker] = {}
+        self._circuit_breakers: dict[str, SimpleCircuitBreaker] = {}
 
     def register_provider(self, name: str) -> None:
         """Register a provider for health tracking."""
         if name not in self._providers:
             self._providers[name] = ProviderHealth(name=name)
-            self._circuit_breakers[name] = CircuitBreaker(name=name)
+            self._circuit_breakers[name] = SimpleCircuitBreaker(
+                name=name,
+                failure_threshold=CIRCUIT_BREAKER_THRESHOLD,
+                recovery_timeout=CIRCUIT_BREAKER_RESET_SEC,
+            )
 
     def record_fetch_start(self, name: str) -> float:
         """Record start of fetch, return start time."""
@@ -714,10 +661,10 @@ class ProviderHealthMonitor:
         if len(h.recent_errors) > 20:
             h.recent_errors = h.recent_errors[-10:]
 
-        # Update circuit breaker
+        # Update circuit breaker (error is already tracked in ProviderHealth.last_error)
         cb = self._circuit_breakers.get(name)
         if cb:
-            cb.record_failure(error)
+            cb.record_failure(is_server_error=True)
 
         self._update_status(name)
 
@@ -726,12 +673,16 @@ class ProviderHealthMonitor:
         cb = self._circuit_breakers.get(name)
         if not cb:
             return True
-        return cb.can_proceed()
+        return cb.can_call()
 
     def get_provider_status(self, name: str) -> ProviderStatus:
         cb = self._circuit_breakers.get(name)
         if cb:
-            return cb.get_status()
+            if cb.state == State.OPEN:
+                return ProviderStatus.CIRCUIT_OPEN
+            elif cb.state == State.HALF_OPEN:
+                return ProviderStatus.DEGRADED
+            return ProviderStatus.HEALTHY
         return ProviderStatus.HEALTHY
 
     def _update_status(self, name: str) -> None:
@@ -741,7 +692,7 @@ class ProviderHealthMonitor:
             return
 
         cb = self._circuit_breakers.get(name)
-        if cb and cb.state == ProviderStatus.CIRCUIT_OPEN:
+        if cb and cb.state == State.OPEN:
             h.status = ProviderStatus.CIRCUIT_OPEN
         elif h.failed_fetches > 0 and h.successful_fetches == 0:
             h.status = ProviderStatus.DOWN
@@ -757,6 +708,8 @@ class ProviderHealthMonitor:
         """Get provider health for dashboard display."""
         dashboard = {}
         for name, h in self._providers.items():
+            cb = self._circuit_breakers.get(name)
+            cb_state = cb.state.value if cb else "closed"
             dashboard[name] = {
                 "status": h.status.value,
                 "total_fetches": h.total_fetches,
@@ -766,7 +719,7 @@ class ProviderHealthMonitor:
                 "total_posts_ingested": h.total_posts,
                 "avg_response_ms": round(h.avg_response_time_ms, 1),
                 "last_fetch": h.last_fetch,
-                "circuit_breaker": self._circuit_breakers.get(name, CircuitBreaker(name)).state.value,
+                "circuit_breaker": cb_state,
             }
         return dashboard
 

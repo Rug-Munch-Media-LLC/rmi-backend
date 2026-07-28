@@ -18,7 +18,6 @@ from app.databus.provider_core import (
     ProviderChain,
     ProviderTier,
     _circuit_breakers,
-    _CircuitBreaker,
     _rate_limiters,
     _RateLimiter,
 )
@@ -31,11 +30,11 @@ def premium_provider(name: str, fn: Any, rps: float = 3.0) -> Provider:
     """
     return Provider(name, ProviderTier.LOCAL, fn, weight=10.0, rate_limit_rps=rps)
 
+
 __all__ = [
     "Provider",
     "ProviderChain",
     "ProviderTier",
-    "_CircuitBreaker",
     "_RateLimiter",
     "_circuit_breakers",
     "_rate_limiters",

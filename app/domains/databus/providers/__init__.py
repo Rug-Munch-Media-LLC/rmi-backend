@@ -23,7 +23,6 @@ from app.domains.databus.providers.base import Provider, ProviderChain, Provider
 # Re-export from circuit_breaker
 from app.domains.databus.providers.circuit_breaker import (
     _circuit_breakers,
-    _CircuitBreaker,
     _quota_usage,
     _rate_limiters,
     _RateLimiter,
@@ -129,8 +128,7 @@ __all__ = [
     "Provider",
     "ProviderChain",
     "ProviderTier",
-    # Circuit breaker
-    "_CircuitBreaker",
+    # Rate limiter
     "_RateLimiter",
     "_alchemy_token_balances",
     "_alchemy_token_metadata",

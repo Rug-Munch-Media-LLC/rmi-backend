@@ -53,9 +53,9 @@ def _init_provider_tracking(chain: object) -> None:
     need the same initialisation.
     """
     from app.domains.databus.providers.base import ProviderChain
+    from app.core.circuit_breaker import SimpleCircuitBreaker
     from app.domains.databus.providers.circuit_breaker import (
         _circuit_breakers,
-        _CircuitBreaker,
         _rate_limiters,
         _RateLimiter,
     )
@@ -63,9 +63,10 @@ def _init_provider_tracking(chain: object) -> None:
     assert isinstance(chain, ProviderChain)
     for prov in chain.providers:
         if prov.name not in _circuit_breakers:
-            _circuit_breakers[prov.name] = _CircuitBreaker(
-                threshold=prov.failure_threshold,
-                timeout=prov.recovery_timeout,
+            _circuit_breakers[prov.name] = SimpleCircuitBreaker(
+                name=prov.name,
+                failure_threshold=prov.failure_threshold,
+                recovery_timeout=prov.recovery_timeout,
             )
         if prov.name not in _rate_limiters:
             _rate_limiters[prov.name] = _RateLimiter(rps=prov.rate_limit_rps)
@@ -269,26 +270,26 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     def test_trips_after_5_failures(self) -> None:
         """After ``failure_threshold`` (5) failures the breaker opens."""
-        from app.domains.databus.providers.circuit_breaker import _CircuitBreaker
+        from app.core.circuit_breaker import SimpleCircuitBreaker, State
 
-        cb = _CircuitBreaker(threshold=5, timeout=60.0)
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=5, recovery_timeout=60.0)
         for _ in range(4):
-            cb.record_failure()
+            cb.record_failure(is_server_error=True)
             assert cb.can_call() is True, "Should stay closed before threshold"
-        cb.record_failure()  # 5th — opens
+        cb.record_failure(is_server_error=True)  # 5th — opens
         assert cb.can_call() is False, "Should be open after 5 failures"
-        assert cb.open is True
+        assert cb.state is State.OPEN
 
     # ── 2.2 Open blocks calls ──────────────────────────────────────────
 
     @pytest.mark.integration
     def test_open_blocks_calls(self) -> None:
         """When the circuit is OPEN, ``can_call()`` returns ``False``."""
-        from app.domains.databus.providers.circuit_breaker import _CircuitBreaker
+        from app.core.circuit_breaker import SimpleCircuitBreaker
 
-        cb = _CircuitBreaker(threshold=2, timeout=60.0)
-        cb.record_failure()
-        cb.record_failure()
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=2, recovery_timeout=60.0)
+        cb.record_failure(is_server_error=True)
+        cb.record_failure(is_server_error=True)
         assert cb.can_call() is False
 
     # ── 2.3 Half-open after recovery timeout ──────────────────────────
@@ -296,10 +297,10 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     def test_half_open_after_recovery_timeout(self) -> None:
         """After ``recovery_timeout`` expires, breaker allows a probe."""
-        from app.domains.databus.providers.circuit_breaker import _CircuitBreaker
+        from app.core.circuit_breaker import SimpleCircuitBreaker
 
-        cb = _CircuitBreaker(threshold=1, timeout=0.05)
-        cb.record_failure()  # opens
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=1, recovery_timeout=0.05)
+        cb.record_failure(is_server_error=True)  # opens
         assert cb.can_call() is False  # open
         time.sleep(0.06)
         assert cb.can_call() is True  # half-open probe allowed
@@ -309,15 +310,14 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     def test_success_in_half_open_closes(self) -> None:
         """A successful probe in half-open fully closes the breaker."""
-        from app.domains.databus.providers.circuit_breaker import _CircuitBreaker
+        from app.core.circuit_breaker import SimpleCircuitBreaker, State
 
-        cb = _CircuitBreaker(threshold=1, timeout=0.05)
-        cb.record_failure()  # opens
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=1, recovery_timeout=0.05)
+        cb.record_failure(is_server_error=True)  # opens
         time.sleep(0.06)
         cb.can_call()  # transitions to half-open
         cb.record_success()
-        assert cb.open is False
-        assert cb.failures == 0
+        assert cb.state is State.CLOSED
         assert cb.can_call() is True
 
     # ── 2.5 Provider chain skips open breaker ─────────────────────────
@@ -326,10 +326,10 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     async def test_chain_skips_open_breaker_provider(self) -> None:
         """Chain skips a provider whose circuit breaker is OPEN."""
+        from app.core.circuit_breaker import SimpleCircuitBreaker
         from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import (
             _circuit_breakers,
-            _CircuitBreaker,
         )
 
         async def should_not_be_called(**kw: object) -> dict:
@@ -339,8 +339,8 @@ class TestCircuitBreakerBehaviour:
             return {"data": "fallback"}
 
         # Manually open the breaker for "bad_provider"
-        cb = _CircuitBreaker(threshold=1, timeout=60.0)
-        cb.record_failure()  # opens
+        cb = SimpleCircuitBreaker(name="bad_provider", failure_threshold=1, recovery_timeout=60.0)
+        cb.record_failure(is_server_error=True)  # opens
         _circuit_breakers["bad_provider"] = cb
 
         chain = _make_chain(
@@ -359,6 +359,7 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     async def test_fetch_records_failure_in_global_breaker(self) -> None:
         """A failed provider call increments its global circuit breaker counters."""
+        from app.core.circuit_breaker import State
         from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import _circuit_breakers
 
@@ -372,7 +373,8 @@ class TestCircuitBreakerBehaviour:
         await chain.fetch()
         cb = _circuit_breakers.get("flaky")
         assert cb is not None, "Global breaker should have been created"
-        assert cb.failures == 1
+        assert cb.state is State.CLOSED, "Still closed after 1 failure (threshold=5)"
+        assert len(cb._failures) == 1, "One failure should be tracked"
 
     # ── 2.7 Circuit breaker trips via chain after 5 failures ───────────
 
@@ -380,6 +382,7 @@ class TestCircuitBreakerBehaviour:
     @pytest.mark.integration
     async def test_chain_trips_cb_after_threshold(self) -> None:
         """After 5 failures through the chain, the breaker opens and skips."""
+        from app.core.circuit_breaker import State
         from app.domains.databus.providers.base import Provider, ProviderTier
         from app.domains.databus.providers.circuit_breaker import _circuit_breakers
 
@@ -396,7 +399,7 @@ class TestCircuitBreakerBehaviour:
 
         cb = _circuit_breakers.get("bad")
         assert cb is not None
-        assert cb.open is True
+        assert cb.state is State.OPEN
         # 6th call — breaker is open, fetch skips it and returns None
         result = await chain.fetch()
         assert result is None

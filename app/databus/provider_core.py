@@ -16,12 +16,14 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from app.core.circuit_breaker import SimpleCircuitBreaker
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 logger = get_logger("databus.providers.core")
+
 
 class ProviderTier(Enum):
     """Provider tiers: LOCAL > FREE_API > FREEMIUM > PAID"""
@@ -30,6 +32,7 @@ class ProviderTier(Enum):
     FREE_API = "free_api"  # Free external API - no key needed
     FREEMIUM = "freemium"  # Free tier with key - limited credits
     PAID = "paid"  # Paid API - precious credits
+
 
 @dataclass
 class Provider:
@@ -49,6 +52,7 @@ class Provider:
     # Circuit breaker
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
+
 
 @dataclass
 class ProviderChain:
@@ -79,13 +83,12 @@ class ProviderChain:
 
         if credit_pressure:
             # Re-sort: push free/local providers above paid/freemium near quota
-            providers_sorted.sort(
-                key=lambda p: (0 if p.tier.value in ("local", "free_api") else 1, -p.weight)
-            )
+            providers_sorted.sort(key=lambda p: (0 if p.tier.value in ("local", "free_api") else 1, -p.weight))
 
         for provider in providers_sorted:
             # Check circuit breaker
-            if not _circuit_breakers.get(provider.name, _CircuitBreaker()).can_call():
+            cb = _circuit_breakers.get(provider.name)
+            if cb is not None and not cb.can_call():
                 logger.debug(f"Circuit breaker open for {provider.name}")
                 continue
 
@@ -113,7 +116,13 @@ class ProviderChain:
                     _rate_limiters.setdefault(provider.name, _RateLimiter()).record_call()
                     if provider.monthly_quota > 0:
                         _quota_usage[provider.name] = _quota_usage.get(provider.name, 0) + 1
-                    _circuit_breakers.setdefault(provider.name, _CircuitBreaker()).record_success()
+                    if provider.name not in _circuit_breakers:
+                        _circuit_breakers[provider.name] = SimpleCircuitBreaker(
+                            name=provider.name,
+                            failure_threshold=provider.failure_threshold,
+                            recovery_timeout=provider.recovery_timeout,
+                        )
+                    _circuit_breakers[provider.name].record_success()
                     return result
 
             except (
@@ -124,41 +133,17 @@ class ProviderChain:
                 httpx.TimeoutException,
             ) as e:
                 logger.warning(f"Provider {provider.name} failed: {e}")
-                _circuit_breakers.setdefault(provider.name, _CircuitBreaker()).record_failure()
+                if provider.name not in _circuit_breakers:
+                    _circuit_breakers[provider.name] = SimpleCircuitBreaker(
+                        name=provider.name,
+                        failure_threshold=provider.failure_threshold,
+                        recovery_timeout=provider.recovery_timeout,
+                    )
+                _circuit_breakers[provider.name].record_failure(is_server_error=True)
                 continue
 
         return None
 
-# ── Circuit Breaker ────────────────────────────────────────────
-
-class _CircuitBreaker:
-    """Circuit breaker to prevent cascading failures."""
-
-    def __init__(self, threshold: int = 5, timeout: float = 60.0) -> None:
-        self.threshold = threshold
-        self.timeout = timeout
-        self.failures = 0
-        self.last_failure = 0.0
-        self.open = False
-
-    def can_call(self) -> bool:
-        if self.open:
-            if time.time() - self.last_failure > self.timeout:
-                self.open = False
-                self.failures = 0
-                return True
-            return False
-        return True
-
-    def record_failure(self) -> None:
-        self.failures += 1
-        self.last_failure = time.time()
-        if self.failures >= self.threshold:
-            self.open = True
-
-    def record_success(self) -> None:
-        self.failures = 0
-        self.open = False
 
 class _RateLimiter:
     """Simple rate limiter based on time intervals."""
@@ -174,11 +159,13 @@ class _RateLimiter:
     def record_call(self) -> None:
         self.last_call = time.time()
 
+
 # ── Shared State ───────────────────────────────────────────────
 
-_circuit_breakers: dict[str, _CircuitBreaker] = {}
+_circuit_breakers: dict[str, SimpleCircuitBreaker] = {}
 _rate_limiters: dict[str, _RateLimiter] = {}
 _quota_usage: dict[str, int] = {}
+
 
 def reset_state() -> None:
     """Reset all circuit breakers, rate limiters, and quota tracking.

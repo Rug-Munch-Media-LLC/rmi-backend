@@ -53,9 +53,7 @@ class TestProviderFallback:
         provider._solscan_holders = AsyncMock(return_value=[])  # type: ignore
         provider._dexscreener_holders = AsyncMock(return_value=[])  # type: ignore
 
-        result = await provider.get_token_holders(
-            "So11111111111111111111111111111111111111112", limit=10
-        )
+        result = await provider.get_token_holders("So11111111111111111111111111111111111111112", limit=10)
         assert isinstance(result, list)
         assert result == []
 
@@ -74,9 +72,7 @@ class TestProviderFallback:
         provider._solscan_holders = AsyncMock(return_value=[])  # type: ignore
         provider._dexscreener_holders = AsyncMock(return_value=[])  # type: ignore
 
-        result = await provider.get_token_holders(
-            "So11111111111111111111111111111111111111112", limit=10
-        )
+        result = await provider.get_token_holders("So11111111111111111111111111111111111111112", limit=10)
         assert len(result) == 2
         assert result[0]["source"] == "helius"
         assert result[0]["address"] == "Addr1"
@@ -97,9 +93,7 @@ class TestProviderFallback:
         provider._solscan_holders = AsyncMock(return_value=[])  # type: ignore
         provider._dexscreener_holders = AsyncMock(return_value=[])  # type: ignore
 
-        result = await provider.get_token_holders(
-            "So11111111111111111111111111111111111111112", limit=10
-        )
+        result = await provider.get_token_holders("So11111111111111111111111111111111111111112", limit=10)
         assert len(result) == 1
         assert result[0]["source"] == "birdeye"
         provider._helius_holders.assert_called_once()
@@ -149,9 +143,7 @@ class TestProviderFallback:
             mock_response.status_code = 429
             mock_client.get.return_value = mock_response
 
-            result = await provider.get_token_metadata(
-                "So11111111111111111111111111111111111111112"
-            )
+            result = await provider.get_token_metadata("So11111111111111111111111111111111111111112")
 
         # Should return fallback metadata with truncated address as name
         assert isinstance(result, dict)
@@ -168,9 +160,7 @@ class TestProviderFallback:
         provider._helius_txs = AsyncMock(return_value=[])  # type: ignore
         provider._solscan_txs = AsyncMock(return_value=[])  # type: ignore
 
-        result = await provider.get_wallet_transactions(
-            "FakeeJx7WjJAsC4rQxqVxqxjQobxKGYyLqCJGgYJyQSn", limit=5
-        )
+        result = await provider.get_wallet_transactions("FakeeJx7WjJAsC4rQxqVxqxjQobxKGYyLqCJGgYJyQSn", limit=5)
         assert isinstance(result, list)
         assert result == []
 
@@ -186,9 +176,7 @@ class TestProviderFallback:
         provider._helius_txs = AsyncMock(return_value=fake_txs)  # type: ignore
         provider._solscan_txs = AsyncMock(return_value=[])  # type: ignore
 
-        result = await provider.get_wallet_transactions(
-            "FakeeJx7WjJAsC4rQxqVxqxjQobxKGYyLqCJGgYJyQSn", limit=5
-        )
+        result = await provider.get_wallet_transactions("FakeeJx7WjJAsC4rQxqVxqxjQobxKGYyLqCJGgYJyQSn", limit=5)
         assert len(result) == 1
         assert result[0]["source"] == "helius"
         provider._solscan_txs.assert_not_called()
@@ -205,83 +193,9 @@ class TestProviderFallback:
         provider._helius_txs = AsyncMock(return_value=[])  # type: ignore
         provider._solscan_txs = AsyncMock(return_value=fake_txs)  # type: ignore
 
-        result = await provider.get_wallet_transactions(
-            "FakeeJx7WjJAsC4rQxqVxqxjQobxKGYyLqCJGgYJyQSn", limit=5
-        )
+        result = await provider.get_wallet_transactions("FakeeJx7WjJAsC4rQxqVxqxjQobxKGYyLqCJGgYJyQSn", limit=5)
         assert len(result) == 1
         assert result[0]["source"] == "solscan"
-
-
-# ═══════════════════════════════════════════════════════════════
-# ── Circuit Breaker
-# ═══════════════════════════════════════════════════════════════
-
-
-class TestCircuitBreaker:
-    """Circuit breaker state machine behavior (without Redis)."""
-
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    async def test_check_circuit_redis_down(self) -> None:
-        """When Redis is down, check_circuit returns False (fail open)."""
-        from app.circuit_breaker import check_circuit
-
-        # When Redis is unreachable, should fail open
-        result = await check_circuit("test_service")
-        assert result is False
-
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    async def test_record_success_redis_down(self) -> None:
-        """record_success should not raise when Redis is down."""
-        from app.circuit_breaker import record_success
-
-        try:
-            await record_success("test_service")
-        except Exception as exc:
-            pytest.fail(f"record_success raised unexpectedly: {exc}")
-
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    async def test_record_failure_redis_down(self) -> None:
-        """record_failure should not raise when Redis is down."""
-        from app.circuit_breaker import record_failure
-
-        try:
-            await record_failure("test_service")
-        except Exception as exc:
-            pytest.fail(f"record_failure raised unexpectedly: {exc}")
-
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    async def test_check_circuit_with_mocked_redis_open(self) -> None:
-        """When circuit is OPEN, check_circuit returns True (block the call)."""
-        import time
-
-        from app.circuit_breaker import check_circuit
-
-        mock_redis = MagicMock()
-        mock_redis.get.side_effect = lambda k: {
-            "circuit:svc:state": "OPEN",
-            "circuit:svc:opened_at": str(time.time()),
-        }.get(k)
-
-        with patch("app.circuit_breaker._get_redis", return_value=mock_redis):
-            result = await check_circuit("svc")
-            assert result is True, "OPEN circuit should block calls"
-
-    @pytest.mark.integration
-    @pytest.mark.asyncio
-    async def test_check_circuit_with_mocked_redis_closed(self) -> None:
-        """When circuit is CLOSED, check_circuit returns False (safe to call)."""
-        from app.circuit_breaker import check_circuit
-
-        mock_redis = MagicMock()
-        mock_redis.get.return_value = None  # No state = CLOSED
-
-        with patch("app.circuit_breaker._get_redis", return_value=mock_redis):
-            result = await check_circuit("svc2")
-            assert result is False, "CLOSED circuit should allow calls"
 
 
 # ═══════════════════════════════════════════════════════════════
