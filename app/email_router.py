@@ -1,7 +1,7 @@
 """
-Email Service - Listmonk + Gmail SMTP integration for rugmunch.io
+Email Service - Listmonk + rmi-mail SMTP integration for rugmunch.io
 Uses listmonk API for newsletters + transactional emails.
-SMTP relay: Gmail (cryptorugmuncher@gmail.com)
+SMTP relay: mail.rugmunch.io (noreply@rugmunch.io)
 """
 
 from __future__ import annotations
@@ -109,11 +109,18 @@ async def list_campaigns() -> Any:
 
 
 # ═══════════════════════════════════════════════════════════
-# TRANSACTIONAL - Direct Gmail SMTP
+# TRANSACTIONAL - rmi-mail (mail.rugmunch.io) SMTP
 # ═══════════════════════════════════════════════════════════
+RMI_SMTP_HOST = os.getenv("RMI_SMTP_HOST", "mail.rugmunch.io")
+RMI_SMTP_PORT = int(os.getenv("RMI_SMTP_PORT", "587"))
+RMI_SMTP_USER = os.getenv("RMI_SMTP_USER", "noreply@rugmunch.io")
+RMI_SMTP_PASS = os.getenv("RMI_SMTP_PASS", "")
+RMI_SMTP_FROM = os.getenv("RMI_SMTP_FROM", "RugMunch <noreply@rugmunch.io>")
+
+
 @router.post("/send")
 async def send_transactional(data: dict) -> dict[str, str]:
-    """Send a single transactional email via Gmail SMTP."""
+    """Send a single transactional email via rmi-mail SMTP (mail.rugmunch.io)."""
     to = data.get("to", "")
     subject = data.get("subject", "RMI Alert")
     body = data.get("body", "")
@@ -126,16 +133,14 @@ async def send_transactional(data: dict) -> dict[str, str]:
         from email.mime.text import MIMEText
 
         msg = MIMEMultipart()
-        msg["From"] = "Rug Munch Intelligence <cryptorugmuncher@gmail.com>"
+        msg["From"] = RMI_SMTP_FROM
         msg["To"] = to
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "html"))
 
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+        with smtplib.SMTP(RMI_SMTP_HOST, RMI_SMTP_PORT, timeout=15) as server:
             server.starttls()
-            # Gmail App Password needed - stored in env
-            app_password = os.getenv("GMAIL_APP_PASSWORD", "")
-            server.login("cryptorugmuncher@gmail.com", app_password)
+            server.login(RMI_SMTP_USER, RMI_SMTP_PASS)
             server.send_message(msg)
 
         return {
@@ -145,19 +150,54 @@ async def send_transactional(data: dict) -> dict[str, str]:
             "timestamp": datetime.now(UTC).isoformat(),
         }
     except Exception as e:
-        return {
-            "status": "failed",
-            "error": str(e),
-            "hint": "Gmail App Password required. Set GMAIL_APP_PASSWORD env var",
-        }
+        # Fallback: try deprecated Gmail SMTP if rmi-mail fails
+        # [DEPRECATED] Gmail SMTP fallback — remove after rmi-mail is stable
+        logger.warning("rmi-mail SMTP failed, trying Gmail fallback: %s", e)
+        try:
+            return await _send_via_gmail_fallback(to, subject, body)
+        except Exception as fallback_e:
+            return {
+                "status": "failed",
+                "error": str(fallback_e),
+                "hint": "Set RMI_SMTP_* env vars for mail.rugmunch.io",
+            }
+
+
+# ═══════════════════════════════════════════════════════════
+# [DEPRECATED] Gmail SMTP fallback — will be removed
+# ═══════════════════════════════════════════════════════════
+async def _send_via_gmail_fallback(to: str, subject: str, body: str) -> dict[str, str]:
+    """Fallback using deprecated Gmail SMTP (cryptorugmuncher@gmail.com)."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    msg = MIMEMultipart()
+    msg["From"] = "Rug Munch Intelligence <cryptorugmuncher@gmail.com>"
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "html"))
+
+    app_password = os.getenv("GMAIL_APP_PASSWORD", "")
+    with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+        server.starttls()
+        server.login("cryptorugmuncher@gmail.com", app_password)
+        server.send_message(msg)
+
+    return {
+        "status": "sent",
+        "to": to,
+        "subject": subject,
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
 
 
 @router.get("/status")
 async def email_status() -> dict[str, str]:
     return {
-        "provider": "listmonk + gmail",
-        "smtp": "smtp.gmail.com:587",
-        "sender": "cryptorugmuncher@gmail.com",
+        "provider": "listmonk + rmi-mail",
+        "smtp": f"{RMI_SMTP_HOST}:{RMI_SMTP_PORT}",
+        "sender": RMI_SMTP_FROM,
         "domain": "rugmunch.io",
         "listmonk_url": "http://localhost:9001",
         "newsletter_enabled": True,
