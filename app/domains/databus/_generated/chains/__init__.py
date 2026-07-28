@@ -7,8 +7,8 @@ and composes them into the master build_provider_chains() function.
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 from app.core.circuit_breaker import SimpleCircuitBreaker
+from app.core.logging import get_logger
 from app.databus.provider_core import (
     ProviderChain,
     _circuit_breakers,

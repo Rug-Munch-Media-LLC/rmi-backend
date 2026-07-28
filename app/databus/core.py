@@ -530,7 +530,7 @@ class DataBus:
         chain = kwargs.get("chain", "") or kwargs.get("network", "")
 
         try:
-            # ── WALLET LABELS: ClickHouse (39.4M) → Redis (190K hot) ──
+            # ── WALLET LABELS: ClickHouse (39.4M) → Redis (4.29M hot) ──
             if data_type in ("wallet_labels", "entity_intel") and address:
                 # Layer 1: ClickHouse — 39.4M labels, first-class source
                 try:
@@ -589,7 +589,7 @@ class DataBus:
                 except (ValueError, ConnectionError, TimeoutError, RuntimeError, ImportError):
                     pass
 
-                # Layer 2: Redis hot cache — 190K frequently-accessed labels
+                # Layer 2: Redis hot cache — 4.29M frequently-accessed labels
                 try:
                     import os
 
@@ -619,7 +619,7 @@ class DataBus:
                                     "labels": [json.loads(data)],
                                     "address": address,
                                     "source": "wallet_memory_bank",
-                                    "total": "190K+",
+                                    "total": "4.29M+",
                                 },
                                 "source": "wallet_memory_bank",
                                 "tier": "local",

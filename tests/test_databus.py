@@ -17,8 +17,8 @@ import time
 
 import pytest
 
-from app.databus.core import ProviderHealthTracker, RequestDeduplicator
 from app.core.circuit_breaker import SimpleCircuitBreaker, State
+from app.databus.core import ProviderHealthTracker, RequestDeduplicator
 from app.databus.provider_core import (
     Provider,
     ProviderChain,

@@ -420,6 +420,7 @@ jobs:
   mutation-test:
     runs-on: docker-x64
     needs: build-and-test
+    continue-on-error: true  # informational only for now
     container:
       image: python:3.11-slim
     steps:
@@ -432,9 +433,15 @@ jobs:
           uv python install 3.11 && uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -r requirements.txt
           uv pip install --python .venv/bin/python -e ".[dev]" mutmut
-      - name: Mutation testing (informational)
-        run: source .venv/bin/activate && mutmut run --paths-to-mutate app/ || echo "Mutation score noted (non-blocking)"
-        continue-on-error: true
+      - name: Mutation testing (scoped to app/core)
+        run: source .venv/bin/activate && mutmut run --paths-to-mutate app/core/ --test-timeout 10 || echo "Mutation score noted (non-blocking)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: |
+            .mutmut-cache/
+            html/
 
   crucible-gate:
     runs-on: docker-x64
@@ -464,6 +471,33 @@ jobs:
             mutmut run --paths-to-mutate app/core/ 2>/dev/null && mutmut results || echo "Mutation gate noted (non-blocking)"
           fi
         continue-on-error: true
+
+  slow-tests:
+    runs-on: docker-x64
+    needs: build-and-test
+    continue-on-error: true
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: Detect slow tests
+        run: |
+          source .venv/bin/activate
+          python -m pytest --durations=10 tests/ -q --tb=short -m "not integration"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slow-test-report
+          path: /tmp/slow-tests-*.log
 
   pip-audit:
     runs-on: docker-x64

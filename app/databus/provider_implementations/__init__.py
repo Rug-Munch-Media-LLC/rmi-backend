@@ -62,6 +62,7 @@ from .news import (
 # Passthrough (local backend endpoints)
 from .passthrough import (
     _local_wallet_labels,
+    _local_wallet_labels_batch,
     _passthrough_alerts,
     _passthrough_market_overview,
     _passthrough_news,
@@ -118,6 +119,7 @@ __all__ = [
     # Price
     "_local_token_price",
     "_local_wallet_labels",
+    "_local_wallet_labels_batch",
     # MCP Bridge
     "_mcp_bridge",
     # News
