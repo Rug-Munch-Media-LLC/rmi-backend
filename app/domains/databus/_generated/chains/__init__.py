@@ -8,10 +8,10 @@ and composes them into the master build_provider_chains() function.
 from __future__ import annotations
 
 from app.core.logging import get_logger
+from app.core.circuit_breaker import SimpleCircuitBreaker
 from app.databus.provider_core import (
     ProviderChain,
     _circuit_breakers,
-    _CircuitBreaker,
     _rate_limiters,
     _RateLimiter,
 )
@@ -25,6 +25,7 @@ from app.domains.databus._generated.chains.premium import build_premium_chains
 from app.domains.databus._generated.chains.rugcharts import build_rugcharts_chains
 
 logger = get_logger("databus.providers.chains")
+
 
 def build_provider_chains() -> dict[str, ProviderChain]:
     """Build all fallback chains for every data type.
@@ -48,8 +49,10 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     for chain in chains.values():
         for provider in chain.providers:
             if provider.name not in _circuit_breakers:
-                _circuit_breakers[provider.name] = _CircuitBreaker(
-                    threshold=provider.failure_threshold, timeout=provider.recovery_timeout
+                _circuit_breakers[provider.name] = SimpleCircuitBreaker(
+                    name=provider.name,
+                    failure_threshold=provider.failure_threshold,
+                    recovery_timeout=provider.recovery_timeout,
                 )
             if provider.name not in _rate_limiters:
                 _rate_limiters[provider.name] = _RateLimiter(rps=provider.rate_limit_rps)

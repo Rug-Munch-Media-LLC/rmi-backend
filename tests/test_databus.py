@@ -18,11 +18,11 @@ import time
 import pytest
 
 from app.databus.core import ProviderHealthTracker, RequestDeduplicator
+from app.core.circuit_breaker import SimpleCircuitBreaker, State
 from app.databus.provider_core import (
     Provider,
     ProviderChain,
     ProviderTier,
-    _CircuitBreaker,
     _quota_usage,
     _RateLimiter,
     reset_state,
@@ -203,52 +203,51 @@ class TestCircuitBreaker:
 
     def test_initial_state_closed(self):
         """New breaker is closed and allows calls."""
-        cb = _CircuitBreaker(threshold=3, timeout=1.0)
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=3, recovery_timeout=1.0)
         assert cb.can_call() is True
-        assert cb.open is False
+        assert cb.state is State.CLOSED
 
     def test_trips_after_threshold_failures(self):
         """Breaker opens after hitting failure threshold."""
-        cb = _CircuitBreaker(threshold=3, timeout=60.0)
-        cb.record_failure()
-        assert cb.open is False
-        cb.record_failure()
-        assert cb.open is False
-        cb.record_failure()
-        assert cb.open is True
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=3, recovery_timeout=60.0)
+        cb.record_failure(is_server_error=True)
+        assert cb.state is State.CLOSED
+        cb.record_failure(is_server_error=True)
+        assert cb.state is State.CLOSED
+        cb.record_failure(is_server_error=True)
+        assert cb.state is State.OPEN
 
     def test_open_blocks_calls(self):
         """When open, can_call returns False."""
-        cb = _CircuitBreaker(threshold=1, timeout=60.0)
-        cb.record_failure()
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=1, recovery_timeout=60.0)
+        cb.record_failure(is_server_error=True)
         assert cb.can_call() is False
 
     def test_success_resets_failures(self):
         """A successful call resets failure count and closes breaker."""
-        cb = _CircuitBreaker(threshold=3, timeout=60.0)
-        cb.record_failure()
-        cb.record_failure()
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=3, recovery_timeout=60.0)
+        cb.record_failure(is_server_error=True)
+        cb.record_failure(is_server_error=True)
         cb.record_success()
-        assert cb.failures == 0
-        assert cb.open is False
+        assert cb.state is State.CLOSED
+        assert cb.can_call() is True
 
     def test_half_open_after_timeout(self):
         """After recovery_timeout, breaker transitions to half-open (allows one call)."""
-        cb = _CircuitBreaker(threshold=1, timeout=0.05)
-        cb.record_failure()
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=1, recovery_timeout=0.05)
+        cb.record_failure(is_server_error=True)
         assert cb.can_call() is False  # open
         time.sleep(0.06)
         assert cb.can_call() is True  # half-open (recovered)
 
     def test_success_in_half_open_closes(self):
         """Success in half-open state fully closes breaker."""
-        cb = _CircuitBreaker(threshold=1, timeout=0.05)
-        cb.record_failure()  # opens
+        cb = SimpleCircuitBreaker(name="test", failure_threshold=1, recovery_timeout=0.05)
+        cb.record_failure(is_server_error=True)  # opens
         time.sleep(0.06)
         cb.can_call()  # transitions to half-open
         cb.record_success()  # closes
-        assert cb.open is False
-        assert cb.failures == 0
+        assert cb.state is State.CLOSED
         assert cb.can_call() is True
 
 
@@ -390,8 +389,8 @@ class TestProviderChain:
             return {"price": 400}
 
         # Manually open the circuit breaker for provider "bad"
-        cb = _CircuitBreaker(threshold=1, timeout=60.0)
-        cb.record_failure()  # now open
+        cb = SimpleCircuitBreaker(name="bad", failure_threshold=1, recovery_timeout=60.0)
+        cb.record_failure(is_server_error=True)  # now open
         _circuit_breakers["bad"] = cb
 
         chain = ProviderChain(
@@ -438,12 +437,8 @@ class TestProviderChain:
     def test_provider_tier_ordering(self):
         """Providers sort by weight descending then tier value."""
         paid = Provider(name="paid", tier=ProviderTier.PAID, fetch_fn=lambda **kw: None, weight=3.0)
-        free = Provider(
-            name="free", tier=ProviderTier.FREE_API, fetch_fn=lambda **kw: None, weight=2.0
-        )
-        local = Provider(
-            name="local", tier=ProviderTier.LOCAL, fetch_fn=lambda **kw: None, weight=1.0
-        )
+        free = Provider(name="free", tier=ProviderTier.FREE_API, fetch_fn=lambda **kw: None, weight=2.0)
+        local = Provider(name="local", tier=ProviderTier.LOCAL, fetch_fn=lambda **kw: None, weight=1.0)
 
         chain = ProviderChain(
             data_type="test",
@@ -459,7 +454,7 @@ class TestProviderChain:
         """reset_state clears circuit breakers, rate limiters, quotas."""
         import app.databus.provider_core as pcore
 
-        pcore._circuit_breakers["test"] = _CircuitBreaker()
+        pcore._circuit_breakers["test"] = SimpleCircuitBreaker(name="test")
         pcore._rate_limiters["test"] = _RateLimiter()
         pcore._quota_usage["test"] = 42
 

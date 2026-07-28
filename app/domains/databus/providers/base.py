@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("databus.providers")
 
+
 class ProviderTier(Enum):
     """Cost tier classification for a data provider."""
 
@@ -25,6 +26,7 @@ class ProviderTier(Enum):
     FREE_API = "free_api"  # Free external API — no key needed
     FREEMIUM = "freemium"  # Free tier with key — limited credits
     PAID = "paid"  # Paid API — precious credits
+
 
 @dataclass
 class Provider:
@@ -43,6 +45,7 @@ class Provider:
     description: str = ""  # Human-readable description
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
+
 
 @dataclass
 class ProviderChain:
@@ -63,9 +66,9 @@ class ProviderChain:
         alternatives first to conserve credits for critical queries.
         """
         # Lazy import to avoid circular dependency at module level
+        from app.core.circuit_breaker import SimpleCircuitBreaker
         from .circuit_breaker import (
             _circuit_breakers,
-            _CircuitBreaker,
             _quota_usage,
             _rate_limiters,
             _RateLimiter,
@@ -81,19 +84,17 @@ class ProviderChain:
                 if used > p.monthly_quota * 0.8:  # 80% threshold
                     credit_pressure = True
                     logger.info(
-                        f"Credit pressure: {p.name} at {used}/{p.monthly_quota} "
-                        f"({used * 100 // p.monthly_quota}%)"
+                        f"Credit pressure: {p.name} at {used}/{p.monthly_quota} ({used * 100 // p.monthly_quota}%)"
                     )
 
         if credit_pressure:
             # Re-sort: push free/local providers above paid/freemium near quota
-            providers_sorted.sort(
-                key=lambda p: (0 if p.tier.value in ("local", "free_api") else 1, -p.weight)
-            )
+            providers_sorted.sort(key=lambda p: (0 if p.tier.value in ("local", "free_api") else 1, -p.weight))
 
         for provider in providers_sorted:
             # Check circuit breaker
-            if not _circuit_breakers.get(provider.name, _CircuitBreaker()).can_call():
+            cb = _circuit_breakers.get(provider.name)
+            if cb is not None and not cb.can_call():
                 logger.debug(f"Circuit breaker open for {provider.name}")
                 continue
 
@@ -123,12 +124,24 @@ class ProviderChain:
                     _rate_limiters.setdefault(provider.name, _RateLimiter()).record_call()
                     if provider.monthly_quota > 0:
                         _quota_usage[provider.name] = _quota_usage.get(provider.name, 0) + 1
-                    _circuit_breakers.setdefault(provider.name, _CircuitBreaker()).record_success()
+                    if provider.name not in _circuit_breakers:
+                        _circuit_breakers[provider.name] = SimpleCircuitBreaker(
+                            name=provider.name,
+                            failure_threshold=provider.failure_threshold,
+                            recovery_timeout=provider.recovery_timeout,
+                        )
+                    _circuit_breakers[provider.name].record_success()
                     return result
 
             except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
                 logger.warning(f"provider error: {e}")
-                _circuit_breakers.setdefault(provider.name, _CircuitBreaker()).record_failure()
+                if provider.name not in _circuit_breakers:
+                    _circuit_breakers[provider.name] = SimpleCircuitBreaker(
+                        name=provider.name,
+                        failure_threshold=provider.failure_threshold,
+                        recovery_timeout=provider.recovery_timeout,
+                    )
+                _circuit_breakers[provider.name].record_failure(is_server_error=True)
                 continue
 
         return None

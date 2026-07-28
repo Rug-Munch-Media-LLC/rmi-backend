@@ -347,9 +347,9 @@ class TestProviderChain:
     @pytest.fixture(autouse=True)
     def _setup_provider_state(self):
         """Pre-populate provider state to avoid pre-existing bugs."""
+        from app.core.circuit_breaker import SimpleCircuitBreaker
         from app.databus.provider_core import (
             _circuit_breakers,
-            _CircuitBreaker,
             _rate_limiters,
             _RateLimiter,
         )
@@ -366,7 +366,7 @@ class TestProviderChain:
         ]
         for name in provider_names:
             _rate_limiters[name] = _RateLimiter()
-            _circuit_breakers[name] = _CircuitBreaker()
+            _circuit_breakers[name] = SimpleCircuitBreaker(name=name)
         yield
         for name in provider_names:
             _rate_limiters.pop(name, None)
@@ -451,19 +451,18 @@ class TestProviderChain:
     @pytest.mark.asyncio
     async def test_circuit_breaker_skips_open_providers(self):
         """Providers with open circuit breakers should be skipped."""
+        from app.core.circuit_breaker import SimpleCircuitBreaker, State
         from app.databus.provider_core import (
             Provider,
             ProviderChain,
             ProviderTier,
             _circuit_breakers,
-            _CircuitBreaker,
         )
 
         # Open the circuit breaker for 'skipped_provider'
-        cb = _CircuitBreaker()
-        cb._failures = 10
-        cb._is_open = True
-        cb._open_until = time.monotonic() + 60
+        cb = SimpleCircuitBreaker(name="skipped_provider", failure_threshold=1, recovery_timeout=60.0)
+        cb.record_failure(is_server_error=True)
+        assert cb.state is State.OPEN  # ensure it's open
         _circuit_breakers["skipped_provider"] = cb
 
         skipped = False
@@ -490,9 +489,7 @@ class TestProviderChain:
                     fetch_fn=should_be_skipped,
                     weight=1.0,
                 ),
-                Provider(
-                    name="fallback", tier=ProviderTier.FREE_API, fetch_fn=fallback_works, weight=0.5
-                ),
+                Provider(name="fallback", tier=ProviderTier.FREE_API, fetch_fn=fallback_works, weight=0.5),
             ],
         )
         result = await chain.fetch()
@@ -590,9 +587,7 @@ class TestDataBusAccessControl:
         """Admin key should pass access check without error."""
         from app.databus.security import security
 
-        result = security.check_access(
-            "token_price", admin_key="test-internal-key-32-chars-long!!!"
-        )
+        result = security.check_access("token_price", admin_key="test-internal-key-32-chars-long!!!")
         assert isinstance(result, bool)
 
     def test_data_types_exist_in_provider_chains(self):

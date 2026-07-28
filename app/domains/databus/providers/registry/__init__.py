@@ -20,7 +20,8 @@ import httpx
 from app.core.logging import get_logger
 
 from ..base import Provider, ProviderTier
-from ..circuit_breaker import _circuit_breakers, _CircuitBreaker, _rate_limiters, _RateLimiter
+from app.core.circuit_breaker import SimpleCircuitBreaker
+from ..circuit_breaker import _circuit_breakers, _rate_limiters, _RateLimiter
 
 if TYPE_CHECKING:
     from ..base import ProviderChain
@@ -135,8 +136,10 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     for chain in chains.values():
         for provider in chain.providers:
             if provider.name not in _circuit_breakers:
-                _circuit_breakers[provider.name] = _CircuitBreaker(
-                    threshold=provider.failure_threshold, timeout=provider.recovery_timeout
+                _circuit_breakers[provider.name] = SimpleCircuitBreaker(
+                    name=provider.name,
+                    failure_threshold=provider.failure_threshold,
+                    recovery_timeout=provider.recovery_timeout,
                 )
             if provider.name not in _rate_limiters:
                 _rate_limiters[provider.name] = _RateLimiter(rps=provider.rate_limit_rps)
