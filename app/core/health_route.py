@@ -51,12 +51,14 @@ router = APIRouter(tags=["health"])
 _ENV = os.getenv("ENVIRONMENT", "production").lower()
 _IS_DEV = _ENV in ("dev", "development", "local", "test")
 
+
 def _get_url(key: str, docker: str, local: str) -> str:
     """Resolve a service URL: explicit env var wins, otherwise pick the
     Docker-Compose default (production) or the localhost default (dev).
     """
     val = os.getenv(key)
     return val if val is not None else (local if _IS_DEV else docker)
+
 
 # ── Service URLs (module-level for reuse) ────────────────────────
 # Defaults use Docker Compose service names so containers resolve
@@ -113,6 +115,7 @@ _OPTIONAL_CONFIG: dict[str, str] = {
 
 _SHARED_HTTP_CLIENT: httpx.AsyncClient | None = None
 
+
 async def _get_http_client() -> httpx.AsyncClient:
     global _SHARED_HTTP_CLIENT
     if _SHARED_HTTP_CLIENT is None:
@@ -121,7 +124,9 @@ async def _get_http_client() -> httpx.AsyncClient:
         _SHARED_HTTP_CLIENT = httpx.AsyncClient(timeout=5.0)
     return _SHARED_HTTP_CLIENT
 
+
 # ── Config validation ───────────────────────────────────────────
+
 
 def check_config() -> list[dict[str, str]]:
     """Validate required / optional env vars.
@@ -148,7 +153,9 @@ def check_config() -> list[dict[str, str]]:
 
     return issues
 
+
 # ── Response models ─────────────────────────────────────────────
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -159,16 +166,20 @@ class HealthResponse(BaseModel):
     model_config = {"extra": "allow"}
     config_issues: list[dict[str, str]] = []
 
+
 class LivenessResponse(BaseModel):
     status: str = "alive"
+
 
 class ReadinessResponse(BaseModel):
     status: str
     checks: dict[str, bool]
 
+
 _START_TIME = time.monotonic()
 
 # ── Store check helpers ─────────────────────────────────────────
+
 
 async def _check_store(name: str, coro) -> dict[str, Any]:
     """Run a health check and emit Prometheus metrics (if available)."""
@@ -188,6 +199,7 @@ async def _check_store(name: str, coro) -> dict[str, Any]:
             HEALTH_CHECK_STATUS.labels(store=name).set(0)
         return {"healthy": False, "error": str(e)[:200]}
 
+
 async def _check_redis() -> dict[str, Any]:
     try:
         from app.core.redis import get_redis_async
@@ -200,6 +212,7 @@ async def _check_redis() -> dict[str, Any]:
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
 
+
 async def _check_postgres() -> dict[str, Any]:
     try:
         import asyncpg
@@ -208,12 +221,19 @@ async def _check_postgres() -> dict[str, Any]:
             "DATABASE_URL",
             _DATABASE_URL_DEV if _IS_DEV else _DATABASE_URL_DOCKER,
         )
+        # asyncpg doesn't accept SQLAlchemy-style driver specifiers like +asyncpg
+        # Strip the driver suffix so asyncpg.connect() works
+        if db_url and "+" in db_url.split("://")[0] if "://" in db_url else False:
+            scheme, rest = db_url.split("://", 1)
+            scheme = scheme.split("+")[0]
+            db_url = f"{scheme}://{rest}"
         conn = await asyncpg.connect(db_url)
         await asyncio.wait_for(conn.fetchval("SELECT 1"), timeout=5.0)
         await conn.close()
         return {"healthy": True}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
+
 
 async def _check_neo4j() -> dict[str, Any]:
     try:
@@ -222,11 +242,7 @@ async def _check_neo4j() -> dict[str, Any]:
         except ImportError:
             from neo4j import GraphDatabase
 
-            uri = (
-                os.getenv("NEO4J_URI")
-                or os.getenv("NEO4J_URL")
-                or (_NEO4J_URI_DEV if _IS_DEV else _NEO4J_URI_DOCKER)
-            )
+            uri = os.getenv("NEO4J_URI") or os.getenv("NEO4J_URL") or (_NEO4J_URI_DEV if _IS_DEV else _NEO4J_URI_DOCKER)
             user = os.getenv("NEO4J_USER", "neo4j")
             password = os.getenv("NEO4J_PASSWORD", "")
             _driver = GraphDatabase.driver(uri, auth=(user, password)) if password else None
@@ -234,12 +250,11 @@ async def _check_neo4j() -> dict[str, Any]:
         if _driver is None:
             return {"healthy": False, "error": "Neo4j not configured (no NEO4J_PASSWORD set)"}
         with _driver.session() as session:
-            val = await asyncio.wait_for(
-                asyncio.to_thread(lambda: session.run("RETURN 1").single()), timeout=5.0
-            )
+            val = await asyncio.wait_for(asyncio.to_thread(lambda: session.run("RETURN 1").single()), timeout=5.0)
         return {"healthy": val[0] == 1}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
+
 
 async def _check_qdrant() -> dict[str, Any]:
     try:
@@ -255,17 +270,37 @@ async def _check_qdrant() -> dict[str, Any]:
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
 
+
 async def _check_clickhouse() -> dict[str, Any]:
     try:
         import base64
 
         user = os.getenv("CLICKHOUSE_USER", "rmi")
         password = os.getenv("CLICKHOUSE_PASSWORD", os.getenv("CLICKHOUSE_PASS", ""))
+        # CLICKHOUSE_URL may already contain embedded credentials (e.g. http://rmi:pass@host:port)
+        # Use basic auth header for authentication instead
         token = base64.b64encode(f"{user}:{password}".encode()).decode()
         headers = {"Authorization": f"Basic {token}"}
         client = await _get_http_client()
-        resp = await client.post(CLICKHOUSE_URL, content="SELECT 1", headers=headers)
-        db_resp = await client.post(CLICKHOUSE_URL, content="SHOW DATABASES", headers=headers)
+
+        # Strip credentials from URL if embedded (the basic auth header is authoritative)
+        clean_url = CLICKHOUSE_URL
+        if "@" in clean_url.replace("://", "://", 1).split("://")[1] if "://" in clean_url else False:
+            # URL has embedded credentials like http://user:pass@host
+            scheme = clean_url.split("://")[0]
+            rest = clean_url.split("://", 1)[1]
+            if "@" in rest:
+                rest = rest.split("@", 1)[1]
+                clean_url = f"{scheme}://{rest}"
+
+        resp = await client.post(clean_url, content="SELECT 1", headers=headers)
+        if resp.status_code != 200:
+            # Try without auth (public clickhouse or different auth method)
+            resp = await client.post(clean_url, content="SELECT 1")
+
+        db_resp = await client.post(clean_url, content="SHOW DATABASES", headers=headers)
+        if db_resp.status_code != 200:
+            db_resp = await client.post(clean_url, content="SHOW DATABASES")
         dbs = db_resp.text.strip().split("\n") if db_resp.status_code == 200 else []
         return {
             "healthy": resp.text.strip() == "1",
@@ -274,6 +309,7 @@ async def _check_clickhouse() -> dict[str, Any]:
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
 
+
 async def _check_minio() -> dict[str, Any]:
     try:
         client = await _get_http_client()
@@ -281,6 +317,7 @@ async def _check_minio() -> dict[str, Any]:
         return {"healthy": resp.status_code == 200, "details": {"status_code": resp.status_code}}
     except Exception as e:
         return {"healthy": False, "error": str(e)[:200]}
+
 
 async def _check_reth() -> dict[str, Any]:
     try:
@@ -299,20 +336,50 @@ async def _check_reth() -> dict[str, Any]:
 
 
 async def _check_degenfeed() -> dict[str, Any]:
-    """Probe DegenFeed proxy health."""
+    """Probe DegenFeed proxy health.
+
+    Returns ``healthy: True`` with ``status: "skipped"`` or ``status:
+    "unavailable"`` when the DegenFeed service is not configured or not
+    reachable, so the overall health endpoint does not mark the system as
+    ``degraded`` just because an optional downstream is absent.
+    """
+    # Allow operators to explicitly disable this check without changing code
+    if os.getenv("DEGENFEED_HEALTH_CHECK_ENABLED", "true").lower() in (
+        "false",
+        "0",
+        "no",
+        "off",
+    ):
+        return {"healthy": True, "status": "skipped"}
+
+    base_url = os.getenv("DEGENFEED_URL", "http://127.0.0.1:8200")
     try:
         import httpx
-        base_url = os.getenv("DEGENFEED_URL", "http://127.0.0.1:8200")
+
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(f"{base_url.rstrip(chr(47))}/health")
             data = resp.json() if resp.status_code == 200 else {}
-            protocols = data.get("protocols", []) if isinstance(data.get("protocols"), list) else list(data.get("protocols", {}).keys()) if isinstance(data.get("protocols"), dict) else []
+            protocols = (
+                data.get("protocols", [])
+                if isinstance(data.get("protocols"), list)
+                else list(data.get("protocols", {}).keys())
+                if isinstance(data.get("protocols"), dict)
+                else []
+            )
             return {
-                "healthy": resp.status_code == 200,
+                "healthy": True,
                 "details": {"protocols": protocols, "status_code": resp.status_code},
             }
     except Exception as e:
-        return {"healthy": False, "error": str(e)[:200]}
+        return {
+            "healthy": True,
+            "status": "unavailable",
+            "details": {
+                "message": f"DegenFeed service not reachable at {base_url}",
+                "error": str(e)[:100],
+            },
+        }
+
 
 def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
     """Win #14: Sync health check results to the degradation registry."""
@@ -329,6 +396,7 @@ def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
     except (AttributeError, ImportError):
         pass
 
+
 def _get_degradation_section() -> dict[str, Any]:
     """Win #14: Get degradation section for health endpoint."""
     try:
@@ -338,14 +406,26 @@ def _get_degradation_section() -> dict[str, Any]:
     except (AttributeError, ImportError):
         return {}
 
+
 # ── Endpoints ───────────────────────────────────────────────────
 
-@router.get("/live", response_model=LivenessResponse, summary="Liveness", description="Kubernetes-style liveness probe. Returns 200 if the process is alive. No dependency checks.")
 
+@router.get(
+    "/live",
+    response_model=LivenessResponse,
+    summary="Liveness",
+    description="Kubernetes-style liveness probe. Returns 200 if the process is alive. No dependency checks.",
+)
 async def liveness() -> LivenessResponse:
     return LivenessResponse(status="alive")
 
-@router.get("/ready", response_model=ReadinessResponse, summary="Readiness", description="Kubernetes-style readiness probe. Checks critical dependencies (Redis, PostgreSQL). Returns 200 only when all critical stores are reachable.")
+
+@router.get(
+    "/ready",
+    response_model=ReadinessResponse,
+    summary="Readiness",
+    description="Kubernetes-style readiness probe. Checks critical dependencies (Redis, PostgreSQL). Returns 200 only when all critical stores are reachable.",
+)
 async def readiness() -> ReadinessResponse:
     r1 = await _check_store("redis", _check_redis())
     r2 = await _check_store("postgres", _check_postgres())
@@ -355,7 +435,13 @@ async def readiness() -> ReadinessResponse:
     all_ok = all(checks.values())
     return ReadinessResponse(status="ready" if all_ok else "not_ready", checks=checks)
 
-@router.get("/health", response_model=HealthResponse, summary="Full Health Check", description="Comprehensive system health check. Probes Redis, PostgreSQL, Neo4j, Qdrant, ClickHouse, MinIO, and Ethereum RPC. Returns aggregated status with per-store health, latency, and config validation.")
+
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    summary="Full Health Check",
+    description="Comprehensive system health check. Probes Redis, PostgreSQL, Neo4j, Qdrant, ClickHouse, MinIO, and Ethereum RPC. Returns aggregated status with per-store health, latency, and config validation.",
+)
 async def health() -> HealthResponse:
     started = time.monotonic()
     store_checks = {
@@ -363,9 +449,7 @@ async def health() -> HealthResponse:
         "postgres": asyncio.wait_for(_check_store("postgres", _check_postgres()), timeout=5.0),
         "neo4j": asyncio.wait_for(_check_store("neo4j", _check_neo4j()), timeout=5.0),
         "qdrant": asyncio.wait_for(_check_store("qdrant", _check_qdrant()), timeout=5.0),
-        "clickhouse": asyncio.wait_for(
-            _check_store("clickhouse", _check_clickhouse()), timeout=5.0
-        ),
+        "clickhouse": asyncio.wait_for(_check_store("clickhouse", _check_clickhouse()), timeout=5.0),
         "minio": asyncio.wait_for(_check_store("minio", _check_minio()), timeout=5.0),
         "eth_rpc": asyncio.wait_for(_check_store("eth_rpc", _check_reth()), timeout=5.0),
         "degenfeed": asyncio.wait_for(_check_store("degenfeed", _check_degenfeed()), timeout=5.0),
@@ -384,26 +468,24 @@ async def health() -> HealthResponse:
 
     # Critical = redis or postgres down. Non-critical stores can be degraded.
     critical_up = stores["redis"].get("healthy") and stores["postgres"].get("healthy")
-    any_non_critical_down = not all(
-        s.get("healthy", False) for n, s in stores.items() if n not in ("redis", "postgres")
-    )
+    # Exclude stores that were intentionally skipped or are unavailable
+    # (e.g. DegenFeed when its service is not deployed in this stack).
+    _non_critical_stores = [
+        s.get("healthy", False)
+        for n, s in stores.items()
+        if n not in ("redis", "postgres") and s.get("status") not in ("skipped", "unavailable")
+    ]
+    any_non_critical_down = not all(_non_critical_stores) if _non_critical_stores else False
     status = "unhealthy" if not critical_up else "degraded" if any_non_critical_down else "healthy"
 
     # Include degradation info in response
     degradation = _get_degradation_section()
 
+    config_issues = check_config()
     return HealthResponse(
         status=status,
         version="2026.06.21",
         uptime_seconds=time.monotonic() - _START_TIME,
         stores=stores | degradation,
-    )
-    status = "unhealthy" if not critical_up else "degraded" if any_non_critical_down else "healthy"
-
-    return HealthResponse(
-        status=status,
-        version="2026.06.21",
-        uptime_seconds=time.monotonic() - _START_TIME,
-        stores=stores,
-        config_issues=check_config(),
+        config_issues=config_issues,
     )

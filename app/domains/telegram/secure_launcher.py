@@ -16,6 +16,7 @@ Usage (systemd ExecStart):
 
 Where <bot_name> is 'rugmunchbot' or 'adminbot'.
 """
+
 from __future__ import annotations
 
 import os
@@ -39,9 +40,10 @@ ENV_KEYS = {
 }
 
 MODULES = {
-    "rugmunchbot": "app.bot_module",
-    "adminbot": "app.admin_bot_module",
+    "rugmunchbot": "app.domains.telegram.rugmunchbot.bot",
+    "adminbot": "app.domains.telegram.adminbot.bot",
 }
+
 
 def _fetch_from_gopass(gopass_path: str) -> str:
     """Fetch token from gopass. Returns empty string on failure."""
@@ -58,6 +60,7 @@ def _fetch_from_gopass(gopass_path: str) -> str:
         return token
     except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return ""
+
 
 def main() -> None:
     if len(sys.argv) < 2:
@@ -98,6 +101,7 @@ def main() -> None:
     else:
         print(f"FATAL: {module_name} has no main()", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
