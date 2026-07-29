@@ -9,7 +9,6 @@
 # Stop:  docker compose -f docker/x402-rs/docker-compose.yml down
 # Logs:  docker compose -f docker/x402-rs/docker-compose.yml logs -f
 
-version: "3.8"
 
 services:
   x402-rs:

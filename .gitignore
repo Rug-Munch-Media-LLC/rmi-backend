@@ -138,3 +138,7 @@ htmlcov/
 
 # Dev database
 dev.db
+
+# Bot runtime databases
+bot_users.db
+**/data/bot_users.db
