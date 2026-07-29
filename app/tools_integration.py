@@ -19,7 +19,8 @@ logger = get_logger(__name__)
 # ═══════════════════════════════════════════════════════════
 # OLLAMA - Local LLM (port 11434, 2 models)
 # ═══════════════════════════════════════════════════════════
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://172.17.0.1:11434")
+_DOCKER_HOST = os.getenv("DOCKER_HOST_IP", "172.17.0.1")
+OLLAMA_URL = os.getenv("OLLAMA_URL", f"http://{_DOCKER_HOST}:11434")
 
 async def ollama_chat(prompt: str, model: str = "phi3:mini", system: str = "") -> dict:
     """Use local Ollama for free AI inference."""
@@ -322,7 +323,7 @@ def litellm_status() -> dict:
 # ═══════════════════════════════════════════════════════════
 # VAULT - Secrets management
 # ═══════════════════════════════════════════════════════════
-VAULT_ADDR = os.getenv("VAULT_ADDR", "http://172.17.0.1:8200")
+VAULT_ADDR = os.getenv("VAULT_ADDR", f"http://{_DOCKER_HOST}:8200")
 
 async def vault_get_secret(path: str) -> dict | None:
     """Retrieve a secret from HashiCorp Vault."""

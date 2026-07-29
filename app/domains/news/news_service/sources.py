@@ -10,12 +10,13 @@ import os
 import random
 
 # ─── PROXY ROTATION ───────────────────────────────────────────────
+NEWS_PROXY_HOST = os.getenv("NEWS_PROXY_HOST", "43.153.99.140")
 PROXY_LIST = [
-    "http://43.153.99.140:13001", "http://43.153.99.140:13002",
-    "http://43.153.99.140:13003", "http://43.153.99.140:13004",
-    "http://43.153.99.140:13005", "http://43.153.99.140:13006",
-    "http://43.153.99.140:13007", "http://43.153.99.140:13008",
-    "http://43.153.99.140:13009", "http://43.153.99.140:13010",
+    f"http://{NEWS_PROXY_HOST}:13001", f"http://{NEWS_PROXY_HOST}:13002",
+    f"http://{NEWS_PROXY_HOST}:13003", f"http://{NEWS_PROXY_HOST}:13004",
+    f"http://{NEWS_PROXY_HOST}:13005", f"http://{NEWS_PROXY_HOST}:13006",
+    f"http://{NEWS_PROXY_HOST}:13007", f"http://{NEWS_PROXY_HOST}:13008",
+    f"http://{NEWS_PROXY_HOST}:13009", f"http://{NEWS_PROXY_HOST}:13010",
 ]
 
 PROXY_REQUIRED_FEEDS = {
