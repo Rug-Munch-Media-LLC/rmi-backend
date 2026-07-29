@@ -49,6 +49,11 @@ dev = [
     "mutmut>=3.0.0",
     "hypothesis>=6.0.0",
     "pact-python>=2.0.0",
+    "vulture>=2.16",
+    "radon>=6.0",
+    "interrogate>=1.7",
+    "deptry>=0.25",
+    "pip-audit>=2.10",
 ]
 
 [build-system]
@@ -176,3 +181,9 @@ runner = "python -m pytest -x --tb=short"
 tests_dir = "tests/"
 pre_mutation = ""
 post_mutation = ""
+
+[tool.interrogate]
+fail-under = 60
+ignore-init-method = true
+ignore-init-module = true
+exclude = ["tests/*", "alembic/*", "app/_archive/*", "app/legacy/*"]
