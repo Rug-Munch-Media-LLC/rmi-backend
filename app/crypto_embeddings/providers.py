@@ -46,7 +46,7 @@ class LocalBGEEmbedder:
 class OllamaBGEEmbedder:
     """Our own bge-m3 via Ollama. 1024d, zero cost."""
 
-    OLLAMA_URL = "http://172.19.0.1:11434"
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://172.19.0.1:11434")
     MODEL = "bge-m3"
     DIMS = 1024
 
