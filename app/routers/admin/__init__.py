@@ -8,11 +8,11 @@ All endpoints require admin auth via X-Admin-Key header.
 from __future__ import annotations
 
 import os
-from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-extensions"])
+
 
 # ── Auth helper ──
 async def verify_admin(request: Request) -> bool:
@@ -25,8 +25,10 @@ async def verify_admin(request: Request) -> bool:
         raise HTTPException(status_code=401, detail="Invalid admin key")
     return True
 
+
 # Import sub-routers and include them
 # (using lazy import pattern to avoid circular deps with router reference)
+
 
 def _include_sub_routers():
     from .cron import cron_router
@@ -42,5 +44,6 @@ def _include_sub_routers():
     router.include_router(dify_router)
     router.include_router(server_router)
     router.include_router(mail_router)
+
 
 _include_sub_routers()
