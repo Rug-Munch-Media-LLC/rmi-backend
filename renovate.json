@@ -1,0 +1,20 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"description": "rmi-backend — extends RugMunch shared preset with Python backend group rules",
+	"extends": ["local>RugMunchMedia/standards:renovate-presets/rugmunch.json"],
+	"assignees": ["cryptorugmunch"],
+	"packageRules": [
+		{
+			"description": "Group Python backend core (FastAPI stack)",
+			"matchPackageNames": [
+				"fastapi",
+				"sqlalchemy",
+				"pydantic",
+				"alembic",
+				"httpx"
+			],
+			"groupName": "Python backend core",
+			"groupSlug": "python-backend"
+		}
+	]
+}

@@ -74,6 +74,7 @@ secret-rotation*
 *.tar
 *.tar.gz
 *.zip
+!renovate.json
 .env
 .env.backup-*
 .env.bak
