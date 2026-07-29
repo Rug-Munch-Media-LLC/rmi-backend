@@ -48,7 +48,7 @@ services:
     networks:
       - rmi_network
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -76,7 +76,7 @@ services:
     networks:
       - rmi_network
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     security_opt:
       - no-new-privileges:true
     cap_drop:
