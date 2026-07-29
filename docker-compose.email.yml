@@ -10,6 +10,11 @@ services:
     image: djmaze/snappymail:latest
     container_name: rmi-webmail
     restart: unless-stopped
+    labels:
+      - "dockflare.enable=true"
+      - "dockflare.hostname=webmail.rugmunch.io"
+      - "dockflare.service=http://rmi-webmail:8888"
+      - "dockflare.zonename=rugmunch.io"
     networks:
       - rmi_network
     ports:

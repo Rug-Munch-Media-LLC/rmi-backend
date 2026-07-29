@@ -18,8 +18,15 @@ from app.config import settings
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+# Ensure the async driver prefix is present for create_async_engine
+_db_url = settings.database_url
+if _db_url and "+" not in _db_url.split("://")[0] if "://" in _db_url else False:
+    # Add +asyncpg driver suffix for create_async_engine
+    scheme, rest = _db_url.split("://", 1)
+    _db_url = f"{scheme}+asyncpg://{rest}"
+
 engine = create_async_engine(
-    settings.database_url,
+    _db_url,
     pool_size=20,
     max_overflow=30,
     pool_pre_ping=True,
@@ -32,6 +39,7 @@ async_session_factory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency yielding a request-scoped async session.
