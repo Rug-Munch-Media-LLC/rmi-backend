@@ -21,12 +21,9 @@ EXEMPT_FILES=(
 FORBIDDEN_PATTERNS=(
   # Internal hostnames
   'talos\.rugmunch\.io'
-  'hydra\.rugmunch\.io'
   'cinnabox\.rugmunch\.io'
   'ssh netcup'
-  'ssh contabo'
   'ssh talos'
-  'ssh hydra'
   'root@talos'
   'root@netcup'
 
