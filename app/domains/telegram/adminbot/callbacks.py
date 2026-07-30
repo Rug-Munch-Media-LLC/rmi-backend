@@ -369,6 +369,170 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 ),
             )
 
+        # ── RAG Stats ──
+        elif data == "ragstats":
+            await query.edit_message_text("⏳ Fetching RAG stats...")
+            result = admin_ops.rag_stats()
+            if result["ok"]:
+                try:
+                    import json as _json
+
+                    data = _json.loads(result["output"])
+                    lines = ["🧠 *RAG System Stats*\n"]
+                    if isinstance(data, dict):
+                        for key, val in data.items():
+                            if isinstance(val, (int, float, str)):
+                                lines.append(f"• `{key}`: {val}")
+                            elif isinstance(val, dict):
+                                lines.append(f"\n*{key}:*")
+                                for k, v in val.items():
+                                    lines.append(f"  • `{k}`: {v}")
+                            elif isinstance(val, list):
+                                lines.append(f"\n*{key}:*")
+                                for item in val[:20]:
+                                    lines.append(f"  • {item}")
+                    await query.edit_message_text(
+                        "\n".join(lines),
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=InlineKeyboardMarkup(
+                            [
+                                [InlineKeyboardButton("🔄 Refresh", callback_data="ragstats")],
+                                [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                            ]
+                        ),
+                    )
+                except Exception:
+                    await query.edit_message_text(
+                        f"🧠 *RAG Stats*\n\n```\n{result['output'][:3000]}\n```",
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=back_button("main"),
+                    )
+            else:
+                await query.edit_message_text(
+                    f"❌ {result['error']}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
+                )
+
+        # ── News ──
+        elif data == "news":
+            await query.edit_message_text("⏳ Fetching news feed...")
+            result = admin_ops.news_feed(limit=5)
+            if result["ok"]:
+                try:
+                    import json as _json
+
+                    items = _json.loads(result["output"])
+                    if not items:
+                        await query.edit_message_text(
+                            "📰 No news articles available.",
+                            parse_mode=ParseMode.MARKDOWN,
+                            reply_markup=back_button("main"),
+                        )
+                    else:
+                        bias_emoji = {
+                            "left": "🔵",
+                            "center-left": "🔷",
+                            "center": "⚪",
+                            "center-right": "🔶",
+                            "right": "🔴",
+                        }
+                        lines = ["📰 *Rated News Feed*\n"]
+                        for a in items[:5]:
+                            title = a.get("title", "Untitled")[:80]
+                            source = a.get("source", "Unknown")
+                            sentiment = a.get("sentiment_score", 0)
+                            bias = a.get("bias", "center")
+                            factual = a.get("factual_rating", "N/A")
+                            url = a.get("url", "")
+                            sent_emoji = "🔥" if sentiment > 30 else "🧊" if sentiment < -30 else "➖"
+                            bias_e = bias_emoji.get(bias, "⚪")
+                            lines.append(
+                                f"{sent_emoji} {bias_e} *{title}*\n  📰 {source} · Factuality: {factual}\n  🔗 {url}"
+                            )
+                        await query.edit_message_text(
+                            "\n".join(lines),
+                            parse_mode=ParseMode.MARKDOWN,
+                            disable_web_page_preview=False,
+                            reply_markup=InlineKeyboardMarkup(
+                                [
+                                    [InlineKeyboardButton("🔄 Refresh", callback_data="news")],
+                                    [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                                ]
+                            ),
+                        )
+                except Exception:
+                    await query.edit_message_text(
+                        f"📰 News feed unavailable.", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
+                    )
+            else:
+                await query.edit_message_text(
+                    f"❌ {result['error']}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
+                )
+
+        # ── Scanner Stats ──
+        elif data == "scanstats":
+            await query.edit_message_text("⏳ Fetching scanner stats...")
+            result = admin_ops.scan_stats()
+            if result["ok"]:
+                try:
+                    import json as _json
+
+                    data = _json.loads(result["output"])
+                    lines = ["🔍 *Scanner Statistics*\n"]
+                    metrics = data.get("metrics", {})
+                    sufficiency = data.get("sufficiency", {})
+                    if "error" not in metrics:
+                        lines.append("*Coverage:*")
+                        lines.append(f"  • Own data: `{metrics.get('own_data_pct', 'N/A')}%`")
+                        lines.append(f"  • DataBus: `{metrics.get('databus_pct', 'N/A')}%`")
+                        lines.append(f"  • External: `{metrics.get('external_pct', 'N/A')}%`")
+                    if "error" not in sufficiency:
+                        lines.append(f"\n*Sufficiency:*")
+                        lines.append(
+                            f"  • Questions: `{sufficiency.get('own_data_questions', 0)}/{sufficiency.get('total_questions', 0)}`"
+                        )
+                        lines.append(f"  • Coverage: `{sufficiency.get('own_data_pct', 0)}%`")
+                    await query.edit_message_text(
+                        "\n".join(lines),
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=InlineKeyboardMarkup(
+                            [
+                                [InlineKeyboardButton("🔄 Refresh", callback_data="scanstats")],
+                                [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                            ]
+                        ),
+                    )
+                except Exception:
+                    await query.edit_message_text(
+                        f"🔍 Scanner stats unavailable.",
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=back_button("main"),
+                    )
+            else:
+                await query.edit_message_text(
+                    f"❌ {result['error']}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
+                )
+
+        # ── Indexer ──
+        elif data == "indexer":
+            await query.edit_message_text("⏳ Checking chain indexers...")
+            result = admin_ops.indexer_status()
+            if result["ok"]:
+                await query.edit_message_text(
+                    result["output"][:3500],
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=InlineKeyboardMarkup(
+                        [
+                            [InlineKeyboardButton("🔄 Refresh", callback_data="indexer")],
+                            [InlineKeyboardButton("🐳 Docker", callback_data="docker")],
+                            [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                        ]
+                    ),
+                )
+            else:
+                await query.edit_message_text(
+                    f"❌ {result['error']}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
+                )
+
         # ── Quick ──
         elif data == "quick":
             await query.edit_message_text(

@@ -112,6 +112,14 @@ def main_menu_keyboard() -> Any:
                 InlineKeyboardButton("📁 Git", callback_data="git_menu"),
                 InlineKeyboardButton("📡 Chain", callback_data="chain"),
             ],
+            [
+                InlineKeyboardButton("🧠 RAG Stats", callback_data="ragstats"),
+                InlineKeyboardButton("📰 News", callback_data="news"),
+            ],
+            [
+                InlineKeyboardButton("🔍 Scan Stats", callback_data="scanstats"),
+                InlineKeyboardButton("📡 Indexer", callback_data="indexer"),
+            ],
             [InlineKeyboardButton("⚡ Quick Ops", callback_data="quick")],
         ]
     )

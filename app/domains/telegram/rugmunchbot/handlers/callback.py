@@ -467,6 +467,86 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",
                 show_alert=True,
             )
+    elif data.startswith("research_"):
+        parts = data.split("_", 2)
+        if len(parts) == 2:
+            # Topic-based research suggestion
+            topic_key = parts[1]
+            topic_desc = {
+                "honeypot": "honeypot token detection patterns",
+                "bundling": "bundle buying detection techniques",
+                "wash_trading": "wash trading detection methods",
+                "rugpull": "common rug pull strategies",
+                "smart_money": "smart money wallet tracking",
+                "fresh_wallet": "fresh wallet detection risk assessment",
+                "mev": "MEV attacks sandwich detection",
+                "pump_dump": "pump and dump scheme detection",
+                "liquidity": "liquidity analysis LP verification",
+            }.get(topic_key, topic_key)
+            await query.edit_message_text(
+                "\U0001f50d <b>Research Topic Selected</b>\n\n"
+                f"Use /research <code>{topic_desc}</code>\n\n"
+                "Or type a custom query:\n"
+                "/research <code>your question here</code>",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+        elif len(parts) >= 3:
+            addr_s, chain_s = parts[1], parts[2]
+            await query.edit_message_text(
+                "\U0001f50d Use /research or /investigate for deep analysis.\n\n"
+                f"\U0001f50d /research <code>{addr_s}</code>\n"
+                f"\U0001f575\ufe0f /investigate <code>{addr_s}</code>",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+    elif data.startswith("sentiment_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr_sent, chain_sent = parts[1], parts[2]
+            await query.edit_message_text(
+                "\U0001f4c8 Use /sentiment to check market sentiment.\n\n"
+                "Or use /ta for price-based technical analysis.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+    elif data.startswith("investigate_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr_inv, chain_inv = parts[1], parts[2]
+            await query.edit_message_text(
+                f"\U0001f575\ufe0f Use /investigate <code>{addr_inv}</code> for deep investigation.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+    elif data.startswith("ta_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr_ta, chain_ta = parts[1], parts[2]
+            await query.edit_message_text(
+                f"\U0001f4ca Use /ta <code>{addr_ta}</code> for technical analysis.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+    elif data.startswith("news_refresh"):
+        await query.edit_message_text("\U0001f4f0 <b>Refreshing news...</b>", parse_mode=ParseMode.HTML)
+        # Import and re-run cmd_news
+        from app.domains.telegram.rugmunchbot.handlers.market import cmd_news as _news
+
+        ctx.args = []
+        await _news(update, ctx)
+    elif data.startswith("sentiment_refresh"):
+        await query.edit_message_text("\U0001f4c8 <b>Refreshing sentiment...</b>", parse_mode=ParseMode.HTML)
+        from app.domains.telegram.rugmunchbot.handlers.sentiment import cmd_sentiment as _sentiment
+
+        ctx.args = []
+        await _sentiment(update, ctx)
+    elif data.startswith("trending_refresh"):
+        await query.edit_message_text("\U0001f525 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML)
+        from app.domains.telegram.rugmunchbot.handlers.market import cmd_trending as _trending
+
+        ctx.args = []
+        await _trending(update, ctx)
     elif data.startswith("deep_"):
         parts = data.split("_", 2)
         if len(parts) < 3:

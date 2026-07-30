@@ -66,6 +66,8 @@ from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
 from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigate
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, cmd_trending
+from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
+from app.domains.telegram.rugmunchbot.handlers.sentiment import cmd_sentiment
 from app.domains.telegram.rugmunchbot.handlers.message import handle_message
 from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin_ban,
@@ -124,6 +126,8 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("watch", "Add token to watchlist"),
             BotCommand("watchlist", "View your watchlist"),
             BotCommand("alerts", "Price & activity alerts"),
+            BotCommand("sentiment", "Market sentiment & fear/greed index"),
+            BotCommand("research", "RAG-powered deep research (Hunter+)"),
             BotCommand("account", "Your dashboard & usage"),
             BotCommand("pricing", "Subscription plans"),
             BotCommand("topup", "Buy extra scans (no expiry)"),
@@ -196,6 +200,10 @@ def main() -> None:
     # Market commands
     app.add_handler(CommandHandler("trending", cmd_trending))
     app.add_handler(CommandHandler("news", cmd_news))
+    app.add_handler(CommandHandler("sentiment", cmd_sentiment))
+
+    # Research / RAG
+    app.add_handler(CommandHandler("research", cmd_research))
 
     # Account / billing
     app.add_handler(CommandHandler("account", cmd_account))

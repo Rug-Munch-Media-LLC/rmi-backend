@@ -199,16 +199,32 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("\U0001f4f0 <b>Fetching news...</b>", parse_mode=ParseMode.HTML)
     articles = []
-    source_label = "Backend"
+    source_label = "RMI News Network"
 
+    # Try the internal news-feed endpoint first (has bias/sentiment/factual ratings)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5")
+            r = await client.get(
+                f"{BACKEND_URL}/api/v1/internal/news-feed",
+                params={"channel": "news", "limit": 5, "min_score": 0},
+            )
             if r.status_code == 200:
                 body = r.json()
                 articles = body.get("items", [])
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.warning("cmd_news backend fetch failed: %s", e)
+        logger.warning("cmd_news internal feed failed: %s", e)
+
+    # Fallback to backend trending news
+    if not articles:
+        source_label = "Trending"
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.get(f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5")
+                if r.status_code == 200:
+                    body = r.json()
+                    articles = body.get("items", [])
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.warning("cmd_news backend fetch failed: %s", e)
 
     if not articles:
         cg_items = await _fetch_cg_trending_news()
@@ -225,7 +241,14 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     if articles:
-        lines = ["\U0001f4f0 <b>Crypto News</b>", f"<i>via {source_label}</i>", sep()]
+        bias_emoji = {
+            "left": "\U0001f535",
+            "center-left": "\U0001f537",
+            "center": "\u26aa",
+            "center-right": "\U0001f536",
+            "right": "\U0001f534",
+        }
+        lines = ["\U0001f4f0 <b>Rated Crypto News</b>", f"<i>via {source_label}</i>", sep()]
         for a in articles[:5]:
             title = (a.get("title") or "Untitled")[:100]
             source = a.get("source", "News")
@@ -233,7 +256,20 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             pub_str = f" \u00b7 {published}" if published else ""
             url = a.get("url") or a.get("link") or ""
             title_linked = f'<a href="{url}">{title}</a>' if url else title
-            lines.append(f"\U0001f4f0 {title_linked}\n  <i>{source}</i>{pub_str}")
+
+            # Bias/sentiment/factual ratings
+            bias = a.get("bias", "center")
+            sentiment = a.get("sentiment_score", 0)
+            factual = a.get("factual_rating", "N/A")
+            source_tier = a.get("source_tier", 5)
+            sent_emoji = "\U0001f525" if sentiment > 30 else "\U0001f9ca" if sentiment < -30 else "\u2795"
+            bias_e = bias_emoji.get(bias, "\u26aa")
+            tier_str = "\u2605" * max(1, 6 - int(source_tier)) if isinstance(source_tier, (int, float)) else ""
+
+            lines.append(
+                f"{sent_emoji} {bias_e} [{tier_str}] {title_linked}\n"
+                f"  <i>{source}</i>{pub_str} \u00b7 Factuality: {factual}"
+            )
         lines.append(footer_links())
         text = "\n".join(lines)
     else:
