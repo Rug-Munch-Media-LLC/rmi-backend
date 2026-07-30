@@ -17,7 +17,6 @@ All data is LOCAL — we OWN the ClickHouse tables. Zero external API calls.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 
 from app.core.logging import get_logger

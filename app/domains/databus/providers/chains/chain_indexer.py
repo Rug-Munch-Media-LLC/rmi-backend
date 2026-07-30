@@ -568,3 +568,99 @@ async def _chain_indexer_holders(**kwargs: Any) -> dict | None:
         "tier": "local",
         "is_local": True,
     }
+
+
+async def _chain_indexer_pattern_search(**kwargs: Any) -> dict | None:
+    """Search chain-indexer for on-chain scam patterns (DeFi behavioral).
+
+    Provides natural-language-queryable pattern detection:
+      - \"show me tokens with similar deployer patterns to this one\"
+      - \"show me recent rug pulls on this chain\"
+      - \"what's the holder concentration for this token?\"
+
+    Delegates to the chain_pattern_detector module which queries ClickHouse
+    tables (evm_transfers, dex_events, deployer_events) and converts findings
+    into structured results.
+
+    Parameters:
+      token_address: str — token address to analyze (optional)
+      chain: str — chain name (optional)
+      deployer: str — deployer address (optional)
+      query_type: str — one of: \"auto\", \"deployer_cluster\", \"holder_concentration\",
+                         \"pump_and_dump\", \"mixer_interaction\" (default: \"auto\")
+
+    Returns dict with patterns detected or None.
+    """
+    token_address = kwargs.get("token_address", kwargs.get("address", "")).lower()
+    chain_raw = kwargs.get("chain", "")
+    chain = _normalize_chain(chain_raw) if chain_raw else ""
+    deployer = kwargs.get("deployer", "").lower()
+    query_type = kwargs.get("query_type", kwargs.get("q", "auto"))
+
+    if not token_address and not deployer:
+        return None
+
+    try:
+        from app.domains.scanner.modules.chain_pattern_detector import (
+            detect_all_patterns,
+            detect_deployer_clusters,
+            detect_holder_concentration,
+            detect_mixer_interactions,
+            detect_pump_and_dump,
+        )
+
+        if query_type == "deployer_cluster" and deployer:
+            result = await detect_deployer_clusters(deployer, chain)
+            return {
+                "data": result,
+                "source": "chain_indexer (pattern: deployer_cluster)",
+                "tier": "local",
+                "is_local": True,
+            }
+
+        if query_type == "holder_concentration" and token_address and chain:
+            result = await detect_holder_concentration(token_address, chain)
+            return {
+                "data": result,
+                "source": "chain_indexer (pattern: holder_concentration)",
+                "tier": "local",
+                "is_local": True,
+            }
+
+        if query_type == "pump_and_dump" and token_address and chain:
+            result = await detect_pump_and_dump(token_address, chain)
+            return {
+                "data": result,
+                "source": "chain_indexer (pattern: pump_and_dump)",
+                "tier": "local",
+                "is_local": True,
+            }
+
+        if query_type == "mixer_interaction" and deployer:
+            result = await detect_mixer_interactions(deployer, chain)
+            return {
+                "data": result,
+                "source": "chain_indexer (pattern: mixer_interaction)",
+                "tier": "local",
+                "is_local": True,
+            }
+
+        # Auto-detect: run all applicable detectors
+        findings = await detect_all_patterns(token_address, chain, deployer)
+        return {
+            "data": {
+                "findings": findings,
+                "match_count": len(findings),
+                "total_risk_score": min(100, sum(f.get("risk_score", 0) for f in findings)),
+            },
+            "source": "chain_indexer (pattern: auto)",
+            "tier": "local",
+            "is_local": True,
+        }
+
+    except ImportError as e:
+        logger.debug("chain_pattern_detector not available: %s", e)
+        return None
+    except Exception as e:
+        logger.warning("chain_indexer_pattern_search failed: %s", e)
+        return None
