@@ -106,6 +106,7 @@ def __getattr__(name: str) -> Any:
         "_chain_indexer_deployer_history": "chains.chain_indexer",
         "_chain_indexer_solana_balance_changes": "chains.chain_indexer",
         "_chain_indexer_holders": "chains.chain_indexer",
+        "_chain_indexer_pattern_search": "chains.chain_indexer",
     }
 
     module_path = _chain_map.get(name)
@@ -191,6 +192,7 @@ __all__ = [
     "_chain_indexer_deployer_history",
     "_chain_indexer_solana_balance_changes",
     "_chain_indexer_holders",
+    "_chain_indexer_pattern_search",
     "_scraped_intel_provider",
     "_spl_metadata_decoder_provider",
     "_virustotal_url_scan",

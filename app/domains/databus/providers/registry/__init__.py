@@ -49,6 +49,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _chain_indexer_deployer_history,
         _chain_indexer_dex_events,
         _chain_indexer_holders,
+        _chain_indexer_pattern_search,
         _chain_indexer_solana_balance_changes,
         _chain_indexer_token_transfers,
     )
