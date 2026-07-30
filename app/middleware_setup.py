@@ -441,6 +441,7 @@ def _try_register_csrf(app: FastAPI) -> None:
             "/api/v1/bulletin-board/x402/",
             "/api/v1/developer/",
             "/api/v1/databus/webhooks/",  # External webhooks (Helius, Moralis, etc.) — no cookies
+            "/api/v1/public/",  # Public scanner/wallet APIs — called by walletpress, bots, etc.
             "/mcp/x402",
             "/x402/sandbox/",
             "/.well-known/x402",

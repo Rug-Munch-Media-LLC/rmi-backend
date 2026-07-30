@@ -1,4 +1,11 @@
-"""Scanner module — split from modules.py for maintainability."""
+"""Scanner module — split from modules.py for maintainability.
+
+Own-Data Integration:
+    _check_goplus_security now queries own_security_analysis FIRST which
+    computes security indicators from ClickHouse evm_transfers + deployer_events.
+    Falls back to GoPlus API only when own data has insufficient confidence.
+    This eliminates the primary GoPlus API dependency for well-tracked tokens.
+"""
 
 from __future__ import annotations
 
@@ -8,13 +15,17 @@ import httpx
 
 from app.domains.scanner.modules._core import (
     GOPLUS_CHAIN_IDS,
+    PREFER_OWN_DATA,
     _fetch_dexscreener,
     logger,
 )
 
 
 async def _check_goplus_security(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check token security via GoPlus Security API (free, 21+ chains).
+    """Check token security — own ClickHouse data first, GoPlus API fallback.
+
+    Tier 1: own_security_analysis — computes from ClickHouse (evm_transfers, deployer_events)
+    Tier 2: GoPlus Security API (free, 21+ chains) — original behavior
 
     Evaluates risk flags: honeypot status, ownership renounced, hidden owner,
     mintable, proxy, blacklist, buy/sell tax, and 15+ additional signals.
@@ -25,11 +36,58 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
 
     Returns:
         Dict with risk_score, is_honeypot, is_mintable, holder_count, buy/sell tax,
-        and other GoPlus fields. Returns error dict on failure.
+        and other compatible fields. Returns error dict on failure.
 
     Data Sources:
-        - GoPlus Security API (https://api.gopluslabs.io)
+        - Own ClickHouse evm_transfers + deployer_events (primary, zero cost)
+        - GoPlus Security API (fallback, https://api.gopluslabs.io)
     """
+
+    # ── Tier 1: Own ClickHouse security data (zero cost, always fresh) ──
+    if PREFER_OWN_DATA:
+        try:
+            from app.domains.scanner.engines.own_security_analysis import get_own_security
+
+            own_data = await get_own_security(token_address, chain)
+            if own_data.get("source") == "own" and own_data.get("confidence", 0) >= 0.5:
+                risk_score = own_data.get("risk_score", 0)
+                logger.info(
+                    "Using own security data for %s on %s (risk: %s, confidence: %s)",
+                    token_address[:16],
+                    chain,
+                    risk_score,
+                    own_data.get("confidence"),
+                )
+                # Map own format to GoPlus-compatible output
+                return {
+                    "check": "goplus",
+                    "result": "scanned",
+                    "risk_score": risk_score,
+                    "is_honeypot": own_data.get("is_honeypot", False),
+                    "is_mintable": own_data.get("is_mintable", False),
+                    "is_proxy": own_data.get("is_proxy", False),
+                    "is_blacklisted": False,
+                    "is_whitelisted": False,
+                    "can_take_back_ownership": False,
+                    "hidden_owner": False,
+                    "owner_address": own_data.get("owner_address", ""),
+                    "buy_tax": own_data.get("buy_tax_pct", 0),
+                    "sell_tax": own_data.get("sell_tax_pct", 0),
+                    "holder_count": own_data.get("holder_count", 0),
+                    "total_supply": own_data.get("total_supply", ""),
+                    "source": "own_clickhouse",
+                }
+            logger.debug(
+                "Own security data insufficient for %s (confidence: %s), falling back to GoPlus",
+                token_address[:16],
+                own_data.get("confidence", 0),
+            )
+        except ImportError:
+            logger.debug("own_security_analysis not available")
+        except Exception as exc:
+            logger.debug("own_security_analysis_failed", error=str(exc)[:60])
+
+    # ── Tier 2: GoPlus API (original behavior) ──
     chain_id = GOPLUS_CHAIN_IDS.get(chain, chain)
     url = f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}"
     try:

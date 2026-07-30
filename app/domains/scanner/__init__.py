@@ -7,12 +7,20 @@ FREE tier:   SENTINEL Tier 1 (12 core modules) + DexScreener + GoPlus
 PRO tier:    SENTINEL Tier 1+2 (17 modules) + wallet intelligence
 ELITE tier:  SENTINEL Tier 1+2+3+4 (all 21+ modules) + deep analysis
 
-Architecture:
-  - app/domain/scanner/models.py     ScanResult, CHAIN_IDS
-  - app/domain/scanner/market_data.py DexScreener, Solana RPC
-  - app/domain/scanner/modules.py    12 core scanner modules
-  - app/domain/scanner/service.py    scan_token() + quick_scan_text()
-  - app/token_scanner.py             Backward compatibility shim
+Architecture (two scanner implementations):
+  LEGACY path (tier-based, direct HTTP):
+    - app/domain/scanner/models.py          ScanResult (deprecated tier-based)
+    - app/domain/scanner/market_data.py     DexScreener, Solana RPC
+    - app/domain/scanner/modules.py         12 core scanner modules
+    - app/domain/scanner/service/scan.py    scan_token() + quick_scan_text()
+    - app/token_scanner.py                  Backward compatibility shim
+
+  UNIFIED path (field-based, DataBus-powered):
+    - app/domain/scanner/unified_token_scanner.py  ScanResult, UnifiedTokenScanner
+    - app/domain/scanner/shared/                   Consolidation utilities
+
+The unified path is the future.  The legacy path is retained for backward
+compatibility and will be removed in a future release.
 """
 
 from __future__ import annotations

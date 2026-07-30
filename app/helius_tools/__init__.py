@@ -12,6 +12,19 @@ Submodules:
 
 from __future__ import annotations
 
-from app.helius_tools.helius_sniper_detector import *
-from app.helius_tools.helius_syndicate_tracker import *
-from app.helius_tools.helius_whale_watcher import *
+from app.helius_tools.helius_sniper_detector import SniperDetector, SniperReport, SniperWallet
+from app.helius_tools.helius_syndicate_tracker import SyndicateEvent, SyndicateTracker, WalletGraphNode
+from app.helius_tools.helius_whale_watcher import WhaleAlert, WhaleProfile, WhaleWatcher, register_alert_callback
+
+__all__ = [
+    "SniperDetector",
+    "SniperReport",
+    "SniperWallet",
+    "SyndicateEvent",
+    "SyndicateTracker",
+    "WalletGraphNode",
+    "WhaleAlert",
+    "WhaleProfile",
+    "WhaleWatcher",
+    "register_alert_callback",
+]

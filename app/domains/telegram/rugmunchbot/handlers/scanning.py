@@ -126,6 +126,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"/simulate <code>address</code> [amount] - Buy/sell simulation\n"
         f"/compare <code>addr1</code> <code>addr2</code> - Side-by-side\n"
         f"/quick <code>symbol</code> - Quick price check (same as $TOKEN)\n\n"
+        f"/price <code>address</code> [chain] - Token price by contract\n"
+        f"/dex <code>address</code> [chain] - DEX pairs & liquidity\n"
         f"\U0001f9db <b>WALLET INTELLIGENCE</b>\n{d}\n"
         f"/wallet <code>address</code> - Forensic wallet analysis\n"
         f"/portfolio <code>address</code> - Wallet portfolio scanner\n"
