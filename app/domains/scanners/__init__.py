@@ -39,6 +39,11 @@ from .contract_authority import (
     run_contract_authority_scan,
 )
 from .contract_diff import ContractDiffAnalyzer, ContractDiffReport
+from .cross_chain_trace import (
+    CrossChainTraceAnalyzer,
+    CrossChainTraceReport,
+    analyze_wallet as run_cross_chain_trace,
+)
 from .decompiler_analyzer import DecompilerAnalyzer, DecompilerReport
 from .dev_reputation import DevReputationEngine
 from .exchange_funder import ExchangeFunderDetector
