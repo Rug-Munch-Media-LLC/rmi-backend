@@ -4,10 +4,12 @@ Entity Resolver - Cross-chain entity linking.
 Links wallets across chains using:
   1. Bridge mappings (wallet A on chain X → wallet B on chain Y via bridge tx)
   2. Same address heuristic (EVM addresses are portable across EVM chains)
-  3. Gas payer networks (one wallet paying for deploys across chains)
-  4. Deposit-withdraw patterns (CEX flow tracing)
+  3. Same-deployer matching (deployer active on 2+ chains — powered by chain-indexer)
+  4. Gas payer networks (one wallet paying for deploys across chains)
+  5. Deposit-withdraw patterns (CEX flow tracing)
 
 Produces entity_id (deterministic hash) for each resolved entity group.
+Now includes deployer-based cross-chain matching via cross_chain_tracking.
 """
 
 from __future__ import annotations
@@ -21,13 +23,14 @@ from .storage import WalletStorage, get_storage
 
 logger = get_logger("wallet_memory.entity_resolver")
 
+
 def _mark_degraded(store: str) -> None:
     try:
         from app.core.degradation import get_registry
-
         get_registry().mark_down(store)
     except (AttributeError, ImportError):
         pass
+
 
 class EntityResolver:
     """
@@ -57,6 +60,7 @@ class EntityResolver:
         entity_id = self._make_entity_id(addr, chain)
 
         # Already resolved in storage?
+        stored_entity = None
         try:
             stored_entity = await self.storage.get_entity_for_wallet(addr, chain)
             if stored_entity and stored_entity.get("entity_id"):
@@ -65,19 +69,15 @@ class EntityResolver:
             logger.warning(f"Entity storage lookup failed (degraded): {e}")
             _mark_degraded("neo4j")
 
-        addresses = [{"address": addr, "chain": chain, "confidence": 1.0, "method": "direct"}]
+        addresses = [
+            {"address": addr, "chain": chain, "confidence": 1.0, "method": "direct"}
+        ]
 
         # ── Method 1: Same EVM address heuristic ──────────────────
         # EVM addresses are portable: same private key works on all EVM chains
         evm_chains = [
-            "ethereum",
-            "bsc",
-            "polygon",
-            "arbitrum",
-            "optimism",
-            "base",
-            "avalanche",
-            "fantom",
+            "ethereum", "bsc", "polygon", "arbitrum", "optimism",
+            "base", "avalanche", "fantom",
         ]
 
         from app.chain_registry import is_evm
@@ -85,35 +85,54 @@ class EntityResolver:
         if is_evm(chain):
             for evm_chain in evm_chains:
                 if evm_chain != chain:
-                    # Same address = same entity on all EVM chains
-                    addresses.append(
-                        {
-                            "address": addr,
-                            "chain": evm_chain,
-                            "confidence": 0.90,
-                            "method": "evm_address_portability",
-                        }
-                    )
+                    addresses.append({
+                        "address": addr,
+                        "chain": evm_chain,
+                        "confidence": 0.90,
+                        "method": "evm_address_portability",
+                    })
 
-        # ── Method 2: Bridge mappings ────────────────────────────
+        # ── Method 2: Same-deployer matching (NEW) ─────────────────
+        # If this address is a deployer on 2+ chains via chain-indexer data,
+        # we get strong cross-chain evidence.
+        try:
+            from app.cross_chain_tracking.deployer_matcher import DeployerMatcher
+
+            matcher = DeployerMatcher()
+            deployer_profile = await matcher.resolve_deployer(addr, chain)
+            if deployer_profile.total_chains > 1:
+                for cc_addr in deployer_profile.addresses:
+                    existing = {(a["address"], a["chain"]) for a in addresses}
+                    key = (cc_addr.address, cc_addr.chain)
+                    if key not in existing:
+                        addresses.append({
+                            "address": cc_addr.address,
+                            "chain": cc_addr.chain,
+                            "confidence": cc_addr.confidence,
+                            "method": f"same_deployer_{cc_addr.method}",
+                        })
+        except ImportError:
+            pass  # cross_chain_tracking not available
+        except Exception as e:
+            logger.debug(f"Deployer matcher failed for {addr}: {e}")
+
+        # ── Method 3: Bridge mappings ────────────────────────────
         try:
             bridges = await self.storage.get_bridge_links(addr, chain)
             for bridge in bridges:
                 dest_addr = bridge.get("dest_address", "").lower()
                 dest_chain = bridge.get("dest_chain", "")
                 if dest_addr and dest_chain:
-                    addresses.append(
-                        {
-                            "address": dest_addr,
-                            "chain": dest_chain,
-                            "confidence": bridge.get("confidence", 0.8),
-                            "method": f"bridge_{bridge.get('bridge_name', 'unknown')}",
-                        }
-                    )
+                    addresses.append({
+                        "address": dest_addr,
+                        "chain": dest_chain,
+                        "confidence": bridge.get("confidence", 0.8),
+                        "method": f"bridge_{bridge.get('bridge_name', 'unknown')}",
+                    })
         except Exception as e:
             logger.debug(f"Bridge resolution failed for {addr}: {e}")
 
-        # ── Method 3: Check existing entity membership ───────────
+        # ── Method 4: Check existing entity membership ───────────
         try:
             if stored_entity and stored_entity.get("entity_id"):
                 members = await self.storage.get_entity_wallets(stored_entity["entity_id"])
@@ -122,20 +141,18 @@ class EntityResolver:
                     m_chain = m.get("chain_id", "")
                     existing = {(a["address"], a["chain"]) for a in addresses}
                     if (m_addr, m_chain) not in existing:
-                        addresses.append(
-                            {
-                                "address": m_addr,
-                                "chain": m_chain,
-                                "confidence": m.get("confidence_score", 0.5),
-                                "method": "entity_membership",
-                            }
-                        )
+                        addresses.append({
+                            "address": m_addr,
+                            "chain": m_chain,
+                            "confidence": m.get("confidence_score", 0.5),
+                            "method": "entity_membership",
+                        })
         except Exception as e:
             logger.debug(f"Entity membership lookup failed for {addr}: {e}")
 
         # Persist new entity links
         for addr_entry in addresses:
-            if addr_entry["method"] != "direct":  # Don't re-save the original
+            if addr_entry["method"] != "direct":
                 try:
                     await self.storage.save_entity_link(
                         entity_id=entity_id,
@@ -180,15 +197,12 @@ class EntityResolver:
         confidence: float = 1.0,
     ) -> str:
         """Explicitly link two addresses via a bridge transaction."""
-        # Save the bridge mapping
         await self.storage.save_bridge_link(
             source_addr, source_chain, dest_addr, dest_chain, bridge_name, tx_hash, confidence
         )
 
-        # Create/merge entity
         entity_id = self._make_entity_id(source_addr, source_chain)
 
-        # Link both addresses
         await self.storage.save_entity_link(
             entity_id, source_addr, source_chain, "bridge_mapping", confidence
         )
@@ -199,7 +213,6 @@ class EntityResolver:
         # Check if dest_addr already has an entity and merge
         dest_entity = await self.storage.get_entity_for_wallet(dest_addr, dest_chain)
         if dest_entity and dest_entity.get("entity_id") and dest_entity["entity_id"] != entity_id:
-            # Merge entities: both are the same operator
             dest_members = await self.storage.get_entity_wallets(dest_entity["entity_id"])
             for m in dest_members:
                 await self.storage.save_entity_link(
@@ -219,9 +232,11 @@ class EntityResolver:
         raw = f"{address.lower()}:{chain}"
         return "ent_" + hashlib.sha256(raw.encode()).hexdigest()[:16]
 
+
 # ── Global singleton ────────────────────────────────────────────
 
 _resolver: EntityResolver | None = None
+
 
 def get_entity_resolver() -> EntityResolver:
     global _resolver

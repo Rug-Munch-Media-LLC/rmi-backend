@@ -71,6 +71,7 @@ PENDING_OWNER_SELECTOR = "0xe302bc02"  # pendingOwner()
 
 # ── Dataclasses ──────────────────────────────────────────────────────
 
+
 @dataclass
 class ProxyReport:
     token_address: str
@@ -91,7 +92,9 @@ class ProxyReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
+
 # ── Detector Class ──────────────────────────────────────────────────
+
 
 class ProxyDetector:
     """Resolves proxy contracts and assesses upgrade risk.
@@ -133,7 +136,16 @@ class ProxyDetector:
                 result = body.get("result")
                 if result and result != "0x" and result != "0x0":
                     return result
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("_eth_call_error", exc_info=True)
             logger.warning(f"eth_call failed for {to} data={data[:10]}: {e}")
         return None
@@ -159,7 +171,16 @@ class ProxyDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("result")
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("_eth_getCode_error", exc_info=True)
             logger.warning(f"eth_getCode failed for {address}: {e}")
         return None
@@ -182,7 +203,7 @@ class ProxyDetector:
                 result = body.get("result", [])
                 if result and len(result) > 0:
                     return result[0]
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_contract_source_error", exc_info=True)
             logger.warning(f"Etherscan source fetch failed for {address}: {e}")
         return None
@@ -198,27 +219,12 @@ class ProxyDetector:
     async def _fetch_solana_upgrade_authority(self, program_id: str) -> str | None:
         """Fetch the upgrade authority for a Solana BPF program.
 
-        Uses getProgramData Helius/RPC extension or falls back to
-        account parsing.
+        Uses getProgramAccounts RPC call to find programData account
+        with upgrade authority info.
         """
-        if self._helius_key:
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    r = await client.post(
-                        f"https://api.helius.xyz/v0/programs/{program_id}?api-key={self._helius_key}",
-                        json={},
-                    )
-                    if r.status_code == 200:
-                        data = r.json()
-                        return data.get("upgradeAuthority")
-            except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
-                logger.debug("_fetch_solana_upgrade_authority_error", exc_info=True)
-                logger.warning(f"Helius program data failed for {program_id}: {e}")
-
-        # Fallback: try DAS API or getProgramAccounts
-        result = await self._chain.rpc_call(
-            "getProgramAccounts", [program_id, {"encoding": "jsonParsed"}]
-        )
+        # Note: The old Helius REST /v0/programs/{id} endpoint has been removed.
+        # We now use the RPC fallback directly.
+        result = await self._chain.rpc_call("getProgramAccounts", [program_id, {"encoding": "jsonParsed"}])
         if result and "result" in result:
             accounts = result["result"]
             for acc in accounts:
@@ -250,9 +256,7 @@ class ProxyDetector:
             beacon_addr = "0x" + beacon[-40:]
             if int(beacon_addr, 16) != 0:
                 # Read implementation from beacon contract
-                beacon_impl = await self._eth_call(
-                    beacon_addr, "0x5c60da1b", chain
-                )  # implementation()
+                beacon_impl = await self._eth_call(beacon_addr, "0x5c60da1b", chain)  # implementation()
                 if beacon_impl and len(beacon_impl) > 2:
                     impl_addr = "0x" + beacon_impl[-40:]
                     return True, "beacon", impl_addr, beacon_addr
@@ -275,9 +279,7 @@ class ProxyDetector:
 
         return False, "", "", ""
 
-    async def _check_can_upgrade(
-        self, address: str, admin_addr: str, chain: str
-    ) -> tuple[bool, str, int]:
+    async def _check_can_upgrade(self, address: str, admin_addr: str, chain: str) -> tuple[bool, str, int]:
         """Check if the proxy admin can upgrade implementation.
 
         Returns: (can_upgrade, owner_address, timelock_seconds)
@@ -311,9 +313,7 @@ class ProxyDetector:
 
         return can_upgrade, owner_addr, timelock_seconds
 
-    def _check_impl_for_rug_patterns(
-        self, impl_address: str, bytecode: str
-    ) -> tuple[bool, list[str], str]:
+    def _check_impl_for_rug_patterns(self, impl_address: str, bytecode: str) -> tuple[bool, list[str], str]:
         """Check implementation bytecode for known rug contract patterns.
 
         Returns: (is_known_rug, risk_patterns, bytecode_hash)
@@ -372,9 +372,7 @@ class ProxyDetector:
             count = len(report.impl_risk_patterns)
             if count >= 3:
                 score += 25
-                warnings.append(
-                    f"HIGH: {count} suspicious functions in implementation (drain/withdraw/setOwner)"
-                )
+                warnings.append(f"HIGH: {count} suspicious functions in implementation (drain/withdraw/setOwner)")
             elif count >= 1:
                 score += 10
                 warnings.append(f"MEDIUM: {count} suspicious function(s) in implementation")
@@ -423,9 +421,7 @@ class ProxyDetector:
 
         if is_evm(chain):
             # 1. Check proxy status
-            is_proxy, proxy_type, impl_addr, admin_addr = await self._check_evm_proxy(
-                token_address, chain
-            )
+            is_proxy, proxy_type, impl_addr, admin_addr = await self._check_evm_proxy(token_address, chain)
             report.is_proxy = is_proxy
             report.proxy_type = proxy_type
             report.implementation_address = impl_addr
@@ -444,9 +440,7 @@ class ProxyDetector:
                 # 3. Check implementation bytecode for rug patterns
                 bytecode = await self._eth_getCode(impl_addr, chain)
                 if bytecode:
-                    is_rug, patterns, code_hash = self._check_impl_for_rug_patterns(
-                        impl_addr, bytecode
-                    )
+                    is_rug, patterns, code_hash = self._check_impl_for_rug_patterns(impl_addr, bytecode)
                     report.is_known_rug_impl = is_rug
                     report.impl_risk_patterns = patterns
                     report.impl_bytecode_hash = code_hash

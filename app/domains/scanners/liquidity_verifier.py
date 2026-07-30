@@ -59,7 +59,8 @@ ETHERSCAN_NETWORKS = {
 
 MORALIS_DATA_URL = "https://deep-index.moralis.io/api/v2.2"
 HELIUS_RPC_URL = "https://mainnet.helius-rpc.com"
-HELIUS_API_URL = "https://api.helius.xyz"
+HELIUS_API_URL = "https://mainnet.helius-rpc.com"
+
 
 class LockStatus(Enum):
     LOCKED = "locked"
@@ -68,6 +69,7 @@ class LockStatus(Enum):
     PARTIAL = "partial"  # Split lock (e.g., 80% locked, 20% unlocked)
     EXPIRED = "expired"
     UNKNOWN = "unknown"
+
 
 @dataclass
 class LockDetail:
@@ -81,6 +83,7 @@ class LockDetail:
     is_legit: bool = True  # False if locker is a fake/unverified contract
     is_burned: bool = False
     unlock_in_days: int | None = None
+
 
 @dataclass
 class LockReport:
@@ -98,11 +101,13 @@ class LockReport:
     risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
     warnings: list[str] = field(default_factory=list)
 
+
 # Dead/burn addresses for Solana
 SOLANA_BURN_ADDRESSES = {
     "1nc1nerator11111111111111111111111111111111",
     "11111111111111111111111111111111",
 }
+
 
 class LiquidityVerifier:
     """Verifies liquidity locks, detects fake locks, monitors expiry.
@@ -145,7 +150,16 @@ class LiquidityVerifier:
             elif resp.status_code == 429:
                 logger.warning(f"Etherscan rate limited for {chain}")
                 return None
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_etherscan_get_error", exc_info=True)
             logger.warning(f"Etherscan call failed for {chain}: {e}")
         return None
@@ -173,9 +187,7 @@ class LiquidityVerifier:
             logger.warning("MORALIS_API_KEY not set")
             return None
         try:
-            resp = await self.client.get(
-                url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"}
-            )
+            resp = await self.client.get(url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"})
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
@@ -183,7 +195,16 @@ class LiquidityVerifier:
                 return data.get("result", data.get("data", data))
             elif resp.status_code == 429:
                 logger.warning("Moralis rate limited")
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_moralis_get_error", exc_info=True)
             logger.warning(f"Moralis call failed: {e}")
         return None
@@ -203,26 +224,51 @@ class LiquidityVerifier:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("result")
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_helius_rpc_error", exc_info=True)
             logger.warning(f"Helius RPC call failed: {e}")
         return None
 
     async def _helius_das_get_asset(self, mint_address: str) -> dict | None:
-        """Get DAS asset info for a Solana token."""
+        """Get DAS asset info for a Solana token via Helius DAS API."""
         if not HELIUS_API_KEY:
             return None
         try:
             resp = await self.client.post(
-                f"{HELIUS_API_URL}/v0/token-metadata?api-key={HELIUS_API_KEY}",
-                json={"mintAccounts": [mint_address]},
+                f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": "1",
+                    "method": "getAsset",
+                    "params": {"id": mint_address},
+                },
             )
             if resp.status_code == 200:
                 data = resp.json()
-                if isinstance(data, list) and len(data) > 0:
-                    return data[0]
+                if isinstance(data, dict):
+                    result = data.get("result")
+                    if isinstance(result, dict):
+                        return result
                 return data
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_helius_das_get_asset_error", exc_info=True)
             logger.warning(f"Helius DAS asset lookup failed for {mint_address}: {e}")
         return None
@@ -295,9 +341,7 @@ class LiquidityVerifier:
             "0x0000000000000000000000000000000000000000".lower(),
         }
 
-    async def verify_lock(
-        self, token_address: str, chain: str, lp_token: str = "", symbol: str = ""
-    ) -> LockReport:
+    async def verify_lock(self, token_address: str, chain: str, lp_token: str = "", symbol: str = "") -> LockReport:
         """Full liquidity verification for a token.
 
         Steps:
@@ -424,17 +468,13 @@ class LiquidityVerifier:
         # Detect split locks (e.g., 80% locked, 20% unlocked)
         if lock_details:
             max_lock = max(d.percentage_locked for d in lock_details)
-            other_locks = [
-                d for d in lock_details if d.percentage_locked < max_lock and not d.is_burned
-            ]
+            other_locks = [d for d in lock_details if d.percentage_locked < max_lock and not d.is_burned]
             if other_locks and max_lock < 90:
                 has_split_lock = True
 
         # Determine overall status
         if total_locked_pct >= 95:
-            status = (
-                LockStatus.BURNED if any(d.is_burned for d in lock_details) else LockStatus.LOCKED
-            )
+            status = LockStatus.BURNED if any(d.is_burned for d in lock_details) else LockStatus.LOCKED
         elif total_locked_pct >= 70:
             status = LockStatus.LOCKED
         elif total_locked_pct >= 30:
@@ -474,9 +514,7 @@ class LiquidityVerifier:
         """
         # Try DexScreener to find the LP pair info
         try:
-            resp = await self.client.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await self.client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
@@ -491,16 +529,20 @@ class LiquidityVerifier:
                         accounts = await self._helius_get_token_accounts(burn_addr)
                         if accounts:
                             for acct in accounts:
-                                info = (
-                                    acct.get("account", {})
-                                    .get("data", {})
-                                    .get("parsed", {})
-                                    .get("info", {})
-                                )
+                                info = acct.get("account", {}).get("data", {}).get("parsed", {}).get("info", {})
                                 mint = info.get("mint", "")
                                 if mint == lp_address:
                                     return True
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_check_solana_lp_burn_error", exc_info=True)
             logger.debug(f"Solana LP burn check failed: {e}")
 
@@ -552,7 +594,7 @@ class LiquidityVerifier:
                     )
                 if holders:
                     return holders
-        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             logger.debug("_get_lp_holders_error", exc_info=True)
             logger.debug(f"Moralis holders query failed: {e}")
 
@@ -579,9 +621,7 @@ class LiquidityVerifier:
                     holder_totals[addr] = holder_totals.get(addr, 0) + value
                 if holder_totals:
                     total = sum(holder_totals.values()) or 1
-                    sorted_holders = sorted(
-                        holder_totals.items(), key=lambda x: x[1], reverse=True
-                    )[:25]
+                    sorted_holders = sorted(holder_totals.items(), key=lambda x: x[1], reverse=True)[:25]
                     for addr, bal in sorted_holders:
                         holders.append(
                             {
@@ -633,14 +673,6 @@ class LiquidityVerifier:
                 warnings.append(f"UNLOCK SOON: Lock expires in {u.unlock_in_days} days")
 
         score = min(100, score)
-        level = (
-            "CRITICAL"
-            if score >= 70
-            else "HIGH"
-            if score >= 40
-            else "MEDIUM"
-            if score >= 20
-            else "LOW"
-        )
+        level = "CRITICAL" if score >= 70 else "HIGH" if score >= 40 else "MEDIUM" if score >= 20 else "LOW"
 
         return score, level, warnings

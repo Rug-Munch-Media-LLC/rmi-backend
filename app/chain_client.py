@@ -39,6 +39,7 @@ QUICKNODE_KEY = os.getenv("QUICKNODE_KEY", "")
 
 # ── Rate Limiter ───────────────────────────────────────────
 
+
 class TokenBucket:
     def __init__(self, rate: float = 5.0, burst: int = 10) -> None:
         self.rate = rate
@@ -59,6 +60,7 @@ class TokenBucket:
             wait = (1.0 - self.tokens) / self.rate
             self.tokens = 0.0
             return wait
+
 
 class ChainClient:
     """Rate-limited Solana RPC with Helius primary + QuickNode fallback."""
@@ -127,7 +129,7 @@ class ChainClient:
                         all_failed = False
                         await _chain_cb.record_success()
                         return r.json()
-            except (httpx.HTTPError):
+            except httpx.HTTPError:
                 pass
 
         if all_failed:
@@ -159,14 +161,20 @@ class ChainClient:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 r = await client.post(
-                    f"https://api.helius.xyz/v0/token-metadata/?api-key={HELIUS_KEYS[0]}",
-                    json={"mintAccounts": [mint]},
+                    f"https://mainnet.helius-rpc.com/?api-key={HELIUS_KEYS[0]}",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": "1",
+                        "method": "getAsset",
+                        "params": {"id": mint},
+                    },
                 )
                 if r.status_code == 200:
                     data = r.json()
-                    if data and isinstance(data, list) and len(data) > 0:
+                    result = data.get("result") if isinstance(data, dict) else None
+                    if result and isinstance(result, dict):
                         await _chain_cb.record_success()
-                        return data[0]
+                        return result
                     await _chain_cb.record_failure(is_server_error=False)
                     return None
                 elif r.status_code >= 500:
@@ -179,8 +187,10 @@ class ChainClient:
             await _chain_cb.record_failure(is_server_error=True)
         return None
 
+
 # Singleton
 _client: ChainClient | None = None
+
 
 def get_chain_client() -> ChainClient:
     global _client

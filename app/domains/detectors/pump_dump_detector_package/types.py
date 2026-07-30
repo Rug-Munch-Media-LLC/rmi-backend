@@ -2,6 +2,7 @@
 Pump & Dump — Enums, Dataclasses & Constants
 ==============================================
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
@@ -12,7 +13,7 @@ from enum import StrEnum
 
 DEXSCREENER_API = "https://api.dexscreener.com/latest/dex"
 BIRDEYE_API = "https://public-api.birdeye.so/public"
-HELIUS_API = "https://api.helius.xyz/v0"
+HELIUS_API = "https://mainnet.helius-rpc.com/v0"
 
 PUMP_DUMP_THRESHOLDS = {
     "volume_spike_min": 3.0,
@@ -30,6 +31,7 @@ SOCIAL_SPIKE_WINDOW_MINUTES = 30
 
 # ── Enums ────────────────────────────────────────────────────────────
 
+
 class ManipulationType(StrEnum):
     COORDINATED_PUMP = "coordinated_pump"
     WASH_TRADING = "wash_trading"
@@ -40,6 +42,7 @@ class ManipulationType(StrEnum):
     SOCIAL_COORDINATION = "social_coordination"
     POST_PUMP_DISTRIBUTION = "post_pump_distribution"
 
+
 class FindingSeverity(StrEnum):
     CRITICAL = "critical"
     HIGH = "high"
@@ -47,11 +50,14 @@ class FindingSeverity(StrEnum):
     LOW = "low"
     INFO = "info"
 
+
 # ── Dataclasses ──────────────────────────────────────────────────────
+
 
 @dataclass
 class CoordinatedBuyGroup:
     """A cluster of wallets that bought in the same timeframe."""
+
     wallets: list[str]
     window_seconds: int
     total_buy_usd: float
@@ -63,9 +69,11 @@ class CoordinatedBuyGroup:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 @dataclass
 class VolumeAnomaly:
     """Unusual volume pattern indicating artificial activity."""
+
     current_volume_usd: float
     avg_24h_volume_usd: float
     spike_ratio: float
@@ -75,9 +83,11 @@ class VolumeAnomaly:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 @dataclass
 class WashTradeCluster:
     """A group of wallets engaging in circular wash trading."""
+
     wallets: list[str]
     volume_created_usd: float
     trade_count: int
@@ -87,9 +97,11 @@ class WashTradeCluster:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 @dataclass
 class PricePumpSignal:
     """Price movement indicative of pump-and-dump."""
+
     price_before_pump: float
     price_peak: float
     pump_pct: float
@@ -100,9 +112,11 @@ class PricePumpSignal:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 @dataclass
 class PrePumpAccumulation:
     """Wallets accumulating before a coordinated pump."""
+
     wallets: list[str]
     total_accumulated_usd: float
     accumulation_period_hours: int
@@ -112,9 +126,11 @@ class PrePumpAccumulation:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 @dataclass
 class ManipulationFinding:
     """A single manipulation finding with context."""
+
     finding_type: ManipulationType
     severity: FindingSeverity
     description: str
@@ -130,9 +146,11 @@ class ManipulationFinding:
             "evidence": self.evidence,
         }
 
+
 @dataclass
 class PumpDumpAnalysisResult:
     """Complete pump-and-dump analysis result."""
+
     token_address: str
     chain: str
     token_symbol: str
@@ -198,7 +216,9 @@ class PumpDumpAnalysisResult:
         if self.coordinated_groups:
             lines.append(f"## Coordinated Buy Groups ({len(self.coordinated_groups)})")
             for g in self.coordinated_groups:
-                lines.append(f"- **{len(g.wallets)} wallets** bought ${g.total_buy_usd:,.0f} in {g.window_seconds}s window")
+                lines.append(
+                    f"- **{len(g.wallets)} wallets** bought ${g.total_buy_usd:,.0f} in {g.window_seconds}s window"
+                )
                 lines.append(f"  └─ Fresh wallets: {g.fresh_wallet_count}/{len(g.wallets)}")
             lines.append("")
 
@@ -206,13 +226,17 @@ class PumpDumpAnalysisResult:
             lines.append("## Volume Anomalies")
             for v in self.volume_anomalies:
                 spike_emoji = "🔥" if v.spike_ratio > 10 else "⚠️"
-                lines.append(f"{spike_emoji} **{v.spike_ratio:.1f}x** spike in {v.time_window} (avg ${v.avg_24h_volume_usd:,.0f} → ${v.current_volume_usd:,.0f})")
+                lines.append(
+                    f"{spike_emoji} **{v.spike_ratio:.1f}x** spike in {v.time_window} (avg ${v.avg_24h_volume_usd:,.0f} → ${v.current_volume_usd:,.0f})"
+                )
             lines.append("")
 
         if self.wash_trade_clusters:
             lines.append(f"## Wash Trading Rings ({len(self.wash_trade_clusters)})")
             for w in self.wash_trade_clusters:
-                lines.append(f"- **{len(w.wallets)} wallets** created ${w.volume_created_usd:,.0f} in {w.circular_trades} circular trades")
+                lines.append(
+                    f"- **{len(w.wallets)} wallets** created ${w.volume_created_usd:,.0f} in {w.circular_trades} circular trades"
+                )
             lines.append("")
 
         if self.price_pump:
@@ -226,7 +250,9 @@ class PumpDumpAnalysisResult:
         if self.pre_pump_accumulations:
             lines.append(f"## Pre-Pump Accumulation ({len(self.pre_pump_accumulations)} groups)")
             for a in self.pre_pump_accumulations:
-                lines.append(f"- **{len(a.wallets)} wallets** accumulated ${a.total_accumulated_usd:,.0f} over {a.accumulation_period_hours}h before pump")
+                lines.append(
+                    f"- **{len(a.wallets)} wallets** accumulated ${a.total_accumulated_usd:,.0f} over {a.accumulation_period_hours}h before pump"
+                )
             lines.append("")
 
         lines.append("---")

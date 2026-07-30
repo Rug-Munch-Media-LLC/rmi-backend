@@ -40,14 +40,23 @@ class BubbleMapsPro:
     """
 
     TYPE_COLORS: ClassVar[dict] = {
-        "center": "#ff6b6b", "scammer": "#ff0000", "suspected_scammer": "#ff6b6b",
-        "exchange": "#4dabf7", "whale": "#ffd43b", "bot": "#9775fa",
-        "kol": "#69db7c", "dev": "#ff8787", "unknown": "#868e96",
+        "center": "#ff6b6b",
+        "scammer": "#ff0000",
+        "suspected_scammer": "#ff6b6b",
+        "exchange": "#4dabf7",
+        "whale": "#ffd43b",
+        "bot": "#9775fa",
+        "kol": "#69db7c",
+        "dev": "#ff8787",
+        "unknown": "#868e96",
     }
 
     RISK_COLORS: ClassVar[dict] = {
-        "safe": "#00ff00", "low": "#90ee90", "medium": "#ffd700",
-        "high": "#ff6b6b", "critical": "#ff0000",
+        "safe": "#00ff00",
+        "low": "#90ee90",
+        "medium": "#ffd700",
+        "high": "#ff6b6b",
+        "critical": "#ff0000",
     }
 
     def __init__(self) -> None:
@@ -142,7 +151,7 @@ class BubbleMapsPro:
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.post(
-                    "https://api.helius.xyz/v0/transactions",
+                    "https://mainnet.helius-rpc.com/v0/transactions",
                     params={"apiKey": api_key},
                     json={"transactions": [signature]},
                 )
@@ -172,8 +181,15 @@ class BubbleMapsPro:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(
                     "https://api.etherscan.io/api",
-                    params={"module": "account", "action": "txlist", "address": address,
-                            "startblock": 0, "endblock": 99999999, "sort": "desc", "apikey": api_key},
+                    params={
+                        "module": "account",
+                        "action": "txlist",
+                        "address": address,
+                        "startblock": 0,
+                        "endblock": 99999999,
+                        "sort": "desc",
+                        "apikey": api_key,
+                    },
                 )
                 if resp.status_code == 200:
                     data = resp.json()
@@ -191,7 +207,7 @@ class BubbleMapsPro:
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(
-                    f"https://api.helius.xyz/v0/addresses/{address}/transactions",
+                    f"https://mainnet.helius-rpc.com/v0/addresses/{address}/transactions",
                     params={"apiKey": api_key, "limit": 50},
                 )
                 if resp.status_code == 200:

@@ -42,9 +42,10 @@ CRITICAL_VOTE_DIFFERENTIAL_PCT = 5.0  # If votes swing >5% in block, suspicious
 DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/tokens/{}"
 SOLSCAN_TOKEN_HOLDERS = "https://api.solscan.io/v2/token/holders?token={}&limit=20"
 BIRDEYE_HOLDER = "https://public-api.birdeye.so/defi/v3/token/holder?address={}"
-HELIUS_WEBHOOK = "https://api.helius.xyz/v0/token-metadata?mintAddress={}"
+HELIUS_WEBHOOK = "https://mainnet.helius-rpc.com/v0/token-metadata?mintAddress={}"
 
 # ── Dataclasses ──────────────────────────────────────────────────
+
 
 @dataclass
 class HolderStake:
@@ -53,6 +54,7 @@ class HolderStake:
     label: str = ""
     is_contract: bool = False
     is_exchange: bool = False
+
 
 @dataclass
 class GovernanceParams:
@@ -63,6 +65,7 @@ class GovernanceParams:
     voting_period_blocks: int = 0
     has_timelock: bool = False
     is_governance_contract: bool = False
+
 
 @dataclass
 class GovernanceAttackResult:
@@ -81,26 +84,25 @@ class GovernanceAttackResult:
     warnings: list[str] = field(default_factory=list)
     details: dict[str, Any] = field(default_factory=dict)
 
+
 # ─── HTTP helpers (minimal dependencies) ─────────────────────────
 
-async def _fetch_json(
-    url: str, headers: dict | None = None, params: dict | None = None, timeout: int = 10
-) -> Any:
+
+async def _fetch_json(url: str, headers: dict | None = None, params: dict | None = None, timeout: int = 10) -> Any:
     """Single URL fetch returning parsed JSON or None."""
     import aiohttp
 
     try:
         async with (
             aiohttp.ClientSession() as session,
-            session.get(
-                url, headers=headers, params=params, timeout=aiohttp.ClientTimeout(total=timeout)
-            ) as resp,
+            session.get(url, headers=headers, params=params, timeout=aiohttp.ClientTimeout(total=timeout)) as resp,
         ):
             if resp.status == 200:
                 return await resp.json()
     except Exception as e:
         logger.debug(f"Fetch failed: {url} - {e}")
     return None
+
 
 async def _eth_call(rpc_url: str, to: str, data: str) -> str | None:
     """Low-level eth_call to read contract state."""
@@ -127,11 +129,14 @@ async def _eth_call(rpc_url: str, to: str, data: str) -> str | None:
         logger.debug(f"eth_call failed for {to}: {e}")
     return None
 
+
 # ─── Data fetching ───────────────────────────────────────────────
+
 
 async def _fetch_dexscreener(token_address: str) -> dict | None:
     """Fetch token pair data from DexScreener (free, no key)."""
     return await _fetch_json(DEXSCREENER_API.format(token_address))
+
 
 async def _fetch_solscan_holders(token_address: str) -> list[dict]:
     """Fetch top holders from Solscan (Solana)."""
@@ -144,6 +149,7 @@ async def _fetch_solscan_holders(token_address: str) -> list[dict]:
         return data.get("data", [])
     return []
 
+
 async def _fetch_birdeye_holders(token_address: str) -> list[dict]:
     """Fetch holders from Birdeye."""
     key = os.getenv("BIRDEYE_API_KEY", "")
@@ -154,13 +160,10 @@ async def _fetch_birdeye_holders(token_address: str) -> list[dict]:
         headers={"X-API-KEY": key, "accept": "application/json"},
     )
     if data and isinstance(data, dict):
-        items = (
-            data.get("data", {}).get("items", [])
-            if isinstance(data.get("data"), dict)
-            else data.get("items", [])
-        )
+        items = data.get("data", {}).get("items", []) if isinstance(data.get("data"), dict) else data.get("items", [])
         return items
     return []
+
 
 async def _fetch_evm_holders(token_address: str, chain: str) -> list[dict]:
     """Fetch top EVM token holders from explorer API."""
@@ -170,11 +173,7 @@ async def _fetch_evm_holders(token_address: str, chain: str) -> list[dict]:
     if not chain_cfg or not chain_cfg.explorer_api_url:
         return []
     etherscan_key = os.getenv("ETHERSCAN_API_KEY", "")
-    key = (
-        chain_cfg.get_explorer_api_key()
-        if hasattr(chain_cfg, "get_explorer_api_key")
-        else etherscan_key
-    )
+    key = chain_cfg.get_explorer_api_key() if hasattr(chain_cfg, "get_explorer_api_key") else etherscan_key
     key = key or etherscan_key
     if not key:
         return []
@@ -189,6 +188,7 @@ async def _fetch_evm_holders(token_address: str, chain: str) -> list[dict]:
         return data.get("result", [])
     return []
 
+
 async def _fetch_contract_source(address: str, chain: str) -> str | None:
     """Fetch verified contract source code."""
     from app.chain_registry import CHAINS
@@ -197,25 +197,18 @@ async def _fetch_contract_source(address: str, chain: str) -> str | None:
     if not chain_cfg or not chain_cfg.explorer_api_url:
         return None
     etherscan_key = os.getenv("ETHERSCAN_API_KEY", "")
-    key = (
-        chain_cfg.get_explorer_api_key()
-        if hasattr(chain_cfg, "get_explorer_api_key")
-        else etherscan_key
-    )
+    key = chain_cfg.get_explorer_api_key() if hasattr(chain_cfg, "get_explorer_api_key") else etherscan_key
     key = key or etherscan_key
     if not key:
         return None
-    url = (
-        f"{chain_cfg.explorer_api_url}"
-        f"?module=contract&action=getsourcecode&address={address}"
-        f"&apikey={key}"
-    )
+    url = f"{chain_cfg.explorer_api_url}?module=contract&action=getsourcecode&address={address}&apikey={key}"
     data = await _fetch_json(url)
     if data and isinstance(data, dict):
         result = data.get("result", [])
         if result and len(result) > 0:
             return result[0].get("SourceCode", "")
     return None
+
 
 def _get_rpc_url(chain: str) -> str | None:
     """Get first RPC URL for a chain."""
@@ -226,7 +219,9 @@ def _get_rpc_url(chain: str) -> str | None:
         return chain_cfg.rpc_endpoints[0]
     return None
 
+
 # ─── Governance parameter extraction ─────────────────────────────
+
 
 async def _extract_evm_governance_params(token_address: str, chain: str) -> GovernanceParams:
     """Extract governance parameters from EVM governor contract."""
@@ -289,17 +284,14 @@ async def _extract_evm_governance_params(token_address: str, chain: str) -> Gove
 
     return params
 
+
 def _check_solana_governance(dex_data: dict | None) -> GovernanceParams:
     """Infer governance risk for Solana SPL tokens (no EVM gov contracts)."""
     params = GovernanceParams()
     if dex_data:
         pairs = dex_data.get("pairs") or []
         for pair in pairs:
-            info = (
-                pair.get("info", {})
-                if isinstance(pair.get("info"), dict)
-                else pair.get("baseToken", {})
-            )
+            info = pair.get("info", {}) if isinstance(pair.get("info"), dict) else pair.get("baseToken", {})
             if isinstance(info, dict):
                 # Check for mint authority in info
                 mint_auth = info.get("mintAuthority", info.get("authority", ""))
@@ -316,7 +308,9 @@ def _check_solana_governance(dex_data: dict | None) -> GovernanceParams:
                     params.has_timelock = True  # Immutable = safe
     return params
 
+
 # ─── Holders parsing ─────────────────────────────────────────────
+
 
 def _parse_holders(raw_holders: list[dict]) -> list[HolderStake]:
     """Parse raw explorer holder data into structured objects."""
@@ -331,11 +325,7 @@ def _parse_holders(raw_holders: list[dict]) -> list[HolderStake]:
         label = h.get("label", "")
         is_contract = bool(h.get("is_contract", h.get("isContract", False)))
         is_exchange = bool(
-            label
-            and any(
-                ex in label.lower()
-                for ex in ("binance", "coinbase", "okx", "kraken", "bybit", "gate")
-            )
+            label and any(ex in label.lower() for ex in ("binance", "coinbase", "okx", "kraken", "bybit", "gate"))
         )
         holders.append(
             HolderStake(
@@ -348,7 +338,9 @@ def _parse_holders(raw_holders: list[dict]) -> list[HolderStake]:
         )
     return sorted(holders, key=lambda h: h.percentage, reverse=True)
 
+
 # ─── Risk scoring ────────────────────────────────────────────────
+
 
 def _score_governance_risk(
     top_holder_pct: float,
@@ -393,23 +385,18 @@ def _score_governance_risk(
             if params.quorum_threshold_pct < LOW_QUORUM_PCT:
                 score += 20
                 flags.append(
-                    f"HIGH: Quorum only {params.quorum_threshold_pct:.2f}% - "
-                    f"flash-loan governance attack feasible"
+                    f"HIGH: Quorum only {params.quorum_threshold_pct:.2f}% - flash-loan governance attack feasible"
                 )
             elif params.quorum_threshold_pct < 2.0:
                 score += 10
-                flags.append(
-                    f"MEDIUM: Quorum {params.quorum_threshold_pct:.2f}% - below industry standard"
-                )
+                flags.append(f"MEDIUM: Quorum {params.quorum_threshold_pct:.2f}% - below industry standard")
 
         # Timelock too short
         if params.has_timelock and params.timelock_delay_seconds > 0:
             timelock_hours = params.timelock_delay_seconds / 3600
             if timelock_hours < MIN_TIMELOCK_HOURS:
                 score += 10
-                flags.append(
-                    f"MEDIUM: Timelock only {timelock_hours:.1f}h - insufficient reaction window"
-                )
+                flags.append(f"MEDIUM: Timelock only {timelock_hours:.1f}h - insufficient reaction window")
 
         # Very short voting period
         if params.voting_period_blocks > 0:
@@ -426,10 +413,7 @@ def _score_governance_risk(
         # Low proposal threshold
         if params.proposal_threshold_pct > 0 and params.proposal_threshold_pct < 0.1:
             score += 5
-            flags.append(
-                f"MEDIUM: Proposal threshold {params.proposal_threshold_pct:.3f}% - "
-                f"anyone can propose"
-            )
+            flags.append(f"MEDIUM: Proposal threshold {params.proposal_threshold_pct:.3f}% - anyone can propose")
 
         # Flash loan governance attack feasibility
         flash_loan_feasible = (
@@ -457,7 +441,9 @@ def _score_governance_risk(
 
     return score, level, flags
 
+
 # ─── Main detection function ─────────────────────────────────────
+
 
 async def detect_governance_attack(
     token_address: str,
@@ -548,13 +534,10 @@ async def detect_governance_attack(
             )
     if not result.is_governed and not is_solana(chain):
         warnings.append(
-            "Token does not appear to have on-chain governance - "
-            "no governor contract detected in verified source."
+            "Token does not appear to have on-chain governance - no governor contract detected in verified source."
         )
     if result.is_governed and result.governance_params and not result.governance_params.get("has_timelock"):
-        warnings.append(
-            "Governance actions can execute instantly - no timelock delay protects holders."
-        )
+        warnings.append("Governance actions can execute instantly - no timelock delay protects holders.")
     result.warnings = warnings
 
     # 6. Build details

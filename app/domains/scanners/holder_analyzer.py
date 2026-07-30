@@ -30,6 +30,7 @@ from app.free_solscan_client import FreeSolscanClient
 
 logger = get_logger("holder_analyzer")
 
+
 @dataclass
 class HolderInfo:
     address: str
@@ -41,6 +42,7 @@ class HolderInfo:
     is_contract: bool = False
     label: str | None = None
 
+
 @dataclass
 class ClusterGroup:
     wallets: list[str]
@@ -48,6 +50,7 @@ class ClusterGroup:
     confidence: float  # 0.0-1.0
     cluster_type: str  # "funding", "creation", "behavior", "exchange"
     evidence: list[str] = field(default_factory=list)
+
 
 @dataclass
 class HHIReport:
@@ -62,6 +65,7 @@ class HHIReport:
     exchange_funded_percentage: float = 0.0
     new_wallets_percentage: float = 0.0  # wallets < 7 days old
     warnings: list[str] = field(default_factory=list)
+
 
 class HolderAnalyzer:
     """Analyzes holder distribution, calculates HHI, detects fake diversification.
@@ -96,14 +100,12 @@ class HolderAnalyzer:
     async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
-            resp = await self._http.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
@@ -115,7 +117,7 @@ class HolderAnalyzer:
             if isinstance(result, dict) and "data" in result:
                 return result["data"]
             return result
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("_fetch_birdeye_overview_error", exc_info=True)
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
             return None
@@ -125,26 +127,40 @@ class HolderAnalyzer:
         try:
             holders = self._solscan.get_holder_wallets(token_address, top_n=top_n)
             return holders or []
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("_fetch_solscan_holders_error", exc_info=True)
             logger.warning(f"Solscan holders fetch failed for {token_address}: {e}")
             return []
 
     async def _fetch_helius_token_metadata(self, mint: str) -> dict | None:
-        """Fetch token metadata from Helius."""
+        """Fetch token metadata from Helius DAS API."""
         if not self._helius_key:
             return None
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 r = await client.post(
-                    f"https://api.helius.xyz/v0/token-metadata/?api-key={self._helius_key}",
-                    json={"mintAccounts": [mint]},
+                    f"https://mainnet.helius-rpc.com/?api-key={self._helius_key}",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": "1",
+                        "method": "getAsset",
+                        "params": {"id": mint},
+                    },
                 )
                 if r.status_code == 200:
                     data = r.json()
-                    if data and isinstance(data, list) and len(data) > 0:
-                        return data[0]
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                    result = data.get("result") if isinstance(data, dict) else None
+                    if result and isinstance(result, dict):
+                        return result
+        except (
+            httpx.HTTPError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_fetch_helius_token_metadata_error", exc_info=True)
             logger.warning(f"Helius token metadata failed for {mint}: {e}")
         return None
@@ -301,9 +317,7 @@ class HolderAnalyzer:
                         combined_percentage=round(combined_pct, 2),
                         confidence=confidence,
                         cluster_type="funding",
-                        evidence=[
-                            f"All {len(group)} wallets funded from {source[:8]}...{source[-6:]}"
-                        ],
+                        evidence=[f"All {len(group)} wallets funded from {source[:8]}...{source[-6:]}"],
                     )
                 )
 
@@ -338,9 +352,7 @@ class HolderAnalyzer:
                             combined_percentage=round(combined_pct, 2),
                             confidence=0.7,
                             cluster_type="creation",
-                            evidence=[
-                                f"{len(current_cluster)} wallets created within 1 hour of each other"
-                            ],
+                            evidence=[f"{len(current_cluster)} wallets created within 1 hour of each other"],
                         )
                     )
                 current_cluster = [sorted_holders[i]]
@@ -482,9 +494,7 @@ class HolderAnalyzer:
 
         now_ms = int(time.time() * 1000)
         week_ms = 7 * 24 * 3600 * 1000
-        new_wallets = [
-            h for h in holders if h.first_tx_timestamp and (now_ms - h.first_tx_timestamp) < week_ms
-        ]
+        new_wallets = [h for h in holders if h.first_tx_timestamp and (now_ms - h.first_tx_timestamp) < week_ms]
         new_wallet_pct = sum(h.percentage for h in new_wallets)
 
         # Generate warnings
@@ -497,9 +507,7 @@ class HolderAnalyzer:
             warnings.append(f"MODERATE: HHI {hhi:.0f} - some concentration, monitor whale activity")
 
         if cluster_pct > 10:
-            warnings.append(
-                f"FAKE DIVERSIFICATION: {cluster_pct:.1f}% of supply in detected clusters"
-            )
+            warnings.append(f"FAKE DIVERSIFICATION: {cluster_pct:.1f}% of supply in detected clusters")
 
         if new_wallet_pct > 30:
             warnings.append(f"NEW WALLETS: {new_wallet_pct:.1f}% held by wallets < 7 days old")

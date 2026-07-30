@@ -1,18 +1,11 @@
 """
-Cross-Chain Entity Resolution - Behavioral fingerprinting across blockchains.
-
+Cross-Chain Entity Resolution — Behavioral fingerprinting across blockchains.
+=================================================================================
 Answers: "This ETH scammer = this Solana address = this BSC deployer."
-Uses behavioral fingerprinting + funding source graph to link identities
-across chains where no direct transaction trail exists.
+Uses behavioral fingerprinting + funding source graph + deployer matching to
+link identities across chains.
 
-Approach:
-  1. Build behavioral fingerprint vector from on-chain activity
-  2. Compare against cross-chain fingerprint database (Redis + FAISS)
-  3. Analyze funding source graph for shared origins
-  4. Return identity clusters with confidence scores
-
-Input: Address on any chain
-Output: Linked addresses on other chains with confidence + evidence
+This module is a thin facade that delegates to the cross_chain_tracking package.
 """
 
 from __future__ import annotations
@@ -46,24 +39,26 @@ for canonical, aliases in CHAIN_ALIASES.items():
     for alias in aliases:
         CHAIN_FROM_ALIAS[alias.lower()] = canonical
 
+
 def normalize_chain(chain: str) -> str:
     """Normalize chain name to canonical form - delegates to shared_utils."""
     from app.core.shared_utils import normalize_chain as _normalize
     return _normalize(chain)
+
 
 # ── Behavioral Fingerprint ───────────────────────────────────────
 # 8-dim vector: [tx_frequency, gas_volatility, contract_interaction_ratio,
 #                avg_tx_value, timezone_activity, dex_ratio, bridge_usage, age_days]
 
 def build_cross_chain_fingerprint(
-    tx_frequency: float = 0,  # avg tx per day normalized 0-50
-    gas_volatility: float = 0,  # std dev of gas used 0-1
-    contract_ratio: float = 0,  # % of txs that are contract calls 0-1
-    avg_tx_value: float = 0,  # avg value per tx normalized 0-10 ETH
-    timezone_hours: float = 12,  # primary activity hour 0-24
-    dex_ratio: float = 0,  # % of txs to DEXs 0-1
-    bridge_usage: int = 0,  # bridge tx count normalized 0-20
-    age_days: int = 0,  # account age normalized 0-1000
+    tx_frequency: float = 0,
+    gas_volatility: float = 0,
+    contract_ratio: float = 0,
+    avg_tx_value: float = 0,
+    timezone_hours: float = 12,
+    dex_ratio: float = 0,
+    bridge_usage: int = 0,
+    age_days: int = 0,
 ) -> np.ndarray:
     """Build an 8-dim behavioral fingerprint for cross-chain matching."""
     return np.array(
@@ -79,6 +74,7 @@ def build_cross_chain_fingerprint(
         ],
         dtype=np.float32,
     )
+
 
 # ── Funding Source Graph ─────────────────────────────────────────
 
@@ -103,7 +99,6 @@ def analyze_funding_chain(
         chains_touched.add(src_chain)
         addresses_found.append(source.get("address", ""))
 
-        # Check for mixer/CEX patterns
         notes = str(source.get("label", "")).lower()
         if any(w in notes for w in ["tornado", "mixer", "privacy"]):
             mixer_signal = True
@@ -119,12 +114,9 @@ def analyze_funding_chain(
         "mixer_funded": mixer_signal,
         "cex_funded": cex_signal,
         "funding_addresses": addresses_found[:10],
-        "complexity": "high"
-        if cross_chain_hops > 2
-        else "medium"
-        if cross_chain_hops > 0
-        else "low",
+        "complexity": "high" if cross_chain_hops > 2 else "medium" if cross_chain_hops > 0 else "low",
     }
+
 
 # ── Identity Resolution ──────────────────────────────────────────
 
@@ -138,14 +130,13 @@ def resolve_cross_chain_identity(
 ) -> dict[str, Any]:
     """
     Resolve cross-chain identity for a given address.
-
-    Returns linked addresses on other chains with confidence scores.
+    Uses on-chain data via cross_chain_tracking package + behavioral signals.
     """
     chain = normalize_chain(chain)
     matches = []
     evidence = []
 
-    # 1. Behavioral fingerprint matching
+    # 1. Behavioral fingerprint matching (existing)
     if behavioral_fingerprint is not None:
         for match in similar_addresses or []:
             m_addr = match.get("address", "")
@@ -153,7 +144,7 @@ def resolve_cross_chain_identity(
             m_fp = match.get("fingerprint")
 
             if m_chain == chain:
-                continue  # same chain, not cross-chain
+                continue
 
             if m_fp is not None:
                 m_vec = np.array(m_fp, dtype=np.float32)
@@ -163,42 +154,56 @@ def resolve_cross_chain_identity(
                         / (np.linalg.norm(behavioral_fingerprint) * np.linalg.norm(m_vec) + 1e-8)
                     )
                     if sim > 0.7:
-                        matches.append(
-                            {
-                                "address": m_addr,
-                                "chain": m_chain,
-                                "confidence": round(sim * 100),
-                                "method": "behavioral_fingerprint",
-                                "evidence": f"Behavioral fingerprint similarity: {sim:.2f}",
-                            }
-                        )
+                        matches.append({
+                            "address": m_addr,
+                            "chain": m_chain,
+                            "confidence": round(sim * 100),
+                            "method": "behavioral_fingerprint",
+                            "evidence": f"Behavioral fingerprint similarity: {sim:.2f}",
+                        })
                         evidence.append(f"Behavioral match: {m_addr} on {m_chain} ({sim:.1%})")
 
-    # 2. Funding source graph analysis
+    # 2. Deployer-based matching (NEW — powered by cross_chain_tracking)
+    try:
+        import asyncio
+
+        from app.cross_chain_tracking.deployer_matcher import DeployerMatcher
+
+        matcher = DeployerMatcher()
+        deployer_profile = asyncio.run(matcher.resolve_deployer(address, chain))
+        if deployer_profile.total_chains > 1:
+            for addr in deployer_profile.addresses:
+                if addr.address != address.lower() or addr.chain != chain:
+                    matches.append({
+                        "address": addr.address,
+                        "chain": addr.chain,
+                        "confidence": int(addr.confidence * 100),
+                        "method": "same_deployer",
+                        "evidence": addr.evidence,
+                    })
+                    evidence.append(
+                        f"Same deployer on {addr.chain}: {addr.evidence}"
+                    )
+    except Exception as e:
+        logger.debug("Deployer matcher failed for %s: %s", address[:12], e)
+
+    # 3. Funding source graph analysis
     if funding_sources:
         funding_analysis = analyze_funding_chain(address, funding_sources, chain)
         evidence.append(f"Funding touches {len(funding_analysis['chains_involved'])} chains")
         if funding_analysis["mixer_funded"]:
             evidence.append("Mixer-funded - possible laundering")
         if funding_analysis["cross_chain_hops"] > 0:
-            evidence.append(
-                f"{funding_analysis['cross_chain_hops']} cross-chain funding hops detected"
-            )
+            evidence.append(f"{funding_analysis['cross_chain_hops']} cross-chain funding hops detected")
 
-    # 3. Label-based hints (from wallet memory bank)
+    # 4. Label-based hints
     if label_hints:
         for hint in label_hints[:3]:
             evidence.append(f"Label match: {hint}")
 
-    # 4. Transaction pattern similarity
-    # (placeholder - would compare tx timing, gas patterns, DEX preferences)
-
     # ── Aggregate ──
-    resolved = False
-    confidence = 0
-    if matches:
-        resolved = True
-        confidence = max(m["confidence"] for m in matches)
+    resolved = bool(matches)
+    confidence = max((m["confidence"] for m in matches), default=0)
 
     return {
         "address": address,
@@ -216,12 +221,13 @@ def resolve_cross_chain_identity(
         ),
     }
 
+
 # ── Quick utility: detect chain from address format ──────────────
 
 def detect_chain(address: str) -> str | None:
     """Detect blockchain from address format."""
     if re.match(r"^0x[a-fA-F0-9]{40}$", address):
-        return "ethereum"  # Could also be BSC, Polygon, etc.
+        return "ethereum"
     if re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
         return "solana"
     if re.match(r"^T[a-zA-Z0-9]{33}$", address):
@@ -229,3 +235,29 @@ def detect_chain(address: str) -> str | None:
     if re.match(r"^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address):
         return "bitcoin"
     return None
+
+
+# ── NEW: Convenience wrappers for cross_chain_tracking ───────────
+
+async def get_cross_chain_profile(address: str, chain: str = "ethereum") -> dict:
+    """Get cross-chain entity profile — delegates to tracking package."""
+    from app.cross_chain_tracking.entity_tracker import get_entity_tracker
+    tracker = get_entity_tracker()
+    profile = await tracker.resolve(address, chain)
+    return profile.model_dump(mode="json")
+
+
+async def get_multi_chain_deployers(
+    min_chains: int = 2,
+    chain_filter: list[str] | None = None,
+    limit: int = 5000,
+) -> list[dict]:
+    """Get deployers active on multiple chains."""
+    from app.cross_chain_tracking.deployer_matcher import DeployerMatcher
+    matcher = DeployerMatcher()
+    results = await matcher.find_multi_chain_deployers(
+        min_chains=min_chains,
+        chain_filter=chain_filter,
+        limit=limit,
+    )
+    return [r.model_dump(mode="json") for r in results]

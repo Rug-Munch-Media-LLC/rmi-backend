@@ -877,7 +877,7 @@ class NewsletterService(BaseService[Newsletter]):
                     return False
 
                 resp = await client.get(
-                    f"https://api.helius.xyz/v0/transactions/?apiKey={api_key}&search={tx_hash}",
+                    f"https://mainnet.helius-rpc.com/v0/transactions/?apiKey={api_key}&search={tx_hash}",
                     timeout=15.0,
                 )
                 if resp.status_code != 200:

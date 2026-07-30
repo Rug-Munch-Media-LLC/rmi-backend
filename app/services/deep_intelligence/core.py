@@ -17,6 +17,7 @@ logger = get_logger("deep_intel")
 
 # ── Configuration ──────────────────────────────────────────────────────────
 
+
 class DeepIntelConfig:
     HELIUS_KEY: str = os.getenv("HELIUS_API_KEY", "")
     HELIUS_KEY_2: str = os.getenv("HELIUS_API_KEY_2", "")
@@ -56,9 +57,11 @@ class DeepIntelConfig:
         "avax": "avalanche",
     }
 
+
 cfg = DeepIntelConfig()
 
 # ── Data Clients ───────────────────────────────────────────────────────────
+
 
 class MultiChainClient:
     """Unified client for on-chain data across all chains"""
@@ -95,9 +98,7 @@ class MultiChainClient:
                 pairs = data.get("pairs") or []
                 matching = [p for p in pairs if p.get("chainId") == chain_id]
                 if matching:
-                    best = max(
-                        matching, key=lambda p: float(p.get("volume", {}).get("h24", 0) or 0)
-                    )
+                    best = max(matching, key=lambda p: float(p.get("volume", {}).get("h24", 0) or 0))
                     return best
                 return {"error": "no matching pair found"}
             return {"error": f"DexScreener HTTP {resp.status_code}"}
@@ -127,7 +128,7 @@ class MultiChainClient:
         if not cfg.HELIUS_KEY:
             return {"error": "HELIUS_API_KEY not set"}
         try:
-            resp = await self.http.get(f"https://api.helius.xyz/v0{path}?api-key={cfg.HELIUS_KEY}")
+            resp = await self.http.get(f"https://mainnet.helius-rpc.com/v0{path}?api-key={cfg.HELIUS_KEY}")
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Helius HTTP {resp.status_code}"}
@@ -140,7 +141,7 @@ class MultiChainClient:
             return {"error": "HELIUS_API_KEY not set"}
         try:
             resp = await self.http.post(
-                f"https://api.helius.xyz/v0{path}?api-key={cfg.HELIUS_KEY}", json=payload
+                f"https://mainnet.helius-rpc.com/v0{path}?api-key={cfg.HELIUS_KEY}", json=payload
             )
             if resp.status_code == 200:
                 return resp.json()
@@ -314,6 +315,7 @@ class MultiChainClient:
         except (ValueError, ConnectionError, RuntimeError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
+
 
 # ── Module-level instance ──
 

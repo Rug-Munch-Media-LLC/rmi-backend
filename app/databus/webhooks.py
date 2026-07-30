@@ -285,7 +285,7 @@ async def setup_webhook(service: str, webhook_url: str, events: list[str] | None
         try:
             async with httpx.AsyncClient(timeout=15) as c:
                 resp = await c.post(
-                    f"https://api.helius.xyz/v0/webhooks?api-key={api_key}",
+                    f"https://mainnet.helius-rpc.com/v0/webhooks?api-key={api_key}",
                     json={
                         "webhookURL": webhook_url,
                         "transactionTypes": events or ["ANY"],

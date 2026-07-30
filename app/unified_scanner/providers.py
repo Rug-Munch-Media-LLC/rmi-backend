@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 # SENTINEL INTEGRATION - Labels + Intel
 # ═══════════════════════════════════════════
 
+
 async def _fetch_sentinel_labels(address: str, chain: str) -> dict[str, Any]:
     """Get rich labels from SENTINEL address_labeler."""
     try:
@@ -32,6 +33,7 @@ async def _fetch_sentinel_labels(address: str, chain: str) -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"SENTINEL labels failed for {address}: {e}")
     return {}
+
 
 async def _fetch_wallet_memory(address: str, chain: str) -> dict[str, Any]:
     """Cross-chain identity + cluster intel from Wallet Memory Bank."""
@@ -53,18 +55,18 @@ async def _fetch_wallet_memory(address: str, chain: str) -> dict[str, Any]:
         logger.debug(f"Wallet Memory Bank failed for {address}: {e}")
     return {}
 
+
 # ═══════════════════════════════════════════
 # TOKEN PORTFOLIO SCAN
 # ═══════════════════════════════════════════
+
 
 async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
     """Scan held tokens using SENTINEL - parallel with full enrichments."""
     if not tokens:
         return {"scanned": 0, "risks": [], "deployers_to_flag": []}
 
-    sorted_tokens = sorted(
-        tokens, key=lambda t: float(t.get("amount", 0) if isinstance(t, dict) else 0), reverse=True
-    )
+    sorted_tokens = sorted(tokens, key=lambda t: float(t.get("amount", 0) if isinstance(t, dict) else 0), reverse=True)
     mints = []
     for token in sorted_tokens[:5]:
         mint = token.get("mint", "") if isinstance(token, dict) else token
@@ -143,9 +145,11 @@ async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
         "high_risk_count": sum(1 for r in risks if r["safety_score"] < 30),
     }
 
+
 # ═══════════════════════════════════════════
 # THREAT INTELLIGENCE
 # ═══════════════════════════════════════════
+
 
 async def _check_hapi_risk(address: str, chain: str) -> dict[str, Any] | None:
     """Query HAPI Protocol on-chain risk scoring."""
@@ -168,6 +172,7 @@ async def _check_hapi_risk(address: str, chain: str) -> dict[str, Any] | None:
         logger.debug(f"HAPI check failed: {e}")
     return None
 
+
 async def _check_misttrack_light(address: str, chain: str) -> dict[str, Any] | None:
     """Query SlowMist MistTrack Light - free wallet risk assessment."""
     try:
@@ -188,6 +193,7 @@ async def _check_misttrack_light(address: str, chain: str) -> dict[str, Any] | N
     except Exception as e:
         logger.debug(f"MistTrack check failed: {e}")
     return None
+
 
 async def _check_honeydb_ip(ip_address: str) -> dict[str, Any] | None:
     """Query HoneyDB for threat actor data on IP address."""
@@ -214,6 +220,7 @@ async def _check_honeydb_ip(ip_address: str) -> dict[str, Any] | None:
     except Exception as e:
         logger.debug(f"HoneyDB check failed: {e}")
     return None
+
 
 async def _check_trm_sanctions_wallet(address: str) -> dict[str, Any] | None:
     """Screen wallet address against TRM Labs sanctions list."""
@@ -242,9 +249,11 @@ async def _check_trm_sanctions_wallet(address: str) -> dict[str, Any] | None:
         logger.debug(f"TRM sanctions check failed: {e}")
     return None
 
+
 # ═══════════════════════════════════════════
 # FUNDING SOURCE TRACING & ENTITY RESOLUTION
 # ═══════════════════════════════════════════
+
 
 async def _trace_funding_source(address: str, chain: str) -> dict[str, Any]:
     """Trace initial funding source using on-chain transaction history."""
@@ -257,7 +266,7 @@ async def _trace_funding_source(address: str, chain: str) -> dict[str, Any]:
                 return {}
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(
-                    f"https://api.helius.xyz/v0/addresses/{address}/transactions",
+                    f"https://mainnet.helius-rpc.com/v0/addresses/{address}/transactions",
                     params={"api-key": key, "limit": 10, "type": "TRANSFER"},
                 )
                 if resp.status_code != 200:
@@ -281,15 +290,14 @@ async def _trace_funding_source(address: str, chain: str) -> dict[str, Any]:
                 return {
                     "source": source,
                     "source_label": source_label.get("label", "unknown"),
-                    "is_cex": "exchange" in str(source_label).lower()
-                    or "cex" in str(source_label).lower(),
-                    "is_mixer": "mixer" in str(source_label).lower()
-                    or "tornado" in str(source_label).lower(),
+                    "is_cex": "exchange" in str(source_label).lower() or "cex" in str(source_label).lower(),
+                    "is_mixer": "mixer" in str(source_label).lower() or "tornado" in str(source_label).lower(),
                     "hops": 1,
                 }
         return {"source": "unknown", "hops": 0}
     except (ConnectionError, OSError, TimeoutError):
         return {"source": "unknown", "hops": 0}
+
 
 async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
     """Basic cross-chain entity resolution - FREE tier."""
@@ -311,9 +319,8 @@ async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
     except (AttributeError, ImportError):
         return {"label": "unknown", "source": "none", "chains": [chain]}
 
-async def _calculate_basic_pnl(
-    address: str, chain: str, tokens: list, native_balance: float = 0
-) -> dict[str, Any]:
+
+async def _calculate_basic_pnl(address: str, chain: str, tokens: list, native_balance: float = 0) -> dict[str, Any]:
     """Basic PnL calculation - FREE tier."""
     try:
         total_value = native_balance or 0
@@ -323,18 +330,14 @@ async def _calculate_basic_pnl(
             mints = [t.get("mint", "") for t in tokens[:10] if t.get("mint")]
             if mints:
                 async with httpx.AsyncClient(timeout=8.0) as client:
-                    resp = await client.get(
-                        "https://quote-api.jup.ag/v6/price", params={"ids": ",".join(mints[:5])}
-                    )
+                    resp = await client.get("https://quote-api.jup.ag/v6/price", params={"ids": ",".join(mints[:5])})
                     if resp.status_code == 200:
                         prices = resp.json().get("data", {})
                         for mint, pdata in prices.items():
                             price = float(pdata.get("price", 0))
                             for t in tokens:
                                 if t.get("mint") == mint:
-                                    balance = float(t.get("amount", 0)) / (
-                                        10 ** (t.get("decimals", 0) or 0)
-                                    )
+                                    balance = float(t.get("amount", 0)) / (10 ** (t.get("decimals", 0) or 0))
                                     total_value += balance * price
 
         return {
@@ -350,9 +353,11 @@ async def _calculate_basic_pnl(
             "method": "native_only",
         }
 
+
 # ═══════════════════════════════════════════
 # DATA FLYWHEEL
 # ═══════════════════════════════════════════
+
 
 async def _close_data_flywheel(deployers: list) -> None:
     """Feed scam findings back to Wallet Memory Bank."""
