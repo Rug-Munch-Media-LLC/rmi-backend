@@ -240,7 +240,7 @@ class Settings(BaseSettings):
 
     # ── GCloud ──────────────────────────────────────────────────────────
     gcloud_sa_vault_path: str = Field(
-        default="/root/.secrets/google-sa-cryptorugmunch.json",
+        default="[SECRETS_PATH]/google-sa-cryptorugmunch.json",
         description="Path to Google service account JSON key in vault. Set GCLOUD_SA_VAULT_PATH.",
     )
 

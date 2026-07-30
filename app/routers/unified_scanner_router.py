@@ -59,6 +59,19 @@ async def scan_token(
     admin_key = _get_admin_key(request)
     try:
         result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
+        # Track which modules used own data vs external API fallback
+        own_data_modules = 0
+        fallback_modules = 0
+        for mod_entry in result.modules_run:
+            mod_result = mod_entry.get("result", {})
+            if isinstance(mod_result, dict):
+                source = mod_result.get("source", "")
+                if source in ("own_clickhouse", "own"):
+                    own_data_modules += 1
+                elif mod_entry.get("status") == "success" and source:
+                    fallback_modules += 1
+        fallback_used = fallback_modules > own_data_modules
+
         return {
             "status": "ok",
             "token": result.token_address,
@@ -77,7 +90,12 @@ async def scan_token(
             "scanned_at": result.scanned_at,
             "data_source": "databus",
             "freshness": result.scanned_at,
-            "fallback_used": result.confidence < 50,
+            "fallback_used": fallback_used,
+            "data_sources": {
+                "own_data_modules": own_data_modules,
+                "external_fallback_modules": fallback_modules,
+                "total_modules": len(result.modules_run),
+            },
         }
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e

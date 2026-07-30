@@ -2,7 +2,7 @@
 
 NOTE: ``ScanResult`` here is the legacy tier-based result model (used by
 the old ``service/scan.py``).  New code should prefer the field-based
-``ScanResult`` from ``app.domains.scanner.unified_token_scanner``
+``ScanResult`` from ``app.domains.scanner.unified``
 (DataBus-powered).
 """
 
@@ -18,7 +18,7 @@ class ScanResult:
     """Result of a token security scan.
 
     .. deprecated::
-        Prefer ``app.domains.scanner.unified_token_scanner.ScanResult``
+        Prefer ``app.domains.scanner.unified.ScanResult``
         (field-based, DataBus-powered) for new implementations.
     """
 
