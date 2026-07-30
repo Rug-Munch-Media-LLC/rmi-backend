@@ -65,12 +65,20 @@ def main_menu_keyboard() -> Any:
                 InlineKeyboardButton("🔧 Services", callback_data="services"),
             ],
             [
+                InlineKeyboardButton("💾 Disk", callback_data="disk"),
+                InlineKeyboardButton("🧠 Memory", callback_data="mem"),
+            ],
+            [
                 InlineKeyboardButton("📦 Backup", callback_data="backup"),
                 InlineKeyboardButton("🚀 Deploy", callback_data="deploy"),
             ],
             [
                 InlineKeyboardButton("📊 Health", callback_data="alerts"),
                 InlineKeyboardButton("📋 Logs", callback_data="logs_menu"),
+            ],
+            [
+                InlineKeyboardButton("📁 Git", callback_data="git_menu"),
+                InlineKeyboardButton("📡 Chain", callback_data="chain"),
             ],
             [InlineKeyboardButton("⚡ Quick Ops", callback_data="quick")],
         ]
@@ -131,3 +139,30 @@ def logs_menu() -> Any:
         buttons.append(row)
     buttons.append([InlineKeyboardButton("⬅️ Main Menu", callback_data="main")])
     return InlineKeyboardMarkup(buttons)
+
+def disk_mem_keyboard() -> Any:
+    """Disk/Memory toggle keyboard."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("💾 Disk", callback_data="disk"),
+                InlineKeyboardButton("🧠 Memory", callback_data="mem"),
+            ],
+            [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+        ]
+    )
+
+def git_chain_keyboard() -> Any:
+    """Git/Chain quick access keyboard."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("📁 Git Status", callback_data="git_menu"),
+                InlineKeyboardButton("📡 Chain", callback_data="chain"),
+            ],
+            [
+                InlineKeyboardButton("📤 Push All", callback_data="push_all"),
+            ],
+            [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+        ]
+    )

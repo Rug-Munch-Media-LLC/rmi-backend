@@ -12,36 +12,51 @@ import json
 import logging
 import os
 
-import redis.asyncio as aioredis
-
-from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID
-
 logger = logging.getLogger("admin_bot.redis_listener")
 
 REDIS_QUEUE_KEY = "rag:telegram_queue"
 POLL_TIMEOUT = 5  # seconds per BLPOP call; allows clean shutdown
 
+
+def _build_redis_url(base_url: str | None, password: str | None) -> str:
+    """Inject password into Redis URL if provided and not already present."""
+    if not base_url:
+        return "redis://localhost:6379/0"
+    if "@" in base_url:
+        return base_url  # already has credentials
+    if password and "://" in base_url:
+        parts = base_url.split("://", 1)
+        return f"{parts[0]}://:{password}@{parts[1]}"
+    return base_url
+
+
 async def start_redis_listener(bot_app) -> None:
     """Async BLPOP consumer.  Runs forever; start as an asyncio task."""
     logger.info(
-        "Redis listener starting on queue=%s → chat=%s",
+        "Redis listener starting on queue=%s",
         REDIS_QUEUE_KEY,
-        ADMIN_CHAT_ID,
+    )
+
+    redis_url = _build_redis_url(
+        os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+        os.environ.get("REDIS_PASSWORD", ""),
     )
 
     try:
-        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-        redis_password = os.environ.get("REDIS_PASSWORD", "")
-        if redis_password and "://" in redis_url:
-            # Inject password into URL if needed
-            if "@" not in redis_url:
-                parts = redis_url.split("://", 1)
-                redis_url = f"{parts[0]}://:{redis_password}@{parts[1]}"
-        client = aioredis.from_url(redis_url)
+        import redis.asyncio as aioredis
+
+        client = aioredis.from_url(redis_url, decode_responses=True)
         await client.ping()
-    except (ConnectionError, OSError, ValueError) as exc :
-        logger.debug("start_redis_listener_error", exc_info=True)
+    except ImportError:
+        logger.warning("redis.asyncio not installed — Redis listener disabled")
+        return
+    except (ConnectionError, OSError, ValueError) as exc:
+        logger.debug("start_redis_listener_connection_error", exc_info=True)
         logger.error("Redis connection failed: %s", exc)
+        return
+    except Exception as exc:
+        # Catch auth errors etc.
+        logger.warning("Redis setup failed (non-critical): %s", exc)
         return
 
     _empty_logged = False
@@ -65,7 +80,7 @@ async def start_redis_listener(bot_app) -> None:
                 text = _format_payload(payload)
 
                 await bot_app.send_message(
-                    chat_id=ADMIN_CHAT_ID,
+                    chat_id=int(os.environ.get("ADMIN_CHAT_ID", "0")),
                     text=text,
                     parse_mode="Markdown",
                 )
@@ -77,6 +92,7 @@ async def start_redis_listener(bot_app) -> None:
         logger.info("Redis listener cancelled")
     finally:
         await client.aclose()
+
 
 def _format_payload(payload: dict) -> str:
     """Format a RAG alert payload into a concise Telegram message."""

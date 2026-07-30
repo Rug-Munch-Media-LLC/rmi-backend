@@ -31,7 +31,7 @@ async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "• `cd <dir>` — change directory\n"
         "• `pwd` — show current dir\n"
         "• `exit` — leave terminal mode\n\n"
-        "_Commands are filtered for safety. All commands logged._",
+        "_Commands are allowlist-gated. All commands logged._",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(
             [
