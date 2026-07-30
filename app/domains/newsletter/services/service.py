@@ -46,13 +46,11 @@ from app.domains.newsletter.services.sending import (
     verify_crypto_payment,
 )
 from app.domains.newsletter.services.subscribers import (
-    count_subscribers,
     export_subscribers_csv,
     get_segment_subscribers,
     import_subscribers_batch,
     list_subscribers,
 )
-from app.domains.newsletter.services.templates import render_content_html, render_content_text
 
 logger = get_logger(__name__)
 
@@ -62,6 +60,12 @@ class NewsletterService(BaseService[Newsletter]):
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    @classmethod
+    def _slugify(cls, text: str) -> str:
+        """Slugify a string for URLs and filenames."""
+        from app.domains.newsletter.services.helpers import slugify as _slugify_fn
+        return _slugify_fn(text)
 
     # ── Newsletter CRUD ─────────────────────────────────────────────
 

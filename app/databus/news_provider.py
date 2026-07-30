@@ -256,20 +256,20 @@ async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict
     try:
         from app.domains.news.news_service import fetch_all_news
 
-        articles = await fetch_all_news()
+        result = await fetch_all_news(limit=limit)
+        articles = result.get("articles", []) if result else []
         if articles:
             if category:
                 articles = [
                     a for a in articles if category.lower() in (a.get("category", "") + a.get("source", "")).lower()
                 ]
-            result = {
-                "articles": articles[:limit],
+            return {
+                "articles": articles,
                 "total": len(articles),
-                "filtered": len(articles[:limit]),
+                "filtered": len(articles),
                 "source": "rmi_news_aggregator",
                 "free": True,
             }
-            return result
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"News aggregation failed: {e}")
     return None

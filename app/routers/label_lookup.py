@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/v1/labels", tags=["wallet-labels"])
 
 
 class LabelLookupRequest(BaseModel):
-    addresses: list[str] = Field(..., min_items=1, max_items=10)
+    addresses: list[str] = Field(..., min_length=1, max_length=10)
     chain: str = Field(default="ethereum")
 
 

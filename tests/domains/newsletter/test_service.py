@@ -112,7 +112,7 @@ class TestCreateNewsletter:
         assert nl.recurrence == "weekly"
 
 
-@patch("app.domains.newsletter.service.NewsletterService._verify_crypto_payment")
+@patch("app.domains.newsletter.services.service.verify_crypto_payment")
 class TestSubscribeWithCrypto:
     """Tests for crypto subscription flow."""
 
@@ -133,16 +133,19 @@ class TestSubscribeWithCrypto:
             return nl
 
         svc.db.get = _mock_get
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        svc.db.execute = AsyncMock(return_value=mock_result)
 
         result = await svc.subscribe_with_crypto(
             CryptoSubscribeRequest(
                 newsletter_id="10000000-0000-0000-0000-000000000001",
                 email="free@example.com",
                 tier="free",
-                chain="",
-                token="",
-                tx_hash="",
-                from_address="",
+                chain="eth",
+                token="USDC",
+                tx_hash="0x" + "a" * 64,
+                from_address="0x0000000000000000000000000000000000000000",
             )
         )
 
@@ -165,6 +168,9 @@ class TestSubscribeWithCrypto:
             content_html="<p>Premium</p>",
         )
         svc.db.get = AsyncMock(return_value=nl)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        svc.db.execute = AsyncMock(return_value=mock_result)
 
         result = await svc.subscribe_with_crypto(
             CryptoSubscribeRequest(
@@ -200,6 +206,9 @@ class TestImportSubscribers:
             content_html="<p>Import</p>",
         )
         svc.db.get = AsyncMock(return_value=nl)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        svc.db.execute = AsyncMock(return_value=mock_result)
 
         rows = [
             SubscriberImportRow(email="alice@example.com", tier="free"),
@@ -224,6 +233,9 @@ class TestImportSubscribers:
             content_html="<p>Bad</p>",
         )
         svc.db.get = AsyncMock(return_value=nl)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        svc.db.execute = AsyncMock(return_value=mock_result)
 
         rows = [SubscriberImportRow(email=None, wallet_address=None, protocol=None, protocol_id=None)]
         result = await svc.import_subscribers("40000000-0000-0000-0000-000000000004", rows)
@@ -249,10 +261,8 @@ class TestDeliveryStatus:
         )
         svc.db.get = AsyncMock(return_value=nl)
 
-        # Mock the execute to return nothing
-        mock_result = MagicMock()
-        mock_result.scalar.return_value = 0
-        svc.db.execute = AsyncMock(return_value=mock_result)
+        # Mock scalar queries to return 0
+        svc.db.scalar = AsyncMock(return_value=0)
 
         status = await svc.get_delivery_status("50000000-0000-0000-0000-000000000005")
 
@@ -270,15 +280,13 @@ class TestExportSubscribers:
     async def test_export_empty(self, svc: NewsletterService):
         """Test exporting with no subscribers."""
         # Mock list_subscribers to return empty
-        from app.domains.newsletter.service import NewsletterService
-
-        with patch.object(
-            NewsletterService,
-            "list_subscribers",
-            AsyncMock(return_value=([], 0)),
-        ):
-            csv_data = await svc.export_subscribers_csv("some-id")
-            assert "email,wallet_address,protocol" in csv_data
+        # Mock db to return empty subscriber list
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        svc.db.execute = AsyncMock(return_value=mock_result)
+        svc.db.scalar = AsyncMock(return_value=0)
+        csv_data = await svc.export_subscribers_csv("50000000-0000-0000-0000-000000000005")
+        assert "email,wallet_address,protocol" in csv_data
 
 
 class TestSchedule:
