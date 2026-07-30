@@ -52,9 +52,11 @@ Data Source:
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from app.core.logging import get_logger
@@ -67,6 +69,49 @@ _DEX_CACHE_MAX = 100
 
 # ── Lazy ClickHouse client (reuses chain_indexer.py pattern) ─────────────
 _ch_client: Any = None
+_ch_pair_cache: dict[str, dict[str, tuple[str, str]]] = {}  # chain -> {pair: (token0, token1)}
+
+# Pair cache directory (from lite_indexer)
+_PAIR_CACHE_DIR = Path("/srv/data/chain-indexer/state")
+
+
+def _load_pair_cache(chain: str) -> dict[str, tuple[str, str]]:
+    """Load the pair→tokens cache for a chain.
+
+    Built by lite_indexer from PairCreated/PoolCreated events + eth_call fallback.
+    Allows resolving existing dex_events by pool address (contract_address)
+    since all 47M+ historical events have empty token0/token1.
+    """
+    global _ch_pair_cache
+    if chain in _ch_pair_cache:
+        return _ch_pair_cache[chain]
+
+    cache_path = _PAIR_CACHE_DIR / f"pair_tokens_{chain}.json"
+    if not cache_path.exists():
+        _ch_pair_cache[chain] = {}
+        logger.debug("pair_cache_not_found", chain=chain)
+        return {}
+
+    try:
+        data = json.loads(cache_path.read_text())
+        result = {k: (v[0], v[1]) if isinstance(v, list) else v for k, v in data.items()}
+        _ch_pair_cache[chain] = result
+        logger.debug("pair_cache_loaded", chain=chain, pairs=len(result))
+        return result
+    except (json.JSONDecodeError, OSError, TypeError) as exc:
+        logger.warning("pair_cache_load_failed", chain=chain, error=str(exc)[:80])
+        _ch_pair_cache[chain] = {}
+        return {}
+
+
+def _get_pools_for_token(pair_cache: dict[str, tuple[str, str]], token_address: str) -> list[str]:
+    """Reverse-lookup: find all pool addresses where token0 or token1 matches."""
+    token_lower = token_address.lower()
+    pools: list[str] = []
+    for pool_addr, (t0, t1) in pair_cache.items():
+        if t0.lower() == token_lower or t1.lower() == token_lower:
+            pools.append(pool_addr)
+    return pools
 
 
 def _get_ch_client() -> Any | None:
@@ -285,6 +330,11 @@ async def _query_dex_swaps(
         if client is None:
             return []
 
+        # Load pair cache and find pools for this token (bridges 47M existing
+        # events with empty token0/token1 to work with our query)
+        pair_cache = _load_pair_cache(chain)
+        known_pools = _get_pools_for_token(pair_cache, token_address)
+
         params: dict[str, Any] = {
             "addr0": token_address,
             "addr1": token_address,
@@ -292,9 +342,26 @@ async def _query_dex_swaps(
             "hours": hours_back,
         }
 
+        # Build WHERE clause: try token0/token1 match first (future data),
+        # fall back to contract_address IN known pools (historical data)
+        where_conditions = [
+            "chain = %(chain)s",
+            "type = 'swap'",
+            "block_timestamp >= now() - INTERVAL %(hours)s HOUR",
+            "(token0 = %(addr0)s OR token1 = %(addr1)s)",
+        ]
+
+        if known_pools:
+            params["known_pools"] = known_pools
+            # Include contract_address IN known pools for historical events
+            # that have empty token0/token1
+            where_conditions[-1] = "(token0 = %(addr0)s OR token1 = %(addr1)s OR contract_address IN %(known_pools)s)"
+
+        where_clause = " AND ".join(where_conditions)
+
         try:
             return client.execute(
-                """
+                f"""
                 SELECT
                     contract_address, dex, version,
                     token0, token1,
@@ -303,10 +370,7 @@ async def _query_dex_swaps(
                     block_timestamp, tx_hash, log_index,
                     type, sender, recipient, whale
                 FROM wallet_memory.dex_events
-                WHERE chain = %(chain)s
-                  AND (token0 = %(addr0)s OR token1 = %(addr1)s)
-                  AND type = 'swap'
-                  AND block_timestamp >= now() - INTERVAL %(hours)s HOUR
+                WHERE {where_clause}
                 ORDER BY block_timestamp DESC
                 LIMIT 500
                 """,
@@ -432,6 +496,21 @@ def _build_pairs(
       - txns_24h: buy/sell count (determined by direction)
       - price_change_24h: relative change from first to last swap
     """
+    # Load pair cache to resolve empty token0/token1 on historical events
+    pair_cache = _load_pair_cache(chain)
+
+    def _get_tokens(pool_addr: str, dex_info: dict) -> tuple[str, str]:
+        """Resolve token0/token1 for a pool, falling back to pair cache."""
+        t0 = dex_info.get("token0", "")
+        t1 = dex_info.get("token1", "")
+        if t0 and t1:
+            return (t0, t1)
+        # Look up in pair cache
+        cached = pair_cache.get(pool_addr.lower())
+        if cached:
+            return cached
+        return (t0, t1)
+
     # Group swaps by pool
     pools: dict[str, list[dict[str, Any]]] = {}
     for swap in swaps:
@@ -448,8 +527,11 @@ def _build_pairs(
         dex_info = pool_swaps[0]
         dex_name = f"{dex_info['dex']}_{dex_info['version']}"
 
+        # Resolve tokens from cache if event has empty token0/token1
+        resolved_t0, resolved_t1 = _get_tokens(pool_addr, dex_info)
+
         # Determine if our token is token0 or token1 in this pool
-        is_token0 = dex_info["token0"].lower() == our_token
+        is_token0 = resolved_t0.lower() == our_token
 
         # Compute volume for our token
         volume_24h = 0.0
