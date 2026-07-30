@@ -105,7 +105,7 @@ async def admin_updates(request: Request, _=Depends(verify_admin)) -> dict:
     }
 
     # ── Try running the system-updates-check.sh script ──
-    script_path = "/root/scripts/system-updates-check.sh"
+    script_path = "[INTERNAL]/system-updates-check.sh"
     if os.path.exists(script_path):  # noqa: ASYNC240 — subprocess check before launch
         try:
             proc = await asyncio.create_subprocess_exec(

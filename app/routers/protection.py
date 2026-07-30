@@ -396,7 +396,7 @@ async def get_domains() -> dict | dict[str, list]:
     """Return the blocklist JSON for extension download."""
     logger.info("=== get_domains endpoint called ===")
     try:
-        extension_blocklist_path = "/root/browser-extension/blocklist.json"
+        extension_blocklist_path = "[INTERNAL]/blocklist.json"
         backend_blocklist_path = "/app/blocklist.json"
         domains_set: set[str] = set()
 

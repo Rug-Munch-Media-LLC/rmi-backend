@@ -8,7 +8,7 @@ All burning only free credits / free tier.
 
 Service account: cryptorugmunch@appspot.gserviceaccount.com
 Project: cryptorugmunch
-Key vault: /root/.secrets/google-sa-cryptorugmunch.json
+Key vault: [SECRETS_PATH]/google-sa-cryptorugmunch.json
 
 Available services:
   - Vertex AI embedding (768d) - separate quota from AI Studio

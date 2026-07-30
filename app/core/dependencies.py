@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
     from app.chain_client import ChainClient
     from app.core.rate_limiter import UnifiedRateLimiter
-    from app.domains.scanner.unified_token_scanner import UnifiedTokenScanner
+    from app.domains.scanner.unified import UnifiedTokenScanner
     from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
     from app.evm_connector import EVMClient
     from app.services.pryscraper_client import PryscraperClient
@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # ── Config ──────────────────────────────────────────────────────────────────
+
 
 def get_settings() -> Settings:
     """Return cached Settings singleton.
@@ -58,7 +59,9 @@ def get_settings() -> Settings:
     """
     return _get_settings()
 
+
 # ── Database sessions ───────────────────────────────────────────────────────
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Request-scoped async SQLAlchemy session.
@@ -72,9 +75,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async for session in _get_db():
         yield session
 
+
 # ── HTTP client ─────────────────────────────────────────────────────────────
 
 _http_client: httpx.AsyncClient | None = None
+
 
 async def get_http_client() -> httpx.AsyncClient:
     """Shared async HTTP client with connection pooling.
@@ -96,6 +101,7 @@ async def get_http_client() -> httpx.AsyncClient:
         logger.info("Shared HTTP client created (max 100 connections)")
     return _http_client
 
+
 async def close_http_client() -> None:
     """Close the shared HTTP client.  Called during app shutdown."""
     global _http_client
@@ -104,7 +110,9 @@ async def close_http_client() -> None:
         _http_client = None
         logger.info("Shared HTTP client closed")
 
+
 # ── Redis ───────────────────────────────────────────────────────────────────
+
 
 async def get_redis() -> Any | None:
     """Async Redis dependency — returns a Redis client or ``None``.
@@ -124,7 +132,9 @@ async def get_redis() -> Any | None:
 
     return get_redis_async()
 
+
 # ── Chain client (Solana) ────────────────────────────────────────────────────
+
 
 def get_chain_client() -> ChainClient:
     """Chain client for Solana RPC (rate-limited, circuit-broken).
@@ -136,7 +146,9 @@ def get_chain_client() -> ChainClient:
 
     return _get_chain_client()
 
+
 # ── EVM client ───────────────────────────────────────────────────────────────
+
 
 def get_evm_client(chain: str = "base") -> EVMClient:
     """EVM blockchain client for the given *chain*.
@@ -153,7 +165,9 @@ def get_evm_client(chain: str = "base") -> EVMClient:
 
     return _get_evm_client(chain=chain)
 
+
 # ── Rate limiter ─────────────────────────────────────────────────────────────
+
 
 def get_rate_limiter() -> UnifiedRateLimiter:
     """Unified rate limiter (token bucket, Redis + in-memory fallback).
@@ -164,7 +178,9 @@ def get_rate_limiter() -> UnifiedRateLimiter:
 
     return _get_rate_limiter()
 
+
 # ── Scanners ─────────────────────────────────────────────────────────────────
+
 
 def get_token_scanner() -> UnifiedTokenScanner:
     """Token scanner singleton (50+ security modules).
@@ -175,6 +191,7 @@ def get_token_scanner() -> UnifiedTokenScanner:
 
     return _get()
 
+
 def get_wallet_scanner() -> UnifiedWalletScanner:
     """Wallet scanner singleton (entity clustering, RAG, risk scoring).
 
@@ -184,7 +201,9 @@ def get_wallet_scanner() -> UnifiedWalletScanner:
 
     return _get()
 
+
 # ── Pryscraper client ────────────────────────────────────────────────────────
+
 
 def get_pryscraper_client() -> PryscraperClient:
     """Pryscraper HTTP client with circuit breaker.
@@ -200,7 +219,9 @@ def get_pryscraper_client() -> PryscraperClient:
         get_pryscraper_client._instance = _client  # type: ignore[attr-defined]
     return _client
 
+
 # ── Convenience: get client IP from request ─────────────────────────────────
+
 
 def get_client_ip(request: Request) -> str:
     """Extract the real client IP from headers or the raw socket."""
@@ -211,7 +232,9 @@ def get_client_ip(request: Request) -> str:
         return request.client.host
     return "unknown"
 
+
 # ── Module-level sentinel cleanup (called from tests) ────────────────────────
+
 
 def reset_http_client() -> None:
     """Reset the HTTP client singleton — used in test teardown."""
