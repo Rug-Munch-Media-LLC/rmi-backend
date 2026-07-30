@@ -1,8 +1,8 @@
 """Newsletter constants — subscription tiers, fee percentages, etc."""
 
 from __future__ import annotations
-from typing import Any
 
+from typing import Any
 
 SUBSCRIPTION_TIERS: dict[str, dict[str, Any]] = {
     "free": {"price_usd": 0, "duration_days": 0, "label": "Free"},

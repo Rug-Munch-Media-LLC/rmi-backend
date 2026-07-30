@@ -17,9 +17,9 @@ from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
-    SOLANAFM_API,
     GOPLUS,
     HONEYPOT,
+    SOLANAFM_API,
 )
 from app.domains.telegram.rugmunchbot.formatters import detect_chain, is_evm, is_sol
 from app.domains.telegram.rugmunchbot.states import get_sol_price

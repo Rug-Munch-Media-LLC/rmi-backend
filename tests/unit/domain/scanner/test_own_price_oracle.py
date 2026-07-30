@@ -17,7 +17,6 @@ from app.domains.scanner.engines.own_price_oracle import (
     get_token_price,
 )
 
-
 # ── Mock helper — prevents all ClickHouse queries from returning data ──
 _MOCK_DEX_SWAPS_EMPTY = patch(
     "app.domains.scanner.engines.own_dex_data.query._query_dex_swaps",
