@@ -67,7 +67,7 @@ class NewBlockProvider:
                             )
                             last_blocks[chain] = block_num
 
-                except (ValueError, ConnectionError, RuntimeError) as exc:
+                except (ValueError, ConnectionError, RuntimeError, httpx.RequestError) as exc:
                     log.debug("new_block_poll_failed", chain=chain, error=str(exc))
                     # Individual RPC failure is non-fatal; continue polling others
 
