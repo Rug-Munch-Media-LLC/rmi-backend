@@ -42,7 +42,7 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
             # Defensive JSON parsing
             try:
                 data = resp.json()
-            except (httpx.HTTPError):
+            except httpx.HTTPError:
                 logger.debug("goplus_json_parse_failed", chain=chain)
                 return {"check": "goplus", "result": "error", "error": "Invalid JSON response"}
 
@@ -120,11 +120,13 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
             }
     except httpx.TimeoutException:
         logger.debug("goplus_timeout", chain=chain)
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.warning("goplus_failed", token=token_address, error=str(e)[:100])
     return {"check": "goplus", "result": "error", "error": "GoPlus API unavailable"}
 
+
 # ── 2. Honeypot Detection (on-chain bytecode + fee analysis) ──────────
+
 
 async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if token is a honeypot using on-chain bytecode + market analysis.
@@ -169,12 +171,12 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
             }
     except ImportError:
         logger.warning("honeypot_detector_not_available")
-    except (httpx.HTTPError) as e :
+    except httpx.HTTPError as e:
         logger.warning("honeypot_check_failed", error=str(e))
 
-    # Fallback: use DexScreener data for basic checks (uses shared cache)
+    # Fallback: use DEX data for basic checks (own ClickHouse data first, DexScreener API fallback)
     try:
-        ds_data = await _fetch_dexscreener(token_address)
+        ds_data = await _fetch_dexscreener(token_address, chain)
         if ds_data:
             pair = ds_data["pairs"][0]
             buys = pair.get("txns", {}).get("h24", {}).get("buys", 0) or 0
@@ -204,12 +206,14 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
                 "price_change_24h": price_change,
                 "source": "dexscreener_fallback",
             }
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("honeypot_fallback_failed", error=str(e))
 
     return {"check": "honeypot", "result": "error", "error": "No data source available"}
 
+
 # ── 3. Holder Data ────────────────────────────────────────────────────
+
 
 async def _check_spam(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if token is in known spam/sanctions databases."""
@@ -228,7 +232,7 @@ async def _check_spam(token_address: str, chain: str) -> dict[str, Any] | None:
         }
     except ImportError:
         logger.warning("spam_registry_not_available")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.warning("spam_check_failed", error=str(e))
 
     return {"check": "spam", "result": "error", "error": "Spam check unavailable"}

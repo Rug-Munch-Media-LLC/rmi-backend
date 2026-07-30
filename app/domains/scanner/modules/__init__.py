@@ -1,12 +1,6 @@
 """Scanner modules package — explicit re-exports."""
 
 # Chain pattern detector (on-chain behavioral pattern analysis → RAG)
-from app.domains.scanner.modules.chain_pattern_detector import (
-    analyze_and_ingest,
-    detect_all_patterns,
-    ingest_patterns_into_rag,
-)
-
 # Core helpers (no underscore-prefixed scan functions)
 from app.domains.scanner.modules._core import (
     BLOCKSCOUT_URLS,
@@ -18,6 +12,11 @@ from app.domains.scanner.modules._core import (
     _fetch_json,
     _fetch_with_fallback,
     _solana_rpc_call,
+)
+from app.domains.scanner.modules.chain_pattern_detector import (
+    analyze_and_ingest,
+    detect_all_patterns,
+    ingest_patterns_into_rag,
 )
 
 # Deployer checks
@@ -68,6 +67,7 @@ __all__ = [
     "DEFILLAMA_API",
     "EXPLORER_APIS",
     "GOPLUS_CHAIN_IDS",
+    "PREFER_OWN_DATA",
     "_check_blockscout",
     "_check_bundle",
     "_check_coingecko_price",
