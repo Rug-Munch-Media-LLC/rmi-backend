@@ -187,6 +187,12 @@ EVM_RPC_ENDPOINTS: dict[str, list[str]] = {
         "https://mantle.blockpi.network/v1/rpc/public",  # BlockPI Mantle
         "https://mantle-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy Mantle (key)
     ],
+    "gnosis": [
+        "https://gnosis.drpc.org",  # dRPC Gnosis
+        "https://rpc.gnosischain.com",  # Gnosis official
+        "https://1rpc.io/gnosis",  # 1RPC Gnosis
+        "https://gnosis-rpc.publicnode.com",  # PublicNode Gnosis
+    ],
 }
 
 # ─── Solana ─────────────────────────────────────────────────────────
@@ -308,6 +314,7 @@ class RpcRouter:
             "zksync": ("eth_blockNumber", []),
             "scroll": ("eth_blockNumber", []),
             "mantle": ("eth_blockNumber", []),
+            "gnosis": ("eth_blockNumber", []),
             # Solana: getHealth
             "solana": ("getHealth", []),
         }
