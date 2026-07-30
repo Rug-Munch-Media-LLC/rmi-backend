@@ -108,7 +108,7 @@ async def test_publish_to_mirror_missing_config():
         platforms=["mirror"],
     )
     assert results[0].success is False
-    assert "API key" in (results[0].error_message or "").lower()
+    assert "api key" in (results[0].error_message or "").lower()
 
 
 @pytest.mark.asyncio

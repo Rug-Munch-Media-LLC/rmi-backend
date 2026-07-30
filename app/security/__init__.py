@@ -9,6 +9,6 @@ Submodules:
 
 from __future__ import annotations
 
-from app.security.ai_guard import AIGuard, SecurityResult, check_prompt, check_response
+from app.security.ai_guard import AIGuard, SecurityResult
 
-__all__ = ["AIGuard", "SecurityResult", "check_prompt", "check_response"]
+__all__ = ["AIGuard", "SecurityResult"]

@@ -720,6 +720,8 @@ async def publish_to_all(
             return await publisher(title, content_html, tags, cover_image)
         elif platform == "substack":
             return await publisher(title, content_html, excerpt)
+        elif platform == "email":
+            return publisher(title, content_html, excerpt)
         elif platform == "nostr":
             return await publisher(title, content_html, excerpt, tags)
         elif platform in ("farcaster", "bluesky", "mastodon"):

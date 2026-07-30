@@ -237,7 +237,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     result = asyncio.run(ingest_all())
     logger.info(json.dumps(result, indent=2))
-    print(f"\n📊 Ingest Summary:")
+    print("\n📊 Ingest Summary:")
     print(f"   Total feeds configured: {result.get('total_feeds', '?')}")
     print(f"   Feeds OK: {result.get('feeds_ok', 0)}")
     print(f"   Feeds failed: {result.get('feeds_fail', 0)}")

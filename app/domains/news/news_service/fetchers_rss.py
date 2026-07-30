@@ -64,7 +64,7 @@ async def fetch_rss(
 
     try:
         feed = feedparser.parse(resp.text)
-    except (httpx.HTTPError, requests.RequestException) as e:
+    except (httpx.HTTPError, Exception) as e:
         logger.debug("fetch_rss_error", exc_info=True)
         logger.debug(f"Feed parse failed: {e}")
         return []
@@ -78,7 +78,7 @@ async def fetch_rss(
             pub_parsed = entry.get("published_parsed") or entry.get("updated_parsed")
             if pub_parsed and isinstance(pub_parsed, (tuple, list)) and len(pub_parsed) >= 6:
                 published = datetime(*pub_parsed[:6], tzinfo=UTC).isoformat()
-                pub_dt = datetime(*pub_parsed[:6])
+                pub_dt = datetime(*pub_parsed[:6], tzinfo=UTC)
                 if datetime.now(UTC) - pub_dt > timedelta(hours=72):
                     continue
             else:
@@ -170,7 +170,6 @@ async def fetch_reddit_hot(svc: NewsService, subreddit: str, limit: int = 5) -> 
         return articles
     except (
         httpx.HTTPError,
-        requests.RequestException,
         json.JSONDecodeError,
         ValueError,
         TypeError,
