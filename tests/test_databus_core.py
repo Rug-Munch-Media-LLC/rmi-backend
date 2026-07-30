@@ -323,10 +323,10 @@ class TestDataBusInit:
     async def test_databus_init_with_mocked_deps(self):
         """DataBus initializes cleanly with all dependencies mocked."""
         with (
-            patch("app.databus.core.get_cache") as mock_cache,
-            patch("app.databus.core.get_vault") as mock_vault,
-            patch("app.databus.core.build_provider_chains") as mock_chains,
-            patch("app.databus.core.security") as mock_security,
+            patch("app.databus.services.client.get_cache") as mock_cache,
+            patch("app.databus.services.client.get_vault") as mock_vault,
+            patch("app.databus.services.client.build_provider_chains") as mock_chains,
+            patch("app.databus.services.client.security") as mock_security,
         ):
             from app.databus.core import DataBus
 
@@ -376,9 +376,9 @@ class TestDataBusInit:
     async def test_databus_fetch_no_chains_returns_none(self):
         """Fetching with no chains configured returns None gracefully."""
         with (
-            patch("app.databus.core.get_cache") as mock_cache,
-            patch("app.databus.core.get_vault") as mock_vault,
-            patch("app.databus.core.build_provider_chains") as mock_chains,
+            patch("app.databus.services.client.get_cache") as mock_cache,
+            patch("app.databus.services.client.get_vault") as mock_vault,
+            patch("app.databus.services.client.build_provider_chains") as mock_chains,
         ):
             from app.databus.core import DataBus
 

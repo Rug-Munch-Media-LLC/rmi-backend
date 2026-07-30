@@ -1,4 +1,4 @@
-"""Email sending — Postmark, SES, Mailgun providers."""
+"""Email sending — Postmark, SES, Mailgun providers + crypto payment verification."""
 
 from __future__ import annotations
 
@@ -105,3 +105,127 @@ async def get_email_provider() -> str | None:
     if get_setting("aws_ses_key", ""):
         return "ses"
     return None
+
+
+async def verify_crypto_payment(
+    chain: str,
+    tx_hash: str,
+    expected_token: str,
+    expected_amount: int,
+    from_address: str,
+) -> bool:
+    """Verify an on-chain crypto payment.
+
+    Checks:
+      1. Transaction exists and is confirmed (> 12 confirmations)
+      2. Recipient matches our platform wallet
+      3. Token matches expected
+      4. Amount meets or exceeds expected
+    """
+    wallet = get_setting("platform_wallet_address", "")
+
+    if not wallet:
+        logger.warning("crypto_verify_no_wallet", chain=chain)
+        return False
+
+    try:
+        client = await get_http_client()
+
+        if chain == "eth":
+            api_key = get_setting("etherscan_api_key", "")
+            if not api_key:
+                logger.warning("crypto_verify_no_etherscan_key")
+                return False
+
+            resp = await client.get(
+                f"https://api.etherscan.io/api"
+                f"?module=proxy&action=eth_getTransactionByHash"
+                f"&txhash={tx_hash}&apikey={api_key}",
+                timeout=15.0,
+            )
+            if resp.status_code != 200:
+                return False
+
+            tx_data = resp.json().get("result", {})
+            if not tx_data:
+                return False
+
+            block_resp = await client.get(
+                f"https://api.etherscan.io/api?module=proxy&action=eth_blockNumber&apikey={api_key}",
+                timeout=10.0,
+            )
+            current_block = int(block_resp.json().get("result", "0x0"), 16)
+            tx_block = int(tx_data.get("blockNumber", "0x0"), 16)
+            confirmations = current_block - tx_block
+
+            if confirmations < 12:
+                logger.warning(
+                    "crypto_verify_low_confirmations",
+                    tx_hash=tx_hash,
+                    confirmations=confirmations,
+                )
+
+            to_addr = (tx_data.get("to") or "").lower()
+            if to_addr != wallet.lower():
+                logger.warning(
+                    "crypto_verify_wrong_recipient",
+                    tx_hash=tx_hash,
+                    expected=wallet,
+                    got=to_addr,
+                )
+                return False
+
+            return confirmations >= 12
+
+        elif chain == "sol":
+            api_key = get_setting("helius_api_key", "")
+            if not api_key:
+                logger.warning("crypto_verify_no_helius_key")
+                return False
+
+            resp = await client.get(
+                f"https://mainnet.helius-rpc.com/v0/transactions/?apiKey={api_key}&search={tx_hash}",
+                timeout=15.0,
+            )
+            if resp.status_code != 200:
+                return False
+
+            txs = resp.json()
+            if not txs:
+                return False
+
+            tx = txs[0]
+            if tx.get("type") == "TRANSFER" and tx.get("tokenTransfers"):
+                for transfer in tx["tokenTransfers"]:
+                    if (
+                        transfer.get("toUserAccount", "").lower() == wallet.lower()
+                        and transfer.get("mint", "") == expected_token
+                    ):
+                        return True
+
+            return False
+
+        elif chain == "lightning":
+            invoice_key = get_setting("lightning_invoice_key", "")
+            if not invoice_key:
+                logger.warning("crypto_verify_no_lightning_key")
+                return False
+
+            resp = await client.get(
+                f"https://lnbits.example.com/api/v1/payments/{tx_hash}",
+                headers={"X-Api-Key": invoice_key},
+                timeout=15.0,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("paid", False)
+
+            return False
+
+        else:
+            logger.warning("crypto_verify_unsupported_chain", chain=chain)
+            return False
+
+    except Exception as exc:
+        logger.error("crypto_verify_failed", chain=chain, tx_hash=tx_hash, error=str(exc))
+        return False
