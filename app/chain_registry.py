@@ -22,6 +22,7 @@ class ChainFamily(Enum):
     EVM = "evm"  # Ethereum Virtual Machine chains
     COSMOS = "cosmos"  # Not yet supported
 
+
 @dataclass
 class ChainConfig:
     """Full configuration for a supported blockchain."""
@@ -67,6 +68,7 @@ class ChainConfig:
     def is_evm(self) -> bool:
         return self.family == ChainFamily.EVM
 
+
 # ─── Chain Registry ────────────────────────────────────────────────
 
 CHAINS: dict[str, ChainConfig] = {
@@ -76,11 +78,16 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.SOLANA,
         display_name="Solana",
         rpc_endpoints=[
-            "https://solana-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",
-            "https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}",
-            "https://solana.drpc.org",
-            "https://solana-rpc.publicnode.com",
-            "https://rpc.ankr.com/solana",
+            # ── Free public endpoints (priority) ──
+            "https://api.mainnet-beta.solana.com",  # Solana official public
+            "https://solana-rpc.publicnode.com",  # PublicNode — free, no auth
+            "https://solana.drpc.org",  # dRPC — free tier
+            "https://rpc.ankr.com/solana",  # Ankr — free tier
+            "https://solana.meowrpc.com",  # MeowRPC — free tier
+            "https://solana.blockpi.network/v1/rpc/public",  # BlockPI — free tier
+            # ── Keyed endpoints (fallback) ──
+            "https://solana-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy — free tier
+            "https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}",  # Helius — paid tier
         ],
         explorer_url="https://solscan.io",
         explorer_api_url="https://public-api.solscan.io",
@@ -158,11 +165,23 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Ethereum",
         rpc_endpoints=[
-            "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",
-            "https://ethereum-rpc.publicnode.com",
-            "https://eth.llamarpc.com",
-            "https://rpc.ankr.com/eth",
-            "https://cloudflare-eth.com",
+            # ── Free public endpoints (priority) ──
+            "https://eth.llamarpc.com",  # LlamaNodes — fast, free
+            "https://rpc.ankr.com/eth",  # Ankr — free tier
+            "https://eth.drpc.org",  # dRPC — distributed, free
+            "https://ethereum-rpc.publicnode.com",  # PublicNode — free, no auth
+            "https://1rpc.io/eth",  # 1RPC — privacy-first free
+            "https://eth.meowrpc.com",  # MeowRPC — free tier
+            "https://rpc.flashbots.net",  # Flashbots — public RPC
+            "https://ethereum.blockpi.network/v1/rpc/public",  # BlockPI — free tier
+            "https://cloudflare-eth.com",  # Cloudflare — free, reliable
+            "https://eth-mainnet.public.blastapi.io",  # BlastAPI — free public
+            "https://virginia.rpc.blxrbdn.com",  # BloXroute — US
+            "https://uk.rpc.blxrbdn.com",  # BloXroute — EU
+            "https://singapore.rpc.blxrbdn.com",  # BloXroute — Asia
+            # ── Keyed endpoints (fallback) ──
+            "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy — free tier
+            "https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}",  # Infura — free tier
         ],
         explorer_url="https://etherscan.io",
         explorer_api_url="https://api.etherscan.io/api",
@@ -294,10 +313,17 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Base",
         rpc_endpoints=[
-            "https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",
-            "https://mainnet.base.org",
-            "https://base-rpc.publicnode.com",
-            "https://rpc.ankr.com/base",
+            # ── Free public endpoints (priority) ──
+            "https://base.llamarpc.com",  # LlamaNodes Base
+            "https://rpc.ankr.com/base",  # Ankr Base
+            "https://base.drpc.org",  # dRPC Base
+            "https://base-rpc.publicnode.com",  # PublicNode Base
+            "https://1rpc.io/base",  # 1RPC Base
+            "https://base.meowrpc.com",  # MeowRPC Base
+            "https://base.blockpi.network/v1/rpc/public",  # BlockPI Base
+            "https://mainnet.base.org",  # Base official public
+            # ── Keyed endpoints (fallback) ──
+            "https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy Base
         ],
         explorer_url="https://basescan.org",
         explorer_api_url="https://api.basescan.org/api",
@@ -329,10 +355,25 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="BSC",
         rpc_endpoints=[
-            "https://bsc-dataseed.binance.org",
-            "https://rpc.ankr.com/bsc",
-            "https://bsc-rpc.publicnode.com",
-            "https://bsc-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",
+            # ── Free public endpoints (priority) ──
+            "https://binance.llamarpc.com",  # LlamaNodes BSC
+            "https://rpc.ankr.com/bsc",  # Ankr BSC
+            "https://bsc.drpc.org",  # dRPC BSC
+            "https://bsc-rpc.publicnode.com",  # PublicNode BSC
+            "https://1rpc.io/bnb",  # 1RPC BSC
+            "https://bsc.meowrpc.com",  # MeowRPC BSC
+            "https://bsc.blockpi.network/v1/rpc/public",  # BlockPI BSC
+            "https://bsc-dataseed.binance.org",  # Binance official
+            "https://bsc-dataseed1.binance.org",  # Binance dataseed 1
+            "https://bsc-dataseed2.binance.org",  # Binance dataseed 2
+            "https://bsc-dataseed3.binance.org",  # Binance dataseed 3
+            "https://bsc-dataseed1.defibit.io",  # Defibit dataseed
+            "https://bsc-dataseed2.defibit.io",  # Defibit dataseed 2
+            "https://bsc-dataseed1.ninicoin.io",  # Ninicoin dataseed
+            "https://bsc-dataseed2.ninicoin.io",  # Ninicoin dataseed 2
+            "https://bsc-mainnet.public.blastapi.io",  # BlastAPI BSC
+            # ── Keyed endpoints (fallback) ──
+            "https://bsc-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy BSC
         ],
         explorer_url="https://bscscan.com",
         explorer_api_url="https://api.bscscan.com/api",
@@ -375,9 +416,17 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Arbitrum",
         rpc_endpoints=[
-            "https://arb1.arbitrum.io/rpc",
-            "https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",
-            "https://arbitrum-one-rpc.publicnode.com",
+            # ── Free public endpoints (priority) ──
+            "https://arbitrum.llamarpc.com",  # LlamaNodes Arbitrum
+            "https://rpc.ankr.com/arbitrum",  # Ankr Arbitrum
+            "https://arbitrum.drpc.org",  # dRPC Arbitrum
+            "https://arbitrum-one-rpc.publicnode.com",  # PublicNode Arbitrum
+            "https://1rpc.io/arb",  # 1RPC Arbitrum
+            "https://arbitrum.meowrpc.com",  # MeowRPC Arbitrum
+            "https://arbitrum.blockpi.network/v1/rpc/public",  # BlockPI Arbitrum
+            "https://arb1.arbitrum.io/rpc",  # Offchain Labs official
+            # ── Keyed endpoints (fallback) ──
+            "https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy Arbitrum
         ],
         explorer_url="https://arbiscan.io",
         explorer_api_url="https://api.arbiscan.io/api",
@@ -411,10 +460,18 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Polygon",
         rpc_endpoints=[
-            "https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",
-            "https://polygon-rpc.com",
-            "https://polygon-bor-rpc.publicnode.com",
-            "https://rpc.ankr.com/polygon",
+            # ── Free public endpoints (priority) ──
+            "https://polygon.llamarpc.com",  # LlamaNodes Polygon
+            "https://rpc.ankr.com/polygon",  # Ankr Polygon
+            "https://polygon.drpc.org",  # dRPC Polygon
+            "https://polygon-rpc.com",  # Polygon official public
+            "https://1rpc.io/matic",  # 1RPC Polygon
+            "https://polygon.meowrpc.com",  # MeowRPC Polygon
+            "https://polygon.blockpi.network/v1/rpc/public",  # BlockPI Polygon
+            "https://polygon-bor-rpc.publicnode.com",  # PublicNode Polygon
+            "https://polygon-mainnet.public.blastapi.io",  # BlastAPI Polygon
+            # ── Keyed endpoints (fallback) ──
+            "https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy Polygon
         ],
         explorer_url="https://polygonscan.com",
         explorer_api_url="https://api.polygonscan.com/api",
@@ -451,9 +508,17 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Avalanche",
         rpc_endpoints=[
-            "https://api.avax.network/ext/bc/C/rpc",
-            "https://avalanche-c-chain-rpc.publicnode.com",
-            "https://rpc.ankr.com/avalanche",
+            # ── Free public endpoints (priority) ──
+            "https://avalanche.llamarpc.com",  # LlamaNodes Avalanche
+            "https://rpc.ankr.com/avalanche",  # Ankr Avalanche
+            "https://avalanche.drpc.org",  # dRPC Avalanche
+            "https://avalanche-c-chain-rpc.publicnode.com",  # PublicNode Avalanche
+            "https://1rpc.io/avax/c",  # 1RPC Avalanche C-Chain
+            "https://avalanche.meowrpc.com",  # MeowRPC Avalanche
+            "https://avalanche.blockpi.network/v1/rpc/public",  # BlockPI Avalanche
+            "https://api.avax.network/ext/bc/C/rpc",  # Avalanche official
+            # ── Keyed endpoints (fallback) ──
+            "https://avalanche-mainnet.infura.io/v3/${INFURA_PROJECT_ID}",  # Infura Avalanche
         ],
         explorer_url="https://snowtrace.io",
         explorer_api_url="https://api.snowtrace.io/api",
@@ -487,9 +552,17 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Optimism",
         rpc_endpoints=[
-            "https://mainnet.optimism.io",
-            "https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",
-            "https://optimism-rpc.publicnode.com",
+            # ── Free public endpoints (priority) ──
+            "https://optimism.llamarpc.com",  # LlamaNodes Optimism
+            "https://rpc.ankr.com/optimism",  # Ankr Optimism
+            "https://optimism.drpc.org",  # dRPC Optimism
+            "https://optimism-rpc.publicnode.com",  # PublicNode Optimism
+            "https://1rpc.io/op",  # 1RPC Optimism
+            "https://optimism.meowrpc.com",  # MeowRPC Optimism
+            "https://optimism.blockpi.network/v1/rpc/public",  # BlockPI Optimism
+            "https://mainnet.optimism.io",  # Optimism official
+            # ── Keyed endpoints (fallback) ──
+            "https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy Optimism
         ],
         explorer_url="https://optimistic.etherscan.io",
         explorer_api_url="https://api-optimistic.etherscan.io/api",
@@ -519,9 +592,15 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Fantom",
         rpc_endpoints=[
-            "https://rpc.fantom.network",
-            "https://fantom-rpc.publicnode.com",
-            "https://rpc.ankr.com/fantom",
+            # ── Free public endpoints (priority) ──
+            "https://rpc.ankr.com/fantom",  # Ankr Fantom
+            "https://fantom.drpc.org",  # dRPC Fantom
+            "https://fantom-rpc.publicnode.com",  # PublicNode Fantom
+            "https://1rpc.io/ftm",  # 1RPC Fantom
+            "https://fantom.meowrpc.com",  # MeowRPC Fantom
+            "https://rpc.fantom.network",  # Fantom official
+            "https://fantom-mainnet.public.blastapi.io",  # BlastAPI Fantom
+            "https://fantom.blockpi.network/v1/rpc/public",  # BlockPI Fantom
         ],
         explorer_url="https://ftmscan.com",
         explorer_api_url="https://api.ftmscan.com/api",
@@ -548,8 +627,15 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Linea",
         rpc_endpoints=[
-            "https://rpc.linea.build",
-            "https://linea-rpc.publicnode.com",
+            # ── Free public endpoints (priority) ──
+            "https://rpc.linea.build",  # Linea official
+            "https://linea-rpc.publicnode.com",  # PublicNode Linea
+            "https://linea.drpc.org",  # dRPC Linea
+            "https://1rpc.io/linea",  # 1RPC Linea
+            "https://linea.blockpi.network/v1/rpc/public",  # BlockPI Linea
+            "https://linea.meowrpc.com",  # MeowRPC Linea
+            # ── Keyed endpoints (fallback) ──
+            "https://linea-mainnet.infura.io/v3/${INFURA_PROJECT_ID}",  # Infura Linea
         ],
         explorer_url="https://lineascan.build",
         explorer_api_url="https://api.lineascan.build/api",
@@ -573,8 +659,14 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="zkSync Era",
         rpc_endpoints=[
-            "https://mainnet.era.zksync.io",
-            "https://zksync-era.blockpi.network/v1/rpc/public",
+            # ── Free public endpoints (priority) ──
+            "https://mainnet.era.zksync.io",  # zkSync official
+            "https://zksync-era.blockpi.network/v1/rpc/public",  # BlockPI zkSync
+            "https://zksync.drpc.org",  # dRPC zkSync
+            "https://1rpc.io/zksync-era",  # 1RPC zkSync Era
+            "https://zksync.meowrpc.com",  # MeowRPC zkSync
+            # ── Keyed endpoints (fallback) ──
+            "https://zksync-era.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy zkSync
         ],
         explorer_url="https://explorer.zksync.io",
         explorer_api_url="https://block-explorer-api.mainnet.zksync.io/api",
@@ -601,8 +693,14 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Scroll",
         rpc_endpoints=[
-            "https://rpc.scroll.io",
-            "https://scroll-rpc.publicnode.com",
+            # ── Free public endpoints (priority) ──
+            "https://rpc.scroll.io",  # Scroll official
+            "https://scroll-rpc.publicnode.com",  # PublicNode Scroll
+            "https://scroll.drpc.org",  # dRPC Scroll
+            "https://1rpc.io/scroll",  # 1RPC Scroll
+            "https://scroll.blockpi.network/v1/rpc/public",  # BlockPI Scroll
+            # ── Keyed endpoints (fallback) ──
+            "https://scroll-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy Scroll
         ],
         explorer_url="https://scrollscan.com",
         explorer_api_url="https://api.scrollscan.com/api",
@@ -626,7 +724,14 @@ CHAINS: dict[str, ChainConfig] = {
         family=ChainFamily.EVM,
         display_name="Mantle",
         rpc_endpoints=[
-            "https://rpc.mantle.xyz",
+            # ── Free public endpoints (priority) ──
+            "https://rpc.mantle.xyz",  # Mantle official
+            "https://mantle-rpc.publicnode.com",  # PublicNode Mantle
+            "https://mantle.drpc.org",  # dRPC Mantle
+            "https://1rpc.io/mantle",  # 1RPC Mantle
+            "https://mantle.blockpi.network/v1/rpc/public",  # BlockPI Mantle
+            # ── Keyed endpoints (fallback) ──
+            "https://mantle-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}",  # Alchemy Mantle
         ],
         explorer_url="https://mantlescan.xyz",
         explorer_api_url="https://api.mantlescan.xyz/api",
@@ -648,34 +753,42 @@ CHAINS: dict[str, ChainConfig] = {
 
 # ─── Convenience functions ─────────────────────────────────────────
 
+
 def get_chain(chain_name: str) -> ChainConfig | None:
     """Get chain config by name (case-insensitive)."""
     return CHAINS.get(chain_name.lower())
+
 
 def get_chain_family(chain_name: str) -> ChainFamily:
     """Determine if a chain is Solana, EVM, or other."""
     cfg = CHAINS.get(chain_name.lower())
     return cfg.family if cfg else ChainFamily.EVM
 
+
 def is_solana(chain_name: str) -> bool:
     return get_chain_family(chain_name) == ChainFamily.SOLANA
 
+
 def is_evm(chain_name: str) -> bool:
     return get_chain_family(chain_name) == ChainFamily.EVM
+
 
 def resolve_chain_id(chain_name: str) -> str:
     """Resolve chain name to numeric or canonical ID."""
     cfg = CHAINS.get(chain_name.lower())
     return cfg.chain_id if cfg else chain_name
 
+
 def list_chains() -> list[str]:
     """List all supported chain names."""
     return list(CHAINS.keys())
+
 
 def get_chain_display(chain_name: str) -> str:
     """Get human-readable chain display name."""
     cfg = CHAINS.get(chain_name.lower())
     return cfg.display_name if cfg else chain_name.title()
+
 
 def get_explorer_url(chain_name: str, address: str, tx: str = "") -> str:
     """Build explorer URL for an address or transaction."""
@@ -687,6 +800,7 @@ def get_explorer_url(chain_name: str, address: str, tx: str = "") -> str:
     if cfg.is_solana:
         return f"{cfg.explorer_url}/account/{address}"
     return f"{cfg.explorer_url}/address/{address}"
+
 
 def get_rpc_urls(chain_name: str) -> list[str]:
     """Get list of RPC URLs for a chain (with env vars resolved)."""
@@ -702,6 +816,7 @@ def get_rpc_urls(chain_name: str) -> list[str]:
         urls.append(resolved)
     return urls
 
+
 def get_explorer_api_config(chain_name: str) -> tuple[str, str]:
     """Get (api_url, api_key) for a chain's block explorer."""
     cfg = CHAINS.get(chain_name.lower())
@@ -712,10 +827,12 @@ def get_explorer_api_config(chain_name: str) -> tuple[str, str]:
         api_key = os.getenv(cfg.api_key_env, "")
     return (cfg.explorer_api_url, api_key)
 
+
 def get_cex_wallets(chain_name: str) -> dict[str, list[str]]:
     """Get known CEX hot wallets for a chain."""
     cfg = CHAINS.get(chain_name.lower())
     return cfg.cex_hot_wallets if cfg else {}
+
 
 def get_known_lockers(chain_name: str) -> dict[str, str]:
     """Get known liquidity locker contracts for a chain (keys are lowercase-normalized)."""

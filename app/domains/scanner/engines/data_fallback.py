@@ -124,33 +124,53 @@ DATA_SOURCES = {
         name="Redis Cache",
         tier=SourceTier.OUR_DATA,
     ),
-    # ── LAYER 2: Free RPC Pools ─────────────────────────────────
+    # ── LAYER 2: Free RPC Pools (8-15 endpoints each with health checks) ──
     "rpc_ethereum": DataSource(
-        name="Ethereum RPC Pool (LlamaRPC→DRPC→PublicNode→Ankr→1RPC)",
+        name="Ethereum RPC Pool (LlamaRPC→Ankr→DRPC→PublicNode→1RPC→MeowRPC→Flashbots→BlockPI→Cloudflare→BlastAPI→BloXroute×3＋Alchemy/Infura keyed)",
         tier=SourceTier.FREE_RPC,
     ),
     "rpc_bsc": DataSource(
-        name="BSC RPC Pool (LlamaRPC→Binance→Defibit→PublicNode→DRPC)",
+        name="BSC RPC Pool (LlamaRPC→Ankr→DRPC→PublicNode→1RPC→MeowRPC→BlockPI→Binance×4→Defibit×2→Ninicoin×2→BlastAPI＋Alchemy keyed)",
         tier=SourceTier.FREE_RPC,
     ),
     "rpc_arbitrum": DataSource(
-        name="Arbitrum RPC Pool (Arbitrum.io→DRPC→PublicNode)",
+        name="Arbitrum RPC Pool (LlamaRPC→Ankr→DRPC→PublicNode→1RPC→MeowRPC→BlockPI→Arbitrum.io＋Alchemy keyed)",
         tier=SourceTier.FREE_RPC,
     ),
     "rpc_base": DataSource(
-        name="Base RPC Pool (Base.org→LlamaRPC→DRPC→BlastAPI)",
+        name="Base RPC Pool (LlamaRPC→Ankr→DRPC→PublicNode→1RPC→MeowRPC→BlockPI→Base.org＋Alchemy keyed)",
         tier=SourceTier.FREE_RPC,
     ),
     "rpc_polygon": DataSource(
-        name="Polygon RPC Pool (LlamaRPC→PolygonRPC→DRPC→BlastAPI)",
+        name="Polygon RPC Pool (LlamaRPC→Ankr→DRPC→PolygonRPC→1RPC→MeowRPC→BlockPI→PublicNode＋Alchemy keyed)",
         tier=SourceTier.FREE_RPC,
     ),
     "rpc_optimism": DataSource(
-        name="Optimism RPC Pool (Optimism.io→LlamaRPC→DRPC→BlastAPI)",
+        name="Optimism RPC Pool (LlamaRPC→Ankr→DRPC→PublicNode→1RPC→MeowRPC→BlockPI→Optimism.io＋Alchemy keyed)",
         tier=SourceTier.FREE_RPC,
     ),
     "rpc_avalanche": DataSource(
-        name="Avalanche RPC Pool (Avax→DRPC→MeowRPC)",
+        name="Avalanche RPC Pool (LlamaRPC→Ankr→DRPC→PublicNode→1RPC→MeowRPC→BlockPI→AvaxOfficial＋Infura keyed)",
+        tier=SourceTier.FREE_RPC,
+    ),
+    "rpc_fantom": DataSource(
+        name="Fantom RPC Pool (Ankr→DRPC→PublicNode→1RPC→MeowRPC→FantomOfficial→BlastAPI→BlockPI)",
+        tier=SourceTier.FREE_RPC,
+    ),
+    "rpc_linea": DataSource(
+        name="Linea RPC Pool (LineaOfficial→PublicNode→DRPC→1RPC→BlockPI→MeowRPC＋Infura keyed)",
+        tier=SourceTier.FREE_RPC,
+    ),
+    "rpc_zksync": DataSource(
+        name="zkSync RPC Pool (zkSyncOfficial→BlockPI→DRPC→1RPC→MeowRPC＋Alchemy keyed)",
+        tier=SourceTier.FREE_RPC,
+    ),
+    "rpc_scroll": DataSource(
+        name="Scroll RPC Pool (ScrollOfficial→PublicNode→DRPC→1RPC→BlockPI＋Alchemy keyed)",
+        tier=SourceTier.FREE_RPC,
+    ),
+    "rpc_mantle": DataSource(
+        name="Mantle RPC Pool (MantleOfficial→PublicNode→DRPC→1RPC→BlockPI＋Alchemy keyed)",
         tier=SourceTier.FREE_RPC,
     ),
     "rpc_tron": DataSource(
@@ -158,7 +178,7 @@ DATA_SOURCES = {
         tier=SourceTier.FREE_RPC,
     ),
     "rpc_solana_public": DataSource(
-        name="Solana Public RPC Pool (api.mainnet-beta.solana.com→publicnode)",
+        name="Solana Public RPC Pool (SolanaOfficial→PublicNode→DRPC→Ankr→MeowRPC→BlockPI＋Alchemy/Helius keyed)",
         tier=SourceTier.FREE_RPC,
     ),
     # ── LAYER 3: Free APIs ──────────────────────────────────────
@@ -273,8 +293,14 @@ QUERY_FALLBACK_MAP = {
         "chain_indexer_clickhouse",  # ClickHouse — 73M+ transfers, sub-10ms
         "chain_indexer_parquet",  # Our data — every transfer on 8 chains
         "chain_indexer_jsonl",  # Raw events for chains not yet in Parquet
-        "rpc_ethereum",  # Free RPC fallback — eth_call for balances
-        "rpc_bsc",  # BSC RPC fallback
+        "rpc_ethereum",  # Free RPC fallback — eth_call for balances (15 endpoints)
+        "rpc_bsc",  # BSC RPC fallback (16 endpoints)
+        "rpc_polygon",  # Polygon RPC (9 endpoints)
+        "rpc_base",  # Base RPC (9 endpoints)
+        "rpc_arbitrum",  # Arbitrum RPC (9 endpoints)
+        "rpc_optimism",  # Optimism RPC (9 endpoints)
+        "rpc_avalanche",  # Avalanche RPC (9 endpoints)
+        "rpc_fantom",  # Fantom RPC (8 endpoints)
         "blockscout",  # Free explorer API
         "etherscan_free",  # Free tier token holder API
         "bscscan_free",  # BSC free tier
@@ -284,13 +310,18 @@ QUERY_FALLBACK_MAP = {
         "chain_indexer_clickhouse",  # ClickHouse — 73M+ transfers, sub-10ms
         "chain_indexer_parquet",  # Our indexed data — 8 chains, every transfer
         "chain_indexer_jsonl",  # Raw NDJSON — Tron + edge cases
-        "rpc_ethereum",  # Free RPC pool — eth_getLogs
-        "rpc_bsc",  # BSC RPC
-        "rpc_arbitrum",  # Arbitrum RPC
-        "rpc_base",  # Base RPC
-        "rpc_polygon",  # Polygon RPC
-        "rpc_optimism",  # Optimism RPC
-        "rpc_avalanche",  # Avalanche RPC
+        "rpc_ethereum",  # Free RPC pool — eth_getLogs (15 endpoints)
+        "rpc_bsc",  # BSC RPC (16 endpoints)
+        "rpc_arbitrum",  # Arbitrum RPC (9 endpoints)
+        "rpc_base",  # Base RPC (9 endpoints)
+        "rpc_polygon",  # Polygon RPC (9 endpoints)
+        "rpc_optimism",  # Optimism RPC (9 endpoints)
+        "rpc_avalanche",  # Avalanche RPC (9 endpoints)
+        "rpc_fantom",  # Fantom RPC (8 endpoints)
+        "rpc_linea",  # Linea RPC (7 endpoints)
+        "rpc_zksync",  # zkSync RPC (6 endpoints)
+        "rpc_scroll",  # Scroll RPC (6 endpoints)
+        "rpc_mantle",  # Mantle RPC (6 endpoints)
         "rpc_tron",  # TronGrid — free, no key
         "blockscout",  # Free explorer API
         "etherscan_free",  # Free tier
@@ -306,8 +337,18 @@ QUERY_FALLBACK_MAP = {
     ],
     "wallet_balance": [
         "redis_cache",
-        "rpc_ethereum",  # Free RPC pool
-        "rpc_bsc",
+        "rpc_ethereum",  # Free RPC pool (15 endpoints)
+        "rpc_bsc",  # BSC RPC (16 endpoints)
+        "rpc_base",  # Base RPC (9 endpoints)
+        "rpc_polygon",  # Polygon RPC (9 endpoints)
+        "rpc_arbitrum",  # Arbitrum RPC (9 endpoints)
+        "rpc_optimism",  # Optimism RPC (9 endpoints)
+        "rpc_avalanche",  # Avalanche RPC (9 endpoints)
+        "rpc_fantom",  # Fantom RPC (8 endpoints)
+        "rpc_linea",  # Linea RPC (7 endpoints)
+        "rpc_zksync",  # zkSync RPC (6 endpoints)
+        "rpc_scroll",  # Scroll RPC (6 endpoints)
+        "rpc_mantle",  # Mantle RPC (6 endpoints)
         "blockscout",
         "alchemy_evm",  # Paid
     ],
@@ -337,9 +378,18 @@ QUERY_FALLBACK_MAP = {
         "crypto_feargreed",  # Free
     ],
     "gas_price": [
-        "rpc_ethereum",  # Free RPC
-        "rpc_bsc",
-        "rpc_arbitrum",
+        "rpc_ethereum",  # Free RPC (15 endpoints)
+        "rpc_bsc",  # BSC (16 endpoints)
+        "rpc_polygon",  # Polygon (9 endpoints)
+        "rpc_base",  # Base (9 endpoints)
+        "rpc_arbitrum",  # Arbitrum (9 endpoints)
+        "rpc_optimism",  # Optimism (9 endpoints)
+        "rpc_avalanche",  # Avalanche (9 endpoints)
+        "rpc_fantom",  # Fantom (8 endpoints)
+        "rpc_linea",  # Linea (7 endpoints)
+        "rpc_zksync",  # zkSync (6 endpoints)
+        "rpc_scroll",  # Scroll (6 endpoints)
+        "rpc_mantle",  # Mantle (6 endpoints)
         "etherscan_free",
     ],
     "solana_data": [
