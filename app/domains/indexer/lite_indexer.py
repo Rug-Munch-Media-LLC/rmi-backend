@@ -482,6 +482,52 @@ class LiteIndexer:
         # ClickHouse client (lazy)
         self._ch_client: Any = None
 
+    # ── Pair Cache (Prong 1: Persisted to disk) ─────────────────────
+
+    def _pair_cache_path(self) -> Path:
+        """Chain-specific pair cache file path."""
+        return STATE_DIR / f"pair_tokens_{self.chain}.json"
+
+    def _load_pair_cache(self) -> None:
+        """Load persisted pair→tokens mapping from disk.
+
+        This is THE fix for the 47.5M orphaned dex_events — without
+        persistence, every restart wipes the cache and all new swap
+        events land with empty token0/token1.
+        """
+        path = self._pair_cache_path()
+        if not path.exists():
+            logger.debug("pair_cache_not_found", chain=self.chain, path=str(path))
+            self._pair_tokens = {}
+            return
+        try:
+            data = json.loads(path.read_text())
+            # Normalize from list-of-len-2 back to tuple format
+            self._pair_tokens = {k: (v[0], v[1]) if isinstance(v, list) else v for k, v in data.items()}
+            logger.info("pair_cache_loaded", chain=self.chain, pairs=len(self._pair_tokens))
+        except (json.JSONDecodeError, OSError, TypeError) as exc:
+            logger.warning("pair_cache_load_failed", chain=self.chain, error=str(exc)[:80])
+            self._pair_tokens = {}
+
+    def _save_pair_cache(self) -> None:
+        """Persist pair→tokens mapping to disk.
+
+        Called after every fetch_pair_created_events() that found new pairs
+        and after every batch eth_call resolution in _batch_resolve_pool_tokens().
+        """
+        if not self._pair_tokens:
+            return
+        try:
+            path = self._pair_cache_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w") as f:
+                fcntl.flock(f, fcntl.LOCK_EX)
+                json.dump(self._pair_tokens, f)
+                fcntl.flock(f, fcntl.LOCK_UN)
+            logger.debug("pair_cache_saved", chain=self.chain, pairs=len(self._pair_tokens))
+        except (OSError, TypeError) as exc:
+            logger.warning("pair_cache_save_failed", chain=self.chain, error=str(exc)[:80])
+
     # ── HTTP Client ─────────────────────────────────────────────────
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -947,6 +993,34 @@ class LiteIndexer:
                 seen_keys.add(key)
                 merged.append(evt)
 
+        # Batch-resolve unknown pairs (Prong 3: eth_call fallback)
+        # Events from unknown pools get empty token0/token1 in _parse_swap_logs.
+        # We collect those here and resolve them via eth_call/ClickHouse,
+        # then backfill the events before returning.
+        unknown_pairs: set[str] = set()
+        for evt in merged:
+            pair = evt.get("pairAddress", "").lower()
+            if (not evt.get("token0") or not evt.get("token1")) and pair and pair not in self._pair_tokens:
+                unknown_pairs.add(pair)
+
+        if unknown_pairs:
+            resolved = await self._batch_resolve_pool_tokens(list(unknown_pairs))
+            if resolved:
+                backfill_count = 0
+                for evt in merged:
+                    pair = evt.get("pairAddress", "").lower()
+                    if pair in resolved:
+                        evt["token0"] = resolved[pair][0]
+                        evt["token1"] = resolved[pair][1]
+                        backfill_count += 1
+                logger.info(
+                    "swap_events_backfilled",
+                    chain=self.chain,
+                    resolved=len(resolved),
+                    events_updated=backfill_count,
+                    still_empty=sum(1 for e in merged if not e.get("token0") or not e.get("token1")),
+                )
+
         return merged
 
     # ── PairCreated Fetch ────────────────────────────────────────────
@@ -957,30 +1031,45 @@ class LiteIndexer:
         to_block: int,
     ) -> None:
         """
-        Fetch PairCreated events from known DEX factories.
+        Fetch PairCreated (V2) + PoolCreated (V3) events from known DEX factories.
 
-        Builds a pair→(token0, token1) mapping in self._pair_tokens so that
-        _parse_swap_logs() can populate token0/token1 fields in swap events.
+        **Prong 2 fix**: queries BOTH V2 PairCreated and V3 PoolCreated events
+        to build a pair→(token0, token1) mapping in self._pair_tokens.
 
-        PairCreated(address indexed token0, address indexed token1, address pair, uint256)
+        V2 PairCreated(address indexed token0, address indexed token1, address pair, uint256)
           topic[0] = keccak256("PairCreated(address,address,address,uint256)")
           topic[1] = token0 (indexed, padded to 32 bytes)
           topic[2] = token1 (indexed, padded to 32 bytes)
           data[0:32] = pair address (padded to 32 bytes, right-aligned)
+
+        V3 PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)
+          topic[0] = keccak256("PoolCreated(address,address,uint24,int24,address)")
+          topic[1] = token0 (indexed, padded to 32 bytes)
+          topic[2] = token1 (indexed, padded to 32 bytes)
+          topic[3] = fee (indexed)
+          data[0:32] = tickSpacing (int24 padded to 32 bytes)
+          data[32:64] = pool address (padded to 32 bytes, right-aligned)
         """
-        factories = FACTORY_ADDRESSES.get(self.chain, [])
-        if not factories:
+        # Collect all factory queries: (address, topic, is_v3)
+        queries: list[tuple[str, str, bool]] = []
+        for addr in FACTORY_ADDRESSES.get(self.chain, []):
+            queries.append((addr, PAIR_CREATED_TOPIC, False))
+        for addr in V3_FACTORY_ADDRESSES.get(self.chain, []):
+            queries.append((addr, POOL_CREATED_TOPIC, True))
+
+        if not queries:
             logger.debug("no_factories_for_chain", chain=self.chain)
             return
 
         client = await self._get_client()
+        pairs_before = len(self._pair_tokens)
 
-        for factory_addr in factories:
+        for factory_addr, event_topic, is_v3 in queries:
             filter_params = {
                 "fromBlock": hex(from_block),
                 "toBlock": hex(to_block),
                 "address": factory_addr,
-                "topics": [PAIR_CREATED_TOPIC],
+                "topics": [event_topic],
             }
             body = {
                 "jsonrpc": "2.0",
@@ -1010,23 +1099,39 @@ class LiteIndexer:
                                 for log in logs:
                                     topics = log.get("topics", [])
                                     data_hex = log.get("data", "0x")
-                                    if len(topics) < 3:
-                                        continue
-                                    # token0 = topic[1], token1 = topic[2] (both padded)
-                                    token0 = self._unpad_address(topics[1])
-                                    token1 = self._unpad_address(topics[2])
-                                    # pair address is rightmost 20 bytes of data[0:32]
-                                    raw_data = data_hex.removeprefix("0x")
-                                    if len(raw_data) < 64:
-                                        continue
-                                    pair_bytes = raw_data[24:64]  # last 20 bytes → 40 hex chars
-                                    pair = "0x" + pair_bytes.lower()
+                                    if is_v3:
+                                        # V3 PoolCreated
+                                        if len(topics) < 4:
+                                            continue
+                                        token0 = self._unpad_address(topics[1])
+                                        token1 = self._unpad_address(topics[2])
+                                        # Pool address is rightmost 20 bytes of data[32:64]
+                                        raw_data = data_hex.removeprefix("0x")
+                                        if len(raw_data) < 128:
+                                            continue
+                                        # bytes 32-63 = pool address, rightmost 20 bytes
+                                        pool_hex = raw_data[64:128]
+                                        pool_bytes = pool_hex[24:64]  # last 20 bytes
+                                        pair = "0x" + pool_bytes.lower()
+                                    else:
+                                        # V2 PairCreated
+                                        if len(topics) < 3:
+                                            continue
+                                        token0 = self._unpad_address(topics[1])
+                                        token1 = self._unpad_address(topics[2])
+                                        # pair address is rightmost 20 bytes of data[0:32]
+                                        raw_data = data_hex.removeprefix("0x")
+                                        if len(raw_data) < 64:
+                                            continue
+                                        pair_bytes = raw_data[24:64]
+                                        pair = "0x" + pair_bytes.lower()
                                     self._pair_tokens[pair] = (token0, token1)
 
                                 logger.info(
-                                    "pair_created_fetched",
+                                    "factory_events_fetched",
                                     chain=self.chain,
                                     factory=factory_addr[:20],
+                                    is_v3=is_v3,
                                     events=len(logs),
                                     total_pairs=len(self._pair_tokens),
                                 )
@@ -1038,11 +1143,149 @@ class LiteIndexer:
                     continue
                 except Exception as exc:
                     logger.debug(
-                        "pair_created_error",
+                        "factory_events_error",
                         factory=factory_addr[:20],
+                        is_v3=is_v3,
                         error=str(exc)[:60],
                     )
                     continue
+
+        # Save cache to disk if any new pairs were discovered
+        if len(self._pair_tokens) > pairs_before:
+            self._save_pair_cache()
+
+    # ── Pool Token Resolution (Prong 3: eth_call fallback) ──────────
+
+    async def _resolve_pool_tokens(self, pair_address: str) -> tuple[str, str]:
+        """Resolve token0/token1 via eth_call on the pool contract.
+
+        Calls token0() (selector 0x0dfe1681) and token1() (selector 0xd21220a7)
+        on the pair contract address. Only used as a lazy fallback when
+        the pair was not found in PairCreated/PoolCreated event logs.
+
+        Also checks ClickHouse rugdex.pairs table first (much cheaper).
+        """
+        # 1. Try ClickHouse rugdex.pairs lookup (zero cost, best case)
+        try:
+            ch_client = self._get_ch_client()
+            if ch_client:
+                rows = ch_client.execute(
+                    "SELECT token0, token1 FROM rugdex.pairs WHERE pair_address = %(pair)s",
+                    {"pair": pair_address},
+                )
+                if rows and len(rows[0]) == 2:
+                    token0, token1 = rows[0]
+                    if token0 and token1:
+                        logger.debug("pool_resolved_via_clickhouse", pair=pair_address[:20])
+                        return (token0, token1)
+        except Exception as exc:
+            logger.debug("clickhouse_rugdex_lookup_failed", error=str(exc)[:60])
+
+        # 2. Fall back to eth_call
+        try:
+            resp0 = await self.router.eth_call(self.chain, pair_address, TOKEN0_SELECTOR)
+            resp1 = await self.router.eth_call(self.chain, pair_address, TOKEN1_SELECTOR)
+
+            token0 = ""
+            token1 = ""
+            if resp0 and isinstance(resp0, str) and len(resp0) >= 42:
+                token0 = "0x" + resp0[-40:].lower()
+            if resp1 and isinstance(resp1, str) and len(resp1) >= 42:
+                token1 = "0x" + resp1[-40:].lower()
+
+            if token0 and token1:
+                logger.debug("pool_resolved_via_eth_call", pair=pair_address[:20])
+                return (token0, token1)
+        except Exception as exc:
+            logger.debug("pool_resolve_failed", pair=pair_address[:20], error=str(exc)[:60])
+
+        return ("", "")
+
+    async def _batch_resolve_pool_tokens(self, pair_addresses: list[str]) -> dict[str, tuple[str, str]]:
+        """Batch-resolve token0/token1 for unknown pool addresses.
+
+        Uses a semaphore-limited concurrent eth_call approach with
+        ClickHouse rugdex.pairs lookup as a faster first-pass filter.
+        Updates self._pair_tokens and persists to disk.
+
+        Returns dict of {pair_address: (token0, token1)} for resolved pools.
+        """
+        if not pair_addresses:
+            return {}
+
+        # 1. First pass: check rugdex.pairs in ClickHouse (bulk, fast)
+        bulk_resolved: dict[str, tuple[str, str]] = {}
+        remaining: list[str] = []
+        try:
+            ch_client = self._get_ch_client()
+            if ch_client:
+                rows = ch_client.execute(
+                    "SELECT pair_address, token0, token1 FROM rugdex.pairs WHERE pair_address IN %(pairs)s",
+                    {"pairs": [p.lower() for p in pair_addresses]},
+                )
+                ch_hits = {}
+                for row in rows:
+                    addr, t0, t1 = row[0], row[1], row[2]
+                    if t0 and t1:
+                        ch_hits[addr.lower()] = (t0, t1)
+                for p in pair_addresses:
+                    pl = p.lower()
+                    if pl in ch_hits:
+                        bulk_resolved[pl] = ch_hits[pl]
+                        self._pair_tokens[pl] = ch_hits[pl]
+                    else:
+                        remaining.append(pl)
+            else:
+                remaining = [p.lower() for p in pair_addresses]
+        except Exception:
+            remaining = [p.lower() for p in pair_addresses]
+
+        if not remaining:
+            if bulk_resolved:
+                self._save_pair_cache()
+            return bulk_resolved
+
+        # 2. Second pass: eth_call fallback for remaining
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_POOL_RESOLVE)
+        eth_resolved: dict[str, tuple[str, str]] = {}
+
+        async def _resolve_one(pair: str) -> tuple[str, str, str]:
+            async with semaphore:
+                try:
+                    resp0 = await self.router.eth_call(self.chain, pair, TOKEN0_SELECTOR)
+                    resp1 = await self.router.eth_call(self.chain, pair, TOKEN1_SELECTOR)
+                    t0 = ""
+                    t1 = ""
+                    if resp0 and isinstance(resp0, str) and len(resp0) >= 42:
+                        t0 = "0x" + resp0[-40:].lower()
+                    if resp1 and isinstance(resp1, str) and len(resp1) >= 42:
+                        t1 = "0x" + resp1[-40:].lower()
+                    return (pair, t0, t1)
+                except Exception:
+                    return (pair, "", "")
+
+        tasks = [_resolve_one(p) for p in remaining]
+        outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for outcome in outcomes:
+            if isinstance(outcome, tuple) and len(outcome) == 3:
+                pair, t0, t1 = outcome
+                if t0 and t1:
+                    eth_resolved[pair] = (t0, t1)
+                    self._pair_tokens[pair] = (t0, t1)
+
+        all_resolved = {**bulk_resolved, **eth_resolved}
+        if all_resolved:
+            self._save_pair_cache()
+            logger.info(
+                "batch_resolved_pairs",
+                chain=self.chain,
+                total=len(all_resolved),
+                eth_calls=len(eth_resolved),
+                clickhouse_hits=len(bulk_resolved),
+            )
+
+        return all_resolved
 
     # ── Swap Log Parser ──────────────────────────────────────────────
 
