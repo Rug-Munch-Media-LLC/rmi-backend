@@ -23,8 +23,8 @@ import asyncio
 import os
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
@@ -777,9 +777,9 @@ async def rpc_call(
 
 
 __all__ = [
+    "EVM_RPC_ENDPOINTS",
+    "SOLANA_RPC_ENDPOINTS",
     "RpcRouter",
     "get_rpc_router",
     "rpc_call",
-    "EVM_RPC_ENDPOINTS",
-    "SOLANA_RPC_ENDPOINTS",
 ]

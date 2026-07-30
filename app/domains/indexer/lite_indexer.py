@@ -35,6 +35,7 @@ import argparse
 import asyncio
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -59,6 +60,11 @@ logger = get_logger(__name__)
 # keccak256("Transfer(address,address,uint256)")
 TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
+# keccak256("Swap(address,uint256,uint256,uint256,uint256,address)")
+SWAP_V2_TOPIC = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
+# keccak256("Swap(address,address,int256,int256,uint160,uint128,int24)")
+SWAP_V3_TOPIC = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"
+
 CHAIN_INDEXER_DIR = Path("/srv/data/chain-indexer")
 STATE_DIR = CHAIN_INDEXER_DIR / "state"
 
@@ -74,8 +80,9 @@ MAX_EVENTS_PER_BATCH = 100_000
 # RPC call timeout for eth_getLogs (longer since it can return large data)
 RPC_TIMEOUT = 30
 
-# ClickHouse target table
+# ClickHouse target tables
 CH_TABLE = "wallet_memory.evm_transfers"
+CH_DEX_TABLE = "wallet_memory.dex_events"
 
 # ── Known eth_getLogs endpoints per chain ────────────────────────────
 # Many public RPCs block eth_getLogs (too resource-heavy).
@@ -171,6 +178,7 @@ class LiteIndexer:
         self.chain = chain
         self.batch_size = batch_size
         self.disk_cap = disk_cap
+        self.dex_enabled = False
 
         # Optional override blocks (for testing / backfill)
         self._override_from = from_block
@@ -495,6 +503,343 @@ class LiteIndexer:
         )
         return []
 
+    # ── RPC: Get Logs (Swap Events) ────────────────────────────────────
+
+    async def fetch_swap_events(
+        self,
+        from_block: int,
+        to_block: int,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch DEX Swap events (V2 + V3) via eth_getLogs.
+
+        Runs two parallel requests — one for the V2 swap topic and one for
+        the V3 swap topic. Returns merged, deduplicated swap events.
+        """
+        if from_block > to_block:
+            return []
+
+        # Clamp range to batch size
+        if to_block - from_block > self.batch_size:
+            to_block = from_block + self.batch_size
+
+        client = await self._get_client()
+
+        async def _fetch_topic(topic: str, label: str) -> list[dict[str, Any]]:
+            filter_params = {
+                "fromBlock": hex(from_block),
+                "toBlock": hex(to_block),
+                "topics": [topic],
+            }
+            body = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "eth_getLogs",
+                "params": [filter_params],
+            }
+            endpoints = GET_LOGS_ENDPOINTS.get(self.chain, [])
+            if not endpoints:
+                endpoints = [u for u, _ in self.router.get_available_endpoints(self.chain)]
+            if not endpoints:
+                return []
+
+            best_result: list[dict[str, Any]] | None = None
+            for url in endpoints:
+                try:
+                    resp = await client.post(url, json=body, timeout=RPC_TIMEOUT)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if isinstance(data, dict) and "result" in data:
+                            logs = data["result"]
+                            if isinstance(logs, list):
+                                parsed = self._parse_swap_logs(logs, from_block, to_block, topic)
+                                logger.info(
+                                    "swap_logs_fetched",
+                                    chain=self.chain,
+                                    label=label,
+                                    block_range=f"{from_block}-{to_block}",
+                                    raw_logs=len(logs),
+                                    parsed=len(parsed),
+                                    endpoint=url.split("//")[1].split("/")[0][:30],
+                                )
+                                if best_result is None or len(parsed) > len(best_result):
+                                    best_result = parsed
+                                    if len(parsed) == len(logs):
+                                        break
+                except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError, httpx.WriteError):
+                    continue
+                except Exception:
+                    continue
+
+            return best_result or []
+
+        # Fetch V2 and V3 swaps in parallel
+        v2_task = _fetch_topic(SWAP_V2_TOPIC, "v2")
+        v3_task = _fetch_topic(SWAP_V3_TOPIC, "v3")
+        v2_results, v3_results = await asyncio.gather(v2_task, v3_task)
+
+        # Merge and deduplicate
+        seen_keys: set[str] = set()
+        merged: list[dict[str, Any]] = []
+        for evt in v2_results + v3_results:
+            key = f"{evt['transactionHash']}:{evt['logIndex']}"
+            if key not in seen_keys:
+                seen_keys.add(key)
+                merged.append(evt)
+
+        return merged
+
+    # ── Swap Log Parser ──────────────────────────────────────────────
+
+    def _parse_swap_logs(
+        self,
+        logs: list[dict[str, Any]],
+        from_block: int,
+        to_block: int,
+        topic: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Parse raw eth_getLogs results for swap events (V2 or V3).
+
+        V2 (Uniswap V2 style):
+          topic0 = SWAP_V2_TOPIC
+          topic1 = sender (indexed, address padded to 32 bytes)
+          topics[2] = recipient (indexed, address padded to 32 bytes)
+          data   = amount0In (uint256) + amount1In (uint256)
+                 + amount0Out (uint256) + amount1Out (uint256)
+
+        V3 (Uniswap V3 style):
+          topic0 = SWAP_V3_TOPIC
+          topic1 = sender (indexed, address padded to 32 bytes)
+          topic2 = recipient (indexed, address padded to 32 bytes)
+          data   = amount0 (int256) + amount1 (int256)
+                 + sqrtPriceX96 (uint160) + liquidity (uint128) + tick (int24)
+        """
+        is_v2 = topic == SWAP_V2_TOPIC
+        events: list[dict[str, Any]] = []
+        seen_keys: set[str] = set()
+        duplicates = 0
+
+        for log in logs:
+            if log.get("removed", False):
+                continue
+
+            topics = log.get("topics", [])
+            if len(topics) < 3:
+                continue
+
+            # Parse block number
+            block_hex = log.get("blockNumber", "0x0")
+            try:
+                block_num = int(block_hex, 16) if isinstance(block_hex, str) else int(block_hex)
+            except (ValueError, TypeError):
+                continue
+
+            if block_num < from_block or block_num > to_block:
+                continue
+
+            log_index_hex = log.get("logIndex", "0x0")
+            try:
+                log_index = int(log_index_hex, 16) if isinstance(log_index_hex, str) else int(log_index_hex)
+            except (ValueError, TypeError):
+                log_index = 0
+
+            tx_hash = log.get("transactionHash", "")
+            dedup_key = f"{tx_hash}:{log_index}"
+            if dedup_key in seen_keys:
+                duplicates += 1
+                continue
+            seen_keys.add(dedup_key)
+
+            data_hex = log.get("data", "0x")
+            raw = data_hex.removeprefix("0x")
+
+            if is_v2:
+                # V2 swap decode
+                sender = self._unpad_address(topics[1])
+                recipient = (
+                    self._unpad_address(topics[2]) if len(topics) > 2 else "0x0000000000000000000000000000000000000000"
+                )
+
+                amount0_in = "0"
+                amount1_in = "0"
+                amount0_out = "0"
+                amount1_out = "0"
+
+                if len(raw) >= 256:  # 4 × 32 bytes = 256 hex chars
+                    amount0_in = str(int(raw[0:64], 16))
+                    amount1_in = str(int(raw[64:128], 16))
+                    amount0_out = str(int(raw[128:192], 16))
+                    amount1_out = str(int(raw[192:256], 16))
+
+                dex_type = "v2"
+                dex_name = "uniswap_v2"
+                # token0/token1 not directly available from Swap event; store as unknown
+                token0 = ""
+                token1 = ""
+
+            else:
+                # V3 swap decode — store raw values
+                sender = self._unpad_address(topics[1])
+                recipient = (
+                    self._unpad_address(topics[2]) if len(topics) > 2 else "0x0000000000000000000000000000000000000000"
+                )
+
+                amount0_in = "0"
+                amount1_in = "0"
+                amount0_out = "0"
+                amount1_out = "0"
+
+                if len(raw) >= 256:  # amount0 + amount1 + sqrtPriceX96 + liquidity + tick
+                    amount0_in = str(int(raw[0:64], 16))
+                    amount1_in = str(int(raw[64:128], 16))
+                    amount0_out = "0"
+                    amount1_out = "0"
+
+                dex_type = "v3"
+                dex_name = "uniswap_v3"
+                token0 = ""
+                token1 = ""
+
+            events.append(
+                {
+                    "type": "swap",
+                    "dex_type": dex_type,
+                    "dex": dex_name,
+                    "chain": self.chain,
+                    "blockNumber": block_num,
+                    "blockTimestamp": "",
+                    "transactionHash": tx_hash,
+                    "logIndex": log_index,
+                    "sender": sender,
+                    "recipient": recipient,
+                    "token0": token0,
+                    "token1": token1,
+                    "amount0In": amount0_in,
+                    "amount1In": amount1_in,
+                    "amount0Out": amount0_out,
+                    "amount1Out": amount1_out,
+                    "pairAddress": log.get("address", ""),
+                    "price_usd": 0.0,
+                    "volume_usd": 0.0,
+                    "source": "lite_indexer",
+                }
+            )
+
+            if len(events) >= MAX_EVENTS_PER_BATCH:
+                logger.warning("swap_event_cap_reached", count=MAX_EVENTS_PER_BATCH)
+                break
+
+        if duplicates:
+            logger.debug("swap_dedup_removed", chain=self.chain, count=duplicates)
+
+        return events
+
+    # ── DEX NDJSON Writer ─────────────────────────────────────────────
+
+    def write_dex_ndjson(self, events: list[dict[str, Any]]) -> int:
+        """
+        Append swap events to /srv/data/chain-indexer/{chain}/dex/{date}/events.jsonl.
+        """
+        if not events:
+            return 0
+
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        out_dir = CHAIN_INDEXER_DIR / self.chain / "dex" / today
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / "events.jsonl"
+
+        try:
+            lines = [json.dumps(e, ensure_ascii=False) + "\n" for e in events]
+            bytes_written = 0
+            with open(out_path, "a") as f:
+                for line in lines:
+                    f.write(line)
+                    bytes_written += len(line.encode("utf-8"))
+
+            logger.info(
+                "dex_ndjson_written",
+                chain=self.chain,
+                path=str(out_path),
+                events=len(events),
+                bytes=bytes_written,
+            )
+            return bytes_written
+        except OSError as exc:
+            logger.error("dex_ndjson_write_failed", chain=self.chain, error=str(exc))
+            return 0
+
+    # ── DEX ClickHouse Writer ─────────────────────────────────────────
+
+    def write_dex_clickhouse(self, events: list[dict[str, Any]]) -> int:
+        """
+        Insert swap events into ClickHouse wallet_memory.dex_events.
+        """
+        if not events:
+            return 0
+
+        client = self._get_ch_client()
+        if not client:
+            logger.warning("dex_clickhouse_skipped", chain=self.chain)
+            return 0
+
+        now = datetime.now(UTC)
+        rows: list[tuple] = []
+
+        for event in events:
+            ts_str = event.get("blockTimestamp", "")
+            if ts_str:
+                try:
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    ts = now
+            else:
+                ts = now
+
+            rows.append(
+                (
+                    self.chain,
+                    event["blockNumber"],
+                    ts,
+                    event["transactionHash"],
+                    event["logIndex"],
+                    event.get("dex", ""),
+                    event.get("pairAddress", ""),
+                    event.get("token0", ""),
+                    event.get("token1", ""),
+                    event.get("sender", ""),
+                    event.get("recipient", ""),
+                    event.get("amount0In", "0"),
+                    event.get("amount1In", "0"),
+                    event.get("amount0Out", "0"),
+                    event.get("amount1Out", "0"),
+                    event.get("price_usd", 0.0),
+                    event.get("volume_usd", 0.0),
+                    event.get("source", "lite_indexer"),
+                    now,
+                )
+            )
+
+        try:
+            client.execute(
+                f"INSERT INTO {CH_DEX_TABLE} "
+                "(chain, block_number, block_timestamp, transaction_hash, log_index, "
+                "dex, pair_address, token0, token1, sender, recipient, "
+                "amount0_in, amount1_in, amount0_out, amount1_out, "
+                "price_usd, volume_usd, source, ingested_at) VALUES",
+                rows,
+            )
+            logger.info("dex_clickhouse_inserted", chain=self.chain, rows=len(rows))
+            return len(rows)
+        except Exception as exc:
+            logger.error(
+                "dex_clickhouse_insert_failed",
+                chain=self.chain,
+                rows=len(rows),
+                error=str(exc)[:150],
+            )
+            return 0
+
     # ── Log Parser ──────────────────────────────────────────────────
 
     @staticmethod
@@ -590,6 +935,7 @@ class LiteIndexer:
                     "value": value_str,
                     "tokenSymbol": None,
                     "tokenName": None,
+                    "source": "lite_indexer",
                 }
             )
 
@@ -615,12 +961,12 @@ class LiteIndexer:
         block_numbers = {e["blockNumber"] for e in events}
         timestamps = await self.fetch_block_timestamps(block_numbers)
 
-        fmt = "%a %b %d %Y %H:%M:%S GMT+0000 (Coordinated Universal Time)"
-        now_str = datetime.now(UTC).strftime(fmt)
-
         for event in events:
             ts = timestamps.get(event["blockNumber"])
-            event["blockTimestamp"] = ts.strftime(fmt) if ts else now_str
+            if ts:
+                event["blockTimestamp"] = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+            else:
+                event["blockTimestamp"] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         return events
 
@@ -683,11 +1029,8 @@ class LiteIndexer:
             ts_str = event.get("blockTimestamp", "")
             if ts_str:
                 try:
-                    ts = datetime.strptime(
-                        ts_str,
-                        "%a %b %d %Y %H:%M:%S GMT+0000 (Coordinated Universal Time)",
-                    ).replace(tzinfo=UTC)
-                except ValueError:
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                except (ValueError, TypeError):
                     ts = now
             else:
                 ts = now
@@ -787,7 +1130,7 @@ class LiteIndexer:
                 to_block=to_block,
             )
 
-        # 3. Fetch
+        # 3. Fetch transfer events
         logger.info(
             "sync_start",
             chain=self.chain,
@@ -796,37 +1139,73 @@ class LiteIndexer:
         )
 
         events = await self.fetch_transfers(from_block, to_block)
-        if not events:
+        if events:
+            summary["events_fetched"] = len(events)
+
+        # 4. Fetch DEX swap events (if enabled)
+        dex_events: list[dict[str, Any]] = []
+        if self.dex_enabled:
+            logger.info(
+                "dex_sync_start",
+                chain=self.chain,
+                from_block=from_block,
+                to_block=to_block,
+            )
+            dex_events = await self.fetch_swap_events(from_block, to_block)
+            summary["dex_events_fetched"] = len(dex_events)
+
+        if not events and not dex_events:
             self.save_state(to_block, 0)
             summary["status"] = "no_events"
             summary["duration_seconds"] = time.monotonic() - start_time
             return summary
 
-        summary["events_fetched"] = len(events)
+        # 5. Enrich with timestamps (both transfer and dex events)
+        if events:
+            events = await self._enrich_timestamps(events)
+        if dex_events:
+            dex_events = await self._enrich_timestamps(dex_events)
 
-        # 4. Enrich with timestamps
-        events = await self._enrich_timestamps(events)
+        # 6. Write NDJSON
+        bytes_written = 0
+        if events:
+            bytes_written = self.write_ndjson(events)
+            if bytes_written:
+                summary["events_written_ndjson"] = len(events)
+                summary["bytes_written"] = bytes_written
 
-        # 5. Write NDJSON
-        bytes_written = self.write_ndjson(events)
-        if bytes_written:
-            summary["events_written_ndjson"] = len(events)
-            summary["bytes_written"] = bytes_written
+        dex_bytes_written = 0
+        if dex_events:
+            dex_bytes_written = self.write_dex_ndjson(dex_events)
+            if dex_bytes_written:
+                summary["dex_events_written_ndjson"] = len(dex_events)
+                summary["dex_bytes_written"] = dex_bytes_written
 
-        # 6. Write ClickHouse
-        ch_inserted = self.write_clickhouse(events)
-        summary["events_written_ch"] = ch_inserted
+        # 7. Write ClickHouse
+        ch_inserted = 0
+        if events:
+            ch_inserted = self.write_clickhouse(events)
+            summary["events_written_ch"] = ch_inserted
 
-        # 7. Save state
-        self.save_state(to_block, len(events))
+        dex_ch_inserted = 0
+        if dex_events:
+            dex_ch_inserted = self.write_dex_clickhouse(dex_events)
+            summary["dex_events_written_ch"] = dex_ch_inserted
+
+        # 8. Save state
+        total_events = len(events) + len(dex_events)
+        self.save_state(to_block, total_events)
 
         summary["duration_seconds"] = round(time.monotonic() - start_time, 2)
         logger.info(
             "sync_complete",
             chain=self.chain,
-            events=len(events),
+            transfer_events=len(events),
+            dex_events=len(dex_events),
             ndjson=bool(bytes_written),
+            dex_ndjson=bool(dex_bytes_written),
             clickhouse=bool(ch_inserted),
+            dex_clickhouse=bool(dex_ch_inserted),
             duration_s=summary["duration_seconds"],
         )
         return summary
@@ -882,11 +1261,109 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip NDJSON writes",
     )
+    parser.add_argument(
+        "--daemon",
+        action="store_true",
+        help="Run in daemon mode — continuously index all chains",
+    )
+    parser.add_argument(
+        "--chains",
+        type=str,
+        default="ethereum,base,bsc,polygon,arbitrum,optimism,avalanche,linea,scroll,zksync,mantle,gnosis",
+        help="Comma-separated list of chains to index in daemon mode",
+    )
+    parser.add_argument(
+        "--dex",
+        action="store_true",
+        help="Enable DEX swap event indexing (V2 + V3)",
+    )
     return parser.parse_args(argv)
+
+
+async def main_daemon(chains: list[str], dex_enabled: bool = False) -> int:
+    """
+    Daemon mode: continuously index all configured chains in parallel.
+
+    Each chain gets its own LiteIndexer instance with independent state
+    tracking and polling interval. Runs until SIGTERM/SIGINT.
+    """
+    logger.info("daemon_start", chains=chains, dex=dex_enabled)
+
+    # Create per-chain indexers
+    indexers = {}
+    for chain in chains:
+        indexer = LiteIndexer(chain=chain)
+        indexer.dex_enabled = dex_enabled
+        indexers[chain] = indexer
+
+    running = True
+    shutdown_event = asyncio.Event()
+
+    def _handle_signal(sig: int, _frame: Any) -> None:
+        nonlocal running
+        sig_name = signal.Signals(sig).name
+        logger.info("daemon_signal_received", signal=sig_name)
+        running = False
+        shutdown_event.set()
+
+    # Register signal handlers
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, lambda s=sig: _handle_signal(s, None))
+        except (NotImplementedError, RuntimeError):
+            # Fallback for platforms without add_signal_handler
+            signal.signal(sig, _handle_signal)
+
+    poll_interval = 15  # seconds between polls
+
+    while running:
+        start_cycle = time.monotonic()
+
+        async def _sync_chain(chain: str) -> dict[str, Any]:
+            indexer = indexers[chain]
+            try:
+                return await indexer.sync_loop()
+            except Exception as exc:
+                logger.error("daemon_chain_failed", chain=chain, error=str(exc))
+                return {"chain": chain, "status": "error", "error": str(exc)}
+
+        tasks = [_sync_chain(c) for c in chains]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        ok_count = sum(
+            1 for r in results if isinstance(r, dict) and r.get("status") in ("ok", "no_events", "caught_up")
+        )
+        error_count = sum(
+            1 for r in results if isinstance(r, Exception) or (isinstance(r, dict) and r.get("status") == "error")
+        )
+
+        logger.info(
+            "daemon_cycle_complete",
+            chains=len(chains),
+            ok=ok_count,
+            errors=error_count,
+            cycle_s=round(time.monotonic() - start_cycle, 2),
+        )
+
+        # Sleep for poll interval (but wake early on shutdown)
+        try:
+            await asyncio.wait_for(shutdown_event.wait(), timeout=poll_interval)
+        except asyncio.TimeoutError:
+            pass
+
+    logger.info("daemon_shutdown")
+    return 0 if error_count == 0 else 1
 
 
 async def async_main(args: argparse.Namespace) -> int:
     """Async entry point."""
+    # Daemon mode
+    if args.daemon:
+        chains = [c.strip() for c in args.chains.split(",") if c.strip()]
+        return await main_daemon(chains, dex_enabled=args.dex)
+
+    # Single-chain mode
     indexer = LiteIndexer(
         chain=args.chain,
         from_block=args.from_block,
@@ -894,6 +1371,7 @@ async def async_main(args: argparse.Namespace) -> int:
         batch_size=args.batch_size,
         disk_cap=args.disk_cap,
     )
+    indexer.dex_enabled = args.dex
 
     try:
         summary = await indexer.sync_loop()
@@ -921,5 +1399,7 @@ if __name__ == "__main__":
 __all__ = [
     "LiteIndexer",
     "main",
+    "main_daemon",
     "parse_args",
+    "async_main",
 ]

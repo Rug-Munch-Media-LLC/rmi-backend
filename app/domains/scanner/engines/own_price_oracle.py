@@ -47,14 +47,23 @@ _PRICE_CACHE_MAX = 200
 
 # ── Chain normalization ─────────────────────────────────────────────────
 _CHAIN_MAP: dict[str, str] = {
-    "ethereum": "ethereum", "eth": "ethereum", "mainnet": "ethereum",
-    "bsc": "bsc", "bnb": "bsc", "binance": "bsc",
-    "polygon": "polygon", "matic": "polygon",
-    "arbitrum": "arbitrum", "arb": "arbitrum",
-    "optimism": "optimism", "op": "optimism",
+    "ethereum": "ethereum",
+    "eth": "ethereum",
+    "mainnet": "ethereum",
+    "bsc": "bsc",
+    "bnb": "bsc",
+    "binance": "bsc",
+    "polygon": "polygon",
+    "matic": "polygon",
+    "arbitrum": "arbitrum",
+    "arb": "arbitrum",
+    "optimism": "optimism",
+    "op": "optimism",
     "base": "base",
-    "avalanche": "avalanche", "avax": "avalanche",
-    "fantom": "fantom", "ftm": "fantom",
+    "avalanche": "avalanche",
+    "avax": "avalanche",
+    "fantom": "fantom",
+    "ftm": "fantom",
     "solana": "solana",
 }
 
@@ -124,6 +133,7 @@ async def get_token_price(
     """
     token_address = token_address.lower()
     chain = _normalize_chain(chain)
+    _start = time.monotonic()
 
     # Check cache
     cache_key = f"{token_address}:{chain}"
@@ -139,6 +149,14 @@ async def get_token_price(
     if price_data and price_data.get("confidence", 0) > 0.3:
         price_data["source"] = "own"
         _cache_price(cache_key, price_data)
+        _elapsed_ms = (time.monotonic() - _start) * 1000
+        logger.info(
+            "own_price_oracle_latency",
+            ms=round(_elapsed_ms, 1),
+            price_usd=price_data.get("price_usd"),
+            chain=chain,
+            confidence=price_data.get("confidence"),
+        )
         return price_data
 
     # Tier 2: DeFiLlama fallback
@@ -146,6 +164,14 @@ async def get_token_price(
     if price_data:
         price_data["source"] = "defillama"
         _cache_price(cache_key, price_data)
+        _elapsed_ms = (time.monotonic() - _start) * 1000
+        logger.info(
+            "own_price_oracle_latency",
+            ms=round(_elapsed_ms, 1),
+            price_usd=price_data.get("price_usd"),
+            chain=chain,
+            confidence=price_data.get("confidence"),
+        )
         return price_data
 
     # Tier 3: CoinGecko fallback
@@ -153,9 +179,25 @@ async def get_token_price(
     if price_data:
         price_data["source"] = "coingecko"
         _cache_price(cache_key, price_data)
+        _elapsed_ms = (time.monotonic() - _start) * 1000
+        logger.info(
+            "own_price_oracle_latency",
+            ms=round(_elapsed_ms, 1),
+            price_usd=price_data.get("price_usd"),
+            chain=chain,
+            confidence=price_data.get("confidence"),
+        )
         return price_data
 
     # All sources exhausted
+    _elapsed_ms = (time.monotonic() - _start) * 1000
+    logger.info(
+        "own_price_oracle_latency",
+        ms=round(_elapsed_ms, 1),
+        price_usd=0.0,
+        chain=chain,
+        confidence=0.0,
+    )
     return {
         "price_usd": 0.0,
         "volume_24h_usd": 0.0,
@@ -368,7 +410,9 @@ async def _get_coingecko_price(
                 "price_usd": price,
                 "volume_24h_usd": float(md.get("total_volume", {}).get("usd", 0) or 0),
                 "price_change_24h_pct": float(md.get("price_change_percentage_24h", 0) or 0),
-                "market_cap_usd": float(md.get("market_cap", {}).get("usd", 0)) if md.get("market_cap", {}).get("usd") else None,
+                "market_cap_usd": float(md.get("market_cap", {}).get("usd", 0))
+                if md.get("market_cap", {}).get("usd")
+                else None,
                 "confidence": 0.9,
                 "sources": ["coingecko"],
             }

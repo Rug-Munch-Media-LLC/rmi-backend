@@ -4,7 +4,7 @@
 # Per v4.0 RAG permanence requirement:
 #   1. Redis ANN index: DUMP all rag:ann:* keys to backup file
 #   2. Qdrant: snapshot all collections to /backups/rag/qdrant/
-#   3. R2: sync to remote for disaster recovery
+# 3. B2: sync to remote for disaster recovery
 #
 # Usage:
 #   ./backup-rag.sh                    # Full backup
@@ -189,16 +189,16 @@ except Exception:
 
 # ── 3. R2 Sync ──────────────────────────────────────────────────
 sync_to_r2() {
-  log "Syncing RAG backup to R2..."
+  log "Syncing RAG backup to B2..."
   if command -v rclone &>/dev/null; then
-    if rclone ls r2-crypt:backups/rag/ 2>/dev/null >/dev/null; then
-      rclone sync "${BACKUP_DIR}" "r2-crypt:backups/rag/${DATE}" --progress 2>&1 | tee -a "${LOG}"
-      log "  ✓ Synced to r2-crypt:backups/rag/${DATE}"
+    if rclone ls b2-crypt:backups/rag/ 2>/dev/null >/dev/null; then
+      rclone sync "${BACKUP_DIR}" "b2-crypt:backups/rag/${DATE}" --progress 2>&1 | tee -a "${LOG}"
+      log "  ✓ Synced to b2-crypt:backups/rag/${DATE}"
     else
-      log "  ⚠ r2-crypt:backups/rag/ not accessible — skipping R2 sync"
+      log "  ⚠ b2-crypt:backups/rag/ not accessible — skipping B2 sync"
     fi
   else
-    log "  ⚠ rclone not found — skipping R2 sync"
+    log "  ⚠ rclone not found — skipping B2 sync"
   fi
 }
 
