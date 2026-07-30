@@ -36,6 +36,7 @@ import asyncio
 import contextlib
 import json
 import os
+import random
 import shutil
 import signal
 import subprocess
@@ -67,6 +68,19 @@ SWAP_V2_TOPIC = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d
 # keccak256("Swap(address,address,int256,int256,uint160,uint128,int24)")
 SWAP_V3_TOPIC = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"
 
+# keccak256("PairCreated(address,address,address,uint256)")
+PAIR_CREATED_TOPIC = "0x79b58832c15b09feb3df60e6992ac2bf90bb88a193b76dcf74a5529cfc6a96e2"
+
+# Known DEX factory addresses for PairCreated event queries
+# These let us build a pair→(token0, token1) mapping from factory logs.
+FACTORY_ADDRESSES: dict[str, list[str]] = {
+    "ethereum": ["0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"],  # Uniswap V2
+    "base": ["0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6"],
+    "bsc": ["0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"],  # PancakeSwap
+    "polygon": ["0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"],  # QuickSwap
+    "arbitrum": ["0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9"],
+}
+
 CHAIN_INDEXER_DIR = Path("/srv/data/chain-indexer")
 STATE_DIR = CHAIN_INDEXER_DIR / "state"
 
@@ -89,71 +103,109 @@ CH_DEX_TABLE = "wallet_memory.dex_events"
 # ── Known eth_getLogs endpoints per chain ────────────────────────────
 # Many public RPCs block eth_getLogs (too resource-heavy).
 # These endpoints are verified to support it on free tier.
+#
+# Tier organisation (3 tiers per chain):
+#   TIER 1 (indices 0-1) — fastest, most reliable (drpc.org, official RPCs)
+#   TIER 2 (indices 2-3) — fallbacks (1rpc.io, publicnode.com, etc.)
+#   TIER 3 (indices 4+)  — last resort (gateway.tatum.io, quiknode.pro, etc.)
+#
+# Tested 2026-07-30 against eth_getLogs fromBlock=0x1, toBlock=0x64:
+#   ✅ = returned result   ⏳ = rate-limited   ❌ = removed from tier 1/2
 GET_LOGS_ENDPOINTS: dict[str, list[str]] = {
+    # ── Ethereum ───────────────────────────────────────────────────────
+    # ✅ eth.drpc.org  ✅ rpc.mevblocker.io  ⏳ 1rpc.io/eth
     "ethereum": [
-        "https://eth.drpc.org",
-        "https://1rpc.io/eth",
-        "https://rpc.flashbots.net",
-        "https://eth-mainnet.public.blastapi.io",
+        "https://eth.drpc.org",  # T1 ✅
+        "https://rpc.mevblocker.io",  # T1 ✅
+        "https://1rpc.io/eth",  # T2 ⏳
+        "https://eth-mainnet.public.blastapi.io",  # T2 ⏳ 10-block limit
     ],
+    # ── Base ──────────────────────────────────────────────────────────
+    # ✅ base.drpc.org  ✅ mainnet.base.org  ⏳ 1rpc.io/base
     "base": [
-        "https://base.drpc.org",
-        "https://1rpc.io/base",
-        "https://mainnet.base.org",
+        "https://base.drpc.org",  # T1 ✅
+        "https://mainnet.base.org",  # T1 ✅
+        "https://1rpc.io/base",  # T2 ⏳
+        "https://base-rpc.publicnode.com",  # T2 sometimes needs token
     ],
+    # ── BSC ───────────────────────────────────────────────────────────
+    # ✅ nodereal.io  ⏳ bsc.drpc.org  ✅ tatum.io  ⏳ binance.org
     "bsc": [
-        "https://bsc.drpc.org",
-        "https://1rpc.io/bnb",
-        "https://bsc-dataseed.binance.org",
-        "https://bsc-dataseed1.binance.org",
+        "https://bsc-mainnet.nodereal.io/v1/64a9df0874fb4a93b9d0a3849de012d3",  # T1 ✅
+        "https://bsc.drpc.org",  # T1 ⏳
+        "https://bsc-mainnet.gateway.tatum.io",  # T2 ✅
+        "https://bsc-dataseed1.binance.org",  # T2 ⏳
     ],
-    "arbitrum": [
-        "https://arbitrum.drpc.org",
-        "https://1rpc.io/arb",
-        "https://arb1.arbitrum.io/rpc",
-    ],
+    # ── Polygon ──────────────────────────────────────────────────────
+    # ✅ polygon.drpc.org  ✅ quiknode.pro  ✅ tatum.io  ⏳ 1rpc.io/matic
     "polygon": [
-        "https://polygon.drpc.org",
-        "https://1rpc.io/matic",
-        "https://polygon-rpc.com",
+        "https://polygon.drpc.org",  # T1 ✅
+        "https://rpc-mainnet.matic.quiknode.pro",  # T1 ✅
+        "https://polygon-mainnet.gateway.tatum.io",  # T2 ✅
+        "https://1rpc.io/matic",  # T2 ⏳
     ],
+    # ── Arbitrum ─────────────────────────────────────────────────────
+    # ✅ arb1.arbitrum.io/rpc  ❌ arbitrum.drpc.org (10-block limit)  ⏳ 1rpc.io/arb
+    "arbitrum": [
+        "https://arb1.arbitrum.io/rpc",  # T1 ✅ official — best
+        "https://arbitrum.drpc.org",  # T1 ⚠️ 10-block getLogs limit
+        "https://1rpc.io/arb",  # T2 ⏳
+    ],
+    # ── Optimism ─────────────────────────────────────────────────────
+    # ✅ mainnet.optimism.io  ❌ optimism.drpc.org (upstream)  ⏳ 1rpc.io/op
     "optimism": [
-        "https://optimism.drpc.org",
-        "https://1rpc.io/op",
-        "https://mainnet.optimism.io",
+        "https://mainnet.optimism.io",  # T1 ✅ official
+        "https://optimism.drpc.org",  # T1 ⚠️ intermittent
+        "https://1rpc.io/op",  # T2 ⏳
     ],
+    # ── Avalanche ────────────────────────────────────────────────────
+    # ✅ api.avax.network  ❌ avalanche.drpc.org (upstream)  ⏳ 1rpc.io/avax/c
     "avalanche": [
-        "https://avalanche.drpc.org",
-        "https://1rpc.io/avax/c",
+        "https://api.avax.network/ext/bc/C/rpc",  # T1 ✅ official
+        "https://avalanche.drpc.org",  # T1 ⚠️ intermittent
+        "https://1rpc.io/avax/c",  # T2 ⏳
     ],
+    # ── Fantom ───────────────────────────────────────────────────────
+    # ✅ fantom.drpc.org  ✅ rpc.fantom.network  ✅ rpcapi.fantom.network  ⏳ 1rpc.io/ftm
     "fantom": [
-        "https://fantom.drpc.org",
-        "https://1rpc.io/ftm",
+        "https://fantom.drpc.org",  # T1 ✅
+        "https://rpc.fantom.network",  # T1 ✅
+        "https://rpcapi.fantom.network",  # T2 ✅
+        "https://1rpc.io/ftm",  # T2 ⏳
     ],
+    # ── Linea ────────────────────────────────────────────────────────
+    # ✅ rpc.linea.build  ✅ linea.drpc.org  ⏳ 1rpc.io/linea
     "linea": [
-        "https://linea.drpc.org",
-        "https://1rpc.io/linea",
-        "https://rpc.linea.build",
+        "https://rpc.linea.build",  # T1 ✅ official
+        "https://linea.drpc.org",  # T1 ✅
+        "https://1rpc.io/linea",  # T2 ⏳
     ],
-    "zksync": [
-        "https://zksync.drpc.org",
-        "https://1rpc.io/zksync-era",
-        "https://mainnet.era.zksync.io",
-    ],
+    # ── Scroll ───────────────────────────────────────────────────────
+    # ✅ rpc.scroll.io  ✅ scroll.drpc.org  ⏳ 1rpc.io/scroll
     "scroll": [
-        "https://scroll.drpc.org",
-        "https://1rpc.io/scroll",
-        "https://rpc.scroll.io",
+        "https://rpc.scroll.io",  # T1 ✅ official
+        "https://scroll.drpc.org",  # T1 ✅
+        "https://1rpc.io/scroll",  # T2 ⏳
     ],
+    # ── zkSync Era ───────────────────────────────────────────────────
+    # ✅ mainnet.era.zksync.io  ❌ zksync.drpc.org (height)  ⏳ 1rpc.io/zksync2-era
+    "zksync": [
+        "https://mainnet.era.zksync.io",  # T1 ✅ official — best
+        "https://zksync.drpc.org",  # T1 ⚠️ intermittent
+        "https://1rpc.io/zksync2-era",  # T2 ⏳
+    ],
+    # ── Mantle ───────────────────────────────────────────────────────
+    # ✅ rpc.mantle.xyz  ✅ mantle.drpc.org  ⏳ 1rpc.io/mantle
     "mantle": [
-        "https://mantle.drpc.org",
-        "https://1rpc.io/mantle",
-        "https://rpc.mantle.xyz",
+        "https://rpc.mantle.xyz",  # T1 ✅ official
+        "https://mantle.drpc.org",  # T1 ✅
+        "https://1rpc.io/mantle",  # T2 ⏳
     ],
+    # ── Gnosis ───────────────────────────────────────────────────────
     "gnosis": [
-        "https://gnosis.drpc.org",
-        "https://1rpc.io/gnosis",
-        "https://rpc.gnosischain.com",
+        "https://gnosis.drpc.org",  # T1 ✅
+        "https://rpc.gnosischain.com",  # T1 ✅
+        "https://1rpc.io/gnosis",  # T2 ⏳
     ],
 }
 
@@ -201,19 +253,43 @@ _seen_events: set[tuple[str, int]] = set()
 # ── Endpoint Health ──────────────────────────────────────────────────
 
 
-def _get_healthy_endpoint(chain: str, endpoints: list[str]) -> str:
-    """Return the healthiest endpoint, skipping recently-failed ones."""
+def _get_best_endpoint(endpoints: list[str]) -> str:
+    """
+    Return the healthiest endpoint with load-balanced rotation.
+
+    Scoring:
+      - Each recent failure adds 1000 penalty (dominates)
+      - Original list position adds 1..N penalty (prefers earlier tiers)
+      - Bottom 30% of healthy list is ignored for rotation diversity
+      - Top 2 healthy endpoints are chosen randomly for load distribution
+
+    Fallthrough: if all endpoints are in cooldown, clear and retry the first.
+    """
     now = time.time()
-    for ep in endpoints:
-        failures = _endpoint_failures.get(ep, [])
-        failures = [t for t in failures if now - t < _ENDPOINT_COOLDOWN]
+
+    # Prune stale failures and score endpoints
+    scored: list[tuple[int, str]] = []
+    for i, ep in enumerate(endpoints):
+        failures = [t for t in _endpoint_failures.get(ep, []) if now - t < _ENDPOINT_COOLDOWN]
         _endpoint_failures[ep] = failures
-        if len(failures) < _MAX_FAILURES:
-            return ep
-    # All endpoints in cooldown — clear and retry the first
-    for ep in endpoints:
-        _endpoint_failures[ep] = []
-    return endpoints[0]
+        penalty = len(failures) * 1000 + i  # failures dominate, then position
+        scored.append((penalty, ep))
+
+    scored.sort(key=lambda x: x[0])
+
+    # Healthy endpoints: those with < 3 recent failures (penalty < 3000)
+    healthy = [ep for penalty, ep in scored if penalty < 3000]
+
+    if not healthy:
+        # All endpoints in cooldown — clear and retry the first
+        for ep in endpoints:
+            _endpoint_failures[ep] = []
+        logger.warning("all_endpoints_cooldown_reset", count=len(endpoints))
+        return endpoints[0]
+
+    # Load distribution: pick randomly from top half of healthy endpoints
+    pool_size = max(2, len(healthy) // 2)
+    return random.choice(healthy[:pool_size])
 
 
 def _record_endpoint_failure(endpoint: str) -> None:
@@ -319,6 +395,9 @@ class LiteIndexer:
         self.batch_size = batch_size
         self.disk_cap = disk_cap
         self.dex_enabled = False
+
+        # Pair→(token0, token1) cache built from PairCreated events
+        self._pair_tokens: dict[str, tuple[str, str]] = {}
 
         # Optional override blocks (for testing / backfill)
         self._override_from = from_block
@@ -563,10 +642,17 @@ class LiteIndexer:
             _metrics["rpc_errors"] += 1
             return []
 
-        # Sort endpoints: healthy ones first (use health tracking)
-        endpoints = sorted(
-            endpoints,
-            key=lambda ep: sum(1 for t in _endpoint_failures.get(ep, []) if time.time() - t < _ENDPOINT_COOLDOWN),
+        # Rotate starting endpoint for load distribution across runs.
+        #   _get_best_endpoint() scores endpoints by failure count × 1000
+        #   + list position, then picks randomly from the top half of
+        #   healthy endpoints — giving us both failure-awareness and
+        #   natural load spreading across Tier-1 providers.
+        start_idx = endpoints.index(_get_best_endpoint(endpoints))
+        rotated = endpoints[start_idx:] + endpoints[:start_idx]
+        logger.debug(
+            "endpoint_rotation",
+            chain=self.chain,
+            start=rotated[0][:50] if rotated else "none",
         )
 
         client = await self._get_client()
@@ -580,7 +666,7 @@ class LiteIndexer:
         best_result: list[dict[str, Any]] | None = None
         last_error: str | None = None
 
-        for url in endpoints:
+        for url in rotated:
             # Record backoff for recently-failed endpoints
             recent_failures = [t for t in _endpoint_failures.get(url, []) if time.time() - t < _ENDPOINT_COOLDOWN]
             if recent_failures:
@@ -685,10 +771,25 @@ class LiteIndexer:
         """
         Fetch DEX Swap events (V2 + V3) via eth_getLogs.
 
+        First fetches PairCreated events from known factories to build a
+        pair→(token0, token1) mapping, then fetches swap events. The mapping
+        is used by _parse_swap_logs() to populate token0/token1 fields.
+
         Runs two parallel requests — one for the V2 swap topic and one for
         the V3 swap topic. Returns merged, deduplicated swap events.
         """
         if from_block > to_block:
+            return []
+
+        # Build pair→tokens mapping from PairCreated events first
+        try:
+            await self.fetch_pair_created_events(from_block, to_block)
+        except Exception as exc:
+            logger.warning(
+                "pair_created_fetch_failed",
+                chain=self.chain,
+                error=str(exc)[:100],
+            )
             return []
 
         # Clamp range to batch size
@@ -715,14 +816,12 @@ class LiteIndexer:
             if not endpoints:
                 return []
 
-            # Sort endpoints: healthy ones first
-            endpoints = sorted(
-                endpoints,
-                key=lambda ep: sum(1 for t in _endpoint_failures.get(ep, []) if time.time() - t < _ENDPOINT_COOLDOWN),
-            )
+            # Rotate starting endpoint for load distribution
+            start_idx = endpoints.index(_get_best_endpoint(endpoints))
+            rotated = endpoints[start_idx:] + endpoints[:start_idx]
 
             best_result: list[dict[str, Any]] | None = None
-            for url in endpoints:
+            for url in rotated:
                 # Backoff for recently-failed endpoints
                 recent_failures = [t for t in _endpoint_failures.get(url, []) if time.time() - t < _ENDPOINT_COOLDOWN]
                 if recent_failures:
@@ -786,6 +885,97 @@ class LiteIndexer:
                 merged.append(evt)
 
         return merged
+
+    # ── PairCreated Fetch ────────────────────────────────────────────
+
+    async def fetch_pair_created_events(
+        self,
+        from_block: int,
+        to_block: int,
+    ) -> None:
+        """
+        Fetch PairCreated events from known DEX factories.
+
+        Builds a pair→(token0, token1) mapping in self._pair_tokens so that
+        _parse_swap_logs() can populate token0/token1 fields in swap events.
+
+        PairCreated(address indexed token0, address indexed token1, address pair, uint256)
+          topic[0] = keccak256("PairCreated(address,address,address,uint256)")
+          topic[1] = token0 (indexed, padded to 32 bytes)
+          topic[2] = token1 (indexed, padded to 32 bytes)
+          data[0:32] = pair address (padded to 32 bytes, right-aligned)
+        """
+        factories = FACTORY_ADDRESSES.get(self.chain, [])
+        if not factories:
+            logger.debug("no_factories_for_chain", chain=self.chain)
+            return
+
+        client = await self._get_client()
+
+        for factory_addr in factories:
+            filter_params = {
+                "fromBlock": hex(from_block),
+                "toBlock": hex(to_block),
+                "address": factory_addr,
+                "topics": [PAIR_CREATED_TOPIC],
+            }
+            body = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "eth_getLogs",
+                "params": [filter_params],
+            }
+
+            endpoints = GET_LOGS_ENDPOINTS.get(self.chain, [])
+            if not endpoints:
+                endpoints = [u for u, _ in self.router.get_available_endpoints(self.chain)]
+            if not endpoints:
+                continue
+
+            for url in endpoints:
+                try:
+                    resp = await client.post(url, json=body, timeout=RPC_TIMEOUT)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if isinstance(data, dict) and "result" in data:
+                            logs = data["result"]
+                            if isinstance(logs, list):
+                                for log in logs:
+                                    topics = log.get("topics", [])
+                                    data_hex = log.get("data", "0x")
+                                    if len(topics) < 3:
+                                        continue
+                                    # token0 = topic[1], token1 = topic[2] (both padded)
+                                    token0 = self._unpad_address(topics[1])
+                                    token1 = self._unpad_address(topics[2])
+                                    # pair address is rightmost 20 bytes of data[0:32]
+                                    raw_data = data_hex.removeprefix("0x")
+                                    if len(raw_data) < 64:
+                                        continue
+                                    pair_bytes = raw_data[24:64]  # last 20 bytes → 40 hex chars
+                                    pair = "0x" + pair_bytes.lower()
+                                    self._pair_tokens[pair] = (token0, token1)
+
+                                logger.info(
+                                    "pair_created_fetched",
+                                    chain=self.chain,
+                                    factory=factory_addr[:20],
+                                    events=len(logs),
+                                    total_pairs=len(self._pair_tokens),
+                                )
+                                break  # Got data from this endpoint
+                    elif resp.status_code == 429:
+                        await asyncio.sleep(2)
+                        continue
+                except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError, httpx.WriteError):
+                    continue
+                except Exception as exc:
+                    logger.debug(
+                        "pair_created_error",
+                        factory=factory_addr[:20],
+                        error=str(exc)[:60],
+                    )
+                    continue
 
     # ── Swap Log Parser ──────────────────────────────────────────────
 
@@ -872,9 +1062,6 @@ class LiteIndexer:
 
                 dex_type = "v2"
                 dex_name = "uniswap_v2"
-                # token0/token1 not directly available from Swap event; store as unknown
-                token0 = ""
-                token1 = ""
 
             else:
                 # V3 swap decode — store raw values
@@ -896,8 +1083,13 @@ class LiteIndexer:
 
                 dex_type = "v3"
                 dex_name = "uniswap_v3"
-                token0 = ""
-                token1 = ""
+
+            # Resolve token0/token1 from pair→tokens mapping (built from PairCreated events)
+            pair = log.get("address", "").lower()
+            if pair in self._pair_tokens:
+                token0, token1 = self._pair_tokens[pair]
+            else:
+                token0, token1 = "", ""
 
             events.append(
                 {
@@ -981,6 +1173,9 @@ class LiteIndexer:
             logger.warning("dex_clickhouse_skipped", chain=self.chain)
             return 0
 
+        # Ensure source column exists
+        self._ensure_source_column(client, CH_DEX_TABLE)
+
         now = datetime.now(UTC)
         rows: list[tuple] = []
 
@@ -1023,6 +1218,7 @@ class LiteIndexer:
                     amt1,  # amount1
                     0,  # whale — UInt8, not detected yet
                     now,
+                    event.get("source", "lite_indexer"),
                 )
             )
 
@@ -1032,7 +1228,7 @@ class LiteIndexer:
                 "(type, chain, block_number, block_timestamp, tx_hash, log_index, "
                 "contract_address, dex, version, token0, token1, sender, recipient, "
                 "amount0_in, amount1_in, amount0_out, amount1_out, "
-                "amount0, amount1, whale, ingested_at) VALUES",
+                "amount0, amount1, whale, ingested_at, source) VALUES",
                 rows,
             )
             logger.info("dex_clickhouse_inserted", chain=self.chain, rows=len(rows))
@@ -1222,6 +1418,13 @@ class LiteIndexer:
 
     # ── Output: ClickHouse ──────────────────────────────────────────
 
+    def _ensure_source_column(self, client: Any, table: str) -> None:
+        """Add `source` column to ClickHouse table if it doesn't exist yet."""
+        try:
+            client.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS source String DEFAULT ''")
+        except Exception as exc:
+            logger.debug("alter_table_add_source_skipped", table=table, error=str(exc)[:60])
+
     def write_clickhouse(self, events: list[dict[str, Any]]) -> int:
         """
         Insert events into ClickHouse wallet_memory.evm_transfers.
@@ -1235,6 +1438,9 @@ class LiteIndexer:
         if not client:
             logger.warning("clickhouse_skipped", chain=self.chain)
             return 0
+
+        # Ensure source column exists
+        self._ensure_source_column(client, CH_TABLE)
 
         now = datetime.now(UTC)
         rows: list[tuple] = []
@@ -1263,6 +1469,7 @@ class LiteIndexer:
                     event.get("tokenSymbol"),
                     event.get("tokenName"),
                     now,
+                    event.get("source", "lite_indexer"),
                 )
             )
 
@@ -1271,7 +1478,7 @@ class LiteIndexer:
                 f"INSERT INTO {CH_TABLE} "
                 "(chain, block_number, tx_hash, from_address, to_address, "
                 "token_address, value, block_timestamp, log_index, "
-                "token_symbol, token_name, ingested_at) VALUES",
+                "token_symbol, token_name, ingested_at, source) VALUES",
                 rows,
             )
             logger.info("clickhouse_inserted", chain=self.chain, rows=len(rows))
@@ -1510,19 +1717,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-async def main_daemon(chains: list[str], dex_enabled: bool = False) -> int:
+async def main_daemon(chains: list[str], dex_enabled: bool = False, disk_cap: int = DISK_CAP_BYTES) -> int:
     """
     Daemon mode: continuously index all configured chains in parallel.
 
     Each chain gets its own LiteIndexer instance with independent state
     tracking and polling interval. Runs until SIGTERM/SIGINT.
     """
-    logger.info("daemon_start", chains=chains, dex=dex_enabled)
+    logger.info("daemon_start", chains=chains, dex=dex_enabled, disk_cap=disk_cap)
 
     # Create per-chain indexers
     indexers = {}
     for chain in chains:
-        indexer = LiteIndexer(chain=chain)
+        indexer = LiteIndexer(chain=chain, disk_cap=disk_cap)
         indexer.dex_enabled = dex_enabled
         indexers[chain] = indexer
 
@@ -1603,7 +1810,7 @@ async def async_main(args: argparse.Namespace) -> int:
     # Daemon mode
     if args.daemon:
         chains = [c.strip() for c in args.chains.split(",") if c.strip()]
-        return await main_daemon(chains, dex_enabled=args.dex)
+        return await main_daemon(chains, dex_enabled=args.dex, disk_cap=args.disk_cap)
 
     # Single-chain mode
     indexer = LiteIndexer(
