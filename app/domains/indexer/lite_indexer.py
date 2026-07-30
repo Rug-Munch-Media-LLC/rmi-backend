@@ -289,7 +289,7 @@ def _get_best_endpoint(endpoints: list[str]) -> str:
 
     # Load distribution: pick randomly from top half of healthy endpoints
     pool_size = max(2, len(healthy) // 2)
-    return random.choice(healthy[:pool_size])
+    return random.choice(healthy[:pool_size])  # noqa: S311
 
 
 def _record_endpoint_failure(endpoint: str) -> None:
@@ -643,7 +643,7 @@ class LiteIndexer:
             return []
 
         # Rotate starting endpoint for load distribution across runs.
-        #   _get_best_endpoint() scores endpoints by failure count × 1000
+        #   _get_best_endpoint() scores endpoints by failure count x 1000
         #   + list position, then picks randomly from the top half of
         #   healthy endpoints — giving us both failure-awareness and
         #   natural load spreading across Tier-1 providers.
@@ -932,7 +932,11 @@ class LiteIndexer:
             if not endpoints:
                 continue
 
-            for url in endpoints:
+            # Rotate starting endpoint for load distribution
+            start_idx = endpoints.index(_get_best_endpoint(endpoints))
+            rotated = endpoints[start_idx:] + endpoints[:start_idx]
+
+            for url in rotated:
                 try:
                     resp = await client.post(url, json=body, timeout=RPC_TIMEOUT)
                     if resp.status_code == 200:
