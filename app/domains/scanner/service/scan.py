@@ -248,6 +248,95 @@ async def scan_token(
     # Ingest to RAG
     await _ingest_scan_to_rag(result)
 
+    # ── Auto-label high-risk deployer wallets ──
+    if "malicious_deployer" in risk_flags or "high_risk_deployer" in risk_flags:
+        try:
+            deployer_addr: str | None = None
+            deployer_risk: float = 0.0
+            deployer_label: str = "UNKNOWN"
+            for mod_entry in result.modules_run:
+                r = mod_entry.get("result")
+                if not isinstance(r, dict):
+                    continue
+                if mod_entry.get("module") == "deployer":
+                    deployer_addr = r.get("deployer_address", "")
+                    deployer_risk = float(r.get("reputation_score", 50) or 50)
+                    deployer_label = str(r.get("reputation_label", "UNKNOWN"))
+
+            if deployer_addr and deployer_addr != "unknown":
+                # (a) Ingest wallet profile to RAG for future similarity search
+                try:
+                    from app.rag.ingestion import ingest_wallet_profile as _ingest_wallet
+
+                    labels = ["high_risk_deployer"] if deployer_label == "HIGH" else ["malicious_deployer"]
+                    await _ingest_wallet(
+                        wallet_address=deployer_addr,
+                        chain=chain,
+                        labels=labels,
+                        risk_score=deployer_risk,
+                        entities=[f"deployer_of:{token_address[:16]}"],
+                        extra={"scanner_risk_flags": risk_flags[:10], "source": "scanner"},
+                    )
+                except ImportError:
+                    logger.debug("wallet_rag_ingest_skipped")
+                except Exception as exc:
+                    logger.warning("wallet_rag_ingest_failed", error=str(exc)[:100])
+
+                # (b) Persist to ClickHouse scam_addresses + deployer_history
+                try:
+                    from app.wallet_memory.storage import get_storage
+
+                    storage = get_storage()
+                    storage_task = asyncio.gather(
+                        storage.save_scam_address(
+                            address=deployer_addr,
+                            chain_id=chain,
+                            source="scanner_token_scan",
+                            threat_type=deployer_label.lower(),
+                            confidence=min(1.0, deployer_risk / 100.0),
+                            evidence=f"Scanned token {token_address[:16]} - flags: {','.join(risk_flags[:5])}",
+                        ),
+                        storage.save_deployer_event(
+                            deployer=deployer_addr,
+                            chain_id=chain,
+                            token_address=token_address,
+                            token_name=getattr(result, "name", ""),
+                            token_symbol=getattr(result, "symbol", ""),
+                            deployed_at=None,
+                            outcome="scam" if deployer_label == "CRITICAL" else "suspicious",
+                            is_scam=(deployer_label == "CRITICAL"),
+                            risk_score=deployer_risk,
+                        ),
+                        return_exceptions=True,
+                    )
+                    await storage_task
+                except ImportError:
+                    logger.debug("wallet_storage_persist_skipped")
+                except Exception as exc:
+                    logger.warning("wallet_storage_persist_failed", error=str(exc)[:100])
+
+                # (c) Feed observation to AutoLabeler
+                try:
+                    from app.auto_labeler import get_auto_labeler
+
+                    labeler = get_auto_labeler()
+                    await labeler.observe_wallet(
+                        address=deployer_addr,
+                        chain=chain,
+                        observations={
+                            "event": "token_deployed",
+                            "token_address": token_address,
+                            "risk_score": deployer_risk,
+                            "reputation_label": deployer_label,
+                        },
+                    )
+                except ImportError:
+                    logger.debug("auto_labeler_observe_skipped")
+                except Exception as exc:
+                    logger.warning("auto_labeler_observe_failed", error=str(exc)[:100])
+        except Exception as exc:
+            logger.warning("deployer_auto_labeling_failed", error=str(exc)[:100])
+
     # ── Enrich with RAG intelligence ──
     try:
         from app.rag.intelligence import RAGIntelligenceEnricher

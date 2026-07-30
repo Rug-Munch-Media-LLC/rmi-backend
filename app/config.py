@@ -19,6 +19,21 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _build_db_url_from_env() -> str | None:
+    """Construct a PostgreSQL async URL from ``POSTGRES_*`` env vars.
+
+    Returns ``None`` when the env vars are not set (caller should fall back).
+    """
+    host = os.getenv("POSTGRES_HOST") or os.getenv("DB_HOST")
+    if not host:
+        return None
+    user = os.getenv("POSTGRES_USER", "rmi")
+    password = os.getenv("POSTGRES_PASSWORD", "rmi")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    db = os.getenv("POSTGRES_DB", "rmi")
+    return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
+
+
 class Settings(BaseSettings):
     """All runtime configuration. Add new env vars here as needed."""
 
@@ -45,7 +60,11 @@ class Settings(BaseSettings):
     # ── Database / Cache ────────────────────────────────────────────────
     database_url: str = Field(
         default="postgresql+asyncpg://rmi:rmi@localhost/rmi",
-        description=("PostgreSQL async connection string. MUST be overridden in production. Set DATABASE_URL env var."),
+        description=(
+            "PostgreSQL async connection string. "
+            "Override with DATABASE_URL env var, or set POSTGRES_HOST/USER/PASSWORD/DB individually. "
+            "In Docker, defaults to rmi-postgres:5432 when POSTGRES_HOST is set."
+        ),
     )
     redis_url: str = Field(
         default="redis://localhost:6379/0",
@@ -352,6 +371,30 @@ class Settings(BaseSettings):
     )
 
     # ── Validators ──────────────────────────────────────────────────────
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _database_url_from_env(cls, v: str) -> str:
+        """Construct DB URL from ``POSTGRES_*`` env vars when ``DATABASE_URL`` is not set.
+
+        In Docker Compose, ``POSTGRES_HOST=rmi-postgres`` is set, allowing the
+        async engine to locate the database container via Docker DNS instead
+        of ``localhost`` which only works in local dev.
+        """
+        # If DATABASE_URL was explicitly set (not the default), use it directly.
+        # Pydantic Settings passes the env var value directly through this
+        # validator.  We detect the default by string equality.
+        default = "postgresql+asyncpg://rmi:rmi@localhost/rmi"
+        if v != default:
+            return v
+
+        # Try building from POSTGRES_* env vars
+        built = _build_db_url_from_env()
+        if built is not None:
+            return built
+
+        # Fall back to the default
+        return v
 
     @field_validator("cors_origins")
     @classmethod
