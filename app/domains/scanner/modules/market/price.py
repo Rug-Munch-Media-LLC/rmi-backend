@@ -7,10 +7,8 @@ from typing import Any
 import httpx
 
 from app.domains.scanner.modules._core import (
-    GOPLUS_CHAIN_IDS,
     PREFER_OWN_DATA,
     _fetch_dexscreener,
-    _fetch_json,
     logger,
 )
 
@@ -77,24 +75,13 @@ async def _get_price_consensus(token_address: str, chain: str, market_price: flo
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("dexscreener_price_failed", error=str(e))
 
-    # ── Tier 3: GoPlus (has price info for some tokens) ──
-    try:
-        chain_id = GOPLUS_CHAIN_IDS.get(chain, chain)
-        goplus_data = await _fetch_json(
-            f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}",
-            params={"contract_addresses": token_address},
-        )
-        if goplus_data:
-            goplus_result = goplus_data.get("result", {}).get(token_address.lower(), {})
-            if goplus_result:
-                prices["goplus"] = float(goplus_result.get("price", 0) or 0)
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
-        logger.debug("goplus_price_failed", error=str(e))
+    # ── Tier 3: own_price_oracle already handles GoPlus/CoinGecko fallback internally ──
+    # No direct GoPlus/CoinGecko calls needed here.
 
     # Determine consensus
     result["sources"] = list(prices.keys())
     if len(prices) >= 1:
-        result["price_usd"] = max(prices.values())  # Use highest confidence
+        result["price_usd"] = max(prices.values())
         result["price_consensus"] = True
 
     return result
@@ -116,9 +103,10 @@ async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, An
             from app.domains.scanner.engines.own_price_oracle import get_token_price
 
             own_price = await get_token_price(token_address, chain)
-            if own_price.get("source") in ("own", "defillama") and own_price.get("price_usd", 0) > 0:
+            if own_price.get("source") in ("own", "defillama", "coingecko") and own_price.get("price_usd", 0) > 0:
                 confidence = own_price.get("confidence", 0)
-                if confidence >= 0.3:
+                min_confidence = 0.1 if own_price.get("source") == "coingecko" else 0.3
+                if confidence >= min_confidence:
                     logger.info(
                         "Using own price data for %s on %s (confidence: %s)",
                         token_address[:16],
