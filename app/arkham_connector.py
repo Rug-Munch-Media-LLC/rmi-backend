@@ -2,7 +2,7 @@
 Arkham Intelligence API Connector
 Entity labeling, wallet attribution, institutional tracking, sanctions screening.
 Base URL: https://api.arkhamintelligence.com
-Auth header: API-Key (from /root/.secrets/arkham_api_key or ARKHAM_API_KEY env var)
+Auth header: API-Key (from secrets manager or ARKHAM_API_KEY env var)
 """
 
 from __future__ import annotations

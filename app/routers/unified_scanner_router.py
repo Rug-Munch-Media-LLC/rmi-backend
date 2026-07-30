@@ -16,19 +16,22 @@ from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from app.domains.scanner.unified_token_scanner import UnifiedTokenScanner
+    from app.domains.scanner.unified import UnifiedTokenScanner
     from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v2/scanner", tags=["scanner-v2"])
 
+
 class TokenScanRequest(BaseModel):
     address: str
     chain: str = "solana"
 
+
 class WalletScanRequest(BaseModel):
     address: str
     chain: str = "solana"
+
 
 def _get_tier(request: Request) -> str:
     if request.headers.get("X-RMI-Key") == INTERNAL_API_KEY:
@@ -37,8 +40,10 @@ def _get_tier(request: Request) -> str:
         return "pro"
     return "free"
 
+
 def _get_admin_key(request: Request) -> Any | None:
     return request.headers.get("X-Admin-Key") or request.headers.get("X-RMI-Key")
+
 
 @router.post(
     "/token/scan",
@@ -53,9 +58,7 @@ async def scan_token(
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
     try:
-        result = await scanner.scan(
-            address=body.address, chain=body.chain, tier=tier, admin_key=admin_key
-        )
+        result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
         return {
             "status": "ok",
             "token": result.token_address,
@@ -79,6 +82,7 @@ async def scan_token(
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
 
+
 @router.post(
     "/wallet/scan",
     summary="Scan Wallet",
@@ -92,9 +96,7 @@ async def scan_wallet(
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
     try:
-        result = await scanner.scan(
-            address=body.address, chain=body.chain, tier=tier, admin_key=admin_key
-        )
+        result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
         return {
             "status": "ok",
             "address": result.address,
