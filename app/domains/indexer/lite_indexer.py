@@ -33,8 +33,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -148,12 +150,150 @@ GET_LOGS_ENDPOINTS: dict[str, list[str]] = {
         "https://1rpc.io/mantle",
         "https://rpc.mantle.xyz",
     ],
+    "gnosis": [
+        "https://gnosis.drpc.org",
+        "https://1rpc.io/gnosis",
+        "https://rpc.gnosischain.com",
+    ],
 }
+
+# ── Chain-specific block time (seconds) for adaptive polling ──────────
+CHAIN_POLL_INTERVALS: dict[str, float] = {
+    "ethereum": 12.0,
+    "base": 2.0,
+    "bsc": 3.0,
+    "polygon": 2.0,
+    "arbitrum": 0.25,
+    "optimism": 2.0,
+    "avalanche": 2.0,
+    "linea": 12.0,
+    "scroll": 3.0,
+    "zksync": 1.0,
+    "mantle": 2.0,
+    "gnosis": 5.0,
+}
+
+# ── Endpoint health tracking ──────────────────────────────────────────
+_endpoint_failures: dict[str, list[float]] = {}
+_ENDPOINT_COOLDOWN = 300  # 5 min cooldown after 3 failures
+_MAX_FAILURES = 3
+
+# ── Prometheus-style metrics counters ─────────────────────────────────
+_metrics: dict[str, int] = {
+    "blocks_processed": 0,
+    "transfers_written": 0,
+    "dex_swaps_written": 0,
+    "rpc_errors": 0,
+    "rpc_rate_limits": 0,
+    "clickhouse_inserts": 0,
+    "clickhouse_errors": 0,
+}
+
+# ── Session-level event dedup ────────────────────────────────────────
+_seen_events: set[tuple[str, int]] = set()
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # CORE INDEXER
 # ═══════════════════════════════════════════════════════════════════════
+
+
+# ── Endpoint Health ──────────────────────────────────────────────────
+
+
+def _get_healthy_endpoint(chain: str, endpoints: list[str]) -> str:
+    """Return the healthiest endpoint, skipping recently-failed ones."""
+    now = time.time()
+    for ep in endpoints:
+        failures = _endpoint_failures.get(ep, [])
+        failures = [t for t in failures if now - t < _ENDPOINT_COOLDOWN]
+        _endpoint_failures[ep] = failures
+        if len(failures) < _MAX_FAILURES:
+            return ep
+    # All endpoints in cooldown — clear and retry the first
+    for ep in endpoints:
+        _endpoint_failures[ep] = []
+    return endpoints[0]
+
+
+def _record_endpoint_failure(endpoint: str) -> None:
+    """Record a failure for this endpoint."""
+    _endpoint_failures.setdefault(endpoint, []).append(time.time())
+
+
+# ── RPC Call with Backoff ────────────────────────────────────────────
+
+
+async def _rpc_call_with_backoff(endpoint: str, payload: dict, max_retries: int = 3) -> dict:
+    """Call RPC with exponential backoff on rate limits."""
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(endpoint, json=payload)
+                if resp.status_code == 429:
+                    wait = 2**attempt
+                    logger.warning(
+                        "rpc_rate_limited_backoff",
+                        endpoint=endpoint[:40],
+                        attempt=attempt + 1,
+                        wait=wait,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                resp.raise_for_status()
+                return resp.json()
+        except Exception:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1)
+                continue
+            raise
+
+
+# ── Session-Level Event Dedup ────────────────────────────────────────
+
+
+def _is_duplicate(tx_hash: str, log_index: int) -> bool:
+    """Check if this (tx_hash, log_index) was already seen this session."""
+    key = (tx_hash, log_index)
+    if key in _seen_events:
+        return True
+    _seen_events.add(key)
+    return False
+
+
+# ── Disk Space Check ─────────────────────────────────────────────────
+
+
+def _check_disk_space(min_free_bytes: int = 1_000_000_000) -> bool:
+    """Check if there's enough disk space to continue.
+
+    Returns True if OK, False if dangerously low.
+    """
+    try:
+        usage = shutil.disk_usage("/srv/data")
+        free = usage.free
+        if free < min_free_bytes:
+            logger.error(
+                "disk_full",
+                free_gb=round(free / 1e9, 2),
+                min_gb=round(min_free_bytes / 1e9, 2),
+            )
+            return False
+        logger.debug("disk_space_ok", free_gb=round(free / 1e9, 2))
+        return True
+    except OSError as exc:
+        logger.warning("disk_space_check_failed", error=str(exc)[:80])
+        return True  # Fail open
+
+
+# ── Metrics Logger ───────────────────────────────────────────────────
+
+
+def _log_metrics() -> None:
+    """Log current metrics counters and reset them."""
+    logger.info("lite_indexer_metrics", **_metrics)
+    for k in _metrics:
+        _metrics[k] = 0
 
 
 class LiteIndexer:
@@ -420,7 +560,14 @@ class LiteIndexer:
             endpoints = [u for u, _ in self.router.get_available_endpoints(self.chain)]
         if not endpoints:
             logger.error("no_endpoints_for_chain", chain=self.chain)
+            _metrics["rpc_errors"] += 1
             return []
+
+        # Sort endpoints: healthy ones first (use health tracking)
+        endpoints = sorted(
+            endpoints,
+            key=lambda ep: sum(1 for t in _endpoint_failures.get(ep, []) if time.time() - t < _ENDPOINT_COOLDOWN),
+        )
 
         client = await self._get_client()
         body = {
@@ -434,6 +581,12 @@ class LiteIndexer:
         last_error: str | None = None
 
         for url in endpoints:
+            # Record backoff for recently-failed endpoints
+            recent_failures = [t for t in _endpoint_failures.get(url, []) if time.time() - t < _ENDPOINT_COOLDOWN]
+            if recent_failures:
+                backoff = 2 ** len(recent_failures)
+                await asyncio.sleep(min(backoff, 8))  # Cap at 8s
+
             try:
                 resp = await client.post(url, json=body, timeout=RPC_TIMEOUT)
 
@@ -461,11 +614,13 @@ class LiteIndexer:
                                     break  # Got all events, stop
                         elif isinstance(logs, dict) and "error" in logs:
                             last_error = logs["error"].get("message", str(logs))
+                            _record_endpoint_failure(url)
                             continue
                         else:
                             continue
                     elif "error" in data:
                         last_error = data["error"].get("message", str(data))
+                        _record_endpoint_failure(url)
                         logger.debug(
                             "rpc_error_skip",
                             url=url[:50],
@@ -474,22 +629,39 @@ class LiteIndexer:
                         continue
                 elif resp.status_code == 429:
                     last_error = "rate_limited"
-                    logger.debug("rpc_rate_limited", url=url[:50])
+                    _record_endpoint_failure(url)
+                    _metrics["rpc_rate_limits"] += 1
+                    wait = min(2 ** len(_endpoint_failures.get(url, [])), 16)
+                    logger.debug(
+                        "rpc_rate_limited",
+                        url=url[:50],
+                        backoff=wait,
+                    )
+                    await asyncio.sleep(wait)
                     continue
                 else:
                     last_error = f"http_{resp.status_code}"
+                    _record_endpoint_failure(url)
                     logger.debug("rpc_http_error", url=url[:50], status=resp.status_code)
                     continue
 
             except httpx.TimeoutException:
                 last_error = "timeout"
+                _record_endpoint_failure(url)
+                _metrics["rpc_errors"] += 1
                 continue
             except (httpx.ConnectError, httpx.ReadError, httpx.WriteError) as exc:
                 last_error = str(exc)[:60]
+                _record_endpoint_failure(url)
+                _metrics["rpc_errors"] += 1
                 continue
             except Exception as exc:
                 last_error = str(exc)[:80]
+                _record_endpoint_failure(url)
+                _metrics["rpc_errors"] += 1
                 continue
+
+        _metrics["blocks_processed"] += to_block - from_block + 1
 
         if best_result is not None:
             return best_result
@@ -543,8 +715,20 @@ class LiteIndexer:
             if not endpoints:
                 return []
 
+            # Sort endpoints: healthy ones first
+            endpoints = sorted(
+                endpoints,
+                key=lambda ep: sum(1 for t in _endpoint_failures.get(ep, []) if time.time() - t < _ENDPOINT_COOLDOWN),
+            )
+
             best_result: list[dict[str, Any]] | None = None
             for url in endpoints:
+                # Backoff for recently-failed endpoints
+                recent_failures = [t for t in _endpoint_failures.get(url, []) if time.time() - t < _ENDPOINT_COOLDOWN]
+                if recent_failures:
+                    backoff = 2 ** len(recent_failures)
+                    await asyncio.sleep(min(backoff, 8))
+
                 try:
                     resp = await client.post(url, json=body, timeout=RPC_TIMEOUT)
                     if resp.status_code == 200:
@@ -566,9 +750,23 @@ class LiteIndexer:
                                     best_result = parsed
                                     if len(parsed) == len(logs):
                                         break
+                        elif resp.status_code == 429:
+                            _record_endpoint_failure(url)
+                            _metrics["rpc_rate_limits"] += 1
+                            wait = min(2 ** len(_endpoint_failures.get(url, [])), 16)
+                            await asyncio.sleep(wait)
+                            continue
+                        else:
+                            _record_endpoint_failure(url)
+                            _metrics["rpc_errors"] += 1
+                            continue
                 except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError, httpx.WriteError):
+                    _record_endpoint_failure(url)
+                    _metrics["rpc_errors"] += 1
                     continue
                 except Exception:
+                    _record_endpoint_failure(url)
+                    _metrics["rpc_errors"] += 1
                     continue
 
             return best_result or []
@@ -666,7 +864,7 @@ class LiteIndexer:
                 amount0_out = "0"
                 amount1_out = "0"
 
-                if len(raw) >= 256:  # 4 × 32 bytes = 256 hex chars
+                if len(raw) >= 256:  # 4 * 32 bytes = 256 hex chars
                     amount0_in = str(int(raw[0:64], 16))
                     amount1_in = str(int(raw[64:128], 16))
                     amount0_out = str(int(raw[128:192], 16))
@@ -796,15 +994,23 @@ class LiteIndexer:
             else:
                 ts = now
 
+            version = event.get("dex_type", "v2")
+            # Use In amounts for amount0/amount1 which match the table schema
+            # (these are raw uint256 string values from the event log)
+            amt0 = event.get("amount0In", "0") or "0"
+            amt1 = event.get("amount1In", "0") or "0"
+
             rows.append(
                 (
+                    "swap",  # type — always 'swap' for swap events
                     self.chain,
                     event["blockNumber"],
                     ts,
-                    event["transactionHash"],
+                    event["transactionHash"],  # table column: tx_hash
                     event["logIndex"],
+                    event.get("pairAddress", ""),  # table column: contract_address
                     event.get("dex", ""),
-                    event.get("pairAddress", ""),
+                    version,  # table column: version
                     event.get("token0", ""),
                     event.get("token1", ""),
                     event.get("sender", ""),
@@ -813,9 +1019,9 @@ class LiteIndexer:
                     event.get("amount1In", "0"),
                     event.get("amount0Out", "0"),
                     event.get("amount1Out", "0"),
-                    event.get("price_usd", 0.0),
-                    event.get("volume_usd", 0.0),
-                    event.get("source", "lite_indexer"),
+                    amt0,  # amount0
+                    amt1,  # amount1
+                    0,  # whale — UInt8, not detected yet
                     now,
                 )
             )
@@ -823,15 +1029,17 @@ class LiteIndexer:
         try:
             client.execute(
                 f"INSERT INTO {CH_DEX_TABLE} "
-                "(chain, block_number, block_timestamp, transaction_hash, log_index, "
-                "dex, pair_address, token0, token1, sender, recipient, "
+                "(type, chain, block_number, block_timestamp, tx_hash, log_index, "
+                "contract_address, dex, version, token0, token1, sender, recipient, "
                 "amount0_in, amount1_in, amount0_out, amount1_out, "
-                "price_usd, volume_usd, source, ingested_at) VALUES",
+                "amount0, amount1, whale, ingested_at) VALUES",
                 rows,
             )
             logger.info("dex_clickhouse_inserted", chain=self.chain, rows=len(rows))
+            _metrics["clickhouse_inserts"] += 1
             return len(rows)
         except Exception as exc:
+            _metrics["clickhouse_errors"] += 1
             logger.error(
                 "dex_clickhouse_insert_failed",
                 chain=self.chain,
@@ -920,6 +1128,12 @@ class LiteIndexer:
                 duplicates += 1
                 continue
             seen_keys.add(dedup_key)
+
+            # Session-level dedup (persists across sync_loop calls)
+            if _is_duplicate(tx_hash, log_index):
+                duplicates += 1
+                logger.debug("session_dedup_removed", tx_hash=tx_hash[:20], log_index=log_index)
+                continue
 
             events.append(
                 {
@@ -1061,8 +1275,10 @@ class LiteIndexer:
                 rows,
             )
             logger.info("clickhouse_inserted", chain=self.chain, rows=len(rows))
+            _metrics["clickhouse_inserts"] += 1
             return len(rows)
         except Exception as exc:
+            _metrics["clickhouse_errors"] += 1
             logger.error(
                 "clickhouse_insert_failed",
                 chain=self.chain,
@@ -1091,11 +1307,17 @@ class LiteIndexer:
             "errors": [],
         }
 
-        # 1. Disk cap
+        # 1. Disk cap + disk space checks
         if not self.check_disk_cap():
             summary["status"] = "disk_cap_exceeded"
             summary["errors"].append("disk cap exceeded")
             logger.error("sync_aborted_disk_cap", chain=self.chain)
+            return summary
+
+        if not _check_disk_space():
+            summary["status"] = "disk_full"
+            summary["errors"].append("disk space critically low")
+            logger.error("sync_aborted_disk_space", chain=self.chain)
             return summary
 
         # 2. Determine block range
@@ -1192,7 +1414,13 @@ class LiteIndexer:
             dex_ch_inserted = self.write_dex_clickhouse(dex_events)
             summary["dex_events_written_ch"] = dex_ch_inserted
 
-        # 8. Save state
+        # 8. Update metrics
+        if events:
+            _metrics["transfers_written"] += ch_inserted or len(events)
+        if dex_events:
+            _metrics["dex_swaps_written"] += dex_ch_inserted or len(dex_events)
+
+        # 9. Save state
         total_events = len(events) + len(dex_events)
         self.save_state(to_block, total_events)
 
@@ -1208,6 +1436,8 @@ class LiteIndexer:
             dex_clickhouse=bool(dex_ch_inserted),
             duration_s=summary["duration_seconds"],
         )
+
+        _log_metrics()
         return summary
 
 
@@ -1315,7 +1545,8 @@ async def main_daemon(chains: list[str], dex_enabled: bool = False) -> int:
             # Fallback for platforms without add_signal_handler
             signal.signal(sig, _handle_signal)
 
-    poll_interval = 15  # seconds between polls
+    max_poll_interval = max(CHAIN_POLL_INTERVALS.get(c, 15) for c in chains) if chains else 15
+    logger.info("daemon_poll_interval", max_seconds=max_poll_interval)
 
     while running:
         start_cycle = time.monotonic()
@@ -1328,8 +1559,18 @@ async def main_daemon(chains: list[str], dex_enabled: bool = False) -> int:
                 logger.error("daemon_chain_failed", chain=chain, error=str(exc))
                 return {"chain": chain, "status": "error", "error": str(exc)}
 
-        tasks = [_sync_chain(c) for c in chains]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Run chains with adaptive concurrency — fast chains don't wait for slow ones
+        tasks = {}
+        for c in chains:
+            tasks[c] = asyncio.create_task(_sync_chain(c), name=f"sync-{c}")
+
+        results = []
+        for c in chains:
+            try:
+                result = await tasks[c]
+                results.append(result)
+            except Exception as exc:
+                results.append({"chain": c, "status": "error", "error": str(exc)})
 
         ok_count = sum(
             1 for r in results if isinstance(r, dict) and r.get("status") in ("ok", "no_events", "caught_up")
@@ -1338,19 +1579,20 @@ async def main_daemon(chains: list[str], dex_enabled: bool = False) -> int:
             1 for r in results if isinstance(r, Exception) or (isinstance(r, dict) and r.get("status") == "error")
         )
 
+        elapsed = time.monotonic() - start_cycle
         logger.info(
             "daemon_cycle_complete",
             chains=len(chains),
             ok=ok_count,
             errors=error_count,
-            cycle_s=round(time.monotonic() - start_cycle, 2),
+            cycle_s=round(elapsed, 2),
         )
 
-        # Sleep for poll interval (but wake early on shutdown)
-        try:
-            await asyncio.wait_for(shutdown_event.wait(), timeout=poll_interval)
-        except asyncio.TimeoutError:
-            pass
+        # Use longest chain poll interval as base, subtract elapsed time
+        remaining = max_poll_interval - elapsed
+        if remaining > 0:
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(shutdown_event.wait(), timeout=remaining)
 
     logger.info("daemon_shutdown")
     return 0 if error_count == 0 else 1
@@ -1398,8 +1640,8 @@ if __name__ == "__main__":
 
 __all__ = [
     "LiteIndexer",
+    "async_main",
     "main",
     "main_daemon",
     "parse_args",
-    "async_main",
 ]
