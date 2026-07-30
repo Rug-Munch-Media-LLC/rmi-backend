@@ -164,6 +164,39 @@ services:
       - full
 
   # ════════════════════════════════════════════════════════════
+  # LAYER 2.5: AI — Ollama (LLM + embeddings)
+  # ════════════════════════════════════════════════════════════
+  rmi-ollama:
+    image: ollama/ollama:latest
+    container_name: rmi-ollama
+    restart: unless-stopped
+    mem_limit: 8g
+    cpus: '4.0'
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: 5m           # Unload models after 5min idle
+      OLLAMA_NUM_PARALLEL: 2          # Max 2 parallel requests
+      OLLAMA_NUM_THREADS: 4
+      OLLAMA_CONTEXT_LENGTH: 4096
+      OLLAMA_KV_CACHE_TYPE: q8_0
+      OLLAMA_FLASH_ATTENTION: 1
+      OLLAMA_MAX_LOADED_MODELS: 2           # Only keep 2 models in RAM
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama --version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - rmi_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # ════════════════════════════════════════════════════════════
   # LAYER 3: Supporting services
   # ════════════════════════════════════════════════════════════
   rmi-minio:
@@ -225,6 +258,9 @@ services:
     container_name: rmi-backend
     restart: unless-stopped
     env_file: .env
+    environment:
+      # Point PostgreSQL client to the Docker container instead of localhost
+      POSTGRES_HOST: rmi-postgres
     depends_on:
       rmi-redis:
         condition: service_healthy
@@ -259,6 +295,9 @@ services:
     container_name: rmi-worker
     restart: unless-stopped
     env_file: .env
+    environment:
+      # Point PostgreSQL client to the Docker container instead of localhost
+      POSTGRES_HOST: rmi-postgres
     depends_on:
       rmi-redis:
         condition: service_healthy
@@ -354,3 +393,4 @@ volumes:
   redpanda-data:
   prometheus-data:
   grafana-data:
+  ollama-data:
