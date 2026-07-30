@@ -37,11 +37,13 @@ from ..sleep_cycle_scanner import SleepCycleAnalyzer
 from ..social_velocity import SocialVelocityAnalyzer
 from ..static_analyzer import StaticAnalyzer
 from ..wash_trading import WashTradingDetector
+from ..cross_chain_trace import CrossChainTraceAnalyzer
 from .config import SentinelConfig
 
 # Wallet Memory Bank integration
 try:
     from app.wallet_memory.engine import get_wallet_engine
+
     _WALLET_MEMORY_AVAILABLE = True
 except ImportError:
     _WALLET_MEMORY_AVAILABLE = False
@@ -89,6 +91,10 @@ _bytecode_similarity: BytecodeSimilarityAnalyzer | None = None
 _block_zero_sniper: BlockZeroSniperAnalyzer | None = None
 _gas_trace: GasTraceAnalyzer | None = None
 
+# Cross-Chain Trace
+_cross_chain_trace: CrossChainTraceAnalyzer | None = None
+
+
 def _ensure_modules(config: SentinelConfig | None = None) -> None:
     """Initialize or reinitialize module singletons with the given config.
 
@@ -106,7 +112,7 @@ def _ensure_modules(config: SentinelConfig | None = None) -> None:
     global _fund_flow_visualizer, _contract_diff
     global _guilt_association
     global _sleep_cycle, _social_velocity, _bytecode_similarity
-    global _block_zero_sniper, _gas_trace
+    global _block_zero_sniper, _gas_trace, _cross_chain_trace
 
     cfg = config or _default_config
     dex_client = cfg.get_dexscreener_client()
@@ -184,3 +190,7 @@ def _ensure_modules(config: SentinelConfig | None = None) -> None:
         _block_zero_sniper = BlockZeroSniperAnalyzer()
     if _gas_trace is None:
         _gas_trace = GasTraceAnalyzer()
+
+    # Cross-Chain Trace
+    if _cross_chain_trace is None:
+        _cross_chain_trace = CrossChainTraceAnalyzer()

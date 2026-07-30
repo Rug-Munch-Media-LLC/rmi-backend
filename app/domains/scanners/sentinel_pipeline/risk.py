@@ -34,12 +34,14 @@ def _extract_risk_hhi(report: HHIReport) -> float:
     else:
         return min(80 + (hhi - 5000) / 5000 * 20, 100)
 
+
 def _extract_risk_bundle(report: BundleReport) -> float:
     """Bundle report risk score - use bundle_risk_score if available, else heuristic."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     bundle_count = len(report.bundles) if hasattr(report, "bundles") and report.bundles else 0
     return min(bundle_count * 15, 100)
+
 
 def _extract_risk_exchange_fund(report: ExchangeFundReport) -> float:
     """Exchange funding risk - higher CEX-funded ratio = more suspicious."""
@@ -49,6 +51,7 @@ def _extract_risk_exchange_fund(report: ExchangeFundReport) -> float:
         return float(report.risk_score)
     return 0.0
 
+
 def _extract_risk_lock(report: LockReport) -> float:
     """Lock risk - unlocked/no lock = 80, locked = low risk."""
     if hasattr(report, "risk_score"):
@@ -56,6 +59,7 @@ def _extract_risk_lock(report: LockReport) -> float:
     if hasattr(report, "is_locked") and not report.is_locked:
         return 80.0
     return 10.0
+
 
 def _extract_risk_dev(report: DevReputationReport) -> float:
     """Dev reputation risk - serial ruggers = high risk."""
@@ -65,6 +69,7 @@ def _extract_risk_dev(report: DevReputationReport) -> float:
         return min(int(report.rug_count) * 25, 100)
     return 0.0
 
+
 def _extract_risk_wash_trading(report: WashTradingReport) -> float:
     """Wash trading risk score."""
     if hasattr(report, "risk_score"):
@@ -72,6 +77,7 @@ def _extract_risk_wash_trading(report: WashTradingReport) -> float:
     if hasattr(report, "wash_trading_probability"):
         return float(report.wash_trading_probability) * 100
     return 0.0
+
 
 def _extract_risk_fingerprint(report: FingerprintReport) -> float:
     """Metadata fingerprint risk - high similarity = higher risk."""
@@ -81,11 +87,13 @@ def _extract_risk_fingerprint(report: FingerprintReport) -> float:
         return float(report.max_similarity) * 100
     return 0.0
 
+
 def _extract_risk_sentiment(report: SentimentReport) -> float:
     """Sentiment risk - extreme hype = risky."""
     if hasattr(report, "risk_score"):
         return float(report.risk_score)
     return 30.0
+
 
 def _extract_risk_pumpfun(report: PumpFunReport) -> float:
     """PumpFun risk - low graduation probability or high bot ratio = risky."""
@@ -95,6 +103,7 @@ def _extract_risk_pumpfun(report: PumpFunReport) -> float:
         return (1.0 - float(report.graduation_probability)) * 100
     return 30.0
 
+
 def _extract_risk_guilt_association(report: GuiltAssociationReport) -> float:
     """Guilt association risk - use guilt_score directly."""
     if hasattr(report, "guilt_score"):
@@ -103,17 +112,20 @@ def _extract_risk_guilt_association(report: GuiltAssociationReport) -> float:
         return float(report.risk_score)
     return 0.0
 
+
 def _extract_risk_sleep_cycle(report) -> float:
     """Sleep cycle risk - use sleep_score directly."""
     if hasattr(report, "sleep_score"):
         return float(report.sleep_score)
     return 0.0
 
+
 def _extract_risk_social_velocity(report) -> float:
     """Social velocity risk - use velocity_score directly."""
     if hasattr(report, "velocity_score"):
         return float(report.velocity_score)
     return 0.0
+
 
 def _extract_risk_bytecode_similarity(report) -> float:
     """Bytecode similarity risk - exact match = 100."""
@@ -123,11 +135,13 @@ def _extract_risk_bytecode_similarity(report) -> float:
         return float(report.similarity_score)
     return 0.0
 
+
 def _extract_risk_block_zero(report) -> float:
     """Block zero sniper risk - farm confidence * 100."""
     if hasattr(report, "farm_confidence"):
         return float(report.farm_confidence) * 100
     return 0.0
+
 
 def _extract_risk_gas_trace(report) -> float:
     """Gas trace - dead end = 100, cex funded = 0."""
@@ -138,6 +152,7 @@ def _extract_risk_gas_trace(report) -> float:
     if hasattr(report, "cex_funded") and report.cex_funded:
         return 10.0
     return 30.0
+
 
 def _compute_composite(scores: dict[str, float]) -> tuple:
     """Weighted composite risk score -> (score, level).
@@ -160,6 +175,7 @@ def _compute_composite(scores: dict[str, float]) -> tuple:
         "bytecode_similarity": 0.08,
         "block_zero_sniper": 0.08,
         "gas_trace": 0.06,
+        "cross_chain_trace": 0.05,
     }
     total = 0.0
     weight_used = 0.0
@@ -180,6 +196,7 @@ def _compute_composite(scores: dict[str, float]) -> tuple:
         level = "critical"
 
     return round(composite, 1), level
+
 
 def _collect_red_flags(report_dict: dict | None, module_name: str) -> list[str]:
     """Pull top red-flag strings from each module's dict result."""

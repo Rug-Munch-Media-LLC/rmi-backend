@@ -18,6 +18,7 @@ from .modules import (
     _bytecode_similarity,
     _contract_authority,
     _contract_diff,
+    _cross_chain_trace,
     _decompiler_analyzer,
     _default_config,
     _dev_reputation,

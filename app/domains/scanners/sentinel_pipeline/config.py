@@ -16,6 +16,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("sentinel_pipeline")
 
+
 @dataclass
 class SentinelConfig:
     """Configuration for SENTINEL pipeline - API keys and shared clients."""
@@ -32,6 +33,7 @@ class SentinelConfig:
         if self.dexscreener_client is None:
             self.dexscreener_client = httpx.AsyncClient(timeout=15.0)
         return self.dexscreener_client
+
 
 def dataclass_to_dict(obj: Any) -> Any:
     """Recursively convert dataclass instances to dicts.
@@ -55,6 +57,7 @@ def dataclass_to_dict(obj: Any) -> Any:
         return {k: dataclass_to_dict(v) for k, v in obj.items()}
 
     return obj
+
 
 @dataclass
 class SentinelReport:
@@ -112,6 +115,9 @@ class SentinelReport:
 
     # Three Hop Gas Trace
     gas_trace: dict[str, Any] | None = None
+
+    # Cross-Chain Trace (W4-V2)
+    cross_chain_trace: dict[str, Any] | None = None
 
     # Module errors (module_name -> error message)
     errors: dict[str, str] = field(default_factory=dict)

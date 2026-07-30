@@ -21,6 +21,7 @@ from .modules import (
     _bytecode_similarity,
     _contract_authority,
     _contract_diff,
+    _cross_chain_trace,
     _decompiler_analyzer,
     _dev_reputation,
     _ensure_modules,
@@ -78,6 +79,7 @@ except ImportError:
 # MAIN PIPELINE
 # ═══════════════════════════════════════════════════════════════════
 
+
 async def run_sentinel_scan(
     token_address: str,
     chain: str = "solana",
@@ -133,9 +135,14 @@ async def run_sentinel_scan(
     coros["social_velocity"] = _social_velocity.analyze([])
     coros["bytecode_similarity"] = _bytecode_similarity.analyze(token_address, chain)
     coros["block_zero_sniper"] = _block_zero_sniper.analyze(token_address, chain)
-    coros["pumpfun_analysis"] = (
-        _pumpfun_analyzer.analyze(token_address) if chain.lower() == "solana" else None
-    )
+
+    # Cross-Chain Trace (W4-V2): trace the dev wallet across chains
+    if dev_address:
+        coros["cross_chain_trace"] = _cross_chain_trace.analyze(dev_address, chain)
+    else:
+        coros["cross_chain_trace"] = _cross_chain_trace.analyze(token_address, chain)
+
+    coros["pumpfun_analysis"] = _pumpfun_analyzer.analyze(token_address) if chain.lower() == "solana" else None
 
     # ── Execute all concurrently ──────────────────────────────
     keys = [k for k, v in coros.items() if v is not None]
@@ -183,6 +190,7 @@ async def run_sentinel_scan(
         "bytecode_similarity": _extract_risk_bytecode_similarity,
         "block_zero_sniper": _extract_risk_block_zero,
         "gas_trace": _extract_risk_gas_trace,
+        "cross_chain_trace": lambda r: float(r.get("risk_score", 0)) if isinstance(r, dict) else 0.0,
     }
     field_map = {
         "holder_analysis": "holder_analysis",
@@ -214,6 +222,7 @@ async def run_sentinel_scan(
         "bytecode_similarity": "bytecode_similarity",
         "block_zero_sniper": "block_zero_sniper",
         "gas_trace": "gas_trace",
+        "cross_chain_trace": "cross_chain_trace",
     }
 
     for module_name, raw_result in results.items():
@@ -246,6 +255,7 @@ async def run_sentinel_scan(
 
     return report
 
+
 # ═══════════════════════════════════════════════════════════════════
 # DYNAMIC STANDALONE RUNNERS
 # ═══════════════════════════════════════════════════════════════════
@@ -276,6 +286,7 @@ _RUNNER_SPEC = [
     ("run_contract_diff", "contract_diff", None, None),
 ]
 
+
 def _get_analyzer_map() -> dict[str, Any]:
     """Build analyzer map lazily, ensuring modules are initialized first."""
     _ensure_modules()
@@ -301,7 +312,9 @@ def _get_analyzer_map() -> dict[str, Any]:
         "address_labels": _address_labeler.analyze,
         "fund_flow": _fund_flow_visualizer.analyze,
         "contract_diff": _contract_diff.analyze,
+        "cross_chain_trace": _cross_chain_trace.analyze,
     }
+
 
 # Special runners that don't fit the standard 2-arg pattern
 async def run_dev_reputation(
@@ -310,35 +323,33 @@ async def run_dev_reputation(
     _ensure_modules(config)
     return dataclass_to_dict(await _dev_reputation.analyze(dev_wallet, chains))
 
-async def run_pumpfun_analysis(
-    token_address: str, config: SentinelConfig | None = None
-) -> dict[str, Any]:
+
+async def run_pumpfun_analysis(token_address: str, config: SentinelConfig | None = None) -> dict[str, Any]:
     _ensure_modules(config)
     return dataclass_to_dict(await _pumpfun_analyzer.analyze(token_address))
 
-async def _run_standalone(
-    module_key: str, token_address: str, chain: str, config=None
-) -> dict[str, Any]:
+
+async def _run_standalone(module_key: str, token_address: str, chain: str, config=None) -> dict[str, Any]:
     """Execute a single module and return dict result."""
     _ensure_modules(config)
     fn = _get_analyzer_map()[module_key]
     result = await fn(token_address, chain)
     return dataclass_to_dict(result)
 
+
 # Dynamically generate all standard 2-arg runner functions
 def _make_runner(module_key: str, doc: str = ""):
     if module_key == "pumpfun_analysis":
         return run_pumpfun_analysis
 
-    async def runner(
-        token_address: str, chain: str = "solana", config: SentinelConfig | None = None
-    ) -> dict[str, Any]:
+    async def runner(token_address: str, chain: str = "solana", config: SentinelConfig | None = None) -> dict[str, Any]:
         return await _run_standalone(module_key, token_address, chain, config)
 
     runner.__name__ = f"run_{module_key}"
     runner.__qualname__ = runner.__name__
     runner.__doc__ = doc or f"Run {module_key} only, return dict."
     return runner
+
 
 # Create all standard runners
 run_holder_analysis = _make_runner("holder_analysis")
