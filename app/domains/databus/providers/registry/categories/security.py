@@ -271,6 +271,22 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     except ImportError:
         pass
 
+    # ── chain_indexer_patterns — on-chain behavioral scam patterns ──
+    chains["chain_indexer_patterns"] = ProviderChain(
+        "chain_indexer_patterns",
+        description="On-chain behavioral scam patterns via chain-indexer ClickHouse (holder concentration, pump-and-dump, deployer clusters, mixer interactions)",
+        providers=[
+            Provider(
+                "chain_indexer_pattern_search",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_pattern_search"],
+                weight=15.0,
+                is_local=True,
+                description="ClickHouse-powered pattern detection for deployer clusters, holder concentration, pump-and-dump, and mixer interactions",
+            ),
+        ],
+    )
+
     try:
         from app.databus.data_quality import get_tier_comparison
 

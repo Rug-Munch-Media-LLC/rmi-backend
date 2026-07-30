@@ -26,7 +26,13 @@ from app.databus.provider_implementations import (
 )
 from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
 
+# Chain-indexer pattern detection (ClickHouse-powered on-chain behavioral analysis)
+from app.domains.databus.providers.chains.chain_indexer import (
+    _chain_indexer_pattern_search,
+)
+
 logger = get_logger("databus.providers.chains.onchain")
+
 
 def build_onchain_chains(chains: dict[str, ProviderChain]) -> None:
     """Build wallet, scanner, SPL, RAG, DeFiLlama, Blockchair, and Birdeye chains."""
@@ -82,9 +88,7 @@ def build_onchain_chains(chains: dict[str, ProviderChain]) -> None:
         data_type="rag_search",
         description="Semantic search across 17K+ scam documents and patterns",
         providers=[
-            Provider(
-                "local_rag", ProviderTier.LOCAL, _passthrough_rag, weight=10.0, rate_limit_rps=5.0
-            ),
+            Provider("local_rag", ProviderTier.LOCAL, _passthrough_rag, weight=10.0, rate_limit_rps=5.0),
         ],
     )
 
@@ -185,8 +189,24 @@ def build_onchain_chains(chains: dict[str, ProviderChain]) -> None:
         ],
     )
 
+    # ── chain_indexer_patterns — on-chain behavioral scam pattern detection ──
+    chains["chain_indexer_patterns"] = ProviderChain(
+        "chain_indexer_patterns",
+        description="On-chain behavioral scam patterns via chain-indexer ClickHouse (holder concentration, pump-and-dump, deployer clusters, mixer interactions)",
+        providers=[
+            Provider(
+                "chain_indexer_pattern_search",
+                ProviderTier.LOCAL,
+                _chain_indexer_pattern_search,
+                weight=15.0,
+                is_local=True,
+                description="ClickHouse-powered pattern detection for deployer clusters, holder concentration, pump-and-dump, and mixer interactions",
+            ),
+        ],
+    )
+
     logger.info(
         "On-chain chains built: wallet_labels, scanner, spl_token_metadata, rag_search, "
         "defillama_tvl, defillama_chains, blockchair_address, blockchair_stats, "
-        "birdeye_overview, birdeye_price"
+        "birdeye_overview, birdeye_price, chain_indexer_patterns"
     )

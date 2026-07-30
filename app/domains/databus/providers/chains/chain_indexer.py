@@ -647,11 +647,28 @@ async def _chain_indexer_pattern_search(**kwargs: Any) -> dict | None:
 
         # Auto-detect: run all applicable detectors
         findings = await detect_all_patterns(token_address, chain, deployer)
+
+        # Ingest high-confidence findings into RAG for permanent scam pattern storage
+        high_risk = [f for f in findings if f.get("risk_score", 0) >= 30]
+        ingested = 0
+        if high_risk:
+            try:
+                from app.domains.scanner.modules.chain_pattern_detector import (
+                    ingest_patterns_into_rag,
+                )
+
+                ingested = await ingest_patterns_into_rag(high_risk)
+            except ImportError:
+                logger.debug("chain_pattern_rag_ingest_unavailable")
+            except Exception as exc:
+                logger.warning("chain_pattern_rag_ingest_failed", error=str(exc)[:120])
+
         return {
             "data": {
                 "findings": findings,
                 "match_count": len(findings),
                 "total_risk_score": min(100, sum(f.get("risk_score", 0) for f in findings)),
+                "ingested_into_rag": ingested,
             },
             "source": "chain_indexer (pattern: auto)",
             "tier": "local",
