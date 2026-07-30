@@ -24,6 +24,13 @@ async def scan_token(token_address: str, quick: bool = False) -> SecurityReport:
 
 def format_report(report: SecurityReport) -> str:
     """Format a security report for display."""
+    # Labels (outside f-string expressions for Python 3.11 compat)
+    renounced_label = "\u2705 RENOUNCED"
+    active_label = "\u274c ACTIVE"
+    yes_siren = "YES \U0001f6a8"
+    yes_target = "YES \U0001f3af"
+    yes_honeypot = "YES \U0001f36f"
+
     lines = [
         "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557",
         "\u2551           RUG MUNCH INTELLIGENCE - DEGEN SECURITY SCAN             \u2551",
@@ -35,8 +42,8 @@ def format_report(report: SecurityReport) -> str:
         f"\U0001f465 Holders: {report.total_holders:,}",
         "",
         "\u2501\u2501\u2501 AUTHORITY STATUS \u2501\u2501\u2501",
-        f"   Mint Authority: {'\u2705 RENOUNCED' if report.mint_authority_renounced else '\u274c ACTIVE'}",
-        f"   Freeze Authority: {'\u2705 RENOUNCED' if report.freeze_authority_renounced else '\u274c ACTIVE'}",
+        f"   Mint Authority: {renounced_label if report.mint_authority_renounced else active_label}",
+        f"   Freeze Authority: {renounced_label if report.freeze_authority_renounced else active_label}",
         f"   Risk: {report.authorities_risk}",
         "",
         "\u2501\u2501\u2501 HOLDER CONCENTRATION \u2501\u2501\u2501",
@@ -47,11 +54,11 @@ def format_report(report: SecurityReport) -> str:
         "\u2501\u2501\u2501 FUNDING TRACE \u2501\u2501\u2501",
         f"   Exchange Funding: {report.exchange_funding_percentage}%",
         f"   Organic Funding: {report.organic_funding_percentage}%",
-        f"   Mixer Used: {'YES \U0001f6a8' if report.mixer_funding_detected else 'No'}",
+        f"   Mixer Used: {yes_siren if report.mixer_funding_detected else 'No'}",
         f"   Risk: {report.funding_risk}",
         "",
         "\u2501\u2501\u2501 BUNDLER DETECTION \u2501\u2501\u2501",
-        f"   Detected: {'YES \U0001f3af' if report.bundler_detected else 'No'}",
+        f"   Detected: {yes_target if report.bundler_detected else 'No'}",
     ]
     if report.bundler_detected:
         lines.extend(
@@ -88,7 +95,7 @@ def format_report(report: SecurityReport) -> str:
             f"   Wash Clusters: {len(report.wash_trade_clusters)} | Risk: {report.wash_trading_risk}",
             f"   Dev Other Tokens: {len(report.dev_other_tokens)} | Risk: {report.dev_risk}",
             f"   Buy Tax: {report.buy_tax}% | Sell Tax: {report.sell_tax}%",
-            f"   Honeypot: {'YES \U0001f36f' if report.honeypot_detected else 'No'}",
+            f"   Honeypot: {yes_honeypot if report.honeypot_detected else 'No'}",
             "",
             "\u2501\u2501\u2501 MARKET DATA \u2501\u2501\u2501",
         ]

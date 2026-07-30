@@ -20,6 +20,8 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.rag.ann_index import Hit, get_index
 from app.rag.chunking import chunk_text, content_hash, is_duplicate, mark_ingested

@@ -399,9 +399,9 @@ async def meme_vibe_score(req: MemeVibeRequest) -> Any:
         )
 
         # Re-fetch launch via GET with query params
-        import httpx as _httpx
+# httpx available at module level
 
-        async with _httpx.AsyncClient(timeout=10.0) as c:
+        async with httpx.AsyncClient(timeout=10.0) as c:
             r = await c.get(f"{BASE}/launch", params={"address": req.token, "chain": req.chain})
             launch_data = r.json() if r.status_code == 200 else results.get("launch")
 

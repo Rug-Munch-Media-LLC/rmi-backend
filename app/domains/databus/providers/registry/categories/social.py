@@ -14,6 +14,8 @@ def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     # ── Conditional imports for optional databus modules ──
     try:
         from app.databus.news_intel import (
+            add_reaction,
+            aggregate_all_news,
             fetch_news_intel,
             get_academic_papers,
             get_article_comments,
