@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import fcntl
 import json
 import os
 import random
@@ -71,7 +72,10 @@ SWAP_V3_TOPIC = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcc
 # keccak256("PairCreated(address,address,address,uint256)")
 PAIR_CREATED_TOPIC = "0x79b58832c15b09feb3df60e6992ac2bf90bb88a193b76dcf74a5529cfc6a96e2"
 
-# Known DEX factory addresses for PairCreated event queries
+# keccak256("PoolCreated(address,address,uint24,int24,address)")
+POOL_CREATED_TOPIC = "0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118"
+
+# Known DEX V2 factory addresses for PairCreated event queries
 # These let us build a pair→(token0, token1) mapping from factory logs.
 FACTORY_ADDRESSES: dict[str, list[str]] = {
     "ethereum": ["0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"],  # Uniswap V2
@@ -81,8 +85,31 @@ FACTORY_ADDRESSES: dict[str, list[str]] = {
     "arbitrum": ["0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9"],
 }
 
+# Known DEX V3 factory addresses for PoolCreated event queries
+# V3 PoolCreated events carry token0 (topic[1]), token1 (topic[2]), fee (topic[3]),
+# tickSpacing (data[0:32]), and pool address (data[32:64]).
+V3_FACTORY_ADDRESSES: dict[str, list[str]] = {
+    "ethereum": ["0x1F98431c8aD98523631AE4a59f267346ea31F984"],  # Uniswap V3
+    "base": ["0x33128a8fC17869897dcE68Ed026d694621f6FDfD"],
+    "bsc": ["0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7"],  # PancakeSwap V3
+    "arbitrum": ["0x1F98431c8aD98523631AE4a59f267346ea31F984"],
+    "optimism": ["0x1F98431c8aD98523631AE4a59f267346ea31F984"],
+    "polygon": ["0x1F98431c8aD98523631AE4a59f267346ea31F984"],
+}
+
+# keccak256("token0()")[:4] and keccak256("token1()")[:4] — eth_call selectors
+TOKEN0_SELECTOR = "0x0dfe1681"
+TOKEN1_SELECTOR = "0xd21220a7"
+
+# Max concurrent eth_call fallback requests for pool token resolution
+MAX_CONCURRENT_POOL_RESOLVE = 5
+
 CHAIN_INDEXER_DIR = Path("/srv/data/chain-indexer")
 STATE_DIR = CHAIN_INDEXER_DIR / "state"
+
+# Pair cache template: STATE_DIR / "pair_tokens_{chain}.json"
+# Persists pair→(token0, token1) mapping across restarts so we never lose
+# token resolution for the 47M+ dex_events already in ClickHouse.
 
 # Hard disk cap: 10 GB
 DISK_CAP_BYTES = 10 * 1024**3
@@ -93,8 +120,30 @@ BATCH_SIZE = 1000
 # Max events per batch (safety limit)
 MAX_EVENTS_PER_BATCH = 100_000
 
+# Blocks behind chain tip when --start-from-head is used
+# We start from (tip - HEAD_BUFFER) so we catch any in-flight blocks
+HEAD_BUFFER = 100
+
 # RPC call timeout for eth_getLogs (longer since it can return large data)
 RPC_TIMEOUT = 30
+
+# Max backoff for recently-failed endpoints (seconds)
+BACKOFF_CAP = 8
+
+# Max wait for rate-limited endpoints (seconds)
+RATE_LIMIT_WAIT_CAP = 16
+
+# Default timeout for _rpc_call_with_backoff
+RPC_CALL_TIMEOUT = 15.0
+
+# Timeout for block timestamp fetch calls
+TIMESTAMP_FETCH_TIMEOUT = 15
+
+# Semaphore limit for parallel timestamp fetches
+GET_LOGS_SEMAPHORE_LIMIT = 10
+
+# Minimum free disk space (bytes) — 1GB
+MIN_FREE_DISK_BYTES = 1_000_000_000
 
 # ClickHouse target tables
 CH_TABLE = "wallet_memory.evm_transfers"
@@ -277,8 +326,8 @@ def _get_best_endpoint(endpoints: list[str]) -> str:
 
     scored.sort(key=lambda x: x[0])
 
-    # Healthy endpoints: those with < 3 recent failures (penalty < 3000)
-    healthy = [ep for penalty, ep in scored if penalty < 3000]
+    # Healthy endpoints: those with < 3 recent failures
+    healthy = [ep for penalty, ep in scored if penalty < _MAX_FAILURES * 1000]
 
     if not healthy:
         # All endpoints in cooldown — clear and retry the first
@@ -297,6 +346,23 @@ def _record_endpoint_failure(endpoint: str) -> None:
     _endpoint_failures.setdefault(endpoint, []).append(time.time())
 
 
+async def _apply_endpoint_backoff(url: str) -> None:
+    """Apply exponential backoff if this endpoint has recent failures."""
+    recent_failures = [t for t in _endpoint_failures.get(url, []) if time.time() - t < _ENDPOINT_COOLDOWN]
+    if recent_failures:
+        backoff = 2 ** len(recent_failures)
+        await asyncio.sleep(min(backoff, BACKOFF_CAP))
+
+
+async def _handle_rate_limit(url: str) -> None:
+    """Record a rate-limit failure and sleep with exponential backoff."""
+    _record_endpoint_failure(url)
+    _metrics["rpc_rate_limits"] += 1
+    wait = min(2 ** len(_endpoint_failures.get(url, [])), RATE_LIMIT_WAIT_CAP)
+    logger.debug("rpc_rate_limited", url=url[:50], backoff=wait)
+    await asyncio.sleep(wait)
+
+
 # ── RPC Call with Backoff ────────────────────────────────────────────
 
 
@@ -304,7 +370,7 @@ async def _rpc_call_with_backoff(endpoint: str, payload: dict, max_retries: int 
     """Call RPC with exponential backoff on rate limits."""
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with httpx.AsyncClient(timeout=RPC_CALL_TIMEOUT) as client:
                 resp = await client.post(endpoint, json=payload)
                 if resp.status_code == 429:
                     wait = 2**attempt
@@ -340,7 +406,7 @@ def _is_duplicate(tx_hash: str, log_index: int) -> bool:
 # ── Disk Space Check ─────────────────────────────────────────────────
 
 
-def _check_disk_space(min_free_bytes: int = 1_000_000_000) -> bool:
+def _check_disk_space(min_free_bytes: int = MIN_FREE_DISK_BYTES) -> bool:
     """Check if there's enough disk space to continue.
 
     Returns True if OK, False if dangerously low.
@@ -390,14 +456,18 @@ class LiteIndexer:
         to_block: int | None = None,
         batch_size: int = BATCH_SIZE,
         disk_cap: int = DISK_CAP_BYTES,
+        start_from_head: bool = False,
     ) -> None:
         self.chain = chain
         self.batch_size = batch_size
         self.disk_cap = disk_cap
         self.dex_enabled = False
+        self.start_from_head = start_from_head
 
-        # Pair→(token0, token1) cache built from PairCreated events
+        # Pair→(token0, token1) cache built from PairCreated/PoolCreated events
+        # Persisted to disk so token resolution survives restarts
         self._pair_tokens: dict[str, tuple[str, str]] = {}
+        self._load_pair_cache()
 
         # Optional override blocks (for testing / backfill)
         self._override_from = from_block
@@ -467,6 +537,12 @@ class LiteIndexer:
 
     def load_state(self) -> dict[str, Any]:
         """Load last indexed block from state file."""
+        # When --start-from-head is active, ignore any stale state file
+        # and let _determine_block_range pick up from chain tip.
+        if self.start_from_head:
+            logger.info("state_skipped_start_from_head", chain=self.chain)
+            return {}
+
         path = self._state_path()
         if not path.exists():
             logger.info("no_state_file", chain=self.chain, path=str(path))
@@ -484,7 +560,7 @@ class LiteIndexer:
             return {}
 
     def save_state(self, last_block: int, events_count: int) -> None:
-        """Save last indexed block to state file."""
+        """Save last indexed block to state file (with file locking for racy safety)."""
         STATE_DIR.mkdir(parents=True, exist_ok=True)
         state = {
             "last_block": last_block,
@@ -494,7 +570,11 @@ class LiteIndexer:
             "chain": self.chain,
         }
         try:
-            self._state_path().write_text(json.dumps(state, indent=2))
+            path = self._state_path()
+            with open(path, "w") as f:
+                fcntl.flock(f, fcntl.LOCK_EX)
+                f.write(json.dumps(state, indent=2))
+                fcntl.flock(f, fcntl.LOCK_UN)
             logger.info("state_saved", chain=self.chain, last_block=last_block)
         except OSError as exc:
             logger.error("state_save_failed", chain=self.chain, error=str(exc))
@@ -566,7 +646,7 @@ class LiteIndexer:
 
         timestamps: dict[int, datetime] = {}
         batch = list(block_numbers)
-        semaphore = asyncio.Semaphore(10)
+        semaphore = asyncio.Semaphore(GET_LOGS_SEMAPHORE_LIMIT)
 
         async def _get_ts(block_num: int) -> tuple[int, datetime | None]:
             async with semaphore:
@@ -574,7 +654,7 @@ class LiteIndexer:
                     self.chain,
                     "eth_getBlockByNumber",
                     [hex(block_num), False],
-                    timeout=15,
+                    timeout=TIMESTAMP_FETCH_TIMEOUT,
                 )
                 if result and "result" in result:
                     block = result["result"]
@@ -667,11 +747,8 @@ class LiteIndexer:
         last_error: str | None = None
 
         for url in rotated:
-            # Record backoff for recently-failed endpoints
-            recent_failures = [t for t in _endpoint_failures.get(url, []) if time.time() - t < _ENDPOINT_COOLDOWN]
-            if recent_failures:
-                backoff = 2 ** len(recent_failures)
-                await asyncio.sleep(min(backoff, 8))  # Cap at 8s
+            # Apply backoff for recently-failed endpoints
+            await _apply_endpoint_backoff(url)
 
             try:
                 resp = await client.post(url, json=body, timeout=RPC_TIMEOUT)
@@ -685,7 +762,7 @@ class LiteIndexer:
                         logs = data["result"]
                         if isinstance(logs, list):
                             parsed = self._parse_logs(logs, from_block, to_block)
-                            logger.info(
+                            logger.debug(
                                 "transfers_fetched",
                                 chain=self.chain,
                                 block_range=f"{from_block}-{to_block}",
@@ -715,15 +792,7 @@ class LiteIndexer:
                         continue
                 elif resp.status_code == 429:
                     last_error = "rate_limited"
-                    _record_endpoint_failure(url)
-                    _metrics["rpc_rate_limits"] += 1
-                    wait = min(2 ** len(_endpoint_failures.get(url, [])), 16)
-                    logger.debug(
-                        "rpc_rate_limited",
-                        url=url[:50],
-                        backoff=wait,
-                    )
-                    await asyncio.sleep(wait)
+                    await _handle_rate_limit(url)
                     continue
                 else:
                     last_error = f"http_{resp.status_code}"
@@ -822,11 +891,8 @@ class LiteIndexer:
 
             best_result: list[dict[str, Any]] | None = None
             for url in rotated:
-                # Backoff for recently-failed endpoints
-                recent_failures = [t for t in _endpoint_failures.get(url, []) if time.time() - t < _ENDPOINT_COOLDOWN]
-                if recent_failures:
-                    backoff = 2 ** len(recent_failures)
-                    await asyncio.sleep(min(backoff, 8))
+                # Apply backoff for recently-failed endpoints
+                await _apply_endpoint_backoff(url)
 
                 try:
                     resp = await client.post(url, json=body, timeout=RPC_TIMEOUT)
@@ -836,7 +902,7 @@ class LiteIndexer:
                             logs = data["result"]
                             if isinstance(logs, list):
                                 parsed = self._parse_swap_logs(logs, from_block, to_block, topic)
-                                logger.info(
+                                logger.debug(
                                     "swap_logs_fetched",
                                     chain=self.chain,
                                     label=label,
@@ -849,16 +915,13 @@ class LiteIndexer:
                                     best_result = parsed
                                     if len(parsed) == len(logs):
                                         break
-                        elif resp.status_code == 429:
-                            _record_endpoint_failure(url)
-                            _metrics["rpc_rate_limits"] += 1
-                            wait = min(2 ** len(_endpoint_failures.get(url, [])), 16)
-                            await asyncio.sleep(wait)
-                            continue
-                        else:
-                            _record_endpoint_failure(url)
-                            _metrics["rpc_errors"] += 1
-                            continue
+                    elif resp.status_code == 429:
+                        await _handle_rate_limit(url)
+                        continue
+                    else:
+                        _record_endpoint_failure(url)
+                        _metrics["rpc_errors"] += 1
+                        continue
                 except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError, httpx.WriteError):
                     _record_endpoint_failure(url)
                     _metrics["rpc_errors"] += 1
@@ -1138,6 +1201,9 @@ class LiteIndexer:
         if not events:
             return 0
 
+        if not self._check_disk_before_write("dex_ndjson"):
+            return 0
+
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         out_dir = CHAIN_INDEXER_DIR / self.chain / "dex" / today
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -1145,11 +1211,7 @@ class LiteIndexer:
 
         try:
             lines = [json.dumps(e, ensure_ascii=False) + "\n" for e in events]
-            bytes_written = 0
-            with open(out_path, "a") as f:
-                for line in lines:
-                    f.write(line)
-                    bytes_written += len(line.encode("utf-8"))
+            bytes_written = self._write_ndjson_lines(lines, out_path)
 
             logger.info(
                 "dex_ndjson_written",
@@ -1386,6 +1448,26 @@ class LiteIndexer:
 
     # ── Output: NDJSON ──────────────────────────────────────────────
 
+    @staticmethod
+    def _write_ndjson_lines(lines: list[str], out_path: Path) -> int:
+        """Write NDJSON lines to a file in one batch. Returns bytes written."""
+        bytes_written = 0
+        with open(out_path, "a") as f:
+            for line in lines:
+                f.write(line)
+                bytes_written += len(line.encode("utf-8"))
+        return bytes_written
+
+    def _check_disk_before_write(self, label: str = "") -> bool:
+        """Check both disk cap and free space before a write operation."""
+        if not self.check_disk_cap():
+            logger.error("write_aborted_disk_cap", chain=self.chain, label=label)
+            return False
+        if not _check_disk_space():
+            logger.error("write_aborted_disk_space", chain=self.chain, label=label)
+            return False
+        return True
+
     def write_ndjson(self, events: list[dict[str, Any]]) -> int:
         """
         Append events to /srv/data/chain-indexer/{chain}/{date}/events.jsonl.
@@ -1395,6 +1477,9 @@ class LiteIndexer:
         if not events:
             return 0
 
+        if not self._check_disk_before_write("ndjson"):
+            return 0
+
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         out_dir = CHAIN_INDEXER_DIR / self.chain / today
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -1402,11 +1487,7 @@ class LiteIndexer:
 
         try:
             lines = [json.dumps(e, ensure_ascii=False) + "\n" for e in events]
-            bytes_written = 0
-            with open(out_path, "a") as f:
-                for line in lines:
-                    f.write(line)
-                    bytes_written += len(line.encode("utf-8"))
+            bytes_written = self._write_ndjson_lines(lines, out_path)
 
             logger.info(
                 "ndjson_written",
@@ -1423,11 +1504,25 @@ class LiteIndexer:
     # ── Output: ClickHouse ──────────────────────────────────────────
 
     def _ensure_source_column(self, client: Any, table: str) -> None:
-        """Add `source` column to ClickHouse table if it doesn't exist yet."""
+        """Ensure source column exists in ClickHouse tables. Skip if already present."""
         try:
+            # Check if column exists first — avoids ALTER spam on every cycle
+            result = client.execute(
+                "SELECT name FROM system.columns "
+                "WHERE database = 'wallet_memory' AND table = %(table)s AND name = 'source'",
+                {"table": table.split(".")[-1]},
+            )
+            if result:
+                return  # Column already exists, skip ALTER
+
+            # Only ALTER if it doesn't exist
             client.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS source String DEFAULT ''")
+            logger.info("source_column_added", table=table)
         except Exception as exc:
-            logger.debug("alter_table_add_source_skipped", table=table, error=str(exc)[:60])
+            # Suppress — column already exists or insufficient privileges
+            if "already exists" in str(exc) or "privileges" in str(exc).lower():
+                return
+            logger.debug("source_column_skip", error=str(exc)[:80])
 
     def write_clickhouse(self, events: list[dict[str, Any]]) -> int:
         """
@@ -1498,6 +1593,70 @@ class LiteIndexer:
             )
             return 0
 
+    # ── Block Range Determination ────────────────────────────────────
+
+    async def _determine_block_range(self, summary: dict[str, Any]) -> tuple[int, int] | None:
+        """
+        Determine the block range for this sync cycle.
+
+        When --start-from-head is active, we ignore the state file and
+        start indexing from (chain_tip - HEAD_BUFFER) — just like Ponder,
+        Subsquid, and Envio. No backfill from genesis.
+
+        Returns (from_block, to_block) or None if we should abort.
+        """
+        # Fast path: start from near the chain head (no backfill)
+        if self.start_from_head:
+            tip = await self.fetch_block_number()
+            if tip is None:
+                summary["status"] = "no_rpc_available"
+                summary["errors"].append("fetch_block_number failed")
+                logger.error("sync_aborted_no_rpc", chain=self.chain)
+                return None
+            from_block = max(0, tip - HEAD_BUFFER)
+            to_block = tip
+            logger.info(
+                "starting_from_head",
+                chain=self.chain,
+                from_block=from_block,
+                tip=tip,
+                head_buffer=HEAD_BUFFER,
+            )
+            return from_block, to_block
+
+        # Normal path: resume from state file or override
+        state = self.load_state()
+        from_block = self._override_from if self._override_from is not None else state.get("last_block", 0) + 1
+
+        # If we've never run, use block 0 (RPC handles it)
+        if from_block <= 1:
+            from_block = 0
+
+        current_block = await self.fetch_block_number()
+        if current_block is None:
+            summary["status"] = "no_rpc_available"
+            summary["errors"].append("fetch_block_number failed")
+            logger.error("sync_aborted_no_rpc", chain=self.chain)
+            return None
+
+        to_block = self._override_to if self._override_to is not None else current_block
+
+        if from_block >= to_block:
+            logger.info("caught_up", chain=self.chain, block=current_block)
+            summary["status"] = "caught_up"
+            return None
+
+        if to_block - from_block > self.batch_size:
+            to_block = from_block + self.batch_size
+            logger.info(
+                "batch_limited",
+                chain=self.chain,
+                from_block=from_block,
+                to_block=to_block,
+            )
+
+        return from_block, to_block
+
     # ── Main Sync Loop ──────────────────────────────────────────────
 
     async def sync_loop(self) -> dict[str, Any]:
@@ -1532,36 +1691,10 @@ class LiteIndexer:
             return summary
 
         # 2. Determine block range
-        state = self.load_state()
-
-        from_block = self._override_from if self._override_from is not None else state.get("last_block", 0) + 1
-
-        # If we've never run, use block 0 (RPC handles it)
-        if from_block <= 1:
-            from_block = 0
-
-        current_block = await self.fetch_block_number()
-        if current_block is None:
-            summary["status"] = "no_rpc_available"
-            summary["errors"].append("fetch_block_number failed")
-            logger.error("sync_aborted_no_rpc", chain=self.chain)
+        block_range = await self._determine_block_range(summary)
+        if block_range is None:
             return summary
-
-        to_block = self._override_to if self._override_to is not None else current_block
-
-        if from_block >= to_block:
-            logger.info("caught_up", chain=self.chain, block=current_block)
-            summary["status"] = "caught_up"
-            return summary
-
-        if to_block - from_block > self.batch_size:
-            to_block = from_block + self.batch_size
-            logger.info(
-                "batch_limited",
-                chain=self.chain,
-                from_block=from_block,
-                to_block=to_block,
-            )
+        from_block, to_block = block_range
 
         # 3. Fetch transfer events
         logger.info(
@@ -1718,22 +1851,40 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Enable DEX swap event indexing (V2 + V3)",
     )
+    parser.add_argument(
+        "--start-from-head",
+        action="store_true",
+        help="Start indexing from chain tip instead of backfilling from genesis. "
+        "Ignores any existing state file and begins from (tip - 100). "
+        "Equivalent to Ponder/Subsquid/Envio 'from latest block' mode.",
+    )
     return parser.parse_args(argv)
 
 
-async def main_daemon(chains: list[str], dex_enabled: bool = False, disk_cap: int = DISK_CAP_BYTES) -> int:
+async def main_daemon(
+    chains: list[str],
+    dex_enabled: bool = False,
+    disk_cap: int = DISK_CAP_BYTES,
+    start_from_head: bool = False,
+) -> int:
     """
     Daemon mode: continuously index all configured chains in parallel.
 
     Each chain gets its own LiteIndexer instance with independent state
     tracking and polling interval. Runs until SIGTERM/SIGINT.
     """
-    logger.info("daemon_start", chains=chains, dex=dex_enabled, disk_cap=disk_cap)
+    logger.info(
+        "daemon_start",
+        chains=chains,
+        dex=dex_enabled,
+        disk_cap=disk_cap,
+        start_from_head=start_from_head,
+    )
 
     # Create per-chain indexers
     indexers = {}
     for chain in chains:
-        indexer = LiteIndexer(chain=chain, disk_cap=disk_cap)
+        indexer = LiteIndexer(chain=chain, disk_cap=disk_cap, start_from_head=start_from_head)
         indexer.dex_enabled = dex_enabled
         indexers[chain] = indexer
 
@@ -1814,7 +1965,12 @@ async def async_main(args: argparse.Namespace) -> int:
     # Daemon mode
     if args.daemon:
         chains = [c.strip() for c in args.chains.split(",") if c.strip()]
-        return await main_daemon(chains, dex_enabled=args.dex, disk_cap=args.disk_cap)
+        return await main_daemon(
+            chains,
+            dex_enabled=args.dex,
+            disk_cap=args.disk_cap,
+            start_from_head=args.start_from_head,
+        )
 
     # Single-chain mode
     indexer = LiteIndexer(
@@ -1823,6 +1979,7 @@ async def async_main(args: argparse.Namespace) -> int:
         to_block=args.to_block,
         batch_size=args.batch_size,
         disk_cap=args.disk_cap,
+        start_from_head=args.start_from_head,
     )
     indexer.dex_enabled = args.dex
 
