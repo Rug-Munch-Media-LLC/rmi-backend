@@ -68,6 +68,7 @@ METADATA_MARKERS = ["a1", "a2", "65766d", "627a6574"]
 
 # ── Standalone Helpers ──────────────────────────────────────────────
 
+
 def hash_bytecode(hex_str: str) -> str:
     """Standalone SHA-256 hash of cleaned bytecode.
 
@@ -103,7 +104,9 @@ def hash_bytecode(hex_str: str) -> str:
 
     return hashlib.sha256(clean.encode()).hexdigest()
 
+
 # ── Report Dataclass ─────────────────────────────────────────────────
+
 
 @dataclass
 class BytecodeSimilarityReport:
@@ -117,7 +120,9 @@ class BytecodeSimilarityReport:
     risk_label: str = "LOW"  # LOW / MEDIUM / HIGH / CRITICAL
     warnings: list[str] = field(default_factory=list)
 
+
 # ── Analyzer ─────────────────────────────────────────────────────────
+
 
 class BytecodeSimilarityAnalyzer:
     """Compare token bytecode against a local database of known scam contracts.
@@ -196,9 +201,7 @@ class BytecodeSimilarityAnalyzer:
                 "notes": metadata.get("notes", ""),
             }
             self._db[bytecode_hash] = entry
-            logger.info(
-                f"Added new scam bytecode entry: {bytecode_hash[:12]}... → {entry['scam_type']}"
-            )
+            logger.info(f"Added new scam bytecode entry: {bytecode_hash[:12]}... → {entry['scam_type']}")
 
         self._save_db()
 
@@ -236,12 +239,10 @@ class BytecodeSimilarityAnalyzer:
             )
             code_hex = result.value if result else None
             if code_hex and code_hex != "0x" and len(str(code_hex)) > 10:
-                logger.info(
-                    f"Fetched EVM bytecode for {address} on {chain_name} (confidence={result.confidence}%)"
-                )
+                logger.info(f"Fetched EVM bytecode for {address} on {chain_name} (confidence={result.confidence}%)")
                 return str(code_hex)
             logger.debug(f"eth_getCode returned empty for {address} on {chain_name}")
-        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e :
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("_fetch_evm_bytecode_error", exc_info=True)
             logger.debug(f"Consensus RPC bytecode fetch failed: {e}")
 
@@ -274,7 +275,17 @@ class BytecodeSimilarityAnalyzer:
                     if code and code != "0x" and len(code) > 10:
                         logger.info(f"Got bytecode via fallback RPC for {address}")
                         return code
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            OSError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Fallback RPC failed: {e}")
 
@@ -301,7 +312,7 @@ class BytecodeSimilarityAnalyzer:
                         return str(data_list[0])  # base64 encoded
                     return str(raw)
                 return str(raw)
-        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
             logger.debug("_fetch_solana_bytecode_error", exc_info=True)
             logger.debug(f"Consensus RPC Solana fetch failed: {e}")
 
@@ -324,7 +335,17 @@ class BytecodeSimilarityAnalyzer:
                         data_list = result_val.get("data")
                         if isinstance(data_list, list) and len(data_list) >= 1:
                             return str(data_list[0])
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Solana fallback RPC failed: {e}")
 
@@ -335,7 +356,7 @@ class BytecodeSimilarityAnalyzer:
             info = FreeSolscanClient.account_info(address)
             if info:
                 return str(info)
-        except (httpx.HTTPError, ValueError) as e :
+        except (httpx.HTTPError, ValueError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"FreeSolscan fetch failed: {e}")
 
@@ -424,9 +445,7 @@ class BytecodeSimilarityAnalyzer:
                 f"Exact bytecode hash match! Recycled {report.matched_scam_type} scam "
                 f"found at {', '.join(report.matched_addresses[:3])}"
             )
-            logger.warning(
-                f"Exact scam match: hash {bytecode_hash[:12]}... type={report.matched_scam_type}"
-            )
+            logger.warning(f"Exact scam match: hash {bytecode_hash[:12]}... type={report.matched_scam_type}")
             return report
 
         # Scan for partial matches via nibble similarity

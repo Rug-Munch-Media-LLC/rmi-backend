@@ -13,6 +13,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.dexscreener")
 
+
 async def _dexscreener_price(**kwargs) -> dict | None:
     """DexScreener — free, no key."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
@@ -27,6 +28,7 @@ async def _dexscreener_price(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
     """Token metadata from DexScreener (free)."""
     if not mint:
@@ -40,6 +42,7 @@ async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
     """Top holders from DexScreener (free)."""
     if not mint:
@@ -52,6 +55,7 @@ async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> dict | None:
     """Live trades from DexScreener (free)."""
@@ -67,6 +71,7 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw) -> dict | None:
     """Top profitable traders for a token from DexScreener (free)."""

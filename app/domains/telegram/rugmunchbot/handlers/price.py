@@ -77,11 +77,13 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 f"📡 Source: {result.get('source', 'unavailable')}"
                 f"{footer_links()}"
             )
-            kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
-                [InlineKeyboardButton("📊 Charts & Analysis", url=f"{WEBSITE_URL}/markets/token/{address}")],
-                [InlineKeyboardButton("◀️ Back", callback_data="menu_main")],
-            ])
+            kb = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
+                    [InlineKeyboardButton("📊 Charts & Analysis", url=f"{WEBSITE_URL}/markets/token/{address}")],
+                    [InlineKeyboardButton("◀️ Back", callback_data="menu_main")],
+                ]
+            )
         else:
             text = (
                 f"❌ <b>Price Not Available</b>\n\n"
@@ -93,10 +95,12 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 f"Try /scan for a full security analysis."
                 f"{footer_links()}"
             )
-            kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
-                [InlineKeyboardButton("◀️ Back", callback_data="menu_main")],
-            ])
+            kb = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
+                    [InlineKeyboardButton("◀️ Back", callback_data="menu_main")],
+                ]
+            )
 
         await msg.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
 
@@ -143,8 +147,7 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
             if resp.status_code != 200:
                 await msg.edit_text(
-                    f"❌ <b>DEX Data Unavailable</b>\n\n"
-                    f"DexScreener returned status {resp.status_code} for this token.",
+                    f"❌ <b>DEX Data Unavailable</b>\n\nDexScreener returned status {resp.status_code} for this token.",
                     parse_mode=ParseMode.HTML,
                     reply_markup=back_kb(),
                 )
@@ -188,11 +191,13 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             lines.append(footer_links())
 
             text = "\n".join(lines)
-            kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
-                [InlineKeyboardButton("🤖 AI Analysis", callback_data=f"ai_scan_{address}")],
-                [InlineKeyboardButton("◀️ Back", callback_data="menu_main")],
-            ])
+            kb = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
+                    [InlineKeyboardButton("🤖 AI Analysis", callback_data=f"ai_scan_{address}")],
+                    [InlineKeyboardButton("◀️ Back", callback_data="menu_main")],
+                ]
+            )
 
             await msg.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
 

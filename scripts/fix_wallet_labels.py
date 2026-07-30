@@ -195,9 +195,7 @@ def load_solana_csvs():
                     }
                 )
 
-        print(
-            f"  {filename}: {len(seen):,} unique addresses ({dupe_count} dupes removed, {invalid_count} invalid)"
-        )
+        print(f"  {filename}: {len(seen):,} unique addresses ({dupe_count} dupes removed, {invalid_count} invalid)")
 
     return labels
 
@@ -297,9 +295,7 @@ def load_etherscan_data():
                     }
                 )
 
-        print(
-            f"  etherscan_malicious_labels.csv: {len(seen):,} unique addresses ({dupe_count} dupes)"
-        )
+        print(f"  etherscan_malicious_labels.csv: {len(seen):,} unique addresses ({dupe_count} dupes)")
 
     return labels
 

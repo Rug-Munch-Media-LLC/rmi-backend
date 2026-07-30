@@ -220,9 +220,7 @@ class TestFreeDataProviders:
         mock_client.get.return_value = mock_response
         mock_free_httpx.return_value.__aenter__.return_value = mock_client
 
-        result = await _dexscreener_token_metadata(
-            mint="So11111111111111111111111111111111111111112"
-        )
+        result = await _dexscreener_token_metadata(mint="So11111111111111111111111111111111111111112")
         assert result is None
 
     @pytest.mark.asyncio
@@ -663,9 +661,7 @@ class TestNewsProviders:
 
         with patch("app.databus.provider_implementations.news.httpx.AsyncClient") as mock_http:
             mock_http.return_value.__aenter__.return_value = mock_client
-            result = await _dune_early_buyers(
-                token_address="0xabc123", chain="ethereum", api_key="key"
-            )
+            result = await _dune_early_buyers(token_address="0xabc123", chain="ethereum", api_key="key")
         assert result is not None
         assert result["source"] == "dune"
 
@@ -683,9 +679,7 @@ class TestMCPBridgeProvider:
         """MCP bridge handles a missing tool gracefully."""
         from app.databus.provider_implementations.mcp_bridge import _mcp_bridge
 
-        with patch(
-            "app.databus.provider_implementations.mcp_bridge.httpx.AsyncClient"
-        ) as mock_http:
+        with patch("app.databus.provider_implementations.mcp_bridge.httpx.AsyncClient") as mock_http:
             mock_response = MagicMock()
             mock_response.status_code = 404
             mock_client = AsyncMock()

@@ -27,9 +27,11 @@ router = APIRouter(prefix="/api/v1/intelligence", tags=["intelligence"])
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
+
 def _supabase_is_configured() -> bool:
     """Check if Supabase credentials are configured."""
     return bool(SUPABASE_URL and SUPABASE_KEY)
+
 
 async def _supabase_request(
     method: str,
@@ -86,6 +88,7 @@ async def _supabase_request(
             logger.error("Supabase request failed (%s %s): %s", method, table, e)
             return []
 
+
 async def _supabase_get_user(jwt_token: str) -> dict[str, object] | None:
     """Get the authenticated user from Supabase Auth via REST API.
 
@@ -117,6 +120,7 @@ async def _supabase_get_user(jwt_token: str) -> dict[str, object] | None:
             logger.error("Supabase auth request failed: %s", e)
             return None
 
+
 async def _get_current_user_id(authorization: str | None = None) -> str | None:
     """Extract the current user ID from a JWT via Supabase Auth.
 
@@ -138,13 +142,16 @@ async def _get_current_user_id(authorization: str | None = None) -> str | None:
         logger.warning(f"User auth lookup failed: {e}")
         return None
 
+
 # ── Models ───────────────────────────────────────────────────
+
 
 class MarketUpdate(BaseModel):
     """Market intelligence update from n8n."""
 
     workflow: str
     data: dict
+
 
 class IntelligenceQuery(BaseModel):
     """Query parameters for intelligence data."""
@@ -155,7 +162,9 @@ class IntelligenceQuery(BaseModel):
     limit: int = 50
     offset: int = 0
 
+
 # ── n8n Webhook Receivers ────────────────────────────────────
+
 
 @router.post("/market-update")
 async def receive_market_update(update: MarketUpdate) -> dict[str, str]:
@@ -170,20 +179,18 @@ async def receive_market_update(update: MarketUpdate) -> dict[str, str]:
         # Route to appropriate table based on workflow
         if workflow == "trending_tokens":
             # Process trending tokens
-            tokens = data.get("coingecko_trending", {}).get("coins", []) + data.get(
-                "dexscreener_trending", {}
-            ).get("pairs", [])
+            tokens = data.get("coingecko_trending", {}).get("coins", []) + data.get("dexscreener_trending", {}).get(
+                "pairs", []
+            )
 
             for token in tokens[:20]:  # Top 20
                 await _supabase_request(
                     "POST",
                     "market_trending_tokens",
                     data={
-                        "token_address": token.get("address")
-                        or token.get("baseToken", {}).get("address"),
+                        "token_address": token.get("address") or token.get("baseToken", {}).get("address"),
                         "token_name": token.get("name") or token.get("baseToken", {}).get("name"),
-                        "token_symbol": token.get("symbol")
-                        or token.get("baseToken", {}).get("symbol"),
+                        "token_symbol": token.get("symbol") or token.get("baseToken", {}).get("symbol"),
                         "chain": "solana",
                         "price_usd": token.get("priceUsd") or token.get("priceNative"),
                         "volume_24h": token.get("volume", {}).get("h24"),
@@ -233,6 +240,7 @@ async def receive_market_update(update: MarketUpdate) -> dict[str, str]:
     except Exception as e:
         logger.error("Market update error: %s", e)
         return {"status": "error", "message": str(e)[:200]}
+
 
 @router.post("/security-update")
 async def receive_security_update(update: MarketUpdate) -> dict[str, str]:
@@ -294,9 +302,15 @@ async def receive_security_update(update: MarketUpdate) -> dict[str, str]:
         logger.error("Security update error: %s", e)
         return {"status": "error", "message": str(e)[:200]}
 
+
 # ── Market Intelligence Endpoints ─────────────────────────────
 
-@router.get("/market/trending", summary="Get Trending Tokens", description="Fetch trending tokens across multiple chains from DexScreener and CoinGecko. Returns tokens ranked by volume and social momentum. Supports chain and limit filtering.")
+
+@router.get(
+    "/market/trending",
+    summary="Get Trending Tokens",
+    description="Fetch trending tokens across multiple chains from DexScreener and CoinGecko. Returns tokens ranked by volume and social momentum. Supports chain and limit filtering.",
+)
 async def get_trending_tokens(
     chain: str = Query("solana", description="Blockchain"),
     limit: int = Query(50, description="Number of results"),
@@ -318,7 +332,12 @@ async def get_trending_tokens(
 
     return {"tokens": result or []}
 
-@router.get("/market/whales", summary="Get Whale Movements", description="Detect large wallet transactions and whale movements across supported chains. Returns recent high-value transfers with entity labels when available.")
+
+@router.get(
+    "/market/whales",
+    summary="Get Whale Movements",
+    description="Detect large wallet transactions and whale movements across supported chains. Returns recent high-value transfers with entity labels when available.",
+)
 async def get_whale_movements(
     chain: str = Query("solana"),
     min_amount_usd: float = Query(10000),
@@ -342,7 +361,12 @@ async def get_whale_movements(
 
     return {"movements": result or []}
 
-@router.get("/market/volume-spikes", summary="Get Volume Spikes", description="Alert on sudden volume spikes indicating coordinated trading activity or potential pump-and-dump events. Configurable threshold via query params.")
+
+@router.get(
+    "/market/volume-spikes",
+    summary="Get Volume Spikes",
+    description="Alert on sudden volume spikes indicating coordinated trading activity or potential pump-and-dump events. Configurable threshold via query params.",
+)
 async def get_volume_spikes(
     chain: str = Query("solana"),
     min_change_pct: float = Query(100),
@@ -366,7 +390,9 @@ async def get_volume_spikes(
 
     return {"spikes": result or []}
 
+
 # ── Premium Intelligence Endpoints ───────────────────────────
+
 
 @router.get("/premium/smart-money")
 async def get_smart_money_activities(
@@ -390,6 +416,7 @@ async def get_smart_money_activities(
     result = await _supabase_request("GET", "smart_money_activities", params=params)
 
     return {"activities": result or []}
+
 
 @router.get("/premium/exchange-flows")
 async def get_exchange_flows(
@@ -415,9 +442,15 @@ async def get_exchange_flows(
 
     return {"flows": result or []}
 
+
 # ── Security Intelligence Endpoints ──────────────────────────
 
-@router.get("/security/scams", summary="Get Scam Alerts", description="Real-time scam alerts aggregated from community reports, on-chain analysis, and threat intel feeds. Includes contract addresses, scam type classification, and severity ratings.")
+
+@router.get(
+    "/security/scams",
+    summary="Get Scam Alerts",
+    description="Real-time scam alerts aggregated from community reports, on-chain analysis, and threat intel feeds. Includes contract addresses, scam type classification, and severity ratings.",
+)
 async def get_scam_alerts(
     scam_type: str | None = None,
     confirmed_only: bool = Query(False),
@@ -441,7 +474,12 @@ async def get_scam_alerts(
 
     return {"scams": result or []}
 
-@router.get("/security/rugpulls", summary="Get Rugpull Alerts", description="Real-time rugpull alerts with liquidity analysis, deployer history, and honeypot detection. Flags tokens showing rugpull indicators within the configured time window.")
+
+@router.get(
+    "/security/rugpulls",
+    summary="Get Rugpull Alerts",
+    description="Real-time rugpull alerts with liquidity analysis, deployer history, and honeypot detection. Flags tokens showing rugpull indicators within the configured time window.",
+)
 async def get_rugpull_alerts(
     limit: int = Query(50),
 ) -> dict:
@@ -461,9 +499,15 @@ async def get_rugpull_alerts(
 
     return {"rugpulls": result or []}
 
+
 # ── User Intelligence Alerts ─────────────────────────────────
 
-@router.get("/me/alerts", summary="Get My Alerts", description="Get intelligence alerts for the authenticated user. Returns personalized alerts based on watched wallets, tokens, and configured notification preferences.")
+
+@router.get(
+    "/me/alerts",
+    summary="Get My Alerts",
+    description="Get intelligence alerts for the authenticated user. Returns personalized alerts based on watched wallets, tokens, and configured notification preferences.",
+)
 async def get_my_alerts(
     unread_only: bool = Query(False),
     severity: str | None = None,
@@ -508,7 +552,12 @@ async def get_my_alerts(
 
     return {"alerts": result or []}
 
-@router.post("/me/alerts/{alert_id}/dismiss", summary="Dismiss Alert", description="Dismiss a specific intelligence alert. The alert will be removed from the active queue but retained in history for audit.")
+
+@router.post(
+    "/me/alerts/{alert_id}/dismiss",
+    summary="Dismiss Alert",
+    description="Dismiss a specific intelligence alert. The alert will be removed from the active queue but retained in history for audit.",
+)
 async def dismiss_alert(
     alert_id: str,
     authorization: str = Header(None),
@@ -533,9 +582,15 @@ async def dismiss_alert(
 
     return {"status": "ok", "dismissed": len(result) > 0}
 
+
 # ── Health ───────────────────────────────────────────────────
 
-@router.get("/health", summary="Intelligence Health", description="Intelligence service health check. Verifies connectivity to n8n, Supabase, and internal intelligence pipelines. Returns status for each subsystem.")
+
+@router.get(
+    "/health",
+    summary="Intelligence Health",
+    description="Intelligence service health check. Verifies connectivity to n8n, Supabase, and internal intelligence pipelines. Returns status for each subsystem.",
+)
 async def intelligence_health() -> dict[str, str]:
     """Intelligence service health check."""
     return {
@@ -556,7 +611,9 @@ async def intelligence_health() -> dict[str, str]:
         },
     }
 
+
 # ── Card Generation Endpoints ─────────────────────────────────
+
 
 @router.post("/cards/generate")
 async def generate_card(card_type: str, data: dict) -> Any:
@@ -593,7 +650,12 @@ async def generate_card(card_type: str, data: dict) -> Any:
         logger.error("Card generation failed: %s", e)
         raise AppError(message=str(e)[:200]) from e
 
-@router.get("/cards/templates", summary="Get Card Templates", description="List available intelligence card templates for generating shareable security/market insight graphics.")
+
+@router.get(
+    "/cards/templates",
+    summary="Get Card Templates",
+    description="List available intelligence card templates for generating shareable security/market insight graphics.",
+)
 async def get_card_templates() -> dict[str, list[dict]]:
     """Get available card templates."""
     try:
@@ -613,7 +675,9 @@ async def get_card_templates() -> dict[str, list[dict]]:
     except Exception as e:
         raise AppError(message=str(e)[:200]) from e
 
+
 # ── Marketing Graphics Endpoints ─────────────────────────────
+
 
 @router.get("/marketing/templates")
 async def list_marketing_templates_endpoint() -> dict:
@@ -624,6 +688,7 @@ async def list_marketing_templates_endpoint() -> dict:
         return {"templates": list_marketing_templates()}
     except Exception as e:
         raise AppError(message=str(e)[:200]) from e
+
 
 @router.post("/marketing/generate")
 async def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> Any:
@@ -644,6 +709,7 @@ async def generate_marketing_graphic(graphic_type: str, data: dict | None = None
         logger.error("Marketing graphic generation failed: %s", e)
         raise AppError(message=str(e)[:200]) from e
 
+
 @router.post("/marketing/generate/feature-cards")
 async def generate_all_feature_cards_endpoint() -> dict:
     """Generate feature showcase cards for all features."""
@@ -655,7 +721,12 @@ async def generate_all_feature_cards_endpoint() -> dict:
     except Exception as e:
         raise AppError(message=str(e)[:200]) from e
 
-@router.post("/marketing/generate/stats", summary="Generate Stats Graphic", description="Generate a stats/metrics marketing graphic from the provided stat value, label, and context. Returns a rendered image URL.")
+
+@router.post(
+    "/marketing/generate/stats",
+    summary="Generate Stats Graphic",
+    description="Generate a stats/metrics marketing graphic from the provided stat value, label, and context. Returns a rendered image URL.",
+)
 async def generate_stats_graphic(stat_value: str, stat_label: str, context: str = "") -> Any:
     """Generate stats/metrics graphic."""
     try:
@@ -673,7 +744,12 @@ async def generate_stats_graphic(stat_value: str, stat_label: str, context: str 
     except Exception as e:
         raise AppError(message=str(e)[:200]) from e
 
-@router.post("/marketing/generate/pricing", summary="Generate Pricing Graphic", description="Generate a pricing tier marketing graphic with the given tier name, price, and feature list. Returns a rendered image URL.")
+
+@router.post(
+    "/marketing/generate/pricing",
+    summary="Generate Pricing Graphic",
+    description="Generate a pricing tier marketing graphic with the given tier name, price, and feature list. Returns a rendered image URL.",
+)
 async def generate_pricing_graphic(tier_name: str, price: float, features: list[str]) -> Any:
     """Generate pricing tier graphic."""
     try:

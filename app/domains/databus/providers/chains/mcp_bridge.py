@@ -13,6 +13,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.mcp_bridge")
 
+
 async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | None:
     """Universal MCP bridge — calls any local/remote MCP server tool.
 

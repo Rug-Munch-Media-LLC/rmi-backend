@@ -23,6 +23,7 @@ async def detect_pattern_clusters(
     _ = wallet_profiles, wallets
     return []
 
+
 async def detect_ml_clusters(
     wallet_profiles: dict[str, dict],
     wallets: list[str],
@@ -80,6 +81,7 @@ async def detect_ml_clusters(
             clusters.append(cluster)
 
     return clusters
+
 
 async def detect_sleeper_clusters(
     wallet_profiles: dict[str, dict],

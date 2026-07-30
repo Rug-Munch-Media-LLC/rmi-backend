@@ -300,6 +300,7 @@ BACKEND_SOURCES = {
     },
 }
 
+
 def list_all_sources() -> dict:
     """Return combined view of all API keys + backend data sources."""
     mgr = get_api_manager()
@@ -323,11 +324,10 @@ def list_all_sources() -> dict:
         "summary": _summarize_all(mgr),
     }
 
+
 def _summarize_all(mgr) -> dict:
     """Generate a unified capacity summary across all sources."""
-    free_rps = sum(
-        s.get("rate_rps", 0) or 0 for s in BACKEND_SOURCES.values() if s.get("rate_rps")
-    )
+    free_rps = sum(s.get("rate_rps", 0) or 0 for s in BACKEND_SOURCES.values() if s.get("rate_rps"))
     by_type = {}
     for s in BACKEND_SOURCES.values():
         t = s["type"]
@@ -335,9 +335,7 @@ def _summarize_all(mgr) -> dict:
 
     api_providers = mgr.list_providers()
     api_keys_total = sum(len(mgr.pools[p].keys) for p in api_providers)
-    api_rps = sum(
-        mgr.pools[p].config.rate_rps * len(mgr.pools[p].keys) for p in api_providers
-    )
+    api_rps = sum(mgr.pools[p].config.rate_rps * len(mgr.pools[p].keys) for p in api_providers)
 
     return {
         "api_key_providers": len(api_providers),

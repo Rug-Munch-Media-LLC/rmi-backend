@@ -126,12 +126,14 @@ WELL_KNOWN_TOKENS: dict[str, tuple[str, str]] = {
     "Bonk": ("BONK", "solana"),
 }
 
+
 class CloneRisk(Enum):
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
     NONE = "none"
+
 
 SUPPORTED_CHAINS = [
     "ethereum",
@@ -151,6 +153,7 @@ SUPPORTED_CHAINS = [
 
 # ── Data Models ───────────────────────────────────────────────────
 
+
 @dataclass
 class SimilarToken:
     """A token found to be similar to the target."""
@@ -167,6 +170,7 @@ class SimilarToken:
     @property
     def overall_similarity(self) -> float:
         return max(self.name_similarity, self.symbol_similarity)
+
 
 @dataclass
 class CloneReport:
@@ -247,7 +251,9 @@ class CloneReport:
             f"{flag_str}"
         )
 
+
 # ── Helper: String similarity ─────────────────────────────────────
+
 
 def string_similarity(a: str, b: str) -> float:
     """Fuzzy string similarity (0-1) using SequenceMatcher.
@@ -261,6 +267,7 @@ def string_similarity(a: str, b: str) -> float:
     if len(a) > 200 or len(b) > 200:
         a, b = a[:200], b[:200]
     return SequenceMatcher(None, a, b).ratio()
+
 
 def name_similarity_score(name: str, target_name: str) -> float:
     """Score name similarity considering common clone patterns."""
@@ -295,7 +302,9 @@ def name_similarity_score(name: str, target_name: str) -> float:
 
     return min(base, 1.0)
 
+
 # ── Core Scanner ──────────────────────────────────────────────────
+
 
 class CloneScanner:
     """Main scanner for token clone detection."""
@@ -363,14 +372,10 @@ class CloneScanner:
             report.matched_keywords = keywords
 
             # 5. Compute scores
-            report.bytecode_similarity_score = self._score_bytecode_risk(
-                report.unverified_contract, deployer_info
-            )
+            report.bytecode_similarity_score = self._score_bytecode_risk(report.unverified_contract, deployer_info)
             report.name_similarity_score = self._score_name_similarity(similar_tokens, keywords)
             report.deployer_risk_score = self._score_deployer_risk(deployer_info)
-            report.metadata_risk_score = self._score_metadata_risk(
-                metadata, keywords, similar_tokens
-            )
+            report.metadata_risk_score = self._score_metadata_risk(metadata, keywords, similar_tokens)
 
             # 6. Composite clone score
             report.clone_score = self._compute_clone_score(report)
@@ -470,9 +475,7 @@ class CloneScanner:
             score += 15  # Mass deployer pattern
         return min(score, 100)
 
-    def _score_name_similarity(
-        self, similar_tokens: list[SimilarToken], keywords: list[str]
-    ) -> float:
+    def _score_name_similarity(self, similar_tokens: list[SimilarToken], keywords: list[str]) -> float:
         score = 0.0
         if keywords:
             score += 25
@@ -670,9 +673,7 @@ class CloneScanner:
 
         return result
 
-    async def _search_similar_names(
-        self, name: str, symbol: str, address: str, chain: str
-    ) -> list[SimilarToken]:
+    async def _search_similar_names(self, name: str, symbol: str, address: str, chain: str) -> list[SimilarToken]:
         """Search DexScreener for tokens with similar names."""
         if not name and not symbol:
             return []
@@ -755,7 +756,9 @@ class CloneScanner:
                 matches.append(kw)
         return matches
 
+
 # ── Module-level helpers ──────────────────────────────────────────
+
 
 async def scan_token(address: str, chain: str) -> CloneReport:
     """Convenience function - create scanner, scan, close."""
@@ -764,6 +767,7 @@ async def scan_token(address: str, chain: str) -> CloneReport:
         return await scanner.scan(address, chain)
     finally:
         await scanner.close()
+
 
 async def fast_check(address: str, chain: str) -> dict[str, Any]:
     """Convenience function for fast check."""

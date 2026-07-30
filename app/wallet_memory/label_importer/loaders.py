@@ -12,11 +12,14 @@ from .config import WALLET_LABELS_DDL
 
 logger = get_logger("wallet_memory.label_importer")
 
+
 def _normalize_chain(chain: str) -> str:
     """Normalize chain name to canonical form - delegates to shared_utils."""
     from app.core.shared_utils import normalize_chain
+
     result = normalize_chain(chain)
     return result or "ethereum"
+
 
 async def _flush_batch(
     storage,
@@ -49,6 +52,7 @@ async def _flush_batch(
         except Exception as e:
             logger.warning(f"ClickHouse batch insert failed: {e}")
 
+
 async def _load_csv_labels(
     storage,
     path: str,
@@ -66,13 +70,9 @@ async def _load_csv_labels(
 
     if storage._ch:
         try:
-            existing = storage._ch.execute(
-                "SELECT count() FROM wallet_labels WHERE source = %(src)s", {"src": src}
-            )
+            existing = storage._ch.execute("SELECT count() FROM wallet_labels WHERE source = %(src)s", {"src": src})
             if existing and existing[0][0] > 100:
-                logger.info(
-                    f"Source '{src}' already has {existing[0][0]:,} labels in CH - skipping re-import"
-                )
+                logger.info(f"Source '{src}' already has {existing[0][0]:,} labels in CH - skipping re-import")
                 return existing[0][0]
         except (ConnectionError, OSError):
             pass
@@ -110,13 +110,18 @@ async def _load_csv_labels(
                 )
                 category = label.get("label_type", label.get("label", ""))
                 subtype = label.get("label_subtype", "")
-                ch_rows.append((
-                    addr, chain,
-                    str(name) if name else "",
-                    str(category) if category else "",
-                    str(subtype) if subtype else "",
-                    src, 0, datetime.now(UTC),
-                ))
+                ch_rows.append(
+                    (
+                        addr,
+                        chain,
+                        str(name) if name else "",
+                        str(category) if category else "",
+                        str(subtype) if subtype else "",
+                        src,
+                        0,
+                        datetime.now(UTC),
+                    )
+                )
                 count += 1
                 if count % 5000 == 0:
                     await _flush_batch(storage, redis_pipe_ops, ch_rows, chain)
@@ -130,6 +135,7 @@ async def _load_csv_labels(
 
     logger.info(f"Loaded {count} labels from {src} (chain={chain})")
     return count
+
 
 import os
 

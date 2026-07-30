@@ -15,6 +15,7 @@ MEMGRAPH_PASS = os.getenv("MEMGRAPH_PASSWORD", "")
 
 router = APIRouter(prefix="/api/v1/memory", tags=["agent-memory"])
 
+
 async def _run_query(query: str, params: dict | None = None) -> list:
     """Run a Cypher query against Memgraph."""
     try:
@@ -26,9 +27,10 @@ async def _run_query(query: str, params: dict | None = None) -> list:
             )
             if r.status_code == 200:
                 return r.json().get("data", [])
-    except (httpx.HTTPError):
+    except httpx.HTTPError:
         pass
     return []
+
 
 @router.post("/conversation")
 async def store_conversation(user_id: str, agent_id: str, message: str, role: str = "user") -> bool:
@@ -62,6 +64,7 @@ async def store_conversation(user_id: str, agent_id: str, message: str, role: st
     )
     return {"stored": True, "conversation_id": conv_id}
 
+
 @router.get("/conversation/{user_id}/{agent_id}")
 async def get_conversation(user_id: str, agent_id: str, limit: int = 20) -> dict:
     """Retrieve conversation history for an agent."""
@@ -75,11 +78,10 @@ async def get_conversation(user_id: str, agent_id: str, limit: int = 20) -> dict
     return {
         "user_id": user_id,
         "agent_id": agent_id,
-        "messages": [{"role": r[0], "content": r[1], "timestamp": r[2]} for r in reversed(rows)]
-        if rows
-        else [],
+        "messages": [{"role": r[0], "content": r[1], "timestamp": r[2]} for r in reversed(rows)] if rows else [],
         "count": len(rows) if rows else 0,
     }
+
 
 @router.get("/context/{user_id}")
 async def get_user_context(user_id: str) -> dict:

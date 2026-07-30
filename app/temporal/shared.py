@@ -11,6 +11,7 @@ class ScanTaskParams:
     chain: str = "ethereum"
     requester_id: str | None = None
 
+
 @dataclass
 class ScanResult:
     address: str

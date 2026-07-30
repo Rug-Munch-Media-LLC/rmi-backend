@@ -49,6 +49,7 @@ VARIABLE_TAX_CONF = 75
 LAMPORTS_PER_SOL = 1_000_000_000
 TOKEN_DECIMALS_SOL = 1e6  # assume 6 decimals for Jupiter output
 
+
 @dataclass
 class SellSimulationResult:
     """Single sell simulation at a given amount."""
@@ -58,6 +59,7 @@ class SellSimulationResult:
     actual_output: float
     slippage_pct: float
     simulation_failed: bool
+
 
 @dataclass
 class HoneypotReport:
@@ -77,6 +79,7 @@ class HoneypotReport:
     risk_score: int = 0  # 0-100
     risk_level: str = "LOW"  # LOW / MEDIUM / HIGH / CRITICAL
 
+
 class HoneypotDetector:
     """Detects honeypot tokens through buy/sell simulation and tax analysis."""
 
@@ -87,15 +90,11 @@ class HoneypotDetector:
     async def close(self) -> None:
         await self.client.aclose()
 
-    async def analyze(
-        self, token_address: str, chain: str, pair_address: str = ""
-    ) -> HoneypotReport:
+    async def analyze(self, token_address: str, chain: str, pair_address: str = "") -> HoneypotReport:
         """Alias for detect() - matches SENTINEL pipeline interface."""
         return await self.detect(token_address, chain, pair_address)
 
-    async def detect(
-        self, token_address: str, chain: str, pair_address: str = ""
-    ) -> HoneypotReport:
+    async def detect(self, token_address: str, chain: str, pair_address: str = "") -> HoneypotReport:
         chain = chain.lower()
         if is_solana(chain):
             return await self._detect_solana(token_address)
@@ -125,7 +124,17 @@ class HoneypotDetector:
                 if "error" in data:
                     continue
                 buy_results.append((sol_amt, int(data.get("outAmount", 0)) / TOKEN_DECIMALS_SOL))
-            except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            except (
+                httpx.HTTPError,
+                requests.RequestException,
+                json.JSONDecodeError,
+                ValueError,
+                KeyError,
+                TypeError,
+                ConnectionError,
+                OSError,
+                TimeoutError,
+            ) as e:
                 logger.debug("_detect_solana_error", exc_info=True)
                 logger.debug(f"Jupiter buy quote failed: {e}")
 
@@ -181,9 +190,7 @@ class HoneypotDetector:
             # All sells succeeded - compute effective taxes
             successful = [s for s in sell_results if not s.simulation_failed]
             buy_price = ref_sol / ref_tokens if ref_tokens > 0 else 0
-            sell_prices = [
-                s.actual_output / s.input_amount for s in successful if s.input_amount > 0
-            ]
+            sell_prices = [s.actual_output / s.input_amount for s in successful if s.input_amount > 0]
             avg_sell = sum(sell_prices) / len(sell_prices) if sell_prices else 0
             if buy_price > 0 and avg_sell > 0:
                 spread = (buy_price - avg_sell) / buy_price * 100
@@ -205,9 +212,7 @@ class HoneypotDetector:
 
     # ── EVM (DexScreener + eth_call) ─────────────────────────
 
-    async def _detect_evm(
-        self, token_address: str, chain: str, pair_address: str = ""
-    ) -> HoneypotReport:
+    async def _detect_evm(self, token_address: str, chain: str, pair_address: str = "") -> HoneypotReport:
         report = HoneypotReport(token_address=token_address, chain=chain)
 
         # Step 1: DexScreener pair data
@@ -241,9 +246,7 @@ class HoneypotDetector:
         decimals = int((base_token or {}).get("decimals", 18) or 18)
         sim_amount = 10 ** max(decimals - 2, 1)
 
-        can_to_pair = await self._simulate_transfer(
-            rpc_url, token_address, dex_pair or sim_addr, sim_amount
-        )
+        can_to_pair = await self._simulate_transfer(rpc_url, token_address, dex_pair or sim_addr, sim_amount)
         can_generic = await self._simulate_transfer(rpc_url, token_address, sim_addr, sim_amount)
 
         if not can_to_pair and not can_generic:
@@ -293,7 +296,17 @@ class HoneypotDetector:
                         reverse=True,
                     )
                     return pairs[0]
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_get_dexscreener_pair_error", exc_info=True)
             logger.debug(f"DexScreener lookup failed: {e}")
         return None
@@ -321,7 +334,17 @@ class HoneypotDetector:
                 if rv in ("0x", "", None):
                     return False
                 return int(rv, 16) != 0
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_simulate_transfer_error", exc_info=True)
             logger.debug(f"eth_call transfer sim failed: {e}")
         return False
@@ -359,9 +382,7 @@ class HoneypotDetector:
         # High buy + high sell tax → scam
         if bt > HIGH_TAX_PCT and st > HIGH_TAX_PCT:
             combined = bt + st
-            report.warnings.append(
-                f"High combined tax ({combined:.1f}%): buy={bt:.1f}% sell={st:.1f}% - likely scam"
-            )
+            report.warnings.append(f"High combined tax ({combined:.1f}%): buy={bt:.1f}% sell={st:.1f}% - likely scam")
             report.is_honeypot = True
             report.confidence = max(report.confidence, 75)
             report.transfer_tax = round(combined, 2)
@@ -389,9 +410,7 @@ class HoneypotDetector:
 
     # ── Helpers ───────────────────────────────────────────────
 
-    async def _jupiter_sell(
-        self, token_mint: str, sell_amt: float, expected_sol: float
-    ) -> SellSimulationResult:
+    async def _jupiter_sell(self, token_mint: str, sell_amt: float, expected_sol: float) -> SellSimulationResult:
         """Query Jupiter for a sell quote (token → SOL) and return a SellSimulationResult."""
         try:
             resp = await self.client.get(
@@ -409,9 +428,7 @@ class HoneypotDetector:
             if "error" in data:
                 return self._fail_sim(sell_amt, expected_sol)
             out_sol = int(data.get("outAmount", 0)) / LAMPORTS_PER_SOL
-            slippage = (
-                max(0, (expected_sol - out_sol) / expected_sol * 100) if expected_sol > 0 else 0
-            )
+            slippage = max(0, (expected_sol - out_sol) / expected_sol * 100) if expected_sol > 0 else 0
             return SellSimulationResult(
                 input_amount=sell_amt,
                 expected_output=expected_sol,
@@ -440,9 +457,7 @@ class HoneypotDetector:
             avg_ok = sum(s.input_amount for s in ok) / len(ok)
             avg_fail = sum(s.input_amount for s in fail) / len(fail)
             if 0 < avg_ok < avg_fail:
-                report.warnings.append(
-                    "Smaller sells succeed, larger fail - volume-limited sell trap"
-                )
+                report.warnings.append("Smaller sells succeed, larger fail - volume-limited sell trap")
                 report.confidence = min(report.confidence + 5, 95)
 
     def _finalize(self, report: HoneypotReport) -> HoneypotReport:
@@ -472,13 +487,5 @@ class HoneypotDetector:
         if report.is_honeypot and report.confidence > 0:
             score = int(score * (report.confidence / 80))
         report.risk_score = max(0, min(100, score))
-        report.risk_level = (
-            "CRITICAL"
-            if score >= 80
-            else "HIGH"
-            if score >= 60
-            else "MEDIUM"
-            if score >= 35
-            else "LOW"
-        )
+        report.risk_level = "CRITICAL" if score >= 80 else "HIGH" if score >= 60 else "MEDIUM" if score >= 35 else "LOW"
         return report

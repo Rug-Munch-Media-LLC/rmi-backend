@@ -20,6 +20,7 @@ from app.domains.wallet.models import (
 
 logger = get_logger("wallet_analysis")
 
+
 class WalletAnalysisMixin:
     """
     Mixin providing analytics, alerts, sweep, and export operations.
@@ -70,12 +71,8 @@ class WalletAnalysisMixin:
             "total_payments": total_payments,
             "total_revenue_usd": round(total_revenue, 2),
             "x402_wallets": sum(1 for w in self._wallets.values() if w.x402_enabled),
-            "subscription_wallets": sum(
-                1 for w in self._wallets.values() if w.subscription_enabled
-            ),
-            "rotated_wallets": sum(
-                1 for w in self._wallets.values() if w.status == WalletStatus.ROTATED.value
-            ),
+            "subscription_wallets": sum(1 for w in self._wallets.values() if w.subscription_enabled),
+            "rotated_wallets": sum(1 for w in self._wallets.values() if w.status == WalletStatus.ROTATED.value),
             "last_updated": datetime.now(UTC).isoformat(),
         }
 
@@ -90,15 +87,17 @@ class WalletAnalysisMixin:
                 continue
 
             if w.low_balance_threshold > 0 and w.balance_usd < w.low_balance_threshold:
-                alerts.append({
-                    "type": "low_balance",
-                    "wallet_id": w.wallet_id,
-                    "address": w.address,
-                    "chain": w.chain,
-                    "balance_usd": w.balance_usd,
-                    "threshold": w.low_balance_threshold,
-                    "severity": "warning",
-                })
+                alerts.append(
+                    {
+                        "type": "low_balance",
+                        "wallet_id": w.wallet_id,
+                        "address": w.address,
+                        "chain": w.chain,
+                        "balance_usd": w.balance_usd,
+                        "threshold": w.low_balance_threshold,
+                        "severity": "warning",
+                    }
+                )
 
             schedule_str = w.labels.get("rotation_schedule")
             if schedule_str:
@@ -108,23 +107,27 @@ class WalletAnalysisMixin:
                     days_until = (next_rot - datetime.now(UTC)).days
 
                     if days_until <= schedule.notify_before_days and days_until > 0:
-                        alerts.append({
-                            "type": "rotation_due",
-                            "wallet_id": w.wallet_id,
-                            "address": w.address,
-                            "chain": w.chain,
-                            "days_until": days_until,
-                            "severity": "info",
-                        })
+                        alerts.append(
+                            {
+                                "type": "rotation_due",
+                                "wallet_id": w.wallet_id,
+                                "address": w.address,
+                                "chain": w.chain,
+                                "days_until": days_until,
+                                "severity": "info",
+                            }
+                        )
                     elif days_until <= 0:
-                        alerts.append({
-                            "type": "rotation_overdue",
-                            "wallet_id": w.wallet_id,
-                            "address": w.address,
-                            "chain": w.chain,
-                            "days_overdue": abs(days_until),
-                            "severity": "critical",
-                        })
+                        alerts.append(
+                            {
+                                "type": "rotation_overdue",
+                                "wallet_id": w.wallet_id,
+                                "address": w.address,
+                                "chain": w.chain,
+                                "days_overdue": abs(days_until),
+                                "severity": "critical",
+                            }
+                        )
 
         return alerts
 
@@ -136,10 +139,7 @@ class WalletAnalysisMixin:
             "version": "3.0",
             "exported_at": datetime.now(UTC).isoformat(),
             "wallets": [w.to_safe_dict() for w in self._wallets.values()],
-            "chain_registry": {
-                k: {"name": v.name, "symbol": v.native_symbol}
-                for k, v in CHAIN_REGISTRY.items()
-            },
+            "chain_registry": {k: {"name": v.name, "symbol": v.native_symbol} for k, v in CHAIN_REGISTRY.items()},
         }
 
     def export_for_chain(self, chain: str) -> list[dict]:
@@ -160,8 +160,15 @@ class WalletAnalysisMixin:
             "sol": "Gix4P9AmwcZRGzr2hCEME5m2QAvY86dBfm8c7e7MpFzv",
         }
         evm_chains = {
-            "eth", "base", "polygon", "arbitrum", "optimism",
-            "avalanche", "bsc", "fantom", "gnosis",
+            "eth",
+            "base",
+            "polygon",
+            "arbitrum",
+            "optimism",
+            "avalanche",
+            "bsc",
+            "fantom",
+            "gnosis",
         }
 
         result = {
@@ -174,10 +181,7 @@ class WalletAnalysisMixin:
             "total_swept_usd": 0.0,
         }
 
-        wallets_to_check = [
-            w for w in self._wallets.values()
-            if w.x402_enabled and (not chain or w.chain == chain)
-        ]
+        wallets_to_check = [w for w in self._wallets.values() if w.x402_enabled and (not chain or w.chain == chain)]
 
         if not wallets_to_check:
             logger.info("sweep_to_owner: no x402-enabled wallets found")
@@ -188,13 +192,15 @@ class WalletAnalysisMixin:
             try:
                 balance = wallet.balance_usd
                 if balance < min_usd_threshold:
-                    result["skipped"].append({
-                        "wallet_id": wallet.wallet_id,
-                        "address": wallet.address,
-                        "chain": wallet.chain,
-                        "balance_usd": balance,
-                        "reason": f"below_threshold ({balance} < {min_usd_threshold})",
-                    })
+                    result["skipped"].append(
+                        {
+                            "wallet_id": wallet.wallet_id,
+                            "address": wallet.address,
+                            "chain": wallet.chain,
+                            "balance_usd": balance,
+                            "reason": f"below_threshold ({balance} < {min_usd_threshold})",
+                        }
+                    )
                     continue
 
                 if wallet.chain in evm_chains:
@@ -202,24 +208,28 @@ class WalletAnalysisMixin:
                 elif wallet.chain == "sol":
                     await self._sweep_solana(wallet, owner_map["sol"], result)
                 else:
-                    result["skipped"].append({
+                    result["skipped"].append(
+                        {
+                            "wallet_id": wallet.wallet_id,
+                            "address": wallet.address,
+                            "chain": wallet.chain,
+                            "balance_usd": balance,
+                            "reason": "unsupported_chain_for_sweep",
+                        }
+                    )
+                    continue
+
+            except (KeyError, TypeError) as e:
+                logger.debug("unknown_error", exc_info=True)
+                logger.error(f"sweep_to_owner error for {wallet.wallet_id}: {e}")
+                result["errors"].append(
+                    {
                         "wallet_id": wallet.wallet_id,
                         "address": wallet.address,
                         "chain": wallet.chain,
-                        "balance_usd": balance,
-                        "reason": "unsupported_chain_for_sweep",
-                    })
-                    continue
-
-            except (KeyError, TypeError) as e :
-                logger.debug("unknown_error", exc_info=True)
-                logger.error(f"sweep_to_owner error for {wallet.wallet_id}: {e}")
-                result["errors"].append({
-                    "wallet_id": wallet.wallet_id,
-                    "address": wallet.address,
-                    "chain": wallet.chain,
-                    "error": str(e),
-                })
+                        "error": str(e),
+                    }
+                )
 
         self._save_vault()
         result["total_swept_usd"] = round(result["total_swept_usd"], 2)
@@ -239,18 +249,16 @@ class WalletAnalysisMixin:
 
         mnemonic = self.get_mnemonic(wallet.wallet_id)
         if not mnemonic:
-            raise RuntimeError(
-                f"CRITICAL: Cannot sweep {wallet.wallet_id}. Mnemonic is missing."
-            )
+            raise RuntimeError(f"CRITICAL: Cannot sweep {wallet.wallet_id}. Mnemonic is missing.")
 
         from eth_account import Account
+
         acct = Account.from_mnemonic(mnemonic)
         if acct.address.lower() != wallet.address.lower():
-            raise RuntimeError(
-                f"Derived address {acct.address} does not match wallet {wallet.address}"
-            )
+            raise RuntimeError(f"Derived address {acct.address} does not match wallet {wallet.address}")
 
         from web3 import Web3
+
         w3 = Web3(Web3.HTTPProvider(rpc_url))
         if not w3.is_connected():
             raise RuntimeError(f"Failed to connect to RPC: {rpc_url}")
@@ -285,15 +293,17 @@ class WalletAnalysisMixin:
         wallet.balance_usd = float(w3.from_wei(gas_reserve_wei, "ether")) * 2500.0
         wallet.total_sent += float(w3.from_wei(sweep_amount_wei, "ether"))
 
-        result["swept"].append({
-            "wallet_id": wallet.wallet_id,
-            "address": wallet.address,
-            "chain": wallet.chain,
-            "amount_wei": sweep_amount_wei,
-            "tx_hash": tx_hash_hex,
-            "owner": owner,
-            "status": "broadcasted",
-        })
+        result["swept"].append(
+            {
+                "wallet_id": wallet.wallet_id,
+                "address": wallet.address,
+                "chain": wallet.chain,
+                "amount_wei": sweep_amount_wei,
+                "tx_hash": tx_hash_hex,
+                "owner": owner,
+                "status": "broadcasted",
+            }
+        )
         result["total_swept_usd"] += float(w3.from_wei(sweep_amount_wei, "ether")) * 2500.0
 
     async def _sweep_solana(self, wallet: WalletRecord, owner: str, result: dict) -> None:
@@ -302,11 +312,10 @@ class WalletAnalysisMixin:
 
         mnemonic = self.get_mnemonic(wallet.wallet_id)
         if not mnemonic:
-            raise RuntimeError(
-                f"CRITICAL: Cannot sweep {wallet.wallet_id}. Mnemonic is missing."
-            )
+            raise RuntimeError(f"CRITICAL: Cannot sweep {wallet.wallet_id}. Mnemonic is missing.")
 
         from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins
+
         seed_bytes = Bip39SeedGenerator(mnemonic).Generate()
         bip44_mst_ctx = Bip44.FromSeed(seed_bytes, Bip44Coins.SOLANA)
         bip44_def_ctx = bip44_mst_ctx.Purpose().Coin().Account(0).Change(0).AddressIndex(0)
@@ -314,11 +323,10 @@ class WalletAnalysisMixin:
 
         from solders.keypair import Keypair as SoldersKeypair
         from solders.pubkey import Pubkey as SoldersPubkey
+
         keypair = SoldersKeypair.from_bytes(private_key_bytes)
         if str(keypair.pubkey()) != wallet.address:
-            raise RuntimeError(
-                f"Derived address {keypair.pubkey()} does not match wallet {wallet.address}"
-            )
+            raise RuntimeError(f"Derived address {keypair.pubkey()} does not match wallet {wallet.address}")
 
         from solana.rpc.async_api import AsyncClient
         from solana.rpc.commitment import Confirmed
@@ -359,15 +367,17 @@ class WalletAnalysisMixin:
             wallet.balance_usd = wallet.balance_decimal * 150.0
             wallet.total_sent += sweep_amount_lamports / 1_000_000_000
 
-            result["swept"].append({
-                "wallet_id": wallet.wallet_id,
-                "address": wallet.address,
-                "chain": wallet.chain,
-                "amount_lamports": sweep_amount_lamports,
-                "tx_signature": tx_sig,
-                "owner": owner,
-                "status": "broadcasted",
-            })
+            result["swept"].append(
+                {
+                    "wallet_id": wallet.wallet_id,
+                    "address": wallet.address,
+                    "chain": wallet.chain,
+                    "amount_lamports": sweep_amount_lamports,
+                    "tx_signature": tx_sig,
+                    "owner": owner,
+                    "status": "broadcasted",
+                }
+            )
             result["total_swept_usd"] += (sweep_amount_lamports / 1_000_000_000) * 150.0
 
     # ── Balance Monitoring ─────────────────────────────────────
@@ -410,9 +420,7 @@ class WalletAnalysisMixin:
             else:
                 alert["type"] = "ok"
                 alert["severity"] = "info"
-                alert["message"] = (
-                    f"Wallet {w.wallet_id} ({w.chain}) balance ${w.balance_usd:.2f} OK"
-                )
+                alert["message"] = f"Wallet {w.wallet_id} ({w.chain}) balance ${w.balance_usd:.2f} OK"
                 alerts.append(alert)
 
         summary = {
@@ -423,9 +431,7 @@ class WalletAnalysisMixin:
             "checked_at": datetime.now(UTC).isoformat(),
         }
 
-        logger.info(
-            f"check_all_balances: checked {checked} x402 wallets, {below_threshold} below threshold"
-        )
+        logger.info(f"check_all_balances: checked {checked} x402 wallets, {below_threshold} below threshold")
         return summary
 
     async def get_revenue_wallet_status(self) -> dict:
@@ -433,8 +439,15 @@ class WalletAnalysisMixin:
         wallets = []
         total_balance_usd = 0.0
         evm_chains = {
-            "eth", "base", "polygon", "arbitrum", "optimism",
-            "avalanche", "bsc", "fantom", "gnosis",
+            "eth",
+            "base",
+            "polygon",
+            "arbitrum",
+            "optimism",
+            "avalanche",
+            "bsc",
+            "fantom",
+            "gnosis",
         }
         sweep_threshold = 5.0
 
@@ -450,28 +463,29 @@ class WalletAnalysisMixin:
             else:
                 owner = ""
 
-            wallets.append({
-                "wallet_id": w.wallet_id,
-                "address": w.address,
-                "chain": w.chain,
-                "balance_usd": w.balance_usd,
-                "balance_raw": w.balance_raw,
-                "tier": w.tier,
-                "purpose": w.purpose,
-                "status": w.status,
-                "x402_price_usd": w.x402_price_usd,
-                "low_balance_threshold": w.low_balance_threshold,
-                "needs_sweep": needs_sweep,
-                "owner_address": owner,
-                "last_used": w.last_used,
-                "tx_count": w.tx_count,
-            })
+            wallets.append(
+                {
+                    "wallet_id": w.wallet_id,
+                    "address": w.address,
+                    "chain": w.chain,
+                    "balance_usd": w.balance_usd,
+                    "balance_raw": w.balance_raw,
+                    "tier": w.tier,
+                    "purpose": w.purpose,
+                    "status": w.status,
+                    "x402_price_usd": w.x402_price_usd,
+                    "low_balance_threshold": w.low_balance_threshold,
+                    "needs_sweep": needs_sweep,
+                    "owner_address": owner,
+                    "last_used": w.last_used,
+                    "tx_count": w.tx_count,
+                }
+            )
             total_balance_usd += w.balance_usd
 
         need_sweep_count = sum(1 for w in wallets if w["needs_sweep"])
         below_threshold_count = sum(
-            1 for w in wallets
-            if w["low_balance_threshold"] > 0 and w["balance_usd"] < w["low_balance_threshold"]
+            1 for w in wallets if w["low_balance_threshold"] > 0 and w["balance_usd"] < w["low_balance_threshold"]
         )
 
         return {
@@ -483,5 +497,6 @@ class WalletAnalysisMixin:
             "sweep_threshold_usd": sweep_threshold,
             "wallets": wallets,
         }
+
 
 __all__ = ["WalletAnalysisMixin"]

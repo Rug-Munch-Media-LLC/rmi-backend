@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 
 _langfuse_client = None
 
+
 def get_langfuse() -> Langfuse:
     global _langfuse_client
     if _langfuse_client is None:
@@ -22,6 +23,7 @@ def get_langfuse() -> Langfuse:
             host=os.getenv("LANGFUSE_HOST", "http://localhost:3004"),
         )
     return _langfuse_client
+
 
 def trace_agent_call(agent_name: str, input_data: dict, output_data: dict, **kwargs) -> Any | None:
     """Trace an agent call in Langfuse."""

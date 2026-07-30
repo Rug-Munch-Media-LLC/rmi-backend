@@ -146,7 +146,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
         query = (
             "SELECT chain_id, label_name, label_category, source, is_sanctioned "
             "FROM wallet_memory.wallet_labels "
-            f"WHERE address = '{addr_lower}' "  # noqa: S608 — wallet hex/base58 only, internal traffic
+            f"WHERE address = '{addr_lower}' "
             "AND label_name != '' "
             "ORDER BY is_sanctioned DESC, loaded_at DESC "
             "LIMIT 5"
@@ -254,7 +254,7 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
         query = (
             "SELECT address, chain_id, label_name, label_category, source, is_sanctioned "
             "FROM wallet_memory.wallet_labels "
-            f"WHERE address IN ({addr_list}) "  # noqa: S608 — wallet hex/base58 only, internal traffic
+            f"WHERE address IN ({addr_list}) "
             "AND label_name != '' "
             "ORDER BY is_sanctioned DESC, loaded_at DESC "
             "LIMIT 500"

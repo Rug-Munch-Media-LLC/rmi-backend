@@ -4,6 +4,7 @@ RugMunchBot -- Watchlist command handlers.
 
 Commands: watchlist, watch, unwatch
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -53,6 +54,7 @@ async def cmd_watchlist(update: Update, ctx) -> None:
         text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
     )
 
+
 async def cmd_watch(update: Update, ctx) -> None:
     user = update.effective_user
     if user is None:
@@ -87,14 +89,13 @@ async def cmd_watch(update: Update, ctx) -> None:
                 "\u274c Could not add. Limit reached or already added.", parse_mode=ParseMode.HTML
             )
 
+
 async def cmd_unwatch(update: Update, ctx) -> None:
     user = update.effective_user
     if user is None:
         return
     if not ctx.args:
-        await update.message.reply_text(
-            "Usage: /unwatch <code>address</code>", parse_mode=ParseMode.HTML
-        )
+        await update.message.reply_text("Usage: /unwatch <code>address</code>", parse_mode=ParseMode.HTML)
         return
     addr = ctx.args[0]
     ok = db.remove_watchlist(user.id, addr)
@@ -103,6 +104,4 @@ async def cmd_unwatch(update: Update, ctx) -> None:
             f"\u2705 Removed <code>{short_addr(addr)}</code> from watchlist.", parse_mode=ParseMode.HTML
         )
     else:
-        await update.message.reply_text(
-            "\u274c Token not found in your watchlist.", parse_mode=ParseMode.HTML
-        )
+        await update.message.reply_text("\u274c Token not found in your watchlist.", parse_mode=ParseMode.HTML)

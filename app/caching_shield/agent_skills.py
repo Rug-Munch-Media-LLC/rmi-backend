@@ -267,6 +267,7 @@ AGENT_PROMPTS = {
 # CATALOG
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def get_agent_skills() -> dict:
     return {
         "skills": AGENT_SKILLS,

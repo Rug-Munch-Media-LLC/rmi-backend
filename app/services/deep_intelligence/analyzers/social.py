@@ -44,9 +44,7 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
     socials = info.get("socials", []) if isinstance(info, dict) else []
 
     social_data = {
-        "has_website": bool(info.get("websites"))
-        if isinstance(info, dict) and info.get("websites")
-        else False,
+        "has_website": bool(info.get("websites")) if isinstance(info, dict) and info.get("websites") else False,
         "social_count": len(socials),
         "socials": socials,
         "description": info.get("description", "") if isinstance(info, dict) else "",
@@ -57,9 +55,7 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
 
     if price_change_24h > 100 and volume_24h > mcap * 0.5:
         correlation_score += 20
-        flags.append(
-            "Massive price spike with volume exceeding 50% of market cap - possible coordinated pump"
-        )
+        flags.append("Massive price spike with volume exceeding 50% of market cap - possible coordinated pump")
 
     if price_change_6h > 50 and volume_6h > volume_24h * 0.5:
         correlation_score += 15
@@ -85,11 +81,7 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
     }
     result["correlation"] = {
         "correlation_score": correlation_score,
-        "pump_likelihood": "HIGH"
-        if correlation_score >= 40
-        else "MEDIUM"
-        if correlation_score >= 20
-        else "LOW",
+        "pump_likelihood": "HIGH" if correlation_score >= 40 else "MEDIUM" if correlation_score >= 20 else "LOW",
     }
     result["flags"] = flags
     result["verdict"] = (

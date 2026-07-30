@@ -27,6 +27,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 class BridgeHealthMonitor:
     """Cross-chain bridge health & exploit monitor."""
 
@@ -183,14 +184,12 @@ class BridgeHealthMonitor:
         elif has_pause:
             upgrade_score = 10
             vulnerabilities.append(
-                "Upgradeable with pause - admin can modify contracts, "
-                "but pause provides emergency response"
+                "Upgradeable with pause - admin can modify contracts, but pause provides emergency response"
             )
         else:
             upgrade_score = 5
             vulnerabilities.append(
-                "Upgradeable without pause - admin can modify contracts "
-                "with no emergency stop mechanism"
+                "Upgradeable without pause - admin can modify contracts with no emergency stop mechanism"
             )
 
         total_score = tvl_score + dec_score + audit_score + exploit_score + upgrade_score
@@ -307,14 +306,22 @@ class BridgeHealthMonitor:
         )
 
         # Phase 1: Fetch TVL snapshots
-        tvl_tasks = {key: asyncio.create_task(self._fetch_current_tvl(bridge.get("defillama_slug", "")))
-                     for key, bridge in bridges_to_scan.items()}
-        tvl_24h_tasks = {key: asyncio.create_task(self._fetch_tvl_change(bridge.get("defillama_slug", ""), 24))
-                         for key, bridge in bridges_to_scan.items()}
-        tvl_7d_tasks = {key: asyncio.create_task(self._fetch_tvl_change(bridge.get("defillama_slug", ""), 168))
-                        for key, bridge in bridges_to_scan.items()}
-        tvl_30d_tasks = {key: asyncio.create_task(self._fetch_tvl_change(bridge.get("defillama_slug", ""), 720))
-                         for key, bridge in bridges_to_scan.items()}
+        tvl_tasks = {
+            key: asyncio.create_task(self._fetch_current_tvl(bridge.get("defillama_slug", "")))
+            for key, bridge in bridges_to_scan.items()
+        }
+        tvl_24h_tasks = {
+            key: asyncio.create_task(self._fetch_tvl_change(bridge.get("defillama_slug", ""), 24))
+            for key, bridge in bridges_to_scan.items()
+        }
+        tvl_7d_tasks = {
+            key: asyncio.create_task(self._fetch_tvl_change(bridge.get("defillama_slug", ""), 168))
+            for key, bridge in bridges_to_scan.items()
+        }
+        tvl_30d_tasks = {
+            key: asyncio.create_task(self._fetch_tvl_change(bridge.get("defillama_slug", ""), 720))
+            for key, bridge in bridges_to_scan.items()
+        }
 
         tvl_results = {}
         for key in bridges_to_scan:
@@ -346,8 +353,10 @@ class BridgeHealthMonitor:
         report.total_bridges = len(bridges_to_scan)
 
         # Phase 3: Compute security scores
-        score_tasks = {key: asyncio.create_task(self._compute_security_score(key, bridge))
-                       for key, bridge in bridges_to_scan.items()}
+        score_tasks = {
+            key: asyncio.create_task(self._compute_security_score(key, bridge))
+            for key, bridge in bridges_to_scan.items()
+        }
         for key in bridges_to_scan:
             try:
                 report.security_scores[key] = await score_tasks[key]
@@ -361,9 +370,7 @@ class BridgeHealthMonitor:
             report.exploit_signals.extend(signals)
 
         # Phase 5: Contagion risk
-        report.contagion_risk = await self._compute_contagion_risk(
-            report.security_scores, report.exploit_signals
-        )
+        report.contagion_risk = await self._compute_contagion_risk(report.security_scores, report.exploit_signals)
 
         # Phase 6: Tally risk tiers
         for score in report.security_scores.values():
@@ -380,10 +387,11 @@ class BridgeHealthMonitor:
         if report.bridge_snapshots:
             total_old_tvl = sum(
                 s.tvl_usd / (1 + s.tvl_change_24h_pct / 100) if s.tvl_change_24h_pct != -100 else 0
-                for s in report.bridge_snapshots.values() if s.tvl_usd > 0
+                for s in report.bridge_snapshots.values()
+                if s.tvl_usd > 0
             )
             if total_old_tvl > 0:
-                report.tvl_change_24h_pct = ((report.total_tvl_usd - total_old_tvl) / total_old_tvl * 100)
+                report.tvl_change_24h_pct = (report.total_tvl_usd - total_old_tvl) / total_old_tvl * 100
 
         return report
 
@@ -396,5 +404,6 @@ class BridgeHealthMonitor:
     async def close(self) -> None:
         if self.session and not self.session.closed:
             await self.session.close()
+
 
 __all__ = ["BridgeHealthMonitor"]

@@ -53,6 +53,7 @@ def search_news(query: str, limit: int = 10, fingerprint: str = "anon") -> dict:
         "mcp": "rmi-news",
     }
 
+
 # ═══════════════════════════════════════════════════
 # MCP #2: WALLET INTELLIGENCE - 10M+ labels, 13 chains
 # ═══════════════════════════════════════════════════
@@ -79,9 +80,7 @@ def resolve_wallet(address: str, fingerprint: str = "anon") -> dict:
             dbname="rmi",
         )
         cur = pg.cursor()
-        cur.execute(
-            "SELECT chain, label, name_tag FROM wallet_labels WHERE address = %s LIMIT 5", (addr,)
-        )
+        cur.execute("SELECT chain, label, name_tag FROM wallet_labels WHERE address = %s LIMIT 5", (addr,))
         for chain, label, tag in cur.fetchall():
             result["labels"].append({"chain": chain, "label": label, "entity": tag})
             result["chains_found"].append(chain)
@@ -99,13 +98,12 @@ def resolve_wallet(address: str, fingerprint: str = "anon") -> dict:
                 "label": c.get("label", ""),
                 "entity": c.get("name_tag", ""),
             } not in result["labels"]:
-                result["labels"].append(
-                    {"chain": chain, "label": c.get("label", ""), "entity": c.get("name_tag", "")}
-                )
+                result["labels"].append({"chain": chain, "label": c.get("label", ""), "entity": c.get("name_tag", "")})
     result["total_label_db"] = "10M+ addresses (MBAL + eth-labels + Chainabuse)"
     result["auth"] = auth
     result["mcp"] = "rmi-wallet-intel"
     return result
+
 
 # ═══════════════════════════════════════════════════
 # MCP #3: TOKEN SECURITY - Rug pull, honeypot, scam
@@ -145,12 +143,11 @@ def scan_token(address: str, chain: str = "ethereum", fingerprint: str = "anon")
     result["mcp"] = "rmi-token-security"
     return result
 
+
 # ═══════════════════════════════════════════════════
 # MCP #4: CROSS-CHAIN BRIDGE MONITOR
 # ═══════════════════════════════════════════════════
-def check_bridge_transfers(
-    address: str = "", bridge: str = "wormhole", fingerprint: str = "anon"
-) -> dict:
+def check_bridge_transfers(address: str = "", bridge: str = "wormhole", fingerprint: str = "anon") -> dict:
     """Check cross-chain bridge activity. 10 free/day."""
     auth = check_trial(fingerprint, "bridge", 10)
     if auth.get("tier") == "free_exhausted":
@@ -174,6 +171,7 @@ def check_bridge_transfers(
     result["mcp"] = "rmi-bridge-monitor"
     return result
 
+
 # ═══════════════════════════════════════════════════
 # MCP #5: DEFI ANALYTICS - TVL, yields, protocols
 # ═══════════════════════════════════════════════════
@@ -187,9 +185,7 @@ def defi_analytics(protocol: str = "", chain: str = "", fingerprint: str = "anon
     result = {"protocol": protocol, "chain": chain}
     try:
         r = req.get(
-            f"https://api.llama.fi/protocol/{protocol}"
-            if protocol
-            else "https://api.llama.fi/protocols",
+            f"https://api.llama.fi/protocol/{protocol}" if protocol else "https://api.llama.fi/protocols",
             timeout=10,
         )
         if r.status_code == 200:
@@ -212,6 +208,7 @@ def defi_analytics(protocol: str = "", chain: str = "", fingerprint: str = "anon
     result["auth"] = auth
     result["mcp"] = "rmi-defi-analytics"
     return result
+
 
 # MCP Server registry
 MCP_TOOLS = {

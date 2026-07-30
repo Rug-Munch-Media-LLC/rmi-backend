@@ -22,16 +22,15 @@ logger = get_logger(__name__)
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_API = "https://api-inference.huggingface.co/models"
 
+
 def _get_url() -> Any:
     return os.getenv("SUPABASE_URL", "")
 
+
 def _get_key() -> Any:
     """Get Supabase service key for full CRUD access to intel tables."""
-    return (
-        get_secret_or_none("SUPABASE_SERVICE_KEY", "")
-        or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
-        or ""
-    )
+    return get_secret_or_none("SUPABASE_SERVICE_KEY", "") or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY") or ""
+
 
 def _get_headers() -> dict:
     key = _get_key()
@@ -40,6 +39,7 @@ def _get_headers() -> dict:
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
+
 
 # ── HF Models (Paywalled - using local fallback) ──────
 # HF Inference API now requires PRO subscription ($9/mo).
@@ -77,6 +77,7 @@ SCAM_KEYWORDS = {
     ],
     "insider": ["insider", "team wallet", "dev wallet", "pre-sale", "unlocked tokens", "vesting"],
 }
+
 
 async def classify_scam_risk(text: str) -> dict:
     """Classify scam risk using local pattern matching (HF paywalled)."""
@@ -116,14 +117,13 @@ async def classify_scam_risk(text: str) -> dict:
 
     return {
         "model": "local_pattern_match",
-        "labels": {
-            k: round(v, 3) for k, v in sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        },
+        "labels": {k: round(v, 3) for k, v in sorted(scores.items(), key=lambda x: x[1], reverse=True)},
         "top_label": top,
         "confidence": round(top_score, 3),
         "is_scam": is_scam,
         "risk_level": "high" if (is_scam and top_score > 0.5) else "medium" if is_scam else "low",
     }
+
 
 async def generate_embedding(text: str) -> list[float] | None:
     """Generate embedding vector for RAG storage using HF free tier."""
@@ -147,6 +147,7 @@ async def generate_embedding(text: str) -> list[float] | None:
             return result
         logger.warning(f"HF embedding failed: {r.status_code}")
         return None
+
 
 # ── Wallet Labeling via Pattern Memory ──────────────────
 
@@ -201,6 +202,7 @@ WALLET_PATTERNS = {
     ],
 }
 
+
 async def label_wallet(wallet_data: dict) -> dict:
     """Label a wallet based on behavioral patterns and RAG memory."""
     labels = []
@@ -253,16 +255,16 @@ async def label_wallet(wallet_data: dict) -> dict:
         "analyzed_at": datetime.now(UTC).isoformat(),
     }
 
+
 # ── Supabase Hybrid Storage ────────────────────────────
+
 
 async def sync_to_supabase(collection: str, document: dict) -> dict:
     """Sync RAG document to Supabase for persistent hybrid storage."""
     if not _get_url() or not _get_key():
         return {"status": "skipped", "reason": "No Supabase config"}
 
-    doc_id = hashlib.sha256(
-        f"{collection}:{document.get('content', '')[:100]}".encode()
-    ).hexdigest()[:16]
+    doc_id = hashlib.sha256(f"{collection}:{document.get('content', '')[:100]}".encode()).hexdigest()[:16]
 
     payload = {
         "document_id": doc_id,
@@ -281,7 +283,9 @@ async def sync_to_supabase(collection: str, document: dict) -> dict:
             return {"status": "synced", "doc_id": doc_id, "supabase_status": r.status_code}
         return {"status": "failed", "error": r.text[:200]}
 
+
 # ── Batch Processing ───────────────────────────────────
+
 
 async def run_intelligence_cycle() -> dict:
     """Run a full intelligence cycle: classify, label, embed, sync."""

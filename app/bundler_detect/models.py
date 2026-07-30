@@ -12,11 +12,22 @@ from typing import Any
 
 # ── Constants ──────────────────────────────────────────────────
 
-EVM_CHAINS = frozenset({
-    "ethereum", "bsc", "polygon", "arbitrum", "optimism",
-    "avalanche", "base", "fantom", "linea", "zksync",
-    "scroll", "mantle",
-})
+EVM_CHAINS = frozenset(
+    {
+        "ethereum",
+        "bsc",
+        "polygon",
+        "arbitrum",
+        "optimism",
+        "avalanche",
+        "base",
+        "fantom",
+        "linea",
+        "zksync",
+        "scroll",
+        "mantle",
+    }
+)
 
 SUPPORTED_CHAINS = [*EVM_CHAINS, "solana"]
 
@@ -27,6 +38,7 @@ KNOWN_BUNDLER_SEEDS: set[str] = set()
 
 # ── Risk Levels ────────────────────────────────────────────────
 
+
 class BundlerRisk(Enum):
     CRITICAL = "critical"
     HIGH = "high"
@@ -34,7 +46,9 @@ class BundlerRisk(Enum):
     LOW = "low"
     NONE = "none"
 
+
 # ── Data Models ────────────────────────────────────────────────
+
 
 @dataclass
 class BundledBuy:
@@ -59,6 +73,7 @@ class BundledBuy:
             "is_sniper": self.is_sniper,
         }
 
+
 @dataclass
 class HolderCluster:
     """A cluster of wallets suspected to be controlled by one entity."""
@@ -78,6 +93,7 @@ class HolderCluster:
             "buy_time_similarity": round(self.buy_time_similarity, 3),
             "common_funding_source": self.common_funding_source,
         }
+
 
 @dataclass
 class BundlerReport:
@@ -153,6 +169,7 @@ class BundlerReport:
             f"{self.estimated_unique_entities} entities estimated"
             f"{flag_str}"
         )
+
 
 # ── Scoring Weights ────────────────────────────────────────────
 

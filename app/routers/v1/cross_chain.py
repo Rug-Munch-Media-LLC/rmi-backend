@@ -93,9 +93,12 @@ async def persist_cross_chain_entities(
     return result
 
 
-@router.post("/trace", summary="Cross Chain Trace",
-             description="Trace fund flows across multiple blockchains. "
-                         "Follows transactions through bridges, mixers, and CEX deposits.")
+@router.post(
+    "/trace",
+    summary="Cross Chain Trace",
+    description="Trace fund flows across multiple blockchains. "
+    "Follows transactions through bridges, mixers, and CEX deposits.",
+)
 async def cross_chain_trace(addresses: list[str]) -> dict:
     """Trace fund flows across chains.
 

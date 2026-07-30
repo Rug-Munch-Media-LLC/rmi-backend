@@ -69,9 +69,7 @@ class TestCrossChainMatch:
         assert match.confidence == 0.95
 
     def test_defaults(self) -> None:
-        match = CrossChainMatch(
-            address="0xabc", chain="bsc", confidence=0.9, method="bridge_mapping"
-        )
+        match = CrossChainMatch(address="0xabc", chain="bsc", confidence=0.9, method="bridge_mapping")
         assert match.method == "bridge_mapping"
         assert match.evidence == ""  # default
 

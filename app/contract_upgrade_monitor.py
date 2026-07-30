@@ -91,6 +91,7 @@ _MAX_STALE_TTL = 1800  # 30 minutes
 
 # ── Data Models ───────────────────────────────────────────────────
 
+
 @dataclass
 class ProxyInfo:
     """Detected proxy pattern and current implementation."""
@@ -106,6 +107,7 @@ class ProxyInfo:
     confidence: float = 0.0  # 0.0 - 1.0
     detected_selectors: list[str] = field(default_factory=list)
 
+
 @dataclass
 class UpgradeEvent:
     """Record of a proxy upgrade event."""
@@ -117,6 +119,7 @@ class UpgradeEvent:
     new_implementation: str | None = None
     triggered_by: str | None = None  # address that triggered the upgrade
     function_selector: str | None = None
+
 
 @dataclass
 class ContractUpgradeReport:
@@ -136,14 +139,19 @@ class ContractUpgradeReport:
     implementation_age_days: int | None = None
     summary: str = ""
 
+
 # ── Address Validation ────────────────────────────────────────────
+
 
 def is_valid_evm_address(address: str) -> bool:
     """Validate an EVM address format with optional EIP-55 checksum."""
     from app.core.shared_utils import is_evm_address
+
     return is_evm_address(address)
 
+
 # ── HTTP Client ───────────────────────────────────────────────────
+
 
 async def _fetch_url(url: str, headers: dict | None = None, timeout: float = 15.0) -> dict | None:
     """Fetch JSON from a URL with caching."""
@@ -181,23 +189,22 @@ async def _fetch_url(url: str, headers: dict | None = None, timeout: float = 15.
         logger.debug("Fetch error for %s: %s", url[:50], e)
         return _cache.get(cache_key, (0, None))[1]
 
-async def _background_refresh(
-    url: str, headers: dict | None, timeout: float, cache_key: str
-) -> None:
+
+async def _background_refresh(url: str, headers: dict | None, timeout: float, cache_key: str) -> None:
     """Refresh cache in background so stale data serves immediately."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.get(url, headers=headers or {})
             if resp.status_code == 200:
                 _cache[cache_key] = (time.time(), resp.json())
-    except (httpx.HTTPError):
+    except httpx.HTTPError:
         pass
+
 
 # ── RPC Storage Slot Reader ──────────────────────────────────────
 
-async def read_storage_slot(
-    address: str, slot: str, chain: str, client: httpx.AsyncClient | None = None
-) -> str | None:
+
+async def read_storage_slot(address: str, slot: str, chain: str, client: httpx.AsyncClient | None = None) -> str | None:
     """Read an EVM storage slot using a public RPC endpoint.
 
     Uses chain-specific public RPCs. Returns the 32-byte hex value.
@@ -238,9 +245,7 @@ async def read_storage_slot(
             )
             if resp.status_code == 200:
                 result = resp.json()
-                value = result.get(
-                    "result", "0x0000000000000000000000000000000000000000000000000000000000000000"
-                )
+                value = result.get("result", "0x0000000000000000000000000000000000000000000000000000000000000000")
                 # Extract address from padded 32 bytes (last 20 bytes = 40 hex chars)
                 if value and len(value) >= 66:
                     addr = "0x" + value[-40:]
@@ -254,11 +259,11 @@ async def read_storage_slot(
         logger.debug("RPC read failed for %s slot %s: %s", address[:10], slot[:10], e)
         return None
 
+
 # ── Proxy Detection ──────────────────────────────────────────────
 
-async def detect_proxy(
-    address: str, chain: str, client: httpx.AsyncClient | None = None
-) -> ProxyInfo:
+
+async def detect_proxy(address: str, chain: str, client: httpx.AsyncClient | None = None) -> ProxyInfo:
     """Detect if an address is a proxy contract and identify its type.
 
     Checks multiple proxy standards in order:
@@ -338,6 +343,7 @@ async def detect_proxy(
         if close_client:
             await c.__aexit__(None, None, None)
 
+
 def _detect_proxy_selectors(abi_json: str) -> list[str]:
     """Detect proxy-related function selectors from contract ABI JSON string."""
     detected = []
@@ -359,7 +365,9 @@ def _detect_proxy_selectors(abi_json: str) -> list[str]:
         pass
     return detected
 
+
 # ── Source Code Fetcher ──────────────────────────────────────────
+
 
 async def _fetch_source_code(address: str, chain: str) -> dict | None:
     """Fetch contract source code and ABI from block explorer."""
@@ -382,7 +390,9 @@ async def _fetch_source_code(address: str, chain: str) -> dict | None:
         return result
     return None
 
+
 # ── Upgrade History ──────────────────────────────────────────────
+
 
 async def fetch_upgrade_history(
     address: str,
@@ -445,6 +455,7 @@ async def fetch_upgrade_history(
 
     return events
 
+
 def _parse_upgrade_log(log: dict, address: str, chain: str) -> UpgradeEvent | None:
     """Parse an upgrade event log entry."""
     try:
@@ -488,7 +499,9 @@ def _parse_upgrade_log(log: dict, address: str, chain: str) -> UpgradeEvent | No
         logger.debug("Failed to parse upgrade log: %s", e)
         return None
 
+
 # ── Timelock Detection ──────────────────────────────────────────
+
 
 async def check_timelock(address: str, chain: str) -> str | None:
     """Check if the proxy or its admin is behind a timelock.
@@ -524,7 +537,9 @@ async def check_timelock(address: str, chain: str) -> str | None:
 
     return "no_timelock"
 
+
 # ── Risk Assessment ──────────────────────────────────────────────
+
 
 def _assess_risk(
     proxy_info: ProxyInfo,
@@ -542,9 +557,7 @@ def _assess_risk(
     # 2. Beacon proxies have higher attack surface
     if proxy_info.proxy_type == "beacon":
         risk += 15.0
-        factors.append(
-            "Beacon proxy - multiple implementations share same beacon (wider attack surface)"
-        )
+        factors.append("Beacon proxy - multiple implementations share same beacon (wider attack surface)")
 
     # 3. UUPS proxies - upgrade logic in implementation (higher risk if buggy)
     if proxy_info.proxy_type == "eip1822":
@@ -554,20 +567,14 @@ def _assess_risk(
         )
 
     # 4. Recent upgrades increase risk
-    recent_count = sum(
-        1
-        for u in upgrades
-        if u.timestamp and current_time - u.timestamp < SUSPICIOUS_UPGRADE_WINDOW
-    )
+    recent_count = sum(1 for u in upgrades if u.timestamp and current_time - u.timestamp < SUSPICIOUS_UPGRADE_WINDOW)
     if recent_count > 0:
         risk += min(recent_count * 15.0, 40.0)
         factors.append(f"{recent_count} upgrade(s) in the last 24 hours")
 
     # 5. Multiple upgrades in 30 days
     thirty_days = 30 * 86400
-    month_count = sum(
-        1 for u in upgrades if u.timestamp and current_time - u.timestamp < thirty_days
-    )
+    month_count = sum(1 for u in upgrades if u.timestamp and current_time - u.timestamp < thirty_days)
     if month_count > 5:
         risk += 20.0
         factors.append(f"Frequent upgrades: {month_count} upgrades in 30 days")
@@ -592,14 +599,14 @@ def _assess_risk(
     risk = max(0.0, min(100.0, risk))
     return round(risk, 1), factors
 
+
 # ── Main Analyzer ────────────────────────────────────────────────
+
 
 class ContractUpgradeAnalyzer:
     """Main analyzer for contract upgrade monitoring."""
 
-    async def analyze(
-        self, contract_address: str, chain: str = "ethereum"
-    ) -> ContractUpgradeReport:
+    async def analyze(self, contract_address: str, chain: str = "ethereum") -> ContractUpgradeReport:
         """Run complete upgrade monitoring analysis on a contract."""
         report = ContractUpgradeReport(
             contract_address=contract_address,
@@ -629,9 +636,7 @@ class ContractUpgradeAnalyzer:
 
             # Step 4: Identify recent suspicious upgrades
             report.recent_suspicious_upgrades = [
-                u
-                for u in upgrades
-                if u.timestamp and current_time - u.timestamp < SUSPICIOUS_UPGRADE_WINDOW
+                u for u in upgrades if u.timestamp and current_time - u.timestamp < SUSPICIOUS_UPGRADE_WINDOW
             ]
 
             # Step 5: Implementation age
@@ -639,15 +644,11 @@ class ContractUpgradeAnalyzer:
                 last_upgrade = max(upgrades, key=lambda u: u.timestamp or 0)
                 report.last_upgrade_time = last_upgrade.timestamp
                 if last_upgrade.timestamp:
-                    report.implementation_age_days = (
-                        current_time - last_upgrade.timestamp
-                    ) // 86400
+                    report.implementation_age_days = (current_time - last_upgrade.timestamp) // 86400
 
             # Step 6: Admin privileges
             if proxy_info.detected_selectors:
-                report.admin_privileges = [
-                    DANGEROUS_SELECTORS.get(s, s) for s in proxy_info.detected_selectors
-                ]
+                report.admin_privileges = [DANGEROUS_SELECTORS.get(s, s) for s in proxy_info.detected_selectors]
 
             # Step 7: Risk assessment
             risk, factors = _assess_risk(proxy_info, upgrades, current_time)
@@ -659,9 +660,7 @@ class ContractUpgradeAnalyzer:
             if proxy_info.proxy_type_name:
                 summary_parts.append(f"is a **{proxy_info.proxy_type_name}**")
             if proxy_info.implementation_address:
-                summary_parts.append(
-                    f"→ implementation at **{proxy_info.implementation_address[:10]}...**"
-                )
+                summary_parts.append(f"→ implementation at **{proxy_info.implementation_address[:10]}...**")
             if report.upgrade_count_30d > 0:
                 summary_parts.append(f"| **{report.upgrade_count_30d}** upgrades in 30 days")
             summary_parts.append(f"| Risk: **{report.risk_score}/100**")
@@ -676,7 +675,9 @@ class ContractUpgradeAnalyzer:
 
         return report
 
+
 # ── Formatter ────────────────────────────────────────────────────
+
 
 def format_upgrade_report(report: ContractUpgradeReport) -> str:
     """Format the upgrade monitoring report for human-readable output."""
@@ -745,9 +746,11 @@ def format_upgrade_report(report: ContractUpgradeReport) -> str:
     lines.append("=" * 60)
     return "\n".join(lines)
 
+
 # ── Singleton factory ────────────────────────────────────────────
 
 _analyzer_instance: ContractUpgradeAnalyzer | None = None
+
 
 def get_upgrade_analyzer() -> ContractUpgradeAnalyzer:
     """Get or create a singleton ContractUpgradeAnalyzer instance."""

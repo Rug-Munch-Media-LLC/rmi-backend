@@ -39,6 +39,7 @@ SECURITY_HEADERS: dict[str, str] = {
     "Cache-Control": "no-store",
 }
 
+
 def _build_accepts_list(tool_id: str, pricing: dict[str, Any]) -> list[dict[str, Any]]:
     """Build x402 v2 spec 'accepts' array from TOOL_PRICES and CHAIN_USDC."""
     _ensure_pay_addresses()
@@ -105,9 +106,8 @@ def _build_accepts_list(tool_id: str, pricing: dict[str, Any]) -> list[dict[str,
 
     return accepts
 
-def _build_bazaar_extension(
-    tool_id: str, pricing: dict[str, Any], accepts: list[dict[str, Any]]
-) -> dict[str, Any]:
+
+def _build_bazaar_extension(tool_id: str, pricing: dict[str, Any], accepts: list[dict[str, Any]]) -> dict[str, Any]:
     """Build x402 v2 bazaar extension for facilitator discovery indexing."""
     CATEGORY_MAP: dict[str, str] = {
         "security": "security",
@@ -179,9 +179,7 @@ def _build_bazaar_extension(
                     "type": {"type": "string", "const": "http"},
                     "method": {
                         "type": "string",
-                        "enum": ["GET", "HEAD", "DELETE"]
-                        if http_method == "GET"
-                        else ["POST", "PUT", "PATCH"],
+                        "enum": ["GET", "HEAD", "DELETE"] if http_method == "GET" else ["POST", "PUT", "PATCH"],
                     },
                     "queryParams": {"type": "object"},
                     "bodyType": {"type": "string", "enum": ["json", "form-data", "text"]},
@@ -207,6 +205,7 @@ def _build_bazaar_extension(
 
     return {"info": info, "schema": schema}
 
+
 def _build_resource_info(tool_id: str, pricing: dict[str, Any]) -> dict[str, Any]:
     """Build x402 v2 ResourceInfo object for PaymentRequired response."""
     description = pricing.get("description", f"Rug Munch Intelligence - {tool_id}")
@@ -218,6 +217,7 @@ def _build_resource_info(tool_id: str, pricing: dict[str, Any]) -> dict[str, Any
         "description": description,
         "mimeType": "application/json",
     }
+
 
 def build_402_response(tool_id: str, client_id: str = "") -> JSONResponse:
     """Build an x402 v2 compliant Payment Required response."""
@@ -288,6 +288,7 @@ def build_402_response(tool_id: str, client_id: str = "") -> JSONResponse:
         },
     )
 
+
 def build_scanner_response() -> JSONResponse:
     """403 for known scanner/bot user agents."""
     return JSONResponse(
@@ -298,6 +299,7 @@ def build_scanner_response() -> JSONResponse:
         },
         headers=SECURITY_HEADERS,
     )
+
 
 def build_burst_response(retry_after: int = 60) -> JSONResponse:
     """429 for burst rate limit exceeded."""
@@ -311,6 +313,7 @@ def build_burst_response(retry_after: int = 60) -> JSONResponse:
         headers={**SECURITY_HEADERS, "Retry-After": str(retry_after)},
     )
 
+
 def build_invalid_tool_response() -> JSONResponse:
     """400 for invalid tool identifiers."""
     return JSONResponse(
@@ -318,6 +321,7 @@ def build_invalid_tool_response() -> JSONResponse:
         content={"error": "Invalid tool identifier"},
         headers=SECURITY_HEADERS,
     )
+
 
 def build_oversized_header_response() -> JSONResponse:
     """400 for oversized payment headers."""
@@ -327,9 +331,8 @@ def build_oversized_header_response() -> JSONResponse:
         headers=SECURITY_HEADERS,
     )
 
-def _record_refundable_payment(
-    tx_hash: str, chain: str, payer: str, amount: str, tool: str, reason: str
-) -> None:
+
+def _record_refundable_payment(tx_hash: str, chain: str, payer: str, amount: str, tool: str, reason: str) -> None:
     """Record a refundable payment in Redis when a tool returns empty data."""
     r = get_redis()
     if not r:
@@ -352,6 +355,6 @@ def _record_refundable_payment(
     try:
         r.setex(refund_key, 7 * 86400, json.dumps(refund_data))
         logger.info(f"Recorded refundable payment: {tx_hash[:16]}... tool={tool} reason={reason}")
-    except (json.JSONDecodeError, KeyError, TypeError) as e :
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
         logger.debug("_record_refundable_payment_error", exc_info=True)
         logger.error(f"Failed to record refund for {tx_hash}: {e}")

@@ -3,6 +3,7 @@ Liquidation Cascade — On-Chain Data Fetching
 ==============================================
 Constants (chain configs, protocol configs, LTV ranges) and data-fetch helpers.
 """
+
 from __future__ import annotations
 
 import re
@@ -67,13 +68,16 @@ LTV_RANGES = {
     "risky_asset": 0.50,
 }
 
+
 def _try_import_web3() -> Any | None:
     """Try to import web3, return None if not available."""
     try:
         import web3  # type: ignore[import-untyped]
+
         return web3
     except ImportError:
         return None
+
 
 def _estimate_asset_ltv(asset_symbol: str) -> tuple[float, float]:
     """Estimate LTV and liquidation threshold for a given asset type."""
@@ -93,16 +97,36 @@ def _estimate_asset_ltv(asset_symbol: str) -> tuple[float, float]:
     else:
         return 0.50, 0.55
 
+
 def _estimate_asset_price(asset_symbol: str) -> float:
     """Return a rough price estimate for common assets."""
     prices = {
-        "eth": 2800.0, "weth": 2800.0, "steth": 2740.0, "wsteth": 3200.0,
-        "reth": 2850.0, "sfrxeth": 2950.0, "wbtc": 68000.0, "cbeth": 2750.0,
-        "usdc": 1.0, "usdt": 1.0, "dai": 1.0, "frax": 1.0, "lusd": 1.0, "crvusd": 1.0,
-        "wmatic": 0.50, "matic": 0.50, "wbnb": 580.0, "bnb": 580.0,
-        "aave": 140.0, "uni": 7.5, "link": 14.0, "op": 2.0, "arb": 0.80,
+        "eth": 2800.0,
+        "weth": 2800.0,
+        "steth": 2740.0,
+        "wsteth": 3200.0,
+        "reth": 2850.0,
+        "sfrxeth": 2950.0,
+        "wbtc": 68000.0,
+        "cbeth": 2750.0,
+        "usdc": 1.0,
+        "usdt": 1.0,
+        "dai": 1.0,
+        "frax": 1.0,
+        "lusd": 1.0,
+        "crvusd": 1.0,
+        "wmatic": 0.50,
+        "matic": 0.50,
+        "wbnb": 580.0,
+        "bnb": 580.0,
+        "aave": 140.0,
+        "uni": 7.5,
+        "link": 14.0,
+        "op": 2.0,
+        "arb": 0.80,
     }
     return prices.get(asset_symbol.lower(), 1.0)
+
 
 def _resolve_asset_symbol(address: str, chain: str) -> str:
     """Map common token addresses to symbols."""
@@ -143,9 +167,7 @@ def _resolve_asset_symbol(address: str, chain: str) -> str:
             return sym
     return f"TOKEN({addr[:10]}...)"
 
+
 def _validate_address(address: str) -> bool:
     """Validate an Ethereum or Solana address."""
-    return bool(
-        re.match(r"^0x[a-fA-F0-9]{40}$", address)
-        or re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address)
-    )
+    return bool(re.match(r"^0x[a-fA-F0-9]{40}$", address) or re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address))

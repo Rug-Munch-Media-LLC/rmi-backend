@@ -110,9 +110,7 @@ class TestConfidenceScoring:
                 mock_events.return_value = []
 
                 # min_chains=1 so it qualifies
-                results = await matcher.find_multi_chain_deployers(
-                    min_chains=1, limit=100
-                )
+                results = await matcher.find_multi_chain_deployers(min_chains=1, limit=100)
 
                 assert len(results) == 1
                 mcd = results[0]

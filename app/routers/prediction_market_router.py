@@ -36,6 +36,7 @@ logger = get_logger("prediction_market.router")
 
 router = APIRouter(prefix="/api/v1/prediction-markets", tags=["prediction-markets"])
 
+
 @router.get("/search")
 async def search_markets(
     q: str = Query(..., description="Search query (token name, event, protocol, etc.)"),
@@ -60,6 +61,7 @@ async def search_markets(
         "results": [_market_response(m) for m in results[:limit]],
     }
 
+
 @router.get("/trending")
 async def trending_markets(
     category: str | None = Query(None, description="Filter: crypto, security, regulation, all"),
@@ -79,10 +81,7 @@ async def trending_markets(
                 m
                 for m in results
                 if m.is_security_relevant
-                and any(
-                    kw in m.question.lower()
-                    for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"]
-                )
+                and any(kw in m.question.lower() for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"])
             ]
 
     return {
@@ -91,6 +90,7 @@ async def trending_markets(
         "sources": ["polymarket", "kalshi", "limitless"],
         "results": [_market_response(m) for m in results[:limit]],
     }
+
 
 @router.get("/token/{symbol}")
 async def token_markets(
@@ -108,12 +108,11 @@ async def token_markets(
     return {
         "token": symbol.upper(),
         "total": len(results),
-        "avg_probability": (
-            sum(m.probability_yes for m in results) / len(results) if results else 0
-        ),
+        "avg_probability": (sum(m.probability_yes for m in results) / len(results) if results else 0),
         "security_relevant": sum(1 for m in results if m.is_security_relevant),
         "results": [_market_response(m) for m in results[:limit]],
     }
+
 
 @router.get("/sentinel")
 async def sentinel_digest(
@@ -145,6 +144,7 @@ async def sentinel_digest(
         "regulatory": [_market_response(m) for m in digest.regulatory_markets],
     }
 
+
 @router.get("/detail/{source}/{market_id}")
 async def market_detail(
     source: str,
@@ -169,7 +169,9 @@ async def market_detail(
         "interpretation": _interpret_market(market),
     }
 
+
 # ── Sources Info ─────────────────────────────────────────────────
+
 
 @router.get("/sources")
 async def list_sources() -> dict:
@@ -235,7 +237,9 @@ async def list_sources() -> dict:
         ],
     }
 
+
 # ── Helpers ──────────────────────────────────────────────────────
+
 
 def _market_response(m: PredictionMarket) -> dict:
     """Format a PredictionMarket into API response."""
@@ -258,6 +262,7 @@ def _market_response(m: PredictionMarket) -> dict:
         "ends_at": m.ends_at,
         "updated_at": m.updated_at,
     }
+
 
 def _interpret_market(m: PredictionMarket) -> dict:
     """Generate a human-readable interpretation of market probabilities."""
@@ -287,10 +292,6 @@ def _interpret_market(m: PredictionMarket) -> dict:
     return {
         "market_sentiment": sentiment,
         "probability": f"{prob_pct:.1f}%",
-        "confidence": "high"
-        if m.volume_usd > 100000
-        else "moderate"
-        if m.volume_usd > 10000
-        else "low",
+        "confidence": "high" if m.volume_usd > 100000 else "moderate" if m.volume_usd > 10000 else "low",
         "intelligence_signals": signals,
     }

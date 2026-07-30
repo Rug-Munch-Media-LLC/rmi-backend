@@ -44,15 +44,14 @@ class X402Bundle:
             "pricing": {"base": self.base_eth, "solana": self.solana_usdc},
         }
 
+
 class MultiChainFacilitator:
     """Multi-chain payment facilitator."""
 
     base_config: ClassVar[dict] = {
         "name": "RugMunch Intelligence x402 Gateway",
         "network": "BASE",
-        "wallet_address": os.environ.get(
-            "X402_BASE_WALLET", "0x1E3AC01d0fdb976179790BDD02823196A92705C9"
-        ),
+        "wallet_address": os.environ.get("X402_BASE_WALLET", "0x1E3AC01d0fdb976179790BDD02823196A92705C9"),
         "token_symbol": "ETH",
         "token_decimals": 18,
         "rpc_url": "https://mainnet.base.org",
@@ -62,9 +61,7 @@ class MultiChainFacilitator:
     solana_config: ClassVar[dict] = {
         "name": "RugMunch Intelligence x402 Gateway",
         "network": "SOLANA",
-        "wallet_address": os.environ.get(
-            "X402_SOLANA_WALLET", "Gix4P9AmwcZRGzr2hCEME5m2QAvY86dBfm8c7e7MpFzv"
-        ),
+        "wallet_address": os.environ.get("X402_SOLANA_WALLET", "Gix4P9AmwcZRGzr2hCEME5m2QAvY86dBfm8c7e7MpFzv"),
         "token_symbol": "USDC",
         "token_decimals": 6,
         "rpc_url": "https://api.mainnet-beta.solana.com",

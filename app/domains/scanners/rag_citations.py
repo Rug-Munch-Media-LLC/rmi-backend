@@ -71,6 +71,7 @@ SCANNER_COLLECTIONS = {
     },
 }
 
+
 async def query_rag_citations(
     topic: str,
     chain: str = "ethereum",
@@ -166,6 +167,7 @@ async def query_rag_citations(
 
     return unique[:max_citations]
 
+
 async def query_address_rag(
     address: str,
     chain: str = "ethereum",
@@ -197,10 +199,11 @@ async def query_address_rag(
             if c:
                 formatted.append(c)
         return formatted
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("query_address_rag_error", exc_info=True)
         logger.debug(f"Address RAG query failed for {address[:10]}...: {e}")
         return []
+
 
 def _format_citation(raw: dict[str, Any], tier: str) -> dict[str, Any] | None:
     """Turn a RAG search result into a clean citation dict."""
@@ -260,6 +263,7 @@ def _format_citation(raw: dict[str, Any], tier: str) -> dict[str, Any] | None:
         "reference": reference,
         "tier": tier,
     }
+
 
 def build_citation_string(citations: list[dict[str, Any]], finding: str) -> str:
     """Build a natural-language citation string for a finding.

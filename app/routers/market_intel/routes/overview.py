@@ -12,6 +12,7 @@ from app.routers.market_intel.utils import _now, _safe_float
 
 router = APIRouter(tags=["market-intel"])
 
+
 @router.get("/overview")
 async def get_market_overview(request: Request) -> dict:
     """Global market overview - total cap, dominance, fear & greed."""
@@ -54,6 +55,7 @@ async def get_market_overview(request: Request) -> dict:
         "updated_at": now,
     }
 
+
 @router.get("/movers")
 async def get_market_movers(
     request: Request,
@@ -78,29 +80,34 @@ async def get_market_movers(
     items = []
     if data and isinstance(data, list):
         for i, c in enumerate(data[:limit]):
-            items.append({
-                "rank": c.get("market_cap_rank", i + 1),
-                "symbol": (c.get("symbol") or "").upper(),
-                "name": c.get("name", ""),
-                "address": c.get("id", ""),
-                "chain": "ethereum"
-                if c.get("id") in ("ethereum", "tether", "usd-coin", "wrapped-bitcoin")
-                else "solana"
-                if c.get("id") in ("solana", "raydium", "jupiter-exchange-solana")
-                else "multi",
-                "price": _safe_float(c.get("current_price")),
-                "change_1h": _safe_float(c.get("price_change_percentage_1h_in_currency")),
-                "change_24h": _safe_float(c.get("price_change_percentage_24h")),
-                "change_7d": _safe_float(c.get("price_change_percentage_7d_in_currency")),
-                "volume_24h": _safe_float(c.get("total_volume")),
-                "market_cap": _safe_float(c.get("market_cap")),
-                "liquidity": _safe_float(c.get("fully_diluted_valuation")),
-                "holders": 0,
-                "risk_score": min(max(int(50 + abs(_safe_float(c.get("price_change_percentage_24h"))) / 2), 0), 100),
-                "image": c.get("image", ""),
-            })
+            items.append(
+                {
+                    "rank": c.get("market_cap_rank", i + 1),
+                    "symbol": (c.get("symbol") or "").upper(),
+                    "name": c.get("name", ""),
+                    "address": c.get("id", ""),
+                    "chain": "ethereum"
+                    if c.get("id") in ("ethereum", "tether", "usd-coin", "wrapped-bitcoin")
+                    else "solana"
+                    if c.get("id") in ("solana", "raydium", "jupiter-exchange-solana")
+                    else "multi",
+                    "price": _safe_float(c.get("current_price")),
+                    "change_1h": _safe_float(c.get("price_change_percentage_1h_in_currency")),
+                    "change_24h": _safe_float(c.get("price_change_percentage_24h")),
+                    "change_7d": _safe_float(c.get("price_change_percentage_7d_in_currency")),
+                    "volume_24h": _safe_float(c.get("total_volume")),
+                    "market_cap": _safe_float(c.get("market_cap")),
+                    "liquidity": _safe_float(c.get("fully_diluted_valuation")),
+                    "holders": 0,
+                    "risk_score": min(
+                        max(int(50 + abs(_safe_float(c.get("price_change_percentage_24h"))) / 2), 0), 100
+                    ),
+                    "image": c.get("image", ""),
+                }
+            )
 
     return {"items": items, "total": len(items), "updated_at": now}
+
 
 @router.get("/chains")
 async def get_market_chains(request: Request) -> dict:
@@ -121,19 +128,22 @@ async def get_market_chains(request: Request) -> dict:
     items = []
     for ch in chains_data:
         gas_usd = f"${ch['gas_gwei']:.6f}" if ch["gas_gwei"] < 0.01 else f"${ch['gas_gwei']:.2f}"
-        items.append({
-            "chain": ch["chain"],
-            "tps": ch["tps"],
-            "gas_gwei": ch["gas_gwei"],
-            "gas_usd": gas_usd,
-            "txs_24h": f"{int(ch['tps'] * 86400 / 10):,}",
-            "active_addresses": int(ch["tps"] * 500),
-            "new_contracts": int(ch["tps"] * 10),
-            "ai_risk_score": 25 if ch["status"] == "cool" else 55 if ch["status"] == "warm" else 75,
-            "status": ch["status"],
-        })
+        items.append(
+            {
+                "chain": ch["chain"],
+                "tps": ch["tps"],
+                "gas_gwei": ch["gas_gwei"],
+                "gas_usd": gas_usd,
+                "txs_24h": f"{int(ch['tps'] * 86400 / 10):,}",
+                "active_addresses": int(ch["tps"] * 500),
+                "new_contracts": int(ch["tps"] * 10),
+                "ai_risk_score": 25 if ch["status"] == "cool" else 55 if ch["status"] == "warm" else 75,
+                "status": ch["status"],
+            }
+        )
 
     return {"items": items, "total": len(items), "updated_at": now}
+
 
 @router.get("/fear-greed")
 async def get_fear_greed(
@@ -158,6 +168,7 @@ async def get_fear_greed(
         "timestamp": timestamp,
         "history": fng_data.get("data", [])[:days] if fng_data and "data" in fng_data else [],
     }
+
 
 @router.get("/onchain")
 async def get_market_onchain(
@@ -196,8 +207,7 @@ async def get_market_onchain(
         {
             "metric": "BTC Dominance",
             "value": _safe_float(
-                global_data.get("data", {}).get("market_cap_percentage", {}).get("btc", 60.5)
-                if global_data else 60.5
+                global_data.get("data", {}).get("market_cap_percentage", {}).get("btc", 60.5) if global_data else 60.5
             ),
             "change_24h": 0,
             "signal": "neutral",
@@ -206,6 +216,7 @@ async def get_market_onchain(
     ]
 
     return {"items": items, "total": len(items), "updated_at": now}
+
 
 @router.get("/macro")
 async def get_market_macro(
@@ -236,11 +247,26 @@ async def get_market_macro(
         eth_change = _safe_float(price_data.get("ethereum", {}).get("usd_24h_change", 0))
 
     items = [
-        {"asset": "BTC", "correlation_30d": 1.0, "correlation_90d": 1.0, "beta": 1.0, "current_price": btc_price, "change_24h": btc_change},
-        {"asset": "ETH", "correlation_30d": 0.95, "correlation_90d": 0.92, "beta": 1.3, "current_price": eth_price, "change_24h": eth_change},
+        {
+            "asset": "BTC",
+            "correlation_30d": 1.0,
+            "correlation_90d": 1.0,
+            "beta": 1.0,
+            "current_price": btc_price,
+            "change_24h": btc_change,
+        },
+        {
+            "asset": "ETH",
+            "correlation_30d": 0.95,
+            "correlation_90d": 0.92,
+            "beta": 1.3,
+            "current_price": eth_price,
+            "change_24h": eth_change,
+        },
     ]
 
     return {"items": items, "total": len(items), "updated_at": now}
+
 
 @router.get("/sentiment")
 async def get_market_sentiment(

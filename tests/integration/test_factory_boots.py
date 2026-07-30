@@ -53,8 +53,7 @@ def test_factory_has_minimum_routes(app) -> None:
 
     total = _flatten(app.routes)
     assert total >= 40, (
-        f"Only {total} routes mounted. "
-        f"Need >= 40 for T14 gate. Check factory logs for 'router_mount_failed'."
+        f"Only {total} routes mounted. Need >= 40 for T14 gate. Check factory logs for 'router_mount_failed'."
     )
 
 

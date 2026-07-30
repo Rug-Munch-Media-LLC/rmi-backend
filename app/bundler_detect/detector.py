@@ -33,6 +33,7 @@ from app.core.shared_utils import EVM_ADDRESS_RE, SOLANA_ADDRESS_RE
 
 logger = get_logger(__name__)
 
+
 class BundlerDetector:
     """Main detector for bundled/supply-manipulated token launches."""
 
@@ -47,7 +48,8 @@ class BundlerDetector:
         """Full supply manipulation analysis for a token."""
         if not self._validate_address(address, chain):
             return BundlerReport(
-                token_address=address, chain=chain,
+                token_address=address,
+                chain=chain,
                 errors=[f"Invalid address format for chain: {chain}"],
                 risk_label="error",
             )
@@ -55,7 +57,8 @@ class BundlerDetector:
         chain = chain.lower()
         if chain not in SUPPORTED_CHAINS:
             return BundlerReport(
-                token_address=address, chain=chain,
+                token_address=address,
+                chain=chain,
                 errors=[f"Unsupported chain: {chain}"],
                 risk_label="error",
             )
@@ -102,9 +105,7 @@ class BundlerDetector:
             report.holder_clusters = clusters
 
             # 8. Estimate entities
-            report.estimated_unique_entities = self._estimate_entities(
-                holders, clusters, len(bundled_buys)
-            )
+            report.estimated_unique_entities = self._estimate_entities(holders, clusters, len(bundled_buys))
 
             # 9. Compute scores
             report.supply_concentration_score = score_supply_concentration(holders, top10_pct)
@@ -134,8 +135,10 @@ class BundlerDetector:
 
         if not holders:
             return {
-                "address": address, "chain": chain,
-                "name": metadata.get("name", ""), "symbol": metadata.get("symbol", ""),
+                "address": address,
+                "chain": chain,
+                "name": metadata.get("name", ""),
+                "symbol": metadata.get("symbol", ""),
                 "error": "No holder data available",
             }
 
@@ -153,8 +156,10 @@ class BundlerDetector:
             score += 15
 
         return {
-            "address": address, "chain": chain,
-            "name": metadata.get("name", ""), "symbol": metadata.get("symbol", ""),
+            "address": address,
+            "chain": chain,
+            "name": metadata.get("name", ""),
+            "symbol": metadata.get("symbol", ""),
             "supply_concentration_score": min(score, 100),
             "risk_label": label_risk(min(score, 100)),
             "top_10_holder_pct": round(top10, 2),
@@ -228,15 +233,11 @@ class BundlerDetector:
                 result["buy_concentration_ratio"] = max(result["buy_concentration_ratio"], first_5m_pct)
                 result["total_buys_first_blocks"] += m5
                 if h1 > 0 and m5 > 0:
-                    result["unique_buyers_first_block"] = max(
-                        result["unique_buyers_first_block"], min(m5, h1)
-                    )
+                    result["unique_buyers_first_block"] = max(result["unique_buyers_first_block"], min(m5, h1))
 
         return result
 
-    def _cluster_wallets(
-        self, buys: list[dict[str, Any]], holders: list[dict[str, Any]]
-    ) -> list[HolderCluster]:
+    def _cluster_wallets(self, buys: list[dict[str, Any]], holders: list[dict[str, Any]]) -> list[HolderCluster]:
         clusters: list[HolderCluster] = []
 
         if not holders:

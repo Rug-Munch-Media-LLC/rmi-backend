@@ -17,6 +17,7 @@ class LessonProgress(BaseModel):
     completed_at: str | None = None
     attempts: int = 0
 
+
 class CourseProgress(BaseModel):
     course_id: str
     completed_lessons: list[str] = []
@@ -25,6 +26,7 @@ class CourseProgress(BaseModel):
     exam_passed: bool = False
     started_at: str
     completed_at: str | None = None
+
 
 class UserProgress(BaseModel):
     user_id: str
@@ -41,13 +43,16 @@ class UserProgress(BaseModel):
     certificates: list[dict] = []
     time_spent_total_minutes: int = 0
 
+
 class QuizAnswer(BaseModel):
     question_index: int
     answer: int
 
+
 class ExamSubmit(BaseModel):
     answers: list[QuizAnswer]
     time_spent_seconds: int = 0
+
 
 class LessonComplete(BaseModel):
     lesson_id: str

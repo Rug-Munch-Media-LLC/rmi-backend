@@ -388,7 +388,6 @@ async def degenfeed_health() -> dict[str, Any]:
         "protocols": list(SUPPORTED_PROTOCOLS.keys()),
         "cache": cache_status,
         "rate_limits": {
-            protocol: {"rpm": rpm, "burst_multiplier": bm}
-            for protocol, (rpm, bm) in PROTOCOL_RATE_LIMITS.items()
+            protocol: {"rpm": rpm, "burst_multiplier": bm} for protocol, (rpm, bm) in PROTOCOL_RATE_LIMITS.items()
         },
     }

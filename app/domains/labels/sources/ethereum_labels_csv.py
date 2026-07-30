@@ -12,6 +12,7 @@ log = get_logger(__name__)
 
 CSV_PATH = "/home/dev/rmi/backend/data/wallet-labels-clean/wallet_labels_ethereum.csv"
 
+
 async def query_ethereum_labels_csv(address: str, chain: str = "ethereum") -> list[Label]:
     """Query the ethereum wallet labels CSV via DuckDB.
 
@@ -61,7 +62,7 @@ async def query_ethereum_labels_csv(address: str, chain: str = "ethereum") -> li
                 return labels
             finally:
                 d.close()
-        except (ValueError, TypeError, KeyError) as e :
+        except (ValueError, TypeError, KeyError) as e:
             log.warning("ethereum_labels_csv_query_fail address=%s err=%s", address[:10], e)
             raise
 

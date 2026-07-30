@@ -93,9 +93,7 @@ class TestAuthMiddleware:
         assert resp.status_code in (200, 404)
         # If 404, the auth middleware didn't reject (our goal)
         if resp.status_code == 404:
-            assert "detail" not in resp.json() or "Unauthorized" not in resp.json().get(
-                "detail", ""
-            )
+            assert "detail" not in resp.json() or "Unauthorized" not in resp.json().get("detail", "")
 
     @pytest.mark.integration
     def test_security_headers_present(self, app) -> None:

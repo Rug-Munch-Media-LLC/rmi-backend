@@ -39,7 +39,7 @@ import os
 import sys
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -48,7 +48,7 @@ import httpx
 # ── Add parent dir to path for app imports ────────────────────────────
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.core.logging import get_logger  # noqa: E402
+from app.core.logging import get_logger
 
 logger = get_logger("download_public_labels")
 

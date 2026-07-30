@@ -50,6 +50,7 @@ MODEL_COSTS = {
 
 _usage_log: list[dict] = []
 
+
 def log_usage(model: str, input_tokens: int, output_tokens: int, latency_ms: float) -> None:
     """Log model usage for cost tracking."""
     costs = MODEL_COSTS.get(model, {"input": 0, "output": 0, "provider": "unknown"})
@@ -69,6 +70,7 @@ def log_usage(model: str, input_tokens: int, output_tokens: int, latency_ms: flo
         }
     )
 
+
 def get_cheapest_model(models: list[str]) -> str:
     """Pick the cheapest model from a list that meets quality."""
     best = None
@@ -81,10 +83,12 @@ def get_cheapest_model(models: list[str]) -> str:
             best = m
     return best or models[0]
 
+
 @router.get("/rates")
 async def get_rates() -> dict:
     """Get current model pricing."""
     return {"models": MODEL_COSTS, "updated": "2026-06-15"}
+
 
 @router.get("/usage")
 async def get_usage(limit: int = Query(50, le=200)) -> dict:
@@ -98,6 +102,7 @@ async def get_usage(limit: int = Query(50, le=200)) -> dict:
         "entries": len(recent),
         "log": recent,
     }
+
 
 @router.get("/cheapest")
 async def cheapest_for_task(

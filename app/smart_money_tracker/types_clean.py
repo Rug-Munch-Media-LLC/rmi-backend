@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 # Enums & Types
 # ═══════════════════════════════════════════════════════════════
 
+
 class WalletCategory(Enum):
     """Classification of smart money wallets."""
 
@@ -27,12 +28,14 @@ class WalletCategory(Enum):
     SUSPECTED_INSIDER = "suspected_insider"  # Suspicious inside trader
     UNKNOWN = "unknown"
 
+
 def safe_wallet_category(value: str) -> WalletCategory:
     """Safely convert a string to WalletCategory, falling back to UNKNOWN."""
     try:
         return WalletCategory(value)
     except (ValueError, AttributeError):
         return WalletCategory.UNKNOWN
+
 
 class MoveDirection(Enum):
     """Direction of a wallet's position change."""
@@ -44,6 +47,7 @@ class MoveDirection(Enum):
     TRANSFER = "transfer"  # Moved tokens (could be wallet rotation)
     INTERACT = "interact"  # Contract interaction (stake, vote, etc.)
 
+
 class ImpactLevel(Enum):
     """How impactful a detected move is."""
 
@@ -53,9 +57,11 @@ class ImpactLevel(Enum):
     LOW = "low"  # Small move or low-confidence wallet
     INFO = "info"  # Informational, no strong signal
 
+
 # ═══════════════════════════════════════════════════════════════
 # Data Models
 # ═══════════════════════════════════════════════════════════════
+
 
 @dataclass
 class SmartWallet:
@@ -89,6 +95,7 @@ class SmartWallet:
         }.get(self.category, "❓")
         addr_short = f"{self.address[:6]}...{self.address[-4:]}"
         return f"{cat_icon} **{self.label}** ({addr_short}) | {self.chain} | ${self.total_value_usd:,.0f} | Rep: {self.reputation_score:.0f}/100"
+
 
 @dataclass
 class DetectedMove:
@@ -133,6 +140,7 @@ class DetectedMove:
             f"Safety: {self.token_safety_score:.0f}/100 | "
             f"{self.context}"
         )
+
 
 @dataclass
 class FlowReport:
@@ -180,6 +188,7 @@ class FlowReport:
             lines.append("")
             lines.append(f"### {i}. {move.summary()}")
         return "\n".join(lines)
+
 
 # ═══════════════════════════════════════════════════════════════
 # Core Tracker

@@ -3,6 +3,7 @@ Admin Backend — Admin User Store
 ==================================
 Store and manage admin user accounts. Uses Redis as primary + Supabase as backup.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -14,6 +15,7 @@ from app.core.logging import get_logger
 from app.domains.admin.backend.models import AdminRole
 
 logger = get_logger("rmi_admin_backend")
+
 
 class AdminUserStore:
     """Store and manage admin user accounts."""
@@ -32,7 +34,7 @@ class AdminUserStore:
             )
             data = await r.hget("rmi:admins", admin_id)
             return json.loads(data) if data else None
-        except (json.JSONDecodeError, ConnectionError, OSError, ValueError) as e :
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError) as e:
             logger.debug("get_admin_error", exc_info=True)
             logger.error(f"Get admin failed: {e}")
             return None
@@ -51,7 +53,7 @@ class AdminUserStore:
             )
             admin_id = await r.hget("rmi:admins:email", email.lower())
             return await AdminUserStore.get_admin(admin_id) if admin_id else None
-        except (ConnectionError, OSError, ValueError) as e :
+        except (ConnectionError, OSError, ValueError) as e:
             logger.debug("get_admin_by_email_error", exc_info=True)
             logger.error(f"Get admin by email failed: {e}")
             return None
@@ -84,7 +86,7 @@ class AdminUserStore:
                 pass
 
             return True
-        except (ConnectionError, TimeoutError, ValueError) as e :
+        except (ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("save_admin_error", exc_info=True)
             logger.error(f"Save admin failed: {e}")
             return False
@@ -105,7 +107,7 @@ class AdminUserStore:
             all_admins = await r.hgetall("rmi:admins")
             for data in all_admins.values():
                 admins.append(json.loads(data))
-        except (json.JSONDecodeError, ConnectionError, OSError, ValueError) as e :
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError) as e:
             logger.debug("list_admins_error", exc_info=True)
             logger.error(f"List admins failed: {e}")
         return admins

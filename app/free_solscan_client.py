@@ -5,6 +5,7 @@ Bypasses Cloudflare + $200/mo paywall
 Based on: github.com/paoloanzn/free-solscan-api
 Extended with RMI security intelligence
 """
+
 from __future__ import annotations
 
 import base64
@@ -43,6 +44,7 @@ _solscan_cb = SimpleCircuitBreaker(
 
 # ─── Token Generator ──────────────────────────────────────────────────────────
 
+
 def generate_solauth_token() -> str:
     """Generate sol-aut token for Solscan API authentication."""
     timestamp = str(int(time.time()))
@@ -50,13 +52,13 @@ def generate_solauth_token() -> str:
     signature = hashlib.sha256(data.encode()).hexdigest()
     return base64.b64encode(f"{timestamp}:{signature}".encode()).decode()
 
+
 # ─── Scrapers (separate instances for parallelism) ────────────────────────────
 
-_scraper = cloudscraper.create_scraper(
-    browser={"browser": "chrome", "platform": "windows", "desktop": True}
-)
+_scraper = cloudscraper.create_scraper(browser={"browser": "chrome", "platform": "windows", "desktop": True})
 
 BASE_URL = settings.solscan_url
+
 
 def _headers() -> dict[str, str]:
     return {
@@ -67,7 +69,9 @@ def _headers() -> dict[str, str]:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     }
 
+
 # ─── Core Request Handler ─────────────────────────────────────────────────────
+
 
 def _request(endpoint: str, params: dict | None = None, retries: int = DEFAULT_RETRIES) -> Any:
     """Make authenticated request to Solscan API with retries and circuit breaker."""
@@ -115,7 +119,9 @@ def _request(endpoint: str, params: dict | None = None, retries: int = DEFAULT_R
             time.sleep(RETRY_ERROR_DELAY)
     return None
 
+
 # ─── API Endpoints ────────────────────────────────────────────────────────────
+
 
 class FreeSolscanClient:
     """Reverse-engineered Solscan API client with all security endpoints."""
@@ -130,9 +136,7 @@ class FreeSolscanClient:
     @staticmethod
     def account_transactions(address: str, page: int = 1, page_size: int = 40) -> list | None:
         """Get transaction history for an address."""
-        return _request(
-            "/account/transaction", {"address": address, "page": page, "page_size": page_size}
-        )
+        return _request("/account/transaction", {"address": address, "page": page, "page_size": page_size})
 
     @staticmethod
     def account_transfers(
@@ -178,9 +182,7 @@ class FreeSolscanClient:
         return _request("/account/balance_change", {"address": address})
 
     @staticmethod
-    def account_portfolio(
-        address: str, page: int = 1, page_size: int = 100, hide_zero: bool = True
-    ) -> dict | None:
+    def account_portfolio(address: str, page: int = 1, page_size: int = 100, hide_zero: bool = True) -> dict | None:
         """Get token portfolio for an address."""
         return _request(
             "/account/tokenaccounts",
@@ -380,6 +382,7 @@ class FreeSolscanClient:
                 lp_accounts.append(lp_info)
         return lp_accounts
 
+
 # ─── Known Exchange Wallets (for Exchange Funding % calculation) ────────────
 
 KNOWN_EXCHANGE_WALLETS = {
@@ -426,9 +429,11 @@ EXCHANGE_DOMAINS = {
     "crypto.com",
 }
 
+
 def is_known_exchange(wallet_address: str) -> str | None:
     """Check if a wallet belongs to a known exchange."""
     return KNOWN_EXCHANGE_WALLETS.get(wallet_address)
+
 
 # ─── Quick Test ───────────────────────────────────────────────────────────────
 

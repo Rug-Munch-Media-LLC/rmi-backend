@@ -8,6 +8,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("x402_ai_guard")
 
+
 class AIGuardWrapper:
     """AI Guard that works standalone or with app.security."""
 

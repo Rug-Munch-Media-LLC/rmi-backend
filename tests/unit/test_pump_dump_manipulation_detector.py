@@ -255,9 +255,7 @@ def test_empty_findings_score() -> None:
 def test_max_score_cap() -> None:
     """Test risk score is capped at 100."""
     findings = [
-        ManipulationFinding(
-            finding_type=t, severity=FindingSeverity.CRITICAL, description=f"test {i}"
-        )
+        ManipulationFinding(finding_type=t, severity=FindingSeverity.CRITICAL, description=f"test {i}")
         for i, t in enumerate([ManipulationType.COORDINATED_PUMP] * 4)
     ]
     score = calculate_risk_score(findings)

@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 
 try:
     from app.config import settings as _s
+
     REDIS_URL = _s.redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
     PG_URL = _s.database_url or os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres")
 except Exception:

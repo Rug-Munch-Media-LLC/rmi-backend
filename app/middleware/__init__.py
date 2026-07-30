@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from .cost_tracking import CostTrackingMiddleware
-from .validation import ValidationMiddleware
 
-__all__ = ["CostTrackingMiddleware", "ValidationMiddleware"]
+# ValidationMiddleware is defined as Pydantic models in validation.py (not a middleware class)
+# from .validation import ValidationMiddleware
+
+__all__ = ["CostTrackingMiddleware"]

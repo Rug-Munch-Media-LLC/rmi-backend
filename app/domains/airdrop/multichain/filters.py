@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("darkroom_multichain_airdrop")
 
+
 class AntiGamingFilter:
     """
     Filter out sybils, bots, and gaming attempts.
@@ -67,6 +68,7 @@ class AntiGamingFilter:
         # In production, use clustering analysis
         # For now, return empty list
         return []
+
 
 class CrossChainIdentityResolver:
     """
@@ -142,8 +144,7 @@ class CrossChainIdentityResolver:
             await r.set(reverse_key, json.dumps(reverse_data))
 
             return True
-        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
             logger.debug("store_linkage_error", exc_info=True)
             logger.error(f"Store linkage failed: {e}")
             return False
-

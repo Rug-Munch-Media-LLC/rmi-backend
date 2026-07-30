@@ -15,6 +15,7 @@ from .config import MCP_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION, _desc, _g
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_discovery"])
 
+
 def _build_discovery() -> dict:
     """Build the MCP server discovery document."""
     data = _get_tools()
@@ -47,7 +48,17 @@ def _build_discovery() -> dict:
             "wallet_providers": {
                 "evm": {
                     "description": "Any EIP-7702 compatible wallet",
-                    "chains": ["base", "ethereum", "bsc", "polygon", "arbitrum", "optimism", "avalanche", "fantom", "gnosis"],
+                    "chains": [
+                        "base",
+                        "ethereum",
+                        "bsc",
+                        "polygon",
+                        "arbitrum",
+                        "optimism",
+                        "avalanche",
+                        "fantom",
+                        "gnosis",
+                    ],
                     "facilitators": ["coinbase_cdp", "eip7702", "cloudflare_x402", "payai"],
                 },
                 "solana": {
@@ -99,10 +110,12 @@ def _build_discovery() -> dict:
         ],
     }
 
+
 @router.get("/.well-known/mcp")
 @router.get("/.well-known/mcp.json")
 async def mcp_discovery() -> Any:
     return _build_discovery()
+
 
 @router.get("/.well-known/ai-plugin.json")
 async def ai_plugin_manifest() -> dict[str, str]:
@@ -120,6 +133,7 @@ async def ai_plugin_manifest() -> dict[str, str]:
         "contact_email": "mcp@rugmunch.io",
         "legal_info_url": "https://rugmunch.io/terms",
     }
+
 
 @router.get("/llms.txt")
 async def llms_txt() -> Any:
@@ -152,10 +166,12 @@ async def llms_txt() -> Any:
         media_type="text/plain; charset=utf-8",
     )
 
+
 @router.options("/mcp")
 async def mcp_options() -> Any:
     """CORS preflight for MCP endpoint."""
     from fastapi.responses import JSONResponse
+
     return JSONResponse(
         content={},
         headers={

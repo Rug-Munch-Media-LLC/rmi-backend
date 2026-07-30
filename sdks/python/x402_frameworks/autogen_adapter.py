@@ -48,8 +48,7 @@ class x402AutoGen(x402Adapter):
         """
         return {
             "name": f"x402_{tool_name}",
-            "description": description
-            or f"x402 paid tool: {tool_name}. Pay per call via x402 protocol.",
+            "description": description or f"x402 paid tool: {tool_name}. Pay per call via x402 protocol.",
             "parameters": {
                 "type": "object",
                 "properties": {

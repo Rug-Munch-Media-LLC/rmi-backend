@@ -55,6 +55,7 @@ AI_BASE = os.getenv("LLM_BASE_URL", f"{DEEPSEEK_BASE}/chat/completions")
 if not LLM_API_KEY or not os.getenv("LLM_API_KEY"):
     AI_BASE = f"{OPENROUTER_BASE}/chat/completions"
 
+
 def get_content_config() -> dict:
     """Get config for content generation (Nemotron 3 Super primary)."""
     return {
@@ -64,6 +65,7 @@ def get_content_config() -> dict:
         "max_tokens": 4096,
         "temperature": 0.7,
     }
+
 
 def get_fast_config() -> dict:
     """Get config for fast/cheap tasks (DeepSeek Flash primary)."""
@@ -77,6 +79,7 @@ def get_fast_config() -> dict:
         }
     return get_content_config()  # fallback to OpenRouter
 
+
 def get_analysis_config() -> dict:
     """Get config for deep analysis (DeepSeek Pro primary)."""
     if LLM_API_KEY and DEEPSEEK_BASE:
@@ -88,6 +91,7 @@ def get_analysis_config() -> dict:
             "temperature": 0.5,
         }
     return get_content_config()
+
 
 async def generate_content(
     prompt: str,
@@ -135,6 +139,7 @@ async def generate_content(
         data = resp.json()
         return data["choices"][0]["message"]["content"]
 
+
 async def generate_briefing(topic: str, context: str = "") -> str:
     """Generate a crypto market briefing."""
     prompt = f"Write a concise crypto market briefing about: {topic}"
@@ -142,6 +147,7 @@ async def generate_briefing(topic: str, context: str = "") -> str:
         prompt += f"\n\nContext:\n{context}"
     prompt += "\n\nKeep it punchy, data-driven, and trader-focused. 3-5 sentences max. No intro."
     return await generate_content(prompt, max_tokens=512, temperature=0.6)
+
 
 async def generate_scam_report(findings: dict) -> str:
     """Generate a structured scam investigation report."""

@@ -27,6 +27,7 @@ if _HAS_NACL:
 
 # ── EVM Generation ──────────────────────────────────────────────
 
+
 def generate_evm(cfg: ChainConfig) -> WalletResult:
     """Generate Ethereum/EVM-compatible wallet."""
     if _HAS_COINCURVE:
@@ -41,9 +42,7 @@ def generate_evm(cfg: ChainConfig) -> WalletResult:
         priv_hex = secrets.token_hex(32)
         pub = b""
 
-    address = (
-        "0x" + hashlib.sha3_256(pub).hexdigest()[-40:] if pub else "0x" + secrets.token_hex(20)
-    )
+    address = "0x" + hashlib.sha3_256(pub).hexdigest()[-40:] if pub else "0x" + secrets.token_hex(20)
     return WalletResult(
         chain="",
         chain_name="",
@@ -54,7 +53,9 @@ def generate_evm(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
+
 # ── Bitcoin Generation ──────────────────────────────────────────
+
 
 def generate_bitcoin(cfg: ChainConfig) -> WalletResult:
     """Generate Bitcoin wallet (Legacy P2PKH)."""
@@ -98,7 +99,9 @@ def generate_bitcoin(cfg: ChainConfig) -> WalletResult:
         address_type=addr_type,
     )
 
+
 # ── Solana Generation ───────────────────────────────────────────
+
 
 def generate_solana(cfg: ChainConfig) -> WalletResult:
     """Generate Solana wallet using Ed25519."""
@@ -110,11 +113,7 @@ def generate_solana(cfg: ChainConfig) -> WalletResult:
         address = base58.b58encode(bytes(vk)).decode() if _HAS_BASE58 else pub_hex
     else:
         priv_hex = secrets.token_hex(32)
-        address = (
-            base58.b58encode(secrets.token_bytes(32)).decode()[:44]
-            if _HAS_BASE58
-            else secrets.token_hex(22)
-        )
+        address = base58.b58encode(secrets.token_bytes(32)).decode()[:44] if _HAS_BASE58 else secrets.token_hex(22)
 
     return WalletResult(
         chain="",
@@ -125,7 +124,9 @@ def generate_solana(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
+
 # ── TRON Generation ─────────────────────────────────────────────
+
 
 def generate_tron(cfg: ChainConfig) -> WalletResult:
     """Generate TRON wallet."""
@@ -137,11 +138,7 @@ def generate_tron(cfg: ChainConfig) -> WalletResult:
         priv_hex = secrets.token_hex(32)
         pub = secrets.token_bytes(64)
 
-    hashed = (
-        hashlib.sha3_256(pub).digest()
-        if isinstance(pub, bytes)
-        else hashlib.sha3_256(bytes.fromhex(pub)).digest()
-    )
+    hashed = hashlib.sha3_256(pub).digest() if isinstance(pub, bytes) else hashlib.sha3_256(bytes.fromhex(pub)).digest()
     addr_bytes = b"\x41" + hashed[-20:]
 
     if _HAS_BASE58:
@@ -159,7 +156,9 @@ def generate_tron(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
+
 # ── SECP256K1 Alt Coins ─────────────────────────────────────────
+
 
 def generate_secp256k1_alt(cfg: ChainConfig) -> WalletResult:
     """Generate wallets for Dogecoin, Litecoin, BCH, Dash, Zcash."""
@@ -200,7 +199,9 @@ def generate_secp256k1_alt(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
+
 # ── ED25519 Family ──────────────────────────────────────────────
+
 
 def generate_ed25519(cfg: ChainConfig) -> WalletResult:
     """Generate ED25519 wallets (Cardano, Near, Sui, Aptos)."""
@@ -217,11 +218,7 @@ def generate_ed25519(cfg: ChainConfig) -> WalletResult:
     elif cfg.key in ("sui", "aptos"):
         address = "0x" + (pub.hex() if isinstance(pub, bytes) else pub)
     elif cfg.key == "ada":
-        address = (
-            "addr1" + base58.b58encode(pub).decode()[:50]
-            if _HAS_BASE58
-            else "addr1" + secrets.token_hex(24)
-        )
+        address = "addr1" + base58.b58encode(pub).decode()[:50] if _HAS_BASE58 else "addr1" + secrets.token_hex(24)
     else:
         address = base58.b58encode(pub).decode()[:44] if _HAS_BASE58 else pub.hex()[:42]
 
@@ -234,15 +231,13 @@ def generate_ed25519(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
+
 # ── Placeholder generators ──────────────────────────────────────
+
 
 def generate_ripple(cfg: ChainConfig) -> WalletResult:
     priv = secrets.token_hex(32)
-    addr = (
-        "r" + base58.b58encode(secrets.token_bytes(20)).decode()[:33]
-        if _HAS_BASE58
-        else "r" + secrets.token_hex(16)
-    )
+    addr = "r" + base58.b58encode(secrets.token_bytes(20)).decode()[:33] if _HAS_BASE58 else "r" + secrets.token_hex(16)
     return WalletResult(
         chain="",
         chain_name="",
@@ -251,6 +246,7 @@ def generate_ripple(cfg: ChainConfig) -> WalletResult:
         private_key_hex=priv,
         derivation_path=cfg.hd_path,
     )
+
 
 def generate_substrate(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
@@ -264,6 +260,7 @@ def generate_substrate(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
+
 def generate_cosmos(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
         chain="",
@@ -276,17 +273,17 @@ def generate_cosmos(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
+
 def generate_algorand(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
         chain="",
         chain_name="",
         symbol="",
-        address=base58.b58encode(secrets.token_bytes(36)).decode()[:58]
-        if _HAS_BASE58
-        else secrets.token_hex(29),
+        address=base58.b58encode(secrets.token_bytes(36)).decode()[:58] if _HAS_BASE58 else secrets.token_hex(29),
         private_key_hex=secrets.token_hex(32),
         derivation_path=cfg.hd_path,
     )
+
 
 def generate_tezos(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
@@ -300,6 +297,7 @@ def generate_tezos(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
     )
 
+
 def generate_monero(cfg: ChainConfig) -> WalletResult:
     return WalletResult(
         chain="",
@@ -312,6 +310,7 @@ def generate_monero(cfg: ChainConfig) -> WalletResult:
         derivation_path=cfg.hd_path,
         tags=["monero-placeholder", "needs-monero-python-for-full-support"],
     )
+
 
 # ── Family dispatch ─────────────────────────────────────────────
 

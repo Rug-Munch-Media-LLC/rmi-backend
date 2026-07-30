@@ -279,11 +279,13 @@ SOCIAL_ACCOUNTS = {
 
 # ── Card Generation Functions ────────────────────────────────
 
+
 def format_wallet_short(address: str) -> str:
     """Format wallet address for display."""
     if len(address) >= 14:
         return f"{address[:8]}...{address[-6:]}"
     return address
+
 
 def get_or_create_template(card_type: str) -> Image.Image:
     """Get template image or create placeholder if doesn't exist."""
@@ -299,6 +301,7 @@ def get_or_create_template(card_type: str) -> Image.Image:
         # Create placeholder template
         logger.warning(f"Template not found: {template_path}, creating placeholder")
         return create_placeholder_template(card_type, template_config)
+
 
 def create_placeholder_template(card_type: str, config: dict) -> Image.Image:
     """Create a placeholder template if none exists."""
@@ -330,6 +333,7 @@ def create_placeholder_template(card_type: str, config: dict) -> Image.Image:
     logger.info(f"Created placeholder template: {template_path}")
 
     return img
+
 
 def generate_card(card_type: str, data: dict) -> dict:
     """
@@ -415,7 +419,9 @@ def generate_card(card_type: str, data: dict) -> dict:
         logger.error(f"Card generation failed: {e}")
         return {"status": "error", "error": str(e)}
 
+
 # ── Convenience Functions ────────────────────────────────────
+
 
 async def generate_win_card(
     wallet_address: str,
@@ -440,6 +446,7 @@ async def generate_win_card(
     }
     return generate_card("big_win", data)
 
+
 async def generate_loss_card(
     wallet_address: str,
     token_symbol: str,
@@ -463,6 +470,7 @@ async def generate_loss_card(
     }
     return generate_card("big_loss", data)
 
+
 async def generate_kol_scorecard(
     kol_handle: str,
     win_rate: float,
@@ -482,9 +490,8 @@ async def generate_kol_scorecard(
     }
     return generate_card("kol_scorecard", data)
 
-async def generate_rug_call_card(
-    token_symbol: str, amount_stolen: float, victims: int, rug_type: str
-) -> dict:
+
+async def generate_rug_call_card(token_symbol: str, amount_stolen: float, victims: int, rug_type: str) -> dict:
     """Generate rugpull alert card."""
     data = {
         "token_symbol": token_symbol.upper(),
@@ -493,6 +500,7 @@ async def generate_rug_call_card(
         "rug_type": rug_type,
     }
     return generate_card("rug_call", data)
+
 
 async def generate_whale_alert_card(
     wallet_label: str, action: str, amount: float, symbol: str, usd_value: float
@@ -507,9 +515,8 @@ async def generate_whale_alert_card(
     }
     return generate_card("whale_move", data)
 
-async def generate_smart_money_card(
-    wallet_label: str, token_symbol: str, position_size: float, pnl: float
-) -> dict:
+
+async def generate_smart_money_card(wallet_label: str, token_symbol: str, position_size: float, pnl: float) -> dict:
     """Generate smart money pick card."""
     data = {
         "wallet_label": wallet_label,
@@ -519,7 +526,9 @@ async def generate_smart_money_card(
     }
     return generate_card("smart_money", data)
 
+
 # ── Template Management ──────────────────────────────────────
+
 
 def list_templates() -> list[dict]:
     """List available card templates."""
@@ -533,6 +542,7 @@ def list_templates() -> list[dict]:
         }
         for key, config in CARD_TEMPLATES.items()
     ]
+
 
 def create_all_templates() -> None:
     """Create all placeholder templates."""

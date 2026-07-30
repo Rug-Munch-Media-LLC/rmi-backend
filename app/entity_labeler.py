@@ -62,6 +62,7 @@ TOKEN_TYPES = {
 
 # ─── DETECTION FUNCTIONS ──────────────────────────────────────────────────
 
+
 def detect_exchange(address: str, name: str = "", symbol: str = "") -> str | None:
     """Detect if address belongs to a known exchange/protocol."""
     address_lower = address.lower()
@@ -79,6 +80,7 @@ def detect_exchange(address: str, name: str = "", symbol: str = "") -> str | Non
 
     return None
 
+
 def detect_protocol(address: str, name: str = "", symbol: str = "") -> str | None:
     """Detect if address is a DeFi protocol."""
     # Check protocol contracts
@@ -94,6 +96,7 @@ def detect_protocol(address: str, name: str = "", symbol: str = "") -> str | Non
 
     return None
 
+
 def detect_token_type(symbol: str, name: str = "") -> list[str]:
     """Detect token type(s) based on name/symbol."""
     symbol_lower = symbol.lower()
@@ -106,9 +109,8 @@ def detect_token_type(symbol: str, name: str = "") -> list[str]:
 
     return types
 
-def detect_whale(
-    address: str, balance_eth: float = 0, balance_usd: float = 0
-) -> dict[str, Any] | None:
+
+def detect_whale(address: str, balance_eth: float = 0, balance_usd: float = 0) -> dict[str, Any] | None:
     """Detect if address is a whale (high-value wallet)."""
     whale_thresholds = {
         "super_whale": 10000,  # $10M+ USD
@@ -127,6 +129,7 @@ def detect_whale(
             }
 
     return None
+
 
 def detect_high_risk(address: str, tx_count: int = 0, age_days: int = 0) -> dict[str, Any]:
     """Detect high-risk wallet characteristics."""
@@ -154,6 +157,7 @@ def detect_high_risk(address: str, tx_count: int = 0, age_days: int = 0) -> dict
         "risk_factors": risk_factors,
         "risk_level": "low" if risk_score == 0 else ("medium" if risk_score <= 2 else "high"),
     }
+
 
 def analyze_contract_type(bytecode: str, source_code: str | None = None) -> dict[str, Any]:
     """Analyze contract type from bytecode."""
@@ -187,7 +191,9 @@ def analyze_contract_type(bytecode: str, source_code: str | None = None) -> dict
 
     return result
 
+
 # ─── ENTITY LABELER ENGINE ────────────────────────────────────────────────
+
 
 class EntityLabeler:
     """Main entity labeler engine."""
@@ -319,9 +325,11 @@ class EntityLabeler:
             return "medium"
         return "low"
 
+
 # ─── MODULE FUNCTIONS ─────────────────────────────────────────────────────
 
 _labeler: EntityLabeler | None = None
+
 
 def get_entity_labeler() -> EntityLabeler:
     """Get the global entity labeler instance."""
@@ -329,6 +337,7 @@ def get_entity_labeler() -> EntityLabeler:
     if _labeler is None:
         _labeler = EntityLabeler()
     return _labeler
+
 
 def label_address(
     address: str,
@@ -357,22 +366,27 @@ def label_address(
         source_code=source_code,
     )
 
+
 def batch_label_addresses(addresses: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Label multiple addresses."""
     labeler = get_entity_labeler()
     return labeler.batch_label_addresses(addresses)
+
 
 def get_risk_score(address: str) -> float:
     """Get risk score for an address."""
     labeler = get_entity_labeler()
     return labeler.get_risk_score(address)
 
+
 def get_risk_level(address: str) -> str:
     """Get risk level for an address."""
     labeler = get_entity_labeler()
     return labeler.get_risk_level(address)
 
+
 # ─── API RESPONSE MODELS ──────────────────────────────────────────────────
+
 
 class LabelResponse(BaseModel):
     address: str
@@ -385,6 +399,7 @@ class LabelResponse(BaseModel):
     token_type: list[str] = []
     contract: dict[str, Any] = {}
     verified_at: str
+
 
 class RiskResponse(BaseModel):
     address: str

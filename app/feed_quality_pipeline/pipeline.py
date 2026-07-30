@@ -17,13 +17,13 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.feed_quality_pipeline.cache import (
-    LRUCache,
     MAX_CONCURRENT_FETCHES,
-    MAX_POSTS_PER_PROVIDER,
     MAX_POST_LENGTH,
+    MAX_POSTS_PER_PROVIDER,
     MAX_TITLE_LENGTH,
     PROVIDER_TIMEOUT_DEFAULT,
     SEEN_IDS_MAXSIZE,
+    LRUCache,
 )
 from app.feed_quality_pipeline.deduplicator import ContentDeduplicator
 from app.feed_quality_pipeline.health import ProviderHealthMonitor

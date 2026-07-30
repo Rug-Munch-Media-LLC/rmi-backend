@@ -2,6 +2,7 @@
 Prediction Market — Main Service
 Multi-source prediction market data aggregation with parallel fetching + caching.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -44,6 +45,7 @@ SECURITY_QUERIES = [
 
 SOURCE_NAMES = ["polymarket", "kalshi", "limitless", "manifold"]
 
+
 class PredictionMarketService:
     """Multi-source prediction market data with parallel fetching + caching."""
 
@@ -56,16 +58,21 @@ class PredictionMarketService:
             return self._redis
         try:
             import redis.asyncio as aioredis
-            self._redis = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True, socket_connect_timeout=3)
+
+            self._redis = aioredis.from_url(
+                os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True, socket_connect_timeout=3
+            )
             if self._redis is None:
                 self._redis = False
-        except (httpx.HTTPError, ConnectionError, OSError, ValueError) as e :
+        except (httpx.HTTPError, ConnectionError, OSError, ValueError) as e:
             logger.debug("_get_redis_error", exc_info=True)
             logger.warning(f"Redis unavailable, caching disabled: {e}")
             self._redis = False
         return self._redis if self._redis is not False else None
 
-    async def search(self, query: str, categories: list[str] | None = None, min_volume: float = 0, security_only: bool = False) -> list[PredictionMarket]:
+    async def search(
+        self, query: str, categories: list[str] | None = None, min_volume: float = 0, security_only: bool = False
+    ) -> list[PredictionMarket]:
         cache_key = f"predmkt:search:{cache_hash(query, categories, min_volume, security_only)}"
         redis = self._get_redis()
         if redis:
@@ -101,7 +108,15 @@ class PredictionMarketService:
         if redis:
             try:
                 await redis.setex(cache_key, 300, json.dumps([market_to_dict(m) for m in all_markets[:50]]))
-            except (httpx.HTTPError, json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+            except (
+                httpx.HTTPError,
+                json.JSONDecodeError,
+                ConnectionError,
+                OSError,
+                ValueError,
+                KeyError,
+                TypeError,
+            ) as e:
                 logger.debug("search_error", exc_info=True)
                 logger.warning(f"Redis cache write failed: {e}")
         return all_markets
@@ -137,10 +152,35 @@ class PredictionMarketService:
                 seen_questions.add(q_key)
                 unique_markets.append(m)
 
-        top_threats = sorted([m for m in unique_markets if m.is_security_relevant and m.volume_usd > 10000], key=lambda m: m.volume_usd, reverse=True)
-        token_specific = sorted([m for m in unique_markets if m.is_crypto_relevant and m.is_security_relevant and len(m.tokens_mentioned) > 0], key=lambda m: m.volume_usd, reverse=True)
-        ecosystem_risk = sorted([m for m in unique_markets if m.is_crypto_relevant and not m.is_security_relevant and m.volume_usd > 50000], key=lambda m: m.volume_usd, reverse=True)
-        regulatory = sorted([m for m in unique_markets if m.is_security_relevant and any(kw in m.question.lower() for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"])], key=lambda m: m.volume_usd, reverse=True)
+        top_threats = sorted(
+            [m for m in unique_markets if m.is_security_relevant and m.volume_usd > 10000],
+            key=lambda m: m.volume_usd,
+            reverse=True,
+        )
+        token_specific = sorted(
+            [
+                m
+                for m in unique_markets
+                if m.is_crypto_relevant and m.is_security_relevant and len(m.tokens_mentioned) > 0
+            ],
+            key=lambda m: m.volume_usd,
+            reverse=True,
+        )
+        ecosystem_risk = sorted(
+            [m for m in unique_markets if m.is_crypto_relevant and not m.is_security_relevant and m.volume_usd > 50000],
+            key=lambda m: m.volume_usd,
+            reverse=True,
+        )
+        regulatory = sorted(
+            [
+                m
+                for m in unique_markets
+                if m.is_security_relevant
+                and any(kw in m.question.lower() for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"])
+            ],
+            key=lambda m: m.volume_usd,
+            reverse=True,
+        )
 
         digest = PredictionDigest(
             generated_at=datetime.now(UTC).isoformat(),
@@ -156,7 +196,7 @@ class PredictionMarketService:
         if redis:
             try:
                 await redis.setex(cache_key, 3600, json.dumps(digest_to_dict(digest)))
-            except (httpx.HTTPError, json.JSONDecodeError, ConnectionError, OSError, ValueError) as e :
+            except (httpx.HTTPError, json.JSONDecodeError, ConnectionError, OSError, ValueError) as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Redis digest cache write failed: {e}")
         return digest
@@ -191,8 +231,10 @@ class PredictionMarketService:
             return await kalshi_source.detail(self._http, market_id)
         return None
 
+
 # Singleton
 _service: PredictionMarketService | None = None
+
 
 def get_prediction_market_service() -> PredictionMarketService:
     global _service

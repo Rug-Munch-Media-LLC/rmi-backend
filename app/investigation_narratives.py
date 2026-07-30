@@ -104,6 +104,7 @@ HOP_TEMPLATES = {
     ],
 }
 
+
 async def _plan_investigation(
     query: str,
     evidence_so_far: list[dict[str, Any]],
@@ -160,6 +161,7 @@ Return ONLY the JSON array. Maximum 4 hops."""
 
     return HOP_TEMPLATES.get("general", HOP_TEMPLATES["rug_pull"])
 
+
 async def _execute_hop(
     hop: dict[str, str],
     query: str,
@@ -197,6 +199,7 @@ async def _execute_hop(
             "error": str(e),
             "success": False,
         }
+
 
 async def _synthesize_narrative(
     query: str,
@@ -251,7 +254,9 @@ Write the report now:"""
     except Exception as e:
         return f"Narrative generation error: {e}\n\nRaw evidence:\n{context}"
 
+
 # ── Main API ─────────────────────────────────────────────────────
+
 
 async def investigate(
     query: str,
@@ -351,13 +356,9 @@ async def investigate(
 
     # Aggregate confidence
     confidence_scores = [
-        h.get("confidence", {}).get("score", 0)
-        for h in hops_executed
-        if h.get("success") and h.get("confidence")
+        h.get("confidence", {}).get("score", 0) for h in hops_executed if h.get("success") and h.get("confidence")
     ]
-    avg_confidence = (
-        round(sum(confidence_scores) / len(confidence_scores)) if confidence_scores else 0
-    )
+    avg_confidence = round(sum(confidence_scores) / len(confidence_scores)) if confidence_scores else 0
 
     elapsed = time.time() - start_time
 

@@ -34,9 +34,7 @@ def test_all_tools_have_input_schema():
     """Every tool must declare an inputSchema (JSON Schema 2020-12)."""
     for tool in TOOL_CATALOG:
         assert "inputSchema" in tool, f"{tool.get('name')} missing inputSchema"
-        assert tool["inputSchema"].get("type") == "object", (
-            f"{tool['name']} inputSchema.type must be 'object'"
-        )
+        assert tool["inputSchema"].get("type") == "object", f"{tool['name']} inputSchema.type must be 'object'"
 
 
 def test_all_tools_have_descriptions():
@@ -95,9 +93,7 @@ def test_server_version_is_set():
     """Server version must be a non-empty semantic version."""
     import re
 
-    assert re.match(r"^\d+\.\d+\.\d+$", MCP_SERVER_VERSION), (
-        f"MCP_SERVER_VERSION '{MCP_SERVER_VERSION}' is not semver"
-    )
+    assert re.match(r"^\d+\.\d+\.\d+$", MCP_SERVER_VERSION), f"MCP_SERVER_VERSION '{MCP_SERVER_VERSION}' is not semver"
 
 
 def test_protocol_version_is_set():

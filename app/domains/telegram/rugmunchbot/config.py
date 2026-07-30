@@ -4,6 +4,7 @@ CryptoRugMunch Bot - Configuration
 ===================================
 Tiers, channels, API endpoints, DEX ref links, and constants.
 """
+
 from __future__ import annotations
 
 import os
@@ -37,15 +38,12 @@ def _get_token(gopass_path: str, env_keys: list[str]) -> str:
             return token
     return ""
 
+
 BOT_TOKEN = _get_token(
     "rmi/rugmunchbot/bot_token",
     ["RUGMUNCH_BOT_TOKEN", "TELEGRAM_RUGMUNCH_BOT_TOKEN", "TELEGRAM_BOT_TOKEN"],
 )
-OWNER_IDS = {
-    int(x.strip())
-    for x in os.getenv("TELEGRAM_ALLOWED_USERS", "7075336557").split(",")
-    if x.strip()
-}
+OWNER_IDS = {int(x.strip()) for x in os.getenv("TELEGRAM_ALLOWED_USERS", "7075336557").split(",") if x.strip()}
 BOT_USERNAME = "RugMunchBot"
 
 # ══════════════════════════════════════════════
@@ -71,9 +69,7 @@ BOT_DESCRIPTION = (
     "📚 Free crypto scam education\n\n"
     "🌐 rugmunch.io"
 )
-BOT_SHORT_DESCRIPTION = (
-    "🛡️ Crypto scam detection & token intelligence across 77+ chains. Free tier available."
-)
+BOT_SHORT_DESCRIPTION = "🛡️ Crypto scam detection & token intelligence across 77+ chains. Free tier available."
 
 # ══════════════════════════════════════════════
 # API ENDPOINTS
@@ -84,6 +80,7 @@ BOT_SHORT_DESCRIPTION = (
 _IN_DOCKER = os.getenv("DOCKER_CONTAINER") or os.path.exists("/.dockerenv")
 BACKEND_HOST = "rmi-backend:8000" if _IN_DOCKER else "localhost:8000"
 BACKEND_URL = os.getenv("RMI_BACKEND_URL", f"http://{BACKEND_HOST}")
+
 
 async def check_backend_health() -> None:
     """Ping backend /health on startup. Logs WARNING if unreachable."""
@@ -97,13 +94,12 @@ async def check_backend_health() -> None:
             else:
                 from app.core.logging import get_logger
 
-                get_logger("rmi.config").warning(
-                    "Backend at %s returned status %d", BACKEND_URL, r.status_code
-                )
+                get_logger("rmi.config").warning("Backend at %s returned status %d", BACKEND_URL, r.status_code)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         from app.core.logging import get_logger
 
         get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", BACKEND_URL, exc)
+
 
 # Alert engine
 ALERT_CHECK_INTERVAL = 300  # seconds between alert checks (5 min)
@@ -150,7 +146,7 @@ TIERS = {
             "Bundle detection",
             "Fake volume detection",
             "Dev wallet finder",
-            "Holder trend analysis",
+            "Holder analysis + concentration",
             "Smart money alerts",
             "Watchlist (10 tokens)",
             "Export reports",
@@ -168,13 +164,14 @@ TIERS = {
             "250 AI questions/week",
             "Everything in Scout, plus:",
             "Full wallet forensics",
+            "Cross-chain fund trace",
             "First buyer analysis",
             "Exchange flow tracking",
             "Fresh wallet detection",
             "Shill detection",
             "Social sentiment scan",
             "Watchlist (50 tokens)",
-            "Real-time alerts",
+            "Real-time price alerts",
             "TA chart generation",
         ],
     },
@@ -189,10 +186,10 @@ TIERS = {
             "1,000 scans/week",
             "500 AI questions/week",
             "Everything in Hunter, plus:",
+            "Deep investigation reports",
             "Smart money watch (live)",
-            "Cross-chain tracking",
-            "Custom alert rules",
-            "API access",
+            "Custom webhook integrations",
+            "API access with tokens",
             "Priority support",
             "Early feature access",
             "Unlimited watchlists",
@@ -420,6 +417,7 @@ RISK_COLORS = {
     "unknown": "⚪",
 }
 
+
 def risk_bar(score: float, length: int = 10) -> str:
     """Generate a visual risk bar (0-100 scale)."""
     filled = int((score / 100) * length)
@@ -434,8 +432,10 @@ def risk_bar(score: float, length: int = 10) -> str:
     else:
         return "✅" * filled + "⬜" * (length - filled) + f" {score}% SAFE"
 
+
 def threat_indicator(label: str, found: bool) -> str:
     return f"{'🔴' if found else '✅'} {label}"
+
 
 # ══════════════════════════════════════════════
 # FORMATTING HELPERS
@@ -461,6 +461,7 @@ def fmt_number(n) -> str:
     else:
         return f"${n:.10f}"
 
+
 def fmt_pct(n) -> str:
     if n is None:
         return "N/A"
@@ -468,6 +469,7 @@ def fmt_pct(n) -> str:
         return f"{float(n):.2f}%"
     except (ValueError, TypeError):
         return str(n)
+
 
 def fmt_chain(chain: str) -> str:
     """Return chain emoji + name."""
@@ -485,6 +487,7 @@ def fmt_chain(chain: str) -> str:
         "bitcoin": "₿",
     }
     return f"{emojis.get(chain.lower(), '⛓️')} {chain.capitalize()}"
+
 
 # ══════════════════════════════════════════════
 # SCAM SCHOOL TOPICS

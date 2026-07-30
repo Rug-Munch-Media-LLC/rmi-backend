@@ -7,7 +7,6 @@ Usage (unchanged):
     from app.wallet_factory import WalletFactory, get_wallet_factory, WalletResult
 """
 
-
 from __future__ import annotations
 
 from app.wallets.chain_registry import SUPPORTED_CHAINS, ChainConfig, ChainFamily

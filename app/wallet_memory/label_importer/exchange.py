@@ -13,6 +13,7 @@ from .loaders import _flush_batch
 
 logger = get_logger("wallet_memory.label_importer")
 
+
 async def _load_exchange_clusters(storage) -> int:
     """Load exchange cluster entity labels. ~200 exchange addresses."""
     path = os.path.join(LABELS_DIR, "exchanges_cluster.csv")
@@ -39,15 +40,19 @@ async def _load_exchange_clusters(storage) -> int:
                 chain = "ethereum"
 
                 label_data = {
-                    "chain": chain, "address": addr,
-                    "address_name": name, "label_type": entity_type,
-                    "label_subtype": acct_type, "source": "exchange_cluster",
+                    "chain": chain,
+                    "address": addr,
+                    "address_name": name,
+                    "label_type": entity_type,
+                    "label_subtype": acct_type,
+                    "source": "exchange_cluster",
                 }
                 label_json = json.dumps(label_data)
                 redis_key = f"rmi:label:{chain}:{addr}"
                 redis_ops.append((redis_key, label_json, addr))
-                ch_rows.append((addr, chain, name, entity_type.lower(), acct_type,
-                                "exchange_cluster", 0, datetime.now(UTC)))
+                ch_rows.append(
+                    (addr, chain, name, entity_type.lower(), acct_type, "exchange_cluster", 0, datetime.now(UTC))
+                )
                 count += 1
     except Exception as e:
         logger.warning(f"Failed to load exchange clusters: {e}")
@@ -57,6 +62,7 @@ async def _load_exchange_clusters(storage) -> int:
 
     logger.info(f"Loaded {count} exchange cluster labels")
     return count
+
 
 async def _load_contract_names(storage) -> int:
     """Load contract name labels from name_dict.txt. ~900 Ethereum contracts."""
@@ -84,15 +90,16 @@ async def _load_contract_names(storage) -> int:
                     continue
                 chain = "ethereum"
                 label_data = {
-                    "chain": chain, "address": addr,
-                    "address_name": name, "label_type": "contract",
+                    "chain": chain,
+                    "address": addr,
+                    "address_name": name,
+                    "label_type": "contract",
                     "source": "contract_name_labels",
                 }
                 label_json = json.dumps(label_data)
                 redis_key = f"rmi:label:{chain}:{addr}"
                 redis_ops.append((redis_key, label_json, addr))
-                ch_rows.append((addr, chain, name, "contract", "",
-                                "contract_name_labels", 0, datetime.now(UTC)))
+                ch_rows.append((addr, chain, name, "contract", "", "contract_name_labels", 0, datetime.now(UTC)))
                 count += 1
     except Exception as e:
         logger.warning(f"Failed to load contract names: {e}")
@@ -102,6 +109,7 @@ async def _load_contract_names(storage) -> int:
 
     logger.info(f"Loaded {count} contract name labels")
     return count
+
 
 async def _load_exchange_wallets(storage) -> int:
     """Load exchange/dex/ico/mining wallet labels. ~350 labeled wallets."""
@@ -140,8 +148,10 @@ async def _load_exchange_wallets(storage) -> int:
                             continue
                         cat = "mining" if "mining" in filename else "exchange"
                         label_data = {
-                            "chain": chain, "address": addr,
-                            "address_name": entity, "label_type": cat,
+                            "chain": chain,
+                            "address": addr,
+                            "address_name": entity,
+                            "label_type": cat,
                             "source": "exchange_wallets",
                         }
                         if balance:
@@ -151,8 +161,7 @@ async def _load_exchange_wallets(storage) -> int:
                         label_json = json.dumps(label_data)
                         redis_key = f"rmi:label:{chain}:{addr}"
                         redis_ops.append((redis_key, label_json, addr))
-                        ch_rows.append((addr, chain, entity, cat, "",
-                                        "exchange_wallets", 0, datetime.now(UTC)))
+                        ch_rows.append((addr, chain, entity, cat, "", "exchange_wallets", 0, datetime.now(UTC)))
                         count += 1
             else:
                 with open(path, newline="", encoding="utf-8-sig") as f:
@@ -173,8 +182,10 @@ async def _load_exchange_wallets(storage) -> int:
                         elif "walletapp" in filename:
                             cat = "wallet"
                         label_data = {
-                            "chain": chain, "address": addr,
-                            "address_name": entity, "label_type": cat,
+                            "chain": chain,
+                            "address": addr,
+                            "address_name": entity,
+                            "label_type": cat,
                             "source": "exchange_wallets",
                         }
                         if balance:
@@ -184,8 +195,7 @@ async def _load_exchange_wallets(storage) -> int:
                         label_json = json.dumps(label_data)
                         redis_key = f"rmi:label:{chain}:{addr}"
                         redis_ops.append((redis_key, label_json, addr))
-                        ch_rows.append((addr, chain, entity, cat, "",
-                                        "exchange_wallets", 0, datetime.now(UTC)))
+                        ch_rows.append((addr, chain, entity, cat, "", "exchange_wallets", 0, datetime.now(UTC)))
                         count += 1
         except Exception as e:
             logger.warning(f"Failed to load {filename}: {e}")

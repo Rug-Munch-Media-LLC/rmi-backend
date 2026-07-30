@@ -24,6 +24,7 @@ OR_URL = "https://openrouter.ai/api/v1/chat/completions"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
 
+
 async def _call_openrouter(
     model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5
 ) -> str:
@@ -63,9 +64,8 @@ async def _call_openrouter(
         logger.warning(f"OpenRouter error {model_id}: {e}")
         return ""
 
-async def _call_groq(
-    model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5
-) -> str:
+
+async def _call_groq(model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5) -> str:
     """Call Groq API (free tier)."""
     if not GROQ_KEY:
         return ""
@@ -94,9 +94,8 @@ async def _call_groq(
         logger.warning(f"Groq error: {e}")
         return ""
 
-async def _call_mistral(
-    model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5
-) -> str:
+
+async def _call_mistral(model_id: str, system: str, user: str, max_tokens: int = 1000, temperature: float = 0.5) -> str:
     """Call Mistral API (free tier)."""
     if not MISTRAL_KEY:
         return ""
@@ -129,6 +128,7 @@ async def _call_mistral(
         logger.warning(f"Mistral error: {e}")
         return ""
 
+
 async def ai_call(
     task_type: str,
     system_prompt: str,
@@ -156,17 +156,11 @@ async def ai_call(
             continue
 
         if model["provider"] == "openrouter":
-            result = await _call_openrouter(
-                model["id"], system_prompt, user_prompt, max_tokens, temperature
-            )
+            result = await _call_openrouter(model["id"], system_prompt, user_prompt, max_tokens, temperature)
         elif model["provider"] == "groq":
-            result = await _call_groq(
-                model["id"], system_prompt, user_prompt, max_tokens, temperature
-            )
+            result = await _call_groq(model["id"], system_prompt, user_prompt, max_tokens, temperature)
         elif model["provider"] == "mistral":
-            result = await _call_mistral(
-                model["id"], system_prompt, user_prompt, max_tokens, temperature
-            )
+            result = await _call_mistral(model["id"], system_prompt, user_prompt, max_tokens, temperature)
         else:
             continue
 
@@ -184,9 +178,7 @@ async def ai_call(
                 continue
             model = mconfig[tier]
             if _can_use(model):
-                result = await _call_mistral(
-                    model["id"], system_prompt, user_prompt, max_tokens, temperature
-                )
+                result = await _call_mistral(model["id"], system_prompt, user_prompt, max_tokens, temperature)
                 if result:
                     return result
 
@@ -204,13 +196,9 @@ async def ai_call(
                             model["id"], system_prompt, user_prompt, max_tokens, temperature
                         )
                     elif model["provider"] == "groq":
-                        result = await _call_groq(
-                            model["id"], system_prompt, user_prompt, max_tokens, temperature
-                        )
+                        result = await _call_groq(model["id"], system_prompt, user_prompt, max_tokens, temperature)
                     elif model["provider"] == "mistral":
-                        result = await _call_mistral(
-                            model["id"], system_prompt, user_prompt, max_tokens, temperature
-                        )
+                        result = await _call_mistral(model["id"], system_prompt, user_prompt, max_tokens, temperature)
                     if result:
                         return result
 

@@ -36,6 +36,7 @@ DESCRIPTION: Final = (
     "13+ chains, 96 data providers, 8 MCP tools, x402 paid tier, sovereign-first FOSS."
 )
 
+
 def create_app() -> FastAPI:
     """Build the FastAPI app. Single source of truth for composition.
 

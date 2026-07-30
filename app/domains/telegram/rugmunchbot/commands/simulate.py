@@ -14,6 +14,7 @@ logger = get_logger("rmi.simulate")
 
 DEXSCREENER = "https://api.dexscreener.com/latest/dex"
 
+
 async def cmd_simulate(update, ctx) -> None:
     """Handle /simulate command - simulate buy/sell."""
     msg = update.message

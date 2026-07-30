@@ -3,6 +3,7 @@ Liquidation Cascade — Data Models
 ===================================
 Risk tiers, position dataclasses, analysis result.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
@@ -20,9 +21,11 @@ class RiskTier(StrEnum):
     def score(self) -> int:
         return {"SAFE": 0, "WATCH": 1, "DANGER": 2, "CRITICAL": 3}[self.value]
 
+
 @dataclass
 class CollateralPosition:
     """A collateral asset deposited in a lending protocol."""
+
     asset: str
     asset_address: str
     amount_usd: float
@@ -34,9 +37,11 @@ class CollateralPosition:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+
 @dataclass
 class DebtPosition:
     """A debt/borrow position against collateral."""
+
     asset: str
     asset_address: str
     amount_usd: float
@@ -47,9 +52,11 @@ class DebtPosition:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+
 @dataclass
 class ProtocolPosition:
     """A full position in one lending protocol on one chain."""
+
     protocol: str
     chain: str
     wallet: str
@@ -67,9 +74,9 @@ class ProtocolPosition:
             self.health_factor = float("inf")
             self.risk_tier = RiskTier.SAFE
             return
-        weighted_threshold = sum(
-            c.liquidation_threshold * c.amount_usd for c in self.collateral
-        ) / max(sum(c.amount_usd for c in self.collateral), 1)
+        weighted_threshold = sum(c.liquidation_threshold * c.amount_usd for c in self.collateral) / max(
+            sum(c.amount_usd for c in self.collateral), 1
+        )
         if weighted_threshold <= 0:
             self.health_factor = float("inf")
             self.risk_tier = RiskTier.SAFE
@@ -86,27 +93,23 @@ class ProtocolPosition:
         if self.collateral:
             primary = max(self.collateral, key=lambda c: c.amount_usd)
             if primary.amount_usd > 0:
-                price_ratio = self.total_debt_usd / (
-                    primary.amount_usd * primary.liquidation_threshold
-                )
+                price_ratio = self.total_debt_usd / (primary.amount_usd * primary.liquidation_threshold)
                 self.liquidation_price_usd = primary.price_usd * price_ratio
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["risk_tier"] = self.risk_tier.value
         d["health_factor"] = (
-            round(self.health_factor, 4)
-            if self.health_factor and self.health_factor != float("inf")
-            else None
+            round(self.health_factor, 4) if self.health_factor and self.health_factor != float("inf") else None
         )
-        d["liquidation_price_usd"] = (
-            round(self.liquidation_price_usd, 2) if self.liquidation_price_usd else None
-        )
+        d["liquidation_price_usd"] = round(self.liquidation_price_usd, 2) if self.liquidation_price_usd else None
         return d
+
 
 @dataclass
 class CascadeScenario:
     """A simulated cascade event."""
+
     name: str
     description: str
     liquidated_positions: int = 0
@@ -119,9 +122,11 @@ class CascadeScenario:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+
 @dataclass
 class LiquidationCluster:
     """A cluster of wallets at similar liquidation prices."""
+
     chain: str
     primary_collateral: str
     price_range_low: float
@@ -133,9 +138,11 @@ class LiquidationCluster:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+
 @dataclass
 class LiquidationAnalysis:
     """Complete analysis result for a wallet or set of wallets."""
+
     wallet: str
     chains_analyzed: list[str]
     total_collateral_usd: float = 0.0
@@ -162,7 +169,8 @@ class LiquidationAnalysis:
                     sum(c.liquidation_threshold * c.amount_usd for c in p.collateral)
                     / max(sum(c.amount_usd for c in p.collateral), 1)
                 )
-                for p in self.positions if p.collateral
+                for p in self.positions
+                if p.collateral
             )
             self.overall_health_factor = total_weighted_collateral / self.total_debt_usd
             if self.overall_health_factor >= 2.0:
@@ -197,8 +205,10 @@ class LiquidationAnalysis:
             if (max_p - min_p) / max(min_p, 1) <= 0.15 or len(positions) == 1:
                 self.liquidation_clusters.append(
                     LiquidationCluster(
-                        chain=chain, primary_collateral=asset,
-                        price_range_low=min_p, price_range_high=max_p,
+                        chain=chain,
+                        primary_collateral=asset,
+                        price_range_low=min_p,
+                        price_range_high=max_p,
                         wallet_count=len(positions),
                         total_debt_usd=sum(p.total_debt_usd for p in positions),
                         total_collateral_usd=sum(p.total_collateral_usd for p in positions),
@@ -216,7 +226,9 @@ class LiquidationAnalysis:
                     name="10% Collateral Drop",
                     description="If primary collateral prices drop 10%, simulate which positions get liquidated",
                     liquidated_positions=sum(1 for p in impacted if p.risk_tier == RiskTier.CRITICAL),
-                    total_liquidated_value_usd=sum(p.total_debt_usd for p in impacted if p.risk_tier == RiskTier.CRITICAL),
+                    total_liquidated_value_usd=sum(
+                        p.total_debt_usd for p in impacted if p.risk_tier == RiskTier.CRITICAL
+                    ),
                     secondary_affected_positions=sum(1 for p in impacted if p.risk_tier == RiskTier.DANGER),
                     total_secondary_value_usd=sum(p.total_debt_usd for p in impacted if p.risk_tier == RiskTier.DANGER),
                 )
@@ -227,10 +239,16 @@ class LiquidationAnalysis:
                 CascadeScenario(
                     name="25% Flash Crash",
                     description="Simulate a 25% market-wide flash crash and cascade effects",
-                    liquidated_positions=sum(1 for p in all_at_risk if p.risk_tier in (RiskTier.DANGER, RiskTier.CRITICAL)),
-                    total_liquidated_value_usd=sum(p.total_debt_usd for p in all_at_risk if p.risk_tier in (RiskTier.DANGER, RiskTier.CRITICAL)),
+                    liquidated_positions=sum(
+                        1 for p in all_at_risk if p.risk_tier in (RiskTier.DANGER, RiskTier.CRITICAL)
+                    ),
+                    total_liquidated_value_usd=sum(
+                        p.total_debt_usd for p in all_at_risk if p.risk_tier in (RiskTier.DANGER, RiskTier.CRITICAL)
+                    ),
                     secondary_affected_positions=sum(1 for p in self.positions if p.risk_tier == RiskTier.WATCH),
-                    total_secondary_value_usd=sum(p.total_debt_usd for p in self.positions if p.risk_tier == RiskTier.WATCH),
+                    total_secondary_value_usd=sum(
+                        p.total_debt_usd for p in self.positions if p.risk_tier == RiskTier.WATCH
+                    ),
                 )
             )
         critical = [p for p in self.positions if p.risk_tier == RiskTier.CRITICAL]
@@ -244,7 +262,9 @@ class LiquidationAnalysis:
                     liquidated_positions=len(critical),
                     total_liquidated_value_usd=total_critical_value,
                     secondary_affected_positions=sum(1 for p in self.positions if p.risk_tier == RiskTier.DANGER),
-                    total_secondary_value_usd=sum(p.total_debt_usd for p in self.positions if p.risk_tier == RiskTier.DANGER),
+                    total_secondary_value_usd=sum(
+                        p.total_debt_usd for p in self.positions if p.risk_tier == RiskTier.DANGER
+                    ),
                     market_impact_pct=market_impact,
                 )
             )
@@ -252,6 +272,7 @@ class LiquidationAnalysis:
     def report(self, format: str = "text") -> str:
         """Generate a human-readable or JSON report."""
         from app.domains.analysis.liquidation.report import generate_report
+
         return generate_report(self, format)
 
     def to_dict(self) -> dict[str, Any]:

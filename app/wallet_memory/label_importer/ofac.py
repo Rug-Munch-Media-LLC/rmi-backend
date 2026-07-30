@@ -13,6 +13,7 @@ from .download import _download_json
 
 logger = get_logger("wallet_memory.label_importer")
 
+
 async def _load_ofac_sanctions(storage) -> int:
     """Load OFAC crypto-sanctions-list into storage.
     Tries local file first, then downloads from GitHub.
@@ -70,11 +71,18 @@ async def _load_ofac_sanctions(storage) -> int:
         name = ""
         if isinstance(entry, dict):
             name = entry.get("name", entry.get("Name", entry.get("entity", "")))
-        ch_rows.append((
-            addr_lower, "",
-            str(name) if name else "OFAC Sanctioned",
-            "sanctioned", "", "ofac", 1, datetime.now(UTC),
-        ))
+        ch_rows.append(
+            (
+                addr_lower,
+                "",
+                str(name) if name else "OFAC Sanctioned",
+                "sanctioned",
+                "",
+                "ofac",
+                1,
+                datetime.now(UTC),
+            )
+        )
         count += 1
 
     if ch_rows and storage._ch:

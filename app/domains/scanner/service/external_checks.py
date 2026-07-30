@@ -11,6 +11,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 async def _check_fear_greed() -> dict[str, Any] | None:
     """Check Crypto Fear & Greed market sentiment index.
 
@@ -53,9 +54,7 @@ async def _check_fear_greed() -> dict[str, Any] | None:
                     continue
 
             avg_30d = sum(values_30d) / len(values_30d) if values_30d else 50
-            trend = (
-                "improving" if value > avg_30d else ("declining" if value < avg_30d else "stable")
-            )
+            trend = "improving" if value > avg_30d else ("declining" if value < avg_30d else "stable")
 
             # Min/max range
             min_val = min(values_30d) if values_30d else value
@@ -79,6 +78,7 @@ async def _check_fear_greed() -> dict[str, Any] | None:
         logger.warning("fng_failed", error=str(e)[:100])
 
     return {"check": "fear_greed", "result": "unavailable", "error": "Fear & Greed API unavailable"}
+
 
 async def _check_coingecko_trending() -> dict[str, Any] | None:
     """Check CoinGecko trending tokens list.
@@ -157,6 +157,7 @@ async def _check_coingecko_trending() -> dict[str, Any] | None:
 
     return {"check": "trending", "result": "unavailable", "error": "CoinGecko trending unavailable"}
 
+
 async def _check_sourcify(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check Sourcify contract verification status.
 
@@ -195,18 +196,17 @@ async def _check_sourcify(token_address: str, chain: str) -> dict[str, Any] | No
                     "result": "scanned",
                     "is_verified": True,
                     "match_type": "full",
-                    "compiler_version": data.get(
-                        "compilerVersion", data.get("compiler_version", "")
-                    ),
+                    "compiler_version": data.get("compilerVersion", data.get("compiler_version", "")),
                     "source": "sourcify",
                     "contract_name": data.get("name", ""),
                     "evm_version": data.get("evmVersion", "") or data.get("evm_version", ""),
-                    "optimization": data.get("optimizationUsed", "")
-                    or data.get("optimization_used", ""),
+                    "optimization": data.get("optimizationUsed", "") or data.get("optimization_used", ""),
                 }
             elif resp.status_code == 404:
                 # Try partial match
-                partial_url = f"https://sourcify.dev/server/api/v2/contract/{chain_id}/{token_address}?matchType=partial"
+                partial_url = (
+                    f"https://sourcify.dev/server/api/v2/contract/{chain_id}/{token_address}?matchType=partial"
+                )
                 resp2 = await client.get(partial_url)
                 if resp2.status_code == 200:
                     data = resp2.json()
@@ -251,4 +251,3 @@ async def _check_sourcify(token_address: str, chain: str) -> dict[str, Any] | No
         logger.debug("sourcify_failed", error=str(e)[:80])
 
     return {"check": "sourcify", "result": "unavailable", "error": "Sourcify API unavailable"}
-

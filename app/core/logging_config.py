@@ -31,12 +31,14 @@ from typing import Any
 
 _SAMPLE_RATES: dict[str, float] = {}  # logger_name -> fraction (0.0 - 1.0)
 
+
 def set_sample_rate(name: str, rate: float) -> None:
     """Configure sampling *rate* for *name* (exact or prefix match).
 
     ``rate=0.01`` means 1 % of log entries pass through.
     """
     _SAMPLE_RATES[name] = max(0.0, min(1.0, rate))
+
 
 def _should_sample(name: str) -> bool:
     """Return ``True`` if this log entry should *pass* the sampler."""
@@ -52,10 +54,12 @@ def _should_sample(name: str) -> bool:
     h = hash(f"{name}:{window}") & 0xFFFF
     return h < int(rate * 65536)
 
+
 # ── JSON Formatter ────────────────────────────────────────────────────
 
 _TRACE_ID_ATTR = "trace_id"
 _REQUEST_ID_ATTR = "request_id"
+
 
 class JsonFormatter(logging.Formatter):
     """Emit log records as single-line JSON objects.
@@ -132,7 +136,9 @@ class JsonFormatter(logging.Formatter):
 
         return json.dumps(log_entry, default=str, ensure_ascii=False)
 
+
 # ── Stdlib factory ────────────────────────────────────────────────────
+
 
 def create_json_handler(level: int | str = logging.INFO) -> logging.Handler:
     """Return a StreamHandler with ``JsonFormatter`` set."""
@@ -140,6 +146,7 @@ def create_json_handler(level: int | str = logging.INFO) -> logging.Handler:
     handler.setLevel(level)
     handler.setFormatter(JsonFormatter())
     return handler
+
 
 def setup_stdlib_logging(
     name: str | None = None,
@@ -162,7 +169,9 @@ def setup_stdlib_logging(
     logger.propagate = propagate
     return logger
 
+
 # ── Rate-limited logger wrapper ───────────────────────────────────────
+
 
 class RateLimitedLogger:
     """Wrapper that samples DEBUG calls to prevent disk fill.
@@ -197,19 +206,21 @@ class RateLimitedLogger:
     def exception(self, msg: str, **extra: Any) -> None:
         self._logger.exception(msg, extra=extra)
 
+
 # ── Request / trace ID helpers ────────────────────────────────────────
+
 
 def generate_request_id() -> str:
     """Return a short unique request ID (8-char hex)."""
     return uuid.uuid4().hex[:8]
 
+
 def generate_trace_id() -> str:
     """Return a 16-char hex trace ID for cross-service correlation."""
     return uuid.uuid4().hex[:16]
 
-def inject_request_id(
-    logger: logging.Logger, request_id: str
-) -> logging.LoggerAdapter[logging.Logger]:
+
+def inject_request_id(logger: logging.Logger, request_id: str) -> logging.LoggerAdapter[logging.Logger]:
     """Attach *request_id* to extra so ``JsonFormatter`` picks it up.
 
     This is called automatically by the request-id middleware when the
@@ -217,6 +228,7 @@ def inject_request_id(
     (e.g., background workers, Celery tasks).
     """
     return logging.LoggerAdapter(logger, {_REQUEST_ID_ATTR: request_id})
+
 
 def inject_trace_id(logger: logging.Logger, trace_id: str) -> logging.LoggerAdapter[logging.Logger]:
     """Attach *trace_id* to extra for cross-service correlation."""

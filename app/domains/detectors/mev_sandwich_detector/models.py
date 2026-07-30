@@ -1,4 +1,5 @@
 """Data models for MEV sandwich detection."""
+
 from __future__ import annotations
 
 import re
@@ -17,12 +18,14 @@ class MEVAttackType(Enum):
     JIT_LIQUIDITY = "jit_liquidity"
     UNKNOWN = "unknown"
 
+
 class MEVSeverity(Enum):
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
     INFO = "info"
+
 
 class PoolDexType(Enum):
     UNISWAP_V2 = "uniswap_v2"
@@ -34,6 +37,7 @@ class PoolDexType(Enum):
     AERODROME = "aerodrome"
     CAMELOT = "camelot"
     UNKNOWN = "unknown"
+
 
 @dataclass
 class PoolInfo:
@@ -58,6 +62,7 @@ class PoolInfo:
             raise ValueError(f"Negative liquidity: {self.liquidity_usd}")
         if self.volume_24h_usd < 0:
             raise ValueError(f"Negative volume: {self.volume_24h_usd}")
+
 
 @dataclass
 class MEVTransaction:
@@ -84,6 +89,7 @@ class MEVTransaction:
             raise ValueError(f"Negative block number: {self.block_number}")
         if self.tx_index < 0:
             raise ValueError(f"Negative tx index: {self.tx_index}")
+
 
 @dataclass
 class SandwichAttack:
@@ -118,19 +124,26 @@ class SandwichAttack:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "type": "sandwich", "chain": self.chain, "block": self.block_number,
-            "victim": self.victim_address, "bot": self.bot_address, "bot_name": self.bot_name,
-            "pool": self.pool_address, "pool_name": self.pool_name,
+            "type": "sandwich",
+            "chain": self.chain,
+            "block": self.block_number,
+            "victim": self.victim_address,
+            "bot": self.bot_address,
+            "bot_name": self.bot_name,
+            "pool": self.pool_address,
+            "pool_name": self.pool_name,
             "tokens": f"{self.token_in}\u2192{self.token_out}",
             "extracted_usd": round(self.estimated_extracted_usd, 2),
             "victim_loss_usd": round(self.victim_loss_usd, 2),
             "slippage_impact_pct": round(self.slippage_impact_pct, 4),
-            "severity": self.severity.value, "confidence": round(self.confidence, 2),
+            "severity": self.severity.value,
+            "confidence": round(self.confidence, 2),
             "detected_at": self.detected_at,
             "frontrun_tx": self.frontrun_tx.tx_hash,
             "victim_tx": self.victim_tx.tx_hash,
             "backrun_tx": self.backrun_tx.tx_hash,
         }
+
 
 @dataclass
 class MEVBotProfile:
@@ -148,6 +161,7 @@ class MEVBotProfile:
     def summary(self) -> str:
         types = ", ".join(t.value for t in self.attack_types[:3])
         return f"{self.name or self.address[:12]} ({self.chain}) | ${self.total_extracted_usd:.0f} extracted | {self.attacks_detected} attacks | {types}"
+
 
 @dataclass
 class MEVScanReport:

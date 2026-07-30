@@ -41,6 +41,7 @@ async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ),
     )
 
+
 async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle messages in terminal mode."""
     user_id = update.effective_user.id

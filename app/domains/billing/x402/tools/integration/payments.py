@@ -33,6 +33,7 @@ logger = get_logger(__name__)
 # Payment Methods & Human Execution
 # ═══════════════════════════════════════════════════════════════
 
+
 @sub_router.get("/payment-methods")
 async def get_payment_methods() -> dict[str, Any]:
     """List all payment methods available for human wallet payments."""
@@ -54,6 +55,7 @@ async def get_payment_methods() -> dict[str, Any]:
         "chain_count": len({i["chain"] for i in HUMAN_PAYMENT_TOKENS.values()}),
         "token_count": len(HUMAN_PAYMENT_TOKENS),
     }
+
 
 @sub_router.post("/human-execute")
 async def human_execute(req: Any) -> dict[str, Any]:
@@ -140,15 +142,18 @@ async def human_execute(req: Any) -> dict[str, Any]:
         else:
             gw = "https://sol.rugmunch.io"
 
-        async with aiohttp.ClientSession() as session, session.post(
-            f"{gw}/tools/{tool_name}",
-            json=req.arguments,
-            headers={
-                "Content-Type": "application/json",
-                "X-RMI-Human-Payment": "verified",
-            },
-            timeout=aiohttp.ClientTimeout(total=30),
-        ) as resp:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                f"{gw}/tools/{tool_name}",
+                json=req.arguments,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-RMI-Human-Payment": "verified",
+                },
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp,
+        ):
             text = await resp.text()
             try:
                 result_data = json.loads(text)
@@ -193,9 +198,11 @@ async def human_execute(req: Any) -> dict[str, Any]:
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         return {"success": False, "error": f"Tool execution failed: {e!s}"}
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 36: Comprehensive Audit (Super Tool) ($0.15)
 # ═══════════════════════════════════════════════════════════════
+
 
 @sub_router.post("/comprehensive_audit")
 async def comprehensive_audit(req: AuditRequest) -> Any:
@@ -287,6 +294,7 @@ async def comprehensive_audit(req: AuditRequest) -> Any:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @sub_router.post("/smart_money_alpha")
 async def smart_money_alpha(req: SmartMoneyAlphaRequest) -> Any:
     """One-call smart money signal combining wallet analysis, smart money tracking, and cluster/sybil detection."""
@@ -374,6 +382,7 @@ async def smart_money_alpha(req: SmartMoneyAlphaRequest) -> Any:
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/meme_vibe_score")
 async def meme_vibe_score(req: MemeVibeRequest) -> Any:

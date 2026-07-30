@@ -47,9 +47,7 @@ class TestCitationValidatorEdgeCases:
     def test_very_long_text(self):
         """Test with very long input text."""
         long_text = "This is a very long sentence. " * 100
-        result = validate_section(
-            long_text + " [1].", ["Source text for validation"], on_unciteable="strip"
-        )
+        result = validate_section(long_text + " [1].", ["Source text for validation"], on_unciteable="strip")
         assert "validated_text" in result
 
     def test_multiple_sentences_with_citations(self):
@@ -77,9 +75,7 @@ class TestCitationValidatorEdgeCases:
         overlap with "Source one".
         """
         sources = ["Source one"]
-        result = validate_section(
-            "Valid [1]. Invalid [99]. Also valid [1].", sources, on_unciteable="strip"
-        )
+        result = validate_section("Valid [1]. Invalid [99]. Also valid [1].", sources, on_unciteable="strip")
         # All 3 sentences fail content overlap check (with strict default)
         # The 1st and 3rd have valid index [1] but claim "Valid" doesn't
         # overlap with "Source one" content. The 2nd has out-of-range [99].

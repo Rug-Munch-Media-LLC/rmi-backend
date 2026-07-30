@@ -12,6 +12,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.free_apis")
 
+
 async def _coingecko_price(**kwargs) -> dict | None:
     """CoinGecko — free for low volume."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
@@ -29,6 +30,7 @@ async def _coingecko_price(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _defillama_tvl(**kw) -> dict | None:
     """DeFiLlama — total TVL across all protocols (100% free)."""
     try:
@@ -40,6 +42,7 @@ async def _defillama_tvl(**kw) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _defillama_chains(**kw) -> dict | None:
     """DeFiLlama — TVL breakdown by chain (100% free)."""
     try:
@@ -50,6 +53,7 @@ async def _defillama_chains(**kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -> dict | None:
     """Blockchair — address balance and tx count (free tier, no API key for basic)."""
@@ -66,6 +70,7 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -
         logger.warning("provider error")
     return None
 
+
 async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
     """Blockchair — network statistics and mempool data (free)."""
     try:
@@ -76,6 +81,7 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw) -> dict | None:
     """Etherscan — transaction trace (free tier, 5 req/s)."""

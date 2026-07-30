@@ -81,13 +81,7 @@ async def liquidity_lock_authenticity(token_address: str, chain: str = "sol") ->
     result["authenticity_score"] = max(0, min(100, score))
     result["flags"] = flags
     result["recommendation"] = (
-        "SAFE"
-        if score >= 80
-        else "CAUTION"
-        if score >= 60
-        else "RISKY"
-        if score >= 40
-        else "DANGEROUS"
+        "SAFE" if score >= 80 else "CAUTION" if score >= 60 else "RISKY" if score >= 40 else "DANGEROUS"
     )
 
     return result

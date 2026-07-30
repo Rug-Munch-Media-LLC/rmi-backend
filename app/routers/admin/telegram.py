@@ -25,9 +25,14 @@ async def telegram_stats(request: Request, _=Depends(verify_admin)) -> Any:
     """Get Telegram bot statistics."""
     bot_state_file = "/tmp/telegram_bot_state.json"
     stats = {
-        "total_users": 0, "active_chats": 0, "messages_sent": 0,
-        "messages_received": 0, "commands_processed": 0, "alerts_sent": 0,
-        "uptime_seconds": 0, "status": "unknown",
+        "total_users": 0,
+        "active_chats": 0,
+        "messages_sent": 0,
+        "messages_received": 0,
+        "commands_processed": 0,
+        "alerts_sent": 0,
+        "uptime_seconds": 0,
+        "status": "unknown",
     }
     if os.path.exists(bot_state_file):
         try:
@@ -50,9 +55,7 @@ async def telegram_stats(request: Request, _=Depends(verify_admin)) -> Any:
 
 
 @telegram_router.get("/telegram/users")
-async def telegram_users(
-    request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)
-) -> dict:
+async def telegram_users(request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)) -> dict:
     """Get Telegram bot users."""
     users_file = "/tmp/telegram_users.json"
     users = []
@@ -62,14 +65,16 @@ async def telegram_users(
                 users = json.load(f).get("users", [])[:limit]
         except (ValueError, OSError):
             logger.warning("Could not read users file")
-    return {"users": users, "total": len(users), "source": "telegram_bot_state",
-            "status": "no_data" if not users else "available"}
+    return {
+        "users": users,
+        "total": len(users),
+        "source": "telegram_bot_state",
+        "status": "no_data" if not users else "available",
+    }
 
 
 @telegram_router.get("/telegram/messages")
-async def telegram_messages(
-    request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)
-) -> dict:
+async def telegram_messages(request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)) -> dict:
     """Get recent Telegram messages."""
     messages_file = "/tmp/telegram_messages.json"
     messages = []
@@ -88,15 +93,14 @@ class TelegramSendRequest(BaseModel):
 
 
 @telegram_router.post("/telegram/send")
-async def telegram_send(
-    request: Request, req: TelegramSendRequest, _=Depends(verify_admin)
-) -> dict[str, str]:
+async def telegram_send(request: Request, req: TelegramSendRequest, _=Depends(verify_admin)) -> dict[str, str]:
     """Send a message via Telegram bot."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not bot_token:
         return {"status": "failed", "error": "TELEGRAM_BOT_TOKEN not configured"}
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
                 f"https://api.telegram.org/bot{bot_token}/sendMessage",
@@ -139,6 +143,7 @@ async def telegram_broadcast(
     sent = failed = 0
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=30) as client:
             for chat_id in chat_ids[:100]:
                 try:

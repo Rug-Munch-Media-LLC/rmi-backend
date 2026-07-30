@@ -126,9 +126,7 @@ class TestDatabaseURL:
         from app.config import Settings
 
         custom = "postgresql+asyncpg://custom:pass@remote:5432/mydb"
-        settings = Settings(
-            jwt_secret="test-secret-key-32-chars-long-enough!!", database_url=custom
-        )
+        settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!", database_url=custom)
         assert settings.database_url == custom
 
 
@@ -220,9 +218,7 @@ class TestDBSettings:
             "sqlite+aiosqlite:///test.db",
         ]
         for url in urls:
-            settings = Settings(
-                jwt_secret="test-secret-key-32-chars-long-enough!!", database_url=url
-            )
+            settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!", database_url=url)
             assert settings.database_url == url
 
     def test_database_url_rejects_none(self):

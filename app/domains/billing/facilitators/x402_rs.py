@@ -27,6 +27,7 @@ from app.domains.billing.facilitators.config import FacilitatorConfig, get_confi
 
 logger = get_logger("facilitator.x402_rs")
 
+
 class X402RsFacilitator(Facilitator):
     """
     Self-hosted x402-rs facilitator - production-grade Rust implementation.

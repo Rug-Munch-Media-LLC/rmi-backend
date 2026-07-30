@@ -17,6 +17,7 @@ from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 
 logger = get_logger("databus.providers.chains.rugcharts")
 
+
 def build_rugcharts_chains(chains: dict[str, ProviderChain]) -> None:
     """Build RugCharts Intelligence chains (10 premium features)."""
     # ── RUGCHARTS INTELLIGENCE - 10 Premium Features ──

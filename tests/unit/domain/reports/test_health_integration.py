@@ -120,10 +120,7 @@ class TestRunHealthChecksAsync:
 
         assert "failing" in results
         assert results["failing"].healthy is False
-        assert (
-            "failing" in results["failing"].error.lower()
-            or "health check" in results["failing"].error.lower()
-        )
+        assert "failing" in results["failing"].error.lower() or "health check" in results["failing"].error.lower()
 
 
 class TestDomainHealthEdgeCases:

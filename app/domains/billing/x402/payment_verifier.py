@@ -33,6 +33,7 @@ _FACILITATOR_CONFIGS = None
 _TOKEN_METADATA = None
 _verifier_loaded = False
 
+
 def _ensure_verifier() -> None:
     global VERIFIER, _FACILITATOR_CONFIGS, _TOKEN_METADATA, _verifier_loaded
     if _verifier_loaded:
@@ -49,6 +50,7 @@ def _ensure_verifier() -> None:
         VERIFIER = None
         logger.warning(f"x402 enforcement: PaymentVerifier not available: {e}")
 
+
 def check_idempotency(key: str, ttl: int = 86400) -> bool:
     """Atomic SET NX check. Returns True if first call with this key."""
     try:
@@ -58,6 +60,7 @@ def check_idempotency(key: str, ttl: int = 86400) -> bool:
         return bool(r.set(key, "1", ex=ttl, nx=True))
     except (ConnectionError, OSError, TimeoutError):
         return True
+
 
 def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
     """Parse payment payload from x-pay / PAYMENT-SIGNATURE header.
@@ -78,7 +81,7 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
                 return payload
         except (MemoryError, KeyboardInterrupt, SystemExit):
             raise
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             pass
 
         if stripped.startswith("x402 "):
@@ -92,10 +95,11 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
             return json.loads(payload_str)
 
         return None
-    except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+    except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
         logger.debug("parse_x_pay_header_error", exc_info=True)
         logger.warning(f"Failed to parse payment header: {e}")
         return None
+
 
 def _detect_token_from_asset(asset_address: str, chain_cfg: dict[str, Any]) -> str:
     """Detect token symbol from asset address using chain config."""
@@ -119,6 +123,7 @@ def _detect_token_from_asset(asset_address: str, chain_cfg: dict[str, Any]) -> s
         return "BTC"
 
     return "USDC"
+
 
 async def verify_payment(payload: dict[str, Any]) -> dict[str, Any]:
     """Verify x402 payment payload against all supported chains (fallback)."""
@@ -151,6 +156,7 @@ async def verify_payment(payload: dict[str, Any]) -> dict[str, Any]:
         return await self_verify_evm_usdc(payload, chain_key or "", chain_cfg)
 
     return {"verified": False, "reason": f"Unknown verify method: {verify_method}"}
+
 
 async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
     """Verify x402 payment payload through the multi-facilitator smart router."""
@@ -226,9 +232,7 @@ async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
                 "method": f"router:{result.facilitator}",
             }
         else:
-            logger.warning(
-                f"Router rejected payment for {chain_key}/{token_symbol}: {result.reason}"
-            )
+            logger.warning(f"Router rejected payment for {chain_key}/{token_symbol}: {result.reason}")
             return {
                 "verified": False,
                 "reason": result.reason,
@@ -243,9 +247,8 @@ async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
 
     return await verify_payment(payload)
 
-async def self_verify_evm_usdc(
-    payload: dict[str, Any], chain_key: str, chain_cfg: dict[str, Any]
-) -> dict[str, Any]:
+
+async def self_verify_evm_usdc(payload: dict[str, Any], chain_key: str, chain_cfg: dict[str, Any]) -> dict[str, Any]:
     """Self-verify a USDC transfer on EVM chains without a facilitator.
 
     Checks transfer receipt via Blockscout API, validates USDC contract
@@ -270,9 +273,7 @@ async def self_verify_evm_usdc(
                 return {"verified": False, "reason": f"Transaction {tx_hash[:16]}... already used"}
 
         tool_id = (
-            accepted.get("extra", {}).get("tool")
-            or payload.get("tool")
-            or accepted.get("resource", "").split("/")[-1]
+            accepted.get("extra", {}).get("tool") or payload.get("tool") or accepted.get("resource", "").split("/")[-1]
             if accepted.get("resource")
             else None
         )
@@ -329,9 +330,7 @@ async def self_verify_evm_usdc(
                 r2 = await client2.get(receipt_url)
                 if r2.status_code == 200:
                     receipt_data = r2.json()
-                    logs = receipt_data.get("result", {}).get("logs", []) or receipt_data.get(
-                        "logs", []
-                    )
+                    logs = receipt_data.get("result", {}).get("logs", []) or receipt_data.get("logs", [])
 
         transfer_found = False
         amount_match = False
@@ -363,9 +362,7 @@ async def self_verify_evm_usdc(
                 elif log_data:
                     actual_amount = str(int(log_data, 16))
             except (ValueError, TypeError):
-                logger.warning(
-                    f"Could not decode Transfer data for {tx_hash[:16]}...: {str(log_data)[:20]}"
-                )
+                logger.warning(f"Could not decode Transfer data for {tx_hash[:16]}...: {str(log_data)[:20]}")
 
             if expected_amount and actual_amount:
                 if actual_amount == expected_amount:

@@ -38,6 +38,7 @@ logger = get_logger("rmi_analytics")
 
 # ── Data Models ─────────────────────────────────────────────
 
+
 @dataclass
 class MetricPoint:
     """Single time-series data point."""
@@ -48,6 +49,7 @@ class MetricPoint:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
 
 @dataclass
 class MetricSeries:
@@ -87,6 +89,7 @@ class MetricSeries:
             "point_count": len(self.points),
         }
 
+
 @dataclass
 class DashboardWidget:
     """Dashboard widget configuration."""
@@ -100,6 +103,7 @@ class DashboardWidget:
     refresh_interval: int = 30  # seconds
     config: dict[str, Any] = field(default_factory=dict)
 
+
 @dataclass
 class Dashboard:
     """Dashboard configuration."""
@@ -111,7 +115,9 @@ class Dashboard:
     created_by: str = ""
     is_default: bool = False
 
+
 # ── Analytics Engine ────────────────────────────────────────
+
 
 class AnalyticsEngine:
     """
@@ -130,14 +136,10 @@ class AnalyticsEngine:
             DashboardWidget("cpu_gauge", "gauge", "CPU Usage", "cpu_percent", 3, 3, 10),
             DashboardWidget("mem_gauge", "gauge", "Memory Usage", "memory_percent", 3, 3, 10),
             DashboardWidget("disk_gauge", "gauge", "Disk Usage", "disk_percent", 3, 3, 10),
-            DashboardWidget(
-                "req_counter", "counter", "Requests/min", "requests_per_minute", 3, 3, 10
-            ),
+            DashboardWidget("req_counter", "counter", "Requests/min", "requests_per_minute", 3, 3, 10),
             DashboardWidget("cpu_line", "line", "CPU History", "cpu_percent", 6, 4, 30),
             DashboardWidget("mem_line", "line", "Memory History", "memory_percent", 6, 4, 30),
-            DashboardWidget(
-                "latency_line", "line", "Response Latency", "response_time_ms", 6, 4, 30
-            ),
+            DashboardWidget("latency_line", "line", "Response Latency", "response_time_ms", 6, 4, 30),
             DashboardWidget("error_line", "line", "Error Rate", "error_rate", 6, 4, 30),
         ]
 
@@ -169,18 +171,12 @@ class AnalyticsEngine:
 
         # Security Dashboard
         security_widgets = [
-            DashboardWidget(
-                "threats_counter", "counter", "Threats Blocked", "threats_blocked", 3, 3, 30
-            ),
+            DashboardWidget("threats_counter", "counter", "Threats Blocked", "threats_blocked", 3, 3, 30),
             DashboardWidget("bots_counter", "counter", "Bot Requests", "bot_requests", 3, 3, 30),
             DashboardWidget("attacks_counter", "counter", "Attacks", "attacks_detected", 3, 3, 30),
-            DashboardWidget(
-                "blocked_ips_counter", "counter", "Blocked IPs", "blocked_ips", 3, 3, 30
-            ),
+            DashboardWidget("blocked_ips_counter", "counter", "Blocked IPs", "blocked_ips", 3, 3, 30),
             DashboardWidget("threats_pie", "pie", "Threat Types", "threat_types", 6, 4, 60),
-            DashboardWidget(
-                "attacks_line", "line", "Attack Timeline", "attacks_detected", 6, 4, 60
-            ),
+            DashboardWidget("attacks_line", "line", "Attack Timeline", "attacks_detected", 6, 4, 60),
         ]
 
         self._dashboards["security"] = Dashboard(
@@ -285,9 +281,7 @@ class AnalyticsEngine:
                 "widget_id": widget.widget_id,
                 "widget_type": widget.widget_type,
                 "title": widget.title,
-                "metric": metric.to_dict()
-                if metric
-                else {"name": widget.metric_name, "latest": None},
+                "metric": metric.to_dict() if metric else {"name": widget.metric_name, "latest": None},
             }
 
             # Add historical data for line/bar charts
@@ -356,9 +350,7 @@ class AnalyticsEngine:
             "last_updated": datetime.now(UTC).isoformat(),
             "top_metrics": [
                 {"name": name, "points": len(m.points), "latest": m.latest()}
-                for name, m in sorted(
-                    self._metrics.items(), key=lambda x: len(x[1].points), reverse=True
-                )[:10]
+                for name, m in sorted(self._metrics.items(), key=lambda x: len(x[1].points), reverse=True)[:10]
             ],
         }
 
@@ -395,10 +387,7 @@ class AnalyticsEngine:
                 "name": metric.name,
                 "description": metric.description,
                 "unit": metric.unit,
-                "data": [
-                    {"timestamp": p.timestamp, "value": p.value, "labels": p.labels}
-                    for p in metric.points
-                ],
+                "data": [{"timestamp": p.timestamp, "value": p.value, "labels": p.labels} for p in metric.points],
             }
         elif format == "csv":
             lines = ["timestamp,value"]
@@ -408,9 +397,11 @@ class AnalyticsEngine:
 
         return None
 
+
 # ── Singleton ─────────────────────────────────────────────────
 
 _analytics_instance: AnalyticsEngine | None = None
+
 
 def get_analytics_engine() -> AnalyticsEngine:
     """Get or create analytics engine instance."""

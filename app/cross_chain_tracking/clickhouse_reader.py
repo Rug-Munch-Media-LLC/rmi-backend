@@ -127,14 +127,16 @@ async def fetch_multi_chain_deployers(
                 deployer, chains_json, chain_count, total, first_ts, last_ts = row
                 # chains comes as JSON array from ClickHouse
                 chains = chains_json if isinstance(chains_json, list) else [chains_json]
-                results.append({
-                    "deployer": deployer.lower(),
-                    "chains": chains,
-                    "chain_count": chain_count,
-                    "total_deployments": total,
-                    "first_seen": str(first_ts) if first_ts else "",
-                    "last_seen": str(last_ts) if last_ts else "",
-                })
+                results.append(
+                    {
+                        "deployer": deployer.lower(),
+                        "chains": chains,
+                        "chain_count": chain_count,
+                        "total_deployments": total,
+                        "first_seen": str(first_ts) if first_ts else "",
+                        "last_seen": str(last_ts) if last_ts else "",
+                    }
+                )
             return results
 
         return await asyncio.to_thread(_run)
@@ -223,10 +225,7 @@ async def fetch_deployment_counts_by_chain(limit: int = 20) -> list[dict[str, An
 
         def _run() -> list[dict[str, Any]]:
             rows = client.execute(query, {"limit": limit})
-            return [
-                {"chain": r[0], "deployments": r[1], "unique_deployers": r[2]}
-                for r in rows
-            ]
+            return [{"chain": r[0], "deployments": r[1], "unique_deployers": r[2]} for r in rows]
 
         return await asyncio.to_thread(_run)
     except Exception as e:

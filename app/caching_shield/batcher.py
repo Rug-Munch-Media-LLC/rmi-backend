@@ -52,6 +52,7 @@ BATCH_CAPABLE_PROVIDERS = {
 # Providers that DON'T support batching
 NO_BATCH_PROVIDERS = {"anvil", "publicnode"}
 
+
 @dataclass
 class BatchRequest:
     """A single request within a batch."""
@@ -60,6 +61,7 @@ class BatchRequest:
     method: str
     params: list[Any]
 
+
 @dataclass
 class BatchResult:
     """Result for a single request within a batch."""
@@ -67,6 +69,7 @@ class BatchResult:
     id: int
     result: Any = None
     error: str | None = None
+
 
 class RpcBatcher:
     """Accumulates RPC requests and dispatches them as batch JSON-RPC calls.
@@ -111,9 +114,7 @@ class RpcBatcher:
             result = await asyncio.wait_for(future, timeout=5.0)
             return result
         except TimeoutError:
-            logger.warning(
-                f"Batch request timed out for {provider}/{method}, falling back to direct"
-            )
+            logger.warning(f"Batch request timed out for {provider}/{method}, falling back to direct")
             self.total_individual += 1
             return await self._query_fn(provider, method, params)
 
@@ -184,9 +185,7 @@ class RpcBatcher:
                     rid = item.get("id")
                     if rid is not None and rid in futures:
                         if "error" in item:
-                            futures[rid].set_exception(
-                                Exception(item["error"].get("message", "RPC error"))
-                            )
+                            futures[rid].set_exception(Exception(item["error"].get("message", "RPC error")))
                         else:
                             futures[rid].set_result(item.get("result"))
                     elif rid is not None:

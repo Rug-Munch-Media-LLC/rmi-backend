@@ -42,6 +42,7 @@ ENDPOINTS = {
     "wallet_activity": "/v2/wallet/{address}/activity",
 }
 
+
 def _load_api_key() -> str:
     """Load Nansen API key from secrets file or environment."""
     secret_path = "/root/.secrets/nansen_api_key"
@@ -59,7 +60,9 @@ def _load_api_key() -> str:
     logger.warning("Nansen API key not found - requests will fail without auth")
     return ""
 
+
 # ─── NANSEN CLIENT ────────────────────────────────────────────────
+
 
 class NansenClient:
     """Client for Nansen REST API v2."""
@@ -86,7 +89,7 @@ class NansenClient:
                 timeout=5,
             )
             return response.status_code == 200
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             return False
 
     # ── request helpers ───────────────────────────────────────────
@@ -161,9 +164,11 @@ class NansenClient:
         path = ENDPOINTS["wallet_activity"].format(address=address)
         return self._get(path)
 
+
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _client: NansenClient | None = None
+
 
 def get_nansen_client() -> NansenClient:
     """Get or create the Nansen client singleton."""
@@ -172,15 +177,19 @@ def get_nansen_client() -> NansenClient:
         _client = NansenClient()
     return _client
 
+
 # ─── CONVENIENCE FUNCTIONS ────────────────────────────────────────
+
 
 def get_wallet_labels(address: str) -> dict[str, Any] | None:
     """Return on-chain labels for *address*."""
     return get_nansen_client().get_wallet_labels(address)
 
+
 def get_smart_money() -> list[dict[str, Any]] | None:
     """Return the current smart-money wallet list."""
     return get_nansen_client().get_smart_money()
+
 
 def get_wallet_activity(address: str) -> dict[str, Any] | None:
     """Return labelled transaction history for *address*."""

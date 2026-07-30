@@ -114,6 +114,7 @@ KNOWN_PATTERNS = {
     },
 }
 
+
 def build_behavioral_fingerprint(
     address: str,
     deployment_count: int = 0,
@@ -151,6 +152,7 @@ def build_behavioral_fingerprint(
     )
 
     return vec
+
 
 def score_deployer_risk(
     address: str,
@@ -251,9 +253,7 @@ def score_deployer_risk(
     for name, pattern in KNOWN_PATTERNS.items():
         pattern_vec = np.array(pattern["vector"], dtype=np.float32)
         # Cosine similarity between fingerprint and pattern
-        sim = np.dot(fingerprint, pattern_vec) / (
-            np.linalg.norm(fingerprint) * np.linalg.norm(pattern_vec) + 1e-8
-        )
+        sim = np.dot(fingerprint, pattern_vec) / (np.linalg.norm(fingerprint) * np.linalg.norm(pattern_vec) + 1e-8)
         if sim > best_similarity:
             best_similarity = float(sim)
             best_match = {
@@ -297,9 +297,7 @@ def score_deployer_risk(
         parts.append(f"{label} risk ({risk_score:.0f}%) - {signal_count} signals")
 
     if best_match and best_similarity > 0.5:
-        parts.append(
-            f"fingerprint matches '{best_match['description']}' (similarity: {best_similarity:.2f})"
-        )
+        parts.append(f"fingerprint matches '{best_match['description']}' (similarity: {best_similarity:.2f})")
 
     if mitigations:
         mitigating = [m["description"] for m in mitigations]
@@ -309,8 +307,7 @@ def score_deployer_risk(
         "risk_score": round(risk_score),
         "risk_label": label,
         "signals_found": [
-            {"signal": s["description"], "risk": s["risk_level"], "weight": s["weight"]}
-            for s in signals_found
+            {"signal": s["description"], "risk": s["risk_level"], "weight": s["weight"]} for s in signals_found
         ],
         "mitigations": [{"signal": m["description"], "impact": m["weight"]} for m in mitigations],
         "fingerprint_match": best_match,

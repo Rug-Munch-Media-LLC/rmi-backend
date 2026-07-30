@@ -37,9 +37,7 @@ from .utils import (
 
 logger = get_logger(__name__)
 
-logger.info(
-    "Insider Detection Engine loaded: %d detection methods, confidence scoring, PnL estimation", 6
-)
+logger.info("Insider Detection Engine loaded: %d detection methods, confidence scoring, PnL estimation", 6)
 
 __all__ = [
     "Confidence",

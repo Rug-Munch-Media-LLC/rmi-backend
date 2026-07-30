@@ -43,12 +43,14 @@ for canonical, aliases in CHAIN_ALIASES.items():
 def normalize_chain(chain: str) -> str:
     """Normalize chain name to canonical form - delegates to shared_utils."""
     from app.core.shared_utils import normalize_chain as _normalize
+
     return _normalize(chain)
 
 
 # ── Behavioral Fingerprint ───────────────────────────────────────
 # 8-dim vector: [tx_frequency, gas_volatility, contract_interaction_ratio,
 #                avg_tx_value, timezone_activity, dex_ratio, bridge_usage, age_days]
+
 
 def build_cross_chain_fingerprint(
     tx_frequency: float = 0,
@@ -77,6 +79,7 @@ def build_cross_chain_fingerprint(
 
 
 # ── Funding Source Graph ─────────────────────────────────────────
+
 
 def analyze_funding_chain(
     address: str,
@@ -120,6 +123,7 @@ def analyze_funding_chain(
 
 # ── Identity Resolution ──────────────────────────────────────────
 
+
 def resolve_cross_chain_identity(
     address: str,
     chain: str,
@@ -154,13 +158,15 @@ def resolve_cross_chain_identity(
                         / (np.linalg.norm(behavioral_fingerprint) * np.linalg.norm(m_vec) + 1e-8)
                     )
                     if sim > 0.7:
-                        matches.append({
-                            "address": m_addr,
-                            "chain": m_chain,
-                            "confidence": round(sim * 100),
-                            "method": "behavioral_fingerprint",
-                            "evidence": f"Behavioral fingerprint similarity: {sim:.2f}",
-                        })
+                        matches.append(
+                            {
+                                "address": m_addr,
+                                "chain": m_chain,
+                                "confidence": round(sim * 100),
+                                "method": "behavioral_fingerprint",
+                                "evidence": f"Behavioral fingerprint similarity: {sim:.2f}",
+                            }
+                        )
                         evidence.append(f"Behavioral match: {m_addr} on {m_chain} ({sim:.1%})")
 
     # 2. Deployer-based matching (NEW — powered by cross_chain_tracking)
@@ -174,16 +180,16 @@ def resolve_cross_chain_identity(
         if deployer_profile.total_chains > 1:
             for addr in deployer_profile.addresses:
                 if addr.address != address.lower() or addr.chain != chain:
-                    matches.append({
-                        "address": addr.address,
-                        "chain": addr.chain,
-                        "confidence": int(addr.confidence * 100),
-                        "method": "same_deployer",
-                        "evidence": addr.evidence,
-                    })
-                    evidence.append(
-                        f"Same deployer on {addr.chain}: {addr.evidence}"
+                    matches.append(
+                        {
+                            "address": addr.address,
+                            "chain": addr.chain,
+                            "confidence": int(addr.confidence * 100),
+                            "method": "same_deployer",
+                            "evidence": addr.evidence,
+                        }
                     )
+                    evidence.append(f"Same deployer on {addr.chain}: {addr.evidence}")
     except Exception as e:
         logger.debug("Deployer matcher failed for %s: %s", address[:12], e)
 
@@ -224,6 +230,7 @@ def resolve_cross_chain_identity(
 
 # ── Quick utility: detect chain from address format ──────────────
 
+
 def detect_chain(address: str) -> str | None:
     """Detect blockchain from address format."""
     if re.match(r"^0x[a-fA-F0-9]{40}$", address):
@@ -239,9 +246,11 @@ def detect_chain(address: str) -> str | None:
 
 # ── NEW: Convenience wrappers for cross_chain_tracking ───────────
 
+
 async def get_cross_chain_profile(address: str, chain: str = "ethereum") -> dict:
     """Get cross-chain entity profile — delegates to tracking package."""
     from app.cross_chain_tracking.entity_tracker import get_entity_tracker
+
     tracker = get_entity_tracker()
     profile = await tracker.resolve(address, chain)
     return profile.model_dump(mode="json")
@@ -254,6 +263,7 @@ async def get_multi_chain_deployers(
 ) -> list[dict]:
     """Get deployers active on multiple chains."""
     from app.cross_chain_tracking.deployer_matcher import DeployerMatcher
+
     matcher = DeployerMatcher()
     results = await matcher.find_multi_chain_deployers(
         min_chains=min_chains,

@@ -32,6 +32,7 @@ logger = get_logger("unified_data")
 # CACHE
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TieredCache:
     """L1 in-memory cache."""
 
@@ -58,6 +59,7 @@ class TieredCache:
             oldest = min(self._l1.keys(), key=lambda k: self._l1[k][0])
             del self._l1[oldest]
 
+
 class ToolResult:
     """Result from a tool data call with provenance tracking."""
 
@@ -78,9 +80,11 @@ class ToolResult:
             "confidence": round(self.confidence, 2),
         }
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # PROVIDER CHAINS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class ProviderChain:
     """Ordered list of data providers with fallback."""
@@ -110,9 +114,11 @@ class ProviderChain:
                 continue
         return None
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # UNIFIED LAYER
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class UnifiedDataLayer:
     """Single entry point for ALL tool data calls.
@@ -353,9 +359,7 @@ class UnifiedDataLayer:
                 d = r.json()
                 return {
                     "score": d.get("score", 0),
-                    "risks": [
-                        r.get("name") for r in d.get("risks", []) if r.get("score", 0) > 1000
-                    ],
+                    "risks": [r.get("name") for r in d.get("risks", []) if r.get("score", 0) > 1000],
                 }
 
     async def _honeypot(self, address: str, **kw) -> dict[str, Any | None]:
@@ -424,9 +428,7 @@ class UnifiedDataLayer:
     async def _evm_rpc(self, address: str, chain_id: int = 1, **kw) -> dict:
         from app.consensus_rpc import get_consensus_rpc
 
-        r = await get_consensus_rpc().evm_query_with_consensus(
-            chain_id, "eth_getBalance", [address, "latest"]
-        )
+        r = await get_consensus_rpc().evm_query_with_consensus(chain_id, "eth_getBalance", [address, "latest"])
         if r and r.value:
             return {"balance": int(r.value, 16) / 1e18 if isinstance(r.value, str) else r.value}
 
@@ -442,11 +444,13 @@ class UnifiedDataLayer:
             "data_types": len(self._providers),
         }
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ═══════════════════════════════════════════════════════════════════════════
 
 _layer: UnifiedDataLayer | None = None
+
 
 def get_data_layer() -> UnifiedDataLayer:
     global _layer

@@ -62,6 +62,7 @@ MALICIOUS_PATTERNS = [
     ("proxy upgrade risk", [r"upgradeTo\(", r"upgradeToAndCall\(", r"_upgradeTo"]),
 ]
 
+
 async def _get_contract_bytecode(address: str, chain: str, client: httpx.AsyncClient) -> dict[str, Any]:
     """Fetch contract bytecode and source from Etherscan/Blockscout."""
     explorers = {
@@ -106,10 +107,11 @@ async def _get_contract_bytecode(address: str, chain: str, client: httpx.AsyncCl
             result["source"] = data.get("SourceCode", "")
             result["abi"] = data.get("ABI", "[]")
             result["verified"] = True
-    except (httpx.HTTPError, ConnectionError, TimeoutError):
-        pass
+    except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+        logger.warning("Contract analyzer API error: %s", e)
 
     return result
+
 
 def _analyze_bytecode(bytecode: str, source: str) -> dict:
     """Analyze contract bytecode/source for suspicious patterns."""
@@ -158,15 +160,10 @@ def _analyze_bytecode(bytecode: str, source: str) -> dict:
                     break
 
     risk_level = (
-        "CRITICAL"
-        if risk_score >= 50
-        else "HIGH"
-        if risk_score >= 25
-        else "MEDIUM"
-        if risk_score >= 10
-        else "LOW"
+        "CRITICAL" if risk_score >= 50 else "HIGH" if risk_score >= 25 else "MEDIUM" if risk_score >= 10 else "LOW"
     )
     return {"risk_score": min(100, risk_score), "risk_level": risk_level, "findings": findings}
+
 
 @router.get("/analyze/{address}")
 async def analyze_contract(
@@ -191,8 +188,8 @@ async def analyze_contract(
             sentinel = resp.json()
             analysis["sentinel_score"] = sentinel.get("safety_score", 50)
             analysis["sentinel_flags"] = sentinel.get("risk_flags", [])
-    except (httpx.HTTPError, ConnectionError, TimeoutError):
-        pass
+    except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+        logger.warning("Contract analyzer API error: %s", e)
 
     return {
         "contract": address,
@@ -206,6 +203,7 @@ async def analyze_contract(
             f"Verified: {'Yes' if info.get('verified') else 'No'}."
         ),
     }
+
 
 @router.get("/detect-mint/{address}")
 async def detect_mint_function(
@@ -228,7 +226,5 @@ async def detect_mint_function(
         "has_mint_function": len(found) > 0,
         "mint_functions": found,
         "risk": "HIGH" if len(found) > 0 else "LOW",
-        "note": "Mint functions allow creating new tokens - typical of scams"
-        if found
-        else "No mint function detected",
+        "note": "Mint functions allow creating new tokens - typical of scams" if found else "No mint function detected",
     }

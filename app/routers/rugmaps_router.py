@@ -19,10 +19,12 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/rugmaps", tags=["rugmaps"])
 
+
 class RugMapsRequest(BaseModel):
     center_wallet: str
     depth: int = 2
     min_strength: float = 0.1
+
 
 def _get_rm() -> Any:
     try:
@@ -31,6 +33,7 @@ def _get_rm() -> Any:
         return get_rugmaps_engine()
     except ImportError as e:
         raise ServiceUnavailableError(f"Module unavailable: {e}") from e
+
 
 @router.post("/map")
 async def generate_rug_map(req: RugMapsRequest) -> dict:
@@ -46,6 +49,7 @@ async def generate_rug_map(req: RugMapsRequest) -> dict:
     except Exception as e:
         raise AppError(message=str(e)[:500]) from e
 
+
 @router.get("/analyze/{address}")
 async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)) -> dict:
     """Quick wallet analysis with RugMaps data."""
@@ -59,10 +63,9 @@ async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)) -> dic
         "risk_level": d.get("risk_level", "unknown"),
         "risk_score": d.get("risk_score", 0),
         "stats": d.get("stats", {}),
-        "top_counterparties": [
-            n["address"][:12] + "..." for n in d.get("nodes", []) if n.get("layer") == 1
-        ][:10],
+        "top_counterparties": [n["address"][:12] + "..." for n in d.get("nodes", []) if n.get("layer") == 1][:10],
     }
+
 
 @router.get("/entity/{address}")
 async def get_entity_info(address: str) -> dict:
@@ -73,6 +76,7 @@ async def get_entity_info(address: str) -> dict:
     risk, level = rm._calculate_risk(txs, node_count=1)
     return {"address": address, "entity": info, "risk_score": risk, "risk_level": level}
 
+
 @router.get(
     "/health",
     summary="Rugmaps Health",
@@ -80,6 +84,7 @@ async def get_entity_info(address: str) -> dict:
 )
 async def rugmaps_health() -> dict[str, str]:
     return {"status": "ok", "service": "rugmaps-engine"}
+
 
 @router.get("/token-graph")
 async def token_holder_graph(
@@ -168,9 +173,7 @@ async def token_holder_graph(
     }
 
     try:
-        ai_analysis = await generate_ai_analysis(
-            token_address, chain, graph_data, holders, labels, similar_scams
-        )
+        ai_analysis = await generate_ai_analysis(token_address, chain, graph_data, holders, labels, similar_scams)
     except Exception as e:
         logger.warning(f"AI analysis failed, using fallback: {e}")
         ai_analysis = generate_fallback_analysis(
@@ -213,6 +216,7 @@ async def token_holder_graph(
 
     return response
 
+
 def _get_explorer_url(chain: str, address: str) -> str:
     explorers = {
         "solana": "https://solscan.io/account/",
@@ -226,7 +230,9 @@ def _get_explorer_url(chain: str, address: str) -> str:
     base = explorers.get(chain, explorers["ethereum"])
     return base + address
 
+
 # ── Auto-Labeler ──────────────────────────────────────────────
+
 
 @router.post("/auto-label")
 async def auto_label_wallet(request: dict) -> dict[str, str]:
@@ -253,6 +259,7 @@ async def auto_label_wallet(request: dict) -> dict[str, str]:
         }
     except Exception as e:
         raise AppError(message=str(e)[:200]) from e
+
 
 @router.get("/auto-label/stats")
 async def auto_label_stats() -> dict[str, str]:

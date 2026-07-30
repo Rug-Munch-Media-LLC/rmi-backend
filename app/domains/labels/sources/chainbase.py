@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
+
 async def query_chainbase(address: str, chain: str = "ethereum") -> list[Label]:
     """Query Chainbase for an address's labels.
 

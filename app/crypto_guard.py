@@ -17,6 +17,7 @@ def check_wallet_reputation(address: str, chain: str = "base") -> dict[str, Any]
         "flags": [],
     }
 
+
 def rate_limit_by_tier(user_tier: str, endpoint: str) -> dict[str, Any]:
     """Apply rate limiting based on user tier."""
     limits = {
@@ -25,6 +26,7 @@ def rate_limit_by_tier(user_tier: str, endpoint: str) -> dict[str, Any]:
         "PREMIUM": {"requests_per_hour": 200, "daily_limit": 2000},
     }
     return {"tier": user_tier, "endpoint": endpoint, **limits.get(user_tier, limits["FREE"])}
+
 
 async def require_crypto_auth(request: Request) -> dict[str, Any]:
     """Require crypto authentication."""

@@ -353,8 +353,8 @@ class SmartMoneyTracker:
             if os.path.exists(self._move_history_file):
                 with open(self._move_history_file) as f:
                     return json.load(f)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Smart money tracker error: %s", e)
         return {}
 
     def _save_move_history(self, wallet_key: str, tx_hashes: set[str]) -> None:

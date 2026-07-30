@@ -27,6 +27,7 @@ class LabelSource(StrEnum):
     INTERNAL = "internal"  # our own growing set
     MBAL = "mbal"  # Multi-blockchain Anti-Laundering source
 
+
 @dataclass
 class Label:
     """A single label for an address.
@@ -63,9 +64,7 @@ class Label:
         }
 
     @classmethod
-    def dedupe_key(
-        cls, address: str, chain: str, label_type: str, label_value: str
-    ) -> tuple[str, str, str, str]:
+    def dedupe_key(cls, address: str, chain: str, label_type: str, label_value: str) -> tuple[str, str, str, str]:
         """Generate dedup key. Same key = same label from different sources."""
         return (address.lower(), chain.lower(), label_type.lower(), label_value.lower())
 

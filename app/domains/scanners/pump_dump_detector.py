@@ -31,6 +31,7 @@ logger = get_logger("pump_dump_detector")
 
 # ── Dataclasses ──────────────────────────────────────────────────────
 
+
 @dataclass
 class CoordinatedBuyGroup:
     """A cluster of wallets that bought in the same block or minute."""
@@ -40,6 +41,7 @@ class CoordinatedBuyGroup:
     total_buy_usd: float
     fresh_wallet_count: int
     block_number: int | None = None
+
 
 @dataclass
 class PumpDumpReport:
@@ -57,7 +59,9 @@ class PumpDumpReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
+
 # ── Detector Class ──────────────────────────────────────────────────
+
 
 class PumpDumpDetector:
     """Detects pump-and-dump and coordinated shill campaigns.
@@ -83,14 +87,12 @@ class PumpDumpDetector:
     async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
-            resp = await self._http.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
@@ -108,7 +110,7 @@ class PumpDumpDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("data", body)
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_birdeye_overview_error", exc_info=True)
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
         return None
@@ -126,7 +128,7 @@ class PumpDumpDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("data", {}).get("items", []) or []
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_birdeye_trades_error", exc_info=True)
             logger.warning(f"Birdeye trades failed for {token_address}: {e}")
         return []
@@ -162,9 +164,7 @@ class PumpDumpDetector:
 
         return round(vol_1h / avg_hourly, 2)
 
-    def _detect_price_volume_divergence(
-        self, dex_data: dict | None, birdeye_data: dict | None
-    ) -> bool:
+    def _detect_price_volume_divergence(self, dex_data: dict | None, birdeye_data: dict | None) -> bool:
         """Check if price is pumping but volume/mcap doesn't support it."""
         price_change = 0.0
         mcap = 0.0
@@ -249,9 +249,7 @@ class PumpDumpDetector:
                 return True
         return False
 
-    async def _detect_coordinated_buys(
-        self, trades: list[dict], chain: str
-    ) -> list[CoordinatedBuyGroup]:
+    async def _detect_coordinated_buys(self, trades: list[dict], chain: str) -> list[CoordinatedBuyGroup]:
         """Identify clusters of fresh wallets buying in the same time window."""
         if not trades:
             return []
@@ -275,13 +273,8 @@ class PumpDumpDetector:
             if len(window_buys) < self.MIN_COORDINATED_WALLETS:
                 continue
 
-            wallets = list(
-                {t.get("wallet", t.get("address", t.get("maker", ""))) for t in window_buys}
-            )
-            total_usd = sum(
-                float(t.get("volumeUsd", t.get("amountUsd", t.get("value", 0))))
-                for t in window_buys
-            )
+            wallets = list({t.get("wallet", t.get("address", t.get("maker", ""))) for t in window_buys})
+            total_usd = sum(float(t.get("volumeUsd", t.get("amountUsd", t.get("value", 0)))) for t in window_buys)
 
             # Count fresh wallets (for Solana we'd check signature count)
             fresh_count = 0
@@ -320,21 +313,15 @@ class PumpDumpDetector:
         # Volume spike
         if report.volume_spike_ratio >= self.VOLUME_SPIKE_CRITICAL:
             score += 35
-            warnings.append(
-                f"CRITICAL: Volume spike {report.volume_spike_ratio:.1f}x above 24h average"
-            )
+            warnings.append(f"CRITICAL: Volume spike {report.volume_spike_ratio:.1f}x above 24h average")
         elif report.volume_spike_ratio >= self.VOLUME_SPIKE_THRESHOLD:
             score += 20
-            warnings.append(
-                f"HIGH: Volume spike {report.volume_spike_ratio:.1f}x above 24h average"
-            )
+            warnings.append(f"HIGH: Volume spike {report.volume_spike_ratio:.1f}x above 24h average")
 
         # Coordinated buys
         if report.coordinated_buy_count >= 5:
             score += 30
-            warnings.append(
-                f"CRITICAL: {report.coordinated_buy_count} coordinated buy clusters detected"
-            )
+            warnings.append(f"CRITICAL: {report.coordinated_buy_count} coordinated buy clusters detected")
         elif report.coordinated_buy_count >= 3:
             score += 20
             warnings.append(f"HIGH: {report.coordinated_buy_count} coordinated buy clusters")
@@ -345,9 +332,7 @@ class PumpDumpDetector:
         # Price-volume divergence
         if report.price_volume_divergence:
             score += 15
-            warnings.append(
-                "MEDIUM: Price-volume divergence - price up without fundamental support"
-            )
+            warnings.append("MEDIUM: Price-volume divergence - price up without fundamental support")
 
         # Lifecycle stage
         if report.lifecycle_stage == "pump":
@@ -363,9 +348,7 @@ class PumpDumpDetector:
         # LP removal signal
         if report.has_lp_removal_signal:
             score += 25
-            warnings.append(
-                "CRITICAL: Liquidity very low relative to market cap - possible LP removal"
-            )
+            warnings.append("CRITICAL: Liquidity very low relative to market cap - possible LP removal")
 
         # Fake volume signal
         if report.has_fake_volume_signal:
@@ -415,9 +398,7 @@ class PumpDumpDetector:
         report.coordinated_buy_count = len(coordinated_groups)
 
         # 4. Price-volume divergence
-        report.price_volume_divergence = self._detect_price_volume_divergence(
-            dex_data, birdeye_data
-        )
+        report.price_volume_divergence = self._detect_price_volume_divergence(dex_data, birdeye_data)
 
         # 5. Lifecycle stage
         report.lifecycle_stage = self._determine_lifecycle_stage(dex_data, birdeye_data)

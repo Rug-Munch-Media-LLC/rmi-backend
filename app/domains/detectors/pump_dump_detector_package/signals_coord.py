@@ -1,4 +1,5 @@
 """Coordinated buy and wash trading detection signals."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -18,7 +19,10 @@ if TYPE_CHECKING:
 
 
 async def detect_coordinated_buys(
-    client: httpx.AsyncClient, token_address: str, chain: str, depth: int = 100,
+    client: httpx.AsyncClient,
+    token_address: str,
+    chain: str,
+    depth: int = 100,
 ) -> dict:
     """Detect groups of wallets buying in coordinated windows."""
     findings: list[dict] = []
@@ -53,21 +57,38 @@ async def detect_coordinated_buys(
             total_usd += float(trade.get("amountUsd", 0) or 0)
         if not wallets:
             continue
-        groups.append(CoordinatedBuyGroup(
-            wallets=wallets[:20], window_seconds=PUMP_DUMP_THRESHOLDS["coordinated_buy_window_s"],
-            total_buy_usd=total_usd, fresh_wallet_count=0,
-            block_number=cluster[0].get("slot", None) or cluster[0].get("blockNumber", None),
-            timestamp=cluster[0].get("unixTime", None), chain=chain,
-        ))
+        groups.append(
+            CoordinatedBuyGroup(
+                wallets=wallets[:20],
+                window_seconds=PUMP_DUMP_THRESHOLDS["coordinated_buy_window_s"],
+                total_buy_usd=total_usd,
+                fresh_wallet_count=0,
+                block_number=cluster[0].get("slot", None) or cluster[0].get("blockNumber", None),
+                timestamp=cluster[0].get("unixTime", None),
+                chain=chain,
+            )
+        )
         sev = FindingSeverity.HIGH if len(wallets) >= 5 else FindingSeverity.MEDIUM
-        findings.append({"finding_type": ManipulationType.COORDINATED_PUMP, "severity": sev,
-            "description": f"Coordinated buy group: {len(wallets)} wallets bought ${total_usd:,.0f} in {PUMP_DUMP_THRESHOLDS['coordinated_buy_window_s']}s window",
-            "detail": f"Fresh wallets: 0/{len(wallets)}",
-            "evidence": {"wallet_count": len(wallets), "total_usd": total_usd, "window_s": PUMP_DUMP_THRESHOLDS["coordinated_buy_window_s"]}})
+        findings.append(
+            {
+                "finding_type": ManipulationType.COORDINATED_PUMP,
+                "severity": sev,
+                "description": f"Coordinated buy group: {len(wallets)} wallets bought ${total_usd:,.0f} in {PUMP_DUMP_THRESHOLDS['coordinated_buy_window_s']}s window",
+                "detail": f"Fresh wallets: 0/{len(wallets)}",
+                "evidence": {
+                    "wallet_count": len(wallets),
+                    "total_usd": total_usd,
+                    "window_s": PUMP_DUMP_THRESHOLDS["coordinated_buy_window_s"],
+                },
+            }
+        )
     return {"groups": groups, "findings": findings}
 
+
 async def detect_wash_trading(
-    client: httpx.AsyncClient, token_address: str, chain: str,
+    client: httpx.AsyncClient,
+    token_address: str,
+    chain: str,
 ) -> dict:
     """Detect wash trading patterns (circular trades between controlled wallets)."""
     findings: list[dict] = []
@@ -100,11 +121,23 @@ async def detect_wash_trading(
         vol = sum(float(t.get("amountUsd", 0) or 0) for t in ctrades)
         vpct = (vol / tv * 100) if tv > 0 else 0
         if vpct >= PUMP_DUMP_THRESHOLDS["wash_trade_min_volume_pct"]:
-            clusters.append(WashTradeCluster(wallets=list(circle), volume_created_usd=vol,
-                trade_count=len(ctrades), circular_trades=len(ctrades), volume_pct_of_total=vpct))
+            clusters.append(
+                WashTradeCluster(
+                    wallets=list(circle),
+                    volume_created_usd=vol,
+                    trade_count=len(ctrades),
+                    circular_trades=len(ctrades),
+                    volume_pct_of_total=vpct,
+                )
+            )
             sev = FindingSeverity.CRITICAL if vpct > 25 else FindingSeverity.HIGH
-            findings.append({"finding_type": ManipulationType.WASH_TRADING, "severity": sev,
-                "description": f"Wash trading ring: {len(circle)} wallets created ${vol:,.0f} ({vpct:.0f}% of total volume)",
-                "detail": f"Circular flow: {', '.join(list(circle)[:3])}... → circular pattern",
-                "evidence": {"wallets": list(circle), "volume": vol, "volume_pct": vpct}})
+            findings.append(
+                {
+                    "finding_type": ManipulationType.WASH_TRADING,
+                    "severity": sev,
+                    "description": f"Wash trading ring: {len(circle)} wallets created ${vol:,.0f} ({vpct:.0f}% of total volume)",
+                    "detail": f"Circular flow: {', '.join(list(circle)[:3])}... → circular pattern",
+                    "evidence": {"wallets": list(circle), "volume": vol, "volume_pct": vpct},
+                }
+            )
     return {"clusters": clusters, "findings": findings}

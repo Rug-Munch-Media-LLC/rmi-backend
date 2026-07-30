@@ -12,6 +12,7 @@ log = get_logger(__name__)
 
 CSV_PATH = "/home/dev/rmi/backend/data/wallet-labels-clean/wallet_labels_solana.csv"
 
+
 async def query_solana_labels_csv(address: str, chain: str = "solana") -> list[Label]:
     """Query the Solana wallet labels CSV via DuckDB.
 
@@ -41,12 +42,7 @@ async def query_solana_labels_csv(address: str, chain: str = "solana") -> list[L
                 labels = []
                 for row in rows:
                     # Field names may differ - try common names
-                    label_value = (
-                        row.get("name")
-                        or row.get("label")
-                        or row.get("entity_type")
-                        or row.get("source")
-                    )
+                    label_value = row.get("name") or row.get("label") or row.get("entity_type") or row.get("source")
                     if not label_value:
                         continue
                     labels.append(
@@ -58,17 +54,13 @@ async def query_solana_labels_csv(address: str, chain: str = "solana") -> list[L
                             source=LabelSource.SOLANA_LABELS_CSV,
                             confidence=0.8,
                             verified_at=datetime.now(UTC),
-                            attributes={
-                                k: v
-                                for k, v in row.items()
-                                if k not in ("address", "name", "label") and v
-                            },
+                            attributes={k: v for k, v in row.items() if k not in ("address", "name", "label") and v},
                         )
                     )
                 return labels
             finally:
                 d.close()
-        except (ConnectionError, TimeoutError, ValueError, TypeError, KeyError) as e :
+        except (ConnectionError, TimeoutError, ValueError, TypeError, KeyError) as e:
             log.warning("solana_labels_csv_query_fail address=%s err=%s", address[:10], e)
             raise
 

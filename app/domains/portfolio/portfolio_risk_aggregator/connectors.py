@@ -1,4 +1,5 @@
 """Chain connectors for portfolio scanning."""
+
 from __future__ import annotations
 
 import asyncio
@@ -12,21 +13,29 @@ logger = get_logger(__name__)
 
 try:
     from web3 import HTTPProvider, Web3 as _Web3
+
     WEB3_AVAILABLE = True
 except ImportError:
-    WEB3_AVAILABLE = False; _Web3 = None; HTTPProvider = None
+    WEB3_AVAILABLE = False
+    _Web3 = None
+    HTTPProvider = None
 
 try:
     from solana.rpc.api import Client as SolanaClient
+
     SOLANA_AVAILABLE = True
 except ImportError:
-    SOLANA_AVAILABLE = False; SolanaClient = None
+    SOLANA_AVAILABLE = False
+    SolanaClient = None
+
 
 class ChainConnector:
     async def get_native_balance(self, address: str) -> float:
         raise NotImplementedError
+
     async def get_token_balances(self, address: str) -> list[dict[str, Any]]:
         raise NotImplementedError
+
 
 class EVMConnector(ChainConnector):
     def __init__(self, chain_name: str, config: dict[str, Any]) -> None:
@@ -44,10 +53,12 @@ class EVMConnector(ChainConnector):
             if self.config.get("poa"):
                 try:
                     from web3.middleware import geth_poa_middleware
+
                     self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
                 except ImportError:
                     try:
                         from web3.middleware import ExtraDataToPOAMiddleware
+
                         self._w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
                     except ImportError:
                         pass
@@ -56,7 +67,7 @@ class EVMConnector(ChainConnector):
     async def get_native_balance(self, address: str) -> float:
         try:
             bal_wei = await asyncio.to_thread(self.w3.eth.get_balance, address)
-            return float(bal_wei) / (10**self.config["decimals"])
+            return float(bal_wei) / (10 ** self.config["decimals"])
         except Exception as e:
             logger.warning(f"{self.chain_name} balance error: {e}")
             return 0.0
@@ -72,7 +83,15 @@ class EVMConnector(ChainConnector):
                 if bal > 0:
                     dec = await asyncio.to_thread(contract.functions.decimals.call)
                     sym = await asyncio.to_thread(contract.functions.symbol.call)
-                    results.append({"address": token_addr, "symbol": sym, "balance_raw": bal, "balance_formatted": float(bal) / (10**dec), "decimals": dec})
+                    results.append(
+                        {
+                            "address": token_addr,
+                            "symbol": sym,
+                            "balance_raw": bal,
+                            "balance_formatted": float(bal) / (10**dec),
+                            "decimals": dec,
+                        }
+                    )
                     checked.add(token_addr.lower())
             except Exception:
                 logger.debug("common_token_balance_failed %s", token_addr[:12])
@@ -89,7 +108,9 @@ class EVMConnector(ChainConnector):
                     "topics": [
                         transfer_topic,
                         None,
-                        _Web3.to_checksum_address(address).hex() if address.startswith("0x") else "0x" + address.zfill(64),
+                        _Web3.to_checksum_address(address).hex()
+                        if address.startswith("0x")
+                        else "0x" + address.zfill(64),
                     ],
                 },
             )
@@ -104,7 +125,15 @@ class EVMConnector(ChainConnector):
                     if bal > 0:
                         dec = await asyncio.to_thread(contract.functions.decimals.call)
                         sym = await asyncio.to_thread(contract.functions.symbol.call)
-                        results.append({"address": log["address"], "symbol": sym, "balance_raw": bal, "balance_formatted": float(bal) / (10**dec), "decimals": dec})
+                        results.append(
+                            {
+                                "address": log["address"],
+                                "symbol": sym,
+                                "balance_raw": bal,
+                                "balance_formatted": float(bal) / (10**dec),
+                                "decimals": dec,
+                            }
+                        )
                 except Exception:
                     logger.debug("event_log_balance_failed %s", token_addr[:12])
                 if len(results) >= MAX_TOKENS_PER_WALLET:
@@ -112,6 +141,7 @@ class EVMConnector(ChainConnector):
         except Exception as e:
             logger.debug(f"{self.chain_name} event scan error: {e}")
         return results
+
 
 class SolanaConnector(ChainConnector):
     def __init__(self) -> None:
@@ -128,6 +158,7 @@ class SolanaConnector(ChainConnector):
     async def get_native_balance(self, address: str) -> float:
         try:
             from solana.rpc.api import Pubkey as SolPubkey
+
             pubkey = SolPubkey.from_string(address)
             resp = await asyncio.to_thread(self.client.get_balance, pubkey)
             if resp and resp.get("result"):
@@ -141,6 +172,7 @@ class SolanaConnector(ChainConnector):
         results = []
         try:
             from solana.rpc.api import Pubkey as SolPubkey
+
             pubkey = SolPubkey.from_string(address)
             resp = await asyncio.to_thread(self.client.get_token_accounts_by_owner_json_parsed, pubkey)
             if not resp or not resp.get("result"):
@@ -153,9 +185,20 @@ class SolanaConnector(ChainConnector):
                     ui_amount = float(token_amount.get("uiAmount", 0) or 0)
                     if ui_amount <= 0:
                         continue
-                    results.append({"address": mint, "symbol": token_amount.get("symbol", "SPL"), "balance_raw": int(token_amount.get("amount", "0")), "balance_formatted": ui_amount, "decimals": token_amount.get("decimals", 0)})
+                    results.append(
+                        {
+                            "address": mint,
+                            "symbol": token_amount.get("symbol", "SPL"),
+                            "balance_raw": int(token_amount.get("amount", "0")),
+                            "balance_formatted": ui_amount,
+                            "decimals": token_amount.get("decimals", 0),
+                        }
+                    )
                 except Exception:
-                    logger.debug("solana_parse_token_failed %s", item.get("account", {}).get("data", {}).get("parsed", {}).get("info", {}).get("mint", "")[:12])
+                    logger.debug(
+                        "solana_parse_token_failed %s",
+                        item.get("account", {}).get("data", {}).get("parsed", {}).get("info", {}).get("mint", "")[:12],
+                    )
         except Exception as e:
             logger.warning(f"solana token balances error: {e}")
         return results

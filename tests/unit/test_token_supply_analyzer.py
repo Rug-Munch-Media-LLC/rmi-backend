@@ -111,7 +111,9 @@ class TestConcentrationScoring(unittest.TestCase):
         profile.top_50_holder_pct = 30.0
 
         _analyze_concentration(profile)
-        assert profile.concentration_score < 20, f"Fair distribution should score low, got {profile.concentration_score}"
+        assert profile.concentration_score < 20, (
+            f"Fair distribution should score low, got {profile.concentration_score}"
+        )
 
 
 class TestLiquidityScoring(unittest.TestCase):
@@ -170,7 +172,9 @@ class TestOverallRisk(unittest.TestCase):
         _analyze_concentration(profile)
         _analyze_liquidity(profile)
         _compute_overall_risk(profile)
-        assert profile.overall_risk in (SupplyRisk.HIGH, SupplyRisk.CRITICAL), f"Scam token should be high/critical, got {profile.overall_risk}"
+        assert profile.overall_risk in (SupplyRisk.HIGH, SupplyRisk.CRITICAL), (
+            f"Scam token should be high/critical, got {profile.overall_risk}"
+        )
 
     def test_safe_token(self) -> None:
         """A token with good practices should be safe/low."""
@@ -195,7 +199,9 @@ class TestOverallRisk(unittest.TestCase):
         _analyze_concentration(profile)
         _analyze_liquidity(profile)
         _compute_overall_risk(profile)
-        assert profile.overall_risk in (SupplyRisk.SAFE, SupplyRisk.LOW), f"Safe token should be safe/low, got {profile.overall_risk}"
+        assert profile.overall_risk in (SupplyRisk.SAFE, SupplyRisk.LOW), (
+            f"Safe token should be safe/low, got {profile.overall_risk}"
+        )
 
 
 class TestUtilities(unittest.TestCase):

@@ -45,7 +45,12 @@ router = APIRouter(prefix="/api/v1/bulletin-board", tags=["bulletin-board"])
 
 # ── Public Endpoints ──────────────────────────────────────────
 
-@router.get("/posts", summary="Public List Posts", description="List published bulletin board posts with pagination. Returns title, slug, excerpt, author, category, publish date, and metadata. Filters by category and search query.")
+
+@router.get(
+    "/posts",
+    summary="Public List Posts",
+    description="List published bulletin board posts with pagination. Returns title, slug, excerpt, author, category, publish date, and metadata. Filters by category and search query.",
+)
 async def public_list_posts(
     request: Request,
     category: str = "",
@@ -93,6 +98,7 @@ async def public_list_posts(
         "offset": offset,
     }
 
+
 @router.get("/posts/{slug}")
 async def public_get_post(request: Request, slug: str) -> dict:
     """Get a single published post by slug (public)."""
@@ -105,7 +111,12 @@ async def public_get_post(request: Request, slug: str) -> dict:
 
     return {"post": post.to_public_dict()}
 
-@router.get("/categories", summary="Public Categories", description="List all post categories with the count of published posts in each. Useful for navigation and filtering.")
+
+@router.get(
+    "/categories",
+    summary="Public Categories",
+    description="List all post categories with the count of published posts in each. Useful for navigation and filtering.",
+)
 async def public_categories() -> dict:
     """List all categories with counts."""
     stats = await BulletinBoardManager.get_stats()
@@ -120,7 +131,12 @@ async def public_categories() -> dict:
         )
     return {"categories": categories}
 
-@router.get("/pinned", summary="Public Pinned Posts", description="Get pinned posts that are featured at the top of the bulletin board. Pinned posts are manually curated by admins.")
+
+@router.get(
+    "/pinned",
+    summary="Public Pinned Posts",
+    description="Get pinned posts that are featured at the top of the bulletin board. Pinned posts are manually curated by admins.",
+)
 async def public_pinned_posts(limit: int = 5) -> dict:
     """Get pinned posts (public)."""
     result = await BulletinBoardManager.list_posts(
@@ -146,7 +162,9 @@ async def public_pinned_posts(limit: int = 5) -> dict:
         posts.append(safe)
     return {"posts": posts, "total": result["total"]}
 
+
 # ── Admin Models ──────────────────────────────────────────────
+
 
 class CreatePostRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
@@ -166,6 +184,7 @@ class CreatePostRequest(BaseModel):
     meta_description: str = ""
     og_image: str = ""
 
+
 class UpdatePostRequest(BaseModel):
     title: str | None = None
     content: str | None = None
@@ -184,11 +203,14 @@ class UpdatePostRequest(BaseModel):
     meta_description: str | None = None
     og_image: str | None = None
 
+
 class CommentRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000)
     parent_id: str | None = None
 
+
 # ── Admin Endpoints ───────────────────────────────────────────
+
 
 @router.get("/admin/bulletin/posts")
 async def admin_list_posts(
@@ -224,7 +246,12 @@ async def admin_list_posts(
         "offset": offset,
     }
 
-@router.post("/admin/bulletin/posts", summary="Admin Create Post", description="Create a new bulletin board post. Supports Markdown content, categories, tags, meta description, scheduled publishing, and pinning.")
+
+@router.post(
+    "/admin/bulletin/posts",
+    summary="Admin Create Post",
+    description="Create a new bulletin board post. Supports Markdown content, categories, tags, meta description, scheduled publishing, and pinning.",
+)
 async def admin_create_post(request: Request, body: CreatePostRequest) -> dict[str, bool]:
     """Create a new bulletin board post."""
     auth = await require_admin(request, "content.write")
@@ -276,6 +303,7 @@ async def admin_create_post(request: Request, body: CreatePostRequest) -> dict[s
 
     return {"success": True, "post": post.to_dict()}
 
+
 @router.get("/admin/bulletin/posts/{post_id}")
 async def admin_get_post(request: Request, post_id: str) -> dict[str, dict]:
     """Get full post details (admin)."""
@@ -287,7 +315,12 @@ async def admin_get_post(request: Request, post_id: str) -> dict[str, dict]:
 
     return {"post": post.to_dict()}
 
-@router.put("/admin/bulletin/posts/{post_id}", summary="Admin Update Post", description="Update an existing post. Supports partial updates: title, content, category, tags, meta description, and scheduled publish date.")
+
+@router.put(
+    "/admin/bulletin/posts/{post_id}",
+    summary="Admin Update Post",
+    description="Update an existing post. Supports partial updates: title, content, category, tags, meta description, and scheduled publish date.",
+)
 async def admin_update_post(
     request: Request,
     post_id: str,
@@ -332,7 +365,12 @@ async def admin_update_post(
 
     return {"success": True, "post": updated.to_dict()}
 
-@router.delete("/admin/bulletin/posts/{post_id}", summary="Admin Delete Post", description="Soft-delete (archive) a post. Archived posts are hidden from public views but retained in the database for recovery.")
+
+@router.delete(
+    "/admin/bulletin/posts/{post_id}",
+    summary="Admin Delete Post",
+    description="Soft-delete (archive) a post. Archived posts are hidden from public views but retained in the database for recovery.",
+)
 async def admin_delete_post(request: Request, post_id: str) -> dict[str, bool]:
     """Delete (archive) a post."""
     auth = await require_admin(request, "content.write")
@@ -357,7 +395,12 @@ async def admin_delete_post(request: Request, post_id: str) -> dict[str, bool]:
 
     return {"success": True, "message": "Post archived"}
 
-@router.post("/admin/bulletin/posts/{post_id}/publish", summary="Admin Publish Post", description="Immediately publish a draft or scheduled post. Sets the published_at timestamp and makes it visible to the public.")
+
+@router.post(
+    "/admin/bulletin/posts/{post_id}/publish",
+    summary="Admin Publish Post",
+    description="Immediately publish a draft or scheduled post. Sets the published_at timestamp and makes it visible to the public.",
+)
 async def admin_publish_post(request: Request, post_id: str) -> dict[str, bool]:
     """Publish a post immediately."""
     auth = await require_admin(request, "content.write")
@@ -388,7 +431,12 @@ async def admin_publish_post(request: Request, post_id: str) -> dict[str, bool]:
 
     return {"success": True, "published_at": updated.published_at}
 
-@router.post("/admin/bulletin/posts/{post_id}/unpublish", summary="Admin Unpublish Post", description="Unpublish a post and return it to draft status. The post becomes hidden from public views.")
+
+@router.post(
+    "/admin/bulletin/posts/{post_id}/unpublish",
+    summary="Admin Unpublish Post",
+    description="Unpublish a post and return it to draft status. The post becomes hidden from public views.",
+)
 async def admin_unpublish_post(request: Request, post_id: str) -> dict[str, bool]:
     """Unpublish a post (move to draft)."""
     auth = await require_admin(request, "content.write")
@@ -419,7 +467,12 @@ async def admin_unpublish_post(request: Request, post_id: str) -> dict[str, bool
 
     return {"success": True}
 
-@router.post("/admin/bulletin/posts/{post_id}/pin", summary="Admin Pin Post", description="Toggle the pinned status of a post. Pinned posts appear at the top of bulletin listings.")
+
+@router.post(
+    "/admin/bulletin/posts/{post_id}/pin",
+    summary="Admin Pin Post",
+    description="Toggle the pinned status of a post. Pinned posts appear at the top of bulletin listings.",
+)
 async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...)) -> dict[str, bool]:
     """Pin or unpin a post."""
     auth = await require_admin(request, "content.write")
@@ -453,6 +506,7 @@ async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...))
 
     return {"success": True, "pinned": pinned}
 
+
 @router.get("/admin/bulletin/stats")
 async def admin_bulletin_stats(request: Request) -> dict:
     """Get bulletin board statistics."""
@@ -460,6 +514,7 @@ async def admin_bulletin_stats(request: Request) -> dict:
 
     stats = await BulletinBoardManager.get_stats()
     return {"stats": stats}
+
 
 @router.get("/admin/bulletin/scheduled")
 async def admin_scheduled_posts(request: Request) -> dict:
@@ -472,6 +527,7 @@ async def admin_scheduled_posts(request: Request) -> dict:
         sort_order="asc",
     )
     return {"posts": result["posts"], "total": result["total"]}
+
 
 @router.post("/admin/bulletin/process-scheduled")
 async def admin_process_scheduled(request: Request) -> dict[str, bool]:
@@ -494,6 +550,7 @@ async def admin_process_scheduled(request: Request) -> dict[str, bool]:
 
     return {"success": True, "published": published, "count": len(published)}
 
+
 @router.post("/admin/bulletin/process-expired")
 async def admin_process_expired(request: Request) -> dict[str, bool]:
     """Process expired posts (archive ones past expiry)."""
@@ -515,7 +572,9 @@ async def admin_process_expired(request: Request) -> dict[str, bool]:
 
     return {"success": True, "archived": archived, "count": len(archived)}
 
+
 # ── Comments (Admin Moderation) ─────────────────────────────
+
 
 @router.get("/admin/bulletin/posts/{post_id}/comments")
 async def admin_get_comments(request: Request, post_id: str) -> dict:
@@ -524,6 +583,7 @@ async def admin_get_comments(request: Request, post_id: str) -> dict:
 
     comments = await BulletinBoardManager.get_comments(post_id)
     return {"comments": comments, "total": len(comments)}
+
 
 @router.post("/admin/bulletin/comments/{comment_id}/moderate")
 async def admin_moderate_comment(
@@ -551,11 +611,17 @@ async def admin_moderate_comment(
 
     return {"success": True, "status": status}
 
+
 # ═══════════════════════════════════════════════════
 # BADGES & REPUTATION ENDPOINTS
 # ═══════════════════════════════════════════════════
 
-@router.get("/badges/{user_id}", summary="Get Badges", description="Get all badges earned by a specific user. Includes badge name, description, icon URL, and earned date.")
+
+@router.get(
+    "/badges/{user_id}",
+    summary="Get Badges",
+    description="Get all badges earned by a specific user. Includes badge name, description, icon URL, and earned date.",
+)
 async def get_badges(user_id: str) -> dict:
     """Get user badges."""
     from app.bulletin_board import get_user_badges, get_user_reputation
@@ -564,7 +630,12 @@ async def get_badges(user_id: str) -> dict:
     rep = await get_user_reputation(user_id)
     return {"user_id": user_id, "badges": badges, **rep}
 
-@router.get("/leaderboard", summary="Get Leaderboard", description="Top users by reputation score. Returns ranking with username, score, badge count, and level.")
+
+@router.get(
+    "/leaderboard",
+    summary="Get Leaderboard",
+    description="Top users by reputation score. Returns ranking with username, score, badge count, and level.",
+)
 async def get_leaderboard(limit: int = 20) -> dict:
     """Top users by reputation."""
     r = await BulletinBoardManager._get_redis()
@@ -582,9 +653,11 @@ async def get_leaderboard(limit: int = 20) -> dict:
     finally:
         await r.close()
 
+
 # ═══════════════════════════════════════════════════
 # X402 BOT POSTING - $1 per post for bots/agents
 # ═══════════════════════════════════════════════════
+
 
 @router.post("/x402/bot-post")
 async def x402_bot_post(request: Request, data: dict) -> dict[str, bool]:
@@ -631,6 +704,7 @@ async def x402_bot_post(request: Request, data: dict) -> dict[str, bool]:
         "bot_address": bot_addr,
         "membership": "30 days unlimited posting",
     }
+
 
 @router.get("/x402/info")
 async def x402_bot_info() -> dict[str, str]:

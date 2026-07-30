@@ -108,6 +108,7 @@ _AI_CONTENT_PATTERNS = [
 
 # ── Core Detection Functions ─────────────────────────────────────
 
+
 def analyze_profile_photo(photo_url: str | None, name: str) -> dict:
     """Analyze team profile photos for synthetic/AI indicators.
 
@@ -168,6 +169,7 @@ def analyze_profile_photo(photo_url: str | None, name: str) -> dict:
         "flags": flags,
         "details": f"Photo URL: {photo_url[:80]}...",
     }
+
 
 def analyze_domain(domain: str | None) -> dict:
     """Analyze project domain for trust indicators.
@@ -244,6 +246,7 @@ def analyze_domain(domain: str | None) -> dict:
         "details": "Domain analysis based on lexical patterns (full WHOIS requires API key)",
     }
 
+
 def analyze_social_presence(social_links: list[str] | None) -> dict:
     """Analyze social media presence for authenticity.
 
@@ -298,9 +301,7 @@ def analyze_social_presence(social_links: list[str] | None) -> dict:
     # Less than 2 platforms = suspicious
     if platform_count < 2:
         score += 25
-        flags.append(
-            f"Insufficient platform diversity ({platform_count}/2 minimum for legitimate projects)"
-        )
+        flags.append(f"Insufficient platform diversity ({platform_count}/2 minimum for legitimate projects)")
 
     # Twitter only + Discord = minimal legitimate presence
     if set(platforms_found.keys()).issubset({"twitter", "discord"}):
@@ -319,6 +320,7 @@ def analyze_social_presence(social_links: list[str] | None) -> dict:
         "flags": flags,
         "details": f"Found {platform_count} social platforms",
     }
+
 
 def analyze_whitepaper_content(text: str | None) -> dict:
     """Analyze whitepaper/documentation text for AI generation or plagiarism.
@@ -394,6 +396,7 @@ def analyze_whitepaper_content(text: str | None) -> dict:
         "details": details or ["Content analysis complete"],
     }
 
+
 async def check_team_background(name: str, role: str, social_handle: str | None) -> dict:
     """Check team member background for red flags.
 
@@ -437,6 +440,7 @@ async def check_team_background(name: str, role: str, social_handle: str | None)
         "flags": flags,
         "details": "Analysis based on name, role, and social presence patterns",
     }
+
 
 async def detect_social_engineering(
     token_address: str,
@@ -497,13 +501,9 @@ async def detect_social_engineering(
             member_result["photo_analysis_score"] = photo_result["risk_score"]
             team_results.append(member_result)
 
-        avg_team_score = (
-            sum(m["risk_score"] for m in team_results) / len(team_results) if team_results else 0
-        )
+        avg_team_score = sum(m["risk_score"] for m in team_results) / len(team_results) if team_results else 0
         avg_photo_score = (
-            sum(m.get("photo_analysis_score", 0) for m in team_results) / len(team_results)
-            if team_results
-            else 0
+            sum(m.get("photo_analysis_score", 0) for m in team_results) / len(team_results) if team_results else 0
         )
         team_combined = avg_team_score * TEAM_IDENTITY_WEIGHT + avg_photo_score * TEAM_PHOTO_WEIGHT
         results["team_analysis"] = {
@@ -538,9 +538,7 @@ async def detect_social_engineering(
 
             async with aiohttp.ClientSession() as session:
                 try:
-                    async with session.get(
-                        pump_url, timeout=aiohttp.ClientTimeout(total=8)
-                    ) as resp:
+                    async with session.get(pump_url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             token_data = data if isinstance(data, dict) else {}

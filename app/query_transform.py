@@ -46,6 +46,7 @@ AI_MODEL = os.getenv("QUERY_TRANSFORM_MODEL", os.getenv("LLM_MODEL", "deepseek-v
 # DATA MODEL
 # ======================================================================
 
+
 @dataclass
 class TransformedQuery:
     original_query: str
@@ -53,9 +54,11 @@ class TransformedQuery:
     transformed_queries: list[str]  # list of strings to embed & search
     metadata: dict = field(default_factory=dict)
 
+
 # ======================================================================
 # REDIS HELPER
 # ======================================================================
+
 
 async def _get_redis() -> Any:
     import redis.asyncio as ai_redis
@@ -68,9 +71,11 @@ async def _get_redis() -> Any:
         decode_responses=True,
     )
 
+
 # ======================================================================
 # LLM HELPER
 # ======================================================================
+
 
 async def _call_llm(prompt: str, max_tokens: int = 512) -> str | None:
     """Call LLM chat API (DeepSeek primary, OpenRouter fallback). Returns None if unavailable."""
@@ -96,6 +101,7 @@ async def _call_llm(prompt: str, max_tokens: int = 512) -> str | None:
     except Exception as e:
         logger.warning(f"LLM call failed: {e}")
         return None
+
 
 # ======================================================================
 # CRYPTO SYNONYM MAPPINGS (rule-based fallback for query expansion)
@@ -160,6 +166,7 @@ _TOKEN_CATEGORIES = {
 # 1. HyDE -- HYPOTHETICAL DOCUMENT EMBEDDING
 # ======================================================================
 
+
 async def hyde_transform(query: str) -> str:
     """
     Generate a hypothetical answer document for the query.
@@ -203,6 +210,7 @@ async def hyde_transform(query: str) -> str:
 
     return result
 
+
 def _hyde_rule_based(query: str) -> str:
     """Rule-based HyDE: prepend crypto investigation context."""
     query_lower = query.lower()
@@ -223,9 +231,11 @@ def _hyde_rule_based(query: str) -> str:
 
     return f"{prefixes[0]} {query}"
 
+
 # ======================================================================
 # 2. QUERY EXPANSION
 # ======================================================================
+
 
 async def expand_query(query: str) -> list[str]:
     """
@@ -254,6 +264,7 @@ async def expand_query(query: str) -> list[str]:
 
     # Rule-based fallback
     return _expand_rule_based(query)
+
 
 def _expand_rule_based(query: str) -> list[str]:
     """Rule-based query expansion using crypto synonym mappings."""
@@ -291,9 +302,11 @@ def _expand_rule_based(query: str) -> list[str]:
 
     return unique[:6]
 
+
 # ======================================================================
 # 3. STEP-BACK PROMPTING
 # ======================================================================
+
 
 async def step_back_query(query: str) -> str:
     """
@@ -316,6 +329,7 @@ async def step_back_query(query: str) -> str:
 
     # Rule-based fallback
     return _step_back_rule_based(query)
+
 
 def _step_back_rule_based(query: str) -> str:
     """Rule-based step-back: replace specific tokens with broader categories."""
@@ -380,9 +394,11 @@ def _step_back_rule_based(query: str) -> str:
 
     return result
 
+
 # ======================================================================
 # 4. ROUTER -- auto-select the best strategy
 # ======================================================================
+
 
 async def transform_query(query: str, strategy: str = "auto") -> TransformedQuery:
     """
@@ -443,6 +459,7 @@ async def transform_query(query: str, strategy: str = "auto") -> TransformedQuer
         metadata={"reason": f"unknown strategy: {strategy}"},
     )
 
+
 def _auto_select_strategy(query: str) -> str:
     """
     Auto-select the best query transformation strategy based on query characteristics.
@@ -462,9 +479,7 @@ def _auto_select_strategy(query: str) -> str:
     has_token_symbol = bool(_TOKEN_RE.search(q))
 
     # Check for question patterns
-    starts_with_question_word = q_lower.startswith(
-        ("what", "how", "why", "is", "are", "can", "does", "do")
-    )
+    starts_with_question_word = q_lower.startswith(("what", "how", "why", "is", "are", "can", "does", "do"))
     has_question_mark = "?" in q
 
     # Check for ambiguity
@@ -480,9 +495,7 @@ def _auto_select_strategy(query: str) -> str:
         "honest",
         "real",
     ]
-    is_ambiguous = (
-        any(w in q_lower for w in broad_indicators) and not has_address and not has_token_symbol
-    )
+    is_ambiguous = any(w in q_lower for w in broad_indicators) and not has_address and not has_token_symbol
 
     # Decision logic
     if has_address or has_token_symbol:

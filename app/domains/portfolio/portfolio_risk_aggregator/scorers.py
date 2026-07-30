@@ -1,4 +1,5 @@
 """Token risk scoring and pricing."""
+
 from __future__ import annotations
 
 import contextlib
@@ -13,9 +14,11 @@ logger = get_logger(__name__)
 
 try:
     import httpx
+
     HTTPX_AVAILABLE = True
 except ImportError:
     HTTPX_AVAILABLE = False
+
 
 class TokenRiskScorer:
     def __init__(self) -> None:
@@ -33,9 +36,14 @@ class TokenRiskScorer:
         if self._scanner_available:
             try:
                 from app.unified_scanner import scan_token as _scan_token
+
                 result = await _scan_token(chain, address)
                 if result:
-                    return {"risk_score": result.get("safety_score", 50), "risk_flags": result.get("risk_flags", []), "reason": "Scanner"}
+                    return {
+                        "risk_score": result.get("safety_score", 50),
+                        "risk_flags": result.get("risk_flags", []),
+                        "reason": "Scanner",
+                    }
             except Exception:
                 logger.debug("scanner_fetch_failed %s %s", chain, address[:12])
         return self._heuristic_score(chain, address, symbol)
@@ -63,13 +71,28 @@ class TokenRiskScorer:
                     return {"risk_score": 90, "risk_flags": [], "reason": "Known token"}
         return {"risk_score": max(0, min(100, score)), "risk_flags": flags, "reason": "Heuristic"}
 
+
 class PriceOracle:
     def __init__(self) -> None:
         self._cache: dict[str, float] = {
-            "ETH": 2800.0, "BTC": 68000.0, "SOL": 145.0, "BNB": 580.0, "MATIC": 0.55,
-            "AVAX": 32.0, "MNT": 0.85, "FTM": 0.68, "USDC": 1.0, "USDT": 1.0,
-            "DAI": 1.0, "WBTC": 68000.0, "LINK": 14.0, "UNI": 7.5, "PEPE": 0.000012,
-            "SHIB": 0.000025, "AERO": 0.85, "CAKE": 2.10,
+            "ETH": 2800.0,
+            "BTC": 68000.0,
+            "SOL": 145.0,
+            "BNB": 580.0,
+            "MATIC": 0.55,
+            "AVAX": 32.0,
+            "MNT": 0.85,
+            "FTM": 0.68,
+            "USDC": 1.0,
+            "USDT": 1.0,
+            "DAI": 1.0,
+            "WBTC": 68000.0,
+            "LINK": 14.0,
+            "UNI": 7.5,
+            "PEPE": 0.000012,
+            "SHIB": 0.000025,
+            "AERO": 0.85,
+            "CAKE": 2.10,
         }
         self._cache_time: float = 0
         self._cache_ttl = 300
@@ -82,7 +105,9 @@ class PriceOracle:
         try:
             if HTTPX_AVAILABLE:
                 async with httpx.AsyncClient(timeout=5) as client:
-                    resp = await client.get(f"https://api.coingecko.com/api/v3/simple/price?ids={upper.lower()}&vs_currencies=usd")
+                    resp = await client.get(
+                        f"https://api.coingecko.com/api/v3/simple/price?ids={upper.lower()}&vs_currencies=usd"
+                    )
                     if resp.status_code == 200:
                         data = resp.json()
                         price = data.get(upper.lower(), {}).get("usd")

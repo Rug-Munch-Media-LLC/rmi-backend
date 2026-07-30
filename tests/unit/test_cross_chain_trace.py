@@ -84,9 +84,7 @@ class TestTraceFunds(unittest.TestCase):
         """Quick mode should note limited depth."""
         import asyncio
 
-        result = asyncio.run(
-            trace_funds("0xdead000000000000000000000000000000000000", "ethereum", depth="quick")
-        )
+        result = asyncio.run(trace_funds("0xdead000000000000000000000000000000000000", "ethereum", depth="quick"))
         quick_warnings = [w for w in result["warnings"] if "quick" in w.lower()]
         assert len(quick_warnings) > 0
 

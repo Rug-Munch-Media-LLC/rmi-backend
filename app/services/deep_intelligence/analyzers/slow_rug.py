@@ -44,9 +44,7 @@ async def slow_rug_detector(token_address: str, chain: str = "sol") -> dict[str,
 
     if price_change_24h < -10 and volume_24h > current_liq * 0.5:
         slow_rug_score += 30
-        patterns.append(
-            f"Price down {price_change_24h:.1f}% in 24h with high volume - possible LP drain"
-        )
+        patterns.append(f"Price down {price_change_24h:.1f}% in 24h with high volume - possible LP drain")
 
     if price_change_24h < -5 and price_change_6h < -2:
         slow_rug_score += 20
@@ -59,9 +57,7 @@ async def slow_rug_detector(token_address: str, chain: str = "sol") -> dict[str,
 
     if current_liq > 0 and volume_24h / current_liq > 2:
         slow_rug_score += 15
-        patterns.append(
-            f"24h volume is {volume_24h / current_liq:.1f}x the liquidity - high churn rate"
-        )
+        patterns.append(f"24h volume is {volume_24h / current_liq:.1f}x the liquidity - high churn rate")
 
     result["slow_rug_score"] = min(slow_rug_score, 100)
     result["patterns"] = patterns

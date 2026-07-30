@@ -8,6 +8,7 @@ and all related wallets for movement, coordination, and new activity.
 Your webhook (7263c8c2-63d0-49b3-9d4e-860b26c5d874) is preserved and
 receives all events for this contract.
 """
+
 from __future__ import annotations
 
 import os
@@ -65,6 +66,7 @@ TIERS = {
     },
 }
 
+
 @dataclass
 class SyndicateEvent:
     timestamp: datetime
@@ -79,6 +81,7 @@ class SyndicateEvent:
     risk_flag: str
     description: str
 
+
 @dataclass
 class WalletGraphNode:
     address: str
@@ -90,6 +93,7 @@ class WalletGraphNode:
     risk_score: int
     last_active: datetime
     transaction_count: int
+
 
 class SyndicateTracker:
     """Tracks SOSANA syndicate activity on-chain."""
@@ -138,9 +142,7 @@ class SyndicateTracker:
         # Get supply
         supply_result = await self._rpc_call("getTokenSupply", [CRM_V1_CONTRACT])
         supply_info = supply_result.get("value", {}) if isinstance(supply_result, dict) else {}
-        total_supply = (
-            float(supply_info.get("amount", 1)) / (10 ** supply_info.get("decimals", 0)) or 1
-        )
+        total_supply = float(supply_info.get("amount", 1)) / (10 ** supply_info.get("decimals", 0)) or 1
 
         # Analyze holders
         holder_analysis = []
@@ -171,8 +173,7 @@ class SyndicateTracker:
         syndicate_activity = [
             tx
             for tx in recent_txs
-            if tx.get("from_wallet") in SYNDICATE_WALLETS
-            or tx.get("to_wallet") in SYNDICATE_WALLETS
+            if tx.get("from_wallet") in SYNDICATE_WALLETS or tx.get("to_wallet") in SYNDICATE_WALLETS
         ]
 
         return {
@@ -223,9 +224,7 @@ class SyndicateTracker:
                 crm_balance = float(parsed.get("tokenAmount", {}).get("uiAmount", 0))
 
         # Recent transactions
-        sigs_result = await self._rpc_call(
-            "getSignaturesForAddress", [wallet_address, {"limit": 50}]
-        )
+        sigs_result = await self._rpc_call("getSignaturesForAddress", [wallet_address, {"limit": 50}])
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
         # Check for new counterparties (wallets not in our known list)
@@ -240,11 +239,7 @@ class SyndicateTracker:
                         if transfer.get("fromUserAccount") == wallet_address
                         else transfer.get("fromUserAccount")
                     )
-                    if (
-                        counterparty
-                        and counterparty not in SYNDICATE_WALLETS
-                        and counterparty not in new_connections
-                    ):
+                    if counterparty and counterparty not in SYNDICATE_WALLETS and counterparty not in new_connections:
                         new_connections.append(counterparty)
 
         return {

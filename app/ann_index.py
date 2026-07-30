@@ -12,6 +12,7 @@ Architecture:
   - Tracks version counter in Redis key rag:idx_version:{collection}
   - Invalidate on new ingestion (version bump)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -44,6 +45,7 @@ IVF_NPROBE = 16
 
 # Minimum docs to use IVFFlat/HNSW; below this, flat search is fine
 MIN_DOCS_FOR_ANN = 50
+
 
 class ANNIndex:
     """
@@ -401,11 +403,13 @@ class ANNIndex:
         self._meta.pop(collection, None)
         logger.info(f"Invalidated ANN index for {collection}")
 
+
 # ══════════════════════════════════════════════════════════════════════
 # Singleton accessor
 # ══════════════════════════════════════════════════════════════════════
 
 _ann_index: ANNIndex | None = None
+
 
 def get_ann_index() -> ANNIndex:
     """Return the singleton ANNIndex instance."""

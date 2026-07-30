@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
 GMGN_ENV = {"GMGN_API_KEY": GMGN_API_KEY, "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin")}
 
+
 def _gmgn(args: list[str], timeout: int = 15) -> dict[str, Any]:
     """Call npx gmgn-cli and return parsed JSON."""
     cmd = ["npx", "gmgn-cli", *args]
@@ -36,13 +37,15 @@ def _gmgn(args: list[str], timeout: int = 15) -> dict[str, Any]:
         return {"error": "gmgn-cli timed out"}
     except json.JSONDecodeError:
         return {"error": f"Invalid JSON: {result.stdout[:200]}"}
-    except (json.JSONDecodeError, KeyError, TypeError) as e :
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
         logger.debug("_gmgn_error", exc_info=True)
         return {"error": str(e)}
+
 
 # ══════════════════════════════════════════════════════════════════════
 # SMART MONEY TRACKING
 # ══════════════════════════════════════════════════════════════════════
+
 
 def get_smart_money_trades(chain: str = "sol", limit: int = 20) -> list[dict]:
     """Get recent smart money trades. Returns list of trades with wallet tags."""
@@ -65,6 +68,7 @@ def get_smart_money_trades(chain: str = "sol", limit: int = 20) -> list[dict]:
         for t in trades
     ]
 
+
 def get_kol_trades(chain: str = "sol", limit: int = 20) -> list[dict]:
     """Get recent KOL/influencer trades."""
     result = _gmgn(["track", "kol", "--chain", chain, "--limit", str(limit)])
@@ -85,17 +89,15 @@ def get_kol_trades(chain: str = "sol", limit: int = 20) -> list[dict]:
         for t in trades
     ]
 
+
 # ══════════════════════════════════════════════════════════════════════
 # MARKET SIGNALS
 # ══════════════════════════════════════════════════════════════════════
 
-def get_market_signals(
-    chain: str = "sol", groups: str = "smart-money", limit: int = 20
-) -> list[dict]:
+
+def get_market_signals(chain: str = "sol", groups: str = "smart-money", limit: int = 20) -> list[dict]:
     """Get market signals: smart money buys, price spikes, large buys."""
-    result = _gmgn(
-        ["market", "signal", "--chain", chain, "--groups", groups, "--limit", str(limit)]
-    )
+    result = _gmgn(["market", "signal", "--chain", chain, "--groups", groups, "--limit", str(limit)])
     signals = result if isinstance(result, list) else result.get("list", [])
     return [
         {
@@ -109,46 +111,46 @@ def get_market_signals(
         for s in signals
     ]
 
+
 # ══════════════════════════════════════════════════════════════════════
 # TOKEN SECURITY
 # ══════════════════════════════════════════════════════════════════════
+
 
 def get_token_security(address: str, chain: str = "sol") -> dict:
     """Get GMGN token security audit."""
     return _gmgn(["token", "security", "--address", address, "--chain", chain])
 
+
 def get_token_info(address: str, chain: str = "sol") -> dict:
     """Get token basic info and price."""
     return _gmgn(["token", "info", "--address", address, "--chain", chain])
 
+
 def get_token_holders(address: str, chain: str = "sol", limit: int = 20) -> list[dict]:
     """Get top token holders."""
-    result = _gmgn(
-        ["token", "holders", "--address", address, "--chain", chain, "--limit", str(limit)]
-    )
+    result = _gmgn(["token", "holders", "--address", address, "--chain", chain, "--limit", str(limit)])
     return result.get("list", []) if isinstance(result, dict) else []
+
 
 def get_top_traders(address: str, chain: str = "sol", limit: int = 20) -> list[dict]:
     """Get top traders for a token."""
-    result = _gmgn(
-        ["token", "traders", "--address", address, "--chain", chain, "--limit", str(limit)]
-    )
+    result = _gmgn(["token", "traders", "--address", address, "--chain", chain, "--limit", str(limit)])
     return result.get("list", []) if isinstance(result, dict) else []
+
 
 # ══════════════════════════════════════════════════════════════════════
 # TRENDING & MARKET
 # ══════════════════════════════════════════════════════════════════════
 
+
 def get_trending(chain: str = "sol", interval: str = "1h", limit: int = 20) -> list[dict]:
     """Get trending tokens."""
-    result = _gmgn(
-        ["market", "trending", "--chain", chain, "--interval", interval, "--limit", str(limit)]
-    )
+    result = _gmgn(["market", "trending", "--chain", chain, "--interval", interval, "--limit", str(limit)])
     return result.get("list", []) if isinstance(result, dict) else []
 
-def get_kline(
-    address: str, chain: str = "sol", resolution: str = "1h", limit: int = 100
-) -> list[dict]:
+
+def get_kline(address: str, chain: str = "sol", resolution: str = "1h", limit: int = 100) -> list[dict]:
     """Get candlestick data."""
     result = _gmgn(
         [
@@ -166,36 +168,39 @@ def get_kline(
     )
     return result.get("list", []) if isinstance(result, dict) else []
 
+
 def get_trenches(chain: str = "sol", status: str = "new", limit: int = 20) -> list[dict]:
     """Get new token launches (Trenches). status: new, near, completed."""
-    result = _gmgn(
-        ["market", "trenches", "--chain", chain, "--status", status, "--limit", str(limit)]
-    )
+    result = _gmgn(["market", "trenches", "--chain", chain, "--status", status, "--limit", str(limit)])
     return result.get("list", []) if isinstance(result, dict) else []
+
 
 def get_hot_searches(chain: str = "sol") -> list[dict]:
     """Get most-searched tokens."""
     result = _gmgn(["market", "hot-searches", "--chain", chain])
     return result.get("list", []) if isinstance(result, dict) else []
 
+
 # ══════════════════════════════════════════════════════════════════════
 # PORTFOLIO
 # ══════════════════════════════════════════════════════════════════════
+
 
 def get_portfolio(address: str, chain: str = "sol") -> dict:
     """Get wallet portfolio holdings."""
     return _gmgn(["portfolio", "holdings", "--address", address, "--chain", chain])
 
+
 def get_wallet_trades(address: str, chain: str = "sol", limit: int = 50) -> list[dict]:
     """Get wallet trade history."""
-    result = _gmgn(
-        ["portfolio", "trades", "--address", address, "--chain", chain, "--limit", str(limit)]
-    )
+    result = _gmgn(["portfolio", "trades", "--address", address, "--chain", chain, "--limit", str(limit)])
     return result.get("list", []) if isinstance(result, dict) else []
+
 
 # ══════════════════════════════════════════════════════════════════════
 # AGGREGATED INTELLIGENCE
 # ══════════════════════════════════════════════════════════════════════
+
 
 def get_wallet_tags(wallet: str, chain: str = "sol") -> list[str]:
     """Get GMGN tags for a wallet (smart_degen, photon, axiom, etc)."""
@@ -204,6 +209,7 @@ def get_wallet_tags(wallet: str, chain: str = "sol") -> list[str]:
         if t["wallet"].lower() == wallet.lower():
             return t.get("tags", [])
     return []
+
 
 def get_all_signals(chain: str = "sol") -> dict[str, list]:
     """Get all market signals aggregated."""
@@ -216,5 +222,6 @@ def get_all_signals(chain: str = "sol") -> dict[str, list]:
         "hot_searches": get_hot_searches(chain),
         "fetched_at": datetime.now(UTC).isoformat(),
     }
+
 
 logger.info("GMGN CLI wrapper loaded")

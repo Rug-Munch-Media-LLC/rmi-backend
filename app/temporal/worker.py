@@ -15,5 +15,6 @@ async def main() -> None:
     worker = Worker(client, task_queue="rmi-backend-tasks", workflows=[], activities=[])
     await worker.run()
 
+
 if __name__ == "__main__":
     asyncio.run(main())

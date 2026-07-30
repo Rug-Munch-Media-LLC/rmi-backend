@@ -2,6 +2,7 @@
 Wallet Monitor — modular package.
 Re-exports all public symbols for backward compatibility.
 """
+
 from app.domains.wallet.monitor.alert_engine import AlertEngine
 from app.domains.wallet.monitor.burst import BurstDetector
 from app.domains.wallet.monitor.channel import AlertChannel

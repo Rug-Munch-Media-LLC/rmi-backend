@@ -20,13 +20,12 @@ def build_research_prompt(topic: str, data: dict | None = None) -> str:
             if isinstance(value, str):
                 parts.append(f"## {key.upper()}\n{value[:2000]}")
             elif isinstance(value, list):
-                parts.append(
-                    f"## {key.upper()}\n" + "\n".join(f"- {str(v)[:200]}" for v in value[:10])
-                )
+                parts.append(f"## {key.upper()}\n" + "\n".join(f"- {str(v)[:200]}" for v in value[:10]))
             elif isinstance(value, dict):
                 parts.append(f"## {key.upper()}\n{json.dumps(value, default=str)[:1000]}")
 
     return "\n\n".join(parts)
+
 
 def build_writing_prompt(topic: str, research_notes: str, style: str = "newsletter") -> str:
     """Build a writing prompt from research notes."""
@@ -43,6 +42,7 @@ Style guide:
 - End with a clear takeaway.
 
 Write the complete piece now:"""
+
 
 def get_usage_stats() -> dict:
     """Get current model usage statistics from rate tracker."""

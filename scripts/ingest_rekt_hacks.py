@@ -23,9 +23,7 @@ import time
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-DATA_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "rekt_hacks.json"
-)
+DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "rekt_hacks.json")
 API_URL = os.getenv("RAG_API_URL", "http://localhost:8000/api/v1/rag/ingest")
 COLLECTION = "known_scams"
 
@@ -126,9 +124,7 @@ async def ingest_via_api(hacks, dry_run=False):
 
         if dry_run:
             if i < 3:
-                print(
-                    f"[DRY RUN] Would ingest: {doc_id} | {hack.get('name')} | ${hack['amount_lost']:,.0f}"
-                )
+                print(f"[DRY RUN] Would ingest: {doc_id} | {hack.get('name')} | ${hack['amount_lost']:,.0f}")
             continue
 
         req = urllib.request.Request(
@@ -170,9 +166,7 @@ async def ingest_direct(hacks, dry_run=False):
 
         if dry_run:
             if i < 3:
-                print(
-                    f"[DRY RUN] Would ingest: {doc_id} | {hack.get('name')} | ${hack['amount_lost']:,.0f}"
-                )
+                print(f"[DRY RUN] Would ingest: {doc_id} | {hack.get('name')} | ${hack['amount_lost']:,.0f}")
             continue
 
         try:
@@ -198,9 +192,7 @@ async def ingest_direct(hacks, dry_run=False):
 
 async def main():
     parser = argparse.ArgumentParser(description="Ingest rekt.news hacks into RAG")
-    parser.add_argument(
-        "--api", action="store_true", help="Use HTTP API (default if running from host)"
-    )
+    parser.add_argument("--api", action="store_true", help="Use HTTP API (default if running from host)")
     parser.add_argument(
         "--direct",
         action="store_true",
@@ -211,9 +203,7 @@ async def main():
         action="store_true",
         help="Print what would be ingested without actually ingesting",
     )
-    parser.add_argument(
-        "--limit", type=int, default=0, help="Limit number of hacks to ingest (0 = all)"
-    )
+    parser.add_argument("--limit", type=int, default=0, help="Limit number of hacks to ingest (0 = all)")
     args = parser.parse_args()
 
     hacks = load_hacks()

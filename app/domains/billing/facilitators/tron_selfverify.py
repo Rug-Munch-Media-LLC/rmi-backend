@@ -51,6 +51,7 @@ CONTRACT_TO_SYMBOL = {v.lower(): k for k, v in TRC20_TOKENS.items()}
 # ERC-20 Transfer signature (same on TRC20)
 TRANSFER_METHOD_ID = "a9059cbb"
 
+
 class TronSelfVerifyFacilitator(Facilitator):
     """
     TRON self-verification facilitator.
@@ -136,7 +137,7 @@ class TronSelfVerifyFacilitator(Facilitator):
             return self._format_error("TRON: TronGrid API timeout")
         except aiohttp.ClientError as e:
             return self._format_error(f"TRON: TronGrid API error: {e}")
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError) as e:
             logger.debug("verify_error", exc_info=True)
             logger.exception(f"TRON verify error: {e}")
             return self._format_error(f"TRON: {e}")
@@ -153,15 +154,11 @@ class TronSelfVerifyFacilitator(Facilitator):
             async with session.get(url) as resp:
                 if resp.status != 200:
                     # Try Method 2: wallet/gettransactioninfobyid
-                    return await self._verify_trc20_via_wallet(
-                        tx_hash, amount_atoms, expected_token
-                    )
+                    return await self._verify_trc20_via_wallet(tx_hash, amount_atoms, expected_token)
                 data = await resp.json()
                 events = data.get("data", [])
                 if not events:
-                    return await self._verify_trc20_via_wallet(
-                        tx_hash, amount_atoms, expected_token
-                    )
+                    return await self._verify_trc20_via_wallet(tx_hash, amount_atoms, expected_token)
 
             for event in events:
                 # Check if this is a Transfer event to our wallet
@@ -273,9 +270,7 @@ class TronSelfVerifyFacilitator(Facilitator):
 
             return None  # Not a TRC20 transfer
 
-    async def _verify_native_trx(
-        self, tx_hash: str, amount_atoms: str | None
-    ) -> VerificationResult:
+    async def _verify_native_trx(self, tx_hash: str, amount_atoms: str | None) -> VerificationResult:
         """Verify a native TRX transfer via TronGrid."""
         timeout = aiohttp.ClientTimeout(total=self._config.facilitator_verify_timeout)
         async with aiohttp.ClientSession(timeout=timeout) as session:

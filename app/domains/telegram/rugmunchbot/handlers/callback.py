@@ -4,6 +4,7 @@ RugMunchBot -- Callback query handler.
 
 Handles all inline keyboard button presses.
 """
+
 from __future__ import annotations
 
 import secrets
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
+
 
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -104,11 +106,15 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             text,
             parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("\u2b50 Upgrade", callback_data="menu_pricing"),
-                 InlineKeyboardButton("\U0001f50b Top Up", callback_data="menu_topup")],
-                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton("\u2b50 Upgrade", callback_data="menu_pricing"),
+                        InlineKeyboardButton("\U0001f50b Top Up", callback_data="menu_topup"),
+                    ],
+                    [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+                ]
+            ),
         )
     elif data == "menu_pricing":
         await query.edit_message_text(
@@ -129,9 +135,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup=scamschool_kb(),
         )
     elif data == "menu_trending":
-        await query.edit_message_text(
-            "\U0001f525 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML
-        )
+        await query.edit_message_text("\U0001f525 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML)
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
@@ -146,12 +150,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                         addr = b.get("tokenAddress", "")
                         boost_count = b.get("boostCount", 0)
                         boost_str = f" \U0001f525{boost_count}" if boost_count else ""
-                        lines.append(
-                            f"\U0001f525 <b>{name}</b> ({sym}){boost_str}\n   <code>{short_addr(addr)}</code>"
-                        )
-                    await query.edit_message_text(
-                        "\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=back_kb()
-                    )
+                        lines.append(f"\U0001f525 <b>{name}</b> ({sym}){boost_str}\n   <code>{short_addr(addr)}</code>")
+                    await query.edit_message_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=back_kb())
                 else:
                     await query.edit_message_text(
                         "\u274c Could not fetch trending data.",
@@ -167,9 +167,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
     elif data == "trending_refresh":
         await query.answer("Refreshing...")
-        await query.edit_message_text(
-            "\U0001f504 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML
-        )
+        await query.edit_message_text("\U0001f504 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML)
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 boosts_r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
@@ -178,9 +176,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     if isinstance(boost_list, list):
                         boost_list = boost_list[:6]
                         enriched = {}
-                        addresses = {
-                            b.get("tokenAddress", "") for b in boost_list if b.get("tokenAddress")
-                        }
+                        addresses = {b.get("tokenAddress", "") for b in boost_list if b.get("tokenAddress")}
                         for addr in addresses:
                             try:
                                 tr = await client.get(f"{DEXSCREENER}/tokens/{addr}", timeout=4)
@@ -211,10 +207,12 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                             else:
                                 lines.append(f"{i}. \U0001f525 <b>{name}</b> ({sym}) {chain}{bs}")
                         lines.append(footer_links())
-                        refresh_kb = InlineKeyboardMarkup([
-                            [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh")],
-                            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-                        ])
+                        refresh_kb = InlineKeyboardMarkup(
+                            [
+                                [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh")],
+                                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+                            ]
+                        )
                         await query.edit_message_text(
                             "\n".join(lines),
                             parse_mode=ParseMode.HTML,
@@ -222,7 +220,14 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                             disable_web_page_preview=True,
                         )
                         return
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, telegram.error.TelegramError) as e:
+        except (
+            ConnectionError,
+            OSError,
+            TimeoutError,
+            httpx.HTTPError,
+            httpx.TimeoutException,
+            telegram.error.TelegramError,
+        ) as e:
             logger.warning(f"trending_refresh failed: {e}")
         await query.edit_message_text(
             "\u274c Could not refresh trending data.",
@@ -231,9 +236,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         )
     elif data == "news_refresh":
         await query.answer("Refreshing...")
-        await query.edit_message_text(
-            "\U0001f4f0 <b>Refreshing news...</b>", parse_mode=ParseMode.HTML
-        )
+        await query.edit_message_text("\U0001f4f0 <b>Refreshing news...</b>", parse_mode=ParseMode.HTML)
         articles = []
         source_label = "Backend"
         try:
@@ -249,6 +252,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 _fetch_cg_trending_news,
                 _time_ago,
             )
+
             cg_items = await _fetch_cg_trending_news()
             if cg_items:
                 articles = cg_items
@@ -264,12 +268,15 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 title_linked = f'<a href="{url}">{title}</a>' if url else title
                 lines.append(f"\U0001f4f0 {title_linked}\n  <i>{source}</i>{pub_str}")
             lines.append(footer_links())
-            news_kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("\U0001f504 Refresh", callback_data="news_refresh")],
-                [InlineKeyboardButton("\U0001f4e2 Alerts Channel", url=TELEGRAM_CHANNEL)],
-                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-            ])
+            news_kb = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("\U0001f504 Refresh", callback_data="news_refresh")],
+                    [InlineKeyboardButton("\U0001f4e2 Alerts Channel", url=TELEGRAM_CHANNEL)],
+                    [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+                ]
+            )
             import contextlib
+
             with contextlib.suppress(Exception):
                 await query.edit_message_text(
                     "\n".join(lines),
@@ -287,7 +294,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         try:
             await query.edit_message_reply_markup(reply_markup=None)
             await query.edit_message_text(
-                "\u2705 Alert dismissed.", parse_mode=ParseMode.HTML,
+                "\u2705 Alert dismissed.",
+                parse_mode=ParseMode.HTML,
             )
         except (ConnectionError, OSError, TimeoutError):
             pass
@@ -302,8 +310,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
         else:
             text = "\U0001f440 <b>Watchlist</b>\n\n" + "\n".join(
-                f"\u2022 {w.get('symbol', '???')} <code>{short_addr(w['token_address'])}</code>"
-                for w in items
+                f"\u2022 {w.get('symbol', '???')} <code>{short_addr(w['token_address'])}</code>" for w in items
             )
             await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=back_kb())
     elif data == "noop":
@@ -320,9 +327,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         topic_key = data[5:]
         topic = SCAM_SCHOOL_TOPICS.get(topic_key)
         if topic:
-            await query.edit_message_text(
-                topic["content"], parse_mode=ParseMode.MARKDOWN, reply_markup=scamschool_kb()
-            )
+            await query.edit_message_text(topic["content"], parse_mode=ParseMode.MARKDOWN, reply_markup=scamschool_kb())
     elif data.startswith("scan_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
@@ -331,14 +336,101 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
+    elif data.startswith("holders_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr, chain = parts[1], parts[2]
+            await query.edit_message_text(
+                f"👥 Use /holders {addr} {chain} to view holder analysis.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+
+    elif data.startswith("trace_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr, chain = parts[1], parts[2]
+            await query.edit_message_text(
+                f"🔍 Use /trace {addr} to trace cross-chain fund flows.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+
+    elif data.startswith("wallet_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr, chain = parts[1], parts[2]
+            await query.edit_message_text(
+                f"👛 Use /wallet {addr} to analyze this wallet.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+
+    elif data.startswith("alert_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr, chain = parts[1], parts[2]
+            await query.edit_message_text(
+                f"🔔 To set a price alert:\n\n"
+                f"  /alert ABOVE {addr} 0.01\n"
+                f"  /alert BELOW {addr} 0.005\n"
+                f"  /alert CHANGE_5 {addr}\n\n"
+                f"Requires Scout+ tier.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+
+    elif data.startswith("upgrade_"):
+        tier_key = data[8:]
+        if tier_key in TIERS:
+            tier = TIERS[tier_key]
+            await query.edit_message_text(
+                f"{tier['emoji']} <b>{tier['name']} — ${tier['price_monthly']}/mo</b>\n\n"
+                f"Unlock {tier['scans_per_week']} scans/week, "
+                f"{tier['ai_msgs_per_week']} AI messages/week, and:\n"
+                + "\n".join(f"• {f}" for f in tier["features"][:6])
+                + "\n\nSubscribe now and get instant access!",
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton(f"⭐ Subscribe {tier['name']}", callback_data=f"sub_{tier_key}")],
+                        [InlineKeyboardButton("🔙 Plans", callback_data="menu_pricing")],
+                    ]
+                ),
+            )
+
+    elif data == "api_revoke":
+        await query.edit_message_text(
+            "🔄 Revoke all active API tokens?\n\nThis will immediately invalidate all tokens.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="api_revoke_confirm")],
+                    [InlineKeyboardButton("🔙 Cancel", callback_data="menu_main")],
+                ]
+            ),
+        )
+
+    elif data == "api_revoke_confirm":
+        conn = db.get_db()
+        conn.execute(
+            "UPDATE api_tokens SET is_active = 0 WHERE user_id = ? AND is_active = 1",
+            (user.id,),
+        )
+        conn.commit()
+        conn.close()
+        await query.edit_message_text(
+            "✅ All API tokens revoked.\n\nGenerate new ones with /api create.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+
     elif data.startswith("watch_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
             addr, chain = parts[1], parts[2]
             ok = db.add_watchlist(user.id, addr, chain)
-            await query.answer(
-                "Added to watchlist!" if ok else "Could not add (limit reached?)", show_alert=True
-            )
+            await query.answer("Added to watchlist!" if ok else "Could not add (limit reached?)", show_alert=True)
     elif data == "menu_buystars":
         u = db.get_or_create_user(user.id, user.username, user.first_name)
         await query.edit_message_text(
@@ -367,7 +459,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(pack["name"], pack["stars"])],
             )
             await query.answer()
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Buy stars invoice error: {e}")
             await query.answer(
@@ -382,6 +474,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         addr, chain = parts[1], parts[2]
         token = secrets.token_hex(8)
         from app.domains.telegram.rugmunchbot.states import _pending_deep_scans
+
         _pending_deep_scans[token] = {
             "user_id": user.id,
             "address": addr,
@@ -400,7 +493,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice("Deep Scan", SCAN_PACKS["deep_scan"]["stars"])],
             )
             await query.answer()
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Deep scan invoice error: {e}")
             _pending_deep_scans.pop(token, None)
@@ -433,7 +526,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(f"{tier['name']} - 30 days", tier["price_stars"])],
             )
             await query.answer()
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Sub invoice error: {e}")
             await query.answer(
@@ -457,7 +550,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 prices=[LabeledPrice(pack["name"], pack["stars"])],
             )
             await query.answer()
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Topup invoice error: {e}")
             await query.answer(

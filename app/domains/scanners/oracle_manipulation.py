@@ -53,6 +53,7 @@ ORACLE_ABI_SELECTORS = {
 
 # ── Dataclasses ──────────────────────────────────────────────────────
 
+
 @dataclass
 class OracleInfo:
     """Information about a single oracle used by the token."""
@@ -63,6 +64,7 @@ class OracleInfo:
     feed_decimals: int = 8
     last_price: float = 0.0
     is_working: bool = True
+
 
 @dataclass
 class OracleManipulationReport:
@@ -81,7 +83,9 @@ class OracleManipulationReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
+
 # ── Detector Class ──────────────────────────────────────────────────
+
 
 class OracleManipulationDetector:
     """Detects oracle manipulation risks for a token.
@@ -107,14 +111,12 @@ class OracleManipulationDetector:
     async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
-            resp = await self._http.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
@@ -132,7 +134,7 @@ class OracleManipulationDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return float(body.get("data", {}).get("value", 0) or 0)
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
             logger.debug("_fetch_birdeye_price_error", exc_info=True)
             logger.warning(f"Birdeye price failed for {token_address}: {e}")
         return None
@@ -155,7 +157,7 @@ class OracleManipulationDetector:
                 result = body.get("result", [])
                 if result and len(result) > 0:
                     return result[0].get("SourceCode", "")
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_contract_source_error", exc_info=True)
             logger.warning(f"Etherscan source fetch failed for {address}: {e}")
         return None
@@ -181,16 +183,23 @@ class OracleManipulationDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("result")
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("_eth_call_error", exc_info=True)
             logger.warning(f"eth_call failed for {to}: {e}")
         return None
 
     # ── Analysis helpers ────────────────────────────────────────────
 
-    async def _check_chainlink_usage(
-        self, token_address: str, chain: str
-    ) -> tuple[bool, str | None]:
+    async def _check_chainlink_usage(self, token_address: str, chain: str) -> tuple[bool, str | None]:
         """Check if token contract references Chainlink oracle.
 
         Reads contract source for Chainlink imports or calls the
@@ -281,19 +290,13 @@ class OracleManipulationDetector:
         # Manipulable score drives most of the risk
         if report.manipulable_score >= 70:
             score += 40
-            warnings.append(
-                f"CRITICAL: Oracle highly manipulable (score {report.manipulable_score:.0f}/100)"
-            )
+            warnings.append(f"CRITICAL: Oracle highly manipulable (score {report.manipulable_score:.0f}/100)")
         elif report.manipulable_score >= 40:
             score += 25
-            warnings.append(
-                f"HIGH: Oracle moderately manipulable (score {report.manipulable_score:.0f}/100)"
-            )
+            warnings.append(f"HIGH: Oracle moderately manipulable (score {report.manipulable_score:.0f}/100)")
         elif report.manipulable_score >= 20:
             score += 10
-            warnings.append(
-                f"MEDIUM: Oracle somewhat manipulable (score {report.manipulable_score:.0f}/100)"
-            )
+            warnings.append(f"MEDIUM: Oracle somewhat manipulable (score {report.manipulable_score:.0f}/100)")
 
         # Single source
         if report.is_single_source:
@@ -303,9 +306,7 @@ class OracleManipulationDetector:
         # Price deviation
         if report.price_deviation_pct >= self.PRICE_DEVIATION_CRITICAL:
             score += 30
-            warnings.append(
-                f"CRITICAL: Price deviation {report.price_deviation_pct:.1f}% - possible oracle attack"
-            )
+            warnings.append(f"CRITICAL: Price deviation {report.price_deviation_pct:.1f}% - possible oracle attack")
         elif report.price_deviation_pct >= self.PRICE_DEVIATION_THRESHOLD:
             score += 15
             warnings.append(
@@ -320,9 +321,7 @@ class OracleManipulationDetector:
         # Very low pool depth
         if report.pool_depth_usd < self.CRITICAL_LIQUIDITY_THRESHOLD:
             score += 20
-            warnings.append(
-                f"HIGH: Pool depth only ${report.pool_depth_usd:,.0f} - trivially manipulable"
-            )
+            warnings.append(f"HIGH: Pool depth only ${report.pool_depth_usd:,.0f} - trivially manipulable")
 
         score = min(100, score)
 
@@ -359,9 +358,7 @@ class OracleManipulationDetector:
         if dex_data:
             dex_price = float(dex_data.get("priceUsd", 0) or 0)
             liq = dex_data.get("liquidity", {})
-            pool_depth_usd = (
-                float(liq.get("usd", 0) or 0) if isinstance(liq, dict) else float(liq or 0)
-            )
+            pool_depth_usd = float(liq.get("usd", 0) or 0) if isinstance(liq, dict) else float(liq or 0)
         report.pool_depth_usd = pool_depth_usd
 
         # 2. Oracle type detection

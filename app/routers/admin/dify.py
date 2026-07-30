@@ -21,6 +21,7 @@ dify_router = APIRouter()
 def _brightdata_client(timeout: int = 30) -> Any:
     """Create an httpx client routed through Bright Data residential proxy."""
     import httpx
+
     proxy_url = os.getenv("BRIGHTDATA_PROXY_URL")
     if not proxy_url:
         raise RuntimeError("BRIGHTDATA_PROXY_URL environment variable is required")
@@ -28,9 +29,7 @@ def _brightdata_client(timeout: int = 30) -> Any:
 
 
 @dify_router.get("/dify/status")
-async def dify_status(
-    request: Request, _=Depends(verify_admin)
-) -> dict[str, str] | Any:
+async def dify_status(request: Request, _=Depends(verify_admin)) -> dict[str, str] | Any:
     """Check Dify AI advisor status."""
     dify_url = os.getenv("DIFY_URL", "")
     dify_key = os.getenv("DIFY_API_KEY", "")

@@ -1,4 +1,5 @@
 """Wallet Monitor — Configuration & Redis connection."""
+
 from __future__ import annotations
 
 import os
@@ -62,6 +63,7 @@ except ImportError:
     redis_async = None
 
 _redis: Any = None
+
 
 async def get_redis() -> Any:
     global _redis

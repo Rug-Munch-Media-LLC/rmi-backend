@@ -42,10 +42,12 @@ DEFAULT_FEEDS: list[dict[str, str]] = [
     {"name": "beincrypto", "url": "https://beincrypto.com/feed/"},
 ]
 
+
 def _stable_id(source: str, url: str) -> str:
     """Stable news_id from source + URL."""
     h = hashlib.sha256(f"{source}:{url}".encode()).hexdigest()[:24]
     return f"{source}:{h}"
+
 
 def _detect_chains(text: str) -> list[str]:
     """Heuristic chain detection from text content."""
@@ -67,11 +69,13 @@ def _detect_chains(text: str) -> list[str]:
             chains.append(chain)
     return chains
 
+
 def _extract_tickers(text: str) -> list[str]:
     """Extract $TICKER style mentions."""
     import re
 
     return list(set(re.findall(r"\$([A-Z]{2,6})\b", text)))
+
 
 async def fetch_feed(client: httpx.AsyncClient, feed: dict[str, str]) -> list[dict]:
     """Fetch and parse a single RSS feed."""
@@ -91,10 +95,11 @@ async def fetch_feed(client: httpx.AsyncClient, feed: dict[str, str]) -> list[di
                 }
             )
         return items
-    except (httpx.HTTPError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+    except (httpx.HTTPError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e:
         logger.debug("fetch_feed_error", exc_info=True)
         log.warning("feed_fetch_fail name=%s err=%s", feed["name"], e)
         return []
+
 
 async def ingest_all(
     feeds: list[dict[str, str]] | None = None,
@@ -118,9 +123,7 @@ async def ingest_all(
     }
     async with httpx.AsyncClient() as client:
         # Fetch all feeds in parallel
-        results = await asyncio.gather(
-            *[fetch_feed(client, f) for f in feeds], return_exceptions=True
-        )
+        results = await asyncio.gather(*[fetch_feed(client, f) for f in feeds], return_exceptions=True)
     items_to_ingest: list[NewsItem] = []
     for _i, r in enumerate(results):
         if isinstance(r, Exception) or not r:
@@ -151,7 +154,7 @@ async def ingest_all(
                     tokens_mentioned=tickers,
                 )
                 items_to_ingest.append(ni)
-            except (httpx.HTTPError, KeyError, TypeError) as e :
+            except (httpx.HTTPError, KeyError, TypeError) as e:
                 logger.debug("unknown_error", exc_info=True)
                 counts["errors"] += 1
                 log.debug("item_build_fail: %s", e)
@@ -163,9 +166,7 @@ async def ingest_all(
                 for ni in items_to_ingest:
                     try:
                         # Check if exists
-                        existing = await conn.fetchval(
-                            "SELECT 1 FROM news_items WHERE news_id=$1", ni.news_id
-                        )
+                        existing = await conn.fetchval("SELECT 1 FROM news_items WHERE news_id=$1", ni.news_id)
                         if existing:
                             counts["duplicate"] += 1
                             continue
@@ -191,11 +192,11 @@ async def ingest_all(
                             ni.sentiment_score,
                         )
                         counts["ingested"] += 1
-                    except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
+                    except (httpx.HTTPError, KeyError, ValueError, TypeError) as e:
                         logger.debug("unknown_error", exc_info=True)
                         counts["errors"] += 1
                         log.debug("item_insert_fail: %s", e)
-        except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, ValueError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             log.warning("ingest_postgres_fail: %s", e)
 
@@ -220,11 +221,12 @@ async def ingest_all(
                             )
                     except (ConnectionError, OSError):
                         pass
-        except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, ValueError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             log.warning("ingest_rag_fail: %s", e)
 
     return counts
+
 
 # ── CLI entry point ──────────────────────────────────────────────
 if __name__ == "__main__":

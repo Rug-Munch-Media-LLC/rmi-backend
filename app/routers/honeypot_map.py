@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api/v1/honeypot-map", tags=["honeypot-map"])
 
 BACKEND = settings.backend_url
 
+
 class HoneypotNode(BaseModel):
     id: str
     label: str
@@ -25,11 +26,13 @@ class HoneypotNode(BaseModel):
     total_stolen_usd: float = 0
     risk_score: int = 0
 
+
 class HoneypotEdge(BaseModel):
     source: str
     target: str
     relationship: str  # deployed, funded_by, stole_from
     amount_usd: float = 0
+
 
 @router.get("/deployer/{deployer_address}")
 async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ethereum")) -> dict:
@@ -58,10 +61,7 @@ async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ether
             if resp.status_code == 200:
                 data = resp.json()
                 for entry in data.get("labels", []):
-                    is_honeypot = any(
-                        w in (entry.get("label", "") or "").lower()
-                        for w in ["honeypot", "scam", "rug"]
-                    )
+                    is_honeypot = any(w in (entry.get("label", "") or "").lower() for w in ["honeypot", "scam", "rug"])
                     contract_id = entry.get("contract_address", "")[:16]
                     if contract_id:
                         nodes.append(
@@ -80,14 +80,15 @@ async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ether
                                 "relationship": "deployed",
                             }
                         )
-    except (TypeError, ValueError, KeyError):
-        pass
+    except (TypeError, ValueError, KeyError) as e:
+        logger.warning("Honeypot map parse error: %s", e)
 
     return {
         "nodes": nodes,
         "edges": edges,
         "total_contracts": len([n for n in nodes if n["type"] != "deployer"]),
     }
+
 
 @router.get("/network")
 async def get_honeypot_network(
@@ -153,6 +154,7 @@ async def get_honeypot_network(
         "total_deployers": len(seen_deployers),
         "total_contracts": len([n for n in nodes if n["type"] == "contract"]),
     }
+
 
 @router.get("/stats")
 async def get_honeypot_stats() -> dict[str, str]:

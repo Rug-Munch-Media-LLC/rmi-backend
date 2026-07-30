@@ -16,6 +16,7 @@ from .cache import CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 
+
 async def holder_health_score(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Analyze holder distribution for rug pull risk indicators.
     Metrics: Gini coefficient, top 10%, fresh wallets, whale dominance.
@@ -74,9 +75,7 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
                         return health
 
                     n = len(amounts)
-                    gini = (2 * sum((i + 1) * amounts[i] for i in range(n))) / (n * total) - (
-                        n + 1
-                    ) / n
+                    gini = (2 * sum((i + 1) * amounts[i] for i in range(n))) / (n * total) - (n + 1) / n
                     health["gini_coefficient"] = round(gini, 3)
                     health["top10_concentration"] = round(sum(amounts[:10]) / total * 100, 1)
                     health["top1_dominance"] = round(amounts[0] / total * 100, 1) if amounts else 0
@@ -85,9 +84,7 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
                     gini_penalty = min(1.0, gini / 0.9) * 40
                     holder_bonus = min(1.0, n / 1000) * 30
                     whale_penalty = min(1.0, health["whale_count"] / 10) * 30
-                    health["decentralization_score"] = max(
-                        0, round(100 - gini_penalty + holder_bonus - whale_penalty)
-                    )
+                    health["decentralization_score"] = max(0, round(100 - gini_penalty + holder_bonus - whale_penalty))
 
                     if gini > 0.8:
                         health["risk_level"] = "CRITICAL"
@@ -103,17 +100,13 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
 
                     if health["top1_dominance"] > 50:
                         health["risk_level"] = "CRITICAL"
-                        health["risk_factors"].append(
-                            f"Single wallet dominance {health['top1_dominance']}%"
-                        )
+                        health["risk_factors"].append(f"Single wallet dominance {health['top1_dominance']}%")
 
                     if n < 20:
                         health["risk_level"] = max(
                             health["risk_level"],
                             "HIGH",
-                            key=lambda x: {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}.get(
-                                x, 0
-                            ),
+                            key=lambda x: {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}.get(x, 0),
                         )
                         health["risk_factors"].append(f"Very few holders ({n})")
     except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:

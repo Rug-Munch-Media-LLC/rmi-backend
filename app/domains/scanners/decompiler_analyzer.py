@@ -140,6 +140,7 @@ ANCHOR_DANGEROUS_IX_NAMES = [
 
 # ── Report dataclass ─────────────────────────────────────────────────
 
+
 @dataclass
 class DecompilerReport:
     """Result of decompiler-based analysis."""
@@ -170,7 +171,9 @@ class DecompilerReport:
     red_flags: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
+
 # ── 4-byte selector extraction (whatsABI approach) ───────────────────
+
 
 def _extract_selectors_from_bytecode(bytecode: str) -> list[str]:
     """Extract function selectors from EVM bytecode using PUSH4 + EQ/DIV pattern.
@@ -202,6 +205,7 @@ def _extract_selectors_from_bytecode(bytecode: str) -> list[str]:
             i += 2
 
     return sorted(selectors)
+
 
 def _match_selectors_to_known(
     selectors: list[str],
@@ -244,6 +248,7 @@ def _match_selectors_to_known(
 
     return sig_map, rug_matches
 
+
 def _scan_decompiled_source(source: str) -> list[str]:
     """Scan decompiled source text for dangerous function patterns."""
     found = []
@@ -252,7 +257,9 @@ def _scan_decompiled_source(source: str) -> list[str]:
             found.append(description)
     return found
 
+
 # ── Analyzer class ────────────────────────────────────────────────────
+
 
 class DecompilerAnalyzer:
     """Decompile and analyze unverified contracts for dangerous patterns."""
@@ -284,7 +291,16 @@ class DecompilerAnalyzer:
                 result = body.get("result")
                 if result and result != "0x" and result != "0x0":
                     return result
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("_get_bytecode_error", exc_info=True)
             logger.warning(f"eth_getCode failed for {address}: {e}")
         return None
@@ -306,7 +322,7 @@ class DecompilerAnalyzer:
                 if result and len(result) > 0:
                     source = result[0].get("SourceCode", "")
                     return bool(source and source not in ("", "0x", None))
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
             logger.debug("_check_verified_error", exc_info=True)
             logger.debug(f"Verified check failed for {address}: {e}")
         return False
@@ -320,11 +336,7 @@ class DecompilerAnalyzer:
             return False, "", ""
 
         chain_cfg = CHAINS.get(chain)
-        rpc_url = (
-            chain_cfg.rpc_endpoints[0]
-            if chain_cfg and chain_cfg.rpc_endpoints
-            else "https://eth.llamarpc.com"
-        )
+        rpc_url = chain_cfg.rpc_endpoints[0] if chain_cfg and chain_cfg.rpc_endpoints else "https://eth.llamarpc.com"
 
         tmp_dir = tempfile.mkdtemp(prefix="heimdall_dec_")
 
@@ -386,7 +398,7 @@ class DecompilerAnalyzer:
         except TimeoutError:
             logger.warning(f"Heimdall decompile timed out for {address}")
             return False, "", tmp_dir
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Heimdall decompile error for {address}: {e}")
             return False, "", tmp_dir
@@ -433,7 +445,16 @@ class DecompilerAnalyzer:
             )
             if result and "result" in result:
                 return result["result"]
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Anchor IDL extraction failed for {program_id}: {e}")
 
@@ -451,9 +472,7 @@ class DecompilerAnalyzer:
             name = ix.get("name", "").lower()
             for dangerous in ANCHOR_DANGEROUS_IX_NAMES:
                 if dangerous in name:
-                    risks.append(
-                        f"Anchor IX '{ix.get('name')}' matches dangerous pattern '{dangerous}'"
-                    )
+                    risks.append(f"Anchor IX '{ix.get('name')}' matches dangerous pattern '{dangerous}'")
 
         return risks
 
@@ -473,10 +492,7 @@ class DecompilerAnalyzer:
             if any(d in match.lower() for d in ("drain", "rug", "withdrawall", "pullfunds")):
                 score += 20
                 red_flags.append(f"CRITICAL: Known rug selector found: {match}")
-            elif any(
-                d in match.lower()
-                for d in ("emergencywithdraw", "setowner", "setfees", "blacklist")
-            ):
+            elif any(d in match.lower() for d in ("emergencywithdraw", "setowner", "setfees", "blacklist")):
                 score += 12
                 red_flags.append(f"HIGH: Suspicious selector found: {match}")
             elif any(d in match.lower() for d in ("mint", "settrading", "setswap")):
@@ -584,16 +600,10 @@ class DecompilerAnalyzer:
                             if result and len(result) > 0:
                                 source_code = result[0].get("SourceCode", "")
                                 if source_code:
-                                    report.dangerous_functions = _scan_decompiled_source(
-                                        source_code
-                                    )
-                                    func_pattern = re.compile(
-                                        r"function\s+(\w+)\s*\(", re.IGNORECASE
-                                    )
-                                    report.decompiled_functions = sorted(
-                                        set(func_pattern.findall(source_code))
-                                    )
-                    except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+                                    report.dangerous_functions = _scan_decompiled_source(source_code)
+                                    func_pattern = re.compile(r"function\s+(\w+)\s*\(", re.IGNORECASE)
+                                    report.decompiled_functions = sorted(set(func_pattern.findall(source_code)))
+                    except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
                         logger.debug("unknown_error", exc_info=True)
                         logger.debug(f"Source scan failed for {token_address}: {e}")
 
@@ -605,9 +615,7 @@ class DecompilerAnalyzer:
             if idl_data:
                 report.solana_anchor_risks = self._check_anchor_risks(idl_data)
             else:
-                report.warnings.append(
-                    "Could not extract Anchor IDL - limited analysis for Solana program"
-                )
+                report.warnings.append("Could not extract Anchor IDL - limited analysis for Solana program")
 
         # 4. Compute risk
         self._compute_risk(report)

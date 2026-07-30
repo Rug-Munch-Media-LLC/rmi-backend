@@ -50,6 +50,7 @@ TTL_LATEST = 10
 TTL_TRENDING = 180
 TTL_HOLDERS = 60
 
+
 @dataclass
 class KeyState:
     """Per-key usage and health tracking."""
@@ -98,6 +99,7 @@ class KeyState:
     def mark_success(self) -> None:
         self.consecutive_429s = 0
         self.rate_limited_until = 0.0
+
 
 class SolanaTrackerClient:
     """Multi-key load balanced client for Solana Tracker Data API.
@@ -161,9 +163,7 @@ class SolanaTrackerClient:
                 return key
             return None
 
-    async def _call(
-        self, path: str, params: dict | None = None, ttl: int = TTL_TOKEN
-    ) -> dict | None:
+    async def _call(self, path: str, params: dict | None = None, ttl: int = TTL_TOKEN) -> dict | None:
         cache_key = self._cache_key(path, params or {})
         cached = await self._cache_get(cache_key)
         if cached is not None:
@@ -233,9 +233,7 @@ class SolanaTrackerClient:
     async def get_token_holders(self, mint: str, limit: int = 20) -> dict | None:
         return await self._call(f"/tokens/{mint}/holders", {"limit": min(limit, 50)}, TTL_HOLDERS)
 
-    async def get_token_trades(
-        self, mint: str, limit: int = 20, cursor: str | None = None
-    ) -> dict | None:
+    async def get_token_trades(self, mint: str, limit: int = 20, cursor: str | None = None) -> dict | None:
         params = {"limit": min(limit, 100)}
         if cursor:
             params["cursor"] = cursor
@@ -245,9 +243,7 @@ class SolanaTrackerClient:
     async def get_wallet(self, address: str) -> dict | None:
         return await self._call(f"/wallet/{address}", None, TTL_WALLET)
 
-    async def get_wallet_trades(
-        self, address: str, limit: int = 20, cursor: str | None = None
-    ) -> dict | None:
+    async def get_wallet_trades(self, address: str, limit: int = 20, cursor: str | None = None) -> dict | None:
         params = {"limit": min(limit, 100)}
         if cursor:
             params["cursor"] = cursor
@@ -296,7 +292,9 @@ class SolanaTrackerClient:
 
         return _get()
 
+
 _client: SolanaTrackerClient | None = None
+
 
 def get_solana_tracker() -> SolanaTrackerClient:
     global _client

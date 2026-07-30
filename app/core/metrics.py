@@ -60,6 +60,7 @@ HEALTH_CHECK_STATUS = Gauge(
     ["store"],
 )
 
+
 # ── PrometheusMiddleware ────────────────────────────────────────────
 class PrometheusMiddleware:
     """Per-request Prometheus metrics.
@@ -105,8 +106,10 @@ class PrometheusMiddleware:
             if status_holder["code"] >= 400:
                 ERROR_COUNT.labels(method=method, endpoint=endpoint, error_type=status).inc()
 
+
 # ── Router (factory expects this attribute) ─────────────────────────
 router = APIRouter(tags=["metrics"], include_in_schema=False)
+
 
 @router.get("/metrics")
 async def metrics_endpoint() -> Response:

@@ -24,6 +24,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("contract_diff")
 
+
 @dataclass
 class ContractDiffReport:
     """Result of contract diff analysis."""
@@ -58,6 +59,7 @@ class ContractDiffReport:
     citations: list[dict[str, Any]] = field(default_factory=list)
 
     warnings: list[str] = field(default_factory=list)
+
 
 # Dangerous function selectors (4-byte signatures of known rug functions)
 DANGEROUS_SELECTORS = {
@@ -110,6 +112,7 @@ RUG_BYTECODE_PATTERNS = [
     rb"launchedAt",
 ]
 
+
 class ContractDiffAnalyzer:
     """Compare contract bytecode against known rug patterns and clone databases."""
 
@@ -151,7 +154,7 @@ class ContractDiffAnalyzer:
             self._initialized = True
             if self._rug_hashes:
                 logger.info(f"Loaded {len(self._rug_hashes)} known rug bytecode hashes")
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("_ensure_init_error", exc_info=True)
             logger.warning(f"Could not load rug hashes: {e}")
             self._initialized = True  # Don't retry on every call
@@ -197,11 +200,7 @@ class ContractDiffAnalyzer:
     def _scan_rug_patterns(self, bytecode: str) -> list[str]:
         """Scan bytecode for known rug contract patterns."""
         found = []
-        raw = (
-            bytecode.lower().encode()
-            if not bytecode.startswith("0x")
-            else bytecode[2:].lower().encode()
-        )
+        raw = bytecode.lower().encode() if not bytecode.startswith("0x") else bytecode[2:].lower().encode()
 
         for pattern in RUG_BYTECODE_PATTERNS:
             try:
@@ -235,9 +234,7 @@ class ContractDiffAnalyzer:
 
             # Hash the bytecode
             report.bytecode_hash = self._hash_bytecode(bytecode)
-            report.runtime_bytecode_hash = hashlib.sha256(
-                bytecode.lower().replace("0x", "").encode()
-            ).hexdigest()
+            report.runtime_bytecode_hash = hashlib.sha256(bytecode.lower().replace("0x", "").encode()).hexdigest()
 
             # Extract function selectors
             report.function_selectors = self._extract_selectors(bytecode)
@@ -298,7 +295,7 @@ class ContractDiffAnalyzer:
                     max_citations=3,
                     min_similarity=0.3,
                 )
-            except (httpx.HTTPError, KeyError, TypeError) as e :
+            except (httpx.HTTPError, KeyError, TypeError) as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.debug(f"Citation lookup failed: {e}")
 
@@ -306,9 +303,7 @@ class ContractDiffAnalyzer:
             risk_score = 0.0
 
             # Exact hash match = instant high risk
-            if report.is_clone and any(
-                m.get("type") == "exact_hash_match" for m in report.known_rug_matches
-            ):
+            if report.is_clone and any(m.get("type") == "exact_hash_match" for m in report.known_rug_matches):
                 risk_score += 60.0
 
             # High selector similarity
@@ -362,13 +357,9 @@ class ContractDiffAnalyzer:
                     f"Contract selectors {report.clone_similarity:.0%} similar to known rug at {report.clone_of}"
                 )
             if report.dangerous_functions:
-                report.warnings.append(
-                    f"Dangerous functions detected: {', '.join(report.dangerous_functions[:3])}"
-                )
+                report.warnings.append(f"Dangerous functions detected: {', '.join(report.dangerous_functions[:3])}")
             if rug_patterns:
-                report.warnings.append(
-                    f"Rug-pattern bytecode markers found: {', '.join(rug_patterns[:3])}"
-                )
+                report.warnings.append(f"Rug-pattern bytecode markers found: {', '.join(rug_patterns[:3])}")
 
             # Enhance warnings with RAG citations
             try:
@@ -380,7 +371,7 @@ class ContractDiffAnalyzer:
             except (AttributeError, ImportError):
                 pass
 
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Contract diff analysis failed: {e}")
             report.warnings.append(f"Analysis error: {str(e)[:100]}")
@@ -426,7 +417,7 @@ class ContractDiffAnalyzer:
                             # Return the base64-encoded program data
                             return data_arr[0] if data_arr[1] == "base64" else str(data_arr[0])
                     return str(account_data)
-            except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+            except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
                 logger.debug("_fetch_bytecode_error", exc_info=True)
                 logger.debug(f"Solana account info fetch failed: {e}")
             return None
@@ -453,7 +444,7 @@ class ContractDiffAnalyzer:
                 )
                 return code_hex
             logger.debug(f"eth_getCode returned empty for {address} on {chain}")
-        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e :
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Consensus RPC bytecode fetch failed: {e}")
 
@@ -486,7 +477,17 @@ class ContractDiffAnalyzer:
                     if code and code != "0x" and len(code) > 10:
                         logger.info(f"Got bytecode via fallback RPC for {address}")
                         return code
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            OSError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Fallback RPC failed: {e}")
 

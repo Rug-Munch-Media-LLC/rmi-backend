@@ -13,6 +13,7 @@ from app.rate_limiter import get_dispatcher
 
 logger = get_logger("health.dashboard")
 
+
 async def provider_health() -> dict:
     """Live health status of all embedding providers."""
     d = await get_dispatcher()
@@ -63,6 +64,7 @@ async def provider_health() -> dict:
         "cache": d.cache.stats(),
         "timestamp": time.time(),
     }
+
 
 async def credit_burn() -> dict:
     """Enterprise credit burn tracking - daily rate, projected exhaustion."""

@@ -10,6 +10,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.evm_extra")
 
+
 async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) -> dict | None:
     """BSC intelligence via BscScan free public API."""
     import aiohttp
@@ -42,6 +43,7 @@ async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"BSC fetch failed: {e}")
     return None
+
 
 async def _fetch_polygon_data(address: str = "", action: str = "balance", **kwargs) -> dict | None:
     """Polygon intelligence via PolygonScan free public API."""

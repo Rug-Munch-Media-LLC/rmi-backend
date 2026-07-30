@@ -29,6 +29,7 @@ logger = get_logger("wallet_memory.clustering")
 
 # ── Union-Find (Disjoint Set) ────────────────────────────────────────
 
+
 class UnionFind:
     """Weighted Union-Find with path compression. O(alpha(n)) per op."""
 
@@ -83,7 +84,9 @@ class UnionFind:
     def total_nodes(self) -> int:
         return len(self._parent)
 
+
 # ── Data classes ─────────────────────────────────────────────────────
+
 
 class WalletProfile:
     """Behavioral profile of a wallet."""
@@ -117,9 +120,7 @@ class WalletProfile:
         self.avg_tx_size = 0.0
         self.tx_frequency = 0.0
 
-    def add_tx(
-        self, timestamp: datetime, counterparty: str, amount: float = 0.0, program: str = ""
-    ) -> None:
+    def add_tx(self, timestamp: datetime, counterparty: str, amount: float = 0.0, program: str = "") -> None:
         self.total_transactions += 1
         self.total_volume += amount
         self.unique_counterparties.add(counterparty)
@@ -141,9 +142,8 @@ class WalletProfile:
         hour_counts = defaultdict(int)
         for h in hours:
             hour_counts[h] += 1
-        self.preferred_hours = sorted(
-            hour_counts.keys(), key=lambda h: hour_counts[h], reverse=True
-        )[:3]
+        self.preferred_hours = sorted(hour_counts.keys(), key=lambda h: hour_counts[h], reverse=True)[:3]
+
 
 class Cluster:
     """A detected wallet cluster (entity)."""
@@ -169,6 +169,7 @@ class Cluster:
             "category": self.category,
         }
 
+
 # ── Clustering Engine ───────────────────────────────────────────────
 
 HEURISTIC_WEIGHTS = {
@@ -179,6 +180,7 @@ HEURISTIC_WEIGHTS = {
     "gas_payer": 0.85,
     "deposit_withdraw": 0.80,
 }
+
 
 class WalletClusteringEngine:
     """6-heuristic clustering engine with Union-Find merge."""
@@ -288,9 +290,7 @@ class WalletClusteringEngine:
                 (a, b)
                 for a in members
                 for b in members
-                if a < b
-                and "common_counterparties"
-                in self._pair_heuristics.get(tuple(sorted([a, b])), set())
+                if a < b and "common_counterparties" in self._pair_heuristics.get(tuple(sorted([a, b])), set())
             ]
             if counterparty_pairs and len(members) >= 2:
                 c = Cluster(f"counterparty_{root[:12]}")
@@ -336,8 +336,7 @@ class WalletClusteringEngine:
                 1
                 for a in members
                 for b in members
-                if a < b
-                and "behavioral_pattern" in self._pair_heuristics.get(tuple(sorted([a, b])), set())
+                if a < b and "behavioral_pattern" in self._pair_heuristics.get(tuple(sorted([a, b])), set())
             ]
             if beh_pairs and len(members) >= 2:
                 c = Cluster(f"behavioral_{root[:12]}")
@@ -391,9 +390,7 @@ class WalletClusteringEngine:
 
     # ── Heuristic 5: Gas Payer Linkage (NEW - for deployer networks) ─
 
-    def detect_gas_payer_clusters(
-        self, gas_payer_map: dict[str, list[str]] | None = None
-    ) -> list[Cluster]:
+    def detect_gas_payer_clusters(self, gas_payer_map: dict[str, list[str]] | None = None) -> list[Cluster]:
         """
         Link wallets where one address pays gas for multiple contract
         deployments or token transfers. Primary heuristic for identifying
@@ -499,9 +496,7 @@ class WalletClusteringEngine:
         all_clusters.extend(self.detect_behavioral_clusters())
         all_clusters.extend(self.detect_funding_clusters())
         all_clusters.extend(self.detect_gas_payer_clusters(gas_payer_map))
-        all_clusters.extend(
-            self.detect_deposit_withdraw_clusters(exchange_deposit_map, exchange_withdrawal_map)
-        )
+        all_clusters.extend(self.detect_deposit_withdraw_clusters(exchange_deposit_map, exchange_withdrawal_map))
 
         # The Union-Find already merged everything - now extract the final clusters
         final = self._build_final_clusters()
@@ -544,13 +539,9 @@ class WalletClusteringEngine:
     def _fingerprint_similarity(self, fp1: dict, fp2: dict) -> float:
         scores = []
         if fp1["avg_size"] > 0 and fp2["avg_size"] > 0:
-            scores.append(
-                min(fp1["avg_size"], fp2["avg_size"]) / max(fp1["avg_size"], fp2["avg_size"])
-            )
+            scores.append(min(fp1["avg_size"], fp2["avg_size"]) / max(fp1["avg_size"], fp2["avg_size"]))
         if fp1["frequency"] > 0 and fp2["frequency"] > 0:
-            scores.append(
-                min(fp1["frequency"], fp2["frequency"]) / max(fp1["frequency"], fp2["frequency"])
-            )
+            scores.append(min(fp1["frequency"], fp2["frequency"]) / max(fp1["frequency"], fp2["frequency"]))
         h1, h2 = fp1["preferred_hours"], fp2["preferred_hours"]
         if h1 and h2:
             scores.append(len(h1 & h2) / len(h1 | h2))

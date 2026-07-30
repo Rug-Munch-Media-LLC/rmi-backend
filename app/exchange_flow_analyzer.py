@@ -83,6 +83,7 @@ DEX_CONFIGS = {
 
 # ─── POOL DATA MODELS ─────────────────────────────────────────────
 
+
 @dataclass
 class LiquidityPool:
     """Liquidity pool data."""
@@ -99,6 +100,7 @@ class LiquidityPool:
     dune_analytics_id: str | None = None
     dex: str = "unknown"
 
+
 @dataclass
 class ExchangeFlow:
     """Exchange deposit/withdrawal flow."""
@@ -112,6 +114,7 @@ class ExchangeFlow:
     profit_usd: float = 0
     risk_score: int = 0
 
+
 @dataclass
 class WhaleMovement:
     """Whale movement tracking."""
@@ -124,7 +127,9 @@ class WhaleMovement:
     timestamp: str = ""
     tx_hash: str | None = None
 
+
 # ─── EXCHANGE FLOW ANALYZER ───────────────────────────────────────
+
 
 class ExchangeFlowAnalyzer:
     """Analyzer for exchange flows and liquidity pools."""
@@ -296,9 +301,7 @@ class ExchangeFlowAnalyzer:
             "total_liquidity": pool.total_liquidity_usd,
         }
 
-    def track_whale_movements(
-        self, address: str, threshold_usd: float = 100000
-    ) -> list[WhaleMovement]:
+    def track_whale_movements(self, address: str, threshold_usd: float = 100000) -> list[WhaleMovement]:
         """
         Track large movements for an address.
 
@@ -312,17 +315,21 @@ class ExchangeFlowAnalyzer:
         # Simplified - real implementation would scan blocks
         return []
 
+
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _analyzer = ExchangeFlowAnalyzer()
+
 
 def analyze_entity_flows(address: str, chain: str = "base") -> dict[str, Any]:
     """Analyze entity exchange flows."""
     return _analyzer.analyze_entity_flows(address, chain)
 
+
 def compare_flows(addresses: list[str], chain: str = "base") -> dict[str, Any]:
     """Compare exchange flows between addresses."""
     return _analyzer.compare_flows(addresses, chain)
+
 
 def get_reserves(pool_address: str, chain: str = "base") -> dict[str, int]:
     """Get pool reserves."""

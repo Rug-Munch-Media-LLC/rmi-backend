@@ -73,13 +73,16 @@ SOLANA_ZERO_ADDRESS = "11111111111111111111111111111111"
 
 # ── Risk Levels ────────────────────────────────────────────
 
+
 class AuthorityRiskLevel(Enum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
 
+
 # ── Data Models ─────────────────────────────────────────────
+
 
 @dataclass
 class SolanaAuthority:
@@ -90,6 +93,7 @@ class SolanaAuthority:
     is_renounced: bool
     is_token_itself: bool  # authority set to token's own mint address
 
+
 @dataclass
 class SolanaAuthorities:
     """All authority fields for a Solana token mint."""
@@ -98,19 +102,19 @@ class SolanaAuthorities:
     freeze_authority: SolanaAuthority | None = None
     update_authority: SolanaAuthority | None = None
 
+
 @dataclass
 class EVMProxyInfo:
     """Proxy / upgradability details for an EVM contract."""
 
     is_proxy: bool = False
     implementation_address: str | None = None
-    proxy_type: str | None = (
-        None  # "EIP-1967", "EIP-1822", "OZ_Transparent", "OZ_UUPS", "Minimal", "Unknown"
-    )
+    proxy_type: str | None = None  # "EIP-1967", "EIP-1822", "OZ_Transparent", "OZ_UUPS", "Minimal", "Unknown"
     admin_address: str | None = None
     is_ownership_renounced: bool = False
     has_admin_functions: bool = False
     admin_function_signatures: list[str] = field(default_factory=list)
+
 
 @dataclass
 class ContractAuthorityReport:
@@ -124,6 +128,7 @@ class ContractAuthorityReport:
     risk_score: int = 0  # 0-100
     risk_level: str = "LOW"
 
+
 # ── EVM Proxy Detection Slots ───────────────────────────────
 
 # EIP-1967 slots: keccak256("eip1967.proxy.implementation") - 1, etc.
@@ -132,13 +137,12 @@ EIP1967_ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a71785
 EIP1967_BEACON_SLOT = "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50"
 
 # EIP-1822: keccak256("PROXIABLE")
-EIP1822_SLOT = (
-    "0xc5f16f0fcc639fa48a694782b6357e4c6042a5f0a3e2c1c1e8b6e4e8b6e4e8b6"  # placeholder pattern
-)
+EIP1822_SLOT = "0xc5f16f0fcc639fa48a694782b6357e4c6042a5f0a3e2c1c1e8b6e4e8b6e4e8b6"  # placeholder pattern
 
 # OpenZeppelin-specific: _upgradeTo signature
 OZ_TRANSPARENT_ADMIN_SIG = "0xf3b7dead"  # changeAdmin
 OZ_UUPS_UPGRADE_SIG = "0x4f1ef286"  # upgradeToAndCall
+
 
 class ContractAuthorityScanner:
     """Detects dangerous authority configurations on Solana and EVM chains.
@@ -249,16 +253,14 @@ class ContractAuthorityScanner:
 
             # Validate: if we couldn't parse any authorities, add warning
             if not any([authorities.mint_authority, authorities.freeze_authority]):
-                report.warnings.append(
-                    "Could not parse SPL token mint data; raw fallback attempted"
-                )
+                report.warnings.append("Could not parse SPL token mint data; raw fallback attempted")
 
             report.solana_authorities = authorities
             self._add_solana_warnings(report)
             self._compute_risk(report)
             return report
 
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Solana authority scan failed for {token_address}: {e}")
             report.warnings.append(f"Solana scan error: {str(e)[:120]}")
@@ -313,14 +315,12 @@ class ContractAuthorityScanner:
                 "mint_authority": mint_authority,
                 "freeze_authority": freeze_authority,
             }
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("pk_from_bytes_error", exc_info=True)
             logger.debug(f"Raw SPL mint parse failed: {e}")
             return None
 
-    def _build_solana_authority(
-        self, auth_type: str, address: str, token_address: str
-    ) -> SolanaAuthority:
+    def _build_solana_authority(self, auth_type: str, address: str, token_address: str) -> SolanaAuthority:
         """Build a SolanaAuthority entry from a parsed address string."""
         is_renounced = address == "" or address == SOLANA_ZERO_ADDRESS
         is_token_itself = address == token_address
@@ -339,23 +339,15 @@ class ContractAuthorityScanner:
 
         if auths.mint_authority and not auths.mint_authority.is_renounced:
             if auths.mint_authority.is_token_itself:
-                report.warnings.append(
-                    "CRITICAL: Mint authority is the token itself - self-referential minting"
-                )
+                report.warnings.append("CRITICAL: Mint authority is the token itself - self-referential minting")
             else:
-                report.warnings.append(
-                    f"Mint authority not renounced: {auths.mint_authority.address}"
-                )
+                report.warnings.append(f"Mint authority not renounced: {auths.mint_authority.address}")
 
         if auths.freeze_authority and not auths.freeze_authority.is_renounced:
             if auths.freeze_authority.is_token_itself:
-                report.warnings.append(
-                    "HIGH: Freeze authority is the token itself - can freeze accounts"
-                )
+                report.warnings.append("HIGH: Freeze authority is the token itself - can freeze accounts")
             else:
-                report.warnings.append(
-                    f"Freeze authority not renounced: {auths.freeze_authority.address}"
-                )
+                report.warnings.append(f"Freeze authority not renounced: {auths.freeze_authority.address}")
 
         if auths.update_authority and not auths.update_authority.is_renounced:
             report.warnings.append(
@@ -388,19 +380,12 @@ class ContractAuthorityScanner:
             impl = await self._etherscan_get_storage(token_address, EIP1967_IMPL_SLOT, net)
             admin = await self._etherscan_get_storage(token_address, EIP1967_ADMIN_SLOT, net)
 
-            if (
-                impl
-                and impl != "0x0000000000000000000000000000000000000000000000000000000000000000"
-            ):
+            if impl and impl != "0x0000000000000000000000000000000000000000000000000000000000000000":
                 proxy_info.is_proxy = True
                 proxy_info.implementation_address = self._strip_to_address(impl)
                 proxy_info.proxy_type = "EIP-1967"
 
-                if (
-                    admin
-                    and admin
-                    != "0x0000000000000000000000000000000000000000000000000000000000000000"
-                ):
+                if admin and admin != "0x0000000000000000000000000000000000000000000000000000000000000000":
                     proxy_info.admin_address = self._strip_to_address(admin)
 
             # 3. If not EIP-1967, check EIP-1822 (PROXIABLE slot)
@@ -438,7 +423,7 @@ class ContractAuthorityScanner:
             self._compute_risk(report)
             return report
 
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"EVM authority scan failed for {token_address} on {chain}: {e}")
             report.warnings.append(f"EVM scan error: {str(e)[:120]}")
@@ -446,9 +431,7 @@ class ContractAuthorityScanner:
             self._compute_risk(report)
             return report
 
-    def _analyze_evm_abi(
-        self, abi: list, proxy_info: EVMProxyInfo, report: ContractAuthorityReport
-    ) -> None:
+    def _analyze_evm_abi(self, abi: list, proxy_info: EVMProxyInfo, report: ContractAuthorityReport) -> None:
         """Scan ABI for admin / ownership functions."""
         admin_sigs = [
             "transferOwnership",
@@ -505,9 +488,7 @@ class ContractAuthorityScanner:
         # EIP-1167 minimal proxy: starts with 0x363d3d373d3d3d363d73...
         return bytecode.startswith("0x363d3d373d3d3d363d73")
 
-    async def _check_evm_ownership_renounced(
-        self, token_address: str, net: dict, admin_address: str
-    ) -> bool:
+    async def _check_evm_ownership_renounced(self, token_address: str, net: dict, admin_address: str) -> bool:
         """Check if the admin/owner is a zero address or the contract itself (renounced)."""
         BURNED_ADDRESSES = {
             "0x0000000000000000000000000000000000000000",
@@ -529,9 +510,7 @@ class ContractAuthorityScanner:
             )
 
             if proxy.admin_address and not proxy.is_ownership_renounced:
-                report.warnings.append(
-                    f"Proxy admin not renounced: {proxy.admin_address} - contract can be upgraded"
-                )
+                report.warnings.append(f"Proxy admin not renounced: {proxy.admin_address} - contract can be upgraded")
             elif proxy.is_ownership_renounced:
                 report.warnings.append("Proxy ownership is renounced - upgrade risk mitigated")
 
@@ -556,7 +535,7 @@ class ContractAuthorityScanner:
                 if data.get("result") and data["result"] not in ("", "0x", None):
                     return data
             return None
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_etherscan_get_error", exc_info=True)
             logger.debug(f"Etherscan API error: {e}")
             return None
@@ -680,7 +659,9 @@ class ContractAuthorityScanner:
         else:
             report.risk_level = AuthorityRiskLevel.LOW.value
 
+
 # ── Pipeline Integration ────────────────────────────────────
+
 
 async def run_contract_authority_scan(token_address: str, chain: str) -> ContractAuthorityReport:
     """Convenience function for SENTINEL pipeline integration."""

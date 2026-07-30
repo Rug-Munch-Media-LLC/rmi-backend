@@ -28,21 +28,32 @@ async def ghost_drafts(
 
         if not GHOST_CONTENT_KEY:
             return {"posts": [], "error": "Ghost content key not configured"}
-        params = {"key": GHOST_CONTENT_KEY, "limit": limit,
-                  "filter": "status:draft", "include": "tags,authors", "order": "updated_at DESC"}
+        params = {
+            "key": GHOST_CONTENT_KEY,
+            "limit": limit,
+            "filter": "status:draft",
+            "include": "tags,authors",
+            "order": "updated_at DESC",
+        }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
-                f"{GHOST_API}/ghost/api/content/posts/", params=params,
+                f"{GHOST_API}/ghost/api/content/posts/",
+                params=params,
                 headers={"Accept-Version": "v5.0"},
             )
             if resp.status_code == 200:
                 data = resp.json()
-                posts = [{
-                    "id": p["id"], "title": p["title"],
-                    "excerpt": p.get("excerpt", "")[:200],
-                    "status": "draft", "updated_at": p.get("updated_at", ""),
-                    "tags": [t["name"] for t in p.get("tags", [])],
-                } for p in data.get("posts", [])]
+                posts = [
+                    {
+                        "id": p["id"],
+                        "title": p["title"],
+                        "excerpt": p.get("excerpt", "")[:200],
+                        "status": "draft",
+                        "updated_at": p.get("updated_at", ""),
+                        "tags": [t["name"] for t in p.get("tags", [])],
+                    }
+                    for p in data.get("posts", [])
+                ]
                 return {"posts": posts, "total": len(posts)}
             return {"posts": [], "error": f"Ghost HTTP {resp.status_code}"}
     except Exception as e:
@@ -51,9 +62,7 @@ async def ghost_drafts(
 
 
 @ghost_router.get("/content/tags")
-async def ghost_tags(
-    request: Request, _=Depends(verify_admin)
-) -> dict[str, list] | dict:
+async def ghost_tags(request: Request, _=Depends(verify_admin)) -> dict[str, list] | dict:
     """Get Ghost tags."""
     try:
         import httpx
@@ -70,11 +79,15 @@ async def ghost_tags(
             )
             if resp.status_code == 200:
                 data = resp.json()
-                tags = [{
-                    "id": t["id"], "name": t["name"], "slug": t.get("slug", ""),
-                    "post_count": t.get("count", {}).get("posts", 0)
-                    if isinstance(t.get("count"), dict) else 0,
-                } for t in data.get("tags", [])]
+                tags = [
+                    {
+                        "id": t["id"],
+                        "name": t["name"],
+                        "slug": t.get("slug", ""),
+                        "post_count": t.get("count", {}).get("posts", 0) if isinstance(t.get("count"), dict) else 0,
+                    }
+                    for t in data.get("tags", [])
+                ]
                 return {"tags": tags, "total": len(tags)}
             return {"tags": [], "error": f"Ghost HTTP {resp.status_code}"}
     except Exception as e:
@@ -83,9 +96,7 @@ async def ghost_tags(
 
 
 @ghost_router.get("/content/analytics")
-async def ghost_analytics(
-    request: Request, _=Depends(verify_admin)
-) -> dict | dict[str, str]:
+async def ghost_analytics(request: Request, _=Depends(verify_admin)) -> dict | dict[str, str]:
     """Get Ghost analytics computed from local data."""
     try:
         import httpx
@@ -98,8 +109,7 @@ async def ghost_analytics(
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(
                     f"{GHOST_API}/ghost/api/content/posts/",
-                    params={"key": GHOST_CONTENT_KEY, "limit": 100,
-                            "include": "tags", "order": "published_at DESC"},
+                    params={"key": GHOST_CONTENT_KEY, "limit": 100, "include": "tags", "order": "published_at DESC"},
                     headers={"Accept-Version": "v5.0"},
                 )
                 if resp.status_code == 200:
@@ -118,9 +128,13 @@ async def ghost_analytics(
                             except Exception:
                                 pass
         return {
-            "total_posts": total_posts, "posts_this_month": posts_this_month,
-            "member_count": 0, "avg_read_time": 0, "views_today": 0,
-            "views_this_month": 0, "source": "ghost_content_api",
+            "total_posts": total_posts,
+            "posts_this_month": posts_this_month,
+            "member_count": 0,
+            "avg_read_time": 0,
+            "views_today": 0,
+            "views_this_month": 0,
+            "source": "ghost_content_api",
             "note": "Analytics computed from Ghost Content API",
         }
     except Exception as e:
@@ -128,9 +142,7 @@ async def ghost_analytics(
 
 
 @ghost_router.post("/content/post/{post_id}/publish")
-async def ghost_publish(
-    request: Request, post_id: str, _=Depends(verify_admin)
-) -> dict[str, str] | dict[str, bool]:
+async def ghost_publish(request: Request, post_id: str, _=Depends(verify_admin)) -> dict[str, str] | dict[str, bool]:
     """Publish a Ghost draft post."""
     try:
         import httpx

@@ -31,11 +31,13 @@ _blockchair_cb = SimpleCircuitBreaker(
     recovery_timeout=30.0,
 )
 
+
 class _StaleResultAvailable(Exception):
     """Internal sentinel — circuit-breaker returned a stale cached result."""
 
     def __init__(self, result: Any) -> None:
         self.result = result
+
 
 def _cb_call(url: str, params: dict | None = None, timeout: int = 30) -> Any:
     """Sync HTTP GET wrapped with circuit breaker. Returns JSON data or raises sentinel."""
@@ -52,6 +54,7 @@ def _cb_call(url: str, params: dict | None = None, timeout: int = 30) -> Any:
     resp.raise_for_status()
     _blockchair_cb.record_success()
     return resp.json()
+
 
 # ─── BLOCKCHAIR API ENDPOINTS ─────────────────────────────────────
 
@@ -74,6 +77,7 @@ ENDPOINTS = {
 
 # ─── BLOCKCHAIR CLIENT ────────────────────────────────────────────
 
+
 class BlockchairClient:
     """Client for Blockchair API."""
 
@@ -87,7 +91,7 @@ class BlockchairClient:
         try:
             response = httpx.get(f"{BLOCKCHAIR_API}/bitcoin/stats", timeout=5)
             return response.status_code == 200
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             return False
 
     def _extract(self, data: Any, *keys: str) -> Any:
@@ -212,15 +216,18 @@ class BlockchairClient:
             _blockchair_cb.record_failure(is_server_error=True)
             return None
 
+
 def _extract_data(result: Any, key: str) -> Any:
     """Get key from stale result safely."""
     if isinstance(result, dict):
         return result.get("data", {}).get(key) if key else result.get("data")
     return None
 
+
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _client: BlockchairClient | None = None
+
 
 def get_blockchair_client(chain: str = "bitcoin") -> BlockchairClient:
     """Get or create Blockchair client instance."""
@@ -229,10 +236,12 @@ def get_blockchair_client(chain: str = "bitcoin") -> BlockchairClient:
         _client = BlockchairClient()
     return _client
 
+
 def get_address_balance(address: str, chain: str = "bitcoin") -> dict[str, Any] | None:
     """Get address balance from Blockchair."""
     client = get_blockchair_client(chain)
     return client.get_address_info(address)
+
 
 def search_blockchain(query: str) -> dict[str, Any]:
     """Search Blockchair for blockchain data."""

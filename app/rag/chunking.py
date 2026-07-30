@@ -30,6 +30,7 @@ DEFAULT_MIN_CHARS = 32
 
 _redis = None
 
+
 def _get_redis() -> Any:
     global _redis
     if _redis is None:
@@ -37,6 +38,7 @@ def _get_redis() -> Any:
 
         _redis = get_redis()
     return _redis
+
 
 @dataclass
 class Chunk:
@@ -47,10 +49,12 @@ class Chunk:
     index: int
     quality: float = 1.0
 
+
 def content_hash(text: str) -> str:
     """Stable SHA-256 of normalized text. Used for dedup."""
     norm = re.sub(r"\s+", " ", text.strip().lower())
     return hashlib.sha256(norm.encode("utf-8", errors="ignore")).hexdigest()
+
 
 def chunk_text(
     text: str,
@@ -128,6 +132,7 @@ def chunk_text(
         )
     return out
 
+
 def _quality(text: str, max_chunk: int) -> float:
     """Quick quality score 0-1. Penalize noise (high special-char ratio)."""
     if not text:
@@ -138,6 +143,7 @@ def _quality(text: str, max_chunk: int) -> float:
     special_score = max(0.0, 1.0 - (special / n))
     return round(0.7 * length_score + 0.3 * special_score, 3)
 
+
 # ── Dedup via Redis ─────────────────────────────────────────────────
 def is_duplicate(content_hash: str, collection: str) -> bool:
     """Has this exact content already been ingested into the collection?"""
@@ -146,6 +152,7 @@ def is_duplicate(content_hash: str, collection: str) -> bool:
     except Exception as e:
         log.warning("dedup_check_failed: %s", e)
         return False
+
 
 def mark_ingested(content_hash: str, collection: str) -> None:
     """Record that this content hash is now in the collection."""

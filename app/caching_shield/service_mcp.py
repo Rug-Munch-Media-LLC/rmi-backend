@@ -36,9 +36,11 @@ _l1: dict[str, tuple] = {}
 _hits = 0
 _misses = 0
 
+
 def _cache_key(service: str, method: str, params: dict) -> str:
     raw = f"{service}:{method}:{json.dumps(params, sort_keys=True, default=str)}"
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
+
 
 async def _cached_call(service: str, method: str, params: dict, fn, ttl: int = 60) -> dict | None:
     global _hits, _misses
@@ -56,9 +58,11 @@ async def _cached_call(service: str, method: str, params: dict, fn, ttl: int = 6
         _l1[key] = (time.monotonic() + ttl, result)
     return result
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # GMGN - Token Analytics, Holder Distribution, Sniper Detection
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class GMGNTools:
     """GMGN token analytics - holder distribution, sniper detection, bundle analysis."""
@@ -84,9 +88,7 @@ class GMGNTools:
                         "top10_holder_pct": d.get("top10_holder_rate"),
                     }
 
-        return await _cached_call(
-            "gmgn", "token_security", {"chain": chain, "address": address}, fn, 60
-        )
+        return await _cached_call("gmgn", "token_security", {"chain": chain, "address": address}, fn, 60)
 
     async def holder_distribution(self, chain: str, address: str) -> dict | None:
         async def fn(chain, address) -> dict[str, int]:
@@ -117,9 +119,11 @@ class GMGNTools:
 
         return await _cached_call("gmgn", "snipers", {"chain": chain, "address": address}, fn, 60)
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # BIRDEYE - Token Overview, Price, Volume
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class BirdeyeTools:
     def __init__(self) -> None:
@@ -159,9 +163,11 @@ class BirdeyeTools:
 
         return await _cached_call("birdeye", "price", {"address": address}, fn, 8)
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # SOLSCAN - Token Metadata, Holders, Transactions
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class SolscanTools:
     def __init__(self) -> None:
@@ -198,13 +204,13 @@ class SolscanTools:
                 if r.status_code == 200:
                     return {"holders": r.json().get("data", [])}
 
-        return await _cached_call(
-            "solscan", "holders", {"address": address, "limit": limit}, fn, 60
-        )
+        return await _cached_call("solscan", "holders", {"address": address, "limit": limit}, fn, 60)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # COINGECKO - Prices, Market Data, Trending
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class CoinGeckoTools:
     def __init__(self) -> None:
@@ -232,18 +238,18 @@ class CoinGeckoTools:
     async def trending(self) -> dict | None:
         async def fn() -> dict[str, list[Any | None]]:
             async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(
-                    f"{self._base}/search/trending", headers={"x-cg-pro-api-key": self._key}
-                )
+                r = await c.get(f"{self._base}/search/trending", headers={"x-cg-pro-api-key": self._key})
                 if r.status_code == 200:
                     coins = r.json().get("coins", [])
                     return {"trending": [c.get("item", {}).get("name") for c in coins[:10]]}
 
         return await _cached_call("coingecko", "trending", {}, fn, 300)
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # ETHERSCAN - Contract Verification, ABI, Gas
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class EtherscanTools:
     def __init__(self) -> None:
@@ -286,9 +292,11 @@ class EtherscanTools:
 
         return await _cached_call("etherscan", "gas", {}, fn, 15)
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # MORALIS - EVM Wallet Balances, Token Holdings, NFTs
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class MoralisTools:
     def __init__(self) -> None:
@@ -313,9 +321,7 @@ class MoralisTools:
                 if r.status_code == 200:
                     return {"balance_wei": r.json().get("balance")}
 
-        return await _cached_call(
-            "moralis", "coinmarketcap", "balance", {"address": address, "chain": chain}, fn, 15
-        )
+        return await _cached_call("moralis", "coinmarketcap", "balance", {"address": address, "chain": chain}, fn, 15)
 
     async def wallet_tokens(self, address: str, chain: str = "eth") -> dict | None:
         async def fn(address, chain) -> dict[str, int]:
@@ -329,13 +335,13 @@ class MoralisTools:
                     tokens = r.json()
                     return {"token_count": len(tokens), "tokens": tokens[:20]}
 
-        return await _cached_call(
-            "moralis", "coinmarketcap", "tokens", {"address": address, "chain": chain}, fn, 30
-        )
+        return await _cached_call("moralis", "coinmarketcap", "tokens", {"address": address, "chain": chain}, fn, 30)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # UNIFIED SERVICE MCP
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class ServiceMCP:
     """All our keyed services as MCP-compatible cached tools."""
@@ -365,7 +371,9 @@ class ServiceMCP:
             "l1_size": len(_l1),
         }
 
+
 _service_mcp: ServiceMCP | None = None
+
 
 def get_service_mcp() -> ServiceMCP:
     global _service_mcp
@@ -373,9 +381,11 @@ def get_service_mcp() -> ServiceMCP:
         _service_mcp = ServiceMCP()
     return _service_mcp
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # COINMARKETCAP - Market data, listings, trends, OHLCV (10K free/mo)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class CoinMarketCapTools:
     def __init__(self) -> None:
@@ -419,8 +429,6 @@ class CoinMarketCapTools:
                 )
                 if r.status_code == 200:
                     data = r.json().get("data", {})
-                    return {
-                        s: {"price": data[s]["quote"]["USD"]["price"]} for s in symbols if s in data
-                    }
+                    return {s: {"price": data[s]["quote"]["USD"]["price"]} for s in symbols if s in data}
 
         return await _cached_call("cmc", "quotes", {"symbols": tuple(symbols)}, fn, 30)

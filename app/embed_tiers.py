@@ -75,19 +75,23 @@ TASK_TIERS = {
     "default": "default",
 }
 
+
 def get_tier(task: str) -> str:
     """Get the quality tier for a given task."""
     return TASK_TIERS.get(task, "default")
+
 
 def get_allowed_providers(task: str) -> set[str]:
     """Get the set of allowed provider IDs for a task."""
     tier = get_tier(task)
     return TIER_PROVIDERS.get(tier, set())
 
+
 def get_min_dims(task: str) -> int:
     """Get minimum dimensions required for a task."""
     tier = get_tier(task)
     return TIER_MIN_DIMS.get(tier, 0)
+
 
 def is_provider_allowed(provider_id: str, task: str) -> bool:
     """Check if a provider is allowed for a given task."""
@@ -95,6 +99,7 @@ def is_provider_allowed(provider_id: str, task: str) -> bool:
     if not allowed:  # Empty set = all providers allowed
         return True
     return provider_id in allowed
+
 
 def tier_summary() -> dict:
     """Return a summary of all tiers and their providers."""

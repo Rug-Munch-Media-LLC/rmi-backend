@@ -27,6 +27,7 @@ from app.domains.billing.facilitators.config import FacilitatorConfig, get_confi
 
 logger = get_logger("facilitator.merx_tron")
 
+
 class MerxTronFacilitator(Facilitator):
     """MERX x402 - TRON mainnet facilitator with sub-3s confirmation.
 
@@ -122,9 +123,7 @@ class MerxTronFacilitator(Facilitator):
                 data = await resp.json()
 
                 if resp.status != 200:
-                    return self._format_error(
-                        f"MERX TRON: {data.get('error', f'HTTP {resp.status}')}"
-                    )
+                    return self._format_error(f"MERX TRON: {data.get('error', f'HTTP {resp.status}')}")
 
                 if data.get("isValid") or data.get("verified"):
                     token = data.get("token") or data.get("asset")
@@ -206,6 +205,4 @@ class MerxTronFacilitator(Facilitator):
                     facilitator=self.name,
                 )
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            return SettlementResult(
-                settled=False, reason=f"MERX TRON settlement error: {e}", facilitator=self.name
-            )
+            return SettlementResult(settled=False, reason=f"MERX TRON settlement error: {e}", facilitator=self.name)

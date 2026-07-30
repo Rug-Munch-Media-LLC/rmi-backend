@@ -32,6 +32,7 @@ from .storage import WalletStorage, get_storage
 
 logger = get_logger("wallet_memory.engine")
 
+
 class WalletMemoryEngine:
     """
     The brain of the Wallet Memory Bank.
@@ -445,7 +446,9 @@ class WalletMemoryEngine:
             }
         )
 
+
 # ── Risk level helper ───────────────────────────────────────────
+
 
 def _risk_level(score: float) -> str:
     if score >= 80:
@@ -458,9 +461,11 @@ def _risk_level(score: float) -> str:
         return "low"
     return "minimal"
 
+
 # ── Global singleton ────────────────────────────────────────────
 
 _engine: WalletMemoryEngine | None = None
+
 
 def get_wallet_engine() -> WalletMemoryEngine:
     """Get global wallet memory engine instance."""

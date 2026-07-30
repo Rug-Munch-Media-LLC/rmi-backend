@@ -93,6 +93,7 @@ def register_email(req: EmailRegisterRequest, request: Request) -> JSONResponse:
     _set_csrf_cookie(response, request)
     return response
 
+
 @router.post("/login")
 @limiter.limit("5/minute")
 def login_email(req: EmailLoginRequest, request: Request) -> JSONResponse:
@@ -105,12 +106,16 @@ def login_email(req: EmailLoginRequest, request: Request) -> JSONResponse:
 
     # Check 2FA
     if user.get("totp_enabled") and user.get("totp_secret"):
-        pre_token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"), user.get("wallet_address"))
+        pre_token = _create_jwt(
+            user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"), user.get("wallet_address")
+        )
         from jose import jwt as jose_jwt
+
         _decode_key = _JWT_PUBLIC_KEY if (JWT_ALGORITHM == "RS256" and _JWT_PUBLIC_KEY) else JWT_SECRET
         _encode_key = _JWT_PRIVATE_KEY if (JWT_ALGORITHM == "RS256" and _JWT_PRIVATE_KEY) else JWT_SECRET
         payload = jose_jwt.decode(pre_token, _decode_key, algorithms=[JWT_ALGORITHM])
         from datetime import timedelta
+
         payload["exp"] = datetime.now(UTC) + timedelta(minutes=5)
         payload["2fa_required"] = True
         payload["pre_auth"] = True
@@ -119,11 +124,13 @@ def login_email(req: EmailLoginRequest, request: Request) -> JSONResponse:
             "access_token": pre_token,
             "refresh_token": pre_token,
             "user": {
-                "id": user["id"], "email": user["email"],
+                "id": user["id"],
+                "email": user["email"],
                 "display_name": user.get("display_name", user["email"]),
                 "wallet_address": user.get("wallet_address"),
                 "wallet_chain": user.get("wallet_chain"),
-                "tier": user.get("tier", "FREE"), "role": user.get("role", "USER"),
+                "tier": user.get("tier", "FREE"),
+                "role": user.get("role", "USER"),
                 "created_at": user.get("created_at"),
                 "_2fa_required": True,
             },
@@ -133,16 +140,20 @@ def login_email(req: EmailLoginRequest, request: Request) -> JSONResponse:
         _set_csrf_cookie(response, request)
         return response
 
-    token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"), user.get("wallet_address"))
+    token = _create_jwt(
+        user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"), user.get("wallet_address")
+    )
     body = {
         "access_token": token,
         "refresh_token": token,
         "user": {
-            "id": user["id"], "email": user["email"],
+            "id": user["id"],
+            "email": user["email"],
             "display_name": user.get("display_name", user["email"]),
             "wallet_address": user.get("wallet_address"),
             "wallet_chain": user.get("wallet_chain"),
-            "tier": user.get("tier", "FREE"), "role": user.get("role", "USER"),
+            "tier": user.get("tier", "FREE"),
+            "role": user.get("role", "USER"),
             "created_at": user.get("created_at"),
         },
     }

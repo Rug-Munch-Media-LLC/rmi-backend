@@ -284,6 +284,7 @@ GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 
 # ── Multi-Method X Access ─────────────────────────────────────────
 
+
 async def _xurl_search(query: str, count: int = 20) -> list[dict]:
     """Search X via xurl CLI (OAuth)."""
     try:
@@ -306,12 +307,13 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict]:
                     for item in data:
                         if isinstance(item, dict) and "text" in item:
                             posts.append(item)
-            except (json.JSONDecodeError):
+            except json.JSONDecodeError:
                 continue
         return posts
     except Exception as e:
         logger.debug(f"xurl search failed: {e}")
         return []
+
 
 async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
     """Get recent posts from a specific user via xurl."""
@@ -369,6 +371,7 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
         logger.debug(f"xurl timeline failed for @{handle}: {e}")
         return []
 
+
 async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
     """Attempt cookie-based scraping via saved browser session.
 
@@ -398,12 +401,7 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
                     if match:
                         try:
                             data = json.loads(match.group(1))
-                            timeline = (
-                                data.get("props", {})
-                                .get("pageProps", {})
-                                .get("timeline", {})
-                                .get("entries", [])
-                            )
+                            timeline = data.get("props", {}).get("pageProps", {}).get("timeline", {}).get("entries", [])
                             for entry in timeline[:10]:
                                 tweet = entry.get("content", {}).get("tweet", {})
                                 if tweet:
@@ -423,6 +421,7 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
         logger.debug(f"Cookie scrape failed: {e}")
         return []
 
+
 async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[dict]:
     """Fallback: Web scrape X via DuckDuckGo search + embed extraction."""
     posts = []
@@ -433,9 +432,7 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
         for handle in handles[:10]:
             try:
                 search_q = f"site:x.com {handle}"
-                r = await client.get(
-                    f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_q)}"
-                )
+                r = await client.get(f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_q)}")
                 if r.status_code != 200:
                     continue
 
@@ -453,14 +450,10 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
                     try:
                         r2 = await client.get(url)
                         if r2.status_code == 200:
-                            desc_match = re.search(
-                                r'<meta property="og:description" content="(.*?)"', r2.text
-                            )
+                            desc_match = re.search(r'<meta property="og:description" content="(.*?)"', r2.text)
                             if desc_match:
                                 text = html.unescape(desc_match.group(1))
-                                text = re.sub(
-                                    rf"^{handle}:\s*", "", text, flags=re.IGNORECASE
-                                ).strip()
+                                text = re.sub(rf"^{handle}:\s*", "", text, flags=re.IGNORECASE).strip()
 
                                 posts.append(
                                     {
@@ -481,15 +474,14 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
 
     return posts
 
+
 async def _grok_summarize(posts: list[dict]) -> str:
     """Use Groq (free tier) to generate a CT Rundown summary."""
     if not GROQ_KEY or not posts:
         return ""
 
     try:
-        post_texts = "\n---\n".join(
-            f"@{p.get('author', '?')}: {p.get('text', '')[:200]}" for p in posts[:20]
-        )
+        post_texts = "\n---\n".join(f"@{p.get('author', '?')}: {p.get('text', '')[:200]}" for p in posts[:20])
 
         async with httpx.AsyncClient(timeout=30) as c:
             r = await c.post(
@@ -519,6 +511,7 @@ async def _grok_summarize(posts: list[dict]) -> str:
     # Fallback: simple keyword extraction
     return _simple_rundown(posts)
 
+
 def _simple_rundown(posts: list[dict]) -> str:
     """Fallback: extract top stories by keyword frequency."""
     words = Counter()
@@ -528,15 +521,13 @@ def _simple_rundown(posts: list[dict]) -> str:
             if len(word) > 4 and word not in ("https", "that", "this", "with", "from", "have"):
                 words[word] += 1
 
-    top_words = [
-        w
-        for w, _ in words.most_common(20)
-        if w not in ("about", "would", "could", "their", "there")
-    ]
+    top_words = [w for w, _ in words.most_common(20) if w not in ("about", "would", "could", "their", "there")]
 
     return "Top themes: " + ", ".join(top_words[:8])
 
+
 # ── CT Rundown Algorithm ───────────────────────────────────────────
+
 
 def score_ct_post(post: dict, account: dict) -> float:
     """Score a CT post for the rundown. Higher = more important.
@@ -583,6 +574,7 @@ def score_ct_post(post: dict, account: dict) -> float:
     # (applied at selection time, not here)
 
     return score
+
 
 async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
     """THE method. Fetch, score, and rank CT posts for the daily rundown.
@@ -666,9 +658,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
     scored = []
     for post in all_posts:
         author = (post.get("author", "") or "").lower().lstrip("@")
-        account = account_map.get(
-            author, {"handle": author, "name": author, "category": "unknown", "weight": 0.5}
-        )
+        account = account_map.get(author, {"handle": author, "name": author, "category": "unknown", "weight": 0.5})
         post["account"] = account
         post["ct_score"] = score_ct_post(post, account)
         scored.append(post)
@@ -682,9 +672,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
         cat = post["account"].get("category", "unknown")
         # Allow max 3 from same category, max 5 total from same handle
         same_cat = sum(1 for s in selected if s["account"].get("category") == cat)
-        same_handle = sum(
-            1 for s in selected if s["account"].get("handle") == post["account"].get("handle")
-        )
+        same_handle = sum(1 for s in selected if s["account"].get("handle") == post["account"].get("handle"))
 
         if same_cat < 3 and same_handle < 3:
             selected.append(post)
@@ -728,6 +716,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
         "generated_at": datetime.now(UTC).isoformat(),
         "source": "ct_rundown",
     }
+
 
 async def track_ct_accounts(**kw) -> dict:
     """Return the curated CT account list with stats."""

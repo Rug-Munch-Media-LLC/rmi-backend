@@ -38,6 +38,7 @@ sub_router = APIRouter(tags=["x402-token-tools"])
 # TOOL 1: Deep Contract Audit ($0.50)
 # ═══════════════════════════════════════════════════════════════
 
+
 @sub_router.post("/audit")
 async def deep_contract_audit(req: TokenRequest) -> dict[str, str]:
     """Full 100-point forensic scan. Returns risk score 0-100 with findings."""
@@ -54,9 +55,7 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, str]:
             from app.fallback_engine import try_all_fallbacks
 
             r = await _get_redis()
-            fallback = await try_all_fallbacks(
-                "audit", address=req.address, chain=req.chain, redis=r
-            )
+            fallback = await try_all_fallbacks("audit", address=req.address, chain=req.chain, redis=r)
             result.update(fallback)
             result["data_source"] = "fallback"
 
@@ -77,9 +76,7 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, str]:
             from app.fallback_engine import try_all_fallbacks
 
             r = await _get_redis()
-            fallback = await try_all_fallbacks(
-                "audit", address=req.address, chain=req.chain, redis=r
-            )
+            fallback = await try_all_fallbacks("audit", address=req.address, chain=req.chain, redis=r)
             if fallback.get("fallback_layer") != "none":
                 await record_x402_payment("audit", "0.05", req.address)
                 return {
@@ -95,9 +92,11 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, str]:
             raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 5: Rug Shield ($0.25)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _rug_shield(address: str, chain: str) -> dict:
     """Quick pre-buy safety check - fast binary verdict."""
@@ -107,9 +106,7 @@ async def _rug_shield(address: str, chain: str) -> dict:
 
     # Layer 1: DexScreener (fastest)
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"], timeout=5
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"], timeout=5)
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             liq = pair.get("liquidity", {}).get("usd", 0)
@@ -155,9 +152,7 @@ async def _rug_shield(address: str, chain: str) -> dict:
 
     # Layer 3: CoinGecko verification
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.coingecko.com/api/v3/coins/{address}"], timeout=5
-        )
+        data, _ = await fetch_with_fallback([f"https://api.coingecko.com/api/v3/coins/{address}"], timeout=5)
         if data:
             result["coingecko_verified"] = True
             result["sources_used"].append("coingecko")
@@ -174,6 +169,7 @@ async def _rug_shield(address: str, chain: str) -> dict:
     result["risk_score"] = risk_score
     result["flags"] = flags
     return result
+
 
 @sub_router.post("/rugshield")
 async def rug_shield(req: TokenRequest) -> dict[str, str]:
@@ -193,9 +189,11 @@ async def rug_shield(req: TokenRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 10: Token Pulse ($0.25)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _token_pulse(address: str, chain: str) -> dict:
     """Comprehensive token health dashboard."""
@@ -203,9 +201,7 @@ async def _token_pulse(address: str, chain: str) -> dict:
 
     # Layer 1: DexScreener - core metrics
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"], timeout=8
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"], timeout=8)
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             result["price_usd"] = pair.get("priceUsd", 0)
@@ -225,9 +221,7 @@ async def _token_pulse(address: str, chain: str) -> dict:
 
     # Layer 2: Coingecko - additional metrics
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.coingecko.com/api/v3/coins/{address}"], timeout=8
-        )
+        data, _ = await fetch_with_fallback([f"https://api.coingecko.com/api/v3/coins/{address}"], timeout=8)
         if data:
             result["coingecko"] = {
                 "market_cap": data.get("market_data", {}).get("market_cap", {}).get("usd"),
@@ -299,6 +293,7 @@ async def _token_pulse(address: str, chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/pulse")
 async def token_pulse(req: TokenRequest) -> dict[str, str]:
     """Token health dashboard - liquidity, volume, momentum, trajectory."""
@@ -317,9 +312,11 @@ async def token_pulse(req: TokenRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 14: Token Forensics ($0.10)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _token_forensics(address: str, chain: str) -> dict:
     """Deep token forensics combining multiple data sources."""
@@ -327,9 +324,7 @@ async def _token_forensics(address: str, chain: str) -> dict:
 
     # DexScreener
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"]
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             result["price_usd"] = pair.get("priceUsd", 0)
@@ -404,11 +399,10 @@ async def _token_forensics(address: str, chain: str) -> dict:
     risk_score = min(100, risk_score)
     result["risk_score"] = risk_score
     result["findings"] = findings
-    result["recommendation"] = (
-        "AVOID" if risk_score >= 70 else "CAUTION" if risk_score >= 40 else "PROCEED"
-    )
+    result["recommendation"] = "AVOID" if risk_score >= 70 else "CAUTION" if risk_score >= 40 else "PROCEED"
 
     return result
+
 
 @sub_router.post("/forensics")
 async def token_forensics(req: GenericRequest) -> dict[str, str]:
@@ -429,9 +423,11 @@ async def token_forensics(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 20: Token Deep Dive ($0.10)
 # ═══════════════════════════════════════════════════════════════
+
 
 @sub_router.post("/token_deep_dive")
 async def token_deep_dive(req: GenericRequest) -> dict[str, str]:
@@ -453,9 +449,11 @@ async def token_deep_dive(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 22: Honeypot Check ($0.05)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _honeypot_check(address: str, chain: str) -> dict:
     """Honeypot detection."""
@@ -463,9 +461,7 @@ async def _honeypot_check(address: str, chain: str) -> dict:
 
     # DexScreener - check for trading activity
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"]
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             txns = pair.get("txns", {}).get("h24", {})
@@ -513,6 +509,7 @@ async def _honeypot_check(address: str, chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/honeypot_check")
 async def honeypot_check(req: GenericRequest) -> dict[str, str]:
     """Honeypot detection."""
@@ -532,9 +529,11 @@ async def honeypot_check(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 25: Token Comparison ($0.08)
 # ═══════════════════════════════════════════════════════════════
+
 
 @sub_router.post("/token_comparison")
 async def token_comparison(req: MultiTokenRequest) -> dict[str, str]:
@@ -567,9 +566,11 @@ async def token_comparison(req: MultiTokenRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 26: Risk Monitor ($0.05)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _risk_monitor(address: str, chain: str) -> dict:
     """Real-time risk monitoring."""
@@ -577,9 +578,7 @@ async def _risk_monitor(address: str, chain: str) -> dict:
 
     # Check DexScreener for anomalies
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"]
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             liq = pair.get("liquidity", {}).get("usd", 0)
@@ -628,6 +627,7 @@ async def _risk_monitor(address: str, chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/risk_monitor")
 async def risk_monitor(req: GenericRequest) -> dict[str, str]:
     """Real-time risk monitoring."""
@@ -647,9 +647,11 @@ async def risk_monitor(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 32: Liquidity Flow ($0.08)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _liquidity_flow(address: str, chain: str) -> dict:
     """Liquidity flow analysis."""
@@ -657,9 +659,7 @@ async def _liquidity_flow(address: str, chain: str) -> dict:
 
     # DexScreener liquidity data
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"]
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
         if data and data.get("pairs"):
             pairs = data["pairs"]
             result["pairs"] = []
@@ -695,6 +695,7 @@ async def _liquidity_flow(address: str, chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/liquidity_flow")
 async def liquidity_flow(req: GenericRequest) -> dict[str, str]:
     """Liquidity flow analysis."""
@@ -714,9 +715,11 @@ async def liquidity_flow(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 33: Rug Pull Predictor ($0.10)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _rug_pull_predictor(address: str, chain: str) -> dict:
     """Rug pull prediction model."""
@@ -724,9 +727,7 @@ async def _rug_pull_predictor(address: str, chain: str) -> dict:
 
     # Get token data
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{address}"]
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             liq = pair.get("liquidity", {}).get("usd", 0)
@@ -738,13 +739,9 @@ async def _rug_pull_predictor(address: str, chain: str) -> dict:
 
             # Rug pull signals
             if liq < 5000:
-                result["signals"].append(
-                    {"type": "low_liq", "weight": 0.3, "detail": f"Liquidity ${liq:,.0f}"}
-                )
+                result["signals"].append({"type": "low_liq", "weight": 0.3, "detail": f"Liquidity ${liq:,.0f}"})
             if age_hours < 24:
-                result["signals"].append(
-                    {"type": "new_token", "weight": 0.25, "detail": f"Age {age_hours:.1f}h"}
-                )
+                result["signals"].append({"type": "new_token", "weight": 0.25, "detail": f"Age {age_hours:.1f}h"})
             if vol > liq * 10:
                 result["signals"].append(
                     {
@@ -812,6 +809,7 @@ async def _rug_pull_predictor(address: str, chain: str) -> dict:
     )
 
     return result
+
 
 @sub_router.post("/rug_pull_predictor")
 async def rug_pull_predictor(req: GenericRequest) -> dict[str, str]:

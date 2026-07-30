@@ -31,15 +31,14 @@ sub_router = APIRouter(tags=["x402-deployer-tools"])
 # TOOL 8: Insider Tracker ($1.50)
 # ═══════════════════════════════════════════════════════════════
 
+
 async def _insider_tracking(creator: str, chain: str) -> dict:
     """Track creator wallet activity across all tokens."""
     result = {"chain": chain, "creator_address": creator, "sources_used": []}
 
     # Layer 1: DexScreener - find all tokens by this creator
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/search?q={creator}"], timeout=8
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/search?q={creator}"], timeout=8)
         if data and data.get("pairs"):
             tokens = {}
             for pair in data["pairs"]:
@@ -63,7 +62,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
             if balance is not None:
                 result["creator_balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_balance")
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
 
         try:
@@ -108,6 +107,7 @@ async def _insider_tracking(creator: str, chain: str) -> dict:
     result["risk_level"] = risk
     return result
 
+
 @sub_router.post("/insider")
 async def insider_tracker(req: InsiderRequest) -> dict[str, str]:
     """Dev/team wallet tracking across all their tokens."""
@@ -121,12 +121,14 @@ async def insider_tracker(req: InsiderRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 # ═══════════════════════════════════════════════════════════════
 # TOOL 41: Whale Accumulation Pattern Detector ($0.10)
 # ═══════════════════════════════════════════════════════════════
+
 
 @sub_router.post("/whale_accumulation")
 async def whale_accumulation(req: GenericRequest) -> dict[str, str]:
@@ -152,5 +154,5 @@ async def whale_accumulation(req: GenericRequest) -> dict[str, str]:
         }
     except HTTPException:
         raise
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

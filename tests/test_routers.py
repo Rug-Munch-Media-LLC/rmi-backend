@@ -215,9 +215,7 @@ async def test_health_response_format(client):
     response = await client.get("/health")
     data = response.json()
     required_fields = {"status", "version", "uptime_seconds", "stores"}
-    assert required_fields.issubset(data.keys()), (
-        f"Missing fields: {required_fields - set(data.keys())}"
-    )
+    assert required_fields.issubset(data.keys()), f"Missing fields: {required_fields - set(data.keys())}"
     assert isinstance(data["version"], str)
     assert isinstance(data["uptime_seconds"], (int, float))
     assert isinstance(data["stores"], dict)

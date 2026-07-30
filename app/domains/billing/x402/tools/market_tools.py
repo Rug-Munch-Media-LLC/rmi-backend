@@ -36,6 +36,7 @@ sub_router = APIRouter(tags=["x402-market-tools"])
 # TOOL 4: Launch Radar ($0.50)
 # ═══════════════════════════════════════════════════════════════
 
+
 async def _detect_launches(chain: str, window_min: int) -> dict:
     """Detect new token launches with risk scoring."""
     result = {"chain": chain, "window_minutes": window_min, "sources_used": []}
@@ -44,9 +45,7 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
         # Layer 1: Pump.fun new tokens
         try:
             data, _ = await fetch_with_fallback(
-                [
-                    "https://frontend-api.pump.fun/coins?offset=0&limit=50&sort=created_timestamp&order=desc"
-                ]
+                ["https://frontend-api.pump.fun/coins?offset=0&limit=50&sort=created_timestamp&order=desc"]
             )
             if data:
                 launches = []
@@ -94,9 +93,7 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
 
     # Layer 3: DexScreener - new pairs
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/pairs/{chain}/recent"]
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/pairs/{chain}/recent"])
         if data and data.get("pairs"):
             result["dexscreener_pairs"] = len(data["pairs"])
             result["sources_used"].append("dexscreener")
@@ -105,6 +102,7 @@ async def _detect_launches(chain: str, window_min: int) -> dict:
         raise
 
     return result
+
 
 @sub_router.get("/launch")
 async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[str, str]:
@@ -124,9 +122,11 @@ async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[s
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 16: Launch Intel ($0.05)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _launch_intel(chain: str, hours: int) -> dict:
     """Token launch intelligence."""
@@ -137,9 +137,7 @@ async def _launch_intel(chain: str, hours: int) -> dict:
     if chain == "solana":
         try:
             data, _ = await fetch_with_fallback(
-                [
-                    "https://frontend-api.pump.fun/coins?offset=0&limit=20&sort=created_timestamp&order=desc"
-                ]
+                ["https://frontend-api.pump.fun/coins?offset=0&limit=20&sort=created_timestamp&order=desc"]
             )
             if data and isinstance(data, list):
                 for c in data[:10]:
@@ -161,9 +159,7 @@ async def _launch_intel(chain: str, hours: int) -> dict:
     try:
         data, _ = await fetch_with_fallback(["https://api.dexscreener.com/latest/dex/search?q="])
         if data and data.get("pairs"):
-            trending = sorted(
-                data["pairs"], key=lambda p: p.get("volume", {}).get("h24", 0), reverse=True
-            )[:5]
+            trending = sorted(data["pairs"], key=lambda p: p.get("volume", {}).get("h24", 0), reverse=True)[:5]
             for p in trending:
                 launches.append(
                     {
@@ -181,6 +177,7 @@ async def _launch_intel(chain: str, hours: int) -> dict:
     result["new_launches"] = launches
     result["total_found"] = len(launches)
     return result
+
 
 @sub_router.post("/launch_intel")
 async def launch_intel(req: GenericRequest) -> dict[str, str]:
@@ -200,9 +197,11 @@ async def launch_intel(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 17: Anomaly Detector ($0.08)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _anomaly_detector(chain: str) -> dict:
     """Market anomaly detection."""
@@ -214,9 +213,7 @@ async def _anomaly_detector(chain: str) -> dict:
         if data and data.get("data"):
             global_data = data["data"]
             result["total_market_cap"] = global_data.get("total_market_cap", {}).get("usd", 0)
-            result["market_cap_change_24h"] = global_data.get(
-                "market_cap_change_percentage_24h_usd", 0
-            )
+            result["market_cap_change_24h"] = global_data.get("market_cap_change_percentage_24h_usd", 0)
             result["sources_used"].append("coingecko")
     except (ValueError, KeyError, ConnectionError, RuntimeError):
         logger.exception("market_tools error")
@@ -248,14 +245,11 @@ async def _anomaly_detector(chain: str) -> dict:
 
     result["anomaly_count"] = len(result["anomalies"])
     result["market_health"] = (
-        "normal"
-        if result["anomaly_count"] < 3
-        else "elevated"
-        if result["anomaly_count"] < 7
-        else "critical"
+        "normal" if result["anomaly_count"] < 3 else "elevated" if result["anomaly_count"] < 7 else "critical"
     )
 
     return result
+
 
 @sub_router.post("/anomaly")
 async def anomaly_detector(req: GenericRequest) -> dict[str, str]:
@@ -276,9 +270,11 @@ async def anomaly_detector(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 19: Market Overview ($0.05)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _market_overview(chain: str) -> dict:
     """Comprehensive market overview."""
@@ -302,9 +298,7 @@ async def _market_overview(chain: str) -> dict:
     # CoinGecko top coins
     try:
         data, _ = await fetch_with_fallback(
-            [
-                "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1"
-            ]
+            ["https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1"]
         )
         if data:
             result["top_coins"] = [
@@ -333,6 +327,7 @@ async def _market_overview(chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/market_overview")
 async def market_overview(req: GenericRequest) -> dict[str, str]:
     """Comprehensive market overview."""
@@ -351,9 +346,11 @@ async def market_overview(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 21: Chain Health ($0.05)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _chain_health(chain: str) -> dict:
     """Chain health metrics."""
@@ -408,6 +405,7 @@ async def _chain_health(chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/chain_health")
 async def chain_health(req: GenericRequest) -> dict[str, str]:
     """Chain health metrics."""
@@ -426,9 +424,11 @@ async def chain_health(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 27: DeFi Yield Scanner ($0.08)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _defi_yield_scanner(chain: str) -> dict:
     """DeFi yield scanner."""
@@ -461,6 +461,7 @@ async def _defi_yield_scanner(chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/defi_yield_scanner")
 async def defi_yield_scanner(req: GenericRequest) -> dict[str, str]:
     """DeFi yield scanner."""
@@ -479,9 +480,11 @@ async def defi_yield_scanner(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 30: Gas Forecast ($0.05)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _gas_forecast(chain: str) -> dict:
     """Gas price forecast."""
@@ -522,6 +525,7 @@ async def _gas_forecast(chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/gas_forecast")
 async def gas_forecast(req: GenericRequest) -> dict[str, str]:
     """Gas price forecast."""
@@ -540,9 +544,11 @@ async def gas_forecast(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 31: Sniper Alert ($0.05)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _sniper_alert(chain: str, hours: int) -> dict:
     """Sniper bot detection and alerts."""
@@ -552,9 +558,7 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
     if chain == "solana":
         try:
             data, _ = await fetch_with_fallback(
-                [
-                    "https://frontend-api.pump.fun/coins?offset=0&limit=10&sort=created_timestamp&order=desc"
-                ]
+                ["https://frontend-api.pump.fun/coins?offset=0&limit=10&sort=created_timestamp&order=desc"]
             )
             if data and isinstance(data, list):
                 for c in data[:5]:
@@ -563,9 +567,7 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
                             "token": c.get("name"),
                             "mint": c.get("mint"),
                             "age_minutes": "recent",
-                            "sniper_risk": "high"
-                            if c.get("usdMarketCap", 0) > 100000
-                            else "medium",
+                            "sniper_risk": "high" if c.get("usdMarketCap", 0) > 100000 else "medium",
                         }
                     )
                 result["sources_used"].append("pumpfun")
@@ -598,6 +600,7 @@ async def _sniper_alert(chain: str, hours: int) -> dict:
     result["total_alerts"] = len(result["sniper_activity"])
     return result
 
+
 @sub_router.post("/sniper_alert")
 async def sniper_alert(req: GenericRequest) -> dict[str, str]:
     """Sniper bot detection."""
@@ -616,9 +619,11 @@ async def sniper_alert(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 34: Airdrop Finder ($0.05)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _airdrop_finder(chain: str) -> dict:
     """Airdrop opportunity finder."""
@@ -648,6 +653,7 @@ async def _airdrop_finder(chain: str) -> dict:
     result["total_opportunities"] = len(result["opportunities"])
     return result
 
+
 @sub_router.post("/airdrop_finder")
 async def airdrop_finder(req: GenericRequest) -> dict[str, str]:
     """Airdrop opportunity finder."""
@@ -666,9 +672,11 @@ async def airdrop_finder(req: GenericRequest) -> dict[str, str]:
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════════
 # TOOL 35: MEV Protection ($0.08)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _mev_protection(chain: str) -> dict:
     """MEV protection analysis."""
@@ -677,9 +685,7 @@ async def _mev_protection(chain: str) -> dict:
     if chain == "solana":
         # Jito MEV stats
         try:
-            data, _ = await fetch_with_fallback(
-                ["https://stats.jito.network/api/v1/bundles?limit=10"]
-            )
+            data, _ = await fetch_with_fallback(["https://stats.jito.network/api/v1/bundles?limit=10"])
             if data:
                 result["mev_stats"]["jito"] = True
                 result["sources_used"].append("jito")
@@ -719,9 +725,7 @@ async def _mev_protection(chain: str) -> dict:
             logger.exception("market_tools error")
             raise
 
-    result["mev_risk"] = (
-        "high" if chain == "ethereum" else "medium" if chain in ["base", "bsc"] else "low"
-    )
+    result["mev_risk"] = "high" if chain == "ethereum" else "medium" if chain in ["base", "bsc"] else "low"
     result["protection_tips"] = [
         "Use private RPC endpoints for large trades",
         "Set appropriate slippage tolerance",
@@ -730,6 +734,7 @@ async def _mev_protection(chain: str) -> dict:
     ]
 
     return result
+
 
 @sub_router.post("/mev_protection")
 async def mev_protection(req: GenericRequest) -> dict[str, str]:

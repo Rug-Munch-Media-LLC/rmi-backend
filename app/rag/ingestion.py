@@ -70,12 +70,20 @@ class BatchIngestor:
     def pending_count(self) -> int:
         return len(self._pending)
 
-    async def ingest(self, content: str, collection: str = "scanner", doc_id: str = "",
-                     metadata: dict[str, Any] | None = None, source_type: str = "") -> IngestReport:
+    async def ingest(
+        self,
+        content: str,
+        collection: str = "scanner",
+        doc_id: str = "",
+        metadata: dict[str, Any] | None = None,
+        source_type: str = "",
+    ) -> IngestReport:
         doc = Document(
-            content=content, collection=collection,
+            content=content,
+            collection=collection,
             doc_id=doc_id or f"ingest:{int(time.time() * 1000)}:{hash(content) % 10**8}",
-            metadata=metadata or {}, source_type=source_type,
+            metadata=metadata or {},
+            source_type=source_type,
         )
         return await self.ingest_batch([doc])
 
@@ -111,8 +119,11 @@ class BatchIngestor:
         for doc in accepted:
             try:
                 result = await engine_ingest(
-                    collection=doc.collection, doc_id=doc.doc_id,
-                    content=doc.content, metadata=doc.metadata, chunk=True,
+                    collection=doc.collection,
+                    doc_id=doc.doc_id,
+                    content=doc.content,
+                    metadata=doc.metadata,
+                    chunk=True,
                 )
                 if result["status"] == "ok":
                     accepted_count += 1
@@ -130,8 +141,11 @@ class BatchIngestor:
         report.chunks_total = total_chunks
         report.errors = errors[:20]
         report.status = (
-            IngestionStatus.COMPLETED if accepted_count == len(accepted) else
-            IngestionStatus.PARTIAL if accepted_count > 0 else IngestionStatus.FAILED
+            IngestionStatus.COMPLETED
+            if accepted_count == len(accepted)
+            else IngestionStatus.PARTIAL
+            if accepted_count > 0
+            else IngestionStatus.FAILED
         )
         report.took_ms = int((time.monotonic() - start) * 1000)
         return report
@@ -222,84 +236,152 @@ class IngestionScheduler:
 
 # ── Source-specific ingestion helpers ────────────────────────────────
 
+
 async def ingest_scan_result(
-    token_address: str, chain: str, safety_score: float, risk_flags: list[str],
-    symbol: str = "", name: str = "", extra: dict[str, Any] | None = None,
+    token_address: str,
+    chain: str,
+    safety_score: float,
+    risk_flags: list[str],
+    symbol: str = "",
+    name: str = "",
+    extra: dict[str, Any] | None = None,
     ingestor: BatchIngestor | None = None,
 ) -> IngestReport:
     metadata = {
-        "token_address": token_address, "chain": chain, "safety_score": safety_score,
-        "risk_flags": risk_flags, "symbol": symbol, "name": name, "source": "scanner",
+        "token_address": token_address,
+        "chain": chain,
+        "safety_score": safety_score,
+        "risk_flags": risk_flags,
+        "symbol": symbol,
+        "name": name,
+        "source": "scanner",
         "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     if extra:
         metadata.update(extra)
     content = f"Token: {token_address}\nChain: {chain}\nSymbol: {symbol or '—'}\nName: {name or '—'}\nSafety score: {safety_score}/100\nRisk flags: {', '.join(risk_flags)}\n"
     _ingestor = ingestor or _default_ingestor
-    return await _ingestor.ingest(content=content, collection="scanner", doc_id=f"scan:{chain}:{token_address}", metadata=metadata, source_type="scanner")
+    return await _ingestor.ingest(
+        content=content,
+        collection="scanner",
+        doc_id=f"scan:{chain}:{token_address}",
+        metadata=metadata,
+        source_type="scanner",
+    )
 
 
 async def ingest_wallet_profile(
-    wallet_address: str, chain: str, labels: list[str], risk_score: float = 0.0,
-    entities: list[str] | None = None, extra: dict[str, Any] | None = None,
+    wallet_address: str,
+    chain: str,
+    labels: list[str],
+    risk_score: float = 0.0,
+    entities: list[str] | None = None,
+    extra: dict[str, Any] | None = None,
     ingestor: BatchIngestor | None = None,
 ) -> IngestReport:
     metadata = {
-        "wallet_address": wallet_address, "chain": chain, "labels": labels,
-        "risk_score": risk_score, "entities": entities or [], "source": "wallet_intel",
+        "wallet_address": wallet_address,
+        "chain": chain,
+        "labels": labels,
+        "risk_score": risk_score,
+        "entities": entities or [],
+        "source": "wallet_intel",
     }
     if extra:
         metadata.update(extra)
     content = f"Wallet: {wallet_address}\nChain: {chain}\nLabels: {', '.join(labels)}\nRisk score: {risk_score}\nEntities: {', '.join(entities or [])}\n"
     _ingestor = ingestor or _default_ingestor
-    return await _ingestor.ingest(content=content, collection="wallet", doc_id=f"wallet:{chain}:{wallet_address}", metadata=metadata, source_type="wallet")
+    return await _ingestor.ingest(
+        content=content,
+        collection="wallet",
+        doc_id=f"wallet:{chain}:{wallet_address}",
+        metadata=metadata,
+        source_type="wallet",
+    )
 
 
 async def ingest_news_article(
-    title: str, body: str, source_url: str, source_name: str = "",
-    published_at: str = "", categories: list[str] | None = None,
-    sentiment: float = 0.0, ingestor: BatchIngestor | None = None,
+    title: str,
+    body: str,
+    source_url: str,
+    source_name: str = "",
+    published_at: str = "",
+    categories: list[str] | None = None,
+    sentiment: float = 0.0,
+    ingestor: BatchIngestor | None = None,
 ) -> IngestReport:
     metadata = {
-        "title": title, "source_url": source_url, "source_name": source_name or "",
+        "title": title,
+        "source_url": source_url,
+        "source_name": source_name or "",
         "published_at": published_at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "categories": categories or [], "sentiment": sentiment, "source": "news",
+        "categories": categories or [],
+        "sentiment": sentiment,
+        "source": "news",
     }
     content = f"Title: {title}\n\n{body}" if title else body
     doc_id = f"news:{_content_hash(source_url + title)[:12]}"
     _ingestor = ingestor or _default_ingestor
-    return await _ingestor.ingest(content=content, collection="news", doc_id=doc_id, metadata=metadata, source_type="news")
+    return await _ingestor.ingest(
+        content=content, collection="news", doc_id=doc_id, metadata=metadata, source_type="news"
+    )
 
 
 async def ingest_research_post(
-    post_id: str, title: str, content: str, category: str = "",
-    tags: list[str] | None = None, author: str = "",
+    post_id: str,
+    title: str,
+    content: str,
+    category: str = "",
+    tags: list[str] | None = None,
+    author: str = "",
     ingestor: BatchIngestor | None = None,
 ) -> IngestReport:
     metadata = {
-        "post_id": post_id, "title": title, "category": category,
-        "tags": tags or [], "author": author, "source": "bulletin_board",
+        "post_id": post_id,
+        "title": title,
+        "category": category,
+        "tags": tags or [],
+        "author": author,
+        "source": "bulletin_board",
         "published_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     full_content = f"Title: {title}\n\n{content}" if title else content
     _ingestor = ingestor or _default_ingestor
-    return await _ingestor.ingest(content=full_content, collection="research", doc_id=f"research:{post_id}", metadata=metadata, source_type="research")
+    return await _ingestor.ingest(
+        content=full_content,
+        collection="research",
+        doc_id=f"research:{post_id}",
+        metadata=metadata,
+        source_type="research",
+    )
 
 
 async def ingest_scam_pattern(
-    pattern_name: str, description: str, severity: str = "medium",
-    indicators: list[str] | None = None, references: list[str] | None = None,
+    pattern_name: str,
+    description: str,
+    severity: str = "medium",
+    indicators: list[str] | None = None,
+    references: list[str] | None = None,
     ingestor: BatchIngestor | None = None,
 ) -> IngestReport:
     metadata = {
-        "pattern_name": pattern_name, "severity": severity,
-        "indicators": indicators or [], "references": references or [], "source": "scam_patterns",
+        "pattern_name": pattern_name,
+        "severity": severity,
+        "indicators": indicators or [],
+        "references": references or [],
+        "source": "scam_patterns",
     }
     indicators_text = "\n".join(f"  - {i}" for i in (indicators or []))
     refs_text = "\n".join(f"  - {r}" for r in (references or []))
     content = f"Pattern: {pattern_name}\nSeverity: {severity}\nDescription: {description}\nIndicators:\n{indicators_text}\nReferences:\n{refs_text}\n"
     _ingestor = ingestor or _default_ingestor
-    return await _ingestor.ingest(content=content, collection="scams", doc_id=f"scam:{_content_hash(pattern_name)[:12]}", metadata=metadata, source_type="scam")
+    return await _ingestor.ingest(
+        content=content,
+        collection="scams",
+        doc_id=f"scam:{_content_hash(pattern_name)[:12]}",
+        metadata=metadata,
+        source_type="scam",
+    )
 
 
 # ── Convenience singleton ────────────────────────────────────────────
@@ -307,7 +389,9 @@ async def ingest_scam_pattern(
 _default_processor = DocumentProcessor()
 _default_filter = QualityFilter()
 _default_limiter = RateLimiter()
-_default_ingestor = BatchIngestor(processor=_default_processor, quality_filter=_default_filter, rate_limiter=_default_limiter)
+_default_ingestor = BatchIngestor(
+    processor=_default_processor, quality_filter=_default_filter, rate_limiter=_default_limiter
+)
 _default_scheduler = IngestionScheduler(ingestor=_default_ingestor)
 
 

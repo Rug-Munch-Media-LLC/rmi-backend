@@ -13,6 +13,7 @@ from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER
 
 logger = get_logger("rmi.rugmap")
 
+
 async def cmd_rugmap(update, ctx) -> None:
     """Handle /rugmap command - visualize wallet clusters."""
     msg = update.message
@@ -109,9 +110,7 @@ async def cmd_rugmap(update, ctx) -> None:
         if top_holders:
             lines.append("  💰 Funding → 🏦 Exchange")
             lines.append("  👛 Dev Wallet → 🗂️ Distribution Wallets")
-            lines.append(
-                f"  📊 Top {min(len(top_holders), 5)} Holders → 🔗 {len(top_holders)} connections"
-            )
+            lines.append(f"  📊 Top {min(len(top_holders), 5)} Holders → 🔗 {len(top_holders)} connections")
         else:
             lines.append("  No cluster data available")
 

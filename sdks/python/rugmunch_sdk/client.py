@@ -98,18 +98,14 @@ class RMI:
         )
 
     # ── RAG ──────────────────────────────────────────────────────
-    async def rag_search(
-        self, query: str, collection: str = "scam_intel", top_k: int = 5
-    ) -> list[RagHit]:
+    async def rag_search(self, query: str, collection: str = "scam_intel", top_k: int = 5) -> list[RagHit]:
         d = await self._post(
             "/api/v1/rag/v2/search",
             json={"query": query, "collection": collection, "top_k": top_k},
         )
         return [RagHit(**h) for h in d.get("hits", [])]
 
-    async def rag_ingest(
-        self, content: str, collection: str = "scam_intel", doc_id: str | None = None
-    ) -> dict:
+    async def rag_ingest(self, content: str, collection: str = "scam_intel", doc_id: str | None = None) -> dict:
         return await self._post(
             "/api/v1/rag/v2/ingest",
             json={"content": content, "collection": collection, "doc_id": doc_id},
@@ -136,9 +132,7 @@ class RMI:
         return d.get("analysis")
 
     # ── Reports (T29) ───────────────────────────────────────────
-    async def generate_report(
-        self, subject_type: str, subject_id: str, save: bool = True
-    ) -> Report:
+    async def generate_report(self, subject_type: str, subject_id: str, save: bool = True) -> Report:
         d = await self._post(
             "/api/v1/reports/generate",
             json={"subject_type": subject_type, "subject_id": subject_id, "save": save},

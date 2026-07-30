@@ -3,6 +3,7 @@ Honeypot Detector — Main detection engine
 Analyzes token contracts for honeypot mechanisms, rug-pull patterns, and
 malicious functionality across EVM chains.
 """
+
 from __future__ import annotations
 
 import os
@@ -28,6 +29,7 @@ from app.domains.detectors.honeypot_detector_package.models import (
 
 logger = get_logger(__name__)
 
+
 class HoneypotDetector:
     """Advanced honeypot and malicious token contract detector."""
 
@@ -44,7 +46,9 @@ class HoneypotDetector:
             "arbitrum": os.getenv("ARBISCAN_KEY", ""),
         }
 
-    async def analyze_token(self, address: str, chain: str = "ethereum", deep_scan: bool = False) -> HoneypotAnalysisResult:
+    async def analyze_token(
+        self, address: str, chain: str = "ethereum", deep_scan: bool = False
+    ) -> HoneypotAnalysisResult:
         """Analyze a token contract for honeypot/malicious patterns."""
         start = time.monotonic()
         address = address.strip().lower()
@@ -52,7 +56,8 @@ class HoneypotDetector:
         if not re.match(r"^0x[a-fA-F0-9]{40}$", address):
             return HoneypotAnalysisResult(
                 token=TokenInfo(address=address, chain=chain),
-                risk_score=0, risk_label="invalid",
+                risk_score=0,
+                risk_label="invalid",
                 warnings=[f"Invalid EVM address format: {address}"],
             )
 
@@ -90,7 +95,7 @@ class HoneypotDetector:
                 pair_addr = pair.get("pairAddress", "")
                 if pair_addr:
                     info.chain_data_sources.append(f"pair:{pair_addr}")
-        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             logger.debug("_gather_token_info_error", exc_info=True)
             logger.debug(f"DexScreener failed: {e}")
 
@@ -110,7 +115,7 @@ class HoneypotDetector:
                     if abi_str and abi_str != "Contract source code not verified":
                         info.is_verified = True
                     info.chain_data_sources.append(f"explorer:{chain}")
-            except (httpx.HTTPError, KeyError, TypeError) as e :
+            except (httpx.HTTPError, KeyError, TypeError) as e:
                 logger.debug("_gather_token_info_error", exc_info=True)
                 logger.debug(f"Explorer failed: {e}")
         return info
@@ -123,20 +128,24 @@ class HoneypotDetector:
                     buy_tx = pair.get("txns", {}).get("h24", {}).get("buys", 0) or 0
                     sell_tx = pair.get("txns", {}).get("h24", {}).get("sells", 0) or 0
                     if buy_tx > 10 and sell_tx == 0:
-                        result.findings.append(SecurityFinding(
-                            finding_type=HoneypotType.SELL_RESTRICTION,
-                            severity=FindingSeverity.CRITICAL,
-                            description=f"Cannot sell tokens - 0 sells in 24h vs {buy_tx} buys",
-                            detail=f"Found on {pair.get('dexId', '?')} - {pair.get('pairAddress', '')[:12]}...",
-                        ))
+                        result.findings.append(
+                            SecurityFinding(
+                                finding_type=HoneypotType.SELL_RESTRICTION,
+                                severity=FindingSeverity.CRITICAL,
+                                description=f"Cannot sell tokens - 0 sells in 24h vs {buy_tx} buys",
+                                detail=f"Found on {pair.get('dexId', '?')} - {pair.get('pairAddress', '')[:12]}...",
+                            )
+                        )
                     elif buy_tx > 50 and sell_tx < buy_tx * 0.05:
-                        result.findings.append(SecurityFinding(
-                            finding_type=HoneypotType.HIGH_SELL_TAX,
-                            severity=FindingSeverity.HIGH,
-                            description="Extremely low sell volume - possible sell restriction",
-                            detail=f"Buys: {buy_tx}, Sells: {sell_tx} (ratio: {sell_tx / max(buy_tx, 1):.2%})",
-                        ))
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+                        result.findings.append(
+                            SecurityFinding(
+                                finding_type=HoneypotType.HIGH_SELL_TAX,
+                                severity=FindingSeverity.HIGH,
+                                description="Extremely low sell volume - possible sell restriction",
+                                detail=f"Buys: {buy_tx}, Sells: {sell_tx} (ratio: {sell_tx / max(buy_tx, 1):.2%})",
+                            )
+                        )
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("_analyze_fees_error", exc_info=True)
             logger.debug(f"Fee analysis via DexScreener failed: {e}")
 
@@ -150,12 +159,14 @@ class HoneypotDetector:
                 if abs(price_change) > 90 and volume < 100:
                     result.warnings.append(f"Extreme price change ({price_change:+.1f}%) with negligible volume")
                 if liquidity > 0 and volume > liquidity * 20:
-                    result.findings.append(SecurityFinding(
-                        finding_type=HoneypotType.RUG_PULL,
-                        severity=FindingSeverity.MEDIUM,
-                        description=f"Unusually high volume/liquidity ratio ({volume / liquidity:.0f}x)",
-                        detail="Possible wash trading or manipulation",
-                    ))
+                    result.findings.append(
+                        SecurityFinding(
+                            finding_type=HoneypotType.RUG_PULL,
+                            severity=FindingSeverity.MEDIUM,
+                            description=f"Unusually high volume/liquidity ratio ({volume / liquidity:.0f}x)",
+                            detail="Possible wash trading or manipulation",
+                        )
+                    )
         except (ConnectionError, OSError, TimeoutError):
             pass
 
@@ -165,10 +176,16 @@ class HoneypotDetector:
         if not rpc_url:
             return
         import httpx
+
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 impl_slot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
-                payload = {"jsonrpc": "2.0", "id": 1, "method": "eth_getStorageAt", "params": [address, impl_slot, "latest"]}
+                payload = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "eth_getStorageAt",
+                    "params": [address, impl_slot, "latest"],
+                }
                 try:
                     resp = await client.post(rpc_url, json=payload)
                     if resp.status_code == 200:
@@ -176,13 +193,15 @@ class HoneypotDetector:
                         if impl_data and impl_data != "0x" + "0" * 64:
                             result.token.is_proxy = True
                             result.token.implementation_address = "0x" + impl_data[-40:]
-                            result.findings.append(SecurityFinding(
-                                finding_type=HoneypotType.PROXY_UPGRADE,
-                                severity=FindingSeverity.HIGH,
-                                description="Upgradable proxy contract detected",
-                                detail=f"Implementation at {result.token.implementation_address}",
-                                code_reference="EIP-1967 proxy storage slot",
-                            ))
+                            result.findings.append(
+                                SecurityFinding(
+                                    finding_type=HoneypotType.PROXY_UPGRADE,
+                                    severity=FindingSeverity.HIGH,
+                                    description="Upgradable proxy contract detected",
+                                    detail=f"Implementation at {result.token.implementation_address}",
+                                    code_reference="EIP-1967 proxy storage slot",
+                                )
+                            )
                 except (ConnectionError, OSError, TimeoutError):
                     pass
 
@@ -196,7 +215,16 @@ class HoneypotDetector:
                             result.token.owner_address = "0x" + admin_data[-40:]
                 except (ConnectionError, OSError, TimeoutError):
                     pass
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_analyze_ownership_error", exc_info=True)
             logger.debug(f"Ownership analysis failed: {e}")
 
@@ -206,6 +234,7 @@ class HoneypotDetector:
         if not rpc_url:
             return
         import httpx
+
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 payload = {"jsonrpc": "2.0", "id": 1, "method": "eth_getCode", "params": [address, "latest"]}
@@ -239,37 +268,59 @@ class HoneypotDetector:
                         severity = FindingSeverity.MEDIUM
                         if htype in (HoneypotType.SELFDESTRUCT, HoneypotType.LIQUIDITY_DRAIN):
                             severity = FindingSeverity.CRITICAL
-                        elif htype in (HoneypotType.OWNER_MINT, HoneypotType.PROXY_UPGRADE, HoneypotType.BLACKLIST, HoneypotType.TRADING_PAUSE):
+                        elif htype in (
+                            HoneypotType.OWNER_MINT,
+                            HoneypotType.PROXY_UPGRADE,
+                            HoneypotType.BLACKLIST,
+                            HoneypotType.TRADING_PAUSE,
+                        ):
                             severity = FindingSeverity.HIGH
-                        result.findings.append(SecurityFinding(
-                            finding_type=htype, severity=severity,
-                            description=desc or f"Malicious function pattern: {sig}",
-                            detail=f"Function: {sig}",
-                            code_reference=f"Selector {selector} in bytecode",
-                        ))
+                        result.findings.append(
+                            SecurityFinding(
+                                finding_type=htype,
+                                severity=severity,
+                                description=desc or f"Malicious function pattern: {sig}",
+                                detail=f"Function: {sig}",
+                                code_reference=f"Selector {selector} in bytecode",
+                            )
+                        )
 
                 if "ff" in bytecode:
                     selfdestruct_patterns = ["ff" in bytecode[i : i + 2] for i in range(len(bytecode) - 1)]
                     if any(selfdestruct_patterns):
                         already_found = any(f.finding_type == HoneypotType.SELFDESTRUCT for f in result.findings)
                         if not already_found:
-                            result.findings.append(SecurityFinding(
-                                finding_type=HoneypotType.SELFDESTRUCT,
-                                severity=FindingSeverity.CRITICAL,
-                                description="SELFDESTRUCT opcode found in contract bytecode",
-                                detail="Contract can be permanently destroyed - all funds lost",
-                                code_reference="SELFDESTRUCT (0xff) in bytecode",
-                            ))
+                            result.findings.append(
+                                SecurityFinding(
+                                    finding_type=HoneypotType.SELFDESTRUCT,
+                                    severity=FindingSeverity.CRITICAL,
+                                    description="SELFDESTRUCT opcode found in contract bytecode",
+                                    detail="Contract can be permanently destroyed - all funds lost",
+                                    code_reference="SELFDESTRUCT (0xff) in bytecode",
+                                )
+                            )
 
                 if "f4" in bytecode and not result.token.is_proxy:
-                    result.findings.append(SecurityFinding(
-                        finding_type=HoneypotType.PROXY_UPGRADE,
-                        severity=FindingSeverity.MEDIUM,
-                        description="DELEGATECALL used - possible proxy or delegate pattern",
-                        detail="Contract uses delegatecall pattern for execution forwarding",
-                        code_reference="DELEGATECALL (0xf4) in bytecode",
-                    ))
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+                    result.findings.append(
+                        SecurityFinding(
+                            finding_type=HoneypotType.PROXY_UPGRADE,
+                            severity=FindingSeverity.MEDIUM,
+                            description="DELEGATECALL used - possible proxy or delegate pattern",
+                            detail="Contract uses delegatecall pattern for execution forwarding",
+                            code_reference="DELEGATECALL (0xf4) in bytecode",
+                        )
+                    )
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            OSError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Bytecode analysis failed: {e}")
 
@@ -281,12 +332,16 @@ class HoneypotDetector:
                     liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
                     pair_addr = pair.get("pairAddress", "")
                     if liquidity < HONEYPOT_THRESHOLDS["low_liquidity_threshold"]:
-                        result.findings.append(SecurityFinding(
-                            finding_type=HoneypotType.RUG_PULL,
-                            severity=FindingSeverity.CRITICAL if liquidity < HONEYPOT_THRESHOLDS["tiny_liquidity_threshold"] else FindingSeverity.HIGH,
-                            description=f"Extremely low liquidity: ${liquidity:.2f}",
-                            detail=f"Pool: {pair.get('dexId', '?')} - {pair_addr[:12]}...",
-                        ))
+                        result.findings.append(
+                            SecurityFinding(
+                                finding_type=HoneypotType.RUG_PULL,
+                                severity=FindingSeverity.CRITICAL
+                                if liquidity < HONEYPOT_THRESHOLDS["tiny_liquidity_threshold"]
+                                else FindingSeverity.HIGH,
+                                description=f"Extremely low liquidity: ${liquidity:.2f}",
+                                detail=f"Pool: {pair.get('dexId', '?')} - {pair_addr[:12]}...",
+                            )
+                        )
                     pair_created = pair.get("pairCreatedAt", 0)
                     if pair_created and liquidity > 1000:
                         age_hours = (datetime.now(UTC).timestamp() - pair_created / 1000) / 3600
@@ -294,7 +349,7 @@ class HoneypotDetector:
                             result.warnings.append(f"Pool is less than 1 hour old ({age_hours:.1f}h) - very high risk")
                         elif age_hours < 24:
                             result.warnings.append(f"Pool is less than 24 hours old ({age_hours:.1f}h)")
-        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
             logger.debug("_analyze_liquidity_error", exc_info=True)
             logger.debug(f"Liquidity analysis failed: {e}")
 
@@ -308,18 +363,24 @@ class HoneypotDetector:
                         rpc_url = chain_info.get("rpc", "")
                         if rpc_url:
                             import httpx
+
                             async with httpx.AsyncClient(timeout=8) as client:
                                 dead_addr = "0x000000000000000000000000000000000000dead"
-                                payload = {"jsonrpc": "2.0", "id": 1, "method": "eth_getBalance", "params": [dead_addr, "latest"]}
+                                payload = {
+                                    "jsonrpc": "2.0",
+                                    "id": 1,
+                                    "method": "eth_getBalance",
+                                    "params": [dead_addr, "latest"],
+                                }
                                 try:
                                     resp = await client.post(rpc_url, json=payload)
                                     if resp.status_code == 200:
                                         balance_hex = resp.json().get("result", "0x0")
                                         if balance_hex and int(balance_hex, 16) > 0:
                                             result.liquidity_locked_pct = 100.0
-                                except (httpx.HTTPError):
+                                except httpx.HTTPError:
                                     pass
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
 
     async def _analyze_holders(self, address: str, chain: str, result: HoneypotAnalysisResult) -> None:
@@ -340,25 +401,31 @@ class HoneypotDetector:
                     volume_h24 = float(pair.get("volume", {}).get("h24", 0) or 0)
                     liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
                     if price_change_h1 > 50 and liquidity < 50000:
-                        result.findings.append(SecurityFinding(
-                            finding_type=HoneypotType.RUG_PULL,
-                            severity=FindingSeverity.HIGH,
-                            description=f"Suspicious pump pattern - +{price_change_h1:.0f}% in 1h with low liquidity",
-                            detail="Rapid price increase with low liquidity is a classic rug-pull setup",
-                        ))
+                        result.findings.append(
+                            SecurityFinding(
+                                finding_type=HoneypotType.RUG_PULL,
+                                severity=FindingSeverity.HIGH,
+                                description=f"Suspicious pump pattern - +{price_change_h1:.0f}% in 1h with low liquidity",
+                                detail="Rapid price increase with low liquidity is a classic rug-pull setup",
+                            )
+                        )
                     if price_change_h24 > 500 and liquidity < 50000:
-                        result.findings.append(SecurityFinding(
-                            finding_type=HoneypotType.RUG_PULL,
-                            severity=FindingSeverity.CRITICAL,
-                            description=f"Extreme price movement (+{price_change_h24:.0f}%) with low liquidity",
-                            detail="Classic honeypot pattern - pump price to attract buyers, then block sells",
-                        ))
+                        result.findings.append(
+                            SecurityFinding(
+                                finding_type=HoneypotType.RUG_PULL,
+                                severity=FindingSeverity.CRITICAL,
+                                description=f"Extreme price movement (+{price_change_h24:.0f}%) with low liquidity",
+                                detail="Classic honeypot pattern - pump price to attract buyers, then block sells",
+                            )
+                        )
                     if liquidity > 0 and volume_h24 > liquidity * 50:
-                        result.findings.append(SecurityFinding(
-                            finding_type=HoneypotType.RUG_PULL,
-                            severity=FindingSeverity.MEDIUM,
-                            description=f"Volume ({volume_h24:.0f}) is {volume_h24 / max(liquidity, 1):.0f}x liquidity - possible wash trading",
-                        ))
+                        result.findings.append(
+                            SecurityFinding(
+                                finding_type=HoneypotType.RUG_PULL,
+                                severity=FindingSeverity.MEDIUM,
+                                description=f"Volume ({volume_h24:.0f}) is {volume_h24 / max(liquidity, 1):.0f}x liquidity - possible wash trading",
+                            )
+                        )
                     result.chain_data_sources.append("dexscreener_market")
         except (ConnectionError, OSError, TimeoutError):
             pass
@@ -370,6 +437,7 @@ class HoneypotDetector:
             return
         logger.debug(f"Deep scan enabled for {address[:10]} on {chain}")
         import httpx
+
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 block_payload = {"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []}
@@ -378,7 +446,7 @@ class HoneypotDetector:
                     latest_hex = resp.json().get("result", "0x0")
                     latest_block = int(latest_hex, 16)
                     result.chain_data_sources.append(f"rpc_block:{latest_block}")
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
 
     def _compute_risk_score(self, result: HoneypotAnalysisResult) -> int:

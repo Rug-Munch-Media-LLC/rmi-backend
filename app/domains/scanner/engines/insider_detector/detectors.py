@@ -23,8 +23,12 @@ from .utils import _ts_human
 
 logger = get_logger(__name__)
 
+
 async def _detect_pre_trending(
-    token_address: str, chain: str, traders: list[dict], events: dict,
+    token_address: str,
+    chain: str,
+    traders: list[dict],
+    events: dict,
 ) -> list[InsiderEvidence]:
     """Detect wallets that bought before the token appeared on trending."""
     results: list[InsiderEvidence] = []
@@ -53,19 +57,32 @@ async def _detect_pre_trending(
             confidence = Confidence.CRITICAL if lead_time > 360 else Confidence.HIGH
         elif lead_time < 30:
             confidence = Confidence.MEDIUM
-        results.append(InsiderEvidence(
-            wallet=trader["wallet"], insider_type=InsiderType.PRE_TRENDING,
-            bought_at=first_buy, bought_amount_usd=total_bought,
-            event=f"{event_desc} at {_ts_human(trending_at)} UTC", event_at=trending_at,
-            lead_time_minutes=lead_time, pnl_estimate=pnl,
-            evidence=(f"Bought {total_bought:+.0f} USDT {lead_time:.0f}min before trending"
-                      if first_buy and trending_at else "Pre-trending buy detected"),
-            confidence=confidence,
-        ))
+        results.append(
+            InsiderEvidence(
+                wallet=trader["wallet"],
+                insider_type=InsiderType.PRE_TRENDING,
+                bought_at=first_buy,
+                bought_amount_usd=total_bought,
+                event=f"{event_desc} at {_ts_human(trending_at)} UTC",
+                event_at=trending_at,
+                lead_time_minutes=lead_time,
+                pnl_estimate=pnl,
+                evidence=(
+                    f"Bought {total_bought:+.0f} USDT {lead_time:.0f}min before trending"
+                    if first_buy and trending_at
+                    else "Pre-trending buy detected"
+                ),
+                confidence=confidence,
+            )
+        )
     return results
 
+
 async def _detect_pre_kol(
-    token_address: str, chain: str, traders: list[dict], events: dict,
+    token_address: str,
+    chain: str,
+    traders: list[dict],
+    events: dict,
 ) -> list[InsiderEvidence]:
     """Detect wallets that bought before the first KOL/influencer trade."""
     results: list[InsiderEvidence] = []
@@ -90,19 +107,29 @@ async def _detect_pre_kol(
             confidence = Confidence.CRITICAL
         elif lead_time < 30:
             confidence = Confidence.MEDIUM
-        results.append(InsiderEvidence(
-            wallet=trader["wallet"], insider_type=InsiderType.PRE_KOL,
-            bought_at=first_buy, bought_amount_usd=total_bought,
-            event=kol_desc, event_at=first_kol_at,
-            lead_time_minutes=lead_time, pnl_estimate=pnl,
-            evidence=f"Bought {total_bought:+.0f} USDT {lead_time:.0f}min before {kol_desc}",
-            confidence=confidence,
-        ))
+        results.append(
+            InsiderEvidence(
+                wallet=trader["wallet"],
+                insider_type=InsiderType.PRE_KOL,
+                bought_at=first_buy,
+                bought_amount_usd=total_bought,
+                event=kol_desc,
+                event_at=first_kol_at,
+                lead_time_minutes=lead_time,
+                pnl_estimate=pnl,
+                evidence=f"Bought {total_bought:+.0f} USDT {lead_time:.0f}min before {kol_desc}",
+                confidence=confidence,
+            )
+        )
     return results
 
+
 async def _detect_dev_insider(
-    token_address: str, chain: str, traders: list[dict],
-    events: dict, deployer: str | None,
+    token_address: str,
+    chain: str,
+    traders: list[dict],
+    events: dict,
+    deployer: str | None,
 ) -> list[InsiderEvidence]:
     """Detect wallets connected to the deployer that bought early."""
     results: list[InsiderEvidence] = []
@@ -151,18 +178,28 @@ async def _detect_dev_insider(
             continue
 
         pnl = total_bought * AVG_PRE_TRENDING_PUMP
-        results.append(InsiderEvidence(
-            wallet=trader["wallet"], insider_type=InsiderType.DEV_INSIDER,
-            bought_at=first_buy, bought_amount_usd=total_bought,
-            event=f"Deployer {deployer[:8]} created token",
-            event_at=created_at or 0,
-            lead_time_minutes=lead_time_from_create if lead_time_from_create != float("inf") else 0,
-            pnl_estimate=pnl, evidence="; ".join(signals[:2]), confidence=confidence,
-        ))
+        results.append(
+            InsiderEvidence(
+                wallet=trader["wallet"],
+                insider_type=InsiderType.DEV_INSIDER,
+                bought_at=first_buy,
+                bought_amount_usd=total_bought,
+                event=f"Deployer {deployer[:8]} created token",
+                event_at=created_at or 0,
+                lead_time_minutes=lead_time_from_create if lead_time_from_create != float("inf") else 0,
+                pnl_estimate=pnl,
+                evidence="; ".join(signals[:2]),
+                confidence=confidence,
+            )
+        )
     return results
 
+
 async def _detect_cex_frontrun(
-    token_address: str, chain: str, traders: list[dict], events: dict,
+    token_address: str,
+    chain: str,
+    traders: list[dict],
+    events: dict,
 ) -> list[InsiderEvidence]:
     """Detect wallets that bought before a CEX listing."""
     results: list[InsiderEvidence] = []
@@ -189,18 +226,28 @@ async def _detect_cex_frontrun(
                 continue
             pnl = total_bought * CEX_LISTING_MULTIPLIER
             confidence = Confidence.CRITICAL if lead_time > 240 else Confidence.HIGH
-            results.append(InsiderEvidence(
-                wallet=trader["wallet"], insider_type=InsiderType.CEX_FRONTRUNNER,
-                bought_at=first_buy, bought_amount_usd=total_bought,
-                event=f"CEX listing: {listing.get('symbol', '')} on {listing.get('detected', 'exchange')}",
-                event_at=listing_at, lead_time_minutes=lead_time, pnl_estimate=pnl,
-                evidence=f"Bought {total_bought:+.0f} USDT {lead_time:.0f}min before CEX listing",
-                confidence=confidence,
-            ))
+            results.append(
+                InsiderEvidence(
+                    wallet=trader["wallet"],
+                    insider_type=InsiderType.CEX_FRONTRUNNER,
+                    bought_at=first_buy,
+                    bought_amount_usd=total_bought,
+                    event=f"CEX listing: {listing.get('symbol', '')} on {listing.get('detected', 'exchange')}",
+                    event_at=listing_at,
+                    lead_time_minutes=lead_time,
+                    pnl_estimate=pnl,
+                    evidence=f"Bought {total_bought:+.0f} USDT {lead_time:.0f}min before CEX listing",
+                    confidence=confidence,
+                )
+            )
     return results
 
+
 async def _detect_pumpfun_graduation(
-    token_address: str, chain: str, traders: list[dict], events: dict,
+    token_address: str,
+    chain: str,
+    traders: list[dict],
+    events: dict,
 ) -> list[InsiderEvidence]:
     """Detect wallets that bought a pump.fun token BEFORE it graduated to Raydium."""
     results: list[InsiderEvidence] = []
@@ -222,19 +269,29 @@ async def _detect_pumpfun_graduation(
             continue
         pnl = total_bought * AVG_PUMPFUN_GRADUATION_PUMP
         confidence = Confidence.CRITICAL if lead_time > 120 else Confidence.HIGH
-        results.append(InsiderEvidence(
-            wallet=trader["wallet"], insider_type=InsiderType.PUMP_FUN_GRADUATION,
-            bought_at=first_buy, bought_amount_usd=total_bought,
-            event="pump.fun graduation to Raydium", event_at=graduated_at,
-            lead_time_minutes=lead_time, pnl_estimate=pnl,
-            evidence=f"Bought {total_bought:+.0f} USDT on pump.fun {lead_time:.0f}min before Raydium graduation, estimated ${pnl:,.0f} profit at peak",
-            confidence=confidence,
-        ))
+        results.append(
+            InsiderEvidence(
+                wallet=trader["wallet"],
+                insider_type=InsiderType.PUMP_FUN_GRADUATION,
+                bought_at=first_buy,
+                bought_amount_usd=total_bought,
+                event="pump.fun graduation to Raydium",
+                event_at=graduated_at,
+                lead_time_minutes=lead_time,
+                pnl_estimate=pnl,
+                evidence=f"Bought {total_bought:+.0f} USDT on pump.fun {lead_time:.0f}min before Raydium graduation, estimated ${pnl:,.0f} profit at peak",
+                confidence=confidence,
+            )
+        )
     return results
 
+
 async def _detect_snipers(
-    token_address: str, chain: str, traders: list[dict],
-    events: dict, token_created_at: float | None,
+    token_address: str,
+    chain: str,
+    traders: list[dict],
+    events: dict,
+    token_created_at: float | None,
 ) -> list[InsiderEvidence]:
     """Detect first-block snipers — wallets that bought in the first block."""
     results: list[InsiderEvidence] = []
@@ -256,12 +313,18 @@ async def _detect_snipers(
         if total_bought < MIN_INSIDER_BUY_USD:
             continue
         pnl = total_bought * AVG_PRE_TRENDING_PUMP
-        results.append(InsiderEvidence(
-            wallet=trader["wallet"], insider_type=InsiderType.SNIPER,
-            bought_at=first_buy, bought_amount_usd=total_bought,
-            event=f"Token created at {_ts_human(created_at)}", event_at=created_at,
-            lead_time_minutes=lead_minutes, pnl_estimate=pnl,
-            evidence=f"First-block buy: {total_bought:+.0f} USDT within {lead_minutes * 60:.0f}s of token creation",
-            confidence=Confidence.MEDIUM,
-        ))
+        results.append(
+            InsiderEvidence(
+                wallet=trader["wallet"],
+                insider_type=InsiderType.SNIPER,
+                bought_at=first_buy,
+                bought_amount_usd=total_bought,
+                event=f"Token created at {_ts_human(created_at)}",
+                event_at=created_at,
+                lead_time_minutes=lead_minutes,
+                pnl_estimate=pnl,
+                evidence=f"First-block buy: {total_bought:+.0f} USDT within {lead_minutes * 60:.0f}s of token creation",
+                confidence=Confidence.MEDIUM,
+            )
+        )
     return results

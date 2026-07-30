@@ -37,6 +37,7 @@ from app.domains.prediction.prediction_market_service import (
 
 logger = get_logger("prediction_market_intel")
 
+
 @dataclass
 class IntelSignal:
     """A single intelligence signal from prediction market analysis."""
@@ -51,6 +52,7 @@ class IntelSignal:
     generated_at: str
     source_markets: list[str] = field(default_factory=list)  # market slugs referenced
 
+
 @dataclass
 class CryptoFearIndex:
     """Aggregated risk index derived from prediction markets."""
@@ -62,6 +64,7 @@ class CryptoFearIndex:
     exchange_risk: float  # 0-100
     components: list[dict]  # Individual markets contributing
     generated_at: str
+
 
 class PredictionMarketIntel:
     """Detects intelligence signals from prediction market data."""
@@ -159,9 +162,7 @@ class PredictionMarketIntel:
         if not crypto_markets:
             crypto_markets = unique  # Fallback if no crypto markets found
 
-        exploit_markets = self._filter_category(
-            crypto_markets, ["hack", "exploit", "vulnerability", "drain", "breach"]
-        )
+        exploit_markets = self._filter_category(crypto_markets, ["hack", "exploit", "vulnerability", "drain", "breach"])
         regulatory_markets = self._filter_category(
             crypto_markets, ["sec", "cftc", "regulation", "ban", "sanction", "doj"]
         )
@@ -177,12 +178,7 @@ class PredictionMarketIntel:
         stablecoin_risk = self._aggregate_risk(stablecoin_markets)
         exchange_risk = self._aggregate_risk(exchange_markets)
 
-        overall = (
-            exploit_risk * 0.35
-            + regulatory_risk * 0.25
-            + stablecoin_risk * 0.20
-            + exchange_risk * 0.20
-        )
+        overall = exploit_risk * 0.35 + regulatory_risk * 0.25 + stablecoin_risk * 0.20 + exchange_risk * 0.20
 
         result = CryptoFearIndex(
             overall_risk=round(overall, 1),
@@ -281,9 +277,7 @@ class PredictionMarketIntel:
 
         for m in unique[:10]:
             if m.is_security_relevant and m.probability_yes >= 0.30:
-                tokens_str = (
-                    ", ".join(m.tokens_mentioned[:3]) if m.tokens_mentioned else "crypto ecosystem"
-                )
+                tokens_str = ", ".join(m.tokens_mentioned[:3]) if m.tokens_mentioned else "crypto ecosystem"
                 if tokens_str == "crypto ecosystem" and m.volume_usd < 5000:
                     continue  # Skip vague low-volume markets
 
@@ -360,9 +354,7 @@ class PredictionMarketIntel:
 
     # ── Helpers ─────────────────────────────────────────────
 
-    def _filter_category(
-        self, markets: list[PredictionMarket], keywords: list[str]
-    ) -> list[PredictionMarket]:
+    def _filter_category(self, markets: list[PredictionMarket], keywords: list[str]) -> list[PredictionMarket]:
         """Filter markets by keyword match in question text."""
         results = []
         for m in markets:
@@ -405,9 +397,11 @@ class PredictionMarketIntel:
             "is_crypto_relevant": m.is_crypto_relevant,
         }
 
+
 # ── Singleton ───────────────────────────────────────────────
 
 _intel: PredictionMarketIntel | None = None
+
 
 def get_prediction_market_intel() -> PredictionMarketIntel:
     global _intel

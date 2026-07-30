@@ -32,6 +32,7 @@ from app.cluster_detection.scoring import (
 
 logger = logging.getLogger(__name__)
 
+
 class ClusterDetectionPro:
     """
     Professional-grade cluster detection using multiple signals.
@@ -124,9 +125,7 @@ class ClusterDetectionPro:
             "programs_used": set(),
         }
 
-    async def trace_funding_path(
-        self, source: str, target: str, max_depth: int = 5
-    ) -> FundingPath | None:
+    async def trace_funding_path(self, source: str, target: str, max_depth: int = 5) -> FundingPath | None:
         """Trace funding path between two wallets."""
         # BFS to find path
         visited = {source}
@@ -157,8 +156,10 @@ class ClusterDetectionPro:
 
         return None
 
+
 # Global instance
 _cluster_pro = None
+
 
 def get_cluster_detection_pro() -> ClusterDetectionPro:
     """Get global ClusterDetectionPro instance."""
@@ -166,6 +167,7 @@ def get_cluster_detection_pro() -> ClusterDetectionPro:
     if _cluster_pro is None:
         _cluster_pro = ClusterDetectionPro()
     return _cluster_pro
+
 
 # Alias for backward compatibility with code importing get_cluster_detector
 get_cluster_detector = get_cluster_detection_pro

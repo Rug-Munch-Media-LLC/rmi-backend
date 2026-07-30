@@ -12,6 +12,7 @@ from app.databus.core import databus
 logger = get_logger("databus.router.bitquery")
 router = APIRouter(tags=["databus"])
 
+
 @router.get("/bitquery/health")
 async def bitquery_health() -> Any:
     """Check Bitquery provider health and billing status."""
@@ -19,6 +20,7 @@ async def bitquery_health() -> Any:
 
     provider = BitqueryProvider(databus.cache)
     return await provider.health()
+
 
 @router.get("/bitquery/token-price/{network}/{token_address}")
 async def bitquery_token_price(network: str, token_address: str) -> dict[str, str]:
@@ -31,6 +33,7 @@ async def bitquery_token_price(network: str, token_address: str) -> dict[str, st
         raise HTTPException(status_code=503, detail=result)
     return {"source": "bitquery", "network": network, "token": token_address, "data": result}
 
+
 @router.get("/bitquery/holders/{network}/{token_address}")
 async def bitquery_holders(network: str, token_address: str, limit: int = Query(100, ge=1, le=500)) -> dict[str, str]:
     """Get token holder distribution from Bitquery."""
@@ -42,6 +45,7 @@ async def bitquery_holders(network: str, token_address: str, limit: int = Query(
         raise HTTPException(status_code=503, detail=result)
     return {"source": "bitquery", "network": network, "token": token_address, "data": result}
 
+
 @router.get("/bitquery/tx-trace/{network}/{tx_hash}")
 async def bitquery_tx_trace(network: str, tx_hash: str) -> dict[str, str]:
     """Get full transaction trace from Bitquery."""
@@ -52,6 +56,7 @@ async def bitquery_tx_trace(network: str, tx_hash: str) -> dict[str, str]:
     if result and "error" in result:
         raise HTTPException(status_code=503, detail=result)
     return {"source": "bitquery", "network": network, "tx": tx_hash, "data": result}
+
 
 @router.get("/bitquery/dex-volume/{network}")
 async def bitquery_dex_volume(network: str, pool: str = Query(None), timeframe: str = Query("24h")) -> dict[str, str]:
@@ -70,6 +75,7 @@ async def bitquery_dex_volume(network: str, pool: str = Query(None), timeframe: 
         "data": result,
     }
 
+
 @router.get("/bitquery/balance/{network}/{address}")
 async def bitquery_balance(network: str, address: str) -> dict[str, str]:
     """Get address token balances from Bitquery."""
@@ -80,6 +86,7 @@ async def bitquery_balance(network: str, address: str) -> dict[str, str]:
     if result and "error" in result:
         raise HTTPException(status_code=503, detail=result)
     return {"source": "bitquery", "network": network, "address": address, "data": result}
+
 
 @router.get("/bitquery/cross-chain/{address}")
 async def bitquery_cross_chain(address: str, networks: str = Query("ethereum,bsc,solana")) -> dict[str, str]:
@@ -93,6 +100,7 @@ async def bitquery_cross_chain(address: str, networks: str = Query("ethereum,bsc
         raise HTTPException(status_code=503, detail=result)
     return {"source": "bitquery", "address": address, "networks": net_list, "data": result}
 
+
 @router.get("/bitquery/contract-events/{network}/{contract}")
 async def bitquery_contract_events(
     network: str, contract: str, event: str = Query(None), limit: int = Query(50, ge=1, le=200)
@@ -105,4 +113,3 @@ async def bitquery_contract_events(
     if result and "error" in result:
         raise HTTPException(status_code=503, detail=result)
     return {"source": "bitquery", "network": network, "contract": contract, "data": result}
-

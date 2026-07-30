@@ -45,19 +45,19 @@ REAL_CATS_FILE_LABELS = {
     "Identifier.tsv": "mixed",  # Identifier mappings
 }
 
+
 def _find_real_cats_dir() -> str | None:
     for p in REAL_CATS_PATHS:
         if os.path.isdir(p) and any(f.endswith(".tsv") for f in os.listdir(p)):
             return p
     return None
 
+
 def _load_real_cats() -> dict:
     """Load Real-CATS dataset into memory."""
     base = _find_real_cats_dir()
     if not base:
-        return {
-            "error": "Real-CATS dataset not found. Clone from https://github.com/sjdseu/Real-CATS"
-        }
+        return {"error": "Real-CATS dataset not found. Clone from https://github.com/sjdseu/Real-CATS"}
 
     result = {"criminal": [], "benign": [], "stats": {}}
 
@@ -122,16 +122,13 @@ def _load_real_cats() -> dict:
         "source": "Real-CATS (GitHub)",
         "url": "https://github.com/sjdseu/Real-CATS",
         "paper": "https://arxiv.org/html/2501.15553v1",
-        "files_loaded": sum(
-            1 for f in REAL_CATS_FILE_LABELS if os.path.exists(os.path.join(base, f))
-        ),
+        "files_loaded": sum(1 for f in REAL_CATS_FILE_LABELS if os.path.exists(os.path.join(base, f))),
     }
 
     return result
 
-async def fetch_real_cats(
-    address: str | None = None, category: str = "all", limit: int = 50
-) -> dict:
+
+async def fetch_real_cats(address: str | None = None, category: str = "all", limit: int = 50) -> dict:
     """Query Real-CATS - check if address is criminal, or list criminal/benign addresses."""
     data = _load_real_cats()
 
@@ -165,6 +162,7 @@ async def fetch_real_cats(
         "source": "Real-CATS",
     }
 
+
 # ═══════════════════════════════════════════════════════════════
 # 2. MBAL - 10 Million Annotated Crypto Addresses
 # ═══════════════════════════════════════════════════════════════
@@ -190,14 +188,17 @@ Chains: Bitcoin, Ethereum, BNB Chain, Polygon, Avalanche
 Categories: 62 distinct classifications
 """
 
+
 def _find_mbal_dir() -> str | None:
     for p in MBAL_PATHS:
         if os.path.isdir(p) and os.listdir(p):
             return p
     return None
 
+
 def _get_mbal_install_instructions() -> str:
     return MBAL_README
+
 
 async def fetch_mbal(
     address: str | None = None,

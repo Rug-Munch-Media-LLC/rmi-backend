@@ -17,6 +17,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("entity.graph")
 
+
 @dataclass
 class GraphNode:
     id: str
@@ -28,6 +29,7 @@ class GraphNode:
     color: str = "#8B5CF6"
     metadata: dict[str, Any] = field(default_factory=dict)
 
+
 @dataclass
 class GraphEdge:
     source: str
@@ -37,6 +39,7 @@ class GraphEdge:
     tx_count: int = 1
     color: str = "#4B5563"
     width: float = 1.0
+
 
 def build_entity_graph(
     center_address: str,
@@ -82,9 +85,7 @@ def build_entity_graph(
 
         value = float(tx.get("value_usd", 0) or 0)
         tx_type = tx.get("type", "transfer")
-        is_outgoing = (
-            tx.get("direction") == "out" or tx.get("from", "").lower() == center_address.lower()
-        )
+        is_outgoing = tx.get("direction") == "out" or tx.get("from", "").lower() == center_address.lower()
 
         # Add counterparty node if new
         if cp_id not in nodes:
@@ -211,6 +212,7 @@ def build_entity_graph(
             },
         },
     }
+
 
 def generate_svg(graph_data: dict[str, Any], width: int = 800, height: int = 600) -> str:
     """Generate an SVG visualization of the entity graph.
@@ -354,12 +356,11 @@ def generate_svg(graph_data: dict[str, Any], width: int = 800, height: int = 600
         lx = legend_x + (i % 3) * 130
         ly = legend_y + (i // 3) * 20
         svg_parts.append(f'<circle cx="{lx}" cy="{ly}" r="5" fill="{color}"/>')
-        svg_parts.append(
-            f'<text x="{lx + 12}" y="{ly + 4}" fill="#6B7280" font-size="10">{label}</text>'
-        )
+        svg_parts.append(f'<text x="{lx + 12}" y="{ly + 4}" fill="#6B7280" font-size="10">{label}</text>')
 
     svg_parts.append("</svg>")
     return "\n".join(svg_parts)
+
 
 def _classify_node(address: str, labels: dict[str, Any], tx: dict) -> tuple[str, str]:
     """Classify a counterparty node by type and color."""
@@ -386,6 +387,7 @@ def _classify_node(address: str, labels: dict[str, Any], tx: dict) -> tuple[str,
         return ("dex", "#06B6D4")
 
     return ("wallet", "#8B5CF6")
+
 
 def _shorten_addr(addr: str) -> str:
     """Shorten address for display."""

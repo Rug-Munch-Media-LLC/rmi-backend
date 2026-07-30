@@ -31,6 +31,7 @@ from app.domains.billing.facilitators.config import get_config
 
 logger = get_logger("facilitator.coinbase_cdp")
 
+
 class CoinbaseCDPFacilitator(Facilitator):
     """
     Coinbase Developer Platform x402 facilitator.
@@ -47,12 +48,9 @@ class CoinbaseCDPFacilitator(Facilitator):
         self._api_key_secret = config.coinbase_cdp_api_secret or _env("CDP_API_KEY_SECRET")
         self._network = config.coinbase_cdp_network or "base-mainnet"
         self._verify_url = (
-            config.coinbase_cdp_verify_url
-            or "https://api.developer.coinbase.com/platform/v1/x402/verify"
+            config.coinbase_cdp_verify_url or "https://api.developer.coinbase.com/platform/v1/x402/verify"
         )
-        self._settle_url = _env("COINBASE_CDP_SETTLE_URL") or self._verify_url.replace(
-            "/verify", "/settle"
-        )
+        self._settle_url = _env("COINBASE_CDP_SETTLE_URL") or self._verify_url.replace("/verify", "/settle")
 
         if not self._api_key_id:
             logger.warning(
@@ -194,9 +192,7 @@ class CoinbaseCDPFacilitator(Facilitator):
                     return self._format_error(
                         f"CDP auth failed (HTTP {resp.status}). Verify CDP_API_KEY_ID/SECRET at portal.cdp.coinbase.com"
                     )
-                return self._format_error(
-                    f"CDP HTTP {resp.status}: {data.get('error', data.get('message', ''))}"
-                )
+                return self._format_error(f"CDP HTTP {resp.status}: {data.get('error', data.get('message', ''))}")
 
         except TimeoutError:
             return self._format_error("Coinbase CDP verification timed out")
@@ -210,9 +206,7 @@ class CoinbaseCDPFacilitator(Facilitator):
 
     async def settle(self, payment_data: dict[str, Any]) -> SettlementResult:
         if not self._api_key_id:
-            return SettlementResult(
-                settled=False, reason="CDP not configured", facilitator=self.name
-            )
+            return SettlementResult(settled=False, reason="CDP not configured", facilitator=self.name)
 
         try:
             timeout = aiohttp.ClientTimeout(total=30)
@@ -241,19 +235,21 @@ class CoinbaseCDPFacilitator(Facilitator):
                     facilitator=self.name,
                 )
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            return SettlementResult(
-                settled=False, reason=f"CDP settlement error: {e}", facilitator=self.name
-            )
+            return SettlementResult(settled=False, reason=f"CDP settlement error: {e}", facilitator=self.name)
+
 
 # ── Helpers ─────────────────────────────────────────────────
+
 
 def _env(key: str, default: str = "") -> str:
     import os
 
     return os.getenv(key, default)
 
+
 def _timeout() -> int:
     return int(_env("FACILITATOR_VERIFY_TIMEOUT", "15"))
+
 
 def _chain_from_network(network: str) -> str:
     """Map x402 network string to chain key."""

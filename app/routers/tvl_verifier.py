@@ -21,6 +21,7 @@ router = APIRouter(prefix="/api/v1/tvl-verify", tags=["tvl-verifier"])
 DEFILLAMA_API = "https://api.llama.fi"
 DATABUS = settings.databus_url
 
+
 async def _get_defillama_tvl(protocol_slug: str) -> dict[str, Any]:
     """Get current TVL from DeFiLlama."""
     try:
@@ -45,6 +46,7 @@ async def _get_defillama_tvl(protocol_slug: str) -> dict[str, Any]:
         "error": "DeFiLlama unavailable",
     }
 
+
 async def _get_onchain_tvl(protocol_name: str, chains: list[str]) -> dict[str, float]:
     """Get actual on-chain TVL from DataBus for given chains."""
     chain_tvls: dict[str, float] = {}
@@ -62,6 +64,7 @@ async def _get_onchain_tvl(protocol_name: str, chains: list[str]) -> dict[str, f
         logger.warning(f"On-chain TVL fetch failed: {e}")
     return chain_tvls
 
+
 def _compute_discrepancy(defl_tvl: float, onchain_tvl: float) -> dict:
     """Compute TVL discrepancy with risk assessment."""
     if defl_tvl <= 0 or onchain_tvl <= 0:
@@ -71,17 +74,13 @@ def _compute_discrepancy(defl_tvl: float, onchain_tvl: float) -> dict:
 
     if diff_pct > 30:
         risk = "CRITICAL"
-        explanation = (
-            f"DeFiLlama reports {diff_pct:.0f}% higher TVL than on-chain. Possible inflated TVL."
-        )
+        explanation = f"DeFiLlama reports {diff_pct:.0f}% higher TVL than on-chain. Possible inflated TVL."
     elif diff_pct > 15:
         risk = "HIGH"
         explanation = f"Significant discrepancy ({diff_pct:.0f}%). Verify manually."
     elif diff_pct < -30:
         risk = "HIGH"
-        explanation = (
-            f"On-chain TVL exceeds reported TVL by {abs(diff_pct):.0f}%. Possible unreported risk."
-        )
+        explanation = f"On-chain TVL exceeds reported TVL by {abs(diff_pct):.0f}%. Possible unreported risk."
     elif diff_pct < -10:
         risk = "MEDIUM"
         explanation = f"On-chain TVL higher than reported ({abs(diff_pct):.0f}%)."
@@ -90,6 +89,7 @@ def _compute_discrepancy(defl_tvl: float, onchain_tvl: float) -> dict:
         explanation = f"TVL aligned within {abs(diff_pct):.0f}%."
 
     return {"discrepancy_pct": round(diff_pct, 1), "risk": risk, "explanation": explanation}
+
 
 @router.get("/protocol/{slug}")
 async def verify_protocol_tvl(slug: str) -> dict[str, Any | None]:
@@ -118,6 +118,7 @@ async def verify_protocol_tvl(slug: str) -> dict[str, Any | None]:
             "onchain": onchain,
         },
     }
+
 
 @router.get("/top-mismatches")
 async def find_top_mismatches(limit: int = Query(10, le=20)) -> dict:

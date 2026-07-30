@@ -112,6 +112,7 @@ RESEARCH_FEEDS = [
     ("coincentral", "https://coincentral.com/feed/"),
 ]
 
+
 def fetch_generic_feeds(feed_list, prefix="", label="generic") -> Any:
     """Fetch any list of RSS feeds. Returns articles."""
     results = []
@@ -131,10 +132,7 @@ def fetch_generic_feeds(feed_list, prefix="", label="generic") -> Any:
                     or ""
                 ).strip()
                 if title and len(title) > 5:
-                    doc_id = (
-                        f"{prefix}{source}:"
-                        + hashlib.sha256((source + title).encode()).hexdigest()[:16]
-                    )
+                    doc_id = f"{prefix}{source}:" + hashlib.sha256((source + title).encode()).hexdigest()[:16]
                     results.append(
                         {
                             "id": doc_id,
@@ -153,6 +151,7 @@ def fetch_generic_feeds(feed_list, prefix="", label="generic") -> Any:
             logger.debug(f"  {prefix}{source}: {str(e)[:60]}")
     return results
 
+
 def store_all() -> dict[str, int] | dict[str, str]:
     """Fetch all sources and store in Redis + Postgres."""
     all_articles = []
@@ -170,9 +169,7 @@ def store_all() -> dict[str, int] | dict[str, str]:
         import psycopg2
         import redis
 
-        r = redis.Redis(
-            host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True
-        )
+        r = redis.Redis(host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
 
         # Dedup and store
         count = 0
@@ -228,6 +225,7 @@ def store_all() -> dict[str, int] | dict[str, str]:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Store failed: {e}")
         return {"error": str(e), "articles_collected": len(all_articles)}
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [mega] %(message)s")

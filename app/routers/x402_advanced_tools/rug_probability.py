@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("x402.rug_probability")
 
+
 async def rug_probability(req: AddressRequest) -> Any:
     """Predictive rug pull probability: 0-100 score."""
     try:
@@ -61,11 +62,13 @@ async def rug_probability(req: AddressRequest) -> Any:
                     data = await resp.json()
                     if data.get("is_honeypot"):
                         probability += 40
-                        signals.append({
-                            "signal": "honeypot_detected",
-                            "weight": 40,
-                            "detail": data.get("reason", "Cannot sell - confirmed honeypot"),
-                        })
+                        signals.append(
+                            {
+                                "signal": "honeypot_detected",
+                                "weight": 40,
+                                "detail": data.get("reason", "Cannot sell - confirmed honeypot"),
+                            }
+                        )
                     sources.append("honeypot_check")
         except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"Honeypot check failed: {e}")
@@ -88,17 +91,29 @@ async def rug_probability(req: AddressRequest) -> Any:
 
                             if liq < 1000:
                                 probability += 25
-                                signals.append({"signal": "critical_low_liquidity", "weight": 25, "detail": f"Liquidity ${liq:,.0f}"})
+                                signals.append(
+                                    {
+                                        "signal": "critical_low_liquidity",
+                                        "weight": 25,
+                                        "detail": f"Liquidity ${liq:,.0f}",
+                                    }
+                                )
                             elif liq < 10000:
                                 probability += 15
-                                signals.append({"signal": "low_liquidity", "weight": 15, "detail": f"Liquidity ${liq:,.0f}"})
+                                signals.append(
+                                    {"signal": "low_liquidity", "weight": 15, "detail": f"Liquidity ${liq:,.0f}"}
+                                )
                             elif liq < 50000:
                                 probability += 5
-                                signals.append({"signal": "moderate_liquidity", "weight": 5, "detail": f"Liquidity ${liq:,.0f}"})
+                                signals.append(
+                                    {"signal": "moderate_liquidity", "weight": 5, "detail": f"Liquidity ${liq:,.0f}"}
+                                )
 
                             if 0 < age_h < 1:
                                 probability += 20
-                                signals.append({"signal": "brand_new", "weight": 20, "detail": f"Only {age_h:.1f}h old"})
+                                signals.append(
+                                    {"signal": "brand_new", "weight": 20, "detail": f"Only {age_h:.1f}h old"}
+                                )
                             elif 0 < age_h < 6:
                                 probability += 12
                                 signals.append({"signal": "very_new", "weight": 12, "detail": f"Only {age_h:.1f}h old"})
@@ -108,15 +123,25 @@ async def rug_probability(req: AddressRequest) -> Any:
 
                             if liq > 0 and vol > liq * 3:
                                 probability += 10
-                                signals.append({"signal": "pump_dump_pattern", "weight": 10, "detail": f"Volume {vol/liq:.0f}x liquidity"})
+                                signals.append(
+                                    {
+                                        "signal": "pump_dump_pattern",
+                                        "weight": 10,
+                                        "detail": f"Volume {vol / liq:.0f}x liquidity",
+                                    }
+                                )
 
                             pc = p.get("priceChange", {}).get("h24", 0) or 0
                             if pc < -50:
                                 probability += 15
-                                signals.append({"signal": "price_crashing", "weight": 15, "detail": f"Down {pc:.0f}% in 24h"})
+                                signals.append(
+                                    {"signal": "price_crashing", "weight": 15, "detail": f"Down {pc:.0f}% in 24h"}
+                                )
                             elif pc < -20:
                                 probability += 8
-                                signals.append({"signal": "price_declining", "weight": 8, "detail": f"Down {pc:.0f}% in 24h"})
+                                signals.append(
+                                    {"signal": "price_declining", "weight": 8, "detail": f"Down {pc:.0f}% in 24h"}
+                                )
         except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"DexScreener failed: {e}")
 
@@ -146,7 +171,13 @@ async def rug_probability(req: AddressRequest) -> Any:
                 probability += min(risk, 30)
                 patterns = result.get("patterns", [])
                 if patterns:
-                    signals.append({"signal": "scam_pattern_match", "weight": min(risk, 30), "detail": f"Matches: {', '.join(patterns[:3])}"})
+                    signals.append(
+                        {
+                            "signal": "scam_pattern_match",
+                            "weight": min(risk, 30),
+                            "detail": f"Matches: {', '.join(patterns[:3])}",
+                        }
+                    )
         except (ImportError, RuntimeError, Exception) as e:
             logger.debug(f"Scam detection failed: {e}")
 
@@ -154,6 +185,7 @@ async def rug_probability(req: AddressRequest) -> Any:
         try:
             async with aiohttp.ClientSession() as session:
                 from urllib.parse import quote
+
                 symbol = addr[:12]
                 url = f"https://cryptopanic.com/api/free/posts/?filter=important&q={quote(symbol)}"
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
@@ -164,7 +196,9 @@ async def rug_probability(req: AddressRequest) -> Any:
                             sources.append("cryptopanic")
                             if len(posts) > 20:
                                 probability += 5
-                                signals.append({"signal": "social_spike", "weight": 5, "detail": f"{len(posts)} social mentions"})
+                                signals.append(
+                                    {"signal": "social_spike", "weight": 5, "detail": f"{len(posts)} social mentions"}
+                                )
         except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"CryptoPanic failed: {e}")
 
@@ -209,5 +243,6 @@ async def rug_probability(req: AddressRequest) -> Any:
     except Exception as e:
         logger.error(f"Rug probability failed: {e}")
         raise AppError(message=str(e)) from e
+
 
 __all__ = ["rug_probability"]

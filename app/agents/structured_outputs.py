@@ -13,6 +13,7 @@ class RiskTier(StrEnum):
     HIGH = "high"
     CRITICAL = "critical"
 
+
 class TokenRiskReport(BaseModel):
     """Structured token risk analysis output."""
 
@@ -23,6 +24,7 @@ class TokenRiskReport(BaseModel):
     recommendation: str = Field(description="Action recommendation: buy/hold/sell/avoid")
     confidence: float = Field(ge=0, le=1, description="Model confidence in assessment")
 
+
 class WalletProfile(BaseModel):
     """Structured wallet analysis output."""
 
@@ -31,6 +33,7 @@ class WalletProfile(BaseModel):
     activity_score: int = Field(ge=0, le=100)
     flags: list[str] = Field(default_factory=list)
     summary: str
+
 
 class AuditReport(BaseModel):
     """Structured code audit output."""

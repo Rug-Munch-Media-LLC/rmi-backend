@@ -29,11 +29,13 @@ _verifier = PaymentVerifier()
 
 # ── Public Receipt Verification ────────────────────────────────
 
+
 @router.get("/receipt/{receipt_id}/verify")
 async def verify_receipt_public(receipt_id: str) -> dict:
     """Public endpoint to verify any x402 receipt."""
     try:
         from app.auth import get_redis
+
         r = await get_redis()
         receipt_data = await r.get(f"x402:receipt:{receipt_id}")
         if not receipt_data:
@@ -49,12 +51,16 @@ async def verify_receipt_public(receipt_id: str) -> dict:
         elif receipt.get("status") == "refunded":
             verification_status = "refunded"
         return {
-            "receipt_id": receipt_id, "status": receipt.get("status"),
-            "verification": verification_status, "amount": receipt.get("amount"),
-            "asset": receipt.get("asset"), "network": receipt.get("network"),
+            "receipt_id": receipt_id,
+            "status": receipt.get("status"),
+            "verification": verification_status,
+            "amount": receipt.get("amount"),
+            "asset": receipt.get("asset"),
+            "network": receipt.get("network"),
             "tool": receipt.get("tool"),
             "customer": (receipt.get("customer_address", "")[:8] + "...") if receipt.get("customer_address") else None,
-            "timestamp": receipt.get("timestamp"), "payment_tx": receipt.get("payment_tx"),
+            "timestamp": receipt.get("timestamp"),
+            "payment_tx": receipt.get("payment_tx"),
             "delivery_status": receipt.get("delivery_status"),
             "integrity_hash": integrity_hash,
             "chain_of_custody": {
@@ -71,14 +77,19 @@ async def verify_receipt_public(receipt_id: str) -> dict:
 
 # ── Public Payment Ledger ──────────────────────────────────────
 
+
 @router.get("/ledger")
 async def payment_ledger(
-    limit: int = 50, offset: int = 0,
-    tool: str | None = None, network: str | None = None, status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    tool: str | None = None,
+    network: str | None = None,
+    status: str | None = None,
 ) -> dict:
     """Public anonymized payment ledger for transparency."""
     try:
         from app.auth import get_redis
+
         r = await get_redis()
         all_ids = await r.zrevrange("x402:receipts_by_time", offset, offset + limit - 1)
         ledger = []
@@ -96,13 +107,19 @@ async def payment_ledger(
                 continue
             customer = receipt.get("customer_address", "")
             anon_customer = customer[:6] + "..." + customer[-4:] if len(customer) > 10 else None
-            ledger.append({
-                "receipt_id": rid_str, "tool": receipt.get("tool"),
-                "amount": receipt.get("amount"), "asset": receipt.get("asset"),
-                "network": receipt.get("network"), "status": receipt.get("status"),
-                "delivery": receipt.get("delivery_status"), "timestamp": receipt.get("timestamp"),
-                "customer": anon_customer,
-            })
+            ledger.append(
+                {
+                    "receipt_id": rid_str,
+                    "tool": receipt.get("tool"),
+                    "amount": receipt.get("amount"),
+                    "asset": receipt.get("asset"),
+                    "network": receipt.get("network"),
+                    "status": receipt.get("status"),
+                    "delivery": receipt.get("delivery_status"),
+                    "timestamp": receipt.get("timestamp"),
+                    "customer": anon_customer,
+                }
+            )
         total = await r.zcard("x402:receipts_by_time")
         return {"ledger": ledger, "count": len(ledger), "total": total, "offset": offset, "limit": limit}
     except Exception as e:
@@ -111,11 +128,13 @@ async def payment_ledger(
 
 # ── Transparency Dashboard ─────────────────────────────────────
 
+
 @router.get("/transparency")
 async def transparency_dashboard(hours: int = 24) -> dict:
     """Public transparency dashboard showing system trust metrics."""
     try:
         from app.auth import get_redis
+
         r = await get_redis()
         cutoff = time.time() - (hours * 3600)
         recent_ids = await r.zrangebyscore("x402:receipts_by_time", cutoff, "+inf")
@@ -140,8 +159,8 @@ async def transparency_dashboard(hours: int = 24) -> dict:
             try:
                 amount = float(receipt.get("amount", 0))
                 total_revenue += amount / 1e6
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.warning("X402 routes parse error: %s", e)
             tool_name = receipt.get("tool", "unknown")
             tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
             net = receipt.get("network", "unknown")
@@ -172,17 +191,22 @@ async def transparency_dashboard(hours: int = 24) -> dict:
         refund_rate = refunded / max(1, total)
         return {
             "period_hours": hours,
-            "payments": {"total": total, "fulfilled": fulfilled, "refunded": refunded,
-                         "failed": failed, "fulfillment_rate": round(fulfillment_rate, 4),
-                         "refund_rate": round(refund_rate, 4),
-                         "total_revenue_usdc": round(total_revenue, 4)},
+            "payments": {
+                "total": total,
+                "fulfilled": fulfilled,
+                "refunded": refunded,
+                "failed": failed,
+                "fulfillment_rate": round(fulfillment_rate, 4),
+                "refund_rate": round(refund_rate, 4),
+                "total_revenue_usdc": round(total_revenue, 4),
+            },
             "tools": dict(sorted(tool_counts.items(), key=lambda x: -x[1])[:10]),
             "networks": network_counts,
             "trials": {"total_used": total_trials_used},
-            "security": {"ip_bans_active": ip_bans, "wallet_bans_active": wallet_bans,
-                         "ban_duration_hours": 24},
-            "trust_score": round((fulfillment_rate * 0.6 + (1 - refund_rate) * 0.3
-                                  + (1 - failed / max(1, total)) * 0.1) * 100, 1),
+            "security": {"ip_bans_active": ip_bans, "wallet_bans_active": wallet_bans, "ban_duration_hours": 24},
+            "trust_score": round(
+                (fulfillment_rate * 0.6 + (1 - refund_rate) * 0.3 + (1 - failed / max(1, total)) * 0.1) * 100, 1
+            ),
             "timestamp": datetime.now(UTC).isoformat(),
         }
     except Exception as e:
@@ -190,6 +214,7 @@ async def transparency_dashboard(hours: int = 24) -> dict:
 
 
 # ── Payment Verification Endpoint ──────────────────────────────
+
 
 @router.post("/verify")
 async def verify_payment_endpoint(request: Request) -> Any:
@@ -202,18 +227,29 @@ async def verify_payment_endpoint(request: Request) -> Any:
         amount = body.get("amount")
         if not x402_payload:
             raise ValidationError("Missing x402 payload")
-        result = await _verifier.verify_payment(x402_payload, network_key=network,
-                                                expected_amount=amount, expected_tool=tool)
+        result = await _verifier.verify_payment(
+            x402_payload, network_key=network, expected_amount=amount, expected_tool=tool
+        )
         if result["verified"]:
             try:
                 from app.auth import get_redis
+
                 r = await get_redis()
                 verify_key = f"x402:verify:{result.get('settlement_id') or str(time.time())}"
-                await r.set(verify_key, json.dumps({
-                    "verified_at": datetime.now(UTC).isoformat(), "network": network,
-                    "tool": tool, "amount": amount, "tx_hash": result.get("tx_hash"),
-                    "result": result["reason"],
-                }), ex=7 * 86400)
+                await r.set(
+                    verify_key,
+                    json.dumps(
+                        {
+                            "verified_at": datetime.now(UTC).isoformat(),
+                            "network": network,
+                            "tool": tool,
+                            "amount": amount,
+                            "tx_hash": result.get("tx_hash"),
+                            "result": result["reason"],
+                        }
+                    ),
+                    ex=7 * 86400,
+                )
             except Exception as e:
                 logger.debug(f"Audit store failed: {e}")
         return result
@@ -225,6 +261,7 @@ async def verify_payment_endpoint(request: Request) -> Any:
 
 
 # ── Receipt Storage Endpoint ───────────────────────────────────
+
 
 @router.post("/receipt")
 async def store_receipt(request: Request) -> Any | dict[str, bool]:
@@ -264,22 +301,41 @@ async def store_receipt(request: Request) -> Any | dict[str, bool]:
             amount_float = 0.0
 
         from app.auth import get_redis as _get_redis
+
         r = _get_redis()
         if r:
             receipt_data = {
-                "receipt_id": receipt_id, "payment_tx": payment_tx,
+                "receipt_id": receipt_id,
+                "payment_tx": payment_tx,
                 "amount": str(amount_float) if amount_float else str(amount),
-                "asset": asset, "network": network, "customer_address": customer_address,
-                "tool": tool, "status": status, "delivery_status": delivery_status,
-                "timestamp": str(time.time()), "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "fallback_chain": fallback_chain, "scan_request": scan_request, "amount_usd": amount_float,
+                "asset": asset,
+                "network": network,
+                "customer_address": customer_address,
+                "tool": tool,
+                "status": status,
+                "delivery_status": delivery_status,
+                "timestamp": str(time.time()),
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "fallback_chain": fallback_chain,
+                "scan_request": scan_request,
+                "amount_usd": amount_float,
             }
             r.set(f"x402:receipt:{receipt_id}", json.dumps(receipt_data), ex=30 * 86400)
             if payment_tx and payment_tx != "local-verified":
-                r.set(f"x402:spent_tx:{payment_tx}", json.dumps({
-                    "chain": network, "payer": customer_address, "amount": str(amount_float),
-                    "tool": tool, "timestamp": str(time.time()), "receipt_id": receipt_id,
-                }), ex=30 * 86400)
+                r.set(
+                    f"x402:spent_tx:{payment_tx}",
+                    json.dumps(
+                        {
+                            "chain": network,
+                            "payer": customer_address,
+                            "amount": str(amount_float),
+                            "tool": tool,
+                            "timestamp": str(time.time()),
+                            "receipt_id": receipt_id,
+                        }
+                    ),
+                    ex=30 * 86400,
+                )
             r.zadd("x402:receipts_by_time", {receipt_id: time.time()})
             today = time.strftime("%Y-%m-%d")
             r.incrbyfloat(f"x402:revenue:daily:{today}", amount_float or 0)
@@ -292,8 +348,10 @@ async def store_receipt(request: Request) -> Any | dict[str, bool]:
             return {"ok": True, "receipt_id": receipt_id, "stored": True, "message": "Receipt stored successfully"}
         else:
             _log.warning(f"Redis unavailable, receipt not stored: {receipt_id}")
-            raise ServiceUnavailableError("Receipt storage unavailable — Redis is down",
-                                          context={"error": "storage_unavailable", "receipt_id": receipt_id, "stored": False})
+            raise ServiceUnavailableError(
+                "Receipt storage unavailable — Redis is down",
+                context={"error": "storage_unavailable", "receipt_id": receipt_id, "stored": False},
+            )
     except (HTTPException, AppError):
         raise
     except Exception as e:
@@ -303,11 +361,13 @@ async def store_receipt(request: Request) -> Any | dict[str, bool]:
 
 # ── Fallback System Status ─────────────────────────────────────
 
+
 @router.get("/fallback/status")
 async def fallback_status() -> dict[str, str]:
     """Check fallback system health, cache stats, and fallback success rate."""
     try:
         from app.auth import get_redis
+
         r = await get_redis()
         cache_count = 0
         async for _key in r.scan_iter(match="x402:cache:*", count=100):
@@ -316,11 +376,26 @@ async def fallback_status() -> dict[str, str]:
         async for _key in r.scan_iter(match="x402:fallback:*", count=100):
             fallback_uses += 1
         return {
-            "fallback_system": "active", "cache_entries": str(cache_count),
+            "fallback_system": "active",
+            "cache_entries": str(cache_count),
             "fallback_uses": str(fallback_uses),
-            "layers_available": ["cache", "geckoterminal", "dexlab", "step_finance", "moonrank",
-                                 "web_scrape", "dexscreener_web", "raydium", "orca", "jito",
-                                 "twitter", "reddit", "news", "web_search", "bigquery"],
+            "layers_available": [
+                "cache",
+                "geckoterminal",
+                "dexlab",
+                "step_finance",
+                "moonrank",
+                "web_scrape",
+                "dexscreener_web",
+                "raydium",
+                "orca",
+                "jito",
+                "twitter",
+                "reddit",
+                "news",
+                "web_search",
+                "bigquery",
+            ],
             "priority_order": [
                 "1. Primary APIs (DexScreener, RPCs, etc.)",
                 "2. Secondary APIs (Birdeye, Jupiter, Coingecko)",

@@ -4,6 +4,7 @@ RugMunchBot -- Account & billing command handlers.
 
 Commands: account, pricing, topup, buystars, scamschool, refer
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -70,15 +71,18 @@ async def cmd_account(update: Update, ctx) -> None:
         f"{nudge}"
         f"{footer_links()}"
     )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("\u2b50 Upgrade Plan", callback_data="menu_pricing"),
-         InlineKeyboardButton("\U0001f50b Top Up", callback_data="menu_topup")],
-        [InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL)],
-        [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-    ])
-    await update.message.reply_text(
-        text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True
+    kb = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\u2b50 Upgrade Plan", callback_data="menu_pricing"),
+                InlineKeyboardButton("\U0001f50b Top Up", callback_data="menu_topup"),
+            ],
+            [InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL)],
+            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+        ]
     )
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
+
 
 async def cmd_pricing(update: Update, ctx) -> None:
     user = update.effective_user
@@ -109,6 +113,7 @@ async def cmd_pricing(update: Update, ctx) -> None:
         text, parse_mode=ParseMode.HTML, reply_markup=pricing_kb(), disable_web_page_preview=True
     )
 
+
 async def cmd_topup(update: Update, ctx) -> None:
     user = update.effective_user
     balance = 0
@@ -127,6 +132,7 @@ async def cmd_topup(update: Update, ctx) -> None:
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=topup_kb())
 
+
 async def cmd_buystars(update: Update, ctx) -> None:
     """Buy Telegram Stars - purchase Stars to spend on scans, subs, etc."""
     user = update.effective_user
@@ -142,6 +148,7 @@ async def cmd_buystars(update: Update, ctx) -> None:
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=buy_stars_kb())
 
+
 async def cmd_scamschool(update: Update, ctx) -> None:
     text = (
         f"\U0001f4da <b>Scam School</b>\n{sep()}\n\n"
@@ -154,6 +161,7 @@ async def cmd_scamschool(update: Update, ctx) -> None:
         text, parse_mode=ParseMode.HTML, reply_markup=scamschool_kb(), disable_web_page_preview=True
     )
 
+
 async def cmd_refer(update: Update, ctx) -> None:
     user = update.effective_user
     if user is None:
@@ -162,9 +170,7 @@ async def cmd_refer(update: Update, ctx) -> None:
     ref = u.get("referral_code", "UNKNOWN")
     link = f"https://t.me/{BOT_USERNAME}?start=ref_{ref}"
     conn = db.get_db()
-    count = conn.execute(
-        "SELECT COUNT(*) as c FROM users WHERE referred_by = ?", (ref,)
-    ).fetchone()["c"]
+    count = conn.execute("SELECT COUNT(*) as c FROM users WHERE referred_by = ?", (ref,)).fetchone()["c"]
     conn.close()
     milestones = {5: "\U0001f949", 10: "\U0001f948", 25: "\U0001f947", 50: "\U0001f48e", 100: "\U0001f451"}
     next_ms = next((k for k in sorted(milestones.keys()) if k > count), None)
@@ -193,10 +199,16 @@ async def cmd_refer(update: Update, ctx) -> None:
     await update.message.reply_text(
         text,
         parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("\U0001f4e4 Share Link", url=f"https://t.me/share/url?url={link}&text={share_text}")],
-            [InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL)],
-            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "\U0001f4e4 Share Link", url=f"https://t.me/share/url?url={link}&text={share_text}"
+                    )
+                ],
+                [InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL)],
+                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+            ]
+        ),
         disable_web_page_preview=True,
     )

@@ -32,17 +32,19 @@ log = get_logger(__name__)
 KNOWN_DIMS: dict[str, int] = {
     "bge-m3": 1024,
     "nomic-embed-text": 768,
-    "qwen3-embed:4b": 2048,
-    "qwen3-embed:4b-lowctx": 2048,
+    "qwen3-embed:4b": 2560,
+    "qwen3-embed:4b-lowctx": 2560,
     "llama-nemotron-embed-vl-1b-v2:free": 2048,
     "text-embedding-ada-002": 1536,
     "text-embedding-3-small": 1536,
     "text-embedding-3-large": 3072,
 }
 
+
 def lookup_dim(model_name: str) -> int:
     """Look up or default to 1024 for unknown models."""
     return KNOWN_DIMS.get(model_name, 1024)
+
 
 def normalize_dim(vec: list[float], target_dim: int) -> list[float]:
     """Pad/truncate *vec* to *target_dim*, then L2-normalize.
@@ -62,9 +64,11 @@ def normalize_dim(vec: list[float], target_dim: int) -> list[float]:
         arr = arr / norm
     return arr.tolist()
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Protocol
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class EmbedderProtocol(ABC):
     """Abstract embedder. All implementations share this interface."""
@@ -94,9 +98,11 @@ class EmbedderProtocol(ABC):
             raise RuntimeError(f"{self.name} returned empty result for single text")
         return results[0]
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # BGE-M3  (Docker container HTTP API)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class BGE_M3_Embedder(EmbedderProtocol):
     """BGE-M3 embedder via its container's HTTP API.
@@ -173,13 +179,11 @@ class BGE_M3_Embedder(EmbedderProtocol):
                 if attempt < self._max_retries:
                     await asyncio.sleep(0.5 * (attempt + 1))
 
-        raise RuntimeError(
-            f"bge-m3 embed failed after {self._max_retries + 1} attempts"
-        ) from last_exc
+        raise RuntimeError(f"bge-m3 embed failed after {self._max_retries + 1} attempts") from last_exc
 
     async def _embed_chunked(self, texts: list[str]) -> list[list[float]]:
         """Split large batches into chunks and embed concurrently."""
-        chunks = [texts[i:i + self.MAX_CHUNK_SIZE] for i in range(0, len(texts), self.MAX_CHUNK_SIZE)]
+        chunks = [texts[i : i + self.MAX_CHUNK_SIZE] for i in range(0, len(texts), self.MAX_CHUNK_SIZE)]
         sem = asyncio.Semaphore(2)  # max 2 concurrent chunk requests
 
         async def _do(chunk: list[str]) -> list[list[float]]:
@@ -196,9 +200,7 @@ class BGE_M3_Embedder(EmbedderProtocol):
                         if not vecs:
                             raise RuntimeError("empty embeddings")
                         if len(vecs) != len(chunk):
-                            raise RuntimeError(
-                                f"expected {len(chunk)} vectors, got {len(vecs)}"
-                            )
+                            raise RuntimeError(f"expected {len(chunk)} vectors, got {len(vecs)}")
                         self._validate(vecs)
                         return vecs
                     except (httpx.HTTPError, OSError, RuntimeError, json.JSONDecodeError):
@@ -220,29 +222,35 @@ class BGE_M3_Embedder(EmbedderProtocol):
         for i, vec in enumerate(vectors):
             actual = len(vec)
             if actual != self._dim:
-                raise RuntimeError(
-                    f"bge-m3 returned {actual}d vector for text[{i}], "
-                    f"expected {self._dim}d"
-                )
+                raise RuntimeError(f"bge-m3 returned {actual}d vector for text[{i}], expected {self._dim}d")
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Ollama  (Ollama /api/embeddings)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class OllamaEmbedder(EmbedderProtocol):
     """Ollama embedder via its HTTP API.
 
-    Calls ``POST {url}/api/embeddings`` with model and prompt.
-    Supports batching — tries native batch first, falls back to
-    sequential single-text calls for models with limited batch support.
+    Uses ``POST {url}/api/embed`` (Ollama 0.3.0+) with an ``input`` array
+    for native batch embedding.  Falls back to the legacy
+    ``/api/embeddings`` endpoint for very old Ollama versions.
+
+    Batch mode dramatically reduces overhead: one HTTP request for
+    N texts instead of N concurrent requests.
     """
+
+    # Max batch size — Ollama imposes no hard limit, but we cap it
+    # to keep per-request latency predictable and avoid memory spikes.
+    MAX_BATCH_SIZE: int = 64
 
     def __init__(
         self,
         model: str = "",
         url: str = "",
         dim: int = 0,
-        timeout: float = 30.0,
+        timeout: float = 120.0,  # higher timeout for batch requests
     ) -> None:
         self._model = model or settings.embedder_fallback
         self._url = (url or settings.ollama_url).rstrip("/")
@@ -276,12 +284,96 @@ class OllamaEmbedder(EmbedderProtocol):
         if not texts:
             return []
 
-        # Ollama /api/embeddings does NOT support native batch (prompt
-        # is a single string).  We use concurrent single-text requests
-        # with a semaphore to avoid flooding Ollama.
+        # If batch is small enough, send in one shot.
+        if len(texts) <= self.MAX_BATCH_SIZE:
+            return await self._embed_batch(texts)
+
+        # For very large batches, split and embed concurrently.
+        # Use a semaphore to avoid overwhelming Ollama's slot limit.
+        chunks = [texts[i : i + self.MAX_BATCH_SIZE] for i in range(0, len(texts), self.MAX_BATCH_SIZE)]
         sem = asyncio.Semaphore(4)
 
-        async def _embed_one(text: str) -> list[float]:
+        async def _do(chunk: list[str]) -> list[list[float]]:
+            async with sem:
+                return await self._embed_batch(chunk)
+
+        tasks = [_do(c) for c in chunks]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        vectors: list[list[float]] = []
+        errors: list[str] = []
+        for i, r in enumerate(results):
+            if isinstance(r, Exception):
+                errors.append(f"chunk[{i}]: {r}")
+                vectors.extend([[0.0] * self._dim] * len(chunks[i]))
+            else:
+                vectors.extend(r)
+
+        if errors:
+            log.warning("ollama_batch_partial_failure count=%d errors=%s", len(errors), errors[:3])
+
+        return vectors
+
+    async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Send a single batch request to ``/api/embed``.
+
+        Retries up to 3 times on transient errors.  Falls back to
+        sequential single-text requests via the legacy endpoint if
+        ``/api/embed`` returns an HTTP 4xx (indicating an older Ollama).
+        """
+        for attempt in range(3):
+            try:
+                resp = await self._http.post(
+                    f"{self._url}/api/embed",
+                    json={"model": self._model, "input": texts},
+                )
+                if resp.status_code == 404:
+                    # Older Ollama — fall back to legacy endpoint
+                    return await self._embed_batch_legacy(texts)
+                resp.raise_for_status()
+                data = resp.json()
+                vectors: list[list[float]] | None = data.get("embeddings")
+                if not vectors:
+                    log.warning(
+                        "ollama_batch_empty model=%s count=%d",
+                        self._model,
+                        len(texts),
+                    )
+                    return [[0.0] * self._dim for _ in texts]
+                if len(vectors) != len(texts):
+                    log.warning(
+                        "ollama_batch_mismatch expected=%d got=%d",
+                        len(texts),
+                        len(vectors),
+                    )
+                    vectors = self._repair_mismatch(vectors, texts)
+                self._validate(vectors, texts)
+                return vectors
+
+            except (httpx.HTTPError, OSError) as exc:
+                if attempt < 2:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                    continue
+                raise RuntimeError(f"Ollama batch embed failed after 3 attempts: {exc}") from exc
+            except json.JSONDecodeError:
+                if attempt < 2:
+                    await asyncio.sleep(0.5)
+                    continue
+                raise RuntimeError("Ollama returned non-JSON response")
+
+        # Should not reach here
+        return [[0.0] * self._dim for _ in texts]
+
+    async def _embed_batch_legacy(self, texts: list[str]) -> list[list[float]]:
+        """Fallback for older Ollama without ``/api/embed``.
+
+        Uses concurrent single-text requests to ``/api/embeddings``
+        with a semaphore to avoid flooding Ollama.
+        """
+        log.info("ollama_fallback_legacy model=%s count=%d", self._model, len(texts))
+        sem = asyncio.Semaphore(4)
+
+        async def _one(text: str) -> list[float]:
             async with sem:
                 for attempt in range(3):
                     try:
@@ -299,13 +391,11 @@ class OllamaEmbedder(EmbedderProtocol):
                         if attempt < 2:
                             await asyncio.sleep(0.3 * (attempt + 1))
                             continue
-                        raise RuntimeError(
-                            f"Ollama embed failed after 3 attempts: {exc}"
-                        ) from exc
+                        raise RuntimeError(f"Ollama legacy embed failed after 3 attempts: {exc}") from exc
                     except json.JSONDecodeError:
                         raise RuntimeError("Ollama returned non-JSON response")
 
-        tasks = [_embed_one(t) for t in texts]
+        tasks = [_one(t) for t in texts]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         vectors: list[list[float]] = []
@@ -318,16 +408,28 @@ class OllamaEmbedder(EmbedderProtocol):
                 vectors.append(r)
 
         if errors:
-            log.warning("ollama_embed_partial_failure count=%d errors=%s", len(errors), errors[:3])
+            log.warning(
+                "ollama_legacy_partial_failure count=%d errors=%s",
+                len(errors),
+                errors[:3],
+            )
+        return vectors
 
-        self._validate(vectors, texts)
+    @staticmethod
+    def _repair_mismatch(
+        vectors: list[list[float]],
+        texts: list[str],
+    ) -> list[list[float]]:
+        """If Ollama returned fewer vectors than texts, pad with zero-vectors."""
+        diff = len(texts) - len(vectors)
+        if diff > 0:
+            dim = len(vectors[0]) if vectors else 768
+            vectors.extend([[0.0] * dim for _ in range(diff)])
         return vectors
 
     def _validate(self, vectors: list[list[float]], texts: list[str]) -> None:
         if len(vectors) != len(texts):
-            raise RuntimeError(
-                f"Ollama returned {len(vectors)} vectors for {len(texts)} texts"
-            )
+            raise RuntimeError(f"Ollama returned {len(vectors)} vectors for {len(texts)} texts")
         for i, vec in enumerate(vectors):
             actual = len(vec)
             if actual != self._dim:
@@ -335,19 +437,22 @@ class OllamaEmbedder(EmbedderProtocol):
                 if self._dim == 0 or KNOWN_DIMS.get(self._model) != actual:
                     log.info(
                         "ollama_auto_dim model=%s expected=%d actual=%d",
-                        self._model, self._dim, actual,
+                        self._model,
+                        self._dim,
+                        actual,
                     )
                     KNOWN_DIMS[self._model] = actual
                     self._dim = actual
                 else:
                     raise RuntimeError(
-                        f"Ollama model {self._model} returned {actual}d vector "
-                        f"for text[{i}], expected {self._dim}d"
+                        f"Ollama model {self._model} returned {actual}d vector for text[{i}], expected {self._dim}d"
                     )
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CachedEmbedder  (in-memory LRU + optional Redis)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class _MemoryCache:
     """Simple TTL-based in-memory cache with LRU eviction."""
@@ -389,6 +494,7 @@ class _MemoryCache:
             "misses": self._misses,
             "hit_rate": round(self._hits / total * 100, 1) if total > 0 else 0.0,
         }
+
 
 class CachedEmbedder(EmbedderProtocol):
     """Wraps any ``EmbedderProtocol`` with an in-memory LRU cache.
@@ -507,9 +613,11 @@ class CachedEmbedder(EmbedderProtocol):
     def stats(self) -> dict[str, Any]:
         return {"memory": self._mem.stats, "redis_ok": self._redis_ok}
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # FallbackEmbedder  (primary -> secondary with dimension normalization)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class FallbackEmbedder(EmbedderProtocol):
     """Tries the *primary* embedder first; falls back to *secondary* on failure.
@@ -567,15 +675,19 @@ class FallbackEmbedder(EmbedderProtocol):
 
         return vectors
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Factory
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _create_bge_m3() -> BGE_M3_Embedder:
     return BGE_M3_Embedder(url=settings.bge_m3_url, dim=1024)
 
+
 def _create_ollama(model: str | None = None) -> OllamaEmbedder:
     return OllamaEmbedder(model=model or settings.embedder_fallback)
+
 
 def get_embedder(
     primary: str | None = None,
@@ -635,11 +747,13 @@ def get_embedder(
 
     return chain
 
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Singleton for application-wide use
 # ═══════════════════════════════════════════════════════════════════════════
 
 _embedder: EmbedderProtocol | None = None
+
 
 def get_default_embedder() -> EmbedderProtocol:
     """Lazily-initialized singleton embedder.
@@ -651,6 +765,7 @@ def get_default_embedder() -> EmbedderProtocol:
     if _embedder is None:
         _embedder = get_embedder()
     return _embedder
+
 
 async def shutdown_embedder() -> None:
     """Close pooled connections. Call during app shutdown."""

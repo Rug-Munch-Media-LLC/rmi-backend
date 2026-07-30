@@ -18,9 +18,11 @@ router = APIRouter(prefix="/api/v1/developer", tags=["developer-portal"])
 _api_keys: dict[str, dict] = {}
 _usage_store: dict[str, list] = {}
 
+
 class CreateKeyRequest(BaseModel):
     email: str
     name: str = ""
+
 
 class APIKeyResponse(BaseModel):
     key: str
@@ -30,8 +32,10 @@ class APIKeyResponse(BaseModel):
     created_at: str
     requests_today: int = 0
 
+
 def _generate_key() -> str:
     return "rmi_" + hashlib.sha256(os.urandom(32)).hexdigest()[:32]
+
 
 @router.post("/keys")
 async def create_api_key(req: CreateKeyRequest) -> Any:
@@ -47,6 +51,7 @@ async def create_api_key(req: CreateKeyRequest) -> Any:
     }
     return APIKeyResponse(**_api_keys[key])
 
+
 @router.get("/keys")
 async def list_keys(x_api_key: str = Header(...)) -> dict[str, list]:
     """List your API keys."""
@@ -54,11 +59,13 @@ async def list_keys(x_api_key: str = Header(...)) -> dict[str, list]:
         raise AuthError(message="Invalid API key")
     return {"keys": [_api_keys[x_api_key]]}
 
+
 @router.delete("/keys/{key}")
 async def revoke_key(key: str) -> dict:
     """Revoke an API key."""
     _api_keys.pop(key, None)
     return {"revoked": key}
+
 
 @router.get("/usage")
 async def get_usage(x_api_key: str = Header(...)) -> dict:
@@ -71,6 +78,7 @@ async def get_usage(x_api_key: str = Header(...)) -> dict:
         "requests_today": _api_keys[x_api_key].get("requests_today", 0),
         "limit": 100 if _api_keys[x_api_key]["tier"] == "free" else 10000,
     }
+
 
 @router.get("/docs")
 async def api_docs() -> dict[str, str]:

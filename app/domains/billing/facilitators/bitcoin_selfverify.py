@@ -48,6 +48,7 @@ BLOCKSTREAM_API = "https://blockstream.info/api"
 # Minimum confirmations for BTC (Bitcoin is slower, need at least 1)
 MIN_CONFIRMATIONS = 1
 
+
 class BitcoinSelfVerifyFacilitator(Facilitator):
     """
     Bitcoin self-verification facilitator.
@@ -164,9 +165,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
                         confirmations=1 if confirmed else 0,
                     )
 
-            return self._format_error(
-                f"Bitcoin: No output to {self._btc_pay_to[:16]}... in {tx_hash[:16]}..."
-            )
+            return self._format_error(f"Bitcoin: No output to {self._btc_pay_to[:16]}... in {tx_hash[:16]}...")
 
         except TimeoutError:
             return self._format_error("Bitcoin: Mempool.space API timeout")
@@ -174,7 +173,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
             # Try Blockstream fallback
             try:
                 return await self._verify_fallback(tx_hash, amount_atoms)
-            except (aiohttp.ClientError):
+            except aiohttp.ClientError:
                 return self._format_error(f"Bitcoin: API error: {e}")
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Bitcoin verify error: {e}")
@@ -187,9 +186,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
             url = f"{BLOCKSTREAM_API}/tx/{tx_hash}"
             async with session.get(url) as resp:
                 if resp.status != 200:
-                    return self._format_error(
-                        f"Bitcoin: TX {tx_hash[:16]}... not found on fallback"
-                    )
+                    return self._format_error(f"Bitcoin: TX {tx_hash[:16]}... not found on fallback")
                 tx_data = await resp.json()
 
         vout = tx_data.get("vout", [])

@@ -49,6 +49,7 @@ REGION_WINDOWS = {
 SLEEP_GAP_THRESHOLD_HOURS = 6  # minimum consecutive hours without deploy to count as "sleep"
 CRITICAL_ABNORMAL_PCT = 70  # % in 12am-5am UTC that triggers max score
 
+
 @dataclass
 class SleepCycleReport:
     """Report from SleepCycleAnalyzer.
@@ -68,6 +69,7 @@ class SleepCycleReport:
     abnormal_hours: list[int] = field(default_factory=list)
     normal_hours: list[int] = field(default_factory=list)
     risk_label: str = "LOW"
+
 
 class SleepCycleAnalyzer:
     """Analyzes deployment timestamp patterns to detect abnormal sleep cycles.
@@ -97,11 +99,7 @@ class SleepCycleAnalyzer:
         """
         try:
             # Normalise 'Z' suffix to +00:00 which fromisoformat handles
-            ts = (
-                timestamp_str.replace("Z", "+00:00")
-                if timestamp_str.endswith("Z")
-                else timestamp_str
-            )
+            ts = timestamp_str.replace("Z", "+00:00") if timestamp_str.endswith("Z") else timestamp_str
             dt = datetime.fromisoformat(ts)
             dt_utc = dt.astimezone(UTC)
             return dt_utc.hour

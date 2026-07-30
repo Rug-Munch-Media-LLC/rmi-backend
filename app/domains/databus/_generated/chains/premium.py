@@ -17,9 +17,11 @@ from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 
 logger = get_logger("databus.providers.chains.premium")
 
+
 def _premium_provider(name: str, fn: Any, rps: float = 3.0) -> Provider:
     """Factory for premium scanner providers."""
     return Provider(name, ProviderTier.LOCAL, fn, weight=10.0, rate_limit_rps=rps)
+
 
 def build_premium_chains(chains: dict[str, ProviderChain]) -> None:
     """Build premium scanner, webhook, WS, volume, OHLCV, and token security chains."""

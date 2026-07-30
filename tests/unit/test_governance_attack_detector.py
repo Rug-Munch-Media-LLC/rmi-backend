@@ -171,9 +171,7 @@ class TestRiskScoring:
             voting_period_blocks=50,
             proposal_threshold_pct=0.01,
         )
-        score, level, _flags = _score_governance_risk(
-            TOP_HOLDER_CRITICAL_PCT + 10, TOP_10_CRITICAL_PCT + 10, params
-        )
+        score, level, _flags = _score_governance_risk(TOP_HOLDER_CRITICAL_PCT + 10, TOP_10_CRITICAL_PCT + 10, params)
         assert score <= 100
         assert level == "CRITICAL"
 

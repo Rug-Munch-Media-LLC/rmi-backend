@@ -76,6 +76,7 @@ PRESSURE_EXTREME_FEAR = 0.85
 PRESSURE_FEAR = 0.95
 PRESSURE_NEUTRAL = 1.0
 
+
 def record_snapshot(chain: str, address: str, metrics: dict[str, float]) -> None:
     """Record a metrics snapshot for velocity tracking."""
     key = f"{chain}:{address.lower()}"
@@ -83,9 +84,8 @@ def record_snapshot(chain: str, address: str, metrics: dict[str, float]) -> None
     if len(_series_cache[key]) > MAX_SERIES_LENGTH:
         _series_cache[key] = _series_cache[key][-MAX_SERIES_LENGTH:]
 
-def analyze_velocity(
-    chain: str, address: str, current: dict[str, float], window_seconds: int = 3600
-) -> dict[str, Any]:
+
+def analyze_velocity(chain: str, address: str, current: dict[str, float], window_seconds: int = 3600) -> dict[str, Any]:
     """Analyze how fast metrics are changing. Returns velocity scores and flags.
 
     Metrics tracked:
@@ -200,11 +200,15 @@ def analyze_velocity(
         "velocities": velocities,
         "flags": flags,
         "velocity_risk_score": min(risk_score, 100),
-        "risk_level": "critical" if risk_score > RISK_CRITICAL_THRESHOLD
-        else "high" if risk_score > RISK_HIGH_THRESHOLD
-        else "medium" if risk_score > RISK_MEDIUM_THRESHOLD
+        "risk_level": "critical"
+        if risk_score > RISK_CRITICAL_THRESHOLD
+        else "high"
+        if risk_score > RISK_HIGH_THRESHOLD
+        else "medium"
+        if risk_score > RISK_MEDIUM_THRESHOLD
         else "low",
     }
+
 
 def get_market_context() -> dict[str, Any]:
     """Get current market conditions for contextualized scoring."""
@@ -230,6 +234,7 @@ def get_market_context() -> dict[str, Any]:
     except Exception as e:
         logger.warning("Failed to fetch market context: %s", e)
         return {"fear_greed_value": 50, "fear_greed_classification": "Unknown"}
+
 
 def contextualize_score(base_safety: int, market_context: dict[str, Any]) -> dict[str, Any]:
     """Adjust safety score based on market conditions.

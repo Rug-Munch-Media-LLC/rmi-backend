@@ -11,6 +11,7 @@ from .config import CLEAN_DIR
 
 logger = get_logger("wallet_memory.label_importer")
 
+
 async def load_clean_labels(storage) -> dict:
     """Load pre-cleaned, deduplicated labels from the quality fixer.
     Returns stats dict with counts."""
@@ -26,16 +27,18 @@ async def load_clean_labels(storage) -> dict:
         with open(path) as f:
             reader = csv.DictReader(f)
             for row in reader:
-                labels.append({
-                    "address": row["address"],
-                    "chain": row["chain"],
-                    "source": row.get("source", "clean_import"),
-                    "name": row.get("name", ""),
-                    "label_type": row.get("label_type", ""),
-                    "label_subtype": row.get("label_subtype", ""),
-                    "project": row.get("project", ""),
-                    "entity_type": row.get("entity_type", "unknown"),
-                })
+                labels.append(
+                    {
+                        "address": row["address"],
+                        "chain": row["chain"],
+                        "source": row.get("source", "clean_import"),
+                        "name": row.get("name", ""),
+                        "label_type": row.get("label_type", ""),
+                        "label_subtype": row.get("label_subtype", ""),
+                        "project": row.get("project", ""),
+                        "entity_type": row.get("entity_type", "unknown"),
+                    }
+                )
 
         if labels and storage:
             try:

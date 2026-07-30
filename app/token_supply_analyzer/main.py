@@ -33,6 +33,7 @@ from app.token_supply_analyzer.models import (
 
 logger = get_logger("token_supply_analyzer")
 
+
 async def analyze_token_supply(token_address: str, chain: str = "") -> TokenSupplyProfile:
     """
     Main entry point. Analyzes token supply, liquidity, and holder concentration.
@@ -76,6 +77,7 @@ async def analyze_token_supply(token_address: str, chain: str = "") -> TokenSupp
 
     return profile
 
+
 async def analyze_multiple_tokens(addresses: list[str], chain: str = "") -> list[TokenSupplyProfile]:
     """Analyze multiple tokens concurrently."""
     tasks = [analyze_token_supply(addr, chain) for addr in addresses]
@@ -85,6 +87,7 @@ async def analyze_multiple_tokens(addresses: list[str], chain: str = "") -> list
         if isinstance(r, TokenSupplyProfile):
             valid.append(r)
     return valid
+
 
 async def main() -> None:
     """Run supply analysis from command line."""
@@ -120,8 +123,12 @@ async def main() -> None:
         logger.info(f"  Circulating:      {profile.circulating_supply:,.2f}")
         logger.info(f"  Max supply:       {profile.max_supply:,.2f}")
         logger.info(f"  Burned:           {profile.burned_supply:,.2f}")
-        logger.info(f"  Has mint:         {'YES' if profile.has_mint_function else 'no'} ({profile.mint_function_type})")
-        logger.info(f"  Has burn:         {'YES' if profile.has_burn_function else 'no'} ({profile.burn_function_type})")
+        logger.info(
+            f"  Has mint:         {'YES' if profile.has_mint_function else 'no'} ({profile.mint_function_type})"
+        )
+        logger.info(
+            f"  Has burn:         {'YES' if profile.has_burn_function else 'no'} ({profile.burn_function_type})"
+        )
         logger.info(f"  Deflationary:     {'YES' if profile.is_deflationary else 'no'}")
         logger.info("\n── Concentration ──")
         logger.info(f"  Holders:          {profile.holder_count:,}")
@@ -155,6 +162,7 @@ async def main() -> None:
         for r in profile.recommendations:
             logger.info(f"  {r}")
         logger.info()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

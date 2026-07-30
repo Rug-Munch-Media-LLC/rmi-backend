@@ -52,15 +52,11 @@ async def volume_authenticity(token_address: str, chain: str = "sol") -> dict[st
 
     if 0.8 < buy_sell_ratio < 1.2 and total_txs > 20:
         wash_score += 20
-        wash_indicators.append(
-            f"Symmetric buy/sell ratio ({buy_sell_ratio:.2f}) - common in wash trading"
-        )
+        wash_indicators.append(f"Symmetric buy/sell ratio ({buy_sell_ratio:.2f}) - common in wash trading")
 
     if avg_tx_value < 50 and total_txs > 100:
         wash_score += 15
-        wash_indicators.append(
-            f"Many small transactions (avg ${avg_tx_value:.0f}/tx) - possible bot activity"
-        )
+        wash_indicators.append(f"Many small transactions (avg ${avg_tx_value:.0f}/tx) - possible bot activity")
 
     liquidity = float(dex_info.get("liquidity", {}).get("usd", 0) or 0)
     if volume_24h > liquidity * 3 and liquidity > 0:

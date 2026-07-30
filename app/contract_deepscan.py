@@ -49,6 +49,7 @@ SEVERITY = {
 
 # ─── SCAN RESULT MODELS ──────────────────────────────────────────
 
+
 @dataclass
 class Finding:
     """Individual vulnerability finding."""
@@ -62,6 +63,7 @@ class Finding:
     swc_id: str = ""
     reference: str = ""
 
+
 @dataclass
 class ScanResult:
     """Complete scan result."""
@@ -74,7 +76,9 @@ class ScanResult:
     summary: dict[str, int]
     metrics: dict[str, Any]
 
+
 # ─── SLITHER INTEGRATION ──────────────────────────────────────────
+
 
 class SlitherScanner:
     """Slither static analysis scanner."""
@@ -218,7 +222,9 @@ class SlitherScanner:
             counts[f.severity] = counts.get(f.severity, 0) + 1
         return counts
 
+
 # ─── MYTHRIL INTEGRATION ──────────────────────────────────────────
+
 
 class MythrilScanner:
     """Mythril symbolic execution scanner."""
@@ -301,7 +307,9 @@ class MythrilScanner:
         except subprocess.TimeoutExpired:
             return {"success": False, "error": "Scan timed out"}
 
+
 # ─── COMBINED SCANNER ─────────────────────────────────────────────
+
 
 class ContractScanner:
     """Combined Slither + Mythril scanner."""
@@ -310,9 +318,7 @@ class ContractScanner:
         self.slither = SlitherScanner()
         self.mythril = MythrilScanner()
 
-    def scan(
-        self, contract_address: str, chain: str = "base", deep: bool = False
-    ) -> dict[str, Any]:
+    def scan(self, contract_address: str, chain: str = "base", deep: bool = False) -> dict[str, Any]:
         """
         Scan contract using available tools.
 
@@ -358,13 +364,16 @@ class ContractScanner:
 
         return result
 
+
 # ─── SINGLETON INSTANCE ───────────────────────────────────────────
 
 _scanner = ContractScanner()
 
+
 def deep_scan_contract(contract_address: str, chain: str = "base") -> dict[str, Any]:
     """Deep scan single contract (Slither + Mythril)."""
     return _scanner.scan(contract_address, chain, deep=True)
+
 
 def batch_deep_scan(contracts: list[str], chain: str = "base") -> dict[str, Any]:
     """Batch scan multiple contracts."""

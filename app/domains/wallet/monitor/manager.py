@@ -1,4 +1,5 @@
 """Wallet Monitor — Manager (multi-chain orchestrator)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +21,8 @@ class WalletMonitorManager:
         self._webhooks.append(url)
 
     async def start_chain(self, chain: str) -> None:
-        if chain in self.monitors: return
+        if chain in self.monitors:
+            return
         monitor = WalletMonitor(chain)
         monitor.on_alert(self._alert_handler)
         self.monitors[chain] = monitor
@@ -28,7 +30,8 @@ class WalletMonitorManager:
 
     async def stop_chain(self, chain: str) -> None:
         mon = self.monitors.pop(chain, None)
-        if mon: await mon.stop()
+        if mon:
+            await mon.stop()
 
     async def stop_all(self) -> None:
         for chain in list(self.monitors.keys()):
@@ -41,13 +44,15 @@ class WalletMonitorManager:
     async def add_watch(self, wallet: str, chain: str = "ethereum", tags: list[str] | None = None) -> dict:
         ok = await WatchlistManager.add(wallet, chain, tags)
         mon = self.monitors.get(chain)
-        if mon: await mon._refresh_watchlist()
+        if mon:
+            await mon._refresh_watchlist()
         return {"success": ok, "wallet": wallet, "chain": chain}
 
     async def remove_watch(self, wallet: str, chain: str = "ethereum") -> dict:
         ok = await WatchlistManager.remove(wallet, chain)
         mon = self.monitors.get(chain)
-        if mon: await mon._refresh_watchlist()
+        if mon:
+            await mon._refresh_watchlist()
         return {"success": ok, "wallet": wallet, "chain": chain}
 
     async def list_watches(self, chain: str = "ethereum", limit: int = 1000) -> list[dict]:

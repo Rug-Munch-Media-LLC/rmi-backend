@@ -15,6 +15,7 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
+
 def _safe_select_query(sql: str) -> bool:
     """
     Check if an SQL statement is a safe SELECT query.
@@ -64,6 +65,7 @@ def _safe_select_query(sql: str) -> bool:
             return False
 
     return True
+
 
 async def query_eth_labels_db_mcp(sql: str, limit: int = 1000) -> dict[str, Any]:
     """
@@ -133,6 +135,7 @@ async def query_eth_labels_db_mcp(sql: str, limit: int = 1000) -> dict[str, Any]
 
     return result
 
+
 async def get_eth_labels_stats_mcp() -> dict[str, Any]:
     """
     Get statistics about the eth-labels.db database.
@@ -178,9 +181,7 @@ async def get_eth_labels_stats_mcp() -> dict[str, Any]:
                     ORDER BY count DESC
                     LIMIT 10;
                 """)
-                stats["accounts_by_chain"] = [
-                    {"chain_id": row[0], "count": row[1]} for row in cursor.fetchall()
-                ]
+                stats["accounts_by_chain"] = [{"chain_id": row[0], "count": row[1]} for row in cursor.fetchall()]
 
             conn.close()
             return stats

@@ -37,9 +37,7 @@ for name, chain in sorted(chains.items()):
     if chain.providers:
         p0 = chain.providers[0]
         if hasattr(p0, "tier"):
-            tier_str = (
-                str(p0.tier).split(".")[-1].lower().replace("_api", "").replace("local", "local")
-            )
+            tier_str = str(p0.tier).split(".")[-1].lower().replace("_api", "").replace("local", "local")
     cat, price, trials = tier_map.get(tier_str, ("basic", 0.01, 10))
     atoms = int(price * 1_000_000)
     desc = name.replace("_", " ").title()

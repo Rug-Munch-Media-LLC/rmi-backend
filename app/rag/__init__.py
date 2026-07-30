@@ -36,6 +36,7 @@ async def _health_check() -> DomainHealth:
     except Exception as e:
         return DomainHealth(name="rag", healthy=False, error=str(e))
 
+
 health_mod.register_health_check("rag", _health_check)
 
 # Public API

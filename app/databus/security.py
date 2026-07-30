@@ -73,6 +73,7 @@ ACCESS_LEVELS = {
 
 ADMIN_KEY = os.getenv("ADMIN_API_KEY", "")
 
+
 class SecurityGate:
     """Validates access to data based on tier."""
 
@@ -146,9 +147,7 @@ class SecurityGate:
                 sanitized[k] = SecurityGate.sanitize_response(v, data_type, access_level)
             elif isinstance(v, list):
                 sanitized[k] = [
-                    SecurityGate.sanitize_response(item, data_type, access_level)
-                    if isinstance(item, dict)
-                    else item
+                    SecurityGate.sanitize_response(item, data_type, access_level) if isinstance(item, dict) else item
                     for item in v
                 ]
             else:
@@ -162,6 +161,7 @@ class SecurityGate:
             # Keep simple string sources for public
 
         return sanitized
+
 
 # ── Singleton ──
 security = SecurityGate()

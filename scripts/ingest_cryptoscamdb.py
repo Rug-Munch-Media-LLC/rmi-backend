@@ -31,9 +31,7 @@ async def ingest_via_api(content: str, metadata: dict) -> bool:
         import httpx
 
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                RAG_API, json={"collection": COLLECTION, "content": content, "metadata": metadata}
-            )
+            resp = await client.post(RAG_API, json={"collection": COLLECTION, "content": content, "metadata": metadata})
             return resp.status_code == 200
     except Exception as e:
         logger.debug(f"API ingest failed: {e}")

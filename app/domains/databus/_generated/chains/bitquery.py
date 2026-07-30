@@ -21,6 +21,7 @@ from app.databus.provider_implementations import (
 
 logger = get_logger("databus.providers.chains.bitquery")
 
+
 def build_bitquery_chains(chains: dict[str, ProviderChain]) -> None:
     """Build Bitquery-backed chains (holder_data, tx_trace, cross_chain).
 
@@ -33,14 +34,10 @@ def build_bitquery_chains(chains: dict[str, ProviderChain]) -> None:
         _bq = BitqueryProvider()
 
         async def _bq_holder_data(**kw) -> Any:
-            return await _bq.get_holder_distribution(
-                kw.get("network", "ethereum"), kw.get("token", "")
-            )
+            return await _bq.get_holder_distribution(kw.get("network", "ethereum"), kw.get("token", ""))
 
         async def _bq_tx_trace(**kw) -> Any:
-            return await _bq.get_transaction_trace(
-                kw.get("network", "ethereum"), kw.get("tx_hash", "")
-            )
+            return await _bq.get_transaction_trace(kw.get("network", "ethereum"), kw.get("tx_hash", ""))
 
         async def _bq_cross_chain(**kw) -> Any:
             return await _bq.get_cross_chain_transfers(kw.get("address", ""))
@@ -108,6 +105,6 @@ def build_bitquery_chains(chains: dict[str, ProviderChain]) -> None:
             ],
         )
         logger.info("Bitquery chains registered: holder_data, tx_trace, cross_chain")
-    except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+    except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Bitquery not available: {e}")

@@ -14,6 +14,7 @@ from app.domains.telegram.rugmunchbot.config import BACKEND_URL
 
 logger = get_logger("rmi.portfolio")
 
+
 async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> dict:
     """Fetch Solana token balances from Shyft (free tier).
 
@@ -40,6 +41,7 @@ async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> di
 
     return result
 
+
 async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict:
     """Fetch EVM token balances.
 
@@ -63,11 +65,13 @@ async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict:
 
     return result
 
+
 def _format_usd(value: float) -> str:
     """Format USD value nicely."""
     if value >= 1000:
         return f"${value:,.2f}"
     return f"${value:.4f}"
+
 
 async def cmd_portfolio(update, ctx) -> None:
     """Handle /portfolio command — scan one or more wallet addresses.
@@ -129,9 +133,7 @@ async def cmd_portfolio(update, ctx) -> None:
                 # Summary row
                 summary_parts = []
                 summary_parts.append(f"💰 <b>Value:</b> {_format_usd(balance)}")
-                summary_parts.append(
-                    f"📝 <b>TX:</b> {tx_count:,}" if tx_count else "📝 <b>TX:</b> N/A"
-                )
+                summary_parts.append(f"📝 <b>TX:</b> {tx_count:,}" if tx_count else "📝 <b>TX:</b> N/A")
                 lines.append(" | ".join(summary_parts))
 
                 # Token holdings table
@@ -170,9 +172,7 @@ async def cmd_portfolio(update, ctx) -> None:
                             pct = (val / total_value * 100) if total_value > 0 else 0
 
                         pct_str = f"{pct:.1f}%"
-                        lines.append(
-                            f"  <code>{i:<2} {sym:<14} {bal_str:<12} {val_str:<10} {pct_str}</code>"
-                        )
+                        lines.append(f"  <code>{i:<2} {sym:<14} {bal_str:<12} {val_str:<10} {pct_str}</code>")
 
                     lines.append(f"\n  <b>Total:</b> {_format_usd(total_value)}")
 
@@ -194,9 +194,9 @@ async def cmd_portfolio(update, ctx) -> None:
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.error("Portfolio failed for %s: %s", address, e)
                 await msg.reply_text(
-                    f"❌ Could not scan <code>{short_addr(address)}</code>. "
-                    f"Make sure the address is valid.",
+                    f"❌ Could not scan <code>{short_addr(address)}</code>. Make sure the address is valid.",
                     parse_mode="HTML",
                 )
+
 
 __all__ = ["cmd_portfolio"]

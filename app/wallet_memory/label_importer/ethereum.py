@@ -14,6 +14,7 @@ from .loaders import _flush_batch, _normalize_chain
 
 logger = get_logger("wallet_memory.label_importer")
 
+
 async def _load_etherscan_combined(storage) -> int:
     """Load etherscan_combined_labels.csv."""
     if not os.path.exists(ETHERSCAN_COMBINED):
@@ -37,17 +38,27 @@ async def _load_etherscan_combined(storage) -> int:
                 label = row.get("label", "").strip()
 
                 label_data = {
-                    "chain": chain, "address": addr,
-                    "address_name": name, "label_type": label,
+                    "chain": chain,
+                    "address": addr,
+                    "address_name": name,
+                    "label_type": label,
                     "source": "etherscan_combined",
                 }
                 label_json = json.dumps(label_data)
                 redis_key = f"rmi:label:{chain}:{addr}"
                 redis_ops.append((redis_key, label_json, addr))
-                ch_rows.append((
-                    addr, chain, name, label, "",
-                    "etherscan_combined", 0, datetime.now(UTC),
-                ))
+                ch_rows.append(
+                    (
+                        addr,
+                        chain,
+                        name,
+                        label,
+                        "",
+                        "etherscan_combined",
+                        0,
+                        datetime.now(UTC),
+                    )
+                )
                 count += 1
                 if count % 5000 == 0:
                     await _flush_batch(storage, redis_ops, ch_rows, chain)
@@ -61,6 +72,7 @@ async def _load_etherscan_combined(storage) -> int:
 
     logger.info(f"Loaded {count} etherscan combined labels")
     return count
+
 
 import os
 
@@ -90,8 +102,10 @@ async def _load_etherscan_phish_hack(storage) -> int:
                 txn_count = row.get("txn_count", "").strip()
 
                 label_data = {
-                    "chain": chain, "address": addr,
-                    "address_name": name_tag, "label_type": label_type,
+                    "chain": chain,
+                    "address": addr,
+                    "address_name": name_tag,
+                    "label_type": label_type,
                     "source": "etherscan_phish_hack",
                 }
                 if balance:
@@ -103,10 +117,18 @@ async def _load_etherscan_phish_hack(storage) -> int:
                 redis_ops.append((redis_key, label_json, addr))
 
                 is_scam = 1 if label_type.lower() in ("scam", "phishing", "hack") else 0
-                ch_rows.append((
-                    addr, chain, name_tag, label_type, "",
-                    "etherscan_phish_hack", is_scam, datetime.now(UTC),
-                ))
+                ch_rows.append(
+                    (
+                        addr,
+                        chain,
+                        name_tag,
+                        label_type,
+                        "",
+                        "etherscan_phish_hack",
+                        is_scam,
+                        datetime.now(UTC),
+                    )
+                )
 
                 if is_scam and storage._ch:
                     with contextlib.suppress(Exception):
@@ -114,8 +136,17 @@ async def _load_etherscan_phish_hack(storage) -> int:
                             """INSERT INTO scam_addresses
                             (address, chain_id, source, threat_type, confidence,
                              first_seen_at, evidence) VALUES""",
-                            [(addr, chain, "etherscan_phish_hack", label_type, 0.95,
-                              datetime.now(UTC), json.dumps({"name_tag": name_tag, "balance": balance}))],
+                            [
+                                (
+                                    addr,
+                                    chain,
+                                    "etherscan_phish_hack",
+                                    label_type,
+                                    0.95,
+                                    datetime.now(UTC),
+                                    json.dumps({"name_tag": name_tag, "balance": balance}),
+                                )
+                            ],
                         )
                 count += 1
     except Exception as e:

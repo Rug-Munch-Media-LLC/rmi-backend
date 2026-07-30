@@ -15,7 +15,6 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType
-from app.domains.scanner.webhooks.providers.utils import load_cursor, save_cursor
 
 log = get_logger(__name__)
 

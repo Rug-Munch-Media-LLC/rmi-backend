@@ -10,6 +10,7 @@ from app.apify_tools import logger
 # Uses existing COINGECKO_API_KEY from .env
 # Free tier: 10K calls/month, no additional cost
 
+
 async def _check_coingecko_trending() -> dict[str, Any] | None:
     """CoinGecko trending - top-15 most searched coins (social signal).
 

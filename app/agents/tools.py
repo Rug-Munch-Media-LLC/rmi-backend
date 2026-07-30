@@ -14,6 +14,7 @@ class AgentTool:
     async def execute(self, **kwargs) -> Any:
         raise NotImplementedError
 
+
 class ScanTokenTool(AgentTool):
     name = "scan_token"
     description = "Scan a token for rug pull risks"
@@ -21,6 +22,7 @@ class ScanTokenTool(AgentTool):
     async def execute(self, chain: str, address: str) -> dict:
         # TODO: Wire to actual scanner
         return {"chain": chain, "address": address, "status": "pending integration"}
+
 
 class WalletLookupTool(AgentTool):
     name = "wallet_lookup"

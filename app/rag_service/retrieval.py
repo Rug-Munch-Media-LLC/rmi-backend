@@ -14,6 +14,7 @@ from app.rag_service.cache import _get_redis
 
 logger = get_logger(__name__)
 
+
 async def search_similar(
     query: str,
     collection: str = "wallet_profiles",
@@ -57,9 +58,7 @@ async def search_similar(
             )
             if ann_results:
                 needs_enrich = [r for r in ann_results if "content" not in r]
-                enriched = (
-                    await _enrich_ann_results(collection, needs_enrich) if needs_enrich else []
-                )
+                enriched = await _enrich_ann_results(collection, needs_enrich) if needs_enrich else []
                 results = [r for r in ann_results if "content" in r] + enriched
         else:
             logger.info(f"FAISS not built for {collection}, using brute-force fallback")
@@ -68,9 +67,7 @@ async def search_similar(
             )
     except Exception as e:
         logger.warning(f"ANN/pgvector search failed, falling back to brute-force: {e}")
-        results = await embedder.search(
-            query=query, collection=collection, limit=limit, min_similarity=min_similarity
-        )
+        results = await embedder.search(query=query, collection=collection, limit=limit, min_similarity=min_similarity)
 
     if results:
         try:
@@ -90,9 +87,8 @@ async def search_similar(
 
     return results
 
-async def _enrich_ann_results(
-    collection: str, ann_results: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+
+async def _enrich_ann_results(collection: str, ann_results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Fetch full documents from Redis for ANN results."""
     if not ann_results:
         return []
@@ -122,6 +118,7 @@ async def _enrich_ann_results(
             enriched.append(ar)
     return enriched
 
+
 async def search_multi_collection(
     query: str,
     collections: list[str] | None = None,
@@ -134,9 +131,7 @@ async def search_multi_collection(
 
     async def _search_one(coll: str) -> list[dict[str, Any]]:
         try:
-            results = await search_similar(
-                query, collection=coll, limit=limit, min_similarity=min_similarity
-            )
+            results = await search_similar(query, collection=coll, limit=limit, min_similarity=min_similarity)
             for r in results:
                 if "collection" not in r:
                     r["collection"] = coll
@@ -149,6 +144,7 @@ async def search_multi_collection(
     all_results = [r for results in all_per_collection for r in results]
     all_results.sort(key=lambda x: x["similarity"], reverse=True)
     return all_results[:limit]
+
 
 def _classify_query(query: str) -> str:
     """Classify query into entity_heavy, keyword_heavy, semantic_heavy, or balanced."""
@@ -177,6 +173,7 @@ def _classify_query(query: str) -> str:
     ):
         return "semantic_heavy"
     return "balanced"
+
 
 def _rrf_fuse(
     ranked_lists: list[list[dict[str, Any]]],
@@ -213,6 +210,7 @@ def _rrf_fuse(
         entry["entity_match"] = doc_id in entity_doc_ids
         results.append(entry)
     return results
+
 
 async def three_pillar_search(
     query: str,
@@ -264,9 +262,7 @@ async def three_pillar_search(
                 except (ConnectionError, OSError, TimeoutError) as e:
                     logger.debug(f"ANN search failed for {coll}: {e}")
                     try:
-                        hits = await embedder.search(
-                            query, coll, limit=limit, min_similarity=min_similarity
-                        )
+                        hits = await embedder.search(query, coll, limit=limit, min_similarity=min_similarity)
                         for r in hits:
                             r["pillar"] = "dense"
                         pillar1_results.extend(hits)
@@ -332,9 +328,7 @@ async def three_pillar_search(
                     from app.knowledge_graph import get_knowledge_graph
 
                     kg = await get_knowledge_graph()
-                    kg_results = await kg.expand_query_entities(
-                        entity_extraction.all_entities(), max_depth=2
-                    )
+                    kg_results = await kg.expand_query_entities(entity_extraction.all_entities(), max_depth=2)
                     if kg_results:
                         for r in kg_results:
                             r["pillar"] = "entity+kg"
@@ -499,6 +493,7 @@ async def three_pillar_search(
         "confidence": confidence,
     }
 
+
 async def search_with_transform(
     query: str,
     collection: str = "wallet_profiles",
@@ -512,9 +507,7 @@ async def search_with_transform(
     all_result_lists = []
     for tq in transformed.transformed_queries:
         try:
-            results = await search_similar(
-                tq, collection=collection, limit=limit, min_similarity=0.3
-            )
+            results = await search_similar(tq, collection=collection, limit=limit, min_similarity=0.3)
             if results:
                 all_result_lists.append(results)
         except (ConnectionError, OSError, TimeoutError) as e:
@@ -561,9 +554,8 @@ async def search_with_transform(
         "metadata": transformed.metadata,
     }
 
-async def _sparse_text_search(
-    query: str, collections: list[str], limit: int = 20
-) -> list[dict[str, Any]]:
+
+async def _sparse_text_search(query: str, collections: list[str], limit: int = 20) -> list[dict[str, Any]]:
     """Simple keyword-based text search over Redis-stored documents."""
     r = await _get_redis()
     query_tokens = set(query.lower().split())

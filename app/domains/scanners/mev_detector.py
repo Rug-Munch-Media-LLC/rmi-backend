@@ -74,6 +74,7 @@ EVM_MEV_BUILDERS = {
     },
 }
 
+
 @dataclass
 class SandwichAttack:
     """A single detected sandwich attack."""
@@ -90,6 +91,7 @@ class SandwichAttack:
     timestamp: int = 0
     evidence: list[str] = field(default_factory=list)
 
+
 @dataclass
 class MEVBotActivity:
     """Known MEV bot detected in token transactions."""
@@ -101,9 +103,8 @@ class MEVBotActivity:
     total_profit_usd: float = 0.0
     first_seen_block: int = 0
     last_seen_block: int = 0
-    attack_types: list[str] = field(
-        default_factory=list
-    )  # "sandwich", "front_run", "back_run", "just_in_time"
+    attack_types: list[str] = field(default_factory=list)  # "sandwich", "front_run", "back_run", "just_in_time"
+
 
 @dataclass
 class MEVReport:
@@ -123,12 +124,11 @@ class MEVReport:
     warnings: list[str] = field(default_factory=list)
     scanned_tx_count: int = 0
 
+
 class MEVDetector:
     """Detects MEV/sandwich attacks on token trades."""
 
-    def __init__(
-        self, helius_api_key: str = "", chain_client=None, http_client: httpx.AsyncClient = None
-    ) -> None:
+    def __init__(self, helius_api_key: str = "", chain_client=None, http_client: httpx.AsyncClient = None) -> None:
         self.helius_key = helius_api_key or os.getenv("HELIUS_API_KEY", "")
         self.chain = chain_client
         self._http = http_client or httpx.AsyncClient(timeout=20.0)
@@ -160,7 +160,7 @@ class MEVDetector:
                 chain_id = self._get_chain_id(chain)
                 if chain_id:
                     await self._analyze_evm(token_address, chain_id, report, tx_count)
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("analyze_error", exc_info=True)
             logger.error(f"MEV analysis failed for {token_address}: {e}")
             report.warnings.append(f"Analysis error: {e!s}")
@@ -198,9 +198,7 @@ class MEVDetector:
                 report.back_run_count += 1
             report.total_mev_profit_usd += s.profit_usd
 
-    async def _analyze_evm(
-        self, token_address: str, chain_id: str, report: MEVReport, tx_count: int
-    ) -> None:
+    async def _analyze_evm(self, token_address: str, chain_id: str, report: MEVReport, tx_count: int) -> None:
         """Analyze EVM transactions for MEV patterns."""
         # Fetch recent internal transactions from Etherscan
         internal_txs = await self._fetch_evm_internal_txs(token_address, chain_id, tx_count)
@@ -265,15 +263,22 @@ class MEVDetector:
                     )
                     data = resp.json()
                     return data.get("result", []) if resp.status_code == 200 else []
-                except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                except (
+                    httpx.HTTPError,
+                    requests.RequestException,
+                    json.JSONDecodeError,
+                    KeyError,
+                    TypeError,
+                    ConnectionError,
+                    OSError,
+                    TimeoutError,
+                ) as e:
                     logger.debug("_fetch_sol_signatures_error", exc_info=True)
                     logger.warning(f"Failed to fetch Sol signatures: {e}")
                     return []
         # Use ChainClient if available
         try:
-            result = await self.chain.rpc_call(
-                "getSignaturesForAddress", [address, {"limit": limit}]
-            )
+            result = await self.chain.rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
             return result if isinstance(result, list) else []
         except (ConnectionError, OSError, TimeoutError):
             return []
@@ -287,9 +292,7 @@ class MEVDetector:
                 bundles.append(sig)
         return bundles
 
-    async def _detect_sol_sandwiches(
-        self, token: str, signatures: list[dict]
-    ) -> list[SandwichAttack]:
+    async def _detect_sol_sandwiches(self, token: str, signatures: list[dict]) -> list[SandwichAttack]:
         """Detect sandwich patterns in Solana transactions using parsed TX data."""
         sandwiches = []
         # Group by block (solana slots)
@@ -369,7 +372,7 @@ class MEVDetector:
             data = resp.json()
             if data.get("status") == "1":
                 return data.get("result", [])
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_evm_normal_txs_error", exc_info=True)
             logger.warning(f"Etherscan normal TXs failed: {e}")
         return []
@@ -404,7 +407,7 @@ class MEVDetector:
             data = resp.json()
             if data.get("status") == "1":
                 return data.get("result", [])
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_evm_internal_txs_error", exc_info=True)
             logger.warning(f"Etherscan internal TXs failed: {e}")
         return []
@@ -508,14 +511,8 @@ class MEVDetector:
 
         # Generate warnings
         if report.sandwich_attacks:
-            report.warnings.append(
-                f"HIGH: {len(report.sandwich_attacks)} sandwich attacks detected"
-            )
+            report.warnings.append(f"HIGH: {len(report.sandwich_attacks)} sandwich attacks detected")
         if report.jito_bundle_count > 0:
-            report.warnings.append(
-                f"MEDIUM: {report.jito_bundle_count} Jito bundles found - MEV activity present"
-            )
+            report.warnings.append(f"MEDIUM: {report.jito_bundle_count} Jito bundles found - MEV activity present")
         if report.top_mev_bots:
-            report.warnings.append(
-                f"MEDIUM: {len(report.top_mev_bots)} known MEV bots active in this token"
-            )
+            report.warnings.append(f"MEDIUM: {len(report.top_mev_bots)} known MEV bots active in this token")

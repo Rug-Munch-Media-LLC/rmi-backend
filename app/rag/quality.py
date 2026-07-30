@@ -89,6 +89,7 @@ class QualityFilter:
         """Has this exact content already been ingested?"""
         try:
             from app.core.redis import get_redis
+
             r = get_redis()
             return bool(r.sismember(f"rag:hashes:{collection}", content_hash))
         except Exception as e:

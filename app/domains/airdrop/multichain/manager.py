@@ -19,6 +19,7 @@ from app.domains.airdrop.multichain.snapshot import MultiChainSnapshotEngine
 
 logger = get_logger("darkroom_multichain_airdrop")
 
+
 class MultiChainAirdropManager:
     """
     Full lifecycle manager for multi-chain airdrop campaigns.
@@ -59,9 +60,7 @@ class MultiChainAirdropManager:
         # Create multi-chain snapshot
         holders = await MultiChainSnapshotEngine.create_multichain_snapshot(
             sources=campaign.source_tokens,
-            exclude_addresses=campaign.blacklist_preloaded
-            if hasattr(campaign, "blacklist_preloaded")
-            else [],
+            exclude_addresses=campaign.blacklist_preloaded if hasattr(campaign, "blacklist_preloaded") else [],
         )
 
         # Apply anti-gaming filters
@@ -108,9 +107,7 @@ class MultiChainAirdropManager:
 
         await MultiChainAirdropManager._save_campaign(campaign)
 
-        logger.info(
-            f"Snapshot complete: {campaign.total_qualified} qualified for {campaign.campaign_id}"
-        )
+        logger.info(f"Snapshot complete: {campaign.total_qualified} qualified for {campaign.campaign_id}")
         return campaign
 
     @staticmethod
@@ -141,9 +138,7 @@ class MultiChainAirdropManager:
 
         # Calculate allocations
         if campaign.distribution_mode == "one_to_one":
-            holders, total_pool = WeightedAirdropCalculator.calculate_one_to_one_allocations(
-                holders
-            )
+            holders, total_pool = WeightedAirdropCalculator.calculate_one_to_one_allocations(holders)
             campaign.total_airdrop_pool = total_pool
         elif campaign.distribution_mode == "proportional":
             holders = WeightedAirdropCalculator.calculate_proportional_allocations(
@@ -155,13 +150,9 @@ class MultiChainAirdropManager:
                 cross_chain_bonus=campaign.cross_chain_bonus,
             )
         elif campaign.distribution_mode == "tiered":
-            holders = WeightedAirdropCalculator.calculate_tiered_allocations(
-                holders, campaign.tiers
-            )
+            holders = WeightedAirdropCalculator.calculate_tiered_allocations(holders, campaign.tiers)
         elif campaign.distribution_mode == "fixed":
-            holders = WeightedAirdropCalculator.calculate_fixed_allocations(
-                holders, campaign.total_airdrop_pool
-            )
+            holders = WeightedAirdropCalculator.calculate_fixed_allocations(holders, campaign.total_airdrop_pool)
 
         campaign.qualified_holders = list(holders.values())
         campaign.total_qualified = len(holders)
@@ -170,9 +161,7 @@ class MultiChainAirdropManager:
 
         await MultiChainAirdropManager._save_campaign(campaign)
 
-        logger.info(
-            f"Custom snapshot complete: {campaign.total_qualified} qualified for {campaign.campaign_id}"
-        )
+        logger.info(f"Custom snapshot complete: {campaign.total_qualified} qualified for {campaign.campaign_id}")
         return campaign
 
     @staticmethod
@@ -198,9 +187,7 @@ class MultiChainAirdropManager:
 
             try:
                 # Determine target address on target chain
-                target_address = holder.chain_addresses.get(
-                    campaign.target_chain, holder.primary_address
-                )
+                target_address = holder.chain_addresses.get(campaign.target_chain, holder.primary_address)
 
                 tx = await deployer.mint_tokens(
                     campaign.target_token,
@@ -215,16 +202,14 @@ class MultiChainAirdropManager:
 
                 logger.info(f"Airdropped {holder.airdrop_allocation} to {target_address}")
 
-            except (ValueError, KeyError, TypeError) as e :
+            except (ValueError, KeyError, TypeError) as e:
                 logger.debug("execute_distribution_error", exc_info=True)
                 logger.error(f"Distribution failed for {holder.primary_address}: {e}")
 
         campaign.total_distributed = str(total_distributed)
         campaign.tx_hashes = tx_hashes
         campaign.distribution_completed_at = datetime.now(UTC).isoformat()
-        campaign.status = (
-            "completed" if len(tx_hashes) == len(campaign.qualified_holders) else "partial"
-        )
+        campaign.status = "completed" if len(tx_hashes) == len(campaign.qualified_holders) else "partial"
 
         await MultiChainAirdropManager._save_campaign(campaign)
 
@@ -244,7 +229,7 @@ class MultiChainAirdropManager:
                 await storage.redis.sadd("multichain_airdrops:all", campaign.campaign_id)
 
             return True
-        except (json.JSONDecodeError, ConnectionError, OSError, ValueError) as e :
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError) as e:
             logger.debug("_save_campaign_error", exc_info=True)
             logger.error(f"Save campaign failed: {e}")
             return False
@@ -263,10 +248,11 @@ class MultiChainAirdropManager:
                     return MultiChainAirdropCampaign(**json.loads(data))
 
             return None
-        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
             logger.debug("_get_campaign_error", exc_info=True)
             logger.error(f"Get campaign failed: {e}")
             return None
+
 
 async def create_crm_multichain_airdrop(
     crm_base_address: str,
@@ -332,6 +318,7 @@ async def create_crm_multichain_airdrop(
 
     return campaign
 
+
 async def create_one_to_one_airdrop(
     source_tokens: list[TokenSource],
     target_chain: str,
@@ -373,6 +360,7 @@ async def create_one_to_one_airdrop(
 
     return campaign
 
+
 async def create_crm_v2_airdrop_preset(
     crm_solana_address: str,
     cryptorugmunch_zora_address: str,
@@ -413,4 +401,3 @@ async def create_crm_v2_airdrop_preset(
     )
 
     return campaign
-

@@ -21,6 +21,7 @@ async def scan_token(token_address: str, quick: bool = False) -> SecurityReport:
     scanner = DegenSecurityScanner()
     return await scanner.full_scan(token_address, quick=quick)
 
+
 def format_report(report: SecurityReport) -> str:
     """Format a security report for display."""
     lines = [
@@ -139,6 +140,7 @@ def format_report(report: SecurityReport) -> str:
     )
 
     return "\n".join(lines)
+
 
 if __name__ == "__main__":
     # Test scan on a known token

@@ -3,11 +3,13 @@ from __future__ import annotations
 
 """AI content moderation and malicious request detection"""
 
+
 class SecurityResult:
     def __init__(self, safe: bool, reason: str = "", details: dict | None = None) -> None:
         self.safe = safe
         self.reason = reason
         self.details = details or {}
+
 
 class AIGuard:
     """AI content moderation guard for user inputs."""

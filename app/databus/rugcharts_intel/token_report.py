@@ -14,6 +14,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 
+
 async def instant_token_report(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Generate a complete intelligence report for any token in a single call.
     Combines: security scan, holder health, liquidity risk, rug pattern matching,
@@ -109,11 +110,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
 
             rug_data = await rug_pattern_matcher(address, chain, api_key=api_key)
             if rug_data:
-                top_match = (
-                    rug_data.get("pattern_matches", [{}])[0]
-                    if rug_data.get("pattern_matches")
-                    else {}
-                )
+                top_match = rug_data.get("pattern_matches", [{}])[0] if rug_data.get("pattern_matches") else {}
                 report["sections"]["rug_patterns"] = {
                     "total_matches": rug_data.get("total_matches", 0),
                     "overall_risk": rug_data.get("overall_rug_risk", "LOW"),
@@ -235,6 +232,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         logger.warning("error")
 
     return report
+
 
 def _extract_security_highlights(security: dict) -> list[str]:
     """Extract key security findings for the quick overview."""

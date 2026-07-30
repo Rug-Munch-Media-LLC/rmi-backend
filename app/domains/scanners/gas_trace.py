@@ -62,6 +62,7 @@ ETHERSCAN_NETWORKS = {
 
 # ── Data Models ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class TraceHop:
     """A single hop in the gas trace chain."""
@@ -70,6 +71,7 @@ class TraceHop:
     relationship: str  # "deployer", "funder", "funder_of_funder", "cex_hot_wallet", etc.
     first_seen: str  # ISO timestamp or "unknown"
     tx_hash: str = ""  # The transaction that connected this hop
+
 
 @dataclass
 class GasTraceReport:
@@ -80,9 +82,7 @@ class GasTraceReport:
     trace_complete: bool  # True if we resolved the chain fully
     hop_count: int  # Number of hops traced (0-3+)
     dead_end: bool  # True if chain dead-ends at a fresh/empty wallet
-    dead_end_reason: (
-        str  # Why it dead-ended ("fresh_wallet", "cex_hot_wallet", "no_funding_tx", "api_error")
-    )
+    dead_end_reason: str  # Why it dead-ended ("fresh_wallet", "cex_hot_wallet", "no_funding_tx", "api_error")
     risk_label: str  # "LOW", "MEDIUM", "HIGH", "CRITICAL"
     cex_funded: bool  # True if any hop touches a known CEX hot wallet
     cex_name: str = ""  # Name of the CEX identified (if applicable)
@@ -113,7 +113,9 @@ class GasTraceReport:
             "errors": self.errors,
         }
 
+
 # ── Gas Trace Analyzer ─────────────────────────────────────────────────────
+
 
 class GasTraceAnalyzer:
     """
@@ -184,7 +186,7 @@ class GasTraceAnalyzer:
             try:
                 # Find the funding source for the current address
                 funding = await self._find_funding_source(current_address, chain)
-            except (httpx.HTTPError) as e :
+            except httpx.HTTPError as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Gas trace hop {hop} error for {current_address}: {e}")
                 report.errors.append(f"Hop {hop} error: {e}")
@@ -243,9 +245,7 @@ class GasTraceAnalyzer:
                 report.dead_end = True
                 report.dead_end_reason = dead_end_reason
                 report.trace_complete = True
-                logger.info(
-                    f"Gas trace terminated at hop {hop}: {dead_end_reason} ({source_address})"
-                )
+                logger.info(f"Gas trace terminated at hop {hop}: {dead_end_reason} ({source_address})")
                 break
 
             # Continue tracing
@@ -322,9 +322,7 @@ class GasTraceAnalyzer:
 
             data = resp.json()
             if data.get("status") != "1":
-                logger.debug(
-                    f"Etherscan API status not OK for {address}: {data.get('message', '')}"
-                )
+                logger.debug(f"Etherscan API status not OK for {address}: {data.get('message', '')}")
                 return None
 
             txs = data.get("result", [])
@@ -347,7 +345,16 @@ class GasTraceAnalyzer:
         except httpx.TimeoutException:
             logger.warning(f"Etherscan API timeout for {address} on {chain}")
             return None
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Etherscan API error for {address}: {e}")
             return None
@@ -356,9 +363,7 @@ class GasTraceAnalyzer:
         """Find the earliest incoming funding transfer for a Solana address."""
         try:
             # Try account transfers first (incoming SOL/SPL)
-            transfers = FreeSolscanClient.account_transfers(
-                address, page=1, page_size=50, flow="in"
-            )
+            transfers = FreeSolscanClient.account_transfers(address, page=1, page_size=50, flow="in")
             if transfers and len(transfers) > 0:
                 # Sort by block_time ascending (oldest first)
                 sorted_tx = sorted(transfers, key=lambda x: x.get("block_time", 0))
@@ -391,7 +396,7 @@ class GasTraceAnalyzer:
                 }
 
             return None
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("_find_funding_source_solana_error", exc_info=True)
             logger.warning(f"Solscan funding source error for {address}: {e}")
             return None
@@ -559,9 +564,7 @@ class GasTraceAnalyzer:
                     result["first_seen_ts"] = int(created)
                     try:
                         dt = datetime.fromtimestamp(
-                            int(created) / 1000
-                            if int(created) > 1_000_000_000_000
-                            else int(created),
+                            int(created) / 1000 if int(created) > 1_000_000_000_000 else int(created),
                             tz=UTC,
                         )
                         result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -592,7 +595,7 @@ class GasTraceAnalyzer:
                 tx_count = result.get("tx_count", 0)
                 result["tx_count"] = max(tx_count, len(transfers))
 
-        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Solscan wallet info error for {address}: {e}")
 
@@ -643,7 +646,7 @@ class GasTraceAnalyzer:
                                 result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
                             except (ConnectionError, OSError, TimeoutError):
                                 pass
-        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"EVM wallet info error for {address}: {e}")
 
@@ -661,7 +664,7 @@ class GasTraceAnalyzer:
                 if count_data.get("status") == "1":
                     all_txs = count_data.get("result", [])
                     result["tx_count"] = len(all_txs)
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"EVM TX count error for {address}: {e}")
 
@@ -710,7 +713,9 @@ class GasTraceAnalyzer:
 
         return "LOW"
 
+
 # ── Standalone helper (matching pipeline pattern) ─────────────────────────
+
 
 async def run_gas_trace_analysis(
     deployer_address: str,

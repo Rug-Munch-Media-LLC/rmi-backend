@@ -44,6 +44,7 @@ _CHAIN_MAP = {
     "polygon": 137,
 }
 
+
 async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]:
     """Query MetaSleuth for an address's entity info.
 
@@ -66,7 +67,7 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
             )
             if result.returncode == 0 and result.stdout.strip():
                 api_key = result.stdout.strip()
-        except (subprocess.TimeoutExpired):
+        except subprocess.TimeoutExpired:
             pass
 
     if not api_key:
@@ -96,7 +97,7 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
         except httpx.HTTPError as e:
             log.warning("metasleuth_api_http_err: %s", e)
             return {}
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
             log.warning("metasleuth_api_err: %s", e)
             return {}
 
@@ -148,12 +149,14 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
 
     return labels
 
+
 def _first_category(data: dict[str, Any]) -> str | None:
     """Extract first category name from MetaSleuth response."""
     cats = data.get("main_entity_info", {}).get("categories", [])
     if cats and isinstance(cats[0], dict):
         return cats[0].get("name")
     return None
+
 
 def _extract_attributes(data: dict[str, Any]) -> dict[str, Any]:
     """Extract attributes from MetaSleuth response."""

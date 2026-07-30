@@ -15,11 +15,13 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
 async def analyze_lp_health(result: RIPResult) -> None:
     """Signal 1: LP Health (25% weight)."""
     sig = result.signals["lp_health"]
     try:
         from app.caching_shield.service_mcp import get_service_mcp
+
         get_service_mcp()
 
         dex_data = None
@@ -28,6 +30,7 @@ async def analyze_lp_health(result: RIPResult) -> None:
             from app.domains.detectors.rug_imminence_predictor_package.sources import (
                 fetch_dexscreener_pool,
             )
+
             dex_data = await fetch_dexscreener_pool(result.token_address, result.chain)
         except (AttributeError, ImportError):
             result.sources_failed.append("dexscreener")
@@ -86,6 +89,7 @@ async def analyze_lp_health(result: RIPResult) -> None:
                 from app.domains.detectors.rug_imminence_predictor_package.sources import (
                     check_lp_lock,
                 )
+
                 lock_info = await check_lp_lock(result.token_address, result.chain)
                 if lock_info.get("locked"):
                     sig.score -= 20
@@ -106,12 +110,13 @@ async def analyze_lp_health(result: RIPResult) -> None:
             sig.evidence.append("No DEX pool data found - token may have no real liquidity")
 
         sig.confidence = min(1.0, sig.score / 50) if sig.score > 0 else 0.3
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"LP health analysis failed for {result.token_address}: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.1
         result.sources_failed.append("lp_health_analysis")
+
 
 async def analyze_deployer_risk(result: RIPResult) -> None:
     """Signal 2: Deployer Risk (20% weight)."""
@@ -122,6 +127,7 @@ async def analyze_deployer_risk(result: RIPResult) -> None:
             check_wallet_age,
             resolve_deployer,
         )
+
         deployer = await resolve_deployer(result.token_address, result.chain)
         if not deployer:
             sig.score += 10
@@ -168,12 +174,13 @@ async def analyze_deployer_risk(result: RIPResult) -> None:
             sig.evidence.append("All previously deployed tokens are inactive/dead")
 
         sig.confidence = min(0.9, 0.4 + (total_tokens / 20))
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Deployer risk analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.2
         result.sources_failed.append("deployer_risk_analysis")
+
 
 async def analyze_smart_money_flow(result: RIPResult) -> None:
     """Signal 3: Smart Money Flow (15% weight)."""
@@ -181,6 +188,7 @@ async def analyze_smart_money_flow(result: RIPResult) -> None:
     try:
         try:
             from app.smart_money_tracker import SmartMoneyTracker
+
             tracker = SmartMoneyTracker()
             moves = await tracker.scan_for_token(result.token_address, result.chain, lookback_hours=24)
             result.sources_used.append("smart_money_tracker")
@@ -209,6 +217,7 @@ async def analyze_smart_money_flow(result: RIPResult) -> None:
             from app.domains.detectors.rug_imminence_predictor_package.sources import (
                 fetch_holder_data,
             )
+
             holder_data = await fetch_holder_data(result.token_address, result.chain)
             if holder_data:
                 result.sources_used.append("holder_data")
@@ -226,18 +235,20 @@ async def analyze_smart_money_flow(result: RIPResult) -> None:
             result.sources_failed.append("holder_data")
 
         sig.confidence = min(0.8, 0.3 + (sig.score / 50))
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Smart money flow analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.15
         result.sources_failed.append("smart_money_flow_analysis")
 
+
 async def analyze_bundle_pattern(result: RIPResult) -> None:
     """Signal 4: Bundle Pattern (15% weight)."""
     sig = result.signals["bundle_pattern"]
     try:
         from app.bundle_detector import BundleDetector
+
         detector = BundleDetector()
         detection = await detector.detect(result.token_address, result.chain)
         result.sources_used.append("bundle_detector")
@@ -263,12 +274,13 @@ async def analyze_bundle_pattern(result: RIPResult) -> None:
         sig.evidence.append("Bundle detection unavailable")
         sig.confidence = 0.3
         result.sources_failed.append("bundle_detector")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("analyze_bundle_pattern_error", exc_info=True)
         logger.warning(f"Bundle analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.2
         result.sources_failed.append("bundle_pattern_analysis")
+
 
 async def analyze_social_velocity(result: RIPResult) -> None:
     """Signal 5: Social Velocity (10% weight)."""
@@ -276,6 +288,7 @@ async def analyze_social_velocity(result: RIPResult) -> None:
     try:
         try:
             from app.domains.scanners.social_velocity import SocialVelocityAnalyzer
+
             analyzer = SocialVelocityAnalyzer()
             velocity = await analyzer.analyze(result.token_address)
             result.sources_used.append("social_velocity_analyzer")
@@ -305,6 +318,7 @@ async def analyze_social_velocity(result: RIPResult) -> None:
 
         try:
             from app.domains.scanners.sentiment_analyzer import SentimentAnalyzer
+
             sentiment = SentimentAnalyzer()
             sent_result = await sentiment.analyze_token_sentiment(result.token_symbol or result.token_address)
             result.sources_used.append("sentiment_analyzer")
@@ -316,12 +330,13 @@ async def analyze_social_velocity(result: RIPResult) -> None:
             result.sources_failed.append("sentiment_analyzer")
 
         sig.confidence = min(0.7, 0.3 + (sig.score / 40))
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Social velocity analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.15
         result.sources_failed.append("social_velocity_analysis")
+
 
 async def analyze_contract_risk(result: RIPResult) -> None:
     """Signal 6: Contract Risk (10% weight)."""
@@ -329,6 +344,7 @@ async def analyze_contract_risk(result: RIPResult) -> None:
     try:
         try:
             from app.domains.scanners.honeypot_detector import HoneypotDetector
+
             hp = HoneypotDetector()
             hp_result = await hp.detect(result.token_address, result.chain)
             result.sources_used.append("honeypot_detector")
@@ -348,6 +364,7 @@ async def analyze_contract_risk(result: RIPResult) -> None:
 
         try:
             from app.domains.scanners.contract_authority import ContractAuthorityScanner
+
             auth = ContractAuthorityScanner()
             authority = await auth.scan(result.token_address, result.chain)
             result.sources_used.append("contract_authority")
@@ -367,12 +384,13 @@ async def analyze_contract_risk(result: RIPResult) -> None:
             result.sources_failed.append("contract_authority")
 
         sig.confidence = min(0.85, 0.4 + (sig.score / 40))
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Contract risk analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.2
         result.sources_failed.append("contract_risk_analysis")
+
 
 async def analyze_liquidity_migration(result: RIPResult) -> None:
     """Signal 7: Liquidity Migration (5% weight)."""
@@ -380,6 +398,7 @@ async def analyze_liquidity_migration(result: RIPResult) -> None:
     try:
         try:
             from app.domains.scanners.liquidity_verifier import LiquidityVerifier
+
             verifier = LiquidityVerifier()
             lp_status = await verifier.verify(result.token_address, result.chain, lookback_hours=24)
             result.sources_used.append("liquidity_verifier")
@@ -411,10 +430,13 @@ async def analyze_liquidity_migration(result: RIPResult) -> None:
                 from app.domains.detectors.rug_imminence_predictor_package.sources import (
                     fetch_dexscreener_pool,
                 )
+
                 dex_data = await fetch_dexscreener_pool(result.token_address, result.chain)
                 if dex_data and dex_data.get("pairs"):
                     pair = dex_data["pairs"][0]
-                    liq_change = pair.get("liquidity", {}).get("change_24h", 0) if isinstance(pair.get("liquidity"), dict) else 0
+                    liq_change = (
+                        pair.get("liquidity", {}).get("change_24h", 0) if isinstance(pair.get("liquidity"), dict) else 0
+                    )
                     if liq_change < -50:
                         sig.score += 15
                         sig.flags.append("liquidity_drop")
@@ -423,12 +445,13 @@ async def analyze_liquidity_migration(result: RIPResult) -> None:
                 logger.debug("liquidity change parse failed", exc_info=True)
 
         sig.confidence = min(0.7, 0.3 + (sig.score / 40))
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Liquidity migration analysis failed: {e}")
         sig.evidence.append(f"Analysis error: {str(e)[:60]}")
         sig.confidence = 0.15
         result.sources_failed.append("liquidity_migration_analysis")
+
 
 # Flag-to-warning/recommendation maps
 FLAG_WARNINGS = {
@@ -472,6 +495,7 @@ FLAG_RECOMMENDATIONS = {
 
 PRIORITY_FLAGS = ["honeypot", "lp_removed", "unlocked_liquidity", "deployer_cashing_out"]
 
+
 def generate_warnings(result: RIPResult) -> None:
     """Generate human-readable warnings from flags."""
     seen = set()
@@ -485,6 +509,7 @@ def generate_warnings(result: RIPResult) -> None:
             result.warnings.append("✅ No imminent rug indicators detected")
         else:
             result.warnings.append("🔍 Some risk signals present - monitor closely")
+
 
 def generate_recommendations(result: RIPResult) -> None:
     """Generate actionable recommendations from flags."""

@@ -27,6 +27,7 @@ logger = get_logger("wallet_memory.storage")
 
 _ch_client = None
 
+
 async def _get_clickhouse() -> Any | None:
     """Lazy-init ClickHouse client. Returns None if unavailable.
 
@@ -65,6 +66,7 @@ async def _get_clickhouse() -> Any | None:
         _try_mark_down("clickhouse")
         return None
 
+
 def _try_mark_healthy(store: str) -> None:
     try:
         from app.core.degradation import get_registry
@@ -72,6 +74,7 @@ def _try_mark_healthy(store: str) -> None:
         get_registry().mark_healthy(store)
     except (AttributeError, ImportError):
         pass
+
 
 def _try_mark_down(store: str) -> None:
     try:
@@ -81,9 +84,11 @@ def _try_mark_down(store: str) -> None:
     except (AttributeError, ImportError):
         pass
 
+
 # ── Redis connection (lazy) ─────────────────────────────────────────
 
 _redis_client: aioredis.Redis | None = None
+
 
 async def _get_redis() -> aioredis.Redis | None:
     """Lazy-init Redis client. Returns None if unavailable."""
@@ -99,20 +104,17 @@ async def _get_redis() -> aioredis.Redis | None:
             r_port = os.getenv("REDIS_PORT", "6379")
             r_db = os.getenv("REDIS_DB", "0")
             r_pass = os.getenv("REDIS_PASSWORD", "")
-            url = (
-                f"redis://:{r_pass}@{r_host}:{r_port}/{r_db}"
-                if r_pass
-                else f"redis://{r_host}:{r_port}/{r_db}"
-            )
+            url = f"redis://:{r_pass}@{r_host}:{r_port}/{r_db}" if r_pass else f"redis://{r_host}:{r_port}/{r_db}"
         _redis_client = aioredis.from_url(url, decode_responses=True)
         await _redis_client.ping()
-        logger.info("Redis connected for wallet memory: %s", url.split('@')[-1])
+        logger.info("Redis connected for wallet memory: %s", url.split("@")[-1])
         return _redis_client
     except (ValueError, ConnectionError, RuntimeError) as e:
         logger.warning("error: %s", e)
         logger.warning("Redis unavailable for wallet memory: %s", e)
         _redis_client = None
         return None
+
 
 # ── Schema DDL ──────────────────────────────────────────────────────
 
@@ -210,6 +212,7 @@ CREATE TABLE IF NOT EXISTS bridge_mappings (
 ORDER BY (source_address, source_chain);
 """
 
+
 async def ensure_schema() -> bool:
     """Create ClickHouse tables if they don't exist. Safe to call on startup."""
     ch = await _get_clickhouse()
@@ -230,7 +233,9 @@ async def ensure_schema() -> bool:
         logger.error("ClickHouse schema creation failed: %s", e)
         return False
 
+
 # ── Storage interface ────────────────────────────────────────────────
+
 
 class WalletStorage:
     """Unified storage with ClickHouse + Redis, transparent fallback."""
@@ -752,9 +757,11 @@ class WalletStorage:
                 logger.warning("error")
         return False
 
+
 # ── Global singleton ─────────────────────────────────────────────────
 
 _storage: WalletStorage | None = None
+
 
 def get_storage() -> WalletStorage:
     """Get global storage instance."""

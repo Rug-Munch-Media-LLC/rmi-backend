@@ -1,4 +1,5 @@
 """Wallet Monitor — Alert Channel."""
+
 from __future__ import annotations
 
 import contextlib
@@ -32,7 +33,8 @@ class AlertChannel:
 
     @staticmethod
     async def dispatch_webhooks(alert: dict, webhooks: list[str]) -> None:
-        if not webhooks: return
+        if not webhooks:
+            return
         async with httpx.AsyncClient(timeout=CONFIG["WEBHOOK_TIMEOUT"]) as client:
             for url in webhooks:
                 with contextlib.suppress(Exception):

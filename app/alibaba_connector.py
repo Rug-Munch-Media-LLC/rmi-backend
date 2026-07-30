@@ -31,6 +31,7 @@ DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/api/v1"
 # Tongyi Wanxiang endpoints
 IMAGE_GENERATION_ENDPOINT = f"{DASHSCOPE_BASE_URL}/services/aigc/text-generation/generation"
 
+
 class AlibabaConnector:
     """Alibaba Cloud AI services connector."""
 
@@ -80,8 +81,7 @@ class AlibabaConnector:
             "model": "wanx-v1",  # Tongyi Wanxiang model
             "input": {
                 "prompt": prompt,
-                "negative_prompt": negative_prompt
-                or "blurry, low quality, distorted, ugly, text, watermark",
+                "negative_prompt": negative_prompt or "blurry, low quality, distorted, ugly, text, watermark",
                 "size": f"{width}*{height}",
                 "style": style,
             },
@@ -243,8 +243,10 @@ class AlibabaConnector:
             "models_available": ["wanx-v1"],
         }
 
+
 # Singleton
 _alibaba: AlibabaConnector | None = None
+
 
 def get_alibaba_connector() -> AlibabaConnector:
     global _alibaba

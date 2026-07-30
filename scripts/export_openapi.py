@@ -90,10 +90,7 @@ def main() -> int:
     if not args.stdout:
         out_path = Path(args.out)
         out_path.write_text(json.dumps(schema, indent=2))
-        print(
-            f"Wrote {out_path} ({path_count} paths, {schema_count} schemas, "
-            f"{out_path.stat().st_size // 1024} KB)"
-        )
+        print(f"Wrote {out_path} ({path_count} paths, {schema_count} schemas, {out_path.stat().st_size // 1024} KB)")
 
     return 0
 

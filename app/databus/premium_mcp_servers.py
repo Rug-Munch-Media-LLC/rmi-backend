@@ -21,9 +21,8 @@ def gredis() -> Any:
     load_dotenv("/app/.env", override=True)
     import redis
 
-    return redis.Redis(
-        host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True
-    )
+    return redis.Redis(host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
+
 
 def trial(fingerprint: str, tool: str, limit: int = 10) -> dict:
     r, k = gredis(), f"mcp:trial:{tool}:{fingerprint}"
@@ -38,12 +37,11 @@ def trial(fingerprint: str, tool: str, limit: int = 10) -> dict:
         "upgrade": "$0.01-0.05/call via x402 on Base/Solana/13 chains",
     }
 
+
 # ═══════════════════════════════════════════════════
 # MCP #1: WHALE ALERT - Real-time large transfers
 # ═══════════════════════════════════════════════════
-def whale_alert(
-    chain: str = "ethereum", min_value: float = 1000000, fingerprint: str = "anon"
-) -> dict:
+def whale_alert(chain: str = "ethereum", min_value: float = 1000000, fingerprint: str = "anon") -> dict:
     """Real-time whale transaction alerts. 15 free/day. $0.03/call premium."""
     auth = trial(fingerprint, "whale", 15)
     if auth["tier"] == "free_exhausted":
@@ -74,12 +72,11 @@ def whale_alert(
     result["mcp"] = "rmi-whale-alert"
     return result
 
+
 # ═══════════════════════════════════════════════════
 # MCP #2: TOKEN LAUNCH SCANNER
 # ═══════════════════════════════════════════════════
-def token_launch_scanner(
-    chain: str = "solana", max_age_hours: int = 1, fingerprint: str = "anon"
-) -> dict:
+def token_launch_scanner(chain: str = "solana", max_age_hours: int = 1, fingerprint: str = "anon") -> dict:
     """New token detection. 10 free/day. $0.05/call premium."""
     auth = trial(fingerprint, "launch", 10)
     if auth["tier"] == "free_exhausted":
@@ -105,6 +102,7 @@ def token_launch_scanner(
     result["mcp"] = "rmi-launch-scanner"
     return result
 
+
 # ═══════════════════════════════════════════════════
 # MCP #3: SMART MONEY TRACKER
 # ═══════════════════════════════════════════════════
@@ -117,11 +115,7 @@ def smart_money_tracker(chain: str = "ethereum", fingerprint: str = "anon") -> d
     wallets = []
     for addr in r.keys("rmi:label:ethereum:*")[:20]:
         label = json.loads(r.get(addr) or "{}")
-        if (
-            "smart" in str(label).lower()
-            or "fund" in str(label).lower()
-            or "capital" in str(label).lower()
-        ):
+        if "smart" in str(label).lower() or "fund" in str(label).lower() or "capital" in str(label).lower():
             wallets.append(
                 {
                     "address": addr.split(":")[-1],
@@ -136,6 +130,7 @@ def smart_money_tracker(chain: str = "ethereum", fingerprint: str = "anon") -> d
         "auth": auth,
         "mcp": "rmi-smart-money",
     }
+
 
 # ═══════════════════════════════════════════════════
 # MCP #4: MEV/SANDWICH DETECTION
@@ -160,14 +155,13 @@ def mev_detector(address: str = "", chain: str = "ethereum", fingerprint: str = 
                     b = tx.get("blockNumber", "")
                     blocks[b] = blocks.get(b, 0) + 1
                 result["sandwich_risk"] = "medium" if any(v > 2 for v in blocks.values()) else "low"
-                result["mev_exposure"] = min(
-                    1.0, sum(1 for v in blocks.values() if v > 2) / max(len(blocks), 1)
-                )
+                result["mev_exposure"] = min(1.0, sum(1 for v in blocks.values() if v > 2) / max(len(blocks), 1))
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["auth"] = auth
     result["mcp"] = "rmi-mev-detector"
     return result
+
 
 # ═══════════════════════════════════════════════════
 # MCP #5: NARRATIVE DETECTION
@@ -202,6 +196,7 @@ def narrative_detector(fingerprint: str = "anon") -> dict:
         "mcp": "rmi-narrative",
     }
 
+
 # ═══════════════════════════════════════════════════
 # MCP #6: CROSS-CHAIN ARBITRAGE SCANNER
 # ═══════════════════════════════════════════════════
@@ -233,6 +228,7 @@ def arbitrage_scanner(token: str = "ETH", fingerprint: str = "anon") -> dict:
         "mcp": "rmi-arbitrage",
     }
 
+
 # ═══════════════════════════════════════════════════
 # MCP #7: CONTRACT AUDIT QUICK-SCAN
 # ═══════════════════════════════════════════════════
@@ -262,14 +258,13 @@ def quick_audit(address: str, chain: str = "ethereum", fingerprint: str = "anon"
                     float(result.get("sell_tax", "0")) > 5,
                 ]
             )
-            result["verdict"] = (
-                "SAFE" if red_flags == 0 else ("CAUTION" if red_flags == 1 else "DANGER")
-            )
+            result["verdict"] = "SAFE" if red_flags == 0 else ("CAUTION" if red_flags == 1 else "DANGER")
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     result["auth"] = auth
     result["mcp"] = "rmi-quick-audit"
     return result
+
 
 # ═══════════════════════════════════════════════════
 # MCP #8: PORTFOLIO RISK SCORER
@@ -298,12 +293,11 @@ def portfolio_risk(address: str, fingerprint: str = "anon") -> dict:
             risk["risk_score"] += 20
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
-    risk["risk_level"] = (
-        "LOW" if risk["risk_score"] < 20 else ("MEDIUM" if risk["risk_score"] < 50 else "HIGH")
-    )
+    risk["risk_level"] = "LOW" if risk["risk_score"] < 20 else ("MEDIUM" if risk["risk_score"] < 50 else "HIGH")
     risk["auth"] = auth
     risk["mcp"] = "rmi-portfolio-risk"
     return risk
+
 
 # Registry
 PREMIUM_MCP = {

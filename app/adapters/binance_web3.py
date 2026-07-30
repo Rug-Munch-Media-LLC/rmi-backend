@@ -34,6 +34,7 @@ _HEADERS = {
     "clientversion": "1.2.0",
 }
 
+
 def _get(url, params=None, timeout=10) -> Any | None:
     resp = httpx.get(url, params=params, headers=_HEADERS, timeout=timeout)
     resp.raise_for_status()
@@ -41,6 +42,7 @@ def _get(url, params=None, timeout=10) -> Any | None:
     if data.get("code") != "000000":
         raise ConnectionError(f"API error: {data.get('message', 'unknown')}")
     return data.get("data", {})
+
 
 def get_wallet_holdings(address: str, chain_id: str) -> list:
     """
@@ -54,9 +56,7 @@ def get_wallet_holdings(address: str, chain_id: str) -> list:
         List of token dicts with: symbol, name, price, remainQty,
         percentChange24h, contractAddress, riskLevel
     """
-    url = (
-        f"{BASE_URL}/bapi/defi/v3/public/wallet-direct/buw/wallet/address/pnl/active-position-list"
-    )
+    url = f"{BASE_URL}/bapi/defi/v3/public/wallet-direct/buw/wallet/address/pnl/active-position-list"
     all_tokens = []
     offset = 0
 

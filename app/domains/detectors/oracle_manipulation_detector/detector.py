@@ -34,6 +34,7 @@ from .models import (
 
 logger = get_logger(__name__)
 
+
 class OracleManipulationDetector:
     """Main detector for oracle price manipulation attacks."""
 
@@ -80,7 +81,7 @@ class OracleManipulationDetector:
                 combined_report.oracle_reads.extend(report.oracle_reads)
                 combined_report.pools_checked += report.pools_checked
                 combined_report.errors.extend(report.errors)
-            except (ValueError, TypeError, KeyError, OSError) as e :
+            except (ValueError, TypeError, KeyError, OSError) as e:
                 logger.debug("scan_error", exc_info=True)
                 combined_report.errors.append(f"Chain {chain}: {e}")
 
@@ -124,7 +125,7 @@ class OracleManipulationDetector:
                     )
                     report.incidents.append(incident)
             report.pools_checked = 1
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError) as e:
             logger.debug("analyze_pool_error", exc_info=True)
             report.errors.append(f"Pool analysis error: {e}")
 
@@ -176,9 +177,7 @@ class OracleManipulationDetector:
             start_time=now,
             end_time=now,
         )
-        logger.info(
-            "Starting oracle manipulation scan on %s: scanning %d blocks", self.chain, blocks_back
-        )
+        logger.info("Starting oracle manipulation scan on %s: scanning %d blocks", self.chain, blocks_back)
 
         # 1. Simulate TWAP analysis for known pools
         for pair, pools in KNOWN_LP_POOLS.items():
@@ -229,7 +228,7 @@ class OracleManipulationDetector:
                                 evidence=[f"risk={risk:.2%}"],
                             )
                             report.incidents.append(incident)
-                except (KeyError, TypeError) as e :
+                except (KeyError, TypeError) as e:
                     logger.debug("unknown_error", exc_info=True)
                     report.errors.append(f"TWAP pool {pair}: {e}")
 
@@ -268,7 +267,7 @@ class OracleManipulationDetector:
                             evidence=[f"age={read.price_age_seconds:.0f}s", f"reported={read.reported_price}"],
                         )
                         report.incidents.append(incident)
-            except (KeyError, TypeError) as e :
+            except (KeyError, TypeError) as e:
                 logger.debug("unknown_error", exc_info=True)
                 report.errors.append(f"Chainlink check: {e}")
 
@@ -454,7 +453,11 @@ class OracleManipulationDetector:
                     expected_price=avg_price,
                     deviation_pct=max_deviation * 100,
                     description=f"Cross-pool price divergence: {worst_label} deviates {max_deviation:.2%} from {pair} average",
-                    evidence=[f"pool_prices={json.dumps(prices)}", f"avg={avg_price:.4f}", f"max_dev={max_deviation:.4%}"],
+                    evidence=[
+                        f"pool_prices={json.dumps(prices)}",
+                        f"avg={avg_price:.4f}",
+                        f"max_dev={max_deviation:.4%}",
+                    ],
                 )
             )
 
@@ -499,9 +502,7 @@ class OracleManipulationDetector:
             protocol="Chainlink",
         )
 
-    async def _detect_flash_loan_swap_manipulation(
-        self, blocks_back: int
-    ) -> list[PriceManipulation]:
+    async def _detect_flash_loan_swap_manipulation(self, blocks_back: int) -> list[PriceManipulation]:
         """Detect flash loan-backed price manipulation patterns (simulated)."""
         incidents: list[PriceManipulation] = []
         for _ in range(blocks_back // 10):
@@ -564,5 +565,6 @@ class OracleManipulationDetector:
             )
 
         return None
+
 
 __all__ = ["OracleManipulationDetector"]

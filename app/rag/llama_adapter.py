@@ -76,8 +76,10 @@ class LlamaRAGAdapter:
             self.index.insert(doc)
         return len(docs)
 
+
 # Singleton
 _llama_rag = None
+
 
 def get_llama_rag() -> LlamaRAGAdapter | None:
     """Get LlamaIndex RAG adapter if enabled."""

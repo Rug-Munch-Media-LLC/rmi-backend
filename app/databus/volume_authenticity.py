@@ -34,6 +34,7 @@ CACHE_TTL = 600  # 10 minutes
 
 # ── Data Structures ────────────────────────────────────────────────
 
+
 class DetectionSignal:
     """A single detection signal from any layer."""
 
@@ -52,6 +53,7 @@ class DetectionSignal:
             "confidence": round(self.confidence, 3),
             "detail": self.detail,
         }
+
 
 class AuthenticityResult:
     """Complete volume authenticity analysis."""
@@ -89,7 +91,9 @@ class AuthenticityResult:
             "source": self.source,
         }
 
+
 # ── Layer 1: Statistical Detection ─────────────────────────────────
+
 
 def benfords_law_test(trade_sizes: list[float]) -> tuple[float, float, str]:
     """Benford's Law first-digit test. Returns (score 0-1, confidence, detail).
@@ -136,6 +140,7 @@ def benfords_law_test(trade_sizes: list[float]) -> tuple[float, float, str]:
     else:
         return 0.0, min(1.0, n / 500.0), f"Benford normal χ²={chi2:.1f}"
 
+
 def trade_size_clustering(trade_sizes: list[float]) -> tuple[float, float, str]:
     """Test for unnatural clustering at round numbers."""
     if len(trade_sizes) < 20:
@@ -159,6 +164,7 @@ def trade_size_clustering(trade_sizes: list[float]) -> tuple[float, float, str]:
         return score, min(1.0, len(trade_sizes) / 100.0), f"Round clustering {round_ratio:.0%}"
     return 0.0, min(1.0, len(trade_sizes) / 200.0), f"Normal clustering {round_ratio:.0%}"
 
+
 def inter_trade_timing(timestamps: list[float]) -> tuple[float, float, str]:
     """Bot-like regularity in trade timing (coefficient of variation)."""
     if len(timestamps) < 10:
@@ -181,7 +187,9 @@ def inter_trade_timing(timestamps: list[float]) -> tuple[float, float, str]:
         return 0.2, 0.5, f"Semi-regular CV={cv:.3f}"
     return 0.0, 0.6, f"Natural timing CV={cv:.3f}"
 
+
 # ── Layer 2: Graph-Based Detection ─────────────────────────────────
+
 
 def volume_liquidity_ratio(volume_24h: float, liquidity: float) -> tuple[float, float, str]:
     """Volume-to-liquidity ratio. >10x is critical wash trading indicator."""
@@ -196,6 +204,7 @@ def volume_liquidity_ratio(volume_24h: float, liquidity: float) -> tuple[float, 
     elif ratio > 2:
         return 0.3, 0.6, f"Elevated V/L={ratio:.1f}x"
     return 0.0, 0.5, f"Normal V/L={ratio:.1f}x"
+
 
 def wallet_concentration_gini(wallet_volumes: dict[str, float]) -> tuple[float, float, str]:
     """Gini coefficient for wallet volume distribution."""
@@ -217,7 +226,9 @@ def wallet_concentration_gini(wallet_volumes: dict[str, float]) -> tuple[float, 
         return 0.5, min(1.0, n / 30.0), f"High concentration Gini={gini:.2f}"
     return 0.0, min(1.0, n / 20.0), f"Normal Gini={gini:.2f}"
 
+
 # ── Layer 3: Heuristic Detection ───────────────────────────────────
+
 
 def buy_sell_ratio_anomaly(buy_count: int, sell_count: int) -> tuple[float, float, str]:
     """Extreme buy/sell ratios suggest chart painting."""
@@ -234,6 +245,7 @@ def buy_sell_ratio_anomaly(buy_count: int, sell_count: int) -> tuple[float, floa
         return 0.4, min(1.0, total / 30.0), f"Suspicious ratio {buy_ratio:.0%} buy"
     return 0.0, min(1.0, total / 20.0), f"Normal ratio {buy_ratio:.0%} buy"
 
+
 def unique_wallets_check(unique_wallets: int) -> tuple[float, float, str]:
     """Low unique wallet count = likely wash trading cluster."""
     if unique_wallets < 10:
@@ -243,6 +255,7 @@ def unique_wallets_check(unique_wallets: int) -> tuple[float, float, str]:
     elif unique_wallets < 100:
         return 0.3, 0.5, f"Moderate: {unique_wallets} wallets"
     return 0.0, 0.7, f"Healthy: {unique_wallets} wallets"
+
 
 def tx_per_wallet(avg_tx_per_wallet: float) -> tuple[float, float, str]:
     """High tx per wallet suggests bot operations."""
@@ -254,7 +267,9 @@ def tx_per_wallet(avg_tx_per_wallet: float) -> tuple[float, float, str]:
         return 0.2, 0.5, f"Moderate: {avg_tx_per_wallet:.1f} tx/wallet"
     return 0.0, 0.5, f"Normal: {avg_tx_per_wallet:.1f} tx/wallet"
 
+
 # ── Composite Scorer ────────────────────────────────────────────────
+
 
 class VolumeAuthenticityScorer:
     """Multi-layer volume authenticity scoring.
@@ -417,7 +432,9 @@ class VolumeAuthenticityScorer:
             np.percentile(estimates, (1 - alpha / 2) * 100),
         )
 
+
 # ── DataBus Provider ────────────────────────────────────────────────
+
 
 def _redis_connect() -> Any:
     return redis.Redis(
@@ -428,9 +445,8 @@ def _redis_connect() -> Any:
         socket_connect_timeout=2,
     )
 
-async def analyze_volume_authenticity(
-    address: str = "", chain: str = "ethereum", **kw
-) -> dict | None:
+
+async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum", **kw) -> dict | None:
     """DataBus provider: Full fake volume analysis for a token pair.
 
     Collects trade data from available sources, runs through all 4 detection layers,
@@ -544,12 +560,14 @@ async def analyze_volume_authenticity(
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL, json.dumps(output, default=str))
         r.close()
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         pass
 
     return output
 
+
 # ── Quick helpers for standalone use ──
+
 
 def quick_authenticity_score(
     volume_24h: float,

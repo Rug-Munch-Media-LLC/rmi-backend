@@ -32,6 +32,7 @@ CACHE_TTL_METRICS = 3600  # 1h - engagement changes
 CACHE_TTL_PROFILE = 86400  # 24h
 CACHE_TTL_DISCOVERY = 21600  # 6h - new tweet discovery
 
+
 class XWebScraper:
     """
     X/Twitter data via web search + extract. No API needed.
@@ -103,8 +104,7 @@ class XWebScraper:
         tweet_urls = [
             t["url"]
             for t in all_tweets.values()
-            if "CryptoRugMunch/status/" in t["url"]
-            or "twitter.com/CryptoRugMunch/status/" in t["url"]
+            if "CryptoRugMunch/status/" in t["url"] or "twitter.com/CryptoRugMunch/status/" in t["url"]
         ]
 
         if tweet_urls:
@@ -287,6 +287,7 @@ class XWebScraper:
 
         return report
 
+
 # Convenience function for cron jobs
 async def run_social_scan() -> dict[str, int]:
     """Run a full social scan - called by cron every 6 hours."""
@@ -311,9 +312,7 @@ async def run_social_scan() -> dict[str, int]:
 
     # Generate engagement report
     report = await scraper.get_engagement_report()
-    logger.info(
-        f"Social scan: engagement report - avg {report.get('avg_likes_per_tweet', 0)} likes/tweet"
-    )
+    logger.info(f"Social scan: engagement report - avg {report.get('avg_likes_per_tweet', 0)} likes/tweet")
 
     return {
         "tweets_found": len(tweets),

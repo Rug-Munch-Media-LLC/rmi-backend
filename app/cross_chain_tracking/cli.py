@@ -49,9 +49,9 @@ async def cmd_run(args: argparse.Namespace) -> int:
     links = result.get("wallet_links_created", 0)
     errors = result.get("errors", [])
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Cross-Chain Batch Pipeline Results")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Duration:           {duration:.1f}ms")
     print(f"  Multi-chain found:  {found}")
     print(f"  Entities created:   {created}")
@@ -63,7 +63,7 @@ async def cmd_run(args: argparse.Namespace) -> int:
             print(f"    - {err}")
     if args.dry_run:
         print("\n  DRY RUN — no changes persisted")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     return 0 if not errors else 1
 
@@ -76,9 +76,9 @@ async def cmd_stats(args: argparse.Namespace) -> int:
     chains = await fetch_chains_with_data()
     counts = await fetch_deployment_counts_by_chain(limit=30)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Cross-Chain Statistics")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     print(f"\n  Chains with deployer data: {len(chains)}")
     for c in sorted(chains):
@@ -102,7 +102,7 @@ async def cmd_stats(args: argparse.Namespace) -> int:
     for k in sorted(buckets):
         print(f"    {k} chains: {buckets[k]:>8,} deployers")
 
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
     return 0
 
 
@@ -113,9 +113,9 @@ async def cmd_resolve(args: argparse.Namespace) -> int:
     tracker = get_entity_tracker()
     profile = await tracker.resolve(args.address, args.chain)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Cross-Chain Profile")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Entity ID:      {profile.entity_id}")
     print(f"  Primary:        {profile.primary_address[:20]}... on {profile.primary_chain}")
     print(f"  Chains:         {len(profile.chains)}")
@@ -126,7 +126,7 @@ async def cmd_resolve(args: argparse.Namespace) -> int:
     print("\n  Addresses:")
     for addr in profile.addresses:
         print(f"    {addr.address[:24]:24s}  {addr.chain:12s}  {addr.confidence:.0%}  {addr.method}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
     return 0
 
 

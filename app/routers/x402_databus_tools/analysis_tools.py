@@ -30,6 +30,7 @@ logger = get_logger("x402_databus_tools")
 
 # ── BASIC TIER — Analysis ────────────────────────────────────────
 
+
 @router.post("/rugmap")
 async def x402_rugmap(req: AddressDepthRequest, request: Request) -> Any:
     """Holder RugMap. $0.02/call."""
@@ -44,6 +45,7 @@ async def x402_rugmap(req: AddressDepthRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
+
 @router.post("/rugmaps-analysis")
 async def x402_rugmaps_analysis(req: AddressRequest, request: Request) -> Any:
     """RugMaps AI holder analysis. $0.02/call."""
@@ -56,6 +58,7 @@ async def x402_rugmaps_analysis(req: AddressRequest, request: Request) -> Any:
         x402_tier="basic",
     )
     return _clean_response(result) or {"error": "no_data"}
+
 
 @router.post("/risk-scan")
 async def x402_risk_scan(req: AddressRequest, request: Request) -> Any:
@@ -70,6 +73,7 @@ async def x402_risk_scan(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
+
 @router.post("/threat-check")
 async def x402_threat_check(req: AddressRequest, request: Request) -> Any:
     """Threat intel check. $0.02/call."""
@@ -83,7 +87,9 @@ async def x402_threat_check(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
+
 # ── PREMIUM TIER — Deep Analysis ─────────────────────────────────
+
 
 @router.post("/contract-scan")
 async def x402_contract_scan(req: AddressRequest, request: Request) -> Any:
@@ -98,6 +104,7 @@ async def x402_contract_scan(req: AddressRequest, request: Request) -> Any:
         **payment,
     )
     return _clean_response(result) or {"error": "no_data"}
+
 
 @router.post("/sentinel-deep")
 async def x402_sentinel_deep(req: AddressRequest, request: Request) -> Any:
@@ -115,6 +122,7 @@ async def x402_sentinel_deep(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
+
 @router.post("/entity-intel")
 async def x402_entity_intel(req: AddressRequest, request: Request) -> Any:
     """Entity intelligence lookup. $0.10/call."""
@@ -130,6 +138,7 @@ async def x402_entity_intel(req: AddressRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
+
 @router.post("/rag-search")
 async def x402_rag_search(req: QueryRequest, request: Request) -> Any:
     """Knowledge search engine. $0.05/call."""
@@ -139,8 +148,10 @@ async def x402_rag_search(req: QueryRequest, request: Request) -> Any:
     )
     return _clean_response(result) or {"error": "no_data"}
 
+
 # ── UNIVERSAL DATA ENDPOINT ───────────────────────────────────────
 # Single endpoint that accepts any data_type. Payment based on tier pricing.
+
 
 @router.post("/fetch")
 async def x402_universal_fetch(req: GenericDataRequest, request: Request) -> Any:

@@ -19,11 +19,13 @@ from app.domains.tokens.deployer.tron import TronDeployer
 # ── Singleton instance ──
 _storage: DeploymentStorage | None = None
 
+
 async def get_storage() -> DeploymentStorage:
     global _storage
     if _storage is None:
         _storage = DeploymentStorage()
     return _storage
+
 
 __all__ = [
     "ChainDeployer",

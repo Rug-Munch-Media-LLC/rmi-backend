@@ -16,6 +16,7 @@ async def get_token_risk(token_address: str, chain: str = "ethereum") -> dict[st
         "notes": "Token risk analysis - full implementation in x402_tools.py",
     }
 
+
 async def get_token_info(token_address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Get basic token info."""
     return {
@@ -26,6 +27,7 @@ async def get_token_info(token_address: str, chain: str = "ethereum") -> dict[st
         "decimals": 0,
         "total_supply": 0,
     }
+
 
 async def deep_contract_audit(token_address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Deep contract audit."""

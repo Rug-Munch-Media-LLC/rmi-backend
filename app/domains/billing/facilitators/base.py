@@ -26,11 +26,13 @@ from app.core.logging import get_logger
 
 logger = get_logger("facilitator_base")
 
+
 class FacilitatorType(Enum):
     """Type of facilitator - hosted (external) or self-hosted."""
 
     HOSTED = "hosted"
     SELF_HOSTED = "self_hosted"
+
 
 class SettlementType(Enum):
     """How the facilitator settles payments."""
@@ -40,6 +42,7 @@ class SettlementType(Enum):
     PRECONFIRMATION = "preconf"  # mev-commit preconfirmations (Primev)
     FEE_FREE = "fee_free"  # No settlement fee (Primev)
     OFF_RAMP = "off_ramp"  # Fiat conversion (AsterPay EUR/SEPA)
+
 
 @dataclass
 class NetworkSupport:
@@ -51,6 +54,7 @@ class NetworkSupport:
     tokens: list[str] = field(default_factory=list)  # e.g. ["USDC", "USDT", "USDD"]
     native_tokens: list[str] = field(default_factory=list)  # e.g. ["ETH", "SOL", "TRX"]
     token_addresses: dict[str, str] = field(default_factory=dict)  # symbol → address by chain
+
 
 @dataclass
 class VerificationResult:
@@ -87,6 +91,7 @@ class VerificationResult:
             "extra": self.extra,
         }
 
+
 @dataclass
 class SettlementResult:
     """Result of settlement execution."""
@@ -111,6 +116,7 @@ class SettlementResult:
             "reason": self.reason,
             "extra": self.extra,
         }
+
 
 class Facilitator(ABC):
     """
@@ -271,6 +277,7 @@ class Facilitator(ABC):
             extra=extra,
         )
 
+
 class FacilitatorRegistry:
     """
     Registry of all available facilitators.
@@ -340,9 +347,7 @@ class FacilitatorRegistry:
         return {
             "total_facilitators": len(all_f),
             "hosted": sum(1 for f in all_f if f.facilitator_type == FacilitatorType.HOSTED),
-            "self_hosted": sum(
-                1 for f in all_f if f.facilitator_type == FacilitatorType.SELF_HOSTED
-            ),
+            "self_hosted": sum(1 for f in all_f if f.facilitator_type == FacilitatorType.SELF_HOSTED),
             "fee_free": sum(1 for f in all_f if f.is_fee_free),
             "chains_covered": list(self._by_chain.keys()),
             "chain_coverage": self.chain_coverage,
@@ -360,10 +365,12 @@ class FacilitatorRegistry:
             ],
         }
 
+
 # ── Global registry instance ────────────────────────────────────
 # Imported and populated at startup from app startup handler
 
 _registry: FacilitatorRegistry | None = None
+
 
 def get_registry() -> FacilitatorRegistry:
     """Get or create the global facilitator registry."""
@@ -371,6 +378,7 @@ def get_registry() -> FacilitatorRegistry:
     if _registry is None:
         _registry = FacilitatorRegistry()
     return _registry
+
 
 def reset_registry() -> None:
     """Reset the global registry (for testing)."""

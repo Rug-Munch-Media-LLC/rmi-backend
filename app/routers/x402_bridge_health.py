@@ -52,6 +52,7 @@ VALID_BRIDGES = {
 
 # ── Redis Helpers ────────────────────────────────────────────────
 
+
 def _redis() -> Any:
     import redis as _r
 
@@ -63,6 +64,7 @@ def _redis() -> Any:
         socket_connect_timeout=2,
         socket_timeout=2,
     )
+
 
 def _cache_get(key: str) -> dict | None:
     try:
@@ -78,6 +80,7 @@ def _cache_get(key: str) -> dict | None:
         logger.warning(f"Cache read error for key={key}: {e}")
         return None
 
+
 def _cache_set(key: str, result: dict, ttl: int = 60) -> None:
     try:
         r = _redis()
@@ -87,8 +90,10 @@ def _cache_set(key: str, result: dict, ttl: int = 60) -> None:
     except Exception as e:
         logger.warning(f"Cache write error for key={key}: {e}")
 
+
 def _trial_key(wallet: str) -> str:
     return f"x402:bridge_health_trials:{wallet}"
+
 
 def _check_trial(wallet: str) -> int:
     """Return remaining free trials for this wallet."""
@@ -103,6 +108,7 @@ def _check_trial(wallet: str) -> int:
     except Exception as e:
         logger.warning(f"Trial check error for {wallet}: {e}")
         return 0
+
 
 def _use_trial(wallet: str) -> int:
     """Increment trial counter, return remaining."""
@@ -120,6 +126,7 @@ def _use_trial(wallet: str) -> int:
         logger.warning(f"Trial use error for {wallet}: {e}")
         return 0
 
+
 def _record_payment(tool: str, amount: str, customer: str, tx: str = "") -> None:
     """Log payment for audit trail."""
     try:
@@ -136,7 +143,9 @@ def _record_payment(tool: str, amount: str, customer: str, tx: str = "") -> None
     except Exception as e:
         logger.warning(f"Payment record error: {e}")
 
+
 # ── Request / Response Models ────────────────────────────────────
+
 
 class BridgeHealthRequest(BaseModel):
     bridge: str | None = Field(
@@ -176,6 +185,7 @@ class BridgeHealthRequest(BaseModel):
                 raise ValueError("Wallet address too short")
         return v
 
+
 class BridgeHealthResponse(BaseModel):
     tool: str = "Cross-Chain Bridge Health & Exploit Monitor"
     version: str = "1.0"
@@ -193,7 +203,9 @@ class BridgeHealthResponse(BaseModel):
     remaining_trials: int = 0
     pricing: dict[str, Any] = {}
 
+
 # ── Endpoint ─────────────────────────────────────────────────────
+
 
 @router.post("/bridge_health")
 async def bridge_health_scan(req: BridgeHealthRequest) -> Any:

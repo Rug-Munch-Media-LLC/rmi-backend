@@ -8,6 +8,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.response_schema")
 
+
 class SchemaValidator:
     """Lightweight schema validation for DataBus responses.
 
@@ -90,6 +91,7 @@ class SchemaValidator:
             result["schema_missing"] = missing
             logger.warning(f"Schema validation failed for {data_type}: missing {missing}")
         return result
+
 
 # Module-level singleton instance
 schema_validator = SchemaValidator()

@@ -34,6 +34,7 @@ from app.routers.scam_school.progress import (
 
 progress_router = APIRouter(tags=["scam-school"])
 
+
 @progress_router.get("/scam-school/progress")
 async def get_progress(request: Request) -> dict:
     """Get current user's full progress."""
@@ -59,10 +60,9 @@ async def get_progress(request: Request) -> dict:
         "time_spent_total_minutes": progress.time_spent_total_minutes,
     }
 
+
 @progress_router.post("/scam-school/lessons/{course_id}/{lesson_id}/complete")
-async def complete_lesson(
-    course_id: str, lesson_id: str, req: LessonComplete, request: Request
-) -> dict:
+async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, request: Request) -> dict:
     """Mark a lesson as complete and award XP."""
     user = await get_current_user(request)
     if not user:
@@ -151,6 +151,7 @@ async def complete_lesson(
         "level": _calculate_level(progress.total_xp),
         "streak": progress.streak_days,
     }
+
 
 @progress_router.post("/scam-school/exams/{course_id}/{exam_id}")
 async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Request) -> dict:
@@ -269,6 +270,7 @@ async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Re
         "achievements": new_achievements,
         "level": _calculate_level(progress.total_xp),
     }
+
 
 @progress_router.get("/scam-school/leaderboard")
 async def get_leaderboard(limit: int = Query(50, ge=1, le=100)) -> dict:

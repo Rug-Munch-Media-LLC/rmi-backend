@@ -23,14 +23,17 @@ router = APIRouter(prefix="/api/v1/wallet", tags=["wallet-memory"])
 
 # ── Request/Response models ────────────────────────────────────
 
+
 class WalletProfileRequest(BaseModel):
     address: str
     chain: str = "solana"
     depth: int = Field(default=1, ge=1, le=5, description="Cluster exploration depth")
 
+
 class DeployerIntelRequest(BaseModel):
     address: str
     chain: str = "solana"
+
 
 class FlagDeployerRequest(BaseModel):
     address: str
@@ -39,14 +42,17 @@ class FlagDeployerRequest(BaseModel):
     token: str = ""
     score: float = Field(default=0, ge=0, le=100)
 
+
 class SearchRequest(BaseModel):
     query: str
     chain: str = ""
     limit: int = Field(default=20, ge=1, le=100)
 
+
 class FeedTransactionsRequest(BaseModel):
     transactions: list[dict[str, Any]]
     chain_id: str = "solana"
+
 
 class BridgeLinkRequest(BaseModel):
     source_address: str
@@ -57,14 +63,18 @@ class BridgeLinkRequest(BaseModel):
     tx_hash: str
     confidence: float = Field(default=1.0, ge=0, le=1.0)
 
+
 # ── Engine helper ────────────────────────────────────────────────
+
 
 def _get_engine() -> Any:
     from .engine import get_wallet_engine
 
     return get_wallet_engine()
 
+
 # ── Endpoints ───────────────────────────────────────────────────
+
 
 @router.get("/{address}/profile")
 async def get_wallet_profile(
@@ -80,6 +90,7 @@ async def get_wallet_profile(
     profile = await engine.get_wallet_profile(address, chain, depth)
     return profile
 
+
 @router.post("/deployer-intel")
 async def get_deployer_intelligence(req: DeployerIntelRequest) -> Any:
     """
@@ -89,6 +100,7 @@ async def get_deployer_intelligence(req: DeployerIntelRequest) -> Any:
     engine = _get_engine()
     intel = await engine.get_deployer_intelligence(req.address, req.chain)
     return intel
+
 
 @router.post("/flag-deployer")
 async def flag_deployer(req: FlagDeployerRequest) -> dict:
@@ -100,12 +112,14 @@ async def flag_deployer(req: FlagDeployerRequest) -> dict:
     success = await engine.flag_deployer(req.address, req.chain, req.reason, req.token, req.score)
     return {"flagged": success, "address": req.address, "chain": req.chain}
 
+
 @router.post("/search")
 async def search_wallets(req: SearchRequest) -> dict:
     """Search wallets by address prefix, label, or entity name."""
     engine = _get_engine()
     results = await engine.search_wallets(req.query, req.chain, req.limit)
     return {"query": req.query, "results": results, "count": len(results)}
+
 
 @router.get("/{address}/entity")
 async def get_entity(address: str, chain: str = Query(default="solana")) -> Any:
@@ -118,6 +132,7 @@ async def get_entity(address: str, chain: str = Query(default="solana")) -> Any:
     resolver = get_entity_resolver()
     entity = await resolver.resolve(address, chain)
     return entity
+
 
 @router.post("/bridge-link")
 async def create_bridge_link(req: BridgeLinkRequest) -> dict:
@@ -138,6 +153,7 @@ async def create_bridge_link(req: BridgeLinkRequest) -> dict:
     )
     return {"entity_id": entity_id, "linked": True}
 
+
 @router.post("/feed-transactions")
 async def feed_transactions(req: FeedTransactionsRequest) -> dict[str, int]:
     """
@@ -149,12 +165,14 @@ async def feed_transactions(req: FeedTransactionsRequest) -> dict[str, int]:
     stats = engine.clustering.get_stats()
     return {"fed": len(req.transactions), "engine_stats": stats}
 
+
 @router.post("/persist-clusters")
 async def persist_clusters() -> dict:
     """Run all clustering heuristics and persist results to storage."""
     engine = _get_engine()
     persisted = await engine.persist_clusters()
     return {"persisted": persisted}
+
 
 @router.get("/{address}/risk")
 async def get_wallet_risk(
@@ -175,6 +193,7 @@ async def get_wallet_risk(
         "warnings": [],
     }
 
+
 @router.get("/stats")
 async def wallet_memory_stats() -> dict[str, str]:
     """Get Wallet Memory Bank statistics."""
@@ -185,6 +204,7 @@ async def wallet_memory_stats() -> dict[str, str]:
         "clustering": cluster_stats,
         "label_sources": 9,
     }
+
 
 @router.get("/health")
 async def wallet_memory_health() -> dict[str, str]:
@@ -206,6 +226,7 @@ async def wallet_memory_health() -> dict[str, str]:
         },
     }
 
+
 @router.post("/labels/reload")
 async def reload_static_labels() -> dict[str, str]:
     """
@@ -223,6 +244,7 @@ async def reload_static_labels() -> dict[str, str]:
         "counts": counts,
     }
 
+
 @router.get("/labels/stats")
 async def label_stats() -> dict:
     """
@@ -235,7 +257,9 @@ async def label_stats() -> dict:
         "last_counts": get_last_load_counts(),
     }
 
+
 # ── Fast Label Lookup ───────────────────────────────────────────
+
 
 @router.get("/{address}/labels")
 async def get_wallet_labels(
@@ -278,6 +302,7 @@ async def get_wallet_labels(
         "queried_at": datetime.now(UTC).isoformat(),
     }
 
+
 @router.post("/labels/batch")
 async def batch_label_lookup(request: dict) -> dict[str, int]:
     """Bulk lookup - query up to 100 addresses at once."""
@@ -305,6 +330,7 @@ async def batch_label_lookup(request: dict) -> dict[str, int]:
         "results": results,
         "chain": chain or "auto",
     }
+
 
 @router.get("/labels/freshness")
 async def label_freshness_stats() -> Any:

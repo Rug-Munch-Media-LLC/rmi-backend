@@ -117,12 +117,14 @@ KEY_REGISTRY = {
     ],
 }
 
+
 class KeyState(Enum):
     ACTIVE = "active"
     RATE_LIMITED = "rate_limited"
     DISABLED = "disabled"
     ERROR = "error"
     EXHAUSTED = "exhausted"  # monthly quota hit
+
 
 @dataclass
 class ManagedKey:
@@ -222,10 +224,9 @@ class ManagedKey:
             "rate_limited_for_secs": max(0, round(self.rate_limited_until - time.monotonic(), 1))
             if self.state == KeyState.RATE_LIMITED
             else 0,
-            "last_used_ago_secs": round(time.monotonic() - self.last_used, 1)
-            if self.last_used
-            else 0,
+            "last_used_ago_secs": round(time.monotonic() - self.last_used, 1) if self.last_used else 0,
         }
+
 
 class VaultKeyPool:
     """
@@ -234,9 +235,7 @@ class VaultKeyPool:
     Zero key exposure in logs, responses, or error messages.
     """
 
-    def __init__(
-        self, provider: str, rate_rps: float = 10.0, burst: int = 15, monthly_quota: int = 0
-    ) -> None:
+    def __init__(self, provider: str, rate_rps: float = 10.0, burst: int = 15, monthly_quota: int = 0) -> None:
         self.provider = provider
         self.rate_rps = rate_rps
         self.burst = burst
@@ -297,6 +296,7 @@ class VaultKeyPool:
             "keys": [k.status() for k in self.keys],
         }
 
+
 class DataBusVault:
     """
     Central vault for all API keys. Loads from GPG pass store,
@@ -356,9 +356,7 @@ class DataBusVault:
             for env_name, vault_path in key_defs:
                 value = await self._get_key(env_name, vault_path)
                 if value and value not in ("", "your_key_here", "***"):
-                    pool.add_key(
-                        env_name, value, source="vault" if self._vault_available else "env"
-                    )
+                    pool.add_key(env_name, value, source="vault" if self._vault_available else "env")
 
             if pool.keys:
                 self.pools[provider] = pool
@@ -410,7 +408,7 @@ class DataBusVault:
                     val = result.stdout.strip()
                     if val and val not in ("", "None", "***"):
                         return val
-            except (subprocess.TimeoutExpired):
+            except subprocess.TimeoutExpired:
                 pass  # Vault unavailable, fall back to env
 
         # Fallback to env var
@@ -489,9 +487,7 @@ class DataBusVault:
 
         return {
             "total_keys": sum(len(p.keys) for p in self.pools.values()),
-            "active_keys": sum(
-                sum(1 for k in p.keys if k.is_available()) for p in self.pools.values()
-            ),
+            "active_keys": sum(sum(1 for k in p.keys if k.is_available()) for p in self.pools.values()),
             "providers": providers,
             "bottlenecks": bottlenecks,
             "recommendations": recommendations,
@@ -527,9 +523,11 @@ class DataBusVault:
 
     arkham_ws_key: str = ""
 
+
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
 _vault: DataBusVault | None = None
+
 
 async def get_vault() -> DataBusVault:
     global _vault
@@ -537,6 +535,7 @@ async def get_vault() -> DataBusVault:
         _vault = DataBusVault()
         await _vault.load()
     return _vault
+
 
 def get_vault_sync() -> DataBusVault:
     """Synchronous access - vault must already be loaded."""

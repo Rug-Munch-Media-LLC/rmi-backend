@@ -206,6 +206,7 @@ FREE_PROVIDERS = {
     "rugcheck",
 }
 
+
 class RMICache:
     """Centralized cache with Redis primary + dict fallback + credit tracking."""
 
@@ -359,11 +360,9 @@ class RMICache:
                 self._mem_set(key, data, ttl)
                 # Track bytes saved
                 with contextlib.suppress(Exception):
-                    st["bytes_saved"] = st.get("bytes_saved", 0) + len(
-                        json.dumps(data, default=str)
-                    )
+                    st["bytes_saved"] = st.get("bytes_saved", 0) + len(json.dumps(data, default=str))
             return data
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             return None
 
     def get_stats(self) -> dict[str, Any]:
@@ -421,6 +420,7 @@ class RMICache:
         except (ConnectionError, OSError):
             pass
         self._memory.pop(key, None)
+
 
 # Singleton instance
 cache = RMICache()

@@ -1,4 +1,5 @@
 """Wallet Monitor — Watchlist Manager."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -41,9 +42,14 @@ class WatchlistManager:
         for w, score in wallets:
             tk = f"{CONFIG['WATCHLIST_KEY']}:{chain}:tags:{w}"
             tags = await r.smembers(tk) if r else set()
-            result.append({"wallet": w, "chain": chain,
-                           "subscribed_at": datetime.fromtimestamp(score, tz=UTC).isoformat(),
-                           "tags": list(tags)})
+            result.append(
+                {
+                    "wallet": w,
+                    "chain": chain,
+                    "subscribed_at": datetime.fromtimestamp(score, tz=UTC).isoformat(),
+                    "tags": list(tags),
+                }
+            )
         return result
 
     @staticmethod

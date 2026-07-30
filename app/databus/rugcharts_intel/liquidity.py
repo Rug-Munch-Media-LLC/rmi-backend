@@ -16,6 +16,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 
+
 async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Monitor liquidity pool health: LP lock, concentration, removal risk.
     Critical for rug pull prevention - the #1 thing degens need to check.
@@ -63,11 +64,7 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
                     total_supply = sum(float(h.get("amount", 0)) for h in holders)
                     lp_holders_list = []
                     for h in holders[:10]:
-                        pct = (
-                            (float(h.get("amount", 0)) / total_supply * 100)
-                            if total_supply > 0
-                            else 0
-                        )
+                        pct = (float(h.get("amount", 0)) / total_supply * 100) if total_supply > 0 else 0
                         lp_holders_list.append(
                             {
                                 "address": h.get("address", "")[:12] + "...",

@@ -38,6 +38,7 @@ try:
 except (ConnectionError, OSError):
     pass
 
+
 def _cache_get(key: str) -> str | None:
     if REDIS_AVAILABLE:
         try:
@@ -46,26 +47,29 @@ def _cache_get(key: str) -> str | None:
             pass
     return None
 
+
 def _cache_set(key: str, value: str, ttl: int = 300) -> None:
     if REDIS_AVAILABLE:
         with contextlib.suppress(BaseException):
             _redis.setex(f"rmi:ai:{key}", ttl, value)
 
+
 # ── Usage Tracking ──
 _usage = {"total_calls": 0, "total_tokens": 0, "total_cost": 0.0}
+
 
 def _track(prompt_tokens: int, completion_tokens: int, cost: float) -> None:
     _usage["total_calls"] += 1
     _usage["total_tokens"] += prompt_tokens + completion_tokens
     _usage["total_cost"] += cost
 
+
 def usage_stats() -> dict:
     return {**_usage, "timestamp": datetime.now(UTC).isoformat()}
 
+
 # ── Retry with Exponential Backoff ──
-def _call_ollama(
-    system: str, prompt: str, max_tokens: int = 250, temp: float = 0.3, cache_ttl: int = 300
-) -> str:
+def _call_ollama(system: str, prompt: str, max_tokens: int = 250, temp: float = 0.3, cache_ttl: int = 300) -> str:
     cache_key = hashlib.sha256(f"{system[:60]}|{prompt[:120]}".encode()).hexdigest()
     cached = _cache_get(cache_key)
     if cached:
@@ -108,7 +112,9 @@ def _call_ollama(
                 logger.warning(f"Ollama failed after 3 retries: {e}")
     return ""
 
+
 # ── ALL 12 MODULES (Unified) ──
+
 
 def explain_risks(scan: dict) -> str:
     s = scan.get("safety_score", 50)
@@ -123,6 +129,7 @@ def explain_risks(scan: dict) -> str:
         600,
     )
     return r or f"<b>Safety: {s}/100</b>. Risk flags: {', '.join(f[:3])}. Always DYOR."
+
 
 def classify_news(title: str, content: str = "") -> str:
     r = _call_ollama(
@@ -142,6 +149,7 @@ def classify_news(title: str, content: str = "") -> str:
         return "MARKET"
     return "GENERAL"
 
+
 def profile_wallet(tx: dict) -> str:
     return (
         _call_ollama(
@@ -152,21 +160,18 @@ def profile_wallet(tx: dict) -> str:
         or "Unknown|0"
     )
 
+
 def enrich_rag(query: str, docs: str) -> str:
     return (
-        _call_ollama(
-            "Reformat RAG chunks into 2-3 sentence answer.", f"Q:{query}\nD:{docs[:2000]}", 200
-        )
-        or docs[:400]
+        _call_ollama("Reformat RAG chunks into 2-3 sentence answer.", f"Q:{query}\nD:{docs[:2000]}", 200) or docs[:400]
     )
 
+
 def rank_alerts(alerts: list) -> list:
-    s = "\n".join(
-        f"{a.get('id', '?')}|{a.get('severity', '?')}|{str(a.get('title', ''))[:80]}"
-        for a in alerts[:10]
-    )
+    s = "\n".join(f"{a.get('id', '?')}|{a.get('severity', '?')}|{str(a.get('title', ''))[:80]}" for a in alerts[:10])
     r = _call_ollama("Rank by urgency. Reply: id1,id2,id3...", s, 50)
     return [x.strip() for x in r.split(",") if x.strip()] if r else []
+
 
 def briefing(data: dict) -> str:
     return (
@@ -180,6 +185,7 @@ def briefing(data: dict) -> str:
         or "Briefing unavailable."
     )
 
+
 def post_mortem(incident: dict) -> str:
     return (
         _call_ollama(
@@ -192,11 +198,13 @@ def post_mortem(incident: dict) -> str:
         or "Autopsy unavailable."
     )
 
+
 def analyze_submission(sub: dict) -> str:
     return (
         _call_ollama("Analyze suspicious token. Verdict+2-3 concerns.", json.dumps(sub)[:1500], 200)
         or "Analysis unavailable."
     )
+
 
 def cross_chain(wallets: dict) -> str:
     return (
@@ -207,6 +215,7 @@ def cross_chain(wallets: dict) -> str:
         )
         or "Unknown"
     )
+
 
 def blog_draft(topic: str, data: dict) -> str:
     return (
@@ -220,13 +229,13 @@ def blog_draft(topic: str, data: dict) -> str:
         or f"# {topic}\n\nDraft unavailable."
     )
 
+
 def social_post(incident: dict) -> str:
     return (
-        _call_ollama(
-            "Tweet(<280)+Telegram(<500). Hook first.", json.dumps(incident)[:1000], 200, 0.7
-        )
+        _call_ollama("Tweet(<280)+Telegram(<500). Hook first.", json.dumps(incident)[:1000], 200, 0.7)
         or "Post unavailable."
     )
+
 
 def compare_tokens(a: dict, b: dict) -> str:
     return (

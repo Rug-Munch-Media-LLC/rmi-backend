@@ -146,6 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_x402_tool ON x402_receipts(tool);
 CREATE INDEX IF NOT EXISTS idx_x402_agent ON x402_receipts(agent_id);
 """
 
+
 async def main() -> None:
     """Run the schema migration."""
     cfg = {
@@ -163,14 +164,13 @@ async def main() -> None:
         await conn.execute(SCHEMA)
         logger.info("✓ Schema applied")
         # Verify
-        tables = await conn.fetch(
-            "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"
-        )
+        tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")
         logger.info(f"Tables ({len(tables)}):")
         for t in tables:
             logger.info(f"  {t['tablename']}")
     finally:
         await conn.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

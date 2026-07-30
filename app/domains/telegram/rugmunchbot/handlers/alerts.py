@@ -4,6 +4,7 @@ RugMunchBot -- Alert engine + /alert and /alerts commands.
 
 Background price alert checker and alert management commands.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -42,6 +43,7 @@ DIRECTION_LABELS = {
     "any": "\U0001f504 significant change",
 }
 
+
 async def _fetch_prices_batch(addresses: list[str]) -> dict[str, float]:
     """Fetch current USD prices for a list of token addresses from DexScreener."""
     prices: dict[str, float] = {}
@@ -63,6 +65,7 @@ async def _fetch_prices_batch(addresses: list[str]) -> dict[str, float]:
         logger.warning(f"Batch price fetch error: {e}")
     return prices
 
+
 def _check_alert_condition(current_price: float, alert_price: float, direction: str) -> bool:
     if current_price <= 0 or alert_price <= 0:
         return False
@@ -75,6 +78,7 @@ def _check_alert_condition(current_price: float, alert_price: float, direction: 
     elif direction == "any":
         return abs((current_price - alert_price) / alert_price) * 100 >= 2.0
     return False
+
 
 async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Background job: check all active price alerts and fire notifications."""
@@ -124,7 +128,9 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         change_pct = abs((current_price - target_price) / target_price) * 100 if target_price > 0 else 0.0
 
-        direction_emoji = "\U0001f4c8" if direction == "above" else "\U0001f4c9" if direction == "below" else "\U0001f4ca"
+        direction_emoji = (
+            "\U0001f4c8" if direction == "above" else "\U0001f4c9" if direction == "below" else "\U0001f4ca"
+        )
         direction_label = DIRECTION_LABELS.get(direction, direction)
 
         text = (
@@ -138,9 +144,11 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
             f"{footer_links()}"
         )
 
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("\u2705 Dismiss", callback_data=f"dismiss_alert_{alert['id']}")],
-        ])
+        kb = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("\u2705 Dismiss", callback_data=f"dismiss_alert_{alert['id']}")],
+            ]
+        )
 
         try:
             await context.bot.send_message(
@@ -151,7 +159,7 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
                 disable_web_page_preview=True,
             )
             sent_count += 1
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Failed to send alert to user {user_id}: {e}")
             continue
@@ -163,7 +171,9 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
         f"{len(triggered) - sent_count - rate_limited} failed"
     )
 
+
 # --- Alert commands ---
+
 
 async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """View active and triggered alerts."""
@@ -186,8 +196,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     items = db.get_watchlist_for_user(user.id, include_triggered=True)
     active_alerts = [w for w in items if w.get("alert_price") and w.get("is_active")]
     triggered_alerts = [
-        w for w in items
-        if w.get("alert_price") and not w.get("is_active") and w.get("alert_triggered_at")
+        w for w in items if w.get("alert_price") and not w.get("is_active") and w.get("alert_triggered_at")
     ]
 
     if not active_alerts and not triggered_alerts:
@@ -233,6 +242,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
     )
+
 
 async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Set a price alert: /alert <ABOVE|BELOW> <address> <price>"""
@@ -330,7 +340,9 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
         )
     else:
-        ok = db.add_watchlist(user.id, addr, chain, symbol=None, alert_price=alert_price, alert_dir=direction_raw.lower())
+        ok = db.add_watchlist(
+            user.id, addr, chain, symbol=None, alert_price=alert_price, alert_dir=direction_raw.lower()
+        )
         if ok:
             await update.message.reply_text(
                 f"\u2705 <b>Alert Set</b>\n\n"

@@ -23,15 +23,15 @@ from starlette.testclient import TestClient
 #   /version:    12ms, /api:      11ms, /catalog: 20ms
 #   /trending:   30ms (mocked),  scan: 30ms (mocked)
 # Thresholds include 2-3x safety margin for CI variance.
-THRESHOLD_HEALTH_MS = 250.0       # /health checks 7 stores (some timeout)
-THRESHOLD_LIVE_MS = 25.0          # /live is instant + middleware
-THRESHOLD_READY_MS = 150.0        # /ready checks redis + postgres
-THRESHOLD_MARKET_TRENDING_MS = 200.0     # mocked handler overhead
-THRESHOLD_WALLET_SCAN_MS = 200.0          # mocked scanner overhead
-THRESHOLD_TOKEN_SCAN_MS = 200.0           # mocked scanner overhead
-THRESHOLD_API_INDEX_MS = 50.0             # static listing
-THRESHOLD_API_CATALOG_MS = 50.0           # static data
-THRESHOLD_VERSION_MS = 25.0               # trivial response
+THRESHOLD_HEALTH_MS = 250.0  # /health checks 7 stores (some timeout)
+THRESHOLD_LIVE_MS = 25.0  # /live is instant + middleware
+THRESHOLD_READY_MS = 150.0  # /ready checks redis + postgres
+THRESHOLD_MARKET_TRENDING_MS = 200.0  # mocked handler overhead
+THRESHOLD_WALLET_SCAN_MS = 200.0  # mocked scanner overhead
+THRESHOLD_TOKEN_SCAN_MS = 200.0  # mocked scanner overhead
+THRESHOLD_API_INDEX_MS = 50.0  # static listing
+THRESHOLD_API_CATALOG_MS = 50.0  # static data
+THRESHOLD_VERSION_MS = 25.0  # trivial response
 
 
 # ── Auth headers for protected endpoints ───────────────────────────────
@@ -83,22 +83,22 @@ class TestHealthEndpointBenchmarks:
     """Health endpoint response time benchmarks."""
 
     @pytest.mark.benchmark
-    def test_health_endpoint_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_health_endpoint_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /health should respond in < 250ms (with mocked store checks).
 
         Mocks the 7 store health checks so the benchmark measures only
         the handler + serialization overhead. Real health endpoint
         latency depends on store response times.
         """
-        with patch("app.core.health_route._check_redis") as mock_r, \
-             patch("app.core.health_route._check_postgres") as mock_p, \
-             patch("app.core.health_route._check_neo4j") as mock_n, \
-             patch("app.core.health_route._check_qdrant") as mock_q, \
-             patch("app.core.health_route._check_clickhouse") as mock_c, \
-             patch("app.core.health_route._check_minio") as mock_m, \
-             patch("app.core.health_route._check_reth") as mock_e:
+        with (
+            patch("app.core.health_route._check_redis") as mock_r,
+            patch("app.core.health_route._check_postgres") as mock_p,
+            patch("app.core.health_route._check_neo4j") as mock_n,
+            patch("app.core.health_route._check_qdrant") as mock_q,
+            patch("app.core.health_route._check_clickhouse") as mock_c,
+            patch("app.core.health_route._check_minio") as mock_m,
+            patch("app.core.health_route._check_reth") as mock_e,
+        ):
             for m in (mock_r, mock_p, mock_n, mock_q, mock_c, mock_m, mock_e):
                 m.return_value = {"healthy": True, "latency_ms": 0}
 
@@ -111,9 +111,7 @@ class TestHealthEndpointBenchmarks:
         assert_time(elapsed_ms, THRESHOLD_HEALTH_MS, "/health")
 
     @pytest.mark.benchmark
-    def test_live_endpoint_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_live_endpoint_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /live should respond in < 10ms (no dependencies)."""
         elapsed_ms, resp = _time_request(benchmark_client, "GET", "/live")
 
@@ -122,9 +120,7 @@ class TestHealthEndpointBenchmarks:
         assert_time(elapsed_ms, THRESHOLD_LIVE_MS, "/live")
 
     @pytest.mark.benchmark
-    def test_ready_endpoint_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_ready_endpoint_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /ready should respond in < 50ms (quick store checks)."""
         elapsed_ms, resp = _time_request(benchmark_client, "GET", "/ready")
 
@@ -149,9 +145,7 @@ class TestMarketEndpointBenchmarks:
     """
 
     @pytest.mark.benchmark
-    def test_market_trending_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_market_trending_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /api/v1/market/trending should respond in < 500ms.
 
         Mocks external HTTP calls to isolate handler performance.
@@ -176,13 +170,13 @@ class TestMarketEndpointBenchmarks:
             }
 
             elapsed_ms, resp = _time_request(
-                benchmark_client, "GET", "/api/v1/market/trending?limit=8",
+                benchmark_client,
+                "GET",
+                "/api/v1/market/trending?limit=8",
                 headers=_BENCHMARK_AUTH,
             )
 
-        assert resp.status_code == 200, (
-            f"/api/v1/market/trending returned {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 200, f"/api/v1/market/trending returned {resp.status_code}: {resp.text[:200]}"
         body = resp.json()
         assert "items" in body
         assert "total" in body
@@ -203,9 +197,7 @@ class TestScannerEndpointBenchmarks:
     """
 
     @pytest.mark.benchmark
-    def test_wallet_scan_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_wallet_scan_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """POST /api/v2/scanner/wallet/scan should respond in < 2s.
 
         Mocks the UnifiedWalletScanner dependency to isolate the
@@ -225,9 +217,7 @@ class TestScannerEndpointBenchmarks:
             )
             elapsed_ms = (time.perf_counter() - start) * 1000
 
-        assert resp.status_code in (200,), (
-            f"Wallet scan returned {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code in (200,), f"Wallet scan returned {resp.status_code}: {resp.text[:200]}"
         if resp.status_code == 200:
             body = resp.json()
             assert body["status"] == "ok"
@@ -236,9 +226,7 @@ class TestScannerEndpointBenchmarks:
         assert_time(elapsed_ms, THRESHOLD_WALLET_SCAN_MS, "/api/v2/scanner/wallet/scan")
 
     @pytest.mark.benchmark
-    def test_token_scan_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_token_scan_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """POST /api/v2/scanner/token/scan should respond in < 2s.
 
         Mocks the UnifiedTokenScanner dependency to isolate handler
@@ -261,9 +249,7 @@ class TestScannerEndpointBenchmarks:
             )
             elapsed_ms = (time.perf_counter() - start) * 1000
 
-        assert resp.status_code in (200,), (
-            f"Token scan returned {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code in (200,), f"Token scan returned {resp.status_code}: {resp.text[:200]}"
         if resp.status_code == 200:
             body = resp.json()
             assert body["status"] == "ok"
@@ -281,9 +267,7 @@ class TestLightweightEndpointBenchmarks:
     """Lightweight endpoint response time benchmarks."""
 
     @pytest.mark.benchmark
-    def test_api_index_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_api_index_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /api should respond in < 50ms (may return 401 if auth required).
 
         The /api route is behind auth middleware. This benchmark measures
@@ -293,27 +277,19 @@ class TestLightweightEndpointBenchmarks:
         elapsed_ms, resp = _time_request(benchmark_client, "GET", "/api")
 
         # /api may return 401 (auth-protected) or 200 (public), but never 5xx
-        assert resp.status_code in (200, 401, 404), (
-            f"/api returned {resp.status_code}"
-        )
+        assert resp.status_code in (200, 401, 404), f"/api returned {resp.status_code}"
         assert_time(elapsed_ms, THRESHOLD_API_INDEX_MS, "/api")
 
     @pytest.mark.benchmark
-    def test_api_catalog_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_api_catalog_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /api/v1/catalog should respond in < 50ms."""
         elapsed_ms, resp = _time_request(benchmark_client, "GET", "/api/v1/catalog")
 
-        assert resp.status_code in (200, 401, 404), (
-            f"/api/v1/catalog returned {resp.status_code}"
-        )
+        assert resp.status_code in (200, 401, 404), f"/api/v1/catalog returned {resp.status_code}"
         assert_time(elapsed_ms, THRESHOLD_API_CATALOG_MS, "/api/v1/catalog")
 
     @pytest.mark.benchmark
-    def test_version_endpoint_response_time(
-        self, benchmark_client: TestClient, assert_time: Any
-    ) -> None:
+    def test_version_endpoint_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /version should respond in < 10ms."""
         elapsed_ms, resp = _time_request(benchmark_client, "GET", "/version")
 

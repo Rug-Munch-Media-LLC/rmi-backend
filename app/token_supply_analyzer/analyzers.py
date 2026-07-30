@@ -36,9 +36,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
         elif ratio < 0.5:
             score += 20
             profile.patterns_detected.append("moderate_dilution_risk:circ_supply_less_than_50%_of_total")
-            profile.recommendations.append(
-                f"⚠ ~{ratio:.0%} of supply is circulating. Verify lockup/vesting terms."
-            )
+            profile.recommendations.append(f"⚠ ~{ratio:.0%} of supply is circulating. Verify lockup/vesting terms.")
     elif total > 0 and circ == 0:
         score += 15
         profile.patterns_detected.append("no_circulating_supply_data")
@@ -101,6 +99,7 @@ def _analyze_supply_mechanics(profile: TokenSupplyProfile) -> None:
     profile.supply_risk_score = max(0.0, min(100.0, score))
     profile.supply_risk = _classify_risk(profile.supply_risk_score)
 
+
 def _analyze_concentration(profile: TokenSupplyProfile) -> None:
     """Analyze holder concentration for whale dominance and insider risk."""
     score = 0.0
@@ -125,15 +124,11 @@ def _analyze_concentration(profile: TokenSupplyProfile) -> None:
         elif top10 >= 70:
             score += 25
             profile.patterns_detected.append("high_concentration:top_10_holds_>70%")
-            profile.recommendations.append(
-                f"⚠ Top 10 wallets hold {top10:.0f}% of supply - high concentration."
-            )
+            profile.recommendations.append(f"⚠ Top 10 wallets hold {top10:.0f}% of supply - high concentration.")
         elif top10 >= 50:
             score += 15
             profile.patterns_detected.append("moderate_concentration:top_10_holds_>50%")
-            profile.recommendations.append(
-                f"⚠ Top 10 wallets hold {top10:.0f}% of supply - moderate concentration."
-            )
+            profile.recommendations.append(f"⚠ Top 10 wallets hold {top10:.0f}% of supply - moderate concentration.")
 
     if top50 > 0:
         if top50 >= 99.0:
@@ -163,9 +158,7 @@ def _analyze_concentration(profile: TokenSupplyProfile) -> None:
         elif deployer_hold > 5:
             score += 10
             profile.patterns_detected.append("deployer_holds_moderate")
-            profile.recommendations.append(
-                f"(i) Deployer holds {deployer_hold:.0f}% of supply - moderate allocation."
-            )
+            profile.recommendations.append(f"(i) Deployer holds {deployer_hold:.0f}% of supply - moderate allocation.")
 
     for w in profile.whale_holdings:
         if w.get("pct", 0) > 5:
@@ -176,6 +169,7 @@ def _analyze_concentration(profile: TokenSupplyProfile) -> None:
 
     profile.concentration_score = max(0.0, min(100.0, score))
     profile.concentration_risk = _classify_risk(profile.concentration_score)
+
 
 def _analyze_liquidity(profile: TokenSupplyProfile) -> None:
     """Analyze liquidity pool health and lock status."""
@@ -239,6 +233,7 @@ def _analyze_liquidity(profile: TokenSupplyProfile) -> None:
     profile.liquidity_score = max(0.0, min(100.0, score))
     profile.liquidity_risk = _classify_risk(profile.liquidity_score)
 
+
 def _compute_overall_risk(profile: TokenSupplyProfile) -> None:
     """Compute overall risk score from all sub-scores."""
     weights = {"supply": 0.35, "concentration": 0.30, "liquidity": 0.20, "tax": 0.10, "ownership": 0.05}
@@ -268,7 +263,9 @@ def _compute_overall_risk(profile: TokenSupplyProfile) -> None:
     if profile.has_proxy_admin:
         ownership_score += 20
         profile.patterns_detected.append("proxy_admin:contract_can_be_upgraded")
-        profile.recommendations.append("🚨 Token uses a proxy pattern with admin - contract can be upgraded (rug risk).")
+        profile.recommendations.append(
+            "🚨 Token uses a proxy pattern with admin - contract can be upgraded (rug risk)."
+        )
     if profile.has_multisig:
         ownership_score -= 10
         profile.patterns_detected.append("multisig_owner")
@@ -282,6 +279,7 @@ def _compute_overall_risk(profile: TokenSupplyProfile) -> None:
         + ownership_score * weights["ownership"]
     )
     profile.overall_risk = _classify_risk(profile.overall_risk_score)
+
 
 __all__ = [
     "_analyze_concentration",

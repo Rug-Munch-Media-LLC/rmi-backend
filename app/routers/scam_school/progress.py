@@ -170,12 +170,16 @@ ACHIEVEMENTS = [
 
 # ── Auth Helper ──
 
+
 async def get_current_user(request: Request) -> dict | None:
     """Extract user from JWT."""
     from app.auth import get_current_user as _get_user
+
     return await _get_user(request)
 
+
 # ── Redis Persistence ──
+
 
 def _get_progress(user_id: str) -> UserProgress:
     """Get or create user progress."""
@@ -186,12 +190,15 @@ def _get_progress(user_id: str) -> UserProgress:
         return UserProgress(**d)
     return UserProgress(user_id=user_id, started_at=datetime.now(UTC).isoformat())
 
+
 def _save_progress(progress: UserProgress) -> None:
     """Save user progress to Redis."""
     r = get_redis()
     r.hset("rmi:scam_school:progress", progress.user_id, progress.model_dump_json())
 
+
 # ── XP & Level Helpers ──
+
 
 def _calculate_level(xp: int) -> dict:
     """Calculate level from XP."""
@@ -205,9 +212,7 @@ def _calculate_level(xp: int) -> dict:
     if next_level:
         range_size = next_level["xp_required"] - current_level["xp_required"]
         progress_in_range = xp - current_level["xp_required"]
-        progress_pct = (
-            min(100, int((progress_in_range / range_size) * 100)) if range_size > 0 else 100
-        )
+        progress_pct = min(100, int((progress_in_range / range_size) * 100)) if range_size > 0 else 100
     return {
         "level": current_level["level"],
         "title": current_level["title"],
@@ -217,6 +222,7 @@ def _calculate_level(xp: int) -> dict:
         "next_level_title": next_level["title"] if next_level else None,
         "progress_pct": progress_pct,
     }
+
 
 def _award_xp(progress: UserProgress, amount: int, source: str) -> dict:
     """Award XP and check for level ups."""
@@ -237,6 +243,7 @@ def _award_xp(progress: UserProgress, amount: int, source: str) -> dict:
         "level_title": progress.level_title,
     }
 
+
 def _award_badge(progress: UserProgress, badge_id: str) -> dict | None:
     """Award a badge if not already owned."""
     if badge_id in progress.badges:
@@ -254,7 +261,9 @@ def _award_badge(progress: UserProgress, badge_id: str) -> dict | None:
         "rarity": badge["rarity"],
     }
 
+
 # ── Achievement / Streak Helpers ──
+
 
 def _check_achievements(progress: UserProgress) -> list[dict]:
     """Check and award new achievements."""
@@ -294,6 +303,7 @@ def _check_achievements(progress: UserProgress) -> list[dict]:
 
     return new_achievements
 
+
 def _update_streak(progress: UserProgress) -> None:
     """Update learning streak."""
     now = datetime.now(UTC)
@@ -311,7 +321,9 @@ def _update_streak(progress: UserProgress) -> None:
         progress.streak_days = 1
     progress.last_activity = now.isoformat()
 
+
 # ── Certificate Helper ──
+
 
 def _generate_certificate(user_id: str, course_id: str, score: int) -> dict:
     """Generate a certificate."""

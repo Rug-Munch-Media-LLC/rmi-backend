@@ -51,12 +51,8 @@ async def ownership_theater_detector(token_address: str, chain: str = "sol") -> 
             },
         )
         if contract_info.get("status") == "1":
-            source_data = (
-                contract_info.get("result", [{}])[0] if contract_info.get("result") else {}
-            )
-            is_proxy = bool(
-                source_data.get("Proxy", "0") == "1" or source_data.get("Implementation", "")
-            )
+            source_data = contract_info.get("result", [{}])[0] if contract_info.get("result") else {}
+            is_proxy = bool(source_data.get("Proxy", "0") == "1" or source_data.get("Implementation", ""))
 
             if is_proxy:
                 flags.append("UPGRADEABLE PROXY - owner can change contract logic at any time")

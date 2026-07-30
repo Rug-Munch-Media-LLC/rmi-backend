@@ -5,6 +5,7 @@ RugMunchBot -- Scanning engines.
 Token security scanner and wallet forensics analyzer.
 Both functions fetch data from multiple sources and return structured results.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -23,6 +24,7 @@ from app.domains.telegram.rugmunchbot.formatters import detect_chain, is_evm, is
 from app.domains.telegram.rugmunchbot.states import get_sol_price
 
 logger = get_logger("rmi_bot")
+
 
 async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     result: dict[str, Any] = {
@@ -98,9 +100,14 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
         if is_evm(address):
             try:
                 chain_id_map = {
-                    "ethereum": "1", "bsc": "56", "polygon": "137",
-                    "arbitrum": "42161", "avalanche": "43114", "base": "8453",
-                    "optimism": "10", "fantom": "250",
+                    "ethereum": "1",
+                    "bsc": "56",
+                    "polygon": "137",
+                    "arbitrum": "42161",
+                    "avalanche": "43114",
+                    "base": "8453",
+                    "optimism": "10",
+                    "fantom": "250",
                 }
                 cid = chain_id_map.get(result["chain"].lower(), "1")
                 r = await client.get(f"{GOPLUS}/token_security/{cid}?contract_addresses={address}")
@@ -113,24 +120,23 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
                         result["sell_tax"] = float(sec.get("sell_tax") or 0)
                         result["mintable"] = sec.get("is_mintable") == "1"
                         result["can_blacklist"] = (
-                            sec.get("is_blacklisted") == "1"
-                            or sec.get("can_take_back_ownership") == "1"
+                            sec.get("is_blacklisted") == "1" or sec.get("can_take_back_ownership") == "1"
                         )
                         result["owner_renounced"] = sec.get("is_owner_renounced") != "0"
                         lp_locks = sec.get("lp_holders", [])
-                        locked_pct = sum(
-                            float(h.get("percent", 0)) for h in lp_locks if h.get("is_locked") == 1
-                        )
+                        locked_pct = sum(float(h.get("percent", 0)) for h in lp_locks if h.get("is_locked") == 1)
                         result["lp_locked"] = locked_pct
                         holders_data = sec.get("holders", [])
                         result["holders"] = len(holders_data) if holders_data else 0
                         for h in holders_data[:10]:
-                            result["top_holders"].append({
-                                "address": h.get("address", ""),
-                                "pct": float(h.get("percent") or 0) * 100,
-                                "is_contract": h.get("is_contract") == 1,
-                                "tag": h.get("tag", ""),
-                            })
+                            result["top_holders"].append(
+                                {
+                                    "address": h.get("address", ""),
+                                    "pct": float(h.get("percent") or 0) * 100,
+                                    "is_contract": h.get("is_contract") == 1,
+                                    "tag": h.get("tag", ""),
+                                }
+                            )
                         if result["honeypot"]:
                             result["threats"].append("HONEYPOT DETECTED")
                             result["risk_score"] += 40
@@ -208,6 +214,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     result["risk_score"] = min(result["risk_score"], 100)
     return result
 
+
 async def analyze_wallet(address: str, chain: str | None = None) -> dict:
     result = {
         "address": address,
@@ -234,8 +241,15 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
             if r.status_code == 200:
                 data = r.json()
                 for k in [
-                    "balance_usd", "tx_count", "first_seen", "is_exchange",
-                    "is_contract", "risk_score", "flags", "funding_source", "pnl_estimate",
+                    "balance_usd",
+                    "tx_count",
+                    "first_seen",
+                    "is_exchange",
+                    "is_contract",
+                    "risk_score",
+                    "flags",
+                    "funding_source",
+                    "pnl_estimate",
                 ]:
                     if k in data:
                         result[k] = data[k]
@@ -247,7 +261,7 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
                         first = datetime.fromisoformat(result["first_seen"].replace("Z", "+00:00"))
                         result["wallet_age_days"] = (datetime.now(UTC) - first).days
                         result["is_fresh"] = result["wallet_age_days"] < 7
-                    except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+                    except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
                         logger.debug("analyze_wallet_error", exc_info=True)
                         logger.warning(f"Failed to parse first_seen for {address}: {e}")
                 return result

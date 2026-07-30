@@ -96,6 +96,7 @@ SOURCES = [
 
 CLONE_DIR = "/tmp/rag_sources"
 
+
 def ensure_cloned(repo: str) -> str | None:
     """Clone repo if not already present. Returns path or None."""
     name = repo.split("/")[-1]
@@ -110,8 +111,9 @@ def ensure_cloned(repo: str) -> str | None:
             timeout=60,
         )
         return path if os.path.exists(path) else None
-    except (subprocess.TimeoutExpired):
+    except subprocess.TimeoutExpired:
         return None
+
 
 def extract_from_repo(source: dict) -> list[dict]:
     """Extract documents from a cloned GitHub repo."""
@@ -159,7 +161,7 @@ def extract_from_repo(source: dict) -> list[dict]:
                 try:
                     data = json.loads(content)
                     text = f"Dataset: {title}\n\n{json.dumps(data, indent=2)[:3000]}"
-                except (json.JSONDecodeError):
+                except json.JSONDecodeError:
                     text = f"Data File: {title}\n\n{content[:2000]}"
             elif fpath.endswith(".csv"):
                 lines = content.split("\n")[:50]
@@ -181,6 +183,7 @@ def extract_from_repo(source: dict) -> list[dict]:
 
     logger.info("  %s: %d docs from %d files", source["repo"], len(docs), len(files[:max_files]))
     return docs
+
 
 async def ingest_repo(source: dict) -> Any | int:
     """Clone, extract, and ingest a single repo."""
@@ -209,6 +212,7 @@ async def ingest_repo(source: dict) -> Any | int:
                 pass
     return total
 
+
 async def ingest_all() -> Any:
     """Run all enabled sources."""
     logger.info("=== RAG GitHub Feeder v2 ===\n")
@@ -226,6 +230,7 @@ async def ingest_all() -> Any:
 
     logger.info("Total: %d docs across %d sources", total, len(results))
     return results
+
 
 if __name__ == "__main__":
     asyncio.run(ingest_all())

@@ -37,6 +37,7 @@ _pry_cb = AsyncCircuitBreaker(
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
+
 class ScrapeRequest(BaseModel):
     """Request model for the Pry /v1/scrape endpoint."""
 
@@ -47,6 +48,7 @@ class ScrapeRequest(BaseModel):
     bypassCloudflare: bool = True
     jsRender: bool = False
 
+
 class ScrapeResult(BaseModel):
     """Normalised scrape result returned by the client."""
 
@@ -54,6 +56,7 @@ class ScrapeResult(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
     source: str = "pryscraper"
+
 
 class ExtractResult(BaseModel):
     """Normalised extraction result returned by the client."""
@@ -63,7 +66,9 @@ class ExtractResult(BaseModel):
     error: str | None = None
     source: str = "pryscraper"
 
+
 # ── Client ────────────────────────────────────────────────────────────────────
+
 
 class PryscraperClient:
     """Async HTTP client for the Pry web intelligence API.
@@ -176,8 +181,7 @@ class PryscraperClient:
                     # Cannot pay — return the 402 body as-is
                     return await self._error_response(
                         "payment_required",
-                        f"x402 payment required for {path}. "
-                        f"Set PRY_X402_OFFLINE=true for offline mode.",
+                        f"x402 payment required for {path}. Set PRY_X402_OFFLINE=true for offline mode.",
                         x402_body=resp.json() if resp.content else None,
                     )
 

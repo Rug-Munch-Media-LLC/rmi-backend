@@ -18,6 +18,7 @@ from app.domains.alerts.repository import AlertRepository
 
 log = get_logger(__name__)
 
+
 class AlertService(BaseService[AlertSubscription]):
     """Orchestrates subscription CRUD and event firing."""
 
@@ -117,6 +118,7 @@ class AlertService(BaseService[AlertSubscription]):
             count=len(events),
         )
         return events
+
 
 def _severity_for(event_type: AlertType) -> str:
     """Map event type → severity (used by clients to choose alert UI)."""

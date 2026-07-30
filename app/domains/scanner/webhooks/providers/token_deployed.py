@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from app.core.logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType
-from app.domains.scanner.webhooks.providers.utils import get_clickhouse, load_cursor, save_cursor
+from app.domains.scanner.webhooks.providers.utils import get_clickhouse
 
 log = get_logger(__name__)
 

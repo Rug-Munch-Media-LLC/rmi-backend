@@ -10,6 +10,7 @@ from .x402_bundles import X402Bundle
 
 logger = get_logger("x402_tool_manager")
 
+
 @dataclass
 class X402ToolManager:
     """Manages all x402 tool bundles including free/trial/premium."""

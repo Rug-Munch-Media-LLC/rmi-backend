@@ -16,6 +16,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, _r
 
 logger = get_logger("rugcharts_intel")
 
+
 async def cross_chain_entity(address: str = "", **kw) -> dict | None:
     """Trace an entity across all chains using Arkham intelligence.
     Discovers all addresses owned by the same entity on different chains.

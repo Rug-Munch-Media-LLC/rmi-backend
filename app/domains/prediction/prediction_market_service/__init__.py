@@ -1,6 +1,7 @@
 """
 RMI Prediction Market Intelligence Service Package.
 """
+
 from app.domains.prediction.prediction_market_service.keywords import (
     _extract_token_symbols,
 )

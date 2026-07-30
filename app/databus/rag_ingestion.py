@@ -19,6 +19,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("rag_ingestion")
 
+
 async def nightly_rag_index(**kw) -> dict:
     """Nightly RAG indexing - embeds all new content from all sources.
 
@@ -33,9 +34,7 @@ async def nightly_rag_index(**kw) -> dict:
         news = await aggregate_all_news(limit=100)
         news_docs = []
         for article in news.get("articles", [])[:50]:
-            h = hashlib.sha256(
-                (article.get("url", "") + article.get("title", "")).encode()
-            ).hexdigest()[:12]
+            h = hashlib.sha256((article.get("url", "") + article.get("title", "")).encode()).hexdigest()[:12]
             news_docs.append(
                 {
                     "id": f"news:{h}",
@@ -64,9 +63,7 @@ async def nightly_rag_index(**kw) -> dict:
         ct = await fetch_ct_rundown(limit=30)
         ct_docs = []
         for story in ct.get("rundown", [])[:20]:
-            h = hashlib.sha256((story.get("url", "") + story.get("text", "")).encode()).hexdigest()[
-                :12
-            ]
+            h = hashlib.sha256((story.get("url", "") + story.get("text", "")).encode()).hexdigest()[:12]
             ct_docs.append(
                 {
                     "id": f"ct:{h}",
@@ -137,6 +134,7 @@ async def nightly_rag_index(**kw) -> dict:
 
     return indexed
 
+
 async def _embed_batch(docs: list[dict], collection: str) -> int:
     """Embed a batch of documents and store in Redis RAG store."""
     if not docs:
@@ -179,6 +177,7 @@ async def _embed_batch(docs: list[dict], collection: str) -> int:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Embed batch failed for {collection}: {e}")
         return 0
+
 
 async def rag_health_check(**kw) -> dict:
     """Check RAG system health - collections, doc counts, storage."""

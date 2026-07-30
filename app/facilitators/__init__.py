@@ -43,6 +43,4 @@ for _name in (
     "tron_selfverify",
     "x402_rs",
 ):
-    _sys.modules[f"app.facilitators.{_name}"] = _importlib.import_module(
-        f"app.domains.billing.facilitators.{_name}"
-    )
+    _sys.modules[f"app.facilitators.{_name}"] = _importlib.import_module(f"app.domains.billing.facilitators.{_name}")

@@ -105,12 +105,14 @@ ENTITY_TYPE_BRIDGE = "bridge"
 ENTITY_TYPE_KNOWN_SCAM = "known_scam"
 ENTITY_TYPE_CEX_HOT_WALLET = "cex_hot_wallet"
 
+
 @dataclass
 class EntityMatch:
     address: str
     entity_name: str
     entity_type: str
     source: str  # "internal", "cryptoscamdb", "forta", "goPlus"
+
 
 class EntityRegistry:
     """Known entity recognition - excludes infrastructure from analysis."""
@@ -268,8 +270,10 @@ class EntityRegistry:
             }
         return {"address": address, "entity": None, "type": "unknown"}
 
+
 # Singleton
 _registry: EntityRegistry | None = None
+
 
 def get_entity_registry() -> EntityRegistry:
     global _registry

@@ -19,11 +19,7 @@ from app.core.secrets import get_secret_or_none
 logger = get_logger("supabase.realtime")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = (
-    get_secret_or_none("SUPABASE_SERVICE_KEY", "")
-    or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
-    or ""
-)
+SUPABASE_KEY = get_secret_or_none("SUPABASE_SERVICE_KEY", "") or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY") or ""
 
 TABLE_CHANNELS = {
     "security_alerts": "rmi:ws:alerts",
@@ -39,6 +35,7 @@ TABLE_CHANNELS = {
     "system_health_log": "rmi:ws:health",
     "activity_feed": "rmi:ws:activity",
 }
+
 
 class SupabaseRealtimeBridge:
     def __init__(self) -> None:
@@ -90,9 +87,7 @@ class SupabaseRealtimeBridge:
                             "payload": {
                                 "config": {
                                     "broadcast": {"self": True},
-                                    "postgres_changes": [
-                                        {"event": "*", "schema": "public", "table": table}
-                                    ],
+                                    "postgres_changes": [{"event": "*", "schema": "public", "table": table}],
                                 }
                             },
                             "ref": f"join_{table}",
@@ -110,9 +105,7 @@ class SupabaseRealtimeBridge:
                             continue
 
             except Exception as e:
-                logger.warning(
-                    "Realtime WS disconnected: %s - reconnecting in %ds", e, self._reconnect_delay
-                )
+                logger.warning("Realtime WS disconnected: %s - reconnecting in %ds", e, self._reconnect_delay)
                 await asyncio.sleep(self._reconnect_delay)
                 self._reconnect_delay = min(self._reconnect_delay * 2, 60)
 
@@ -156,6 +149,7 @@ class SupabaseRealtimeBridge:
 
         if self.redis:
             await self.redis.publish(channel, json.dumps(out, default=str))
+
 
 # ── HTTP polling fallback ──
 async def poll_realtime_changes() -> None:
@@ -207,5 +201,6 @@ async def poll_realtime_changes() -> None:
         except Exception as e:
             logger.warning("Realtime poll error: %s", e)
         await asyncio.sleep(2)
+
 
 bridge = SupabaseRealtimeBridge()

@@ -17,21 +17,20 @@ Migration guide:
 
 This shim will be removed in a future release (target: Q1 2027).
 """
+
 from __future__ import annotations
 
 import warnings
 
 warnings.warn(
-    "app.rag_service is deprecated. Use app.rag (v3 M3 engine) instead. "
-    "See docstring for migration guide.",
+    "app.rag_service is deprecated. Use app.rag (v3 M3 engine) instead. See docstring for migration guide.",
     DeprecationWarning,
     stacklevel=2,
 )
 import warnings
 
 warnings.warn(
-    "app.rag_service is deprecated. Use app.rag (v3 M3 engine) instead. "
-    "See docstring for migration guide.",
+    "app.rag_service is deprecated. Use app.rag (v3 M3 engine) instead. See docstring for migration guide.",
     DeprecationWarning,
     stacklevel=2,
 )

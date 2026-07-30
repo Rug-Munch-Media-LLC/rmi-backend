@@ -27,6 +27,7 @@ class AlertType(StrEnum):
     def values(cls) -> list[str]:
         return [m.value for m in cls]
 
+
 class AlertSubscription(BaseModel):
     """A token alert subscription record (what we store in Redis)."""
 
@@ -40,9 +41,7 @@ class AlertSubscription(BaseModel):
     webhook_url: str | None = Field(default=None, max_length=2048)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     active: bool = True
-    owner_id: str | None = Field(
-        default=None, description="User id of subscription owner, None = anonymous"
-    )
+    owner_id: str | None = Field(default=None, description="User id of subscription owner, None = anonymous")
 
     @field_validator("alert_types")
     @classmethod
@@ -50,6 +49,7 @@ class AlertSubscription(BaseModel):
         if not v:
             raise ValueError("at least one alert_type required")
         return v
+
 
 class CreateAlertRequest(BaseModel):
     """What the API accepts to create a subscription."""
@@ -59,6 +59,7 @@ class CreateAlertRequest(BaseModel):
     token_address: str = Field(..., min_length=1, max_length=256)
     alert_types: list[AlertType] | None = None
     webhook_url: str | None = Field(default=None, max_length=2048)
+
 
 class AlertEvent(BaseModel):
     """A fired alert, ready to broadcast to subscribers + WebSocket clients."""

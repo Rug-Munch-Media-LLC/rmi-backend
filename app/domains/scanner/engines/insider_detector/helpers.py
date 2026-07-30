@@ -22,6 +22,7 @@ def _parse_timestamp(ts: Any) -> float | None:
             pass
     return None
 
+
 def _ts_human(ts: float) -> str:
     """Format a Unix timestamp to a human-readable UTC string."""
     if not ts:

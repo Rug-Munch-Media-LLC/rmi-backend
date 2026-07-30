@@ -18,6 +18,7 @@ class EdgeType:
     MIGRATED = "migrated"  # token migrated to new contract
     ASSOCIATED = "associated"  # generic association
 
+
 class NodeType:
     WALLET = "wallet"
     TOKEN = "token"

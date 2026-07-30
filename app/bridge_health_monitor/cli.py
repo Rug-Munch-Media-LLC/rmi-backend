@@ -15,6 +15,7 @@ from app.bridge_health_monitor.monitor import BridgeHealthMonitor
 
 logger = logging.getLogger(__name__)
 
+
 async def main() -> None:
     """CLI entry point."""
     import argparse
@@ -41,6 +42,7 @@ async def main() -> None:
             logger.info(report.summary())
     finally:
         await monitor.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

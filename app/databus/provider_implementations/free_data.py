@@ -38,6 +38,7 @@ async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
     """DexScreener - free holder/liquidity data from pairs."""
     token = mint or kw.get("token", "")
@@ -54,6 +55,7 @@ async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> dict | None:
     """DexScreener - recent trades for a token (free, no API key required)."""
@@ -78,6 +80,7 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
         logger.warning("provider error")
     return None
 
+
 async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw) -> dict | None:
     """DexScreener - top profitable traders for a token."""
     if not token:
@@ -101,6 +104,7 @@ async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw)
         logger.warning("provider error")
     return None
 
+
 async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw) -> dict | None:
     """Etherscan - free transaction data (5 req/sec, no key needed for basic)."""
     if not tx_hash:
@@ -117,6 +121,7 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
         }
         domain = domains.get(network, "api.etherscan.io")
         import os as _os
+
         api_key = _os.getenv("ETHERSCAN_API_KEY", "")
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
@@ -140,6 +145,7 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
         logger.warning("provider error")
     return None
 
+
 async def _defillama_tvl(**kw) -> dict | None:
     """DeFiLlama - global TVL and protocol data (completely free)."""
     try:
@@ -158,6 +164,7 @@ async def _defillama_tvl(**kw) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _defillama_chains(**kw) -> dict | None:
     """DeFiLlama - TVL by chain (completely free)."""
     try:
@@ -166,15 +173,13 @@ async def _defillama_chains(**kw) -> dict | None:
             if r.status_code == 200:
                 data = r.json()
                 return {
-                    "chains": [
-                        {"name": c.get("name"), "tvl": c.get("tvl")}
-                        for c in data if isinstance(c, dict)
-                    ],
+                    "chains": [{"name": c.get("name"), "tvl": c.get("tvl")} for c in data if isinstance(c, dict)],
                     "source": "defillama",
                 }
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -> dict | None:
     """Blockchair - address balance and tx count (free tier)."""
@@ -196,6 +201,7 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -
         logger.warning("provider error")
     return None
 
+
 async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
     """Blockchair - chain statistics (free tier)."""
     try:
@@ -212,17 +218,14 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _birdeye_overview(address: str = "", **kw) -> dict | None:
     """Birdeye - token overview, liquidity, and holder stats (free tier)."""
     api_key = kw.get("api_key", "") or os.getenv("BIRDEYE_API_KEY", "")
     if not address:
         return None
     try:
-        headers = (
-            {"X-API-KEY": api_key, "accept": "application/json"}
-            if api_key
-            else {"accept": "application/json"}
-        )
+        headers = {"X-API-KEY": api_key, "accept": "application/json"} if api_key else {"accept": "application/json"}
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(
                 f"https://public-api.birdeye.so/defi/token_overview?address={address}",

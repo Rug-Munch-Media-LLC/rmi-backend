@@ -16,6 +16,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 
+
 async def developer_reputation(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Track deployer wallet history across all tokens they've created.
     Uses: Arkham entity + Helius transaction history + local token scanner data.
@@ -75,17 +76,11 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
                     sigs = r.json().get("result", [])
                     if sigs:
                         reputation["total_transactions"] = len(sigs)
-                        oldest = min(
-                            s.get("blockTime", float("inf")) for s in sigs if s.get("blockTime")
-                        )
+                        oldest = min(s.get("blockTime", float("inf")) for s in sigs if s.get("blockTime"))
                         newest = max(s.get("blockTime", 0) for s in sigs if s.get("blockTime"))
                         if oldest < float("inf") and newest > 0:
-                            reputation["first_seen"] = datetime.fromtimestamp(
-                                oldest, tz=UTC
-                            ).isoformat()
-                            reputation["last_active"] = datetime.fromtimestamp(
-                                newest, tz=UTC
-                            ).isoformat()
+                            reputation["first_seen"] = datetime.fromtimestamp(oldest, tz=UTC).isoformat()
+                            reputation["last_active"] = datetime.fromtimestamp(newest, tz=UTC).isoformat()
                             reputation["activity_span_days"] = round((newest - oldest) / 86400, 1)
 
                         if len(sigs) > 500:

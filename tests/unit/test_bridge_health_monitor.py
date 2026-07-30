@@ -363,9 +363,7 @@ class TestExploitSignalDetection(unittest.TestCase):
             tvl_change_7d_pct=5.0,
             tvl_change_30d_pct=10.0,
         )
-        signals = await self.monitor._detect_exploit_signals(
-            "stargate", BRIDGE_REGISTRY["stargate"], snapshot
-        )
+        signals = await self.monitor._detect_exploit_signals("stargate", BRIDGE_REGISTRY["stargate"], snapshot)
         assert len(signals) == 0
 
     async def test_critical_tvl_drop(self):
@@ -378,9 +376,7 @@ class TestExploitSignalDetection(unittest.TestCase):
             tvl_change_7d_pct=-50.0,
             tvl_change_30d_pct=-60.0,
         )
-        signals = await self.monitor._detect_exploit_signals(
-            "wormhole", BRIDGE_REGISTRY["wormhole"], snapshot
-        )
+        signals = await self.monitor._detect_exploit_signals("wormhole", BRIDGE_REGISTRY["wormhole"], snapshot)
         assert len(signals) >= 1
         criticals = [s for s in signals if s.severity == "critical"]
         assert len(criticals) >= 1
@@ -395,9 +391,7 @@ class TestExploitSignalDetection(unittest.TestCase):
             tvl_change_7d_pct=-30.0,
             tvl_change_30d_pct=-40.0,
         )
-        signals = await self.monitor._detect_exploit_signals(
-            "hop", BRIDGE_REGISTRY["hop"], snapshot
-        )
+        signals = await self.monitor._detect_exploit_signals("hop", BRIDGE_REGISTRY["hop"], snapshot)
         assert len(signals) >= 1
         highs = [s for s in signals if s.severity == "high"]
         assert len(highs) >= 1
@@ -412,16 +406,12 @@ class TestExploitSignalDetection(unittest.TestCase):
             tvl_change_7d_pct=-55.0,
             tvl_change_30d_pct=-60.0,
         )
-        signals = await self.monitor._detect_exploit_signals(
-            "synapse", BRIDGE_REGISTRY["synapse"], snapshot
-        )
+        signals = await self.monitor._detect_exploit_signals("synapse", BRIDGE_REGISTRY["synapse"], snapshot)
         assert len(signals) >= 1
 
     async def test_no_snapshot_no_signals(self):
         """No signals when no TVL snapshot is provided."""
-        signals = await self.monitor._detect_exploit_signals(
-            "stargate", BRIDGE_REGISTRY["stargate"], None
-        )
+        signals = await self.monitor._detect_exploit_signals("stargate", BRIDGE_REGISTRY["stargate"], None)
         assert len(signals) == 0
 
 

@@ -3,6 +3,7 @@ Admin Backend — Audit Logger
 =============================
 Immutable audit logging system. Stores to Redis (time-series) + file backup + optional Supabase.
 """
+
 from __future__ import annotations
 
 import json
@@ -15,6 +16,7 @@ from app.core.logging import get_logger
 from app.domains.admin.backend.models import AuditLogEntry
 
 logger = get_logger("rmi_admin_backend")
+
 
 class AuditLogger:
     """Immutable audit logging system."""
@@ -71,7 +73,7 @@ class AuditLogger:
             await r.lpush(f"audit_log:admin:{admin_id}", json.dumps(entry.to_dict()))
             await r.sadd(f"audit_log:actions:{action}", entry.entry_id)
 
-        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError) as e :
+        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Redis audit log failed: {e}")
 
@@ -81,7 +83,7 @@ class AuditLogger:
             os.makedirs(os.path.dirname(log_file), exist_ok=True)
             with open(log_file, "a") as f:
                 f.write(json.dumps(entry.to_dict()) + "\n")
-        except (json.JSONDecodeError, ValueError, TypeError) as e :
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"File audit log failed: {e}")
 
@@ -94,7 +96,7 @@ class AuditLogger:
             if supabase_url and supabase_key:
                 client = create_client(supabase_url, supabase_key)
                 client.table("audit_logs").insert(entry.to_dict()).execute()
-        except (ConnectionError, TimeoutError, ValueError) as e :
+        except (ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Supabase audit log failed: {e}")
 
@@ -135,7 +137,7 @@ class AuditLogger:
                     continue
                 entries.append(AuditLogEntry(**data))
 
-        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError, KeyError) as e :
+        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError, KeyError) as e:
             logger.debug("query_error", exc_info=True)
             logger.error(f"Audit query failed: {e}")
 

@@ -2,6 +2,7 @@
 Liquidation Cascade — Report Generation
 =========================================
 """
+
 from __future__ import annotations
 
 import json
@@ -26,9 +27,16 @@ def generate_report(analysis: LiquidationAnalysis, format: str = "text") -> str:
     lines.append(f"   Total Debt:      ${analysis.total_debt_usd:,.2f}")
     lines.append(
         f"   Health Factor:   {analysis.overall_health_factor:.2f}x"
-        if analysis.overall_health_factor else "   Health Factor:   N/A"
+        if analysis.overall_health_factor
+        else "   Health Factor:   N/A"
     )
-    tier_icon = "🔴" if analysis.overall_risk_tier == RiskTier.CRITICAL else "🟡" if analysis.overall_risk_tier == RiskTier.DANGER else "🟢"
+    tier_icon = (
+        "🔴"
+        if analysis.overall_risk_tier == RiskTier.CRITICAL
+        else "🟡"
+        if analysis.overall_risk_tier == RiskTier.DANGER
+        else "🟢"
+    )
     lines.append(f"   Risk Tier:       {analysis.overall_risk_tier.value} {tier_icon}")
     lines.append(f"   Chains: {', '.join(analysis.chains_analyzed)}")
     lines.append("")
@@ -37,7 +45,15 @@ def generate_report(analysis: LiquidationAnalysis, format: str = "text") -> str:
         lines.append("🔍 POSITION BREAKDOWN")
         lines.append("-" * 70)
         for i, pos in enumerate(analysis.positions, 1):
-            tier_icon = "🔴" if pos.risk_tier == RiskTier.CRITICAL else "🟠" if pos.risk_tier == RiskTier.DANGER else "🟡" if pos.risk_tier == RiskTier.WATCH else "🟢"
+            tier_icon = (
+                "🔴"
+                if pos.risk_tier == RiskTier.CRITICAL
+                else "🟠"
+                if pos.risk_tier == RiskTier.DANGER
+                else "🟡"
+                if pos.risk_tier == RiskTier.WATCH
+                else "🟢"
+            )
             lines.append(f"\n  {tier_icon} Position #{i}: {pos.protocol} on {pos.chain.upper()}")
             lines.append(f"     Collateral: ${pos.total_collateral_usd:,.2f}  |  Debt: ${pos.total_debt_usd:,.2f}")
             if pos.health_factor and pos.health_factor != float("inf"):
@@ -46,9 +62,13 @@ def generate_report(analysis: LiquidationAnalysis, format: str = "text") -> str:
                 primary = max(pos.collateral, key=lambda c: c.amount_usd)
                 lines.append(f"     Liquidation Price: ${pos.liquidation_price_usd:.2f} ({primary.asset})")
             for c in pos.collateral:
-                lines.append(f"       📌 Collateral: {c.amount_token:.4f} {c.asset} (${c.amount_usd:,.2f}) @ ${c.price_usd:.2f}")
+                lines.append(
+                    f"       📌 Collateral: {c.amount_token:.4f} {c.asset} (${c.amount_usd:,.2f}) @ ${c.price_usd:.2f}"
+                )
             for d in pos.debt:
-                lines.append(f"       💳 Debt: {d.amount_token:.4f} {d.asset} (${d.amount_usd:,.2f}) @ {d.variable_rate:.2f}% APR")
+                lines.append(
+                    f"       💳 Debt: {d.amount_token:.4f} {d.asset} (${d.amount_usd:,.2f}) @ {d.variable_rate:.2f}% APR"
+                )
         lines.append("")
 
     if analysis.cascade_scenarios:
@@ -57,8 +77,12 @@ def generate_report(analysis: LiquidationAnalysis, format: str = "text") -> str:
         for scenario in analysis.cascade_scenarios:
             lines.append(f"\n  📋 {scenario.name}")
             lines.append(f"     {scenario.description}")
-            lines.append(f"     Positions liquidated: {scenario.liquidated_positions} (${scenario.total_liquidated_value_usd:,.2f})")
-            lines.append(f"     Secondary affected: {scenario.secondary_affected_positions} (${scenario.total_secondary_value_usd:,.2f})")
+            lines.append(
+                f"     Positions liquidated: {scenario.liquidated_positions} (${scenario.total_liquidated_value_usd:,.2f})"
+            )
+            lines.append(
+                f"     Secondary affected: {scenario.secondary_affected_positions} (${scenario.total_secondary_value_usd:,.2f})"
+            )
             if scenario.market_impact_pct:
                 lines.append(f"     Estimated market impact: {scenario.market_impact_pct:.1%}")
         lines.append("")

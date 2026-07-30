@@ -22,16 +22,45 @@ def extract_contract_features(code: str) -> np.ndarray:
 
     # ── Rug pull keyword patterns (first 32 dims) ──
     rug_patterns = [
-        "maxTx", "maxtransaction", "_maxTxAmount", "maxSell", "maxBuy",
-        "tradingEnabled", "tradingActive", "enableTrading", "isTradingEnabled",
-        "blacklist", "isBlacklisted", "_blacklist", "addToBlacklist",
-        "mint", "onlyOwner", "excludeFromFees", "excludeFromReward",
-        "setTax", "updateTax", "setFee", "taxFee", "liquidityFee",
-        "sweep", "drain", "rug", "pullLiquidity", "removeLiquidity",
-        "manualSwap", "manualSend", "swapAndLiquify",
-        "upgradeTo", "upgradeToAndCall", "changeAdmin",
-        "selfdestruct", "suicide", "delegatecall",
-        "transferOwnership", "renounceOwnership", "lock",
+        "maxTx",
+        "maxtransaction",
+        "_maxTxAmount",
+        "maxSell",
+        "maxBuy",
+        "tradingEnabled",
+        "tradingActive",
+        "enableTrading",
+        "isTradingEnabled",
+        "blacklist",
+        "isBlacklisted",
+        "_blacklist",
+        "addToBlacklist",
+        "mint",
+        "onlyOwner",
+        "excludeFromFees",
+        "excludeFromReward",
+        "setTax",
+        "updateTax",
+        "setFee",
+        "taxFee",
+        "liquidityFee",
+        "sweep",
+        "drain",
+        "rug",
+        "pullLiquidity",
+        "removeLiquidity",
+        "manualSwap",
+        "manualSend",
+        "swapAndLiquify",
+        "upgradeTo",
+        "upgradeToAndCall",
+        "changeAdmin",
+        "selfdestruct",
+        "suicide",
+        "delegatecall",
+        "transferOwnership",
+        "renounceOwnership",
+        "lock",
     ]
     for i, pattern in enumerate(rug_patterns):
         if pattern in code_lower:
@@ -49,8 +78,18 @@ def extract_contract_features(code: str) -> np.ndarray:
     vec[39] = min(code.count("if (") / 100.0, 1.0)
 
     # ── Library/import fingerprint (dims 40-50) ──
-    imports = ["openzeppelin", "uniswap", "pancake", "sushiswap", "chainlink",
-               "@openzeppelin", "@uniswap", "erc20", "erc721", "ownable"]
+    imports = [
+        "openzeppelin",
+        "uniswap",
+        "pancake",
+        "sushiswap",
+        "chainlink",
+        "@openzeppelin",
+        "@uniswap",
+        "erc20",
+        "erc721",
+        "ownable",
+    ]
     for i, imp in enumerate(imports):
         vec[40 + i] = 1.0 if imp in code_lower else 0.0
 
@@ -72,6 +111,7 @@ def extract_contract_features(code: str) -> np.ndarray:
         vec[56 + i] = (code_hash[i % 32] / 255.0) if i < 72 else 0.0
 
     return vec
+
 
 def extract_transaction_features(tx_data: dict) -> np.ndarray:
     """Extract behavioral features from transaction history. Returns 64-dim vector."""
@@ -148,6 +188,7 @@ def extract_transaction_features(tx_data: dict) -> np.ndarray:
 
     return vec
 
+
 def extract_wallet_features(wallet_data: dict) -> np.ndarray:
     """Extract wallet entity features for clustering/scam detection. Returns 64-dim vector."""
     vec = np.zeros(64, dtype=np.float32)
@@ -176,9 +217,16 @@ def extract_wallet_features(wallet_data: dict) -> np.ndarray:
 
     labels = wallet_data.get("labels", []) or []
     risk_tags = {
-        "scammer": 20, "rug_puller": 21, "honeypot_creator": 22,
-        "wash_trader": 23, "mixer_user": 24, "exploiter": 25,
-        "sanctioned": 26, "phisher": 27, "insider": 28, "bot": 29,
+        "scammer": 20,
+        "rug_puller": 21,
+        "honeypot_creator": 22,
+        "wash_trader": 23,
+        "mixer_user": 24,
+        "exploiter": 25,
+        "sanctioned": 26,
+        "phisher": 27,
+        "insider": 28,
+        "bot": 29,
     }
     for label in labels:
         label_lower = str(label).lower().replace(" ", "_")
@@ -193,8 +241,7 @@ def extract_wallet_features(wallet_data: dict) -> np.ndarray:
             vec[30 + i] = ch[i] / 255.0
 
     chains = wallet_data.get("active_chains", []) or []
-    chain_list = ["ethereum", "solana", "base", "bsc", "polygon",
-                  "arbitrum", "optimism", "avalanche", "fantom", "tron"]
+    chain_list = ["ethereum", "solana", "base", "bsc", "polygon", "arbitrum", "optimism", "avalanche", "fantom", "tron"]
     for i, ch in enumerate(chain_list):
         if ch in [c.lower() for c in chains]:
             vec[40 + i] = 1.0

@@ -22,6 +22,7 @@ Design principle: Tools change less frequently than tactics.
 A Smithii-bundled token has detectable on-chain fingerprints
 regardless of the scammer's chosen exit strategy.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -176,6 +177,7 @@ FIRST_BUYER_THRESHOLDS = {
     "coordinated_same_block": 5,  # 5+ wallets buying in same block = coordinated
 }
 
+
 @dataclass
 class ToolFingerprintResult:
     """Result from tool fingerprinting analysis."""
@@ -186,6 +188,7 @@ class ToolFingerprintResult:
     evidence: list[str]
     severity: int  # 0-100
     description: str
+
 
 @dataclass
 class FirstBuyerAnalysis:
@@ -204,6 +207,7 @@ class FirstBuyerAnalysis:
     risk_level: str  # critical, high, medium, low
     flags: list[str]
 
+
 @dataclass
 class DeployerProfile:
     """Profile of the token deployer wallet."""
@@ -220,9 +224,11 @@ class DeployerProfile:
     risk_score: int  # 0-100
     flags: list[str]
 
+
 # ══════════════════════════════════════════════════════════════════════
 # TOOL FINGERPRINTER
 # ══════════════════════════════════════════════════════════════════════
+
 
 class ToolFingerprinter:
     """
@@ -236,9 +242,7 @@ class ToolFingerprinter:
         self._known_scammers: set[str] = set()
         self._cex_wallets: set[str] = set()
 
-    async def fingerprint_transaction(
-        self, tx_data: dict, chain: str = "solana"
-    ) -> list[ToolFingerprintResult]:
+    async def fingerprint_transaction(self, tx_data: dict, chain: str = "solana") -> list[ToolFingerprintResult]:
         """Analyze a single transaction for tool fingerprints."""
         results = []
         instructions = tx_data.get("instructions", tx_data.get("ix", []))
@@ -280,9 +284,7 @@ class ToolFingerprinter:
 
         return results
 
-    async def detect_bundlers(
-        self, tx_list: list[dict], token_address: str
-    ) -> list[ToolFingerprintResult]:
+    async def detect_bundlers(self, tx_list: list[dict], token_address: str) -> list[ToolFingerprintResult]:
         """Detect bundler patterns across multiple transactions."""
         results = []
         evidence_smithii = []
@@ -464,9 +466,7 @@ class ToolFingerprinter:
             flags=flags,
         )
 
-    async def profile_deployer(
-        self, deployer_address: str, chain: str = "solana"
-    ) -> DeployerProfile:
+    async def profile_deployer(self, deployer_address: str, chain: str = "solana") -> DeployerProfile:
         """Profile the token deployer wallet for risk factors."""
         flags = []
         risk = 0
@@ -500,9 +500,7 @@ class ToolFingerprinter:
                             first_sig = sigs[-1]
                             first_ts = first_sig.get("blockTime", 0)
                             if first_ts:
-                                age_days = (
-                                    datetime.now(UTC) - datetime.fromtimestamp(first_ts, tz=UTC)
-                                ).days
+                                age_days = (datetime.now(UTC) - datetime.fromtimestamp(first_ts, tz=UTC)).days
                         prev_tokens = len(
                             [
                                 s
@@ -572,9 +570,7 @@ class ToolFingerprinter:
             flags=flags,
         )
 
-    async def detect_volume_bots(
-        self, trades: list[dict], token_address: str
-    ) -> list[ToolFingerprintResult]:
+    async def detect_volume_bots(self, trades: list[dict], token_address: str) -> list[ToolFingerprintResult]:
         """Detect volume bot / wash trading patterns."""
         results = []
         if not trades or len(trades) < 10:
@@ -607,9 +603,7 @@ class ToolFingerprinter:
         if trade_sizes:
             unique_sizes = len(set(trade_sizes))
             if unique_sizes < len(trade_sizes) * 0.3:
-                evidence.append(
-                    f"Repetitive trade sizes: {unique_sizes} unique from {len(trade_sizes)} trades"
-                )
+                evidence.append(f"Repetitive trade sizes: {unique_sizes} unique from {len(trade_sizes)} trades")
 
         if evidence:
             results.append(
@@ -749,17 +743,20 @@ class ToolFingerprinter:
         results["scan_duration_ms"] = round((time.time() - start) * 1000)
         return results
 
+
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ══════════════════════════════════════════════════════════════════════
 
 _fingerprinter: ToolFingerprinter | None = None
 
+
 async def get_fingerprinter() -> ToolFingerprinter:
     global _fingerprinter
     if _fingerprinter is None:
         _fingerprinter = ToolFingerprinter()
     return _fingerprinter
+
 
 async def fingerprint_token(
     token_address: str,

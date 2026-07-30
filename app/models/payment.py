@@ -40,6 +40,4 @@ class Payment(Base, TimestampMixin):
         index=True,
     )
 
-    __table_args__ = (
-        Index("ix_payment_status", "status"),
-    )
+    __table_args__ = (Index("ix_payment_status", "status"),)

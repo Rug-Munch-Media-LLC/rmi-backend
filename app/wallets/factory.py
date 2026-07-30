@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("wallet_factory")
 
+
 class WalletFactory:
     """
     Multi-chain wallet generation engine.
@@ -39,15 +40,11 @@ class WalletFactory:
 
     # ── Generation ──────────────────────────────────────────────
 
-    def generate(
-        self, chain_key: str, label: str = "", tags: list[str] | None = None
-    ) -> WalletResult:
+    def generate(self, chain_key: str, label: str = "", tags: list[str] | None = None) -> WalletResult:
         """Generate a wallet for any supported chain."""
         cfg = SUPPORTED_CHAINS.get(chain_key.lower())
         if not cfg:
-            raise ValueError(
-                f"Unsupported chain: {chain_key}. Supported: {list(SUPPORTED_CHAINS.keys())}"
-            )
+            raise ValueError(f"Unsupported chain: {chain_key}. Supported: {list(SUPPORTED_CHAINS.keys())}")
 
         now = datetime.now(UTC).isoformat()
 
@@ -119,9 +116,7 @@ class WalletFactory:
         self, chain_key: str, vault_path: str = os.getenv("WALLET_VAULT_PATH", "/path/to/wallets/vault.json")
     ) -> WalletResult:
         """Generate a new wallet and mark it as the active rotation for this chain."""
-        wallet = self.generate(
-            chain_key, label=f"rotation_{int(time.time())}", tags=["rotated", "active"]
-        )
+        wallet = self.generate(chain_key, label=f"rotation_{int(time.time())}", tags=["rotated", "active"])
         self.save_to_vault(wallet, vault_path)
 
         idx = self._rotation_index.get(chain_key, 0)
@@ -149,14 +144,15 @@ class WalletFactory:
             "rotations": dict(self._rotation_index),
             "encryption_enabled": self._encrypt,
             "chains": {
-                k: {"name": c.name, "symbol": c.symbol, "family": c.family}
-                for k, c in SUPPORTED_CHAINS.items()
+                k: {"name": c.name, "symbol": c.symbol, "family": c.family} for k, c in SUPPORTED_CHAINS.items()
             },
         }
+
 
 # ── Singleton ───────────────────────────────────────────────────
 
 _factory: WalletFactory | None = None
+
 
 def get_wallet_factory(encrypt: bool = True) -> WalletFactory:
     global _factory

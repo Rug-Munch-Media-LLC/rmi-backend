@@ -33,6 +33,7 @@ DEFAULT_SOURCES: list[LabelSource] = [
     LabelSource.MBAL,
 ]
 
+
 class FederatedLabelAPI:
     """Orchestrates wallet label queries across all configured sources.
 
@@ -170,11 +171,9 @@ class FederatedLabelAPI:
                     timeout=self._per_source_timeout,
                 )
             except TimeoutError:
-                log.warning(
-                    "federated_source_timeout source=%s address=%s", source.value, address[:10]
-                )
+                log.warning("federated_source_timeout source=%s address=%s", source.value, address[:10])
                 return []
-            except (KeyError, TypeError) as e :
+            except (KeyError, TypeError) as e:
                 log.warning(
                     "federated_source_error source=%s err=%s: %s",
                     source.value,
@@ -277,7 +276,7 @@ class FederatedLabelAPI:
                 )
                 for line in data
             ]
-        except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+        except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
             log.debug("federated_cache_get_fail: %s", e)
             return None
 
@@ -294,7 +293,7 @@ class FederatedLabelAPI:
             key = self._cache_key(address, chain)
             data = [line.to_dict() for line in labels]
             r.setex(key, self._cache_ttl, _json.dumps(data))
-        except (ConnectionError, OSError, ValueError) as e :
+        except (ConnectionError, OSError, ValueError) as e:
             log.debug("federated_cache_set_fail: %s", e)
 
     def _cache_key(self, address: str, chain: str) -> str:
@@ -303,7 +302,9 @@ class FederatedLabelAPI:
 
         return f"labels:{chain}:{_hash_identifier(address.lower())}"
 
+
 _default_instance: FederatedLabelAPI | None = None
+
 
 def get_federated_api() -> FederatedLabelAPI:
     """Get a process-wide FederatedLabelAPI instance."""

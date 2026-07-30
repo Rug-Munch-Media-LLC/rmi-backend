@@ -34,9 +34,7 @@ async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, A
     risk_score = 0
 
     if chain == "sol" and cfg.HELIUS_KEY:
-        txs = await client.helius_post(
-            "/addresses/transactions", {"addresses": [address], "options": {"limit": 50}}
-        )
+        txs = await client.helius_post("/addresses/transactions", {"addresses": [address], "options": {"limit": 50}})
         if "error" not in txs:
             for _tx in txs if isinstance(txs, list) else txs.get("result", []):
                 pass
@@ -95,16 +93,8 @@ async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, A
     result["risk_flags"] = flags
     result["risk_score"] = min(risk_score, 100)
     result["risk_level"] = (
-        "CRITICAL"
-        if risk_score >= 60
-        else "HIGH"
-        if risk_score >= 40
-        else "MEDIUM"
-        if risk_score >= 20
-        else "LOW"
+        "CRITICAL" if risk_score >= 60 else "HIGH" if risk_score >= 40 else "MEDIUM" if risk_score >= 20 else "LOW"
     )
-    result["summary"] = (
-        f"Found {len(sources)} funding source(s). {len(flags)} risk flag(s) detected."
-    )
+    result["summary"] = f"Found {len(sources)} funding source(s). {len(flags)} risk flag(s) detected."
 
     return result

@@ -19,4 +19,3 @@ from app.routers.x402.pricing import (
     check_trial,
     consume_trial,
 )
-

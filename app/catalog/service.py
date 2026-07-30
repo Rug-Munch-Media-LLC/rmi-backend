@@ -75,6 +75,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
 }
 
+
 class StoreHealth:
     """Tracks which stores are reachable. Updated on each probe."""
 
@@ -85,6 +86,7 @@ class StoreHealth:
         self.qdrant: bool = False
         self.minio: bool = False
         self.last_checked: float = 0.0
+
 
 class CatalogService:
     """Unified read/write API for RMI data.
@@ -419,8 +421,7 @@ class CatalogService:
             try:
                 with self._neo_driver.session() as s:
                     r = s.run(
-                        "MATCH (d:Deployer {wallet_id: $id}) "
-                        "RETURN d.reputation_score AS rep, d.rug_count AS rugs",
+                        "MATCH (d:Deployer {wallet_id: $id}) RETURN d.reputation_score AS rep, d.rug_count AS rugs",
                         id=token.deployer_wallet_id,
                     ).single()
                 if r:
@@ -500,9 +501,7 @@ class CatalogService:
             return {"entity_id": None, "wallets": [], "error": str(e)}
 
     # ── RAG bridge: wire app/rag/engine.py into the catalog ─────────
-    async def rag_search(
-        self, query: str, collection: str = "scam_intel", top_k: int = 5
-    ) -> list[dict]:
+    async def rag_search(self, query: str, collection: str = "scam_intel", top_k: int = 5) -> list[dict]:
         """Search the RAG system. Returns raw hits (catalog-agnostic).
 
         Use this when you want RAG results as raw search hits.
@@ -566,12 +565,8 @@ class CatalogService:
         if self._health.neo4j:
             try:
                 with self._neo_driver.session() as s:
-                    out["wallets"] = (
-                        s.run("MATCH (w:Wallet) RETURN COUNT(w) AS c").single()["c"] or 0
-                    )
-                    out["deployers"] = (
-                        s.run("MATCH (d:Deployer) RETURN COUNT(d) AS c").single()["c"] or 0
-                    )
+                    out["wallets"] = s.run("MATCH (w:Wallet) RETURN COUNT(w) AS c").single()["c"] or 0
+                    out["deployers"] = s.run("MATCH (d:Deployer) RETURN COUNT(d) AS c").single()["c"] or 0
             except Exception as e:
                 out["neo4j_error"] = str(e)
         if self._health.qdrant:
@@ -585,8 +580,10 @@ class CatalogService:
                 out["qdrant_error"] = str(e)
         return out
 
+
 # ── Singleton accessor ──────────────────────────────────────────────
 _catalog: CatalogService | None = None
+
 
 def get_catalog() -> CatalogService:
     """Get the global CatalogService. Lazy-init on first call."""

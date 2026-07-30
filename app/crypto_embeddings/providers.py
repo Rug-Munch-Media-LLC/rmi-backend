@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN", "")
 
+
 class LocalBGEEmbedder:
     """Local BAAI BGE-small-en-v1.5 embedder. CPU, ~80MB RAM, 384-dim."""
 
@@ -28,20 +29,20 @@ class LocalBGEEmbedder:
     def _get_model(cls) -> Any:
         if cls._model is None:
             from sentence_transformers import SentenceTransformer
+
             cls._model = SentenceTransformer(cls.MODEL_NAME)
             logger.info(f"LocalBGEEmbedder loaded: {cls.MODEL_NAME} (384d)")
         return cls._model
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         model = self._get_model()
-        embeddings = await asyncio.to_thread(
-            lambda: model.encode(texts, normalize_embeddings=True).tolist()
-        )
+        embeddings = await asyncio.to_thread(lambda: model.encode(texts, normalize_embeddings=True).tolist())
         return embeddings
 
     async def embed_one(self, text: str) -> list[float]:
         results = await self.embed([text])
         return results[0]
+
 
 class OllamaBGEEmbedder:
     """Our own bge-m3 via Ollama. 1024d, zero cost."""
@@ -55,6 +56,7 @@ class OllamaBGEEmbedder:
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import httpx
+
         results = []
         async with httpx.AsyncClient(timeout=3) as client:
             for text in texts:
@@ -68,7 +70,7 @@ class OllamaBGEEmbedder:
                         if len(vec) == self.DIMS:
                             results.append(vec)
                             continue
-                except (httpx.HTTPError):
+                except httpx.HTTPError:
                     pass
                 results.append([0.0] * self.DIMS)
         return results
@@ -76,6 +78,7 @@ class OllamaBGEEmbedder:
     async def embed_one(self, text: str) -> list[float]:
         results = await self.embed([text])
         return results[0]
+
 
 class OpenRouterEmbedder:
     """OpenRouter embedding API - NVIDIA Nemotron primary, bge-m3 fallback."""
@@ -91,6 +94,7 @@ class OpenRouterEmbedder:
 
     async def embed(self, texts: list[str], model: str | None = None) -> list[list[float]]:
         import httpx
+
         model_id = model or self.MODEL
 
         async def _try_embed(m: str) -> list[list[float]]:
@@ -116,6 +120,7 @@ class OpenRouterEmbedder:
         results = await self.embed([text], model)
         return results[0]
 
+
 class HuggingFaceEmbedder:
     """HuggingFace Inference API - free tier fallback."""
 
@@ -133,7 +138,11 @@ class HuggingFaceEmbedder:
         import httpx
 
         model_id = model or self.MODEL
-        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json", "x-wait-for-model": "true"}
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+            "x-wait-for-model": "true",
+        }
         url = f"{self.BASE}/{model_id}"
         async with httpx.AsyncClient(timeout=60) as client:
             results: list[list[float]] = []
@@ -158,12 +167,14 @@ class HuggingFaceEmbedder:
         results = await self.embed([text], model)
         return results[0]
 
+
 class ContractCodeEmbedder:
     """Specialized contract code embedder using structural features + semantic embedding."""
 
     @staticmethod
     async def embed(code: str, semantic_embedder=None) -> np.ndarray:
         import numpy as np
+
         structural = extract_contract_features(code)
         if semantic_embedder and len(code) > 50:
             code_snippet = code[:4000]

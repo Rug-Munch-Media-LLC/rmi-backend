@@ -12,6 +12,7 @@ from app.routers.market_intel.utils import _now
 
 router = APIRouter(tags=["market-intel"])
 
+
 @router.get("/hyperliquid")
 async def get_hyperliquid_data(
     request: Request,
@@ -27,6 +28,7 @@ async def get_hyperliquid_data(
         "total_markets": len(markets),
         "updated_at": now,
     }
+
 
 @router.get("/hyperliquid-action")
 async def get_hyperliquid_action(

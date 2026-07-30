@@ -37,8 +37,7 @@ body = json.dumps(
             {
                 "role": "system",
                 "content": (
-                    "Review this Python code for bugs, security issues, "
-                    "and improvements. List top 3 issues found."
+                    "Review this Python code for bugs, security issues, and improvements. List top 3 issues found."
                 ),
             },
             {"role": "user", "content": code},

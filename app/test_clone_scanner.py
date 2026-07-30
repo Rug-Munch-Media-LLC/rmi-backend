@@ -46,6 +46,7 @@ class TestStringHelpers(unittest.TestCase):
         assert string_similarity("Pepe", "") == 0.0
         assert string_similarity("", "") == 0.0
 
+
 class TestNameSimilarity(unittest.TestCase):
     """Name similarity scoring with clone patterns."""
 
@@ -69,6 +70,7 @@ class TestNameSimilarity(unittest.TestCase):
     def test_different_tokens(self) -> None:
         score = name_similarity_score("Bitcoin", "Pepe")
         assert score < 0.3
+
 
 class TestCloneReport(unittest.TestCase):
     """CloneReport data model and helpers."""
@@ -154,6 +156,7 @@ class TestCloneReport(unittest.TestCase):
         report.risk_label = scanner._label_risk(25.0)
         assert report.risk_label == "medium"
 
+
 class TestSimilarToken(unittest.TestCase):
     """SimilarToken helper properties."""
 
@@ -179,6 +182,7 @@ class TestSimilarToken(unittest.TestCase):
         )
         assert t.overall_similarity == 0.95
 
+
 class TestScannerScoring(unittest.TestCase):
     """Unit tests for scoring methods (no network)."""
 
@@ -194,9 +198,7 @@ class TestScannerScoring(unittest.TestCase):
         assert score == 0.0
 
     def test_score_bytecode_mass_deployer(self) -> None:
-        score = self.scanner._score_bytecode_risk(
-            True, {"other_unverified": 10, "other_tokens": 30}
-        )
+        score = self.scanner._score_bytecode_risk(True, {"other_unverified": 10, "other_tokens": 30})
         # 40 (unverified) + 20 (many unverified) + 15 (mass deployer) = 75
         assert score == 75
 
@@ -241,9 +243,7 @@ class TestScannerScoring(unittest.TestCase):
         assert score == 40
 
     def test_score_metadata_with_social(self) -> None:
-        score = self.scanner._score_metadata_risk(
-            {"name": "T", "symbol": "S", "social": {"twitter": "@x"}}, [], []
-        )
+        score = self.scanner._score_metadata_risk({"name": "T", "symbol": "S", "social": {"twitter": "@x"}}, [], [])
         assert score == 10  # missing website
 
     def test_score_metadata_full(self) -> None:
@@ -289,6 +289,7 @@ class TestScannerScoring(unittest.TestCase):
 
     def test_invalid_address(self) -> None:
         assert not self.scanner._validate_address("not-an-address", "ethereum")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -2,6 +2,7 @@
 MEV Detector — Main Detection Engine
 Real-time detection of MEV attacks - sandwiches, frontruns, backruns.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,6 +32,7 @@ from app.domains.detectors.mev_detector_package.registry import (
 )
 
 logger = get_logger(__name__)
+
 
 class MEVSandwichDetector:
     """Real-time detection of MEV attacks - sandwiches, frontruns, backruns."""
@@ -69,11 +71,18 @@ class MEVSandwichDetector:
         known = self._known_bots.get(addr_lower)
         if known:
             return known
-        return MEVBotProfile(address=addr_lower, chain=chain, name=f"unknown_bot_{addr_lower[:8]}", attack_types=[MEVAttackType.SANDWICH], tags=["suspected_bot"])
+        return MEVBotProfile(
+            address=addr_lower,
+            chain=chain,
+            name=f"unknown_bot_{addr_lower[:8]}",
+            attack_types=[MEVAttackType.SANDWICH],
+            tags=["suspected_bot"],
+        )
 
     async def _query_databus(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
         try:
             import httpx
+
             base_url = os.environ.get("DATABUS_URL", "http://localhost:8000/api/v1/databus")
             async with httpx.AsyncClient(timeout=10) as client:
                 if params:
@@ -84,13 +93,28 @@ class MEVSandwichDetector:
                     return resp.json()
         except ImportError:
             logger.debug("httpx not available, skipping DataBus query")
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_query_databus_error", exc_info=True)
             logger.error(f"DataBus query error: {e}")
         return None
 
     async def _check_chain_mev_activity(self, chain: str, block_range: tuple[int, int] | None = None) -> dict[str, Any]:
-        result: dict[str, Any] = {"chain": chain, "suspicious_patterns": [], "sandwich_candidates": [], "bot_hits": [], "txs_checked": 0}
+        result: dict[str, Any] = {
+            "chain": chain,
+            "suspicious_patterns": [],
+            "sandwich_candidates": [],
+            "bot_hits": [],
+            "txs_checked": 0,
+        }
         data = await self._query_databus("fetch", {"data_type": "transactions", "chain": chain, "limit": 100})
         if not data:
             return result
@@ -123,12 +147,38 @@ class MEVSandwichDetector:
                 if f_sender == b_sender and f_sender != v_sender:
                     confidence = is_sandwich_pattern(f_tx, v_tx, b_tx)
                     if confidence > 0.5:
-                        result["sandwich_candidates"].append({"pool": pool_addr, "frontrun_tx": f_tx, "victim_tx": v_tx, "backrun_tx": b_tx, "bot_address": f_sender, "victim_address": v_sender, "confidence": confidence})
+                        result["sandwich_candidates"].append(
+                            {
+                                "pool": pool_addr,
+                                "frontrun_tx": f_tx,
+                                "victim_tx": v_tx,
+                                "backrun_tx": b_tx,
+                                "bot_address": f_sender,
+                                "victim_address": v_sender,
+                                "confidence": confidence,
+                            }
+                        )
 
                 if f_is_bot and f_sender != v_sender:
-                    result["suspicious_patterns"].append({"type": "frontrun", "bot": f_sender, "victim": v_sender, "tx": f_tx.get("tx_hash", ""), "target_tx": v_tx.get("tx_hash", "")})
+                    result["suspicious_patterns"].append(
+                        {
+                            "type": "frontrun",
+                            "bot": f_sender,
+                            "victim": v_sender,
+                            "tx": f_tx.get("tx_hash", ""),
+                            "target_tx": v_tx.get("tx_hash", ""),
+                        }
+                    )
                 if b_is_bot and b_sender != v_sender:
-                    result["suspicious_patterns"].append({"type": "backrun", "bot": b_sender, "victim": v_sender, "tx": b_tx.get("tx_hash", ""), "target_tx": v_tx.get("tx_hash", "")})
+                    result["suspicious_patterns"].append(
+                        {
+                            "type": "backrun",
+                            "bot": b_sender,
+                            "victim": v_sender,
+                            "tx": b_tx.get("tx_hash", ""),
+                            "target_tx": v_tx.get("tx_hash", ""),
+                        }
+                    )
 
                 for sender in [f_sender, b_sender]:
                     bot = self.is_known_bot(sender)
@@ -136,7 +186,9 @@ class MEVSandwichDetector:
                         result["bot_hits"].append({"address": sender, "name": bot.name, "detected_in": pool_addr})
         return result
 
-    def _estimate_sandwich_value(self, chain: str, frontrun: dict, victim: dict, backrun: dict) -> tuple[float, float, float]:
+    def _estimate_sandwich_value(
+        self, chain: str, frontrun: dict, victim: dict, backrun: dict
+    ) -> tuple[float, float, float]:
         eth_price = 3000.0
         bot_frontrun_gas = (frontrun.get("gas_price_gwei", 0) or 0) * (frontrun.get("gas_used", 21000) or 21000)
         bot_backrun_gas = (backrun.get("gas_price_gwei", 0) or 0) * (backrun.get("gas_used", 21000) or 21000)
@@ -155,9 +207,20 @@ class MEVSandwichDetector:
         return extracted_usd, victim_loss_usd, slippage_pct * 100
 
     async def _analyze_pool_mev_risk(self, pool: PoolInfo) -> dict[str, Any]:
-        flags = check_pool_vulnerability({"liquidity_usd": pool.liquidity_usd, "volume_24h_usd": pool.volume_24h_usd, "fee_tier": pool.fee_tier})
+        flags = check_pool_vulnerability(
+            {"liquidity_usd": pool.liquidity_usd, "volume_24h_usd": pool.volume_24h_usd, "fee_tier": pool.fee_tier}
+        )
         score = estimate_mev_vulnerability_score(flags)
-        return {"pool_address": pool.address, "chain": pool.chain, "name": f"{pool.token0_symbol}/{pool.token1_symbol}", "dex_type": pool.dex_type.value, "liquidity_usd": pool.liquidity_usd, "mev_vulnerability_score": round(score, 2), "flags": flags, "assessment": ("high" if score > 0.6 else "medium" if score > 0.3 else "low")}
+        return {
+            "pool_address": pool.address,
+            "chain": pool.chain,
+            "name": f"{pool.token0_symbol}/{pool.token1_symbol}",
+            "dex_type": pool.dex_type.value,
+            "liquidity_usd": pool.liquidity_usd,
+            "mev_vulnerability_score": round(score, 2),
+            "flags": flags,
+            "assessment": ("high" if score > 0.6 else "medium" if score > 0.3 else "low"),
+        }
 
     async def scan(self, pool_address: str | None = None, block_range: tuple[int, int] | None = None) -> MEVScanReport:
         report = MEVScanReport()
@@ -179,15 +242,60 @@ class MEVSandwichDetector:
                     vd = candidate["victim_tx"]
                     bd = candidate["backrun_tx"]
                     sandwich = SandwichAttack(
-                        victim_address=candidate["victim_address"], token_in=vd.get("token_in", "unknown"),
-                        token_out=vd.get("token_out", "unknown"), chain=chain, pool_address=candidate["pool"],
+                        victim_address=candidate["victim_address"],
+                        token_in=vd.get("token_in", "unknown"),
+                        token_out=vd.get("token_out", "unknown"),
+                        chain=chain,
+                        pool_address=candidate["pool"],
                         block_number=vd.get("block_number", 0),
-                        frontrun_tx=MEVTransaction(tx_hash=fd.get("tx_hash",""), chain=chain, block_number=vd.get("block_number",0), tx_index=fd.get("tx_index",0), from_address=bot_addr, to_address=candidate["pool"], value_eth=fd.get("value_eth",0), gas_price_gwei=fd.get("gas_price_gwei",0), gas_used=fd.get("gas_used",0), method_signature=fd.get("method_signature","")),
-                        victim_tx=MEVTransaction(tx_hash=vd.get("tx_hash",""), chain=chain, block_number=vd.get("block_number",0), tx_index=vd.get("tx_index",0), from_address=candidate["victim_address"], to_address=candidate["pool"], value_eth=vd.get("value_eth",0), gas_price_gwei=vd.get("gas_price_gwei",0), gas_used=vd.get("gas_used",0), method_signature=vd.get("method_signature","")),
-                        backrun_tx=MEVTransaction(tx_hash=bd.get("tx_hash",""), chain=chain, block_number=vd.get("block_number",0), tx_index=bd.get("tx_index",0), from_address=bot_addr, to_address=candidate["pool"], value_eth=bd.get("value_eth",0), gas_price_gwei=bd.get("gas_price_gwei",0), gas_used=bd.get("gas_used",0), method_signature=bd.get("method_signature","")),
-                        bot_address=bot_addr, estimated_extracted_usd=extracted, victim_loss_usd=victim_loss,
-                        slippage_impact_pct=slippage, confidence=candidate["confidence"],
-                        severity=MEVSeverity.CRITICAL if extracted > 100 else MEVSeverity.HIGH if extracted > 10 else MEVSeverity.MEDIUM if extracted > 1 else MEVSeverity.LOW,
+                        frontrun_tx=MEVTransaction(
+                            tx_hash=fd.get("tx_hash", ""),
+                            chain=chain,
+                            block_number=vd.get("block_number", 0),
+                            tx_index=fd.get("tx_index", 0),
+                            from_address=bot_addr,
+                            to_address=candidate["pool"],
+                            value_eth=fd.get("value_eth", 0),
+                            gas_price_gwei=fd.get("gas_price_gwei", 0),
+                            gas_used=fd.get("gas_used", 0),
+                            method_signature=fd.get("method_signature", ""),
+                        ),
+                        victim_tx=MEVTransaction(
+                            tx_hash=vd.get("tx_hash", ""),
+                            chain=chain,
+                            block_number=vd.get("block_number", 0),
+                            tx_index=vd.get("tx_index", 0),
+                            from_address=candidate["victim_address"],
+                            to_address=candidate["pool"],
+                            value_eth=vd.get("value_eth", 0),
+                            gas_price_gwei=vd.get("gas_price_gwei", 0),
+                            gas_used=vd.get("gas_used", 0),
+                            method_signature=vd.get("method_signature", ""),
+                        ),
+                        backrun_tx=MEVTransaction(
+                            tx_hash=bd.get("tx_hash", ""),
+                            chain=chain,
+                            block_number=vd.get("block_number", 0),
+                            tx_index=bd.get("tx_index", 0),
+                            from_address=bot_addr,
+                            to_address=candidate["pool"],
+                            value_eth=bd.get("value_eth", 0),
+                            gas_price_gwei=bd.get("gas_price_gwei", 0),
+                            gas_used=bd.get("gas_used", 0),
+                            method_signature=bd.get("method_signature", ""),
+                        ),
+                        bot_address=bot_addr,
+                        estimated_extracted_usd=extracted,
+                        victim_loss_usd=victim_loss,
+                        slippage_impact_pct=slippage,
+                        confidence=candidate["confidence"],
+                        severity=MEVSeverity.CRITICAL
+                        if extracted > 100
+                        else MEVSeverity.HIGH
+                        if extracted > 10
+                        else MEVSeverity.MEDIUM
+                        if extracted > 1
+                        else MEVSeverity.LOW,
                         bot_name=bot_profile.name,
                     )
                     report.sandwiches.append(sandwich)
@@ -196,12 +304,19 @@ class MEVSandwichDetector:
                     if bot_profile.address not in [b.address for b in report.bots_detected]:
                         report.bots_detected.append(bot_profile)
                 for pattern in chain_result.get("suspicious_patterns", []):
-                    entry = {"chain": chain, "type": pattern["type"], "bot_address": pattern["bot"], "victim_address": pattern["victim"], "tx_hash": pattern["tx"], "target_tx_hash": pattern.get("target_tx", "")}
+                    entry = {
+                        "chain": chain,
+                        "type": pattern["type"],
+                        "bot_address": pattern["bot"],
+                        "victim_address": pattern["victim"],
+                        "tx_hash": pattern["tx"],
+                        "target_tx_hash": pattern.get("target_tx", ""),
+                    }
                     if pattern["type"] == "frontrun":
                         report.frontruns.append(entry)
                     else:
                         report.backruns.append(entry)
-            except (httpx.HTTPError, KeyError, TypeError) as e :
+            except (httpx.HTTPError, KeyError, TypeError) as e:
                 logger.debug("unknown_error", exc_info=True)
                 err = f"Chain {chain} scan error: {e}"
                 logger.error(err)
@@ -212,7 +327,7 @@ class MEVSandwichDetector:
                 risk = await self._analyze_pool_mev_risk(pool)
                 report.vulnerable_pools.append(risk)
                 report.pools_analyzed += 1
-            except (httpx.HTTPError) as e :
+            except httpx.HTTPError as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Pool analysis error for {pool.address}: {e}")
 
@@ -228,7 +343,18 @@ class MEVSandwichDetector:
                 dex_type = PoolDexType(p.get("dex_type", "unknown"))
             except ValueError:
                 dex_type = PoolDexType.UNKNOWN
-            pool = PoolInfo(address=p["address"].lower(), chain=p.get("chain", "ethereum"), dex_type=dex_type, token0=p.get("token0", ""), token1=p.get("token1", ""), token0_symbol=p.get("token0_symbol", ""), token1_symbol=p.get("token1_symbol", ""), liquidity_usd=p.get("liquidity_usd", 0), volume_24h_usd=p.get("volume_24h_usd", 0), fee_tier=p.get("fee_tier", 3000))
+            pool = PoolInfo(
+                address=p["address"].lower(),
+                chain=p.get("chain", "ethereum"),
+                dex_type=dex_type,
+                token0=p.get("token0", ""),
+                token1=p.get("token1", ""),
+                token0_symbol=p.get("token0_symbol", ""),
+                token1_symbol=p.get("token1_symbol", ""),
+                liquidity_usd=p.get("liquidity_usd", 0),
+                volume_24h_usd=p.get("volume_24h_usd", 0),
+                fee_tier=p.get("fee_tier", 3000),
+            )
             self.register_pool(pool)
 
     def save_bot_registry(self) -> None:
@@ -236,7 +362,13 @@ class MEVSandwichDetector:
         bot_file = os.path.join(self.data_dir, "mev_bots.json")
         serializable = {}
         for addr, profile in self._known_bots.items():
-            serializable[addr] = {"name": profile.name, "chain": profile.chain, "tags": profile.tags, "attacks_detected": profile.attacks_detected, "total_extracted_usd": round(profile.total_extracted_usd, 2)}
+            serializable[addr] = {
+                "name": profile.name,
+                "chain": profile.chain,
+                "tags": profile.tags,
+                "attacks_detected": profile.attacks_detected,
+                "total_extracted_usd": round(profile.total_extracted_usd, 2),
+            }
         try:
             with open(bot_file, "w") as f:
                 json.dump(serializable, f, indent=2)

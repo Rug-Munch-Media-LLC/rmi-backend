@@ -27,6 +27,7 @@ from app.domains.billing.facilitators.config import FacilitatorConfig, get_confi
 
 logger = get_logger("facilitator.asterpay")
 
+
 class AsterPayFacilitator(Facilitator):
     """
     AsterPay - European x402 facilitator with SEPA EUR off-ramp.
@@ -107,9 +108,7 @@ class AsterPayFacilitator(Facilitator):
                 data = await resp.json()
 
                 if resp.status != 200:
-                    return self._format_error(
-                        f"AsterPay: {data.get('error', f'HTTP {resp.status}')}"
-                    )
+                    return self._format_error(f"AsterPay: {data.get('error', f'HTTP {resp.status}')}")
 
                 if data.get("isValid") or data.get("verified"):
                     return self._format_success(
@@ -117,9 +116,7 @@ class AsterPayFacilitator(Facilitator):
                         payer=data.get("payer"),
                         amount=accepted.get("amount"),
                         amount_usd=data.get("eurValue"),
-                        chain="sepa"
-                        if data.get("isEur")
-                        else accepted.get("network", "").split(":")[-1],
+                        chain="sepa" if data.get("isEur") else accepted.get("network", "").split(":")[-1],
                         token=data.get("currency", "USDC"),
                         settlement_id=data.get("settlementId"),
                     )
@@ -188,6 +185,4 @@ class AsterPayFacilitator(Facilitator):
                     facilitator=self.name,
                 )
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            return SettlementResult(
-                settled=False, reason=f"AsterPay settlement error: {e}", facilitator=self.name
-            )
+            return SettlementResult(settled=False, reason=f"AsterPay settlement error: {e}", facilitator=self.name)

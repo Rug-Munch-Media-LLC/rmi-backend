@@ -41,12 +41,14 @@ COLUMN_MAP = {
     "category": "label_category",
 }
 
+
 def get_client() -> Any:
     """Return a ClickHouse client (raises on failure)."""
     return clickhouse_connect.get_client(
         host=CLICKHOUSE_HOST,
         port=CLICKHOUSE_PORT,
     )
+
 
 def parse_file(path: Path) -> list[dict]:
     """Parse a file into a list of dicts keyed by CH column names.
@@ -91,6 +93,7 @@ def parse_file(path: Path) -> list[dict]:
 
     return rows
 
+
 def upsert_batch(client: Any, batch: list[dict]) -> int:
     """INSERT a batch into MergeTree. Duplicates are handled by
     ORDER BY (address, label_name, source) — same-key rows coexist
@@ -115,6 +118,7 @@ def upsert_batch(client: Any, batch: list[dict]) -> int:
         ],
     )
     return len(batch)
+
 
 def main() -> None:
     args = sys.argv[1:]
@@ -148,9 +152,8 @@ def main() -> None:
         logger.info("[labels_sync]  inserted %d/%d  (%d this batch)", total, len(rows), n)
 
     elapsed = time.time() - t0
-    logger.info(
-        "[labels_sync]  DONE — %d rows in %.1fs (%.0f rows/s)", total, elapsed, total / elapsed
-    )
+    logger.info("[labels_sync]  DONE — %d rows in %.1fs (%.0f rows/s)", total, elapsed, total / elapsed)
+
 
 if __name__ == "__main__":
     main()

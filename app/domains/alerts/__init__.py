@@ -19,6 +19,7 @@ def _read_env_file() -> dict[str, str]:
         pass
     return env
 
+
 async def _health_check() -> DomainHealth:
     """Alerts health: Redis reachable via process env (not mutable os.environ)."""
     import redis as redis_lib
@@ -44,13 +45,14 @@ async def _health_check() -> DomainHealth:
             healthy=True,
             details={"redis": "ok", "host": host, "port": port},
         )
-    except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+    except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
         return DomainHealth(
             name="alerts",
             healthy=False,
             details={"host": host, "port": port},
             error=str(e),
         )
+
 
 health_mod.register_health_check("alerts", _health_check)
 

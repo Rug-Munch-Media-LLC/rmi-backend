@@ -178,6 +178,7 @@ SECURITY_INTEL_WORKFLOWS = {
 
 # ── n8n Workflow Execution ────────────────────────────────────
 
+
 async def trigger_n8n_workflow(workflow_name: str, data: dict | None = None) -> bool:
     """Trigger an n8n workflow via webhook."""
     import httpx
@@ -217,6 +218,7 @@ async def trigger_n8n_workflow(workflow_name: str, data: dict | None = None) -> 
     except Exception as e:
         logger.error(f"Workflow trigger error: {workflow_name} - {e}")
         return False
+
 
 async def execute_market_intelligence_pull(workflow_name: str) -> None:
     """Execute a market intelligence data pull."""
@@ -283,6 +285,7 @@ async def execute_market_intelligence_pull(workflow_name: str) -> None:
     # Trigger alerts if needed
     await _process_intelligence_alerts(workflow_name, collected_data)
 
+
 async def _store_intelligence_data(table_name: str, data: dict) -> None:
     """Store intelligence data in Supabase."""
     try:
@@ -306,6 +309,7 @@ async def _store_intelligence_data(table_name: str, data: dict) -> None:
     except Exception as e:
         logger.error(f"Failed to store intelligence data: {e}")
 
+
 async def _process_intelligence_alerts(workflow_name: str, data: dict) -> None:
     """Process intelligence data and trigger alerts."""
     # Check for significant findings
@@ -327,6 +331,7 @@ async def _process_intelligence_alerts(workflow_name: str, data: dict) -> None:
         for spike in spikes:
             if spike.get("volume_change_pct", 0) > 500:  # >500% increase
                 await _create_alert("volume_spike", spike)
+
 
 async def _create_alert(alert_type: str, data: dict) -> None:
     """Create an intelligence alert."""
@@ -352,7 +357,9 @@ async def _create_alert(alert_type: str, data: dict) -> None:
     except Exception as e:
         logger.error(f"Failed to create alert: {e}")
 
+
 # ── Dune Analytics Integration ────────────────────────────────
+
 
 async def execute_dune_query(query_id: str, params: dict | None = None) -> dict | None:
     """Execute a Dune Analytics query."""
@@ -401,6 +408,7 @@ async def execute_dune_query(query_id: str, params: dict | None = None) -> dict 
     except Exception as e:
         logger.error(f"Dune query error: {e}")
         return None
+
 
 # Pre-configured Dune queries for RMI
 DUNE_QUERIES = {

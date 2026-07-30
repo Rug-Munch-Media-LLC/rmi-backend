@@ -372,9 +372,7 @@ class TestOracleManipulationDetector(unittest.TestCase):
 
         report = asyncio.run(self.detector.scan(blocks_back=30))
         assert len(report.twap_windows) > 0
-        assert len(report.incidents) + len(report.errors) == report.total_incidents + len(
-            report.errors
-        )
+        assert len(report.incidents) + len(report.errors) == report.total_incidents + len(report.errors)
 
     def test_pool_analysis(self):
         """Pool analysis should produce a TWAP window."""
@@ -579,9 +577,7 @@ class TestEdgeCases(unittest.TestCase):
         assert calculate_twap_from_samples(samples) is None
 
     def test_all_samples_same_price(self):
-        samples = [
-            PriceSnapshot(timestamp=float(i), block_number=i, price=100.0) for i in range(10)
-        ]
+        samples = [PriceSnapshot(timestamp=float(i), block_number=i, price=100.0) for i in range(10)]
         window = calculate_twap_from_samples(samples)
         assert window is not None
         assert window.std_dev_pct == 0.0

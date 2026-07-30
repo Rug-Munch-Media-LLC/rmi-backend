@@ -24,6 +24,7 @@ logger = get_logger("rmi.news.ai")
 OLLAMA_URL = "http://ollama:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5-coder:7b"  # Fast, good quality
 
+
 def news_sentiment_analysis(query: str = "", limit: int = 20) -> dict:
     """AI-powered sentiment analysis across 500+ crypto news sources."""
     articles = get_news_articles(limit, query)
@@ -44,7 +45,7 @@ Respond in JSON format: {{"sentiment": "...", "confidence": ..., "top_stories": 
     ai_response = ask_ollama(prompt, 300)
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         analysis = {"sentiment": "NEUTRAL", "confidence": 50, "raw_ai": ai_response[:200]}
 
     return {
@@ -55,6 +56,7 @@ Respond in JSON format: {{"sentiment": "...", "confidence": ..., "top_stories": 
         "model": OLLAMA_MODEL,
         "attribution": "RMI - rugmunch.io",
     }
+
 
 # ── TOOL 2: Market Sentiment Summary ──
 def market_sentiment_summary() -> dict:
@@ -78,7 +80,7 @@ Respond in JSON: {{"mood_summary": "...", "bullish_themes": ["...","...","..."],
     ai_response = ask_ollama(prompt, 400)
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         analysis = {"mood_summary": ai_response[:200], "raw": True}
 
     return {
@@ -88,6 +90,7 @@ Respond in JSON: {{"mood_summary": "...", "bullish_themes": ["...","...","..."],
         "model": OLLAMA_MODEL,
         "attribution": "RMI - rugmunch.io",
     }
+
 
 # ── TOOL 3: Trending Narratives ──
 def trending_narratives(min_mentions: int = 3) -> dict:
@@ -110,7 +113,7 @@ Respond in JSON: {{"narratives": [{{"name": "...", "mentions": ..., "summary": "
     ai_response = ask_ollama(prompt, 400)
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         analysis = {"narratives": [], "raw": ai_response[:200]}
 
     return {
@@ -120,6 +123,7 @@ Respond in JSON: {{"narratives": [{{"name": "...", "mentions": ..., "summary": "
         "model": OLLAMA_MODEL,
         "attribution": "RMI - rugmunch.io",
     }
+
 
 # ── TOOL 4: News Impact Analysis ──
 def news_impact_analysis(token: str) -> dict:
@@ -141,7 +145,7 @@ Respond in JSON: {{"token": "{token}", "impact": "POSITIVE/NEGATIVE/NEUTRAL", "c
     ai_response = ask_ollama(prompt, 250)
     try:
         analysis = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         analysis = {
             "token": token,
             "impact": "NEUTRAL",
@@ -157,6 +161,7 @@ Respond in JSON: {{"token": "{token}", "impact": "POSITIVE/NEGATIVE/NEUTRAL", "c
         "model": OLLAMA_MODEL,
         "attribution": "RMI - rugmunch.io",
     }
+
 
 # ── TOOL 5: Daily Intel Brief ──
 def daily_intel_brief() -> dict:
@@ -183,7 +188,7 @@ Respond in JSON: {{"mood": "...", "top_stories": [{{"title": "...", "impact": ".
     ai_response = ask_ollama(prompt, 500)
     try:
         brief = json.loads(ai_response[ai_response.find("{") : ai_response.rfind("}") + 1])
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         brief = {"mood": ai_response[:200], "raw": True}
 
     return {

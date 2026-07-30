@@ -27,9 +27,7 @@ class TestTokenScanRequest:
     def test_valid_request(self):
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        req = TokenScanRequest(
-            address="So11111111111111111111111111111111111111112", chain="solana"
-        )
+        req = TokenScanRequest(address="So11111111111111111111111111111111111111112", chain="solana")
         assert req.address == "So11111111111111111111111111111111111111112"
         assert req.chain == "solana"
 

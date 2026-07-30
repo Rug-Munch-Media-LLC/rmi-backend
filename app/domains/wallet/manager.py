@@ -40,6 +40,7 @@ class WalletManagerV2(WalletDBMixin, WalletAnalysisMixin, WalletGenerationMixin)
         await self._save_vault()
         self._initialized = False
 
+
 class WalletManagerFacade:
     """Facade for backward compatibility with v1 API."""
 
@@ -49,12 +50,12 @@ class WalletManagerFacade:
     def __getattr__(self, name: str):
         return getattr(self._manager, name)
 
+
 # Singleton instance
 _manager_instance: WalletManagerV2 | None = None
 
-def get_wallet_manager_v2(
-    vault_path: str | None = None, password: str | None = None
-) -> WalletManagerV2:
+
+def get_wallet_manager_v2(vault_path: str | None = None, password: str | None = None) -> WalletManagerV2:
     """Get or create the singleton wallet manager instance."""
     global _manager_instance
     if _manager_instance is None:

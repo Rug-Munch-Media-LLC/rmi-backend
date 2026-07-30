@@ -19,9 +19,7 @@ class TestCitationValidator:
 
     def test_invalid_citation(self):
         """Test that invalid citations are stripped."""
-        result = validate_section(
-            "This claim [99] is invalid [1].", ["Only source 1 available"], on_unciteable="strip"
-        )
+        result = validate_section("This claim [99] is invalid [1].", ["Only source 1 available"], on_unciteable="strip")
         assert result["validation_rate"] == 0.0
         assert result["unciteable_count"] == 1
         assert "[Data not available]" in result["validated_text"]
@@ -78,17 +76,13 @@ class TestCitationValidator:
 
     def test_keep_unciteable(self):
         """Test that on_unciteable='keep' preserves unciteable text."""
-        result = validate_section(
-            "Some text [99] invalid.", ["Source one content"], on_unciteable="keep"
-        )
+        result = validate_section("Some text [99] invalid.", ["Source one content"], on_unciteable="keep")
         assert result["unciteable_count"] == 1
         assert "Some text [99] invalid." in result["validated_text"]
 
     def test_strip_unciteable(self):
         """Test that on_unciteable='strip' removes unciteable text."""
-        result = validate_section(
-            "Some text [99] invalid.", ["Source one content"], on_unciteable="strip"
-        )
+        result = validate_section("Some text [99] invalid.", ["Source one content"], on_unciteable="strip")
         assert result["unciteable_count"] == 1
         assert "Data not available" in result["validated_text"]
 

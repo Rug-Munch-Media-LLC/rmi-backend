@@ -32,6 +32,7 @@ WEIGHT_RERANKER_MARGIN = 0.15
 WEIGHT_TEMPORAL_FRESHNESS = 0.10
 WEIGHT_ENTITY_BONUS = 0.10
 
+
 def score_confidence(
     results: list[dict[str, Any]],
     query: str = "",
@@ -160,7 +161,9 @@ def score_confidence(
         "details": details,
     }
 
+
 # ── Component Scorers ──────────────────────────────────────────────
+
 
 def _score_concentration(results: list[dict]) -> float:
     """How concentrated are the top similarities? Sharp drop = strong signal."""
@@ -180,6 +183,7 @@ def _score_concentration(results: list[dict]) -> float:
     ratio = min(1.0, (top - avg_rest) / top) if top > avg_rest else 0.0
     return ratio
 
+
 def _score_similarity(results: list[dict]) -> float:
     """Raw semantic similarity quality - how close are top results?"""
     sims = [r.get("similarity", 0) or r.get("combined_score", 0) for r in results[:3]]
@@ -190,6 +194,7 @@ def _score_similarity(results: list[dict]) -> float:
     # Average of top-3 similarities, capped at 0.95 (cosine can be near 1.0 for duplicates)
     avg = sum(sims) / len(sims)
     return min(1.0, avg / 0.9)  # normalize: 0.9+ similarity = 1.0 score
+
 
 def _score_corroboration(results: list[dict]) -> float:
     """How many independent sources agree?"""
@@ -205,6 +210,7 @@ def _score_corroboration(results: list[dict]) -> float:
         return 0.2
     return 0.0
 
+
 def _score_reranker_margin(results: list[dict]) -> float:
     """Gap between #1 and #2 combined score. Big gap = clear winner."""
     scores = [r.get("combined_score", r.get("similarity", 0)) for r in results[:3]]
@@ -214,6 +220,7 @@ def _score_reranker_margin(results: list[dict]) -> float:
     margin = scores[0] - scores[1]
     # Normalize: margin of 0.2+ = 1.0 score
     return min(1.0, margin / 0.2)
+
 
 def _score_freshness(results: list[dict]) -> float:
     """How recent is the evidence?"""
@@ -226,11 +233,7 @@ def _score_freshness(results: list[dict]) -> float:
         created = r.get("metadata", {}).get("created_at") or r.get("created_at")
         if created:
             try:
-                dt = (
-                    datetime.fromisoformat(created.replace("Z", "+00:00"))
-                    if isinstance(created, str)
-                    else created
-                )
+                dt = datetime.fromisoformat(created.replace("Z", "+00:00")) if isinstance(created, str) else created
                 age = (now - dt).days if hasattr(dt, "days") else 365
                 ages_days.append(age)
             except (ValueError, TypeError):
@@ -252,6 +255,7 @@ def _score_freshness(results: list[dict]) -> float:
     elif avg_age <= 180:
         return 0.2
     return 0.1
+
 
 def _score_entity_match(entity_matches: list[str] | None, query: str) -> float:
     """Bonus for exact entity matches (address, token symbol, hash)."""

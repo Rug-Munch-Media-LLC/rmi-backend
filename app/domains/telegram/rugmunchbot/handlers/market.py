@@ -4,6 +4,7 @@ RugMunchBot -- Market data command handlers.
 
 Commands: trending, news + helpers: _time_ago, _fetch_cg_trending_news
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("rmi_bot")
 
+
 def _time_ago(dt_iso: str | None) -> str:
     """Convert ISO timestamp to human readable relative time."""
     if not dt_iso:
@@ -57,6 +59,7 @@ def _time_ago(dt_iso: str | None) -> str:
     except (ConnectionError, OSError, TimeoutError):
         return ""
 
+
 async def _fetch_cg_trending_news() -> list[dict] | None:
     """Fallback: fetch CoinGecko trending coins as pseudo-news items."""
     try:
@@ -70,23 +73,27 @@ async def _fetch_cg_trending_news() -> list[dict] | None:
             items = []
             for c in coins[:5]:
                 item = c.get("item", {})
-                items.append({
-                    "title": f"{item.get('name', 'Unknown')} ({item.get('symbol', '?')}) trending on CoinGecko",
-                    "source": "CoinGecko",
-                    "published_at": None,
-                    "url": f"https://www.coingecko.com/en/coins/{item.get('id', '')}",
-                    "score": item.get("score", 0) or 0,
-                })
+                items.append(
+                    {
+                        "title": f"{item.get('name', 'Unknown')} ({item.get('symbol', '?')}) trending on CoinGecko",
+                        "source": "CoinGecko",
+                        "published_at": None,
+                        "url": f"https://www.coingecko.com/en/coins/{item.get('id', '')}",
+                        "score": item.get("score", 0) or 0,
+                    }
+                )
             return items
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("CoinGecko trending fallback failed: %s", exc)
         return None
+
 
 async def cmd_rugcheck(update, ctx) -> None:
     """Quick rug pull checklist - educational."""
     from telegram.constants import ParseMode
 
     from app.domains.telegram.rugmunchbot.formatters import footer_links, sep, thin_sep
+
     text = (
         f"\U0001f6a9 <b>Rug Pull Checklist</b>\n{sep()}\n\n"
         f"Before buying ANY token, check these:\n\n"
@@ -117,10 +124,9 @@ async def cmd_rugcheck(update, ctx) -> None:
         text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
     )
 
+
 async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    msg = await update.message.reply_text(
-        "\U0001f525 <b>Fetching trending tokens...</b>", parse_mode=ParseMode.HTML
-    )
+    msg = await update.message.reply_text("\U0001f525 <b>Fetching trending tokens...</b>", parse_mode=ParseMode.HTML)
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             boosts_r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
@@ -170,10 +176,12 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         f"   <code>{short_addr(addr)}</code>"
                     )
             lines.append(footer_links())
-            trending_kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh")],
-                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-            ])
+            trending_kb = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh")],
+                    [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+                ]
+            )
             await msg.edit_text(
                 "\n".join(lines),
                 parse_mode=ParseMode.HTML,
@@ -186,6 +194,7 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "\u274c <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again later.",
             parse_mode=ParseMode.HTML,
         )
+
 
 async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("\U0001f4f0 <b>Fetching news...</b>", parse_mode=ParseMode.HTML)
@@ -207,11 +216,13 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             articles = cg_items
             source_label = "CoinGecko"
 
-    news_kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("\U0001f504 Refresh", callback_data="news_refresh")],
-        [InlineKeyboardButton("\U0001f4e2 Alerts Channel", url=TELEGRAM_CHANNEL)],
-        [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-    ])
+    news_kb = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("\U0001f504 Refresh", callback_data="news_refresh")],
+            [InlineKeyboardButton("\U0001f4e2 Alerts Channel", url=TELEGRAM_CHANNEL)],
+            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+        ]
+    )
 
     if articles:
         lines = ["\U0001f4f0 <b>Crypto News</b>", f"<i>via {source_label}</i>", sep()]

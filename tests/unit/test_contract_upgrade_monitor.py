@@ -162,8 +162,7 @@ class TestRiskAssessment:
             confidence=0.9,
         )
         upgrades = [
-            UpgradeEvent(block_number=i, transaction_hash=f"0x{i}", timestamp=1000000 + i * 1000)
-            for i in range(10)
+            UpgradeEvent(block_number=i, transaction_hash=f"0x{i}", timestamp=1000000 + i * 1000) for i in range(10)
         ]
         current_time = 1000000 + 5 * 3600  # 5 hours after first upgrade
         risk, factors = _assess_risk(proxy, upgrades, current_time)
@@ -215,9 +214,7 @@ class TestAnalyzer:
             chain="ethereum",
         )
         assert isinstance(report, ContractUpgradeReport)
-        assert (
-            report.contract_address.lower() == "0xdAC17F958D2ee523a2206206994597C13D831ec7".lower()
-        )
+        assert report.contract_address.lower() == "0xdAC17F958D2ee523a2206206994597C13D831ec7".lower()
         assert report.chain == "ethereum"
 
     @pytest.mark.asyncio

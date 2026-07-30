@@ -20,6 +20,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class SecretFinding:
     """TruffleHog finding."""
@@ -40,7 +41,9 @@ class SecretFinding:
     line: int
     column: int
 
+
 # ─── TRUFFLEHOG SCANNER ───────────────────────────────────────────
+
 
 class TruffleHogScanner:
     """Scanner using TruffleHog CLI."""
@@ -103,10 +106,7 @@ class TruffleHogScanner:
                             detector_type=data.get("DetectorType", ""),
                             detector_name=data.get("DetectorName", ""),
                             source_type=data.get("SourceType", ""),
-                            source=data.get("SourceMetadata", {})
-                            .get("Data", {})
-                            .get("Filesystem", {})
-                            .get("File", ""),
+                            source=data.get("SourceMetadata", {}).get("Data", {}).get("Filesystem", {}).get("File", ""),
                             secret=data.get("Raw", ""),
                             secret_hash=data.get("Redacted", ""),
                             raw=data.get("Raw", ""),
@@ -114,22 +114,13 @@ class TruffleHogScanner:
                             verified=data.get("Verified", False),
                             verified_type=data.get("VerificationStatus", ""),
                             time_found=datetime.now(UTC).isoformat(),
-                            commit=data.get("SourceMetadata", {})
-                            .get("Data", {})
-                            .get("Git", {})
-                            .get("Commit", ""),
+                            commit=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Commit", ""),
                             file_path=data.get("SourceMetadata", {})
                             .get("Data", {})
                             .get("Filesystem", {})
                             .get("File", ""),
-                            line=data.get("SourceMetadata", {})
-                            .get("Data", {})
-                            .get("Git", {})
-                            .get("Line", 0),
-                            column=data.get("SourceMetadata", {})
-                            .get("Data", {})
-                            .get("Git", {})
-                            .get("Column", 0),
+                            line=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Line", 0),
+                            column=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Column", 0),
                         )
                         findings.append(finding)
                     except json.JSONDecodeError:
@@ -180,10 +171,7 @@ class TruffleHogScanner:
                                 detector_type=data.get("DetectorType", ""),
                                 detector_name=data.get("DetectorName", ""),
                                 source_type=data.get("SourceType", ""),
-                                source=data.get("SourceMetadata", {})
-                                .get("Data", {})
-                                .get("Git", {})
-                                .get("Repo", ""),
+                                source=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Repo", ""),
                                 secret=data.get("Raw", ""),
                                 secret_hash=data.get("Redacted", ""),
                                 raw=data.get("Raw", ""),
@@ -191,22 +179,10 @@ class TruffleHogScanner:
                                 verified=data.get("Verified", False),
                                 verified_type=data.get("VerificationStatus", ""),
                                 time_found=datetime.now(UTC).isoformat(),
-                                commit=data.get("SourceMetadata", {})
-                                .get("Data", {})
-                                .get("Git", {})
-                                .get("Commit", ""),
-                                file_path=data.get("SourceMetadata", {})
-                                .get("Data", {})
-                                .get("Git", {})
-                                .get("File", ""),
-                                line=data.get("SourceMetadata", {})
-                                .get("Data", {})
-                                .get("Git", {})
-                                .get("Line", 0),
-                                column=data.get("SourceMetadata", {})
-                                .get("Data", {})
-                                .get("Git", {})
-                                .get("Column", 0),
+                                commit=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Commit", ""),
+                                file_path=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("File", ""),
+                                line=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Line", 0),
+                                column=data.get("SourceMetadata", {}).get("Data", {}).get("Git", {}).get("Column", 0),
                             )
                         )
                     except json.JSONDecodeError:
@@ -240,9 +216,7 @@ class TruffleHogScanner:
             )
         ]
 
-    def filter_findings(
-        self, findings: list[SecretFinding], min_severity: int = 0
-    ) -> list[SecretFinding]:
+    def filter_findings(self, findings: list[SecretFinding], min_severity: int = 0) -> list[SecretFinding]:
         """
         Filter findings by severity/verified status.
 
@@ -255,9 +229,11 @@ class TruffleHogScanner:
         """
         return [f for f in findings if f.verified or (not f.verified and min_severity == 0)]
 
+
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _scanner: TruffleHogScanner | None = None
+
 
 def get_scanner() -> TruffleHogScanner:
     """Get global TruffleHog scanner instance."""
@@ -266,10 +242,12 @@ def get_scanner() -> TruffleHogScanner:
         _scanner = TruffleHogScanner()
     return _scanner
 
+
 def scan_directory(path: str, **kwargs) -> list[SecretFinding]:
     """Scan a directory for secrets."""
     scanner = get_scanner()
     return scanner.scan_directory(path, **kwargs)
+
 
 def scan_git_repo(url: str, **kwargs) -> list[SecretFinding]:
     """Scan a Git repository for secrets."""

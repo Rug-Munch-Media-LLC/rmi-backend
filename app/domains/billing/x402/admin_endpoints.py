@@ -47,6 +47,7 @@ _discovery_cache: dict[str, Any] | None = None
 _discovery_cache_time: float = 0
 DISCOVERY_CACHE_TTL = 300
 
+
 def _build_discovery_response() -> dict[str, Any]:
     """Build the full discovery response with all 13 chains and active facilitators."""
     _ensure_tool_prices()
@@ -197,6 +198,7 @@ def _build_discovery_response() -> dict[str, Any]:
         "tools": tools,
     }
 
+
 @discovery_router.get("/.well-known/x402")
 async def x402_discovery() -> dict[str, Any]:
     """x402 discovery endpoint - lists all tools, chains, payment requirements, and trial info."""
@@ -209,6 +211,7 @@ async def x402_discovery() -> dict[str, Any]:
     _discovery_cache = _build_discovery_response()
     _discovery_cache_time = now
     return _discovery_cache
+
 
 @discovery_router.get("/api/v1/x402/trial-status")
 async def get_trial_status(request: Request) -> dict[str, Any]:
@@ -238,6 +241,7 @@ async def get_trial_status(request: Request) -> dict[str, Any]:
         "tools_with_trials": len(trials),
     }
 
+
 @discovery_router.get("/api/v1/x402/revenue", response_model=None)
 async def get_revenue(request: Any = None) -> JSONResponse:
     """Read cumulative x402 revenue stats from Redis counters."""
@@ -246,12 +250,8 @@ async def get_revenue(request: Any = None) -> JSONResponse:
         admin_key = os.getenv("ADMIN_API_KEY", "")
         if not admin_key:
             logger.critical("ADMIN_API_KEY not configured — revenue endpoint disabled")
-            return JSONResponse(
-                status_code=503, content={"error": "Service misconfigured — ADMIN_API_KEY not set"}
-            )
-        auth = request.headers.get("X-API-Key", "") or request.headers.get(
-            "Authorization", ""
-        ).replace("Bearer ", "")
+            return JSONResponse(status_code=503, content={"error": "Service misconfigured — ADMIN_API_KEY not set"})
+        auth = request.headers.get("X-API-Key", "") or request.headers.get("Authorization", "").replace("Bearer ", "")
         if auth != admin_key:
             logger.warning("admin_auth_failed: invalid key on /revenue")
             return JSONResponse(status_code=403, content={"error": "Admin API key required"})
@@ -314,6 +314,7 @@ async def get_revenue(request: Any = None) -> JSONResponse:
             headers=SECURITY_HEADERS,
         )
 
+
 @discovery_router.get("/api/v1/x402/analytics/pricing-suggestions")
 async def get_pricing_suggestions() -> JSONResponse:
     """Auto-pricing suggestions based on conversion rates and usage data."""
@@ -375,19 +376,13 @@ async def get_pricing_suggestions() -> JSONResponse:
                 }
             )
 
-        suggestions.sort(
-            key=lambda s: 0 if s["suggestion"] and s["suggestion"] != "insufficient_data" else 1
-        )
+        suggestions.sort(key=lambda s: 0 if s["suggestion"] and s["suggestion"] != "insufficient_data" else 1)
 
         return JSONResponse(
             content={
                 "suggestions": suggestions,
                 "total_tools": len(suggestions),
-                "actionable": sum(
-                    1
-                    for s in suggestions
-                    if s["suggestion"] and s["suggestion"] != "insufficient_data"
-                ),
+                "actionable": sum(1 for s in suggestions if s["suggestion"] and s["suggestion"] != "insufficient_data"),
             }
         )
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
@@ -397,6 +392,7 @@ async def get_pricing_suggestions() -> JSONResponse:
             content={"error": str(e)[:100]},
             headers=SECURITY_HEADERS,
         )
+
 
 def _verify_refund_ownership(refund_payer: str, tx_hash: str) -> bool:
     """Verify the requester controls the payer address by checking on-chain."""
@@ -414,6 +410,7 @@ def _verify_refund_ownership(refund_payer: str, tx_hash: str) -> bool:
         return bool(refund_payer and recorded_payer and refund_payer.lower() == recorded_payer)
     except (json.JSONDecodeError, TypeError, AttributeError):
         return False
+
 
 @router.post("/refund")
 async def request_refund(request: Request) -> JSONResponse:
@@ -542,8 +539,7 @@ async def request_refund(request: Request) -> JSONResponse:
         r.setex(refund_key, 7 * 86400, json.dumps(refund_data))
 
         logger.info(
-            f"Refund requested: tx={tx_hash[:16]}... chain={refund_chain} "
-            f"amount={refund_amount} reason={refund_reason}"
+            f"Refund requested: tx={tx_hash[:16]}... chain={refund_chain} amount={refund_amount} reason={refund_reason}"
         )
 
         return {

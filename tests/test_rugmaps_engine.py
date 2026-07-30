@@ -142,8 +142,7 @@ def test_calculate_connection_strength_single_tx(bubble_pro):
 def test_calculate_connection_strength_high(bubble_pro):
     """Many transactions give higher strength."""
     transactions = [
-        {"from": "wallet_a", "to": "wallet_b", "amount": 10000, "timestamp": 1700000000 + i}
-        for i in range(50)
+        {"from": "wallet_a", "to": "wallet_b", "amount": 10000, "timestamp": 1700000000 + i} for i in range(50)
     ]
     strength = bubble_pro._calculate_connection_strength("wallet_a", "wallet_b", transactions)
     # Should be > 0.25 from count alone, plus volume
@@ -152,17 +151,9 @@ def test_calculate_connection_strength_high(bubble_pro):
 
 def test_calculate_connection_strength_bidirectional(bubble_pro):
     """Two-way transactions get reciprocity bonus."""
-    tx_a_to_b = [
-        {"from": "wallet_a", "to": "wallet_b", "amount": 1000, "timestamp": 1700000000 + i}
-        for i in range(5)
-    ]
-    tx_b_to_a = [
-        {"from": "wallet_b", "to": "wallet_a", "amount": 500, "timestamp": 1700000100 + i}
-        for i in range(3)
-    ]
-    strength = bubble_pro._calculate_connection_strength(
-        "wallet_a", "wallet_b", tx_a_to_b + tx_b_to_a
-    )
+    tx_a_to_b = [{"from": "wallet_a", "to": "wallet_b", "amount": 1000, "timestamp": 1700000000 + i} for i in range(5)]
+    tx_b_to_a = [{"from": "wallet_b", "to": "wallet_a", "amount": 500, "timestamp": 1700000100 + i} for i in range(3)]
+    strength = bubble_pro._calculate_connection_strength("wallet_a", "wallet_b", tx_a_to_b + tx_b_to_a)
     reciprocity = strength
     assert reciprocity > 0
 
@@ -244,8 +235,7 @@ def test_calculate_risk_no_transactions(bubble_pro):
 def test_calculate_risk_high_velocity(bubble_pro):
     """Many transactions increase risk."""
     transactions = [
-        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000 + i, "status": "success"}
-        for i in range(150)
+        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000 + i, "status": "success"} for i in range(150)
     ]
     risk_score, risk_level = bubble_pro._calculate_risk(transactions, 10)
     assert risk_score >= 20  # Velocity bonus
@@ -255,8 +245,7 @@ def test_calculate_risk_high_velocity(bubble_pro):
 def test_calculate_risk_high_fail_rate(bubble_pro):
     """High failed transaction ratio increases risk."""
     transactions = [
-        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000 + i, "status": "failed"}
-        for i in range(50)
+        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000 + i, "status": "failed"} for i in range(50)
     ]
     risk_score, risk_level = bubble_pro._calculate_risk(transactions, 10)
     assert risk_score >= 15  # Fail ratio bonus
@@ -265,8 +254,7 @@ def test_calculate_risk_high_fail_rate(bubble_pro):
 def test_calculate_risk_time_concentration(bubble_pro):
     """Transactions in short period increase risk."""
     transactions = [
-        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000, "status": "success"}
-        for _ in range(10)
+        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000, "status": "success"} for _ in range(10)
     ]
     risk_score, _ = bubble_pro._calculate_risk(transactions, 10)
     # All at same timestamp or within 5 min
@@ -276,8 +264,7 @@ def test_calculate_risk_time_concentration(bubble_pro):
 def test_calculate_risk_identical_amounts(bubble_pro):
     """Identical transaction amounts increase risk."""
     transactions = [
-        {"from": "a", "to": "b", "amount": 100, "timestamp": 1700000000 + i, "status": "success"}
-        for i in range(5)
+        {"from": "a", "to": "b", "amount": 100, "timestamp": 1700000000 + i, "status": "success"} for i in range(5)
     ]
     risk_score, _ = bubble_pro._calculate_risk(transactions, 10)
     assert risk_score >= 15  # Identical amounts bonus

@@ -2,6 +2,7 @@
 Portfolio Risk — Main Aggregator
 Cross-chain portfolio risk analysis engine.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -26,13 +27,21 @@ from app.domains.portfolio.portfolio_risk_package.scoring import TokenRiskScorer
 
 logger = get_logger(__name__)
 
+
 class PortfolioRiskAggregator:
     """Main portfolio risk analysis engine."""
 
     def __init__(self, chains: list[str] | None = None) -> None:
         self.chains = chains or [
-            "ethereum", "base", "arbitrum", "optimism", "polygon",
-            "bsc", "avalanche", "fantom", "solana",
+            "ethereum",
+            "base",
+            "arbitrum",
+            "optimism",
+            "polygon",
+            "bsc",
+            "avalanche",
+            "fantom",
+            "solana",
         ]
         self.price_oracle = PriceOracle()
         self.token_scorer = TokenRiskScorer()
@@ -82,7 +91,9 @@ class PortfolioRiskAggregator:
 
         profile.total_value_usd = total_value
         profile.total_tokens = len(all_tokens)
-        profile.chain_count = len([c for c in self.chains if c in profile.chain_portfolios and profile.chain_portfolios[c].scan_error is None])
+        profile.chain_count = len(
+            [c for c in self.chains if c in profile.chain_portfolios and profile.chain_portfolios[c].scan_error is None]
+        )
         profile.overall_health_score = self._calculate_health_score(profile)
         profile.findings = self._generate_findings(profile)
         return profile
@@ -97,14 +108,14 @@ class PortfolioRiskAggregator:
 
         try:
             native_balance = await connector.get_native_balance(wallet)
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError) as e:
             logger.debug("_scan_chain_error", exc_info=True)
             native_balance = 0.0
             logger.debug(f"{chain} native balance error: {e}")
 
         try:
             token_data = await connector.get_token_balances(wallet)
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError) as e:
             logger.debug("_scan_chain_error", exc_info=True)
             token_data = []
             logger.debug(f"{chain} token balances error: {e}")
@@ -115,10 +126,17 @@ class PortfolioRiskAggregator:
             native_addr = "0x0000000000000000000000000000000000000000"
             native_sym = CHAIN_CONFIGS[chain]["native_symbol"]
             native_token = TokenHolding(
-                chain=chain, symbol=native_sym, name=f"Native {native_sym}",
-                contract_address=native_addr, balance_raw=0, balance_formatted=native_balance,
-                decimals=CHAIN_CONFIGS[chain]["decimals"], estimated_usd_value=native_value,
-                risk_score=90, risk_flags=[], is_native=True,
+                chain=chain,
+                symbol=native_sym,
+                name=f"Native {native_sym}",
+                contract_address=native_addr,
+                balance_raw=0,
+                balance_formatted=native_balance,
+                decimals=CHAIN_CONFIGS[chain]["decimals"],
+                estimated_usd_value=native_value,
+                risk_score=90,
+                risk_flags=[],
+                is_native=True,
             )
             cp.holdings.append(native_token)
 
@@ -133,14 +151,20 @@ class PortfolioRiskAggregator:
                 usd_value = formatted * price
                 risk_result = await self.token_scorer.score_token(chain, addr, symbol)
                 token = TokenHolding(
-                    chain=chain, symbol=symbol, name=td.get("symbol", symbol),
-                    contract_address=addr, balance_raw=td.get("balance_raw", 0),
-                    balance_formatted=formatted, decimals=td.get("decimals", 18),
-                    estimated_usd_value=usd_value, risk_score=risk_result["risk_score"],
-                    risk_flags=risk_result.get("risk_flags", []), is_native=False,
+                    chain=chain,
+                    symbol=symbol,
+                    name=td.get("symbol", symbol),
+                    contract_address=addr,
+                    balance_raw=td.get("balance_raw", 0),
+                    balance_formatted=formatted,
+                    decimals=td.get("decimals", 18),
+                    estimated_usd_value=usd_value,
+                    risk_score=risk_result["risk_score"],
+                    risk_flags=risk_result.get("risk_flags", []),
+                    is_native=False,
                 )
                 cp.holdings.append(token)
-            except (KeyError, TypeError) as e :
+            except (KeyError, TypeError) as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.debug(f"Error processing token on {chain}: {e}")
 
@@ -163,7 +187,11 @@ class PortfolioRiskAggregator:
         conc_score = 100 - profile.concentration_risk_pct
         chains_with_tokens = sum(1 for cp in profile.chain_portfolios.values() if cp.token_count > 0)
         diversity_score = min(100, (chains_with_tokens / max(1, len(self.chains))) * 100)
-        health = avg_token_score * RISK_WEIGHT_TOKENS + conc_score * RISK_WEIGHT_CONCENTRATION + diversity_score * RISK_WEIGHT_CHAIN_DIVERSITY
+        health = (
+            avg_token_score * RISK_WEIGHT_TOKENS
+            + conc_score * RISK_WEIGHT_CONCENTRATION
+            + diversity_score * RISK_WEIGHT_CHAIN_DIVERSITY
+        )
         return max(0, min(100, health))
 
     def _generate_findings(self, profile: PortfolioRiskProfile) -> list[str]:
@@ -184,10 +212,17 @@ class PortfolioRiskAggregator:
             findings.append("🟡 Single-chain portfolio - consider diversifying across chains")
         elif chains_used >= 5:
             findings.append(f"✅ Good cross-chain diversity ({chains_used} chains)")
-        scam_tokens = [h for cp in profile.chain_portfolios.values() for h in cp.holdings if any("SCAM" in f or "HONEYPOT" in f for f in h.risk_flags)]
+        scam_tokens = [
+            h
+            for cp in profile.chain_portfolios.values()
+            for h in cp.holdings
+            if any("SCAM" in f or "HONEYPOT" in f for f in h.risk_flags)
+        ]
         if scam_tokens:
             findings.append(f"🚨 {len(scam_tokens)} token(s) with scam indicators found!")
-        risky_value = sum(h.estimated_usd_value for cp in profile.chain_portfolios.values() for h in cp.holdings if h.risk_score < 40)
+        risky_value = sum(
+            h.estimated_usd_value for cp in profile.chain_portfolios.values() for h in cp.holdings if h.risk_score < 40
+        )
         if risky_value > 1000:
             findings.append(f"💰 ${risky_value:,.0f} total value in high/critical risk tokens")
         if not critical and not high and profile.overall_health_score >= 80:

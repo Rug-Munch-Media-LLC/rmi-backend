@@ -3,6 +3,7 @@ Admin Backend — System Health Monitor
 =======================================
 Monitor system health and performance (CPU, memory, disk, services).
 """
+
 from __future__ import annotations
 
 import os
@@ -13,6 +14,7 @@ from typing import Any
 from app.core.logging import get_logger
 
 logger = get_logger("rmi_admin_backend")
+
 
 class SystemHealthMonitor:
     """Monitor system health and performance."""
@@ -92,7 +94,7 @@ class SystemHealthMonitor:
                 "connected_clients": info.get("connected_clients", 0),
                 "total_keys": info.get("db0", {}).get("keys", 0) if isinstance(info.get("db0"), dict) else 0,
             }
-        except (httpx.HTTPError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
             logger.debug("_check_redis_error", exc_info=True)
             return {"status": "error", "error": str(e)}
 
@@ -112,6 +114,6 @@ class SystemHealthMonitor:
                     "url": supabase_url,
                     "response_code": r.status_code,
                 }
-        except (httpx.HTTPError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (httpx.HTTPError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e:
             logger.debug("_check_supabase_error", exc_info=True)
             return {"status": "error", "error": str(e)}

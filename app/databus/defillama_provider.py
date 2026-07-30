@@ -9,9 +9,8 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.defillama")
 
-async def fetch_defillama_tvl(
-    protocol: str | None = None, chain: str | None = None, limit: int = 20
-) -> dict:
+
+async def fetch_defillama_tvl(protocol: str | None = None, chain: str | None = None, limit: int = 20) -> dict:
     """Fetch TVL data from DeFiLlama - free, no auth, no rate limits for standard traffic."""
     import aiohttp
 
@@ -20,29 +19,19 @@ async def fetch_defillama_tvl(
     async with aiohttp.ClientSession() as session:
         # All protocols
         try:
-            async with session.get(
-                "https://api.llama.fi/protocols", timeout=aiohttp.ClientTimeout(total=15)
-            ) as resp:
+            async with session.get("https://api.llama.fi/protocols", timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if protocol:
                         # Filter by protocol name
-                        matches = [
-                            p for p in data if protocol.lower() in p.get("name", "").lower()
-                        ][:limit]
+                        matches = [p for p in data if protocol.lower() in p.get("name", "").lower()][:limit]
                         results["protocols"] = matches
                     elif chain:
-                        matches = [
-                            p
-                            for p in data
-                            if chain.lower() in [c.lower() for c in p.get("chains", [])]
-                        ][:limit]
+                        matches = [p for p in data if chain.lower() in [c.lower() for c in p.get("chains", [])]][:limit]
                         results["protocols"] = matches
                     else:
                         # Return top protocols by TVL
-                        results["protocols"] = sorted(
-                            data, key=lambda x: x.get("tvl", 0) or 0, reverse=True
-                        )[:limit]
+                        results["protocols"] = sorted(data, key=lambda x: x.get("tvl", 0) or 0, reverse=True)[:limit]
                     results["total"] = len(data)
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"DeFiLlama protocols fetch failed: {e}")
@@ -50,14 +39,10 @@ async def fetch_defillama_tvl(
 
         # Chain TVLs
         try:
-            async with session.get(
-                "https://api.llama.fi/v2/chains", timeout=aiohttp.ClientTimeout(total=15)
-            ) as resp:
+            async with session.get("https://api.llama.fi/v2/chains", timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     chain_data = await resp.json()
-                    results["chains"] = sorted(
-                        chain_data, key=lambda x: x.get("tvl", 0) or 0, reverse=True
-                    )[:limit]
+                    results["chains"] = sorted(chain_data, key=lambda x: x.get("tvl", 0) or 0, reverse=True)[:limit]
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning(f"DeFiLlama chains fetch failed: {e}")
             results["chains"] = []
@@ -76,6 +61,7 @@ async def fetch_defillama_tvl(
     results["source"] = "DeFiLlama (free, no auth)"
     results["url"] = "https://defillama.com"
     return results
+
 
 async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict:
     """Fetch live prices from Pyth Network Hermes API - 125+ institutional publishers."""
@@ -106,10 +92,8 @@ async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict
                     results["prices"].append(
                         {
                             "id": parsed.get("id", ""),
-                            "price": float(price_info.get("price", 0))
-                            * 10 ** float(price_info.get("expo", 0)),
-                            "conf": float(price_info.get("conf", 0))
-                            * 10 ** float(price_info.get("expo", 0)),
+                            "price": float(price_info.get("price", 0)) * 10 ** float(price_info.get("expo", 0)),
+                            "conf": float(price_info.get("conf", 0)) * 10 ** float(price_info.get("expo", 0)),
                             "publish_time": price_info.get("publish_time"),
                         }
                     )

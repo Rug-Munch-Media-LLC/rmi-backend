@@ -16,18 +16,21 @@ logger = get_logger("wallet_factory")
 # ── Crypto library availability flags ────────────────────────────
 try:
     from coincurve import PrivateKey as CoinCurveKey
+
     _HAS_COINCURVE = True
 except ImportError:
     _HAS_COINCURVE = False
 
 try:
     from ecdsa import NIST256p, NIST384p, NIST521p, SECP256k1, SigningKey
+
     _HAS_ECDSA = True
 except ImportError:
     _HAS_ECDSA = False
 
 try:
     import base58
+
     _HAS_BASE58 = True
 except ImportError:
     _HAS_BASE58 = False
@@ -35,6 +38,7 @@ except ImportError:
 try:
     from nacl.encoding import RawEncoder
     from nacl.signing import SigningKey as NaClSigningKey
+
     _HAS_NACL = True
 except ImportError:
     _HAS_NACL = False
@@ -42,9 +46,11 @@ except ImportError:
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+
     _has_cryptography = True
 except ImportError:
     _has_cryptography = False
+
 
 def encrypt_key(plaintext: str, password: str) -> str:
     """AES-256-GCM encrypt with Argon2 key derivation."""
@@ -60,6 +66,7 @@ def encrypt_key(plaintext: str, password: str) -> str:
     ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
 
     return base64.b64encode(salt + nonce + ciphertext).decode()
+
 
 def decrypt_key(encrypted: str, password: str) -> str:
     """Decrypt an AES-256-GCM encrypted private key."""

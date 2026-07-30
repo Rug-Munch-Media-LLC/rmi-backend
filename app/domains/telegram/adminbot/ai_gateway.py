@@ -21,6 +21,7 @@ try:
 except ImportError:
     admin_ai = None
 
+
 @owner_only
 async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """AI Gateway — query our AI models."""
@@ -62,9 +63,7 @@ async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     elif action in ("ask", "q", "query"):
         prompt = " ".join(args[1:]) if len(args) > 1 else ""
         if not prompt:
-            await update.message.reply_text(
-                "Usage: `/ai ask <your question>`", parse_mode=ParseMode.MARKDOWN
-            )
+            await update.message.reply_text("Usage: `/ai ask <your question>`", parse_mode=ParseMode.MARKDOWN)
             return
         msg = await update.message.reply_text("🤖 Thinking...")
         result = await admin_ai.chat(
@@ -79,6 +78,4 @@ async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 parse_mode=ParseMode.MARKDOWN,
             )
         else:
-            await msg.edit_text(
-                f"❌ AI Error: {result['error'][:200]}", parse_mode=ParseMode.MARKDOWN
-            )
+            await msg.edit_text(f"❌ AI Error: {result['error'][:200]}", parse_mode=ParseMode.MARKDOWN)

@@ -11,6 +11,7 @@ from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/analyze", tags=["analyze-v1"])
 
+
 @router.get("/{address}")
 async def analyze_address(
     address: str,

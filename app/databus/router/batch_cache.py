@@ -10,6 +10,7 @@ from app.databus.core import databus
 logger = get_logger("databus.router.batch_cache")
 router = APIRouter(tags=["databus"])
 
+
 @router.post("/batch")
 async def databus_batch(request: Request) -> dict:
     """#7 Batch DataBus - fetch multiple data types in one call.
@@ -46,6 +47,7 @@ async def databus_batch(request: Request) -> dict:
     results = await databus.fetch_batch(requests_list)
     return {"results": results, "count": len(results)}
 
+
 @router.get("/providers/health")
 async def databus_providers_health(request: Request) -> dict:
     """#5 Provider Health Dashboard - per-provider success/failure/latency/circuit status."""
@@ -58,6 +60,7 @@ async def databus_providers_health(request: Request) -> dict:
         "deduplication": databus._dedup.stats(),
     }
 
+
 @router.get("/cache/stats")
 async def databus_cache_stats(request: Request) -> dict:
     """#10 Per-type cache stats with TTL tuning suggestions."""
@@ -66,11 +69,10 @@ async def databus_cache_stats(request: Request) -> dict:
     return {
         "per_type": databus.cache.type_stats(),
         "tuning_alerts": [
-            {"data_type": dt, **stats}
-            for dt, stats in databus.cache.type_stats().items()
-            if stats.get("suggestion")
+            {"data_type": dt, **stats} for dt, stats in databus.cache.type_stats().items() if stats.get("suggestion")
         ],
     }
+
 
 @router.post("/schema/validate")
 async def databus_schema_validate(request: Request) -> dict:
@@ -86,4 +88,3 @@ async def databus_schema_validate(request: Request) -> dict:
 
     is_valid, missing = schema_validator.validate(data_type, data)
     return {"data_type": data_type, "valid": is_valid, "missing_fields": missing}
-

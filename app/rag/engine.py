@@ -30,6 +30,7 @@ log = get_logger(__name__)
 # RRF constant
 _RRF_K = 60
 
+
 # ── Three-pillar search ──────────────────────────────────────────────
 async def three_pillar_search(
     query: str,
@@ -82,6 +83,7 @@ async def three_pillar_search(
         for h in fused
     ]
 
+
 async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
     """Improved BM25 keyword search with proper tokenization and IDF weighting.
 
@@ -114,18 +116,45 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
     # ── Tokenizer ──────────────────────────────────────────────────────
     # Crypto-aware stopwords: keep short token/address terms, filter noise
     _STOPWORDS: set[str] = {
-        "the", "this", "that", "and", "for", "with", "from", "has",
-        "have", "was", "were", "been", "are", "not", "but", "its",
-        "all", "can", "will", "just", "very", "also", "than", "then",
-        "each", "which", "what", "when", "where", "how", "who",
+        "the",
+        "this",
+        "that",
+        "and",
+        "for",
+        "with",
+        "from",
+        "has",
+        "have",
+        "was",
+        "were",
+        "been",
+        "are",
+        "not",
+        "but",
+        "its",
+        "all",
+        "can",
+        "will",
+        "just",
+        "very",
+        "also",
+        "than",
+        "then",
+        "each",
+        "which",
+        "what",
+        "when",
+        "where",
+        "how",
+        "who",
     }
 
     # Sample large collections to prevent OOM — process up to 10K docs max
     MAX_KEYWORD_DOCS = 10_000
     if len(raw) > MAX_KEYWORD_DOCS:
         import random
-        log.info("keyword_search_sampling collection=%s total=%d sample=%d",
-                 collection, len(raw), MAX_KEYWORD_DOCS)
+
+        log.info("keyword_search_sampling collection=%s total=%d sample=%d", collection, len(raw), MAX_KEYWORD_DOCS)
         raw = dict(random.sample(list(raw.items()), MAX_KEYWORD_DOCS))
 
     def _tokenize(text: str) -> list[str]:
@@ -210,14 +239,17 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
         )
     return out
 
+
 def _apply_filters(hits: list[Hit], filters: dict[str, Any]) -> list[Hit]:
     """Pre-filter: keep hits whose metadata matches all filter key=val pairs."""
     if not filters:
         return hits
     return [h for h in hits if _matches_filters(h, filters)]
 
+
 def _matches_filters(hit: Hit, filters: dict[str, Any]) -> bool:
     return all(hit.metadata.get(k) == v for k, v in filters.items())
+
 
 def _reciprocal_rank_fusion(pillar_hits: list[list[Hit]], top_k: int, k: int = _RRF_K) -> list[Hit]:
     """Reciprocal Rank Fusion across multiple ranked lists.
@@ -247,6 +279,7 @@ def _reciprocal_rank_fusion(pillar_hits: list[list[Hit]], top_k: int, k: int = _
             )
         )
     return out
+
 
 # ── Ingest ───────────────────────────────────────────────────────────
 async def ingest_document(
@@ -314,6 +347,7 @@ async def ingest_document(
         "skipped": skipped,
     }
 
+
 # ── Stats ────────────────────────────────────────────────────────────
 def get_collection_stats(collection: str) -> dict:
     """Get stats for one collection: vector count + dedup hashes count."""
@@ -331,6 +365,7 @@ def get_collection_stats(collection: str) -> dict:
         "dedup_hashes": hashes,
     }
 
+
 def get_stats(collections: list[str] | None = None) -> dict:
     """Get stats for all (or specified) collections + the active embedder backend."""
     from app.rag.models import COLLECTIONS as DEFAULT_COLLECTIONS
@@ -341,6 +376,7 @@ def get_stats(collections: list[str] | None = None) -> dict:
         "backend": current_backend(),
         "collections": [get_collection_stats(c) for c in cols],
     }
+
 
 # ── Background helpers (used by ingest_cron worker) ──────────────────
 async def bulk_ingest(

@@ -97,9 +97,7 @@ async def process_scan_job(r, job_data):
                 "confidence": scan_result_obj.confidence,
                 "flags": scan_result_obj.risk_flags,
                 "modules_ran": len(scan_result_obj.modules_run),
-                "modules_successful": sum(
-                    1 for m in scan_result_obj.modules_run if m.get("status") == "success"
-                ),
+                "modules_successful": sum(1 for m in scan_result_obj.modules_run if m.get("status") == "success"),
             }
 
             logger.info(
@@ -113,16 +111,12 @@ async def process_scan_job(r, job_data):
 
         except ImportError:
             # Fallback: basic DexScreener fetch
-            logger.warning(
-                "scanner_fallback", extra={"token_address": token_address, "chain": chain}
-            )
+            logger.warning("scanner_fallback", extra={"token_address": token_address, "chain": chain})
             import httpx
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 try:
-                    response = await client.get(
-                        f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-                    )
+                    response = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
                     _ = response.json() if response.status_code == 200 else {}
                 except Exception as e:
                     logger.error(

@@ -156,9 +156,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="hyperliquid",
         description="Hyperliquid perp markets and funding rates",
         providers=[
-            Provider(
-                "rmi_hyperliquid", ProviderTier.LOCAL, _g["_passthrough_hyperliquid"], weight=10.0
-            ),
+            Provider("rmi_hyperliquid", ProviderTier.LOCAL, _g["_passthrough_hyperliquid"], weight=10.0),
         ],
     )
 

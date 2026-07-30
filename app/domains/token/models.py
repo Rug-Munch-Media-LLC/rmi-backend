@@ -30,6 +30,7 @@ class RiskLevel(StrEnum):
             return cls.HIGH
         return cls.CRITICAL
 
+
 class Token(BaseModel):
     """Token identity."""
 
@@ -40,6 +41,7 @@ class Token(BaseModel):
     name: str = ""
     symbol: str = ""
     decimals: int = 9
+
 
 class TokenDetail(BaseModel):
     """Full token details - metadata + supply + verification."""
@@ -56,6 +58,7 @@ class TokenDetail(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     fetched_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class TokenHolder(BaseModel):
     """A token holder entry."""
 
@@ -66,6 +69,7 @@ class TokenHolder(BaseModel):
     is_contract: bool = False
     is_locked: bool = False
 
+
 class TokenLiquidity(BaseModel):
     """Token liquidity summary."""
 
@@ -75,6 +79,7 @@ class TokenLiquidity(BaseModel):
     pools: list[dict[str, Any]] = Field(default_factory=list)
     locked_percentage: float = 0.0
     fetched_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class TokenRisk(BaseModel):
     """Token risk assessment."""
@@ -92,6 +97,7 @@ class TokenRisk(BaseModel):
     transfer_pausable: bool = False
     analyzed_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class TokenScanRequest(BaseModel):
     """Request body for the token scan endpoint."""
 
@@ -105,6 +111,7 @@ class TokenScanRequest(BaseModel):
     @classmethod
     def _lowercase(cls, v: str) -> str:
         return v.lower().strip()
+
 
 class TokenScanResult(BaseModel):
     """Full token scan result."""

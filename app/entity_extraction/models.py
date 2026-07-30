@@ -25,18 +25,27 @@ class EntityExtractionResult:
     @property
     def has_entities(self) -> bool:
         return bool(
-            self.evm_addresses or self.solana_addresses or self.token_symbols
-            or self.chain_names or self.protocol_names or self.scam_keywords
-            or self.tx_hashes or self.ens_domains
+            self.evm_addresses
+            or self.solana_addresses
+            or self.token_symbols
+            or self.chain_names
+            or self.protocol_names
+            or self.scam_keywords
+            or self.tx_hashes
+            or self.ens_domains
         )
 
     @property
     def total_count(self) -> int:
         return (
-            len(self.evm_addresses) + len(self.solana_addresses)
-            + len(self.token_symbols) + len(self.chain_names)
-            + len(self.protocol_names) + len(self.scam_keywords)
-            + len(self.tx_hashes) + len(self.ens_domains)
+            len(self.evm_addresses)
+            + len(self.solana_addresses)
+            + len(self.token_symbols)
+            + len(self.chain_names)
+            + len(self.protocol_names)
+            + len(self.scam_keywords)
+            + len(self.tx_hashes)
+            + len(self.ens_domains)
         )
 
     def all_entities(self) -> list[dict[str, str]]:

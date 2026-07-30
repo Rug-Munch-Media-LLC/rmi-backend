@@ -25,12 +25,8 @@ class FacilitatorConfig:
 
     # ── Coinbase CDP ──────────────────────────────────────────
     coinbase_cdp_api_key: str = field(default_factory=lambda: os.getenv("COINBASE_CDP_API_KEY", ""))
-    coinbase_cdp_api_secret: str = field(
-        default_factory=lambda: os.getenv("COINBASE_CDP_API_SECRET", "")
-    )
-    coinbase_cdp_network: str = field(
-        default_factory=lambda: os.getenv("COINBASE_CDP_NETWORK", "base-mainnet")
-    )
+    coinbase_cdp_api_secret: str = field(default_factory=lambda: os.getenv("COINBASE_CDP_API_SECRET", ""))
+    coinbase_cdp_network: str = field(default_factory=lambda: os.getenv("COINBASE_CDP_NETWORK", "base-mainnet"))
     coinbase_cdp_verify_url: str = field(
         default_factory=lambda: os.getenv(
             "COINBASE_CDP_VERIFY_URL",
@@ -40,14 +36,10 @@ class FacilitatorConfig:
 
     # ── PayAI ─────────────────────────────────────────────────
     payai_verify_url: str = field(
-        default_factory=lambda: os.getenv(
-            "PAYAI_VERIFY_URL", "https://facilitator.payai.network/verify"
-        )
+        default_factory=lambda: os.getenv("PAYAI_VERIFY_URL", "https://facilitator.payai.network/verify")
     )
     payai_settle_url: str = field(
-        default_factory=lambda: os.getenv(
-            "PAYAI_SETTLE_URL", "https://facilitator.payai.network/settle"
-        )
+        default_factory=lambda: os.getenv("PAYAI_SETTLE_URL", "https://facilitator.payai.network/settle")
     )
 
     # ── Cloudflare x402 ───────────────────────────────────────
@@ -66,19 +58,13 @@ class FacilitatorConfig:
     asterpay_api_key: str = field(default_factory=lambda: os.getenv("ASTERPAY_API_KEY", ""))
     asterpay_api_secret: str = field(default_factory=lambda: os.getenv("ASTERPAY_API_SECRET", ""))
     asterpay_verify_url: str = field(
-        default_factory=lambda: os.getenv(
-            "ASTERPAY_VERIFY_URL", "https://api.asterpay.io/x402/verify"
-        )
+        default_factory=lambda: os.getenv("ASTERPAY_VERIFY_URL", "https://api.asterpay.io/x402/verify")
     )
     asterpay_settle_url: str = field(
-        default_factory=lambda: os.getenv(
-            "ASTERPAY_SETTLE_URL", "https://api.asterpay.io/x402/settle"
-        )
+        default_factory=lambda: os.getenv("ASTERPAY_SETTLE_URL", "https://api.asterpay.io/x402/settle")
     )
     asterpay_eur_offramp_url: str = field(
-        default_factory=lambda: os.getenv(
-            "ASTERPAY_EUR_OFFRAMP_URL", "https://api.asterpay.io/offramp/sepa"
-        )
+        default_factory=lambda: os.getenv("ASTERPAY_EUR_OFFRAMP_URL", "https://api.asterpay.io/offramp/sepa")
     )
     asterpay_sepa_iban: str = field(default_factory=lambda: os.getenv("ASTERPAY_SEPA_IBAN", ""))
 
@@ -89,9 +75,7 @@ class FacilitatorConfig:
     merx_tron_settle_url: str = field(default_factory=lambda: "")
 
     # ── Primev FastRPC ───────────────────────────────────────
-    primev_rpc_url: str = field(
-        default_factory=lambda: os.getenv("PRIMEV_RPC_URL", "https://mev-commit.primev.xyz")
-    )
+    primev_rpc_url: str = field(default_factory=lambda: os.getenv("PRIMEV_RPC_URL", "https://mev-commit.primev.xyz"))
     primev_agent_id: str = field(default_factory=lambda: os.getenv("PRIMEV_AGENT_ID", "23175"))
     primev_api_key: str = field(default_factory=lambda: os.getenv("PRIMEV_API_KEY", ""))
 
@@ -127,32 +111,20 @@ class FacilitatorConfig:
         }
     )
     eip7702_delegation_address: str = field(
-        default_factory=lambda: os.getenv(
-            "EIP7702_DELEGATION_ADDRESS", "0x0000000000000000000000000000000000000000"
-        )
+        default_factory=lambda: os.getenv("EIP7702_DELEGATION_ADDRESS", "0x0000000000000000000000000000000000000000")
     )
 
     # ── General Facilitator Settings ──────────────────────────
-    facilitator_health_ttl: int = field(
-        default_factory=lambda: int(os.getenv("FACILITATOR_HEALTH_TTL", "60"))
-    )
-    facilitator_verify_timeout: int = field(
-        default_factory=lambda: int(os.getenv("FACILITATOR_VERIFY_TIMEOUT", "15"))
-    )
-    facilitator_max_retries: int = field(
-        default_factory=lambda: int(os.getenv("FACILITATOR_MAX_RETRIES", "2"))
-    )
+    facilitator_health_ttl: int = field(default_factory=lambda: int(os.getenv("FACILITATOR_HEALTH_TTL", "60")))
+    facilitator_verify_timeout: int = field(default_factory=lambda: int(os.getenv("FACILITATOR_VERIFY_TIMEOUT", "15")))
+    facilitator_max_retries: int = field(default_factory=lambda: int(os.getenv("FACILITATOR_MAX_RETRIES", "2")))
 
     # ── Pay-to addresses ──────────────────────────────────────
     evm_pay_to: str = field(
-        default_factory=lambda: os.getenv(
-            "X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9"
-        )
+        default_factory=lambda: os.getenv("X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9")
     )
     sol_pay_to: str = field(
-        default_factory=lambda: os.getenv(
-            "X402_SOL_PAY_TO", "Gix4P9AmwcZRGzr2hCEME5m2QAvY86dBfm8c7e7MpFzv"
-        )
+        default_factory=lambda: os.getenv("X402_SOL_PAY_TO", "Gix4P9AmwcZRGzr2hCEME5m2QAvY86dBfm8c7e7MpFzv")
     )
     tron_pay_to: str = field(default_factory=lambda: os.getenv("X402_TRON_PAY_TO", ""))
     btc_pay_to: str = field(default_factory=lambda: os.getenv("X402_BTC_PAY_TO", ""))
@@ -170,14 +142,17 @@ class FacilitatorConfig:
                     d[k] = val[:4] + "..." + val[-4:] if len(val) > 12 else "***"
         return d
 
+
 # Singleton
 _config: FacilitatorConfig | None = None
+
 
 def get_config() -> FacilitatorConfig:
     global _config
     if _config is None:
         _config = FacilitatorConfig()
     return _config
+
 
 def reset_config() -> None:
     global _config

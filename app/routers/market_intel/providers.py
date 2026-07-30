@@ -23,6 +23,7 @@ from app.routers.market_intel.utils import _safe_float
 
 logger = get_logger(__name__)
 
+
 # ── HTTP helpers ───────────────────────────────────────────
 async def _aget(url: str, params=None, headers=None, timeout: int = 10) -> Any | None:
     """Async HTTP GET with error handling."""
@@ -34,6 +35,7 @@ async def _aget(url: str, params=None, headers=None, timeout: int = 10) -> Any |
     except Exception as e:
         logger.warning(f"HTTP GET {url} failed: {e}")
     return None
+
 
 # ── CoinGecko ─────────────────────────────────────────────
 async def _cg(path: str, params=None, ttl: int = 120) -> Any:
@@ -50,6 +52,7 @@ async def _cg(path: str, params=None, ttl: int = 120) -> Any:
         _cset(key, data)
     return data
 
+
 # ── Alternative.me Fear & Greed ───────────────────────────
 async def _fng(ttl: int = 300) -> Any:
     """Fetch Fear & Greed Index."""
@@ -60,6 +63,7 @@ async def _fng(ttl: int = 300) -> Any:
     if data:
         _cset("fng", data)
     return data
+
 
 # ── Polymarket ────────────────────────────────────────────
 async def _polymarket(limit: int = 6, ttl: int = 300) -> Any:
@@ -75,6 +79,7 @@ async def _polymarket(limit: int = 6, ttl: int = 300) -> Any:
         _cset("pm", data)
     return data
 
+
 # ── DexScreener ───────────────────────────────────────────
 async def _ds(path: str, params=None, ttl: int = 60) -> Any:
     """Fetch from DexScreener with caching."""
@@ -87,6 +92,7 @@ async def _ds(path: str, params=None, ttl: int = 60) -> Any:
         _cset(key, data)
     return data
 
+
 # ── Binance ────────────────────────────────────────────────
 async def _binance_funding(ttl: int = 120) -> Any:
     """Fetch Binance futures funding rates."""
@@ -97,6 +103,7 @@ async def _binance_funding(ttl: int = 120) -> Any:
     if data:
         _cset("bn_funding", data)
     return data
+
 
 # ── Hyperliquid ────────────────────────────────────────────
 async def _hyperliquid_markets(limit: int = 50, ttl: int = 120) -> list:
@@ -123,21 +130,24 @@ async def _hyperliquid_markets(limit: int = 50, ttl: int = 120) -> list:
                             prev_px = float(ctx.get("prevDayPx", 1))
                             mark_px = float(ctx.get("markPx", 0))
                             change_24h = ((mark_px - prev_px) / prev_px * 100) if prev_px > 0 else 0
-                            markets.append({
-                                "symbol": asset.get("name", ""),
-                                "price": mark_px,
-                                "change_24h": round(change_24h, 2),
-                                "volume_24h": _safe_float(ctx.get("dayNtlVlm")),
-                                "open_interest": _safe_float(ctx.get("openInterest")),
-                                "funding_rate": _safe_float(ctx.get("funding")),
-                                "funding_rate_pct": round(_safe_float(ctx.get("funding")) * 100, 4),
-                            })
+                            markets.append(
+                                {
+                                    "symbol": asset.get("name", ""),
+                                    "price": mark_px,
+                                    "change_24h": round(change_24h, 2),
+                                    "volume_24h": _safe_float(ctx.get("dayNtlVlm")),
+                                    "open_interest": _safe_float(ctx.get("openInterest")),
+                                    "funding_rate": _safe_float(ctx.get("funding")),
+                                    "funding_rate_pct": round(_safe_float(ctx.get("funding")) * 100, 4),
+                                }
+                            )
                     markets.sort(key=lambda x: x["volume_24h"], reverse=True)
                     _cset("hl_markets", markets)
                     return markets[:limit]
     except Exception as e:
         logger.warning(f"Hyperliquid markets fetch failed: {e}")
     return []
+
 
 async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict:
     """Hyperliquid 'Gain/Loss Porn': Biggest movers and funding squeezes."""
@@ -149,12 +159,10 @@ async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict:
         return {}
     active = [m for m in markets if m["volume_24h"] >= 1_000_000]
     action_data = {
-        "top_gainers": sorted(
-            [m for m in active if m["change_24h"] > 0], key=lambda x: x["change_24h"], reverse=True
-        )[:limit],
-        "top_losers": sorted(
-            [m for m in active if m["change_24h"] < 0], key=lambda x: x["change_24h"]
-        )[:limit],
+        "top_gainers": sorted([m for m in active if m["change_24h"] > 0], key=lambda x: x["change_24h"], reverse=True)[
+            :limit
+        ],
+        "top_losers": sorted([m for m in active if m["change_24h"] < 0], key=lambda x: x["change_24h"])[:limit],
         "long_squeeze_highest_funding": sorted(
             [m for m in active if m["funding_rate"] > 0],
             key=lambda x: x["funding_rate"],
@@ -167,6 +175,7 @@ async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict:
     }
     _cset("hl_action", action_data)
     return action_data
+
 
 async def _hyperliquid_funding(limit: int = 10, ttl: int = 120) -> list:
     """Top Hyperliquid funding rates (highest absolute)."""
@@ -190,13 +199,15 @@ async def _hyperliquid_funding(limit: int = 10, ttl: int = 120) -> list:
                         if i < len(ctxs):
                             ctx = ctxs[i]
                             funding_rate = _safe_float(ctx.get("funding"))
-                            funding_data.append({
-                                "symbol": asset.get("name", ""),
-                                "funding_rate": funding_rate,
-                                "funding_rate_pct": round(funding_rate * 100, 4),
-                                "price": _safe_float(ctx.get("markPx")),
-                                "open_interest": _safe_float(ctx.get("openInterest")),
-                            })
+                            funding_data.append(
+                                {
+                                    "symbol": asset.get("name", ""),
+                                    "funding_rate": funding_rate,
+                                    "funding_rate_pct": round(funding_rate * 100, 4),
+                                    "price": _safe_float(ctx.get("markPx")),
+                                    "open_interest": _safe_float(ctx.get("openInterest")),
+                                }
+                            )
                     funding_data.sort(key=lambda x: abs(x["funding_rate"]), reverse=True)
                     _cset("hl_funding", funding_data)
                     return funding_data[:limit]

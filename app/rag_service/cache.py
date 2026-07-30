@@ -13,6 +13,7 @@ REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
+
 async def _get_redis() -> any:
     """Get or create a shared Redis connection (singleton pattern to prevent leaks)."""
     global _redis_pool

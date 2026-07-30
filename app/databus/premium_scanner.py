@@ -42,6 +42,7 @@ CACHE_TTL = {
     "fresh_wallets": 600,  # 10 min
 }
 
+
 def _redis_connect() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
@@ -51,14 +52,13 @@ def _redis_connect() -> Any:
         socket_connect_timeout=2,
     )
 
+
 def _cache_key(scan_type: str, address: str, chain: str = "") -> str:
-    return (
-        f"premium:scan:{scan_type}:{chain}:{address}"
-        if chain
-        else f"premium:scan:{scan_type}:{address}"
-    )
+    return f"premium:scan:{scan_type}:{chain}:{address}" if chain else f"premium:scan:{scan_type}:{address}"
+
 
 # ── 1. BUNDLE DETECTION ────────────────────────
+
 
 async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | None:
     """Detect coordinated wallet bundles - groups that funded from same source
@@ -134,9 +134,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
                             if len(signers) >= 2:
                                 bundles.append(
                                     {
-                                        "window_start": datetime.fromtimestamp(
-                                            window * 300
-                                        ).isoformat(),
+                                        "window_start": datetime.fromtimestamp(window * 300).isoformat(),
                                         "size": len(signers),
                                         "wallets": list(signers),
                                         "coordination_score": min(1.0, len(signers) / 10.0),
@@ -181,7 +179,9 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
 
     return result
 
+
 # ── 2. CLUSTER MAPPING ───────────────────────────────────────────
+
 
 async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw) -> dict | None:
     """Map the full wallet cluster - funders, recipients, counterparties.
@@ -284,11 +284,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
                                 )
                                 if tx_resp.status_code == 200:
                                     tx_data = tx_resp.json().get("result", {})
-                                    accts = (
-                                        tx_data.get("transaction", {})
-                                        .get("message", {})
-                                        .get("accountKeys", [])
-                                    )
+                                    accts = tx_data.get("transaction", {}).get("message", {}).get("accountKeys", [])
                                     for acc in accts[:5]:
                                         acc_addr = acc.get("pubkey", "")
                                         if (
@@ -299,9 +295,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
                                         ):
                                             visited.add(acc_addr)
                                             queue.append((acc_addr, current_depth + 1))
-                                            edges.append(
-                                                {"from": current, "to": acc_addr, "value": 1}
-                                            )
+                                            edges.append({"from": current, "to": acc_addr, "value": 1})
                 except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
 
@@ -326,12 +320,19 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
 
     return result
 
+
 # ── 3. DEV FINDER ────────────────────────────────────────────────
+
 
 async def _helius_rpc_call(client: httpx.AsyncClient, api_key: str, method: str, params: list | dict) -> dict | None:
     """Make a Helius RPC call and return the result dict, or None on failure."""
     try:
-        json_body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params if isinstance(params, list) else [params]}
+        json_body = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": method,
+            "params": params if isinstance(params, list) else [params],
+        }
         resp = await client.post(
             f"https://mainnet.helius-rpc.com/?api-key={api_key}",
             json=json_body,
@@ -341,6 +342,7 @@ async def _helius_rpc_call(client: httpx.AsyncClient, api_key: str, method: str,
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     return None
+
 
 async def _arkham_enrich(client: httpx.AsyncClient, address: str, api_key: str) -> str:
     """Enrich an address with Arkham intelligence entity name."""
@@ -357,6 +359,8 @@ async def _arkham_enrich(client: httpx.AsyncClient, address: str, api_key: str) 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     return ""
+
+
 async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> dict | None:
     """Find the developer/creator wallets behind a token.
     Traces: deployer → funding source → LP creator → team wallets.
@@ -495,6 +499,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
 
     return result
 
+
 def _assess_dev_risk(wallets: list) -> dict:
     """Assess risk based on dev wallet patterns."""
     if not wallets:
@@ -522,15 +527,13 @@ def _assess_dev_risk(wallets: list) -> dict:
             score += 15
 
     score = min(100, max(0, score))
-    level = (
-        "CRITICAL"
-        if score >= 70
-        else ("HIGH" if score >= 50 else ("MEDIUM" if score >= 30 else "LOW"))
-    )
+    level = "CRITICAL" if score >= 70 else ("HIGH" if score >= 50 else ("MEDIUM" if score >= 30 else "LOW"))
 
     return {"score": score, "level": level, "factors": factors}
 
+
 # ── 4-10: PREMIUM HIGH-VALUE DETECTION ───────────────────────────
+
 
 async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | None:
     """Detect snipers - wallets that buy in first blocks and dump fast."""
@@ -565,12 +568,8 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
                     sigs = resp.json().get("result", [])
 
                     # Find first 20 blocks of token existence
-                    earliest = min(
-                        s.get("blockTime", float("inf")) for s in sigs if s.get("blockTime")
-                    )
-                    first_blocks = [
-                        s for s in sigs if s.get("blockTime", 0) < earliest + 3600
-                    ]  # first hour
+                    earliest = min(s.get("blockTime", float("inf")) for s in sigs if s.get("blockTime"))
+                    first_blocks = [s for s in sigs if s.get("blockTime", 0) < earliest + 3600]  # first hour
 
                     # Look for large buys in first hour
                     for sig_data in first_blocks[:50]:
@@ -596,9 +595,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
                                     {
                                         "address": buyer,
                                         "entry_block": sig_data.get("slot", 0),
-                                        "entry_time": datetime.fromtimestamp(
-                                            sig_data.get("blockTime", 0)
-                                        ).isoformat(),
+                                        "entry_time": datetime.fromtimestamp(sig_data.get("blockTime", 0)).isoformat(),
                                     }
                                 )
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
@@ -620,6 +617,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
         pass
 
     return result
+
 
 async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | None:
     """Detect bot farms - groups of wallets with identical behavior patterns."""
@@ -647,6 +645,7 @@ async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | 
 
     return result
 
+
 async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict | None:
     """Detect copy trading patterns - wallets mirroring trades with delay."""
     cache_key = _cache_key("copy_trading", address, chain)
@@ -666,6 +665,7 @@ async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict
         pass
 
     return result
+
 
 async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> dict | None:
     """Detect insider trading signals - large buys before major announcements."""
@@ -687,6 +687,7 @@ async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> d
         pass
 
     return result
+
 
 async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict | None:
     """Detect wash trading - circular transactions, self-trading patterns."""
@@ -710,6 +711,7 @@ async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict
 
     return result
 
+
 async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict | None:
     """Detect MEV sandwich attacks on this token/wallet."""
     cache_key = _cache_key("mev_sandwich", address, chain)
@@ -730,6 +732,7 @@ async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict
         pass
 
     return result
+
 
 async def detect_fresh_wallets(address: str, chain: str = "solana", **kw) -> dict | None:
     """Analyze fresh wallet concentration - high % of new wallets = rug risk."""

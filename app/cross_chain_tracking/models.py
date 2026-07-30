@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 class DeployerEvent(BaseModel):
     """A single deployment event from chain-indexer's ClickHouse."""
+
     deployer: str = Field(..., description="Deployer wallet address")
     token_address: str = Field(..., description="Deployed token address")
     chain: str = Field(..., description="Chain where deployed")
@@ -27,6 +28,7 @@ class DeployerEvent(BaseModel):
 
 class DeployerSummary(BaseModel):
     """Aggregated deployer info across a single chain."""
+
     deployer: str
     chain: str
     deployment_count: int = 0
@@ -37,6 +39,7 @@ class DeployerSummary(BaseModel):
 
 class MultiChainDeployer(BaseModel):
     """A deployer active on 2+ chains (same-entity signal)."""
+
     deployer_address: str = Field(..., description="The EVM/SVM address (same across chains)")
     chains: list[str] = Field(..., description="Chains where this deployer is active")
     chain_count: int = 0
@@ -50,6 +53,7 @@ class MultiChainDeployer(BaseModel):
 
 class CrossChainMatch(BaseModel):
     """A single cross-chain address match with evidence."""
+
     address: str
     chain: str
     confidence: float = Field(ge=0.0, le=1.0)
@@ -68,6 +72,7 @@ class CrossChainMatch(BaseModel):
 
 class CrossChainProfile(BaseModel):
     """Complete cross-chain identity profile for an entity."""
+
     entity_id: str
     primary_address: str
     primary_chain: str
@@ -85,6 +90,7 @@ class CrossChainProfile(BaseModel):
 
 class CrossChainSummary(BaseModel):
     """Summary of cross-chain tracking results."""
+
     total_deployers_scanned: int = 0
     multi_chain_deployers_found: int = 0
     bridge_links: int = 0

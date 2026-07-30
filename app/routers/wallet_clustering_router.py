@@ -23,15 +23,18 @@ from app.core.logging import get_logger
 router = APIRouter(prefix="/api/v1/wallet-clusters", tags=["wallet-clustering"])
 logger = get_logger(__name__)
 
+
 class ClusterRequest(BaseModel):
     wallets: list[str]
     min_confidence: float = 0.3
     include_sleepers: bool = True
 
+
 class FundingPathRequest(BaseModel):
     source: str
     target: str
     max_depth: int = 5
+
 
 class RugMapRequest(BaseModel):
     center_wallet: str
@@ -39,11 +42,13 @@ class RugMapRequest(BaseModel):
     max_wallets: int = 250
     ai_deep_dive: bool = False
 
+
 class ContractScanRequest(BaseModel):
     contract_address: str
     chain: str = "solana"
     detect_clusters: bool = True
     detect_bundles: bool = True
+
 
 def _get_detector() -> Any:
     try:
@@ -53,6 +58,7 @@ def _get_detector() -> Any:
     except ImportError as e:
         raise ServiceUnavailableError(message=f"Module unavailable: {e}") from e
 
+
 def _get_engine() -> Any:
     try:
         from app.domains.wallet.clustering import get_clustering_engine
@@ -60,6 +66,7 @@ def _get_engine() -> Any:
         return get_clustering_engine()
     except ImportError as e:
         raise ServiceUnavailableError(message=f"Module unavailable: {e}") from e
+
 
 @router.post("/detect")
 async def detect_clusters(req: ClusterRequest) -> Any:
@@ -90,8 +97,7 @@ async def detect_clusters(req: ClusterRequest) -> Any:
             **cluster_data,
             "risk_score": min(100, len(clusters) * 15),
             "key_findings": [
-                {"finding": f"Detected {len(c.wallets)} wallets in cluster", "severity": "MEDIUM"}
-                for c in clusters[:5]
+                {"finding": f"Detected {len(c.wallets)} wallets in cluster", "severity": "MEDIUM"} for c in clusters[:5]
             ],
         }
     )
@@ -109,13 +115,12 @@ async def detect_clusters(req: ClusterRequest) -> Any:
         confidence=brief.get("confidence", 0.5),
     )
 
+
 @router.post("/funding-path")
 async def trace_funding_path(req: FundingPathRequest) -> Any:
     """Trace the funding path between two wallets (BFS)."""
     detector = _get_detector()
-    path = await detector.trace_funding_path(
-        source=req.source, target=req.target, max_depth=req.max_depth
-    )
+    path = await detector.trace_funding_path(source=req.source, target=req.target, max_depth=req.max_depth)
     data: dict = {"source": req.source, "target": req.target}
     if path:
         data["path"] = path.to_dict()
@@ -132,6 +137,7 @@ async def trace_funding_path(req: FundingPathRequest) -> Any:
         cache_ttl=120,
         confidence=0.7 if data["path_found"] else 0.3,
     )
+
 
 @router.post("/scan")
 async def scan_all() -> Any:
@@ -173,7 +179,12 @@ async def scan_all() -> Any:
         confidence=brief.get("confidence", 0.5),
     )
 
-@router.get("/health", summary="Clustering Health", description="Health check for the wallet clustering engine. Returns status of clustering models and data sources.")
+
+@router.get(
+    "/health",
+    summary="Clustering Health",
+    description="Health check for the wallet clustering engine. Returns status of clustering models and data sources.",
+)
 async def clustering_health() -> dict[str, str]:
     cache_stats = {}
     gnn_status = {}
@@ -212,6 +223,7 @@ async def clustering_health() -> dict[str, str]:
         "spam_registry": spam_stats,
     }
 
+
 @router.get("/report/{cluster_id}")
 async def get_cluster_report(cluster_id: str) -> Any:
     """Get detailed report for a specific cluster."""
@@ -220,6 +232,7 @@ async def get_cluster_report(cluster_id: str) -> Any:
     if not report:
         raise HTTPException(status_code=404, detail="Cluster not found")
     return report
+
 
 @router.post("/rugmap-data")
 async def get_rugmap_data(req: RugMapRequest) -> Any:
@@ -242,9 +255,7 @@ async def get_rugmap_data(req: RugMapRequest) -> Any:
             from app.ai_router import router as ai_router
 
             suspicious_wallets = [
-                n
-                for n in data["nodes"]
-                if n.get("type") in ["scammer", "exchange"] or n.get("volume", 0) > 10000
+                n for n in data["nodes"] if n.get("type") in ["scammer", "exchange"] or n.get("volume", 0) > 10000
             ][:10]
 
             prompt = f"""Analyze this wallet cluster for {req.center_wallet}.
@@ -274,9 +285,7 @@ async def get_rugmap_data(req: RugMapRequest) -> Any:
             if "error" in result:
                 data["ai_deep_dive_analysis"] = f"AI analysis failed: {result['error']}"
             else:
-                data["ai_deep_dive_analysis"] = result.get(
-                    "content", "AI analysis completed but returned empty."
-                )
+                data["ai_deep_dive_analysis"] = result.get("content", "AI analysis completed but returned empty.")
         except Exception as e:
             logger.warning(f"AI deep dive failed: {e}")
             data["ai_deep_dive_analysis"] = "AI analysis temporarily unavailable."
@@ -284,9 +293,7 @@ async def get_rugmap_data(req: RugMapRequest) -> Any:
     # Generate DataFusion brief from rugmap data
     node_count = len(data.get("nodes", []))
     edge_count = len(data.get("edges", []))
-    suspicious_count = sum(
-        1 for n in data.get("nodes", []) if n.get("type") in ("scammer", "exchange")
-    )
+    suspicious_count = sum(1 for n in data.get("nodes", []) if n.get("type") in ("scammer", "exchange"))
 
     brief_data = {
         "total_wallets": node_count,
@@ -314,6 +321,7 @@ async def get_rugmap_data(req: RugMapRequest) -> Any:
         cache_ttl=120,
         confidence=0.6 if node_count > 0 else 0.2,
     )
+
 
 @router.post("/ai-forensic-breakdown")
 async def get_ai_forensic_breakdown(req: RugMapRequest) -> Any:
@@ -375,9 +383,7 @@ Be direct and avoid fluff."""
             if "error" in result:
                 breakdown["ai_llm_analysis"] = f"AI analysis failed: {result['error']}"
             else:
-                breakdown["ai_llm_analysis"] = result.get(
-                    "content", "AI analysis completed but returned empty."
-                )
+                breakdown["ai_llm_analysis"] = result.get("content", "AI analysis completed but returned empty.")
         except Exception as e:
             logger.warning(f"AI LLM deep dive failed: {e}")
             breakdown["ai_llm_analysis"] = (
@@ -404,6 +410,7 @@ Be direct and avoid fluff."""
         cache_ttl=300,
         confidence=min(1.0, breakdown.get("total_wallets_analyzed", 0) / 200),
     )
+
 
 @router.post("/contract-scan")
 async def scan_contract_clusters(req: ContractScanRequest) -> Any:
@@ -469,8 +476,7 @@ async def scan_contract_clusters(req: ContractScanRequest) -> Any:
         "total_holders": len(holders) + len(excluded_entities),
         "holders": holders[:10],
         "excluded_infrastructure": [
-            {"address": e.address, "entity": e.entity_name, "type": e.entity_type}
-            for e in excluded_entities
+            {"address": e.address, "entity": e.entity_name, "type": e.entity_type} for e in excluded_entities
         ],
         "holders_labeled": sum(1 for h in holders if engine._get_known_scammer_wallets()),
         "spam_check": {},
@@ -487,9 +493,7 @@ async def scan_contract_clusters(req: ContractScanRequest) -> Any:
 
     # Step 3: Detect clusters
     if req.detect_clusters and len(holders) >= 2:
-        clusters = await detector.detect_clusters(
-            wallets=holders[:50], min_confidence=0.3, include_sleepers=True
-        )
+        clusters = await detector.detect_clusters(wallets=holders[:50], min_confidence=0.3, include_sleepers=True)
         result["clusters_found"] = len(clusters)
         result["clusters"] = [c.to_dict() for c in clusters]
 
@@ -507,8 +511,7 @@ async def scan_contract_clusters(req: ContractScanRequest) -> Any:
                     "wallets_scored": len(gnn_scores),
                     "high_risk_count": len(high_risk),
                     "avg_fraud_probability": round(
-                        sum(s.get("fraud_probability", 0) for s in gnn_scores)
-                        / max(len(gnn_scores), 1),
+                        sum(s.get("fraud_probability", 0) for s in gnn_scores) / max(len(gnn_scores), 1),
                         4,
                     ),
                     "model": gnn.status().get("model_type", "unknown"),

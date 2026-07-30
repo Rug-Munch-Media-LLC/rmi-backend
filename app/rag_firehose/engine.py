@@ -20,6 +20,7 @@ from app.rag_firehose.sources import FeedSources
 
 logger = get_logger("rag.firehose")
 
+
 class FirehoseEngine:
     """The central continuous ingestion engine."""
 
@@ -48,32 +49,60 @@ class FirehoseEngine:
         # Define all feed sources with cadences
         self._sources = [
             FeedSource(
-                "ct_rundown", "news_articles", 900,
-                self._feeds.pull_ct_rundown, True, "CT Rundown stories",
+                "ct_rundown",
+                "news_articles",
+                900,
+                self._feeds.pull_ct_rundown,
+                True,
+                "CT Rundown stories",
             ),
             FeedSource(
-                "social_sentiment", "social_sentiment", 900,
-                self._feeds.pull_social_sentiment, True, "Social sentiment and scam alerts",
+                "social_sentiment",
+                "social_sentiment",
+                900,
+                self._feeds.pull_social_sentiment,
+                True,
+                "Social sentiment and scam alerts",
             ),
             FeedSource(
-                "news_rss", "news_articles", 3600,
-                self._feeds.pull_news_rss, True, "200+ RSS crypto news feeds",
+                "news_rss",
+                "news_articles",
+                3600,
+                self._feeds.pull_news_rss,
+                True,
+                "200+ RSS crypto news feeds",
             ),
             FeedSource(
-                "prediction_markets", "market_intel", 21600,
-                self._feeds.pull_prediction_markets, True, "Polymarket predictions",
+                "prediction_markets",
+                "market_intel",
+                21600,
+                self._feeds.pull_prediction_markets,
+                True,
+                "Polymarket predictions",
             ),
             FeedSource(
-                "etherscan_labels", "known_scams", 86400,
-                self._feeds.pull_etherscan_labels, True, "Etherscan phish/hack labeled addresses",
+                "etherscan_labels",
+                "known_scams",
+                86400,
+                self._feeds.pull_etherscan_labels,
+                True,
+                "Etherscan phish/hack labeled addresses",
             ),
             FeedSource(
-                "solana_scams", "known_scams", 86400,
-                self._feeds.pull_solana_scams, True, "Solana token registry flagged tokens",
+                "solana_scams",
+                "known_scams",
+                86400,
+                self._feeds.pull_solana_scams,
+                True,
+                "Solana token registry flagged tokens",
             ),
             FeedSource(
-                "scam_patterns", "scam_patterns", 259200,
-                self._feeds.extract_scam_patterns, True, "Extract common patterns from confirmed scams",
+                "scam_patterns",
+                "scam_patterns",
+                259200,
+                self._feeds.extract_scam_patterns,
+                True,
+                "Extract common patterns from confirmed scams",
             ),
         ]
 
@@ -181,15 +210,18 @@ class FirehoseEngine:
             "sources": self.stats.sources,
         }
 
+
 # ── Singleton ──────────────────────────────────────────────────
 
 _firehose: FirehoseEngine | None = None
+
 
 def get_firehose() -> FirehoseEngine:
     global _firehose
     if _firehose is None:
         _firehose = FirehoseEngine()
     return _firehose
+
 
 # Backward compatibility alias for rag_scam_check.py
 RagFirehose = FirehoseEngine

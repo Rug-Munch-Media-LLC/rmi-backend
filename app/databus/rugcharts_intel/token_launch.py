@@ -17,6 +17,7 @@ from .cache import CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 
+
 async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> dict | None:
     """Scan for recently launched tokens and assign instant risk scores.
     Combines: age, liquidity, holder count, deployer history, GoPlus checks.
@@ -82,9 +83,7 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
                         new_tokens.append(
                             {
                                 "signature": sig_data["signature"][:16] + "...",
-                                "launch_time": datetime.fromtimestamp(
-                                    sig_data.get("blockTime", 0), tz=UTC
-                                ).isoformat(),
+                                "launch_time": datetime.fromtimestamp(sig_data.get("blockTime", 0), tz=UTC).isoformat(),
                                 "age_minutes": round(age_minutes, 1),
                                 "risk_score": risk_score,
                                 "risk_level": risk,

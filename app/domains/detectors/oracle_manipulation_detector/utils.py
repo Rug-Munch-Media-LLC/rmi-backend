@@ -45,11 +45,13 @@ def detect_twap_manipulation(twap: TWAPWindow) -> PriceManipulation | None:
         evidence=[f"risk={risk:.4f}", f"samples={len(twap.samples)}"],
     )
 
+
 def compute_deviation_pct(observed: float, expected: float) -> float:
     """Calculate percentage deviation between two prices."""
     if expected == 0:
         return 0.0
     return abs(observed - expected) / expected
+
 
 def classify_severity(deviation_pct: float, is_flash_loan: bool = False) -> Severity:
     """Classify severity based on price deviation percentage."""
@@ -72,6 +74,7 @@ def classify_severity(deviation_pct: float, is_flash_loan: bool = False) -> Seve
             return severity
     return Severity.INFO
 
+
 def is_sandwich_pattern(prices: list[float], window: int = 5) -> bool:
     """Detect sandwich-style price pattern: low → high → low or high → low → high."""
     if len(prices) < window * 2 + 1:
@@ -85,6 +88,7 @@ def is_sandwich_pattern(prices: list[float], window: int = 5) -> bool:
     return (left_avg < mid_price * 0.95 and right_avg < mid_price * 0.95) or (
         left_avg > mid_price * 1.05 and right_avg > mid_price * 1.05
     )
+
 
 def calculate_twap_from_samples(samples: list[PriceSnapshot]) -> TWAPWindow | None:
     """Compute TWAP statistics from a list of price samples."""
@@ -114,6 +118,7 @@ def calculate_twap_from_samples(samples: list[PriceSnapshot]) -> TWAPWindow | No
         pool_address=getattr(samples[0], "source", ""),
         pair="",
     )
+
 
 __all__ = [
     "calculate_twap_from_samples",

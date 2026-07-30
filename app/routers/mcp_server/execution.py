@@ -17,6 +17,7 @@ from .config import _get_tools
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_execution"])
 
+
 @router.post("/mcp/call/{tool_id}")
 async def mcp_call_tool(tool_id: str, request: Request) -> Any:
     """Execute any tool. Requires x402 payment or free trial."""
@@ -28,11 +29,7 @@ async def mcp_call_tool(tool_id: str, request: Request) -> Any:
         )
 
     try:
-        body = (
-            await request.json()
-            if request.headers.get("content-type") == "application/json"
-            else {}
-        )
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
     except (json.JSONDecodeError, ValueError):
         body = {}
 
@@ -69,9 +66,7 @@ async def mcp_call_tool(tool_id: str, request: Request) -> Any:
         async with httpx.AsyncClient(timeout=45) as client:
             resp = await client.post(url, json=body, headers=headers)
             result = (
-                resp.json()
-                if "application/json" in (resp.headers.get("content-type", ""))
-                else {"data": resp.text}
+                resp.json() if "application/json" in (resp.headers.get("content-type", "")) else {"data": resp.text}
             )
             rh = {}
             for h in (

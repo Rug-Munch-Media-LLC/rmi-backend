@@ -35,9 +35,7 @@ def build_portfolio(holdings: list) -> dict:
         if usd_value < 0.01:
             continue  # skip dust
 
-        usd_value_yesterday = (
-            usd_value / (1 + change_24h / 100) if change_24h != -100 else usd_value
-        )
+        usd_value_yesterday = usd_value / (1 + change_24h / 100) if change_24h != -100 else usd_value
 
         total_value += usd_value
         total_value_yesterday += usd_value_yesterday
@@ -58,9 +56,7 @@ def build_portfolio(holdings: list) -> dict:
     tokens.sort(key=lambda t: t["usd_value"], reverse=True)
 
     change_24h_usd = total_value - total_value_yesterday
-    change_24h_pct = (
-        (change_24h_usd / total_value_yesterday * 100) if total_value_yesterday > 0 else 0.0
-    )
+    change_24h_pct = (change_24h_usd / total_value_yesterday * 100) if total_value_yesterday > 0 else 0.0
 
     return {
         "tokens": tokens,

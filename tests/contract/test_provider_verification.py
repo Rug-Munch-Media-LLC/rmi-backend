@@ -6,6 +6,7 @@ the consumer (pryscraper) expects, the test fails — catching breakage before d
 
 Run: PACT_BROKER_URL=http://localhost:9292 python -m pytest tests/contract/ -v --tb=short -m integration
 """
+
 import os
 import subprocess
 
@@ -21,14 +22,23 @@ def test_verify_pacts_against_provider():
     # 1. Fetches all contracts for rmi-backend from the broker
     # 2. Replays each request against the running rmi-backend
     # 3. Validates that responses match consumer expectations
-    result = subprocess.run([
-        "pact-verifier",
-        "--provider-base-url", "http://localhost:8000",
-        "--pact-broker-base-url", broker_url,
-        "--provider", "rmi-backend",
-        "--provider-app-version", os.environ.get("CI_COMMIT_SHA", "local"),
-        "--publish-verification-results",
-    ], capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        [
+            "pact-verifier",
+            "--provider-base-url",
+            "http://localhost:8000",
+            "--pact-broker-base-url",
+            broker_url,
+            "--provider",
+            "rmi-backend",
+            "--provider-app-version",
+            os.environ.get("CI_COMMIT_SHA", "local"),
+            "--publish-verification-results",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
 
     if result.returncode != 0:
         print("STDOUT:", result.stdout)

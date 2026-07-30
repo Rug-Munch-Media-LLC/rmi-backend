@@ -73,9 +73,7 @@ class TestQueryMethods:
     """Core query functions against injected data."""
 
     def test_is_spam_token_hit(self, registry: SpamRegistry) -> None:
-        assert (
-            registry.is_spam_token("So11111111111111111111111111111111111111111", "solana") is True
-        )
+        assert registry.is_spam_token("So11111111111111111111111111111111111111111", "solana") is True
 
     def test_is_spam_token_nft_hit(self, registry: SpamRegistry) -> None:
         assert registry.is_spam_token("0x" + "b" * 40, "ethereum") is True

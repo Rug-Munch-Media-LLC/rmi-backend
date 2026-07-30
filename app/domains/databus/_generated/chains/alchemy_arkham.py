@@ -34,6 +34,7 @@ from app.databus.provider_implementations import (
 
 logger = get_logger("databus.providers.chains.alchemy_arkham")
 
+
 def build_alchemy_arkham_chains(chains: dict[str, ProviderChain]) -> None:
     """Build Alchemy, Moralis, Arkham, and MCP bridge chains."""
     # ── Alchemy chains ──

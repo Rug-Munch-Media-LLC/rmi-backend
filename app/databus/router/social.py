@@ -19,6 +19,7 @@ from app.databus.social import (
 
 X_HANDLE = "CryptoRugMunch"
 
+
 @router.get("/social/x/profile/{username}")
 async def social_x_profile(username: str) -> dict[str, str]:
     """Get X/Twitter user profile - cached 24h."""
@@ -29,6 +30,7 @@ async def social_x_profile(username: str) -> dict[str, str]:
     if not result:
         raise HTTPException(404, f"User @{username} not found or API unavailable")
     return {"source": "x_twitter", "username": username, "data": result}
+
 
 @router.get("/social/x/tweets/{username}")
 async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)) -> dict[str, str]:
@@ -46,6 +48,7 @@ async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)) -
         raise HTTPException(404, f"Tweets for @{username} not available")
     return {"source": "x_twitter", "username": username, "count": len(result), "data": result}
 
+
 @router.get("/social/x/mentions")
 async def social_x_mentions(count: int = Query(20, ge=1, le=100)) -> dict[str, str]:
     """Get mentions of @CryptoRugMunch - cached 15min."""
@@ -57,6 +60,7 @@ async def social_x_mentions(count: int = Query(20, ge=1, le=100)) -> dict[str, s
         raise HTTPException(404, "Mentions not available (API budget exhausted)")
     return {"source": "x_twitter", "count": len(result), "data": result}
 
+
 @router.get("/social/x/engagement")
 async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-separated tweet IDs")) -> dict[str, str]:
     """Get engagement metrics for tweets - cached 1h."""
@@ -66,6 +70,7 @@ async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-sep
     ids = [tid.strip() for tid in tweet_ids.split(",")[:100]]
     result = await agg.x.get_engagement_metrics(ids)
     return {"source": "x_twitter", "count": len(result), "data": result}
+
 
 @router.get("/social/x/search")
 async def social_x_search(
@@ -77,10 +82,9 @@ async def social_x_search(
     agg = SocialDataAggregator(databus.cache)
     result = await agg.search_mentions(q, count=count)
     if not result:
-        raise HTTPException(
-            404, "Search results not available (API budget exhausted or no results)"
-        )
+        raise HTTPException(404, "Search results not available (API budget exhausted or no results)")
     return {"source": "x_twitter", "query": q, "count": len(result), "data": result}
+
 
 @router.get("/social/kol/{username}")
 async def social_kol_reputation(username: str) -> Any:
@@ -90,6 +94,7 @@ async def social_kol_reputation(username: str) -> Any:
     agg = SocialDataAggregator(databus.cache)
     return await agg.get_kol_reputation(username)
 
+
 @router.get("/social/sentiment")
 async def social_sentiment(username: str = Query("CryptoRugMunch")) -> Any:
     """Brand sentiment analysis - cached 1h."""
@@ -97,6 +102,7 @@ async def social_sentiment(username: str = Query("CryptoRugMunch")) -> Any:
 
     agg = SocialDataAggregator(databus.cache)
     return await agg.get_sentiment(username)
+
 
 @router.get("/social/x/budget")
 async def social_x_budget() -> dict:
@@ -112,6 +118,7 @@ async def social_x_budget() -> dict:
         "note": "X Free tier: 10k reads/month. Cache aggressively.",
     }
 
+
 @router.get("/social/x/discover")
 async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50, ge=1, le=100)) -> dict[str, str]:
     """Discover tweets via web search - no API needed, works for free."""
@@ -121,6 +128,7 @@ async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50
     tweets = await scraper.discover_tweets(handle=handle, limit=limit)
     return {"source": "web_search", "handle": handle, "count": len(tweets), "data": tweets}
 
+
 @router.get("/social/x/engagement-report")
 async def social_x_engagement_report(handle: str = Query(X_HANDLE)) -> Any:
     """Get engagement report for a handle - avg likes, best tweets, posting frequency."""
@@ -129,6 +137,7 @@ async def social_x_engagement_report(handle: str = Query(X_HANDLE)) -> Any:
     scraper = XWebScraper(databus.cache)
     report = await scraper.get_engagement_report(handle=handle)
     return report
+
 
 @router.get("/social/x/mentions-discover")
 async def social_x_mentions_discover(
@@ -141,6 +150,7 @@ async def social_x_mentions_discover(
     mentions = await scraper.get_mentions(handle=handle, limit=limit)
     return {"source": "web_search", "handle": handle, "count": len(mentions), "data": mentions}
 
+
 @router.get("/social/x/trending")
 async def social_x_trending() -> dict[str, str]:
     """Get current crypto trending topics from web search."""
@@ -149,4 +159,3 @@ async def social_x_trending() -> dict[str, str]:
     scraper = XWebScraper(databus.cache)
     topics = await scraper.get_trending_topics()
     return {"source": "web_search", "count": len(topics), "data": topics}
-

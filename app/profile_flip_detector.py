@@ -101,9 +101,8 @@ _BEHAVIOR_RISK_TABLE = {
     ("bot", "holder"): 0.30,
 }
 
-async def _fetch(
-    url: str, timeout: int = 10, headers: dict | None = None, max_retries: int = 2
-) -> dict | None:
+
+async def _fetch(url: str, timeout: int = 10, headers: dict | None = None, max_retries: int = 2) -> dict | None:
     """Single URL fetch with aiohttp and retry logic."""
     import asyncio
 
@@ -136,6 +135,7 @@ async def _fetch(
                 logger.debug(f"Fetch failed after {max_retries} retries: {url} - {e}")
     return None
 
+
 async def _fetch_with_fallback(urls: list[str]) -> tuple[Any, str | None]:
     """Try multiple URLs in sequence."""
     for url in urls:
@@ -144,10 +144,12 @@ async def _fetch_with_fallback(urls: list[str]) -> tuple[Any, str | None]:
             return result, url
     return None, None
 
+
 def _extract_domain(url: str) -> str | None:
     """Extract domain from a URL."""
     match = re.search(r"https?://([^/]+)", url)
     return match.group(1) if match else None
+
 
 def _domain_age_risk(domain: str) -> dict:
     """
@@ -175,6 +177,7 @@ def _domain_age_risk(domain: str) -> dict:
         flags.append("suspicious_hyphenated_domain")
 
     return {"risk": min(risk, 1.0), "flags": flags, "domain": domain}
+
 
 def _detect_branding_flip(project_name: str, description: str) -> dict:
     """
@@ -215,6 +218,7 @@ def _detect_branding_flip(project_name: str, description: str) -> dict:
             flags.append(f"generic_description:{pattern}")
 
     return {"risk": min(risk, 1.0), "flags": flags}
+
 
 def _detect_wallet_behavior_flip(
     wallet_history: dict[str, Any] | None,
@@ -262,6 +266,7 @@ def _detect_wallet_behavior_flip(
         flags.append("significant_outflow")
 
     return {"risk": min(risk, 1.0), "flags": flags}
+
 
 def _compute_identity_flip_score(
     social_risk: float,
@@ -327,15 +332,17 @@ def _compute_identity_flip_score(
     # Classification
     if score >= 70:
         classification = "critical"
-        recommendation = "Immediate investigation warranted. High probability of identity laundering or scam preparation."
+        recommendation = (
+            "Immediate investigation warranted. High probability of identity laundering or scam preparation."
+        )
     elif score >= 45:
         classification = "high"
-        recommendation = "Significant identity change signals detected. Proceed with caution and verify all project claims."
+        recommendation = (
+            "Significant identity change signals detected. Proceed with caution and verify all project claims."
+        )
     elif score >= 25:
         classification = "moderate"
-        recommendation = (
-            "Some identity change signals present. Recommend monitoring for additional red flags."
-        )
+        recommendation = "Some identity change signals present. Recommend monitoring for additional red flags."
     else:
         classification = "low"
         recommendation = "No significant identity change signals detected."
@@ -354,6 +361,7 @@ def _compute_identity_flip_score(
             "cross_project": round(cross_score, 1),
         },
     }
+
 
 def _check_cross_project_laundering(
     deployer_address: str | None,
@@ -383,7 +391,9 @@ def _check_cross_project_laundering(
 
     return signals
 
+
 # ── Main Detection Function ──────────────────────────────────────
+
 
 async def detect_profile_flip(
     token_address: str | None = None,
@@ -537,7 +547,9 @@ async def detect_profile_flip(
 
     return result
 
+
 # ── Batch detection for monitoring ───────────────────────────────
+
 
 async def batch_detect_profile_flips(
     targets: list[dict],
@@ -568,6 +580,7 @@ async def batch_detect_profile_flips(
                 }
             )
     return results
+
 
 # ── CLI entry point ──────────────────────────────────────────────
 

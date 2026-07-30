@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 class InsiderType:
     """Type classification for insider detection methods."""
+
     PRE_TRENDING = "pre_trending_buyer"
     PRE_KOL = "pre_kol_buyer"
     DEV_INSIDER = "dev_insider"
@@ -15,15 +16,18 @@ class InsiderType:
     PUMP_FUN_GRADUATION = "pump_fun_graduate_frontrunner"
     SNIPER = "first_block_sniper"
 
+
 class Confidence:
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
 
+
 @dataclass
 class InsiderEvidence:
     """A single piece of insider evidence for one wallet-token pair."""
+
     wallet: str
     insider_type: str
     bought_at: float
@@ -51,9 +55,11 @@ class InsiderEvidence:
             "confidence": self.confidence,
         }
 
+
 @dataclass
 class InsiderReport:
     """Complete insider detection report for one token."""
+
     token: str
     token_symbol: str
     chain: str
@@ -75,7 +81,8 @@ class InsiderReport:
             "deployer": self.deployer,
             "insiders": sorted(
                 [e.to_dict() for e in self.insiders],
-                key=lambda x: x["pnl_estimate"], reverse=True,
+                key=lambda x: x["pnl_estimate"],
+                reverse=True,
             ),
             "summary": (
                 f"{len(unique_wallets)} insider wallet{'s' if len(unique_wallets) != 1 else ''} "
@@ -90,6 +97,7 @@ class InsiderReport:
                 for level in [Confidence.CRITICAL, Confidence.HIGH, Confidence.MEDIUM, Confidence.LOW]
             },
         }
+
 
 def _ts_human(ts: float) -> str:
     """Format a Unix timestamp to a human-readable UTC string."""

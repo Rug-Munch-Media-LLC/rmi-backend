@@ -24,6 +24,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 class KnowledgeGraph:
     """
     Redis-backed knowledge graph for crypto entity relationships.
@@ -38,17 +39,23 @@ class KnowledgeGraph:
         if self._redis:
             return self._redis
         from app.knowledge_graph.config import REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
+
         self._redis = aioredis.Redis(
-            host=REDIS_HOST, port=REDIS_PORT,
+            host=REDIS_HOST,
+            port=REDIS_PORT,
             password=REDIS_PASSWORD or None,
-            db=0, decode_responses=True,
+            db=0,
+            decode_responses=True,
         )
         return self._redis
 
     # ── Node Operations ───────────────────────────────────────────
 
     async def add_node(
-        self, node_type: str, node_id: str, label: str = "",
+        self,
+        node_type: str,
+        node_id: str,
+        label: str = "",
         metadata: dict[str, Any] | None = None,
     ) -> str:
         """Add or update a node in the knowledge graph."""
@@ -120,8 +127,13 @@ class KnowledgeGraph:
     # ── Edge Operations ────────────────────────────────────────────
 
     async def add_edge(
-        self, from_type: str, from_id: str, relation: str,
-        to_type: str, to_id: str, weight: float = 1.0,
+        self,
+        from_type: str,
+        from_id: str,
+        relation: str,
+        to_type: str,
+        to_id: str,
+        weight: float = 1.0,
         metadata: dict[str, Any] | None = None,
     ) -> str:
         """Add a directed edge between two nodes. Weight: 0.0-1.0."""
@@ -129,8 +141,11 @@ class KnowledgeGraph:
         edge_key = f"kg:edge:{from_type}:{from_id}:{relation}:{to_type}:{to_id}"
 
         edge_data = {
-            "from_type": from_type, "from_id": from_id,
-            "relation": relation, "to_type": to_type, "to_id": to_id,
+            "from_type": from_type,
+            "from_id": from_id,
+            "relation": relation,
+            "to_type": to_type,
+            "to_id": to_id,
             "weight": str(weight),
             "metadata": json.dumps(metadata or {}),
             "created_at": str(int(time.time())),
@@ -148,9 +163,13 @@ class KnowledgeGraph:
     # ── Graph Traversal ──────────────────────────────────────────
 
     async def get_neighbors(
-        self, node_type: str, node_id: str,
-        relation: str | None = None, direction: str = "outgoing",
-        min_weight: float = 0.0, limit: int = 50,
+        self,
+        node_type: str,
+        node_id: str,
+        relation: str | None = None,
+        direction: str = "outgoing",
+        min_weight: float = 0.0,
+        limit: int = 50,
     ) -> list[dict]:
         """Get neighboring nodes of a given node."""
         r = await self._get_redis()
@@ -183,25 +202,31 @@ class KnowledgeGraph:
                     neighbor_id = edge_data.get("from_id", "")
 
                 neighbor_node = await self.get_node(neighbor_type, neighbor_id)
-                results.append({
-                    "node_type": neighbor_type,
-                    "node_id": neighbor_id,
-                    "label": neighbor_node.get("label", neighbor_id) if neighbor_node else neighbor_id,
-                    "relation": edge_data.get("relation", ""),
-                    "weight": weight,
-                    "direction": dir_label,
-                    "metadata": neighbor_node.get("metadata", {}) if neighbor_node else {},
-                    "edge_metadata": json.loads(edge_data.get("metadata", "{}")),
-                })
+                results.append(
+                    {
+                        "node_type": neighbor_type,
+                        "node_id": neighbor_id,
+                        "label": neighbor_node.get("label", neighbor_id) if neighbor_node else neighbor_id,
+                        "relation": edge_data.get("relation", ""),
+                        "weight": weight,
+                        "direction": dir_label,
+                        "metadata": neighbor_node.get("metadata", {}) if neighbor_node else {},
+                        "edge_metadata": json.loads(edge_data.get("metadata", "{}")),
+                    }
+                )
                 if len(results) >= limit:
                     return results
 
         return results
 
     async def find_paths(
-        self, from_type: str, from_id: str,
-        to_type: str, to_id: str,
-        max_depth: int = 4, max_paths: int = 5,
+        self,
+        from_type: str,
+        from_id: str,
+        to_type: str,
+        to_id: str,
+        max_depth: int = 4,
+        max_paths: int = 5,
     ) -> list[list[dict]]:
         """BFS pathfinding between two nodes."""
         r = await self._get_redis()
@@ -231,9 +256,11 @@ class KnowledgeGraph:
                     continue
 
                 step = {
-                    "from_type": curr_type, "from_id": curr_id,
+                    "from_type": curr_type,
+                    "from_id": curr_id,
                     "relation": edge_data.get("relation", ""),
-                    "to_type": neighbor_type, "to_id": neighbor_id,
+                    "to_type": neighbor_type,
+                    "to_id": neighbor_id,
                     "weight": float(edge_data.get("weight", 0)),
                 }
 
@@ -249,8 +276,11 @@ class KnowledgeGraph:
         return paths
 
     async def get_subgraph(
-        self, node_type: str, node_id: str,
-        depth: int = 2, max_nodes: int = 100,
+        self,
+        node_type: str,
+        node_id: str,
+        depth: int = 2,
+        max_nodes: int = 100,
     ) -> dict[str, Any]:
         """Extract a subgraph around a node for visualization."""
         nodes = {}
@@ -269,7 +299,8 @@ class KnowledgeGraph:
             visited.add((curr_type, curr_id))
             node_data = await self.get_node(curr_type, curr_id)
             nodes[f"{curr_type}:{curr_id}"] = {
-                "type": curr_type, "id": curr_id,
+                "type": curr_type,
+                "id": curr_id,
                 "label": node_data.get("label", curr_id) if node_data else curr_id,
                 "metadata": node_data.get("metadata", {}) if node_data else {},
             }
@@ -288,9 +319,11 @@ class KnowledgeGraph:
 
         return {
             "center": f"{node_type}:{node_id}",
-            "nodes": nodes, "edges": edges,
+            "nodes": nodes,
+            "edges": edges,
             "depth": depth,
-            "total_nodes": len(nodes), "total_edges": len(edges),
+            "total_nodes": len(nodes),
+            "total_edges": len(edges),
         }
 
     # ── Maintenance ────────────────────────────────────────────────
@@ -336,8 +369,15 @@ class KnowledgeGraph:
         from app.knowledge_graph.models import NodeType
 
         node_counts = {}
-        for ntype in [NodeType.WALLET, NodeType.TOKEN, NodeType.CONTRACT,
-                       NodeType.SCAM, NodeType.ENTITY, NodeType.CHAIN, NodeType.ADDRESS]:
+        for ntype in [
+            NodeType.WALLET,
+            NodeType.TOKEN,
+            NodeType.CONTRACT,
+            NodeType.SCAM,
+            NodeType.ENTITY,
+            NodeType.CHAIN,
+            NodeType.ADDRESS,
+        ]:
             pattern = f"kg:node:{ntype}:*"
             keys = []
             async for key in r.scan_iter(match=pattern, count=500):

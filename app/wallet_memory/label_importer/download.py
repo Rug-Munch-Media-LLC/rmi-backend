@@ -24,6 +24,7 @@ logger = get_logger("wallet_memory.label_importer")
 
 _http_client: httpx.AsyncClient | None = None
 
+
 async def _get_http() -> httpx.AsyncClient:
     global _http_client
     if _http_client is None or _http_client.is_closed:
@@ -33,6 +34,7 @@ async def _get_http() -> httpx.AsyncClient:
             headers={"User-Agent": "RMI-LabelImporter/1.0"},
         )
     return _http_client
+
 
 async def _download_file(url: str, dest: str) -> bool:
     """Download a URL to dest path. Returns True on success."""
@@ -51,6 +53,7 @@ async def _download_file(url: str, dest: str) -> bool:
         logger.warning(f"Download error {url}: {e}")
         return False
 
+
 async def _download_json(url: str):
     """Download and parse JSON from URL. Returns None on failure."""
     try:
@@ -63,6 +66,7 @@ async def _download_json(url: str):
     except Exception as e:
         logger.warning(f"JSON download error {url}: {e}")
         return None
+
 
 async def _ensure_solana_labels() -> dict[str, int]:
     """Download Solana label CSVs if not present."""
@@ -77,6 +81,7 @@ async def _ensure_solana_labels() -> dict[str, int]:
             ok = await _download_file(url, dest)
             results[filename] = os.path.getsize(dest) if ok else 0
     return results
+
 
 async def _ensure_eth_scam_labels() -> dict[str, int]:
     """Download ETH phishing/scam CSVs if not present."""
@@ -96,6 +101,7 @@ async def _ensure_eth_scam_labels() -> dict[str, int]:
             results[filename] = os.path.getsize(dest) if ok else 0
     return results
 
+
 async def _ensure_bsc_labels() -> bool:
     """Download BSC detail CSV if not present."""
     dest = os.path.join(LABELS_DIR, "2024-01-31-detail.csv")
@@ -103,6 +109,7 @@ async def _ensure_bsc_labels() -> bool:
         return True
     url = f"{BSC_LABELS_REPO}/2024-01-31-detail.csv"
     return await _download_file(url, dest)
+
 
 async def _ensure_exchange_cluster_labels() -> bool:
     """Download exchange cluster CSV."""
@@ -112,6 +119,7 @@ async def _ensure_exchange_cluster_labels() -> bool:
     url = f"{ETH_CLUSTER_LABELS_REPO}/exchanges.csv"
     return await _download_file(url, dest)
 
+
 async def _ensure_contract_name_labels() -> bool:
     """Download contract name dict."""
     dest = os.path.join(LABELS_DIR, "name_dict.txt")
@@ -119,6 +127,7 @@ async def _ensure_contract_name_labels() -> bool:
         return True
     url = f"{ETH_CONTRACT_LABELS_REPO}/name_dict.txt"
     return await _download_file(url, dest)
+
 
 async def _ensure_exchange_wallet_labels() -> dict[str, int]:
     """Download all exchange/DeFi wallet label CSVs."""

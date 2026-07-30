@@ -27,9 +27,11 @@ HELIUS_RPC = "https://mainnet.helius-rpc.com"
 # ── URL safety check ──────────────────────────────────────────────
 _URL_SAFE = re.compile(r"^https?://[a-zA-Z0-9.-]+(?::\d+)?(?:/.*)?$")
 
+
 def _validate_url(url: str) -> bool:
     """Basic URL validation to prevent SSRF / injection."""
     return bool(_URL_SAFE.match(url))
+
 
 async def _fetch(url: str, timeout: int = 10) -> dict | None:
     """Single URL fetch with aiohttp. Rejects malformed URLs."""
@@ -51,6 +53,7 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
         logger.debug(f"Unexpected fetch error: {url[:60]} - {e}")
     return None
 
+
 async def _rpc_call(chain: str, method: str, params: list) -> Any:
     """Call into the x402_tools RPC fallback system."""
     try:
@@ -60,6 +63,7 @@ async def _rpc_call(chain: str, method: str, params: list) -> Any:
     except Exception as e:
         logger.debug(f"RPC call failed: {e}")
         return None
+
 
 async def _post_json(url: str, payload: dict, timeout: int = 10) -> dict | None:
     """POST JSON to URL and return parsed response."""
@@ -82,6 +86,7 @@ async def _post_json(url: str, payload: dict, timeout: int = 10) -> dict | None:
     except Exception as e:
         logger.debug(f"Unexpected POST error: {url[:60]} - {e}")
     return None
+
 
 def _compute_wash_score(
     volume_tx_ratio: float,
@@ -136,6 +141,7 @@ def _compute_wash_score(
 
     return round(min(score, 100), 1)
 
+
 def _classify_wash_risk(score: float) -> str:
     """Classify wash trading risk intensity."""
     if score >= 75:
@@ -147,6 +153,7 @@ def _classify_wash_risk(score: float) -> str:
     elif score >= 15:
         return "low"
     return "none"
+
 
 def _generate_recommendation(score: float, confidence: float) -> str:
     """Generate human-readable recommendation with confidence context."""
@@ -170,16 +177,14 @@ def _generate_recommendation(score: float, confidence: float) -> str:
             "detected but not conclusive. Monitor for confirmation before trading."
         )
     elif score >= 15:
-        base = (
-            "ℹ️ LOW wash trading indicators. Minor anomalies detected but overall "
-            "trading behavior appears organic."
-        )
+        base = "ℹ️ LOW wash trading indicators. Minor anomalies detected but overall trading behavior appears organic."
     else:
         base = "✅ No wash trading signals detected. Trading patterns appear organic."
 
     if confidence > 0:
         return base + conf_note
     return base
+
 
 async def detect_wash_trading(token_address: str, chain: str) -> dict:
     """
@@ -215,8 +220,7 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict:
         pairs = [
             p
             for p in dex_data["pairs"]
-            if p.get("chainId") == chain
-            or p.get("baseToken", {}).get("address", "").lower() == token_address.lower()
+            if p.get("chainId") == chain or p.get("baseToken", {}).get("address", "").lower() == token_address.lower()
         ]
         if pairs:
             result["sources_used"].append("dexscreener")
@@ -241,9 +245,7 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict:
         sell_count_24h = int(h24_txns.get("sells", 0) or 0)
         tx_count_24h = buy_count_24h + sell_count_24h
 
-    result["analysis"]["price_usd"] = (
-        round(price_usd, 8) if price_usd < 0.01 else round(price_usd, 4)
-    )
+    result["analysis"]["price_usd"] = round(price_usd, 8) if price_usd < 0.01 else round(price_usd, 4)
     result["analysis"]["volume_24h_usd"] = round(volume_24h, 2)
     result["analysis"]["liquidity_usd"] = round(liquidity_usd, 2)
     result["analysis"]["tx_count_24h"] = tx_count_24h
@@ -290,14 +292,12 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict:
         elif avg_tx_size < 100 and tx_count_24h > 200:
             volume_tx_ratio = 0.5
             signals.append(
-                f"🟡 Many small trades ({tx_count_24h} txs at ${avg_tx_size:.2f} avg) "
-                "- watch for wash patterns"
+                f"🟡 Many small trades ({tx_count_24h} txs at ${avg_tx_size:.2f} avg) - watch for wash patterns"
             )
         elif tx_count_24h > 500:
             volume_tx_ratio = 0.3
             signals.append(
-                f"ℹ️ High transaction volume ({tx_count_24h} txs) - "
-                "may indicate organic activity, worth monitoring"
+                f"ℹ️ High transaction volume ({tx_count_24h} txs) - may indicate organic activity, worth monitoring"
             )
 
     # ── Step 5: Buy/Sell Correlation (Reciprocity) ────────────────

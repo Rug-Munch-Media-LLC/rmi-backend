@@ -44,12 +44,14 @@ _JWT_PRIVATE_KEY: str = os.getenv("RMI_JWT_PRIVATE_KEY", "")
 _public_key: str | None = None
 _private_key: str | None = None
 
+
 def _load_key(key_or_path: str) -> str:
     """Load a PEM key from a file path, or return the PEM string directly."""
     if os.path.exists(key_or_path) and os.path.isfile(key_or_path):
         with open(key_or_path) as _f:
             return _f.read()
     return key_or_path
+
 
 def _get_public_key() -> str | None:
     """Get the public key (RS256) or secret (HS256)."""
@@ -67,9 +69,7 @@ def _get_public_key() -> str | None:
         if raw_pk:
             pem = _load_key(raw_pk)
             if pem and "PRIVATE KEY" in pem:
-                logger.warning(
-                    "Using JWT_PRIVATE_KEY for verification — set JWT_PUBLIC_KEY for proper RS256"
-                )
+                logger.warning("Using JWT_PRIVATE_KEY for verification — set JWT_PUBLIC_KEY for proper RS256")
                 _public_key = pem
                 return _public_key
         return None
@@ -77,6 +77,7 @@ def _get_public_key() -> str | None:
     # HS256 fallback
     _public_key = _JWT_SECRET
     return _public_key
+
 
 def _get_private_key() -> str | None:
     """Get the private key for RS256 signing, or secret for HS256."""
@@ -93,6 +94,7 @@ def _get_private_key() -> str | None:
 
     _private_key = _JWT_SECRET
     return _private_key
+
 
 def validate_token(token: str) -> dict[str, Any]:
     """Validate a JWT and return user claims.
@@ -134,6 +136,7 @@ def validate_token(token: str) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="Token missing subject (sub)")
 
     return claims
+
 
 def create_token(
     user_id: str,
@@ -177,6 +180,7 @@ def create_token(
         return jwt.encode(payload, key, algorithm="RS256")
     return jwt.encode(payload, key, algorithm="HS256")
 
+
 def extract_token_from_request(request: Request) -> str | None:
     """Extract JWT from request: checks HttpOnly cookie first, then Authorization header.
 
@@ -202,6 +206,7 @@ def extract_token_from_request(request: Request) -> str | None:
 
     return None
 
+
 async def get_current_user(request: Request) -> dict[str, Any] | None:
     """Verify JWT and return user claims, or None if not authenticated.
 
@@ -216,6 +221,7 @@ async def get_current_user(request: Request) -> dict[str, Any] | None:
     except HTTPException:
         return None
 
+
 async def require_auth(request: Request) -> dict[str, Any]:
     """Require valid JWT. Raises 401 if missing or invalid.
 
@@ -226,7 +232,9 @@ async def require_auth(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="Authentication required")
     return validate_token(token)
 
+
 # ── JWKS endpoint support ─────────────────────────────────────────────────────
+
 
 def get_jwks() -> dict[str, Any]:
     """Return a JWKS (JSON Web Key Set) for RS256 public key distribution.
@@ -260,6 +268,7 @@ def get_jwks() -> dict[str, Any]:
             "pem": pub_key,
             "note": "Full JWKS requires python-jose RSAKey — using raw PEM fallback",
         }
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # WARNING: Don't silently import timedelta at module level — it's only needed

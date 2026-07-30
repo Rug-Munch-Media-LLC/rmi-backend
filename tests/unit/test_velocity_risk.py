@@ -214,16 +214,12 @@ class TestAnalyzeVelocityVolumeLiquidity(WithTimedSnapshots):
 
     def test_volume_spike(self) -> None:
         self._record("solana", "t1", _fresh_metrics(volume_24h=10_000.0, liquidity_usd=100_000.0))
-        result = self._analyze(
-            "solana", "t1", _fresh_metrics(volume_24h=1_500_000.0, liquidity_usd=50_000.0)
-        )
+        result = self._analyze("solana", "t1", _fresh_metrics(volume_24h=1_500_000.0, liquidity_usd=50_000.0))
         assert "VOLUME_SPIKE_VS_LIQUIDITY" in result["flags"]
 
     def test_volume_rising(self) -> None:
         self._record("solana", "t1", _fresh_metrics(volume_24h=10_000.0, liquidity_usd=100_000.0))
-        result = self._analyze(
-            "solana", "t1", _fresh_metrics(volume_24h=200_000.0, liquidity_usd=20_000.0)
-        )
+        result = self._analyze("solana", "t1", _fresh_metrics(volume_24h=200_000.0, liquidity_usd=20_000.0))
         assert "VOLUME_RISING_VS_LIQUIDITY" in result["flags"]
 
 
@@ -273,9 +269,7 @@ class TestAnalyzeVelocityRiskLevel(WithTimedSnapshots):
     def test_medium_risk(self) -> None:
         """Score 11-30 is medium."""
         self._record("solana", "t1", _fresh_metrics(top10_pct=50.0, liquidity_usd=100_000.0))
-        result = self._analyze(
-            "solana", "t1", _fresh_metrics(top10_pct=58.0, liquidity_usd=70_000.0)
-        )
+        result = self._analyze("solana", "t1", _fresh_metrics(top10_pct=58.0, liquidity_usd=70_000.0))
         assert result["risk_level"] == "medium"
 
     def test_high_risk(self) -> None:
@@ -375,9 +369,9 @@ class TestGetMarketContext:
 
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.json = MagicMock(return_value={
-            "data": [{"value": "42", "value_classification": "Fear", "timestamp": "1234567890"}]
-        })
+        mock_response.json = MagicMock(
+            return_value={"data": [{"value": "42", "value_classification": "Fear", "timestamp": "1234567890"}]}
+        )
 
         mock_client = AsyncMock()
         mock_client.get.return_value = mock_response

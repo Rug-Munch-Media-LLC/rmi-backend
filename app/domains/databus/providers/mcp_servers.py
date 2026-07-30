@@ -7,4 +7,3 @@ Re-exports the MCP bridge provider function from
 """
 
 from __future__ import annotations
-

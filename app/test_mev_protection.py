@@ -40,6 +40,7 @@ async def test_mempool_risk() -> None:
     logger.info(f"  Suggestion: {result.suggestion}")
     logger.info("  ✅ PASS")
 
+
 async def test_slippage_risk() -> None:
     """Test slippage tolerance assessment."""
     logger.info("\n🧪 test_slippage_risk")
@@ -61,6 +62,7 @@ async def test_slippage_risk() -> None:
 
     logger.info("  ✅ PASS")
 
+
 async def test_gas_price_risk() -> None:
     """Test gas price risk assessment."""
     logger.info("\n🧪 test_gas_price_risk")
@@ -80,6 +82,7 @@ async def test_gas_price_risk() -> None:
 
     logger.info("  ✅ PASS")
 
+
 async def test_timing_risk() -> None:
     """Test timing-based risk assessment."""
     logger.info("\n🧪 test_timing_risk")
@@ -90,6 +93,7 @@ async def test_timing_risk() -> None:
     logger.info(f"  Suggestion: {result.suggestion}")
     logger.info("  ✅ PASS")
 
+
 async def test_historical_mev() -> None:
     """Test historical MEV check (fallback mode, no actual detector loaded)."""
     logger.info("\n🧪 test_historical_mev (fallback - no real detector)")
@@ -99,6 +103,7 @@ async def test_historical_mev() -> None:
     logger.info(f"  Score: {result.score:.2f} - {result.finding}")
     logger.info("  ✅ PASS")
 
+
 async def test_liquidity_risk() -> None:
     """Test pool liquidity assessment (no real pair - should return unknown)."""
     logger.info("\n🧪 test_liquidity_risk (no pair address)")
@@ -107,6 +112,7 @@ async def test_liquidity_risk() -> None:
     assert result.name == "pool_liquidity"
     logger.info(f"  Score: {result.score:.2f} - {result.finding}")
     logger.info("  ✅ PASS")
+
 
 async def test_full_analysis() -> None:
     """Test full MEV Shield analysis with default params."""
@@ -132,6 +138,7 @@ async def test_full_analysis() -> None:
 
     logger.info("  ✅ PASS")
 
+
 async def test_full_high_risk() -> None:
     """Test full analysis with high-risk params."""
     logger.info("\n🧪 test_full_high_risk")
@@ -145,6 +152,7 @@ async def test_full_high_risk() -> None:
     logger.info(f"  Risk Level: {result.risk_level.value.upper()}")
     logger.info(f"  Overall Score: {result.overall_score:.2f}")
     logger.info("  ✅ PASS")
+
 
 async def test_sync_wrapper() -> None:
     """Test the synchronous wrapper function."""
@@ -163,6 +171,7 @@ async def test_sync_wrapper() -> None:
     logger.info(f"  Loss (bps): {result['estimated_loss_bps']}")
     logger.info("  ✅ PASS")
 
+
 async def test_result_to_dict() -> None:
     """Test serialization."""
     logger.info("\n🧪 test_result_to_dict")
@@ -178,6 +187,7 @@ async def test_result_to_dict() -> None:
     assert len(d["factors"]) == 6
     logger.info(f"  JSON output: {json.dumps(d, indent=2)[:200]}...")
     logger.info("  ✅ PASS")
+
 
 async def main() -> bool:
     logger.info("=" * 60)
@@ -214,6 +224,7 @@ async def main() -> bool:
     logger.info(f"\n{'=' * 60}")
     logger.info(f"Results: {passed} passed, {failed} failed")
     return failed == 0
+
 
 if __name__ == "__main__":
     success = asyncio.run(main())

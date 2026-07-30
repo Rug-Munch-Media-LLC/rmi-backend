@@ -43,9 +43,8 @@ X_ACCOUNT = "CryptoRugMunch"
 GHOST_URL = os.getenv("GHOST_URL", "http://172.19.0.3:2368")
 GHOST_KEY = os.getenv("GHOST_ADMIN_API_KEY", "") or os.getenv("GHOST_CONTENT_API_KEY", "")
 
-async def _openrouter_chat(
-    model: str, system: str, user: str, max_tokens: int = 1500, temperature: float = 0.5
-) -> str:
+
+async def _openrouter_chat(model: str, system: str, user: str, max_tokens: int = 1500, temperature: float = 0.5) -> str:
     """Call OpenRouter with a free model."""
     if not OPENROUTER_KEY:
         return ""
@@ -78,6 +77,7 @@ async def _openrouter_chat(
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"OpenRouter error: {e}")
         return ""
+
 
 async def _gather_all_data() -> dict:
     """Gather comprehensive data from ALL DataBus sources."""
@@ -140,6 +140,7 @@ async def _gather_all_data() -> dict:
 
     return data
 
+
 def _build_research_context(data: dict) -> str:
     """Build comprehensive context for the research model."""
     parts = []
@@ -152,17 +153,14 @@ def _build_research_context(data: dict) -> str:
     # Fear & Greed
     fg = data.get("fear_greed", {})
     if fg.get("value"):
-        parts.append(
-            f"## FEAR & GREED INDEX\n{fg['value']}/100 - {fg.get('classification', 'Neutral')}"
-        )
+        parts.append(f"## FEAR & GREED INDEX\n{fg['value']}/100 - {fg.get('classification', 'Neutral')}")
 
     # News headlines
     news = data.get("news", {})
     articles = news.get("articles", [])
     if articles:
         headlines = "\n".join(
-            f"- [{a.get('sentiment', {}).get('sentiment', '➖')}] {a.get('title', '')}"
-            for a in articles[:15]
+            f"- [{a.get('sentiment', {}).get('sentiment', '➖')}] {a.get('title', '')}" for a in articles[:15]
         )
         parts.append(f"## TOP HEADLINES\n{headlines}")
 
@@ -170,9 +168,7 @@ def _build_research_context(data: dict) -> str:
     ct = data.get("ct", {})
     rundown = ct.get("rundown", [])
     if rundown:
-        ct_pulse = "\n".join(
-            f"- @{s.get('author_handle', '?')}: {s.get('text', '')[:150]}" for s in rundown[:10]
-        )
+        ct_pulse = "\n".join(f"- @{s.get('author_handle', '?')}: {s.get('text', '')[:150]}" for s in rundown[:10])
         parts.append(f"## CRYPTO TWITTER PULSE\n{ct_pulse}")
 
     # Social metrics
@@ -185,12 +181,11 @@ def _build_research_context(data: dict) -> str:
     pm = data.get("prediction_markets", {})
     pmarkets = pm.get("markets", [])
     if pmarkets:
-        pm_str = "\n".join(
-            f"- {m.get('title', '')[:80]}: ${m.get('volume', 0):,.0f} vol" for m in pmarkets[:3]
-        )
+        pm_str = "\n".join(f"- {m.get('title', '')[:80]}: ${m.get('volume', 0):,.0f} vol" for m in pmarkets[:3])
         parts.append(f"## PREDICTION MARKETS\n{pm_str}")
 
     return "\n\n".join(parts)
+
 
 WRITING_STANDARDS = """You are a senior financial writer for RugCharts Daily Intelligence.
 
@@ -230,6 +225,7 @@ FORMAT EXACTLY LIKE THIS:
 ---
 Published by RugCharts Daily Intelligence
 Subscribe: https://rugmunch.io/news"""
+
 
 async def generate_daily_intel(publish: bool = False, **kw) -> dict | None:
     """Generate the complete Daily Intelligence Briefing with quality review.
@@ -301,9 +297,7 @@ Scams, hacks, regulatory actions. What to avoid today.
 1-2 sentence actionable takeaway.
 """
 
-    final_report = await ai_call(
-        "writing", WRITING_STANDARDS, writing_prompt, max_tokens=2000, temperature=0.7
-    )
+    final_report = await ai_call("writing", WRITING_STANDARDS, writing_prompt, max_tokens=2000, temperature=0.7)
 
     if not final_report or len(final_report) < 200:
         headlines = data.get("news", {}).get("articles", [])
@@ -353,6 +347,7 @@ Stay sharp. Data-driven decisions only."""
 
     return report_data
 
+
 async def _publish_briefing(report: str, date_str: str) -> dict:
     """Publish the briefing to all channels."""
     results = {}
@@ -370,6 +365,7 @@ async def _publish_briefing(report: str, date_str: str) -> dict:
     results["telegram"] = tg_result
 
     return results
+
 
 async def _publish_to_x(report: str, date_str: str) -> dict:
     """Publish briefing summary to X @CryptoRugMunch via xurl."""
@@ -407,6 +403,7 @@ async def _publish_to_x(report: str, date_str: str) -> dict:
             return {"status": "failed", "platform": "x", "error": result.stderr[:200]}
     except Exception as e:
         return {"status": "error", "platform": "x", "error": str(e)[:200]}
+
 
 async def _publish_to_ghost(report: str, date_str: str) -> dict:
     """Publish briefing to Ghost CMS under 'daily' tag."""
@@ -447,6 +444,7 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict:
                 return {"status": "failed", "platform": "ghost", "error": r.text[:200]}
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         return {"status": "error", "platform": "ghost", "error": str(e)[:200]}
+
 
 async def _publish_to_telegram(report: str, date_str: str) -> dict:
     """Send briefing to Telegram channel."""
@@ -489,6 +487,7 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict:
                 return {"status": "failed", "platform": "telegram", "error": r.text[:200]}
     except (httpx.HTTPError, httpx.TimeoutException, telegram.error.TelegramError) as e:
         return {"status": "error", "platform": "telegram", "error": str(e)[:200]}
+
 
 def _markdown_to_html(md: str) -> str:
     """Simple markdown to HTML conversion for Ghost."""

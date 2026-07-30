@@ -16,6 +16,7 @@ from .cache import CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 
+
 async def whale_alert_stream(
     address: str = "", chain: str = "solana", min_value_usd: float = 100000, **kw
 ) -> dict | None:
@@ -67,9 +68,7 @@ async def whale_alert_stream(
                             post = meta.get("postTokenBalances", [])
                             for pb, ab in zip(pre[:5], post[:5], strict=False):
                                 pre_amt = float(pb.get("uiTokenAmount", {}).get("uiAmount", 0) or 0)
-                                post_amt = float(
-                                    ab.get("uiTokenAmount", {}).get("uiAmount", 0) or 0
-                                )
+                                post_amt = float(ab.get("uiTokenAmount", {}).get("uiAmount", 0) or 0)
                                 delta = abs(post_amt - pre_amt)
                                 if delta > 1000:
                                     whales.append(

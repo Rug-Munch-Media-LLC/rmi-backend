@@ -49,27 +49,26 @@ from app.domains.telegram.adminbot.config import ADMIN_BOT_TOKEN
 from app.domains.telegram.adminbot.terminal import cmd_terminal, handle_terminal_message
 
 # ── Setup ──────────────────────────────────────────────────────────
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] admin_bot: %(message)s", level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s [%(levelname)s] admin_bot: %(message)s", level=logging.INFO)
 logger = logging.getLogger("admin_bot")
 
 # ═══════════════════════════════════════════════════════════════════
 # ERROR HANDLER
 # ═══════════════════════════════════════════════════════════════════
 
+
 async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle uncaught exceptions from handlers."""
     logger.error(f"Exception: {ctx.error}", exc_info=ctx.error)
     if hasattr(update, "effective_message") and update.effective_message:
         with contextlib.suppress(ConnectionError, OSError, TimeoutError):
-            await update.effective_message.reply_text(
-                f"⚠️ Operation failed: {str(ctx.error)[:200]}"
-            )
+            await update.effective_message.reply_text(f"⚠️ Operation failed: {str(ctx.error)[:200]}")
+
 
 # ═══════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════
+
 
 async def _post_init(app: Application) -> None:
     """Start the Redis listener inside the application's event loop."""
@@ -84,6 +83,7 @@ async def _post_init(app: Application) -> None:
     except Exception as exc:
         logger.warning("Redis listener setup failed (non-critical): %s", exc)
 
+
 def main() -> None:
     """Build the Application, register handlers, start Redis listener, poll."""
     app = Application.builder().token(ADMIN_BOT_TOKEN).post_init(_post_init).build()
@@ -94,13 +94,13 @@ def main() -> None:
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("docker", cmd_docker))
     app.add_handler(CommandHandler("sh", cmd_shell))
-    app.add_handler(CommandHandler("s", cmd_shell))          # alias
+    app.add_handler(CommandHandler("s", cmd_shell))  # alias
     app.add_handler(CommandHandler("service", cmd_service))
     app.add_handler(CommandHandler("backup", cmd_backup))
     app.add_handler(CommandHandler("deploy", cmd_deploy))
     app.add_handler(CommandHandler("logs", cmd_logs))
     app.add_handler(CommandHandler("alerts", cmd_alerts))
-    app.add_handler(CommandHandler("health", cmd_alerts))    # alias
+    app.add_handler(CommandHandler("health", cmd_alerts))  # alias
     app.add_handler(CommandHandler("quick", cmd_quick))
     app.add_handler(CommandHandler("term", cmd_terminal))
     app.add_handler(CommandHandler("ai", cmd_ai))
@@ -128,6 +128,7 @@ def main() -> None:
 
     logger.info("🛡️ RMI Admin Bot v3 starting (@rmi_admin_bot)...")
     app.run_polling(drop_pending_updates=True)
+
 
 if __name__ == "__main__":
     main()

@@ -59,9 +59,7 @@ class TestTokenScan:
         # 200 = success, 500 = scanner error (external deps down),
         # 404 = not mounted (fail), 422 = validation error
         # The scanner returns scan results with token name, safety score, risk level
-        assert resp.status_code == 200, (
-            f"Scanner should return 200, got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 200, f"Scanner should return 200, got {resp.status_code}: {resp.text[:200]}"
         body = resp.json()
         assert body["status"] == "ok"
         assert "token" in body
@@ -80,9 +78,7 @@ class TestTokenScan:
             json={"address": ETH_TOKEN, "chain": "ethereum"},
             headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
-        assert resp.status_code in (200, 422, 500), (
-            f"Expected 200, 422, or 500, got {resp.status_code}"
-        )
+        assert resp.status_code in (200, 422, 500), f"Expected 200, 422, or 500, got {resp.status_code}"
         if resp.status_code == 200:
             body = resp.json()
             assert body["chain"] == "ethereum"
@@ -167,9 +163,7 @@ class TestWalletScan:
             json={"address": SOLANA_WALLET, "chain": "solana"},
             headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
-        assert resp.status_code == 200, (
-            f"Should get 200, got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 200, f"Should get 200, got {resp.status_code}: {resp.text[:200]}"
         body = resp.json()
         assert "address" in body or "status" in body
 
@@ -213,9 +207,7 @@ class TestWalletScan:
             json={"address": ETH_WALLET, "chain": "ethereum"},
             headers={**_AUTH, "Authorization": "Bearer test-bearer-token"},
         )
-        assert resp.status_code in (200, 422, 500), (
-            f"Expected 200, 422, or 500, got {resp.status_code}"
-        )
+        assert resp.status_code in (200, 422, 500), f"Expected 200, 422, or 500, got {resp.status_code}"
         if resp.status_code == 200:
             body = resp.json()
             assert body["chain"] == "ethereum"

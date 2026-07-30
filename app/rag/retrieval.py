@@ -11,7 +11,7 @@ Usage:
     retriever = HybridRetriever()
     hits = await retriever.retrieve("Was this token flagged as a honeypot?")
     ctx = ContextBuilder().build(hits)
-    print(ctx.formatted)
+    logger.debug(ctx.formatted)
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ log = get_logger(__name__)
 
 # ── Data types ───────────────────────────────────────────────────────
 
+
 @dataclass
 class ScoredHit:
     """A search hit with additional relevance signals."""
@@ -47,6 +48,7 @@ class ScoredHit:
     position_bonus: float = 0.0
     final_score: float = 0.0
 
+
 @dataclass
 class ContextWindow:
     """Assembled context ready for LLM consumption."""
@@ -56,6 +58,7 @@ class ContextWindow:
     total_tokens_est: int = 0
     sources: list[str] = field(default_factory=list)
     took_ms: int = 0
+
 
 # ── QueryExpander ────────────────────────────────────────────────────
 
@@ -81,6 +84,7 @@ _QUERY_VARIANTS: dict[str, list[str]] = {
     "dex": ["dex", "decentralized_exchange", "amm"],
     "cex": ["cex", "centralized_exchange"],
 }
+
 
 class QueryExpander:
     """Expand a user query with synonyms and related terms for better recall.
@@ -122,7 +126,9 @@ class QueryExpander:
         """Expand multiple queries in batch."""
         return [self.expand(q) for q in queries]
 
+
 # ── RelevanceScorer ──────────────────────────────────────────────────
+
 
 class RelevanceScorer:
     """Post-hoc relevance scoring with text-feature signals.
@@ -152,21 +158,13 @@ class RelevanceScorer:
 
             # Keyword overlap
             content_terms = set(re.findall(r"\w+", content.lower())) if content else set()
-            overlap = (
-                len(query_terms & content_terms) / max(len(query_terms), 1)
-                if query_terms
-                else 0.0
-            )
+            overlap = len(query_terms & content_terms) / max(len(query_terms), 1) if query_terms else 0.0
 
             # Position bonus: earliest positions get +20% max, linearly decaying
             position_bonus = max(0.0, 1.0 - (rank / max(len(hits) * 2, 1)))
 
             # Composite: weighted base + keyword overlap + small position bonus
-            final_score = (
-                alpha * base_score
-                + (1.0 - alpha) * overlap * 0.8
-                + position_bonus * 0.05
-            )
+            final_score = alpha * base_score + (1.0 - alpha) * overlap * 0.8 + position_bonus * 0.05
 
             scored.append(
                 ScoredHit(
@@ -194,7 +192,9 @@ class RelevanceScorer:
         overlap = len(query_terms & content_terms) / max(len(query_terms), 1)
         return min(1.0, overlap)
 
+
 # ── HybridRetriever ──────────────────────────────────────────────────
+
 
 class HybridRetriever:
     """Weighted fusion of ANN vector search and BM25-lite keyword search.
@@ -300,10 +300,12 @@ class HybridRetriever:
 
         return results
 
+
 # ── ContextBuilder ───────────────────────────────────────────────────
 
 # Estimate: 1 token ≈ 4 characters for English text
 _CHARS_PER_TOKEN: int = 4
+
 
 class ContextBuilder:
     """Assemble retrieved chunks into structured LLM context.
@@ -404,12 +406,14 @@ class ContextBuilder:
         parts.append(f"Question: {question}")
         return "\n\n".join(parts)
 
+
 # ── Convenience instance ─────────────────────────────────────────────
 
 _default_retriever = HybridRetriever()
 _default_scorer = RelevanceScorer()
 _default_expander = QueryExpander()
 _default_builder = ContextBuilder()
+
 
 async def search(
     query: str,
@@ -423,9 +427,11 @@ async def search(
         top_k=top_k,
     )
 
+
 def expand_query(query: str) -> str:
     """Quick query expansion (uses default expander)."""
     return _default_expander.expand(query)
+
 
 def build_context(
     hits: list[ScoredHit] | list[dict],

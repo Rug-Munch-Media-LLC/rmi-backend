@@ -24,9 +24,7 @@ def _get_url():
 
 
 def _get_key():
-    return os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get(
-        "SUPABASE_SERVICE_ROLE_KEY", ""
-    )
+    return os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 
 def _get_headers():
@@ -117,9 +115,7 @@ async def create_hnsw_index():
         except httpx.ReadTimeout:
             elapsed = time.time() - start
             print(f"Index creation timed out after {elapsed:.1f}s")
-            print(
-                "Index may still be building in the background. Check pg_stat_progress_create_index."
-            )
+            print("Index may still be building in the background. Check pg_stat_progress_create_index.")
             print("Query: SELECT * FROM pg_stat_progress_create_index;")
         except Exception as e:
             print(f"Error creating index: {e}")
@@ -144,9 +140,7 @@ async def create_hnsw_index():
                 print(f"Verify query returned: {resp.status_code}")
         except Exception as e:
             print(f"Could not verify indexes: {e}")
-            print(
-                "Check manually: SELECT indexname FROM pg_indexes WHERE tablename = 'rag_vectors';"
-            )
+            print("Check manually: SELECT indexname FROM pg_indexes WHERE tablename = 'rag_vectors';")
 
 
 if __name__ == "__main__":

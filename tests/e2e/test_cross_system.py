@@ -127,9 +127,7 @@ class TestTokenScanE2E:
         # databus is lazily imported inside _fetch_batch via `from app.databus import databus`,
         # so we patch at the source module level where the name lives.
         mock_db = AsyncMock()
-        mock_db.fetch = AsyncMock(
-            side_effect=lambda chain_name, **kwargs: mock_data.get(chain_name)
-        )
+        mock_db.fetch = AsyncMock(side_effect=lambda chain_name, **kwargs: mock_data.get(chain_name))
         with patch("app.databus.databus", mock_db):
             resp = client.post(
                 "/api/v2/scanner/token/scan",
@@ -156,12 +154,8 @@ class TestTokenScanE2E:
         assert isinstance(body["scan_duration_ms"], (int, float))
 
         # ── Risk score logic ──
-        assert body["safety_score"] >= 80, (
-            f"Safe token should score >= 80, got {body['safety_score']}"
-        )
-        assert body["risk_level"] in ("safe", "low"), (
-            f"Safe token should be safe/low, got {body['risk_level']}"
-        )
+        assert body["safety_score"] >= 80, f"Safe token should score >= 80, got {body['safety_score']}"
+        assert body["risk_level"] in ("safe", "low"), f"Safe token should be safe/low, got {body['risk_level']}"
         # Should have green flags from passing security checks
         assert len(body["green_flags"]) > 0
         # Should NOT have critical risk flags
@@ -175,9 +169,7 @@ class TestTokenScanE2E:
         mock_data = _mock_databus_risky_token()
 
         mock_db = AsyncMock()
-        mock_db.fetch = AsyncMock(
-            side_effect=lambda chain_name, **kwargs: mock_data.get(chain_name)
-        )
+        mock_db.fetch = AsyncMock(side_effect=lambda chain_name, **kwargs: mock_data.get(chain_name))
         with patch("app.databus.databus", mock_db):
             resp = client.post(
                 "/api/v2/scanner/token/scan",
@@ -194,9 +186,7 @@ class TestTokenScanE2E:
         assert body["symbol"] == "RUG"
 
         # ── Risk score logic ──
-        assert body["safety_score"] < 40, (
-            f"Risky token should score < 40, got {body['safety_score']}"
-        )
+        assert body["safety_score"] < 40, f"Risky token should score < 40, got {body['safety_score']}"
         assert body["risk_level"] in ("high", "critical"), (
             f"Risky token should be high/critical, got {body['risk_level']}"
         )
@@ -209,9 +199,7 @@ class TestTokenScanE2E:
         mock_data = _mock_databus_safe_token()
 
         mock_db = AsyncMock()
-        mock_db.fetch = AsyncMock(
-            side_effect=lambda chain_name, **kwargs: mock_data.get(chain_name)
-        )
+        mock_db.fetch = AsyncMock(side_effect=lambda chain_name, **kwargs: mock_data.get(chain_name))
         with patch("app.databus.databus", mock_db):
             resp = client.post(
                 "/api/v2/scanner/token/scan",

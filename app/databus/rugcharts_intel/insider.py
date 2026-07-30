@@ -17,6 +17,7 @@ from .cache import CACHE_TTL, HELIUS_KEY, _r
 
 logger = get_logger("rugcharts_intel")
 
+
 async def insider_pattern_detector(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Detect wallets that accumulated before major price movements.
     Pattern: large buys in the hours before a significant price increase.
@@ -70,14 +71,10 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
                                 if len(windows[nw]) > avg_tx_per_window * 2:
                                     insider_signals.append(
                                         {
-                                            "window_start": datetime.fromtimestamp(
-                                                window * 600, tz=UTC
-                                            ).isoformat(),
+                                            "window_start": datetime.fromtimestamp(window * 600, tz=UTC).isoformat(),
                                             "tx_count_spike": len(tx_list),
                                             "avg_tx_count": round(avg_tx_per_window, 1),
-                                            "spike_multiplier": round(
-                                                len(tx_list) / max(avg_tx_per_window, 1), 1
-                                            ),
+                                            "spike_multiplier": round(len(tx_list) / max(avg_tx_per_window, 1), 1),
                                             "followed_by_continued_volume": True,
                                             "signal_strength": "HIGH"
                                             if len(tx_list) > avg_tx_per_window * 5
@@ -94,9 +91,7 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
         "total_signals": len(insider_signals),
         "address": address,
         "chain": chain,
-        "confidence": "HIGH"
-        if len(insider_signals) >= 2
-        else ("MEDIUM" if insider_signals else "LOW"),
+        "confidence": "HIGH" if len(insider_signals) >= 2 else ("MEDIUM" if insider_signals else "LOW"),
         "scan_time": datetime.now(UTC).isoformat(),
         "source": "insider_pattern_detector",
     }

@@ -39,6 +39,7 @@ PRIOR_WEIGHTS: dict[str, int] = {
     "news_positive_threshold": 0.3,
 }
 
+
 def _beta_credible_interval_95(alpha: float, beta: float) -> tuple[float, float]:
     """Approximate 95% credible interval for Beta(alpha, beta).
 
@@ -66,6 +67,7 @@ def _beta_credible_interval_95(alpha: float, beta: float) -> tuple[float, float]
     lo = max(0.0, mean - 1.96 * sd)
     hi = min(1.0, mean + 1.96 * sd)
     return (lo, hi)
+
 
 async def compute_deployer_posterior(
     deployer: Deployer,
@@ -161,7 +163,9 @@ async def compute_deployer_posterior(
 
     return result
 
+
 # ── Backward-compatible wrapper (returns just the int score) ──
+
 
 async def compute_deployer_reputation(
     deployer: Deployer,

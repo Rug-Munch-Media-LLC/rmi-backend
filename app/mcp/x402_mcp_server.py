@@ -114,6 +114,7 @@ TOOLS = [
     },
 ]
 
+
 async def handle_mcp_call(tool_name: str, arguments: dict[str, Any]) -> dict:
     """Route MCP tool calls to the appropriate handler."""
     from app.domains.x402.middleware import create_invoice

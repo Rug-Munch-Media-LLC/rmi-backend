@@ -31,11 +31,13 @@ from app.domains.x402.middleware import (
 
 router = APIRouter(prefix="/api/v1/x402", tags=["x402"])
 
+
 class CatalogResponse(BaseModel):
     server: str = "rugmunch-intelligence"
     version: str = "4.0"
     tools: list[dict[str, Any]] = Field(default_factory=list)
     payment_protocol: str = "x402"
+
 
 class UsageResponse(BaseModel):
     agent_id: str
@@ -45,6 +47,7 @@ class UsageResponse(BaseModel):
     total_usd: float
     recent_receipts: list[dict[str, Any]] = Field(default_factory=list)
 
+
 class ReceiptResponse(BaseModel):
     tx_hash: str
     tool: str
@@ -53,6 +56,7 @@ class ReceiptResponse(BaseModel):
     chain: str | None = None
     paid_at: str | None = None
     tier: str | None = None
+
 
 class PricingResponse(BaseModel):
     """Tier pricing summary — what each tier costs and includes."""
@@ -100,6 +104,7 @@ class PricingResponse(BaseModel):
     accepted_tokens: list[str] = Field(default_factory=lambda: ["USDC", "USDT", "SOL", "ETH"])
     payment_protocol: str = "x402"
 
+
 class PaymentInitResponse(BaseModel):
     """Response to a payment initiation request — invoice + payment instructions."""
 
@@ -119,10 +124,12 @@ class PaymentInitResponse(BaseModel):
         "or include it as X-Payment header on your next API call."
     )
 
+
 @router.get("/pricing", response_model=PricingResponse)
 async def pricing() -> PricingResponse:
     """Return tier pricing summary — what each tier costs and what you get."""
     return PricingResponse()
+
 
 @router.post("/payment", response_model=PaymentInitResponse)
 async def payment_init(request: Request) -> PaymentInitResponse:
@@ -160,10 +167,12 @@ async def payment_init(request: Request) -> PaymentInitResponse:
         signature=invoice.get("signature", ""),
     )
 
+
 @router.get("/catalog", response_model=CatalogResponse)
 async def catalog() -> CatalogResponse:
     """List all paid tools with pricing tiers."""
     return CatalogResponse(tools=[get_tool_metadata(t) for t in PRICING])
+
 
 @router.get("/usage", response_model=UsageResponse)
 async def usage(request: Request) -> UsageResponse:
@@ -203,7 +212,7 @@ async def usage(request: Request) -> UsageResponse:
                         "paid_at": r["paid_at"].isoformat() if r["paid_at"] else None,
                     }
                 )
-        except (KeyError, ValueError, TypeError) as e :
+        except (KeyError, ValueError, TypeError) as e:
             get_logger(__name__).warning(f"usage_query_fail: {e}")
     return UsageResponse(
         agent_id=agent_id,
@@ -213,6 +222,7 @@ async def usage(request: Request) -> UsageResponse:
         total_usd=round(total_usd, 4),
         recent_receipts=recent,
     )
+
 
 @router.get("/receipts/{tx_hash}", response_model=ReceiptResponse)
 async def receipt(tx_hash: str) -> ReceiptResponse:
@@ -238,8 +248,9 @@ async def receipt(tx_hash: str) -> ReceiptResponse:
         )
     except HTTPException:
         raise
-    except (KeyError, ValueError, TypeError) as e :
+    except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(500, f"receipt_query_fail: {e}") from e
+
 
 @router.post("/verify")
 async def verify_payment(request: Request) -> dict:

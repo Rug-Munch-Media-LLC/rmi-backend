@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v1/criminal-clusters", tags=["criminal-clusters"
 BACKEND = settings.backend_url
 REAL_CATS_DB = os.environ.get("REAL_CATS_DB", str(Path.home() / "rmi/backend/data/real_cats.db"))
 
+
 class ClusterNode(BaseModel):
     id: str
     label: str
@@ -28,11 +29,13 @@ class ClusterNode(BaseModel):
     rug_count: int = 0
     risk_score: int = 0
 
+
 class ClusterEdge(BaseModel):
     source: str
     target: str
     relationship: str  # same_deployer, same_funder, code_similar, fund_flow
     strength: float = 1.0
+
 
 @router.get("/deployer/{deployer_address}")
 async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethereum")) -> dict:
@@ -68,6 +71,7 @@ async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethere
         "risk_assessment": "HIGH" if any(t.get("risk", 0) > 50 for t in tokens) else "MEDIUM",
     }
 
+
 @router.get("/token/{token_address}")
 async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) -> dict:
     """Get all related tokens for a given token - same deployer, same funder, code clones."""
@@ -98,18 +102,12 @@ async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) 
         # Get deployer info
         deployer = scan.get("pro", {}).get("deployer_address", "")
         if deployer:
-            nodes.append(
-                {"id": deployer[:16], "label": f"Deployer {deployer[:8]}", "type": "deployer"}
-            )
-            edges.append(
-                {"source": deployer[:16], "target": token_address[:16], "relationship": "deployed"}
-            )
+            nodes.append({"id": deployer[:16], "label": f"Deployer {deployer[:8]}", "type": "deployer"})
+            edges.append({"source": deployer[:16], "target": token_address[:16], "relationship": "deployed"})
 
             # Get siblings (same deployer)
             async with httpx.AsyncClient(timeout=10) as client:
-                resp2 = await client.get(
-                    f"{BACKEND}/api/v1/eth-labels/search", params={"address": deployer}
-                )
+                resp2 = await client.get(f"{BACKEND}/api/v1/eth-labels/search", params={"address": deployer})
                 if resp2.status_code == 200:
                     for sibling in resp2.json().get("labels", [])[:10]:
                         sib_addr = sibling.get("contract_address", "")[:16]
@@ -141,15 +139,14 @@ async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) 
 
     return {"nodes": nodes, "edges": edges, "total_nodes": len(nodes), "total_edges": len(edges)}
 
+
 @router.get("/search")
 async def search_clusters(q: str = Query(..., min_length=2), limit: int = Query(20, le=50)) -> dict:
     """Search for deployers/tokens in the cluster database."""
     results: list[dict] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                f"{BACKEND}/api/v1/eth-labels/search", params={"q": q, "limit": limit}
-            )
+            resp = await client.get(f"{BACKEND}/api/v1/eth-labels/search", params={"q": q, "limit": limit})
             if resp.status_code == 200:
                 results = resp.json().get("labels", [])
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:

@@ -41,6 +41,7 @@ PAYMENT_WALLETS = {
 _revenue_log: list[dict] = []
 _earnings_cache: dict = {"updated": 0, "data": {}}
 
+
 async def fetch_wallet_earnings() -> dict:
     """Fetch current balances and recent transactions for all payment wallets."""
     results = {}
@@ -66,6 +67,7 @@ async def fetch_wallet_earnings() -> dict:
     results["updated"] = datetime.now(UTC).isoformat()
     return results
 
+
 async def _fetch_evm_balance(address: str, chain_id: int) -> dict:
     """Fetch EVM wallet balance via Blockscout."""
     key = os.getenv("BLOCKSCOUT_API_KEY", "")
@@ -82,9 +84,7 @@ async def _fetch_evm_balance(address: str, chain_id: int) -> dict:
             )
             if r.status_code == 200:
                 data = r.json()
-                coin_balance = (
-                    float(data.get("coin_balance", 0)) / 1e18 if data.get("coin_balance") else 0
-                )
+                coin_balance = float(data.get("coin_balance", 0)) / 1e18 if data.get("coin_balance") else 0
 
                 # Get recent transactions count
                 r2 = await c.get(
@@ -103,6 +103,7 @@ async def _fetch_evm_balance(address: str, chain_id: int) -> dict:
         logger.debug(f"EVM balance fetch failed: {e}")
 
     return {"balance": 0, "balance_usd": 0}
+
 
 async def _fetch_solana_balance(address: str) -> dict:
     """Fetch Solana wallet balance via Helius."""
@@ -133,6 +134,7 @@ async def _fetch_solana_balance(address: str) -> dict:
 
     return {"balance": 0, "balance_usd": 0}
 
+
 def log_revenue(tool_id: str, amount_usd: float, chain: str, facilitator: str) -> None:
     """Log a revenue event for tracking by source."""
     _revenue_log.append(
@@ -147,6 +149,7 @@ def log_revenue(tool_id: str, amount_usd: float, chain: str, facilitator: str) -
     # Keep last 1000 events
     if len(_revenue_log) > 1000:
         _revenue_log.pop(0)
+
 
 def get_revenue_by_source() -> dict:
     """Aggregate revenue by tool, chain, and facilitator."""
@@ -169,6 +172,7 @@ def get_revenue_by_source() -> dict:
         "by_chain": by_chain,
         "by_facilitator": by_facilitator,
     }
+
 
 def get_earnings_report() -> dict:
     """Full earnings report for the dashboard."""

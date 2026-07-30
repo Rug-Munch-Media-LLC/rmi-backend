@@ -1,4 +1,5 @@
 """Constants and thresholds for the honeypot detector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -35,8 +36,17 @@ KNOWN_MALICIOUS_SELECTORS: dict[str, tuple[str, HoneypotType, str]] = {
 }
 
 BENIGN_SELECTORS: set[str] = {
-    "0x18160ddd", "0x70a08231", "0x313ce567", "0x06fdde03", "0x95d89b41",
-    "0xdd62ed3e", "0xa9059cbb", "0x23b872dd", "0x095ea7b3", "0x54fd4d50", "0x01ffc9a7",
+    "0x18160ddd",
+    "0x70a08231",
+    "0x313ce567",
+    "0x06fdde03",
+    "0x95d89b41",
+    "0xdd62ed3e",
+    "0xa9059cbb",
+    "0x23b872dd",
+    "0x095ea7b3",
+    "0x54fd4d50",
+    "0x01ffc9a7",
 }
 
 EVM_CHAINS: dict[str, dict[str, Any]] = {
@@ -44,15 +54,29 @@ EVM_CHAINS: dict[str, dict[str, Any]] = {
     "bsc": {"rpc": "https://bsc-dataseed.binance.org", "chain_id": 56, "explorer": "https://api.bscscan.com/api"},
     "polygon": {"rpc": "https://polygon-rpc.com", "chain_id": 137, "explorer": "https://api.polygonscan.com/api"},
     "arbitrum": {"rpc": "https://arb1.arbitrum.io/rpc", "chain_id": 42161, "explorer": "https://api.arbiscan.io/api"},
-    "optimism": {"rpc": "https://mainnet.optimism.io", "chain_id": 10, "explorer": "https://api-optimistic.etherscan.io/api"},
+    "optimism": {
+        "rpc": "https://mainnet.optimism.io",
+        "chain_id": 10,
+        "explorer": "https://api-optimistic.etherscan.io/api",
+    },
     "base": {"rpc": "https://mainnet.base.org", "chain_id": 8453, "explorer": "https://api.basescan.org/api"},
-    "avalanche": {"rpc": "https://api.avax.network/ext/bc/C/rpc", "chain_id": 43114, "explorer": "https://api.snowtrace.io/api"},
+    "avalanche": {
+        "rpc": "https://api.avax.network/ext/bc/C/rpc",
+        "chain_id": 43114,
+        "explorer": "https://api.snowtrace.io/api",
+    },
 }
 
 HONEYPOT_THRESHOLDS = {
-    "critical_sell_tax": 25.0, "high_sell_tax": 15.0, "medium_sell_tax": 10.0,
-    "critical_buy_tax": 20.0, "high_buy_tax": 10.0,
-    "critical_lp_unlocked": 100.0, "high_lp_unlocked": 75.0,
-    "critical_supply_concentration": 90.0, "high_supply_concentration": 50.0,
-    "low_liquidity_threshold": 1000, "tiny_liquidity_threshold": 100,
+    "critical_sell_tax": 25.0,
+    "high_sell_tax": 15.0,
+    "medium_sell_tax": 10.0,
+    "critical_buy_tax": 20.0,
+    "high_buy_tax": 10.0,
+    "critical_lp_unlocked": 100.0,
+    "high_lp_unlocked": 75.0,
+    "critical_supply_concentration": 90.0,
+    "high_supply_concentration": 50.0,
+    "low_liquidity_threshold": 1000,
+    "tiny_liquidity_threshold": 100,
 }

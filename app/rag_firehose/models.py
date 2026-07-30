@@ -47,6 +47,7 @@ HASH_TTL = {
     "default": 1209600,  # 14 days
 }
 
+
 @dataclass
 class FeedSource:
     """A data source the firehose pulls from."""
@@ -62,6 +63,7 @@ class FeedSource:
     docs_ingested: int = 0
     docs_skipped: int = 0
     errors: int = 0
+
 
 @dataclass
 class FirehoseStats:

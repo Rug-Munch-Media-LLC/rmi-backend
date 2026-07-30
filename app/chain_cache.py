@@ -49,6 +49,7 @@ HOT_TOKENS: list[str] = [
     "8453",  # Base chain
 ]
 
+
 class ChainCache:
     """LRU cache with TTL for chain data. Max 500 entries, 5-min default TTL."""
 
@@ -98,9 +99,7 @@ class ChainCache:
         if self._warmed:
             return
 
-        logger.info(
-            f"Warming cache with {len(HOT_WALLETS)} wallets and {len(HOT_TOKENS)} tokens..."
-        )
+        logger.info(f"Warming cache with {len(HOT_WALLETS)} wallets and {len(HOT_TOKENS)} tokens...")
 
         # Mark entity registry entries as known infrastructure (avoids repeated lookups)
         try:
@@ -157,8 +156,10 @@ class ChainCache:
         self._warmed = True
         logger.info(f"Cache warmed: {len(self._cache)}/{self.max_size} entries")
 
+
 # Singleton
 _cache: ChainCache | None = None
+
 
 def get_chain_cache() -> ChainCache:
     global _cache

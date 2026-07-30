@@ -26,6 +26,7 @@ from app.domains.billing.facilitators.config import FacilitatorConfig, get_confi
 
 logger = get_logger("facilitator.cloudflare_x402")
 
+
 class CloudflareX402Facilitator(Facilitator):
     """
     Cloudflare x402 official facilitator.
@@ -123,9 +124,7 @@ class CloudflareX402Facilitator(Facilitator):
                     return self._format_error(detail)
 
         except TimeoutError:
-            logger.error(
-                f"Cloudflare x402 verify timeout after {self._config.facilitator_verify_timeout}s"
-            )
+            logger.error(f"Cloudflare x402 verify timeout after {self._config.facilitator_verify_timeout}s")
             return self._format_error("Cloudflare x402 verification timed out")
         except aiohttp.ClientError as e:
             logger.error(f"Cloudflare x402 HTTP error: {e}")

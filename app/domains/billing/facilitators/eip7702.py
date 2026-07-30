@@ -44,6 +44,7 @@ logger = get_logger("facilitator.eip7702")
 # ERC-20 Transfer event signature
 TRANSFER_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
+
 class EIP7702Facilitator(Facilitator):
     """
     Universal EVM facilitator using EIP-7702 delegated execution.
@@ -176,9 +177,7 @@ class EIP7702Facilitator(Facilitator):
             receipt = await self._get_receipt(rpc_url, tx_hash)
 
             if not receipt or isinstance(receipt, str):
-                return self._format_error(
-                    f"EIP-7702: TX {tx_hash[:16]}... not found on {chain_key}"
-                )
+                return self._format_error(f"EIP-7702: TX {tx_hash[:16]}... not found on {chain_key}")
 
             # Check transaction success
             status = receipt.get("status", "0x0")
@@ -186,13 +185,9 @@ class EIP7702Facilitator(Facilitator):
                 return self._format_error(f"EIP-7702: TX {tx_hash[:16]}... failed (status=0)")
 
             if is_native:
-                return self._verify_native(
-                    receipt, tx_hash, chain_key, amount_atoms, expected_token
-                )
+                return self._verify_native(receipt, tx_hash, chain_key, amount_atoms, expected_token)
             else:
-                return self._verify_erc20(
-                    receipt, tx_hash, chain_key, token_address, amount_atoms, expected_token
-                )
+                return self._verify_erc20(receipt, tx_hash, chain_key, token_address, amount_atoms, expected_token)
 
         except TimeoutError:
             return self._format_error(f"EIP-7702: RPC timeout for {chain_key}")
@@ -234,9 +229,7 @@ class EIP7702Facilitator(Facilitator):
         expected_to = self._config.evm_pay_to.lower()
 
         if to_addr != expected_to:
-            return self._format_error(
-                f"EIP-7702: Native transfer to {to_addr[:10]}..., expected {expected_to[:10]}..."
-            )
+            return self._format_error(f"EIP-7702: Native transfer to {to_addr[:10]}..., expected {expected_to[:10]}...")
 
         return self._format_success(
             tx_hash=tx_hash,
@@ -297,9 +290,7 @@ class EIP7702Facilitator(Facilitator):
                 )
                 # Continue checking other logs - maybe multiple transfers
 
-            block_number = (
-                int(receipt.get("blockNumber", "0x0"), 16) if receipt.get("blockNumber") else None
-            )
+            block_number = int(receipt.get("blockNumber", "0x0"), 16) if receipt.get("blockNumber") else None
 
             return self._format_success(
                 tx_hash=tx_hash,
@@ -311,9 +302,7 @@ class EIP7702Facilitator(Facilitator):
                 confirmations=1,
             )
 
-        return self._format_error(
-            f"EIP-7702: No ERC-20 Transfer to {expected_to[:10]}... found in {tx_hash[:16]}..."
-        )
+        return self._format_error(f"EIP-7702: No ERC-20 Transfer to {expected_to[:10]}... found in {tx_hash[:16]}...")
 
     # ── Health ─────────────────────────────────────────────────
 

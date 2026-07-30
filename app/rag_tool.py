@@ -5,6 +5,7 @@ RAG Tool Interface for OpenClaw Agents (2026 Agentic RAG Approach)
 - Supports reflection loops and multi-hop retrieval
 - Integrates with OpenClaw tool schema
 """
+
 from __future__ import annotations
 
 import json
@@ -117,8 +118,7 @@ class RagToolInterface:
         for hop in hops:
             hop_results = self.query(hop["query"])
             hop_result_list = [
-                {"text": r["text"], "source": r["source"], "hop": hop["purpose"]}
-                for r in hop_results["results"]
+                {"text": r["text"], "source": r["source"], "hop": hop["purpose"]} for r in hop_results["results"]
             ]
             all_results.extend(hop_result_list)
 
@@ -218,6 +218,7 @@ class RagToolInterface:
                 },
             },
         }
+
 
 # ============================================================
 # CLI INTERFACE

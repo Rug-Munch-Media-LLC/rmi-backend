@@ -36,6 +36,7 @@ WEIGHTS = {
 
 INTERCEPT = 4.2  # baseline ~4.2 log-days
 
+
 class DeathClockResult(BaseModel):
     token_address: str
     chain: str
@@ -45,6 +46,7 @@ class DeathClockResult(BaseModel):
     risk_level: str  # low | medium | high | critical
     factors: dict[str, float]
     explanation: str
+
 
 def _compute_death_clock(features: dict[str, Any]) -> tuple[float, float, dict[str, float]]:
     """Heuristic log-linear model: log(days) = intercept + sum(weight * feature)"""
@@ -80,6 +82,7 @@ def _compute_death_clock(features: dict[str, Any]) -> tuple[float, float, dict[s
 
     return days, confidence, factor_contribs
 
+
 def _risk_level(days: float) -> str:
     if days < 1:
         return "critical"
@@ -88,6 +91,7 @@ def _risk_level(days: float) -> str:
     elif days < 30:
         return "medium"
     return "low"
+
 
 @router.get("/predict/{chain}/{address}")
 async def predict_death_clock(
@@ -138,13 +142,12 @@ async def predict_death_clock(
     }
     return result
 
+
 def _build_explanation(days: float, factors: dict[str, float]) -> str:
     top = sorted(factors.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
     parts = []
     for name, contrib in top:
         direction = "extends" if contrib < 0 else "shortens"
-        parts.append(
-            f"{name} ({'+' if contrib > 0 else ''}{contrib:.1f} log-days) {direction} lifespan"
-        )
+        parts.append(f"{name} ({'+' if contrib > 0 else ''}{contrib:.1f} log-days) {direction} lifespan")
     level = _risk_level(days)
     return f"Predicted {days:.1f} days ({level} risk). Key factors: {'; '.join(parts)}."

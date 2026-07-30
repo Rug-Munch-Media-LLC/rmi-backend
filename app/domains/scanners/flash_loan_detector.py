@@ -26,6 +26,7 @@ logger = get_logger("flash_loan_detector")
 
 # ── Dataclasses ──────────────────────────────────────────────────────
 
+
 @dataclass
 class FlashLoanFlag:
     """A single suspected flash-loan attack."""
@@ -41,6 +42,7 @@ class FlashLoanFlag:
     wallet_had_no_prior_balance: bool
     block_timestamp: int | None = None
 
+
 @dataclass
 class FlashLoanReport:
     token_address: str
@@ -54,7 +56,9 @@ class FlashLoanReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
+
 # ── Detector Class ──────────────────────────────────────────────────
+
 
 class FlashLoanDetector:
     """Detects flash-loan sandwich / manipulation patterns.
@@ -82,14 +86,12 @@ class FlashLoanDetector:
     async def _fetch_dexscreener_trades(self, token_address: str) -> list[dict]:
         """Fetch recent trades from DexScreener for a token."""
         try:
-            resp = await self._http.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_dexscreener_trades_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return []
@@ -107,7 +109,7 @@ class FlashLoanDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("data", {}).get("items", []) or []
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_birdeye_trades_error", exc_info=True)
             logger.warning(f"Birdeye trades failed for {token_address}: {e}")
         return []
@@ -121,7 +123,7 @@ class FlashLoanDetector:
             if result and "result" in result:
                 lamports = result["result"].get("value", 0)
                 return lamports / 1e9
-        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
             logger.debug("_fetch_solana_account_balance_before_error", exc_info=True)
             logger.warning(f"Helius balance check failed for {address}: {e}")
         return None
@@ -153,7 +155,7 @@ class FlashLoanDetector:
             resp = await self._http.get(url)
             if resp.status_code == 200:
                 return resp.json()
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_evm_account_history_error", exc_info=True)
             logger.warning(f"Etherscan account history failed for {address}: {e}")
         return None
@@ -178,16 +180,10 @@ class FlashLoanDetector:
         that look like flash-loan attacks."""
         flags = []
         # Sort by block number / timestamp
-        sorted_trades = sorted(
-            wallet_trades, key=lambda t: int(t.get("block", t.get("slot", t.get("blockTime", 0))))
-        )
+        sorted_trades = sorted(wallet_trades, key=lambda t: int(t.get("block", t.get("slot", t.get("blockTime", 0)))))
 
-        buys = [
-            t for t in sorted_trades if t.get("side", t.get("type", "")).lower() in ("buy", "0")
-        ]
-        sells = [
-            t for t in sorted_trades if t.get("side", t.get("type", "")).lower() in ("sell", "1")
-        ]
+        buys = [t for t in sorted_trades if t.get("side", t.get("type", "")).lower() in ("buy", "0")]
+        sells = [t for t in sorted_trades if t.get("side", t.get("type", "")).lower() in ("sell", "1")]
 
         for buy in buys:
             buy_block = int(buy.get("block", buy.get("slot", buy.get("blockTime", 0))))
@@ -216,9 +212,7 @@ class FlashLoanDetector:
 
                 flags.append(
                     FlashLoanFlag(
-                        attacker_address=buy.get(
-                            "wallet", buy.get("address", buy.get("maker", ""))
-                        ),
+                        attacker_address=buy.get("wallet", buy.get("address", buy.get("maker", ""))),
                         buy_block=buy_block,
                         sell_block=sell_block,
                         buy_amount_usd=buy_usd,
@@ -268,17 +262,13 @@ class FlashLoanDetector:
         same_block_attacks = [f for f in report.flash_loan_flags if f.same_block]
         if same_block_attacks:
             score += 20
-            warnings.append(
-                f"HIGH: {len(same_block_attacks)} same-block buy+sell (classic flash loan)"
-            )
+            warnings.append(f"HIGH: {len(same_block_attacks)} same-block buy+sell (classic flash loan)")
 
         # Wallets with no prior balance (strongest signal)
         no_balance_attacks = [f for f in report.flash_loan_flags if f.wallet_had_no_prior_balance]
         if no_balance_attacks:
             score += 15
-            warnings.append(
-                f"HIGH: {len(no_balance_attacks)} attacker wallets had near-zero balance pre-trade"
-            )
+            warnings.append(f"HIGH: {len(no_balance_attacks)} attacker wallets had near-zero balance pre-trade")
 
         score = min(100, score)
 
@@ -313,9 +303,7 @@ class FlashLoanDetector:
         if pairs:
             primary = pairs[0]
             liq = primary.get("liquidity", {})
-            pool_liquidity_usd = (
-                float(liq.get("usd", 0)) if isinstance(liq, dict) else float(liq or 0)
-            )
+            pool_liquidity_usd = float(liq.get("usd", 0)) if isinstance(liq, dict) else float(liq or 0)
 
         # 2. Fetch trades
         trades: list[dict] = []
@@ -345,9 +333,7 @@ class FlashLoanDetector:
         # 4. For each suspect, check pre-trade balance
         for flag in all_flags:
             if is_solana(chain):
-                balance = await self._fetch_solana_account_balance_before(
-                    flag.attacker_address, flag.buy_block
-                )
+                balance = await self._fetch_solana_account_balance_before(flag.attacker_address, flag.buy_block)
                 if balance is not None and balance < 0.01:
                     flag.wallet_had_no_prior_balance = True
 

@@ -11,7 +11,6 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -28,11 +27,10 @@ from app.domains.scanner.webhooks.models import (
     WebhookFilters,
     WebhookSubscription,
 )
-from app.domains.scanner.webhooks.providers.token_deployed import TokenDeployedProvider
 from app.domains.scanner.webhooks.providers.new_block import NewBlockProvider
+from app.domains.scanner.webhooks.providers.token_deployed import TokenDeployedProvider
 from app.domains.scanner.webhooks.providers.whale_move import WhaleMoveProvider
 from app.domains.scanner.webhooks.repository import WebhookRepository
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # 1. Model tests
@@ -338,9 +336,8 @@ class TestWebhookDeliveryService:
             mock_response.text = "Server error"
             mock_client.post.return_value = mock_response
 
-            with patch.object(service, "_save_delivery", AsyncMock()):
-                with patch("asyncio.sleep", AsyncMock()):
-                    result = await service.deliver(sample_event, sample_sub)
+            with patch.object(service, "_save_delivery", AsyncMock()), patch("asyncio.sleep", AsyncMock()):
+                result = await service.deliver(sample_event, sample_sub)
 
         assert result.status == "failed"
         assert result.attempt == 3
@@ -352,9 +349,8 @@ class TestWebhookDeliveryService:
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.side_effect = httpx.TimeoutException("timeout", request=None)
 
-            with patch.object(service, "_save_delivery", AsyncMock()):
-                with patch("asyncio.sleep", AsyncMock()):
-                    result = await service.deliver(sample_event, sample_sub)
+            with patch.object(service, "_save_delivery", AsyncMock()), patch("asyncio.sleep", AsyncMock()):
+                result = await service.deliver(sample_event, sample_sub)
 
         assert result.status == "failed"
         assert "timeout" in (result.error or "")

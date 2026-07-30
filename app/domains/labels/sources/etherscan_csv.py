@@ -12,6 +12,7 @@ log = get_logger(__name__)
 
 CSV_PATH = "/home/dev/rmi/backend/data/etherscan_combined_labels.csv"
 
+
 async def query_etherscan_csv(address: str, chain: str = "ethereum") -> list[Label]:
     """Query the Etherscan combined labels CSV via DuckDB.
 
@@ -64,7 +65,7 @@ async def query_etherscan_csv(address: str, chain: str = "ethereum") -> list[Lab
                 return labels
             finally:
                 d.close()
-        except (ValueError, TypeError, KeyError) as e :
+        except (ValueError, TypeError, KeyError) as e:
             log.warning("etherscan_csv_query_fail address=%s err=%s", address[:10], e)
             raise
 

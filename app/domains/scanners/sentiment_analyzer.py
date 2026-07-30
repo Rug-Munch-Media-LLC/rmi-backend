@@ -148,6 +148,7 @@ PUMP_KEYWORDS: dict[str, float] = {
 # Dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SocialMessage:
     """A single social message / comment about a token."""
@@ -159,6 +160,7 @@ class SocialMessage:
     likes: int = 0
     replies: int = 0
     account_age_hours: float | None = None  # None = unknown
+
 
 @dataclass
 class BotCampaign:
@@ -172,6 +174,7 @@ class BotCampaign:
     confidence: float = 0.0  # 0-1
     evidence: list[str] = field(default_factory=list)
 
+
 @dataclass
 class SentimentReport:
     """Complete sentiment analysis report for a token."""
@@ -183,9 +186,7 @@ class SentimentReport:
     # Sub-scores
     bull_score: float = 0.0  # 0-1
     bear_score: float = 0.0  # 0-1
-    sentiment_label: str = (
-        "neutral"  # "very_bearish", "bearish", "neutral", "bullish", "very_bullish"
-    )
+    sentiment_label: str = "neutral"  # "very_bearish", "bearish", "neutral", "bullish", "very_bullish"
     # Social metrics
     total_messages: int = 0
     unique_authors: int = 0
@@ -199,9 +200,11 @@ class SentimentReport:
     pump_signal_count: int = 0
     pump_keywords_found: list[str] = field(default_factory=list)
 
+
 # ---------------------------------------------------------------------------
 # SentimentAnalyzer
 # ---------------------------------------------------------------------------
+
 
 class SentimentAnalyzer:
     """Analyzes token sentiment from DexScreener/Birdeye social data."""
@@ -209,9 +212,7 @@ class SentimentAnalyzer:
     DEXSCREENER_BASE = "https://api.dexscreener.com"
     BIRDEYE_BASE = "https://public-api.birdeye.so"
 
-    def __init__(
-        self, dexscreener_client: httpx.AsyncClient | None = None, birdeye_api_key: str = ""
-    ) -> None:
+    def __init__(self, dexscreener_client: httpx.AsyncClient | None = None, birdeye_api_key: str = "") -> None:
         self.client = dexscreener_client or httpx.AsyncClient(timeout=15.0)
         self.birdeye_key = birdeye_api_key
 
@@ -253,9 +254,7 @@ class SentimentAnalyzer:
         new_account_ratio = self._calc_new_account_ratio(messages)
 
         # Step 5 - pump probability
-        pump_prob, pump_signals, pump_kws = self._score_pump_probability(
-            messages, velocity_spikes, bot_probability
-        )
+        pump_prob, pump_signals, pump_kws = self._score_pump_probability(messages, velocity_spikes, bot_probability)
 
         # Step 6 - assemble overall sentiment (0-100)
         raw_sentiment = 50 + (bull_score - bear_score) * 50  # center at 50
@@ -267,17 +266,13 @@ class SentimentAnalyzer:
         # Warnings
         warnings: list[str] = []
         if bot_probability > 0.7:
-            warnings.append(
-                f"CRITICAL: Bot activity {bot_probability:.0%} - sentiment likely artificial"
-            )
+            warnings.append(f"CRITICAL: Bot activity {bot_probability:.0%} - sentiment likely artificial")
         elif bot_probability > 0.4:
             warnings.append(f"HIGH: Bot activity {bot_probability:.0%} - sentiment may be inflated")
         if pump_prob > 0.7:
             warnings.append(f"PUMP WARNING: {pump_prob:.0%} pump-and-dump probability detected")
         if velocity_spikes > 3:
-            warnings.append(
-                f"VELOCITY: {velocity_spikes} message rate spikes - possible coordinated campaign"
-            )
+            warnings.append(f"VELOCITY: {velocity_spikes} message rate spikes - possible coordinated campaign")
         if new_account_ratio > 0.5:
             warnings.append(f"NEW ACCOUNTS: {new_account_ratio:.0%} of authors are new accounts")
         if bear_score > 0.5:
@@ -298,9 +293,7 @@ class SentimentAnalyzer:
             messages_per_hour=round(msgs_per_hour, 2),
             velocity_spikes=velocity_spikes,
             bot_campaigns=bot_campaigns,
-            identical_message_groups=sum(
-                1 for c in bot_campaigns if c.pattern == "identical_messages"
-            ),
+            identical_message_groups=sum(1 for c in bot_campaigns if c.pattern == "identical_messages"),
             new_account_ratio=round(new_account_ratio, 3),
             pump_signal_count=len(pump_signals),
             pump_keywords_found=pump_kws,
@@ -375,9 +368,7 @@ class SentimentAnalyzer:
             )
 
         # 2. New-account clusters
-        new_accounts = [
-            m for m in messages if m.account_age_hours is not None and m.account_age_hours < 48
-        ]
+        new_accounts = [m for m in messages if m.account_age_hours is not None and m.account_age_hours < 48]
         if len(new_accounts) >= 5:
             new_authors = {m.author for m in new_accounts}
             new_bull = sum(1 for m in new_accounts if self._message_has_bullish(m))
@@ -571,9 +562,7 @@ class SentimentAnalyzer:
         new_ratio = self._calc_new_account_ratio(messages)
         spike_score = min(1.0, velocity_spikes / 10)
 
-        pump_prob = (
-            pump_msg_ratio * 0.35 + spike_score * 0.20 + bot_probability * 0.25 + new_ratio * 0.20
-        )
+        pump_prob = pump_msg_ratio * 0.35 + spike_score * 0.20 + bot_probability * 0.25 + new_ratio * 0.20
         return min(1.0, pump_prob), pump_signals, pump_kws_found
 
     # ------------------------------------------------------------------
@@ -591,14 +580,14 @@ class SentimentAnalyzer:
         # --- DexScreener ---
         try:
             messages.extend(await self._fetch_dexscreener_comments(token_address, chain))
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("_fetch_social_data_error", exc_info=True)
             logger.warning(f"DexScreener social fetch failed: {e}")
 
         # --- Birdeye ---
         try:
             messages.extend(await self._fetch_birdeye_social(token_address, chain))
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("_fetch_social_data_error", exc_info=True)
             logger.warning(f"Birdeye social fetch failed: {e}")
 

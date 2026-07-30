@@ -10,12 +10,14 @@ from app.domains.tokens.deployer.models import DeployParams, TokenDeployment
 
 logger = get_logger("darkroom_token_deployer.tron")
 
+
 class TronDeployer(ChainDeployer):
     """Deploy TRC-20 tokens on TRON."""
 
     def __init__(self, private_key: str, rpc_url: str = "https://api.trongrid.io") -> None:
         from tronpy import Tron
         from tronpy.keys import PrivateKey
+
         self.client = Tron(network="mainnet" if "mainnet" in rpc_url else "shasta")
         self.private_key_obj = PrivateKey(bytes.fromhex(private_key.replace("0x", "")))
         super().__init__("tron", private_key, rpc_url)
@@ -29,18 +31,25 @@ class TronDeployer(ChainDeployer):
             logger.warning("TRON deployment requires manual contract compilation.")
             deployment = TokenDeployment(
                 deployment_id=deployment_id,
-                chain="tron", name=params.name, symbol=params.symbol,
-                decimals=params.decimals, total_supply=params.initial_supply,
-                contract_address="", deployer_address=self.deployer_address,
-                tx_hash="", status="pending",
+                chain="tron",
+                name=params.name,
+                symbol=params.symbol,
+                decimals=params.decimals,
+                total_supply=params.initial_supply,
+                contract_address="",
+                deployer_address=self.deployer_address,
+                tx_hash="",
+                status="pending",
                 owner_address=params.owner_address or self.deployer_address,
-                mintable=params.mintable, burnable=params.burnable,
-                pausable=params.pausable, max_supply=params.max_supply,
+                mintable=params.mintable,
+                burnable=params.burnable,
+                pausable=params.pausable,
+                max_supply=params.max_supply,
                 metadata_uri=params.metadata_uri,
                 extra={"note": "TRON deployment requires manual contract compilation and deployment"},
             )
             return deployment
-        except (ValueError) as e :
+        except ValueError as e:
             logger.debug("deploy_token_error", exc_info=True)
             logger.error(f"TRON deploy failed: {e}")
             raise

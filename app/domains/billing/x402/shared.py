@@ -114,8 +114,6 @@ async def rpc_call(chain: str, method: str, params: list[Any]) -> Any:
     return None
 
 
-
-
 async def _audit_solana(address: str) -> dict[str, Any]:
     """Full audit for Solana tokens with 5-layer fallback."""
     result = {"chain": "solana", "address": address, "sources_used": []}

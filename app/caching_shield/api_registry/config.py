@@ -12,6 +12,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("api_registry")
 
+
 @dataclass
 class ProviderConfig:
     """Provider-level configuration."""
@@ -27,6 +28,7 @@ class ProviderConfig:
     auth_in_query: str = ""
     fallback_providers: list[str] = field(default_factory=list)
     notes: str = ""
+
 
 PROVIDER_REGISTRY: dict[str, ProviderConfig] = {
     # ═══ Solana RPC ═══

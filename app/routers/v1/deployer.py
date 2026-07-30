@@ -11,7 +11,12 @@ from app.core.errors import ServiceUnavailableError
 
 router = APIRouter(prefix="/deployer", tags=["deployer-v1"])
 
-@router.get("/{address}", summary="Get Deployer", description="Get deployer profile by address. Returns deployed contracts, rugpull history, associated wallets, and risk score.")
+
+@router.get(
+    "/{address}",
+    summary="Get Deployer",
+    description="Get deployer profile by address. Returns deployed contracts, rugpull history, associated wallets, and risk score.",
+)
 async def get_deployer_info(
     address: str,
     chain: str = Query("ethereum", description="Blockchain to query"),
@@ -24,7 +29,12 @@ async def get_deployer_info(
         "Deployer info endpoint — planned: GET /api/v1/deployer/{address} — see roadmap",
     )
 
-@router.get("/{address}/contracts", summary="List Deployer Contracts", description="List all contracts deployed by a given address. Returns verification status, risk flags, and deployment timeline.")
+
+@router.get(
+    "/{address}/contracts",
+    summary="List Deployer Contracts",
+    description="List all contracts deployed by a given address. Returns verification status, risk flags, and deployment timeline.",
+)
 async def get_deployer_contracts(
     address: str,
     chain: str = Query("ethereum", description="Blockchain to query"),
