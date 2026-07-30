@@ -33,14 +33,14 @@ import time
 from collections import defaultdict
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.databus.access_control import access_controller
 from app.databus.cache import CacheLayer, get_cache
 from app.databus.providers import ProviderChain, ProviderTier, build_provider_chains
 from app.databus.security import security
 from app.databus.vault import DataBusVault, get_vault
-
-import httpx
 
 logger = get_logger("databus.core")
 

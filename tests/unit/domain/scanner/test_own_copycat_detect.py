@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from app.domains.scanner.engines.own_copycat_detect import (
     _check_symbol_similarity,
     _compute_copycat_score,

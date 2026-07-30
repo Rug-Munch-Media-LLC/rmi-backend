@@ -7,13 +7,9 @@ deterministically.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
-import pytest
-
 from app.domains.scanner.engines import own_bundle_detect as bd
-
 
 # ── Sample test data ─────────────────────────────────────────────────────
 

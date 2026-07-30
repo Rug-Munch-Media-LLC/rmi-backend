@@ -45,7 +45,14 @@ from app.domains.newsletter.schemas import (
     PublishResponse,
     SubscriberImportRow,
 )
-from app.domains.newsletter.services.constants import PLATFORM_FEE_PCT, SUBSCRIPTION_TIERS
+from app.domains.newsletter.services import (
+    PLATFORM_FEE_PCT,
+    SUBSCRIPTION_TIERS,
+    get_email_provider,
+    get_setting,
+    send_email,
+    slugify,
+)
 
 logger = get_logger(__name__)
 
@@ -927,91 +934,11 @@ class NewsletterService(BaseService[Newsletter]):
         nl_id: str,
     ) -> None:
         """Send an email via the configured provider (Postmark/SES/Mailgun)."""
-        client = await get_http_client()
-
-        if provider == "postmark":
-            api_key = self._get_setting("postmark_api_key", "")
-            if not api_key:
-                raise ValidationError("Postmark API key not configured")
-
-            await client.post(
-                "https://api.postmarkapp.com/email",
-                json={
-                    "From": self._get_setting("newsletter_from_email", "newsletter@rugmunch.io"),
-                    "To": to_email,
-                    "Subject": subject,
-                    "HtmlBody": html_body,
-                    "TextBody": text_body,
-                    "TrackOpens": True,
-                    "TrackLinks": "HtmlOnly",
-                    "Metadata": {"subscriber_id": sub_id, "newsletter_id": nl_id},
-                },
-                headers={
-                    "X-Postmark-Server-Token": api_key,
-                    "Accept": "application/json",
-                },
-                timeout=15.0,
-            )
-        elif provider == "ses":
-            # AWS SES via boto3 or direct API
-            from_email = self._get_setting("newsletter_from_email", "newsletter@rugmunch.io")
-
-            await client.post(
-                "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails",
-                json={
-                    "FromEmailAddress": from_email,
-                    "Destination": {"ToAddresses": [to_email]},
-                    "Content": {
-                        "Simple": {
-                            "Subject": {"Data": subject},
-                            "Body": {
-                                "Html": {"Data": html_body},
-                                "Text": {"Data": text_body},
-                            },
-                        },
-                    },
-                },
-                headers={
-                    "X-Api-Key": self._get_setting("aws_ses_key", ""),
-                },
-                timeout=15.0,
-            )
-        elif provider == "mailgun":
-            domain = self._get_setting("mailgun_domain", "")
-            api_key = self._get_setting("mailgun_api_key", "")
-
-            if not domain or not api_key:
-                raise ValidationError("Mailgun not configured")
-
-            await client.post(
-                f"https://api.mailgun.net/v3/{domain}/messages",
-                auth=("api", api_key),
-                data={
-                    "from": self._get_setting("newsletter_from_email", f"newsletter@{domain}"),
-                    "to": to_email,
-                    "subject": subject,
-                    "html": html_body,
-                    "text": text_body,
-                    "o:tracking-opens": "yes",
-                    "o:tracking-clicks": "yes",
-                    "v:subscriber_id": sub_id,
-                    "v:newsletter_id": nl_id,
-                },
-                timeout=15.0,
-            )
+        await send_email(provider, to_email, subject, html_body, text_body, sub_id, nl_id)
 
     async def _get_email_provider(self) -> str | None:
-        """Determine which email provider is configured.
-
-        Priority: Postmark > Mailgun > SES > None (email disabled).
-        """
-        if self._get_setting("postmark_api_key", ""):
-            return "postmark"
-        if self._get_setting("mailgun_api_key", ""):
-            return "mailgun"
-        if self._get_setting("aws_ses_key", ""):
-            return "ses"
-        return None
+        """Determine which email provider is configured."""
+        return get_email_provider()
 
     async def _count_subscribers(
         self,
@@ -1052,16 +979,9 @@ class NewsletterService(BaseService[Newsletter]):
 
     def _get_setting(self, key: str, default: str = "") -> str:
         """Get a configuration value."""
-        from app.config import settings
-
-        return getattr(settings, key, None) or default or ""
+        return get_setting(key, default)
 
     @staticmethod
     def _slugify(text: str) -> str:
         """Create a URL-safe slug."""
-        import re
-
-        text = text.lower().strip()
-        text = re.sub(r"[^a-z0-9]+", "-", text)
-        text = text.strip("-")
-        return text[:200] or "untitled"
+        return slugify(text)
