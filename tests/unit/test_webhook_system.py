@@ -540,7 +540,7 @@ class TestNewBlockProvider:
         """Test that RPC failure returns empty events list gracefully."""
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.side_effect = httpx.RequestError("RPC down", request=MagicMock())
 
             events = await provider.poll()
