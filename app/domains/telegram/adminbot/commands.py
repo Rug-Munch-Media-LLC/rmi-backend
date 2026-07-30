@@ -30,21 +30,6 @@ try:
 except ImportError:
     admin_ai = None
 
-try:
-    from app.domains.telegram.adminbot import admin_monitor  # type: ignore[import-untyped]
-except ImportError:
-    admin_monitor = None
-
-try:
-    from app.domains.telegram.adminbot import admin_docker  # type: ignore[import-untyped]
-except ImportError:
-    admin_docker = None
-
-try:
-    from app.domains.telegram.adminbot import admin_deploy  # type: ignore[import-untyped]
-except ImportError:
-    admin_deploy = None
-
 # ═══════════════════════════════════════════════════════════════════
 # START / HELP
 # ═══════════════════════════════════════════════════════════════════
@@ -52,18 +37,31 @@ except ImportError:
 @owner_only
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "🛡️ *RMI Admin Bot v2*\n\n"
+        "🛡️ *RMI Admin Bot v3*\n\n"
         "Server management for the Rug Munch fleet.\n"
         "All commands are owner-only and logged.\n\n"
-        "*Commands:*\n"
+        "*Server Commands:*\n"
         "/status — System dashboard\n"
+        "/disk — Disk usage report\n"
+        "/mem — Memory & CPU report\n"
         "/docker — Container management\n"
         "/sh — Shell execution\n"
+        "/term — Terminal mode\n\n"
+        "*Service Commands:*\n"
         "/service — Service control\n"
-        "/backup — Backup triggers\n"
-        "/deploy — Deploy services\n"
-        "/alerts — Health checks\n"
         "/logs — View logs\n"
+        "/health — Health checks\n\n"
+        "*DevOps Commands:*\n"
+        "/git — Git status for a repo\n"
+        "/push — Push all repos\n"
+        "/deploy — Deploy services\n"
+        "/backup — Backup triggers\n\n"
+        "*AI Commands:*\n"
+        "/oc — OpenCode AI prompt\n"
+        "/ai — AI model gateway\n\n"
+        "*Misc:*\n"
+        "/chain — Chain indexer status\n"
+        "/alert — Send alert message\n"
         "/quick — Common ops\n"
         "/help — This message",
         reply_markup=main_menu_keyboard(),
@@ -90,6 +88,48 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             [
                 [InlineKeyboardButton("🔄 Refresh", callback_data="status"),
                  InlineKeyboardButton("📊 Health", callback_data="alerts")],
+                [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+            ]
+        ),
+    )
+
+# ═══════════════════════════════════════════════════════════════════
+# DISK
+# ═══════════════════════════════════════════════════════════════════
+
+@owner_only
+async def cmd_disk(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    msg = await update.message.reply_text("⏳ Checking disk usage...")
+    result = admin_ops.disk_usage()
+    text = admin_ops.format_disk(result)
+    await msg.edit_text(
+        text,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("🔄 Refresh", callback_data="disk"),
+                 InlineKeyboardButton("🧠 Memory", callback_data="mem")],
+                [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+            ]
+        ),
+    )
+
+# ═══════════════════════════════════════════════════════════════════
+# MEMORY / CPU
+# ═══════════════════════════════════════════════════════════════════
+
+@owner_only
+async def cmd_mem(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    msg = await update.message.reply_text("⏳ Gathering memory report...")
+    result = admin_ops.memory_report()
+    text = admin_ops.format_memory(result)
+    await msg.edit_text(
+        text,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("🔄 Refresh", callback_data="mem"),
+                 InlineKeyboardButton("💾 Disk", callback_data="disk")],
                 [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
             ]
         ),
@@ -278,7 +318,7 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 # ═══════════════════════════════════════════════════════════════════
-# ALERTS / HEALTH
+# HEALTH
 # ═══════════════════════════════════════════════════════════════════
 
 @owner_only
@@ -314,8 +354,207 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                  InlineKeyboardButton("📊 Health Check", callback_data="alerts")],
                 [InlineKeyboardButton("🐳 Docker PS", callback_data="docker_ps"),
                  InlineKeyboardButton("📦 Backup Status", callback_data="backup_status")],
-                [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                [InlineKeyboardButton("💾 Disk", callback_data="disk"),
+                 InlineKeyboardButton("🧠 Memory", callback_data="mem")],
+                [InlineKeyboardButton("📁 Git Status", callback_data="git_menu"),
+                 InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
             ]
         ),
         parse_mode=ParseMode.MARKDOWN,
     )
+
+# ═══════════════════════════════════════════════════════════════════
+# OPENCODE / OC
+# ═══════════════════════════════════════════════════════════════════
+
+@owner_only
+async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a prompt to OpenCode AI — OWNER ONLY."""
+    if admin_ai is None:
+        await update.message.reply_text("⚠️ AI module not available (missing admin_ai.py)")
+        return
+
+    args = ctx.args
+    if not args:
+        await update.message.reply_text(
+            "🤖 *OpenCode Integration*\n\n"
+            "Usage:\n"
+            "`/oc <prompt>` — Run any prompt through OpenCode\n"
+            "`/oc task <task>` — Quick admin task\n"
+            "`/oc model <model>` — View/switch model\n\n"
+            "Examples:\n"
+            "`/oc check disk usage and suggest cleanup`\n"
+            "`/oc task restart rmi-backend and check health`\n"
+            "`/oc model`",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=admin_ai.model_keyboard(),
+        )
+        return
+
+    action = args[0].lower()
+    user_id = update.effective_user.id
+
+    if action == "model":
+        await update.message.reply_text(
+            admin_ai.list_models(),
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=admin_ai.model_keyboard(),
+        )
+        return
+    elif action == "task" and len(args) > 1:
+        task = " ".join(args[1:])
+        msg = await update.message.reply_text("🤖 Running admin task via OpenCode...")
+        result = admin_ai.run_quick_task(task)
+    else:
+        prompt = " ".join(args)
+        msg = await update.message.reply_text("🤖 Sending to OpenCode AI...")
+        result = admin_ai.run_opencode(prompt, max_turns=3)
+
+    if result["ok"]:
+        output = result["output"][:3500]
+        model_used = result.get("model", "unknown")
+        duration = result.get("duration", 0)
+        await msg.edit_text(
+            f"🤖 *OpenCode* (`{model_used}`, {duration:.1f}s)\n\n```\n{output}\n```",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        await msg.edit_text(
+            f"❌ OpenCode Error: {result.get('error', 'unknown')[:500]}",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+
+# ═══════════════════════════════════════════════════════════════════
+# GIT
+# ═══════════════════════════════════════════════════════════════════
+
+@owner_only
+async def cmd_git(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show git status for a repo — OWNER ONLY."""
+    args = ctx.args
+    if not args:
+        # Show repo list menu
+        buttons = []
+        row = []
+        for repo in admin_ops.RMI_REPOS:
+            row.append(InlineKeyboardButton(repo, callback_data=f"git_{repo}"))
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+        if row:
+            buttons.append(row)
+        buttons.append([InlineKeyboardButton("📤 Push All", callback_data="push_all")])
+        buttons.append([InlineKeyboardButton("⬅️ Main Menu", callback_data="main")])
+
+        await update.message.reply_text(
+            "📁 *Git Status* — Select a repo:",
+            reply_markup=InlineKeyboardMarkup(buttons),
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+
+    repo = args[0]
+    msg = await update.message.reply_text(f"⏳ Checking git status for {repo}...")
+    result = admin_ops.git_status(repo)
+    if result["ok"]:
+        await msg.edit_text(
+            result["output"][:3500],
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("git_menu"),
+        )
+    else:
+        await msg.edit_text(
+            f"❌ {result['error']}",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("git_menu"),
+        )
+
+# ═══════════════════════════════════════════════════════════════════
+# PUSH
+# ═══════════════════════════════════════════════════════════════════
+
+@owner_only
+async def cmd_push(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Push all repos — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Pushing all repos...")
+    result = admin_ops.push_all_repos()
+    output = result.get("output", "") or result.get("error", "")
+    status = "✅" if result["ok"] else "❌"
+    await msg.edit_text(
+        f"{status} Push all repos ({result.get('duration', 0):.1f}s)\n\n```\n{output[:3000]}\n```",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=back_button("git_menu"),
+    )
+
+# ═══════════════════════════════════════════════════════════════════
+# CHAIN
+# ═══════════════════════════════════════════════════════════════════
+
+@owner_only
+async def cmd_chain(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show LiteIndexer chain status — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Checking chain indexer status...")
+    result = admin_ops.chain_status()
+    if result["ok"]:
+        await msg.edit_text(
+            result["output"][:3500],
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("🔄 Refresh", callback_data="chain"),
+                     InlineKeyboardButton("🐳 Docker", callback_data="docker")],
+                    [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                ]
+            ),
+        )
+    else:
+        await msg.edit_text(
+            f"❌ {result['error']}",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("main"),
+        )
+
+# ═══════════════════════════════════════════════════════════════════
+# ALERT
+# ═══════════════════════════════════════════════════════════════════
+
+@owner_only
+async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send an alert to subscribed chats — OWNER ONLY."""
+    args = ctx.args
+    if not args:
+        await update.message.reply_text(
+            "🔔 *Send Alert*\n\n"
+            "Usage: `/alert <message>`\n"
+            "Usage: `/alert critical <message>`\n\n"
+            "Levels: `info` (default), `warning`, `critical`\n\n"
+            "The alert will be sent to the configured admin chat.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+
+    if args[0].lower() in ("info", "warning", "critical"):
+        level = args[0].lower()
+        message = " ".join(args[1:])
+    else:
+        level = "info"
+        message = " ".join(args)
+
+    if not message:
+        await update.message.reply_text("❌ Message cannot be empty.")
+        return
+
+    msg = await update.message.reply_text(f"⏳ Sending {level} alert...")
+    result = admin_ops.send_alert(message, level=level)
+    if result["ok"]:
+        await msg.edit_text(
+            f"{'✅' if result['ok'] else '❌'} Alert sent\n\n{result.get('output', '')}",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("main"),
+        )
+    else:
+        await msg.edit_text(
+            f"❌ {result['error']}",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("main"),
+        )

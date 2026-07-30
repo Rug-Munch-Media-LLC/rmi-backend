@@ -49,11 +49,12 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         # ── Main navigation ──
         if data == "main":
             await query.edit_message_text(
-                "🛡️ *RMI Admin Bot v2* — Select an option:",
+                "🛡️ *RMI Admin Bot v3* — Select an option:",
                 reply_markup=main_menu_keyboard(),
                 parse_mode=ParseMode.MARKDOWN,
             )
 
+        # ── Status ──
         elif data == "status":
             s = admin_ops.system_status()
             text = admin_ops.format_status(s)
@@ -68,6 +69,115 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     ]
                 ),
             )
+
+        # ── Disk ──
+        elif data == "disk":
+            await query.edit_message_text("⏳ Checking disk usage...")
+            result = admin_ops.disk_usage()
+            text = admin_ops.format_disk(result)
+            await query.edit_message_text(
+                text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("🔄 Refresh", callback_data="disk"),
+                         InlineKeyboardButton("🧠 Memory", callback_data="mem")],
+                        [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                    ]
+                ),
+            )
+
+        # ── Memory ──
+        elif data == "mem":
+            await query.edit_message_text("⏳ Gathering memory report...")
+            result = admin_ops.memory_report()
+            text = admin_ops.format_memory(result)
+            await query.edit_message_text(
+                text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("🔄 Refresh", callback_data="mem"),
+                         InlineKeyboardButton("💾 Disk", callback_data="disk")],
+                        [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                    ]
+                ),
+            )
+
+        # ── Git menu ──
+        elif data == "git_menu":
+            from app.domains.telegram.adminbot.admin_ops import RMI_REPOS
+            buttons = []
+            row = []
+            for repo in RMI_REPOS:
+                row.append(InlineKeyboardButton(repo, callback_data=f"git_{repo}"))
+                if len(row) == 2:
+                    buttons.append(row)
+                    row = []
+            if row:
+                buttons.append(row)
+            buttons.append([InlineKeyboardButton("📤 Push All", callback_data="push_all")])
+            buttons.append([InlineKeyboardButton("⬅️ Main Menu", callback_data="main")])
+
+            await query.edit_message_text(
+                "📁 *Git Status* — Select a repo:",
+                reply_markup=InlineKeyboardMarkup(buttons),
+                parse_mode=ParseMode.MARKDOWN,
+            )
+
+        elif data.startswith("git_"):
+            repo = data.replace("git_", "")
+            if repo == "menu":
+                return
+            await query.edit_message_text(f"⏳ Checking git status for {repo}...")
+            result = admin_ops.git_status(repo)
+            if result["ok"]:
+                await query.edit_message_text(
+                    result["output"][:3500],
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=back_button("git_menu"),
+                )
+            else:
+                await query.edit_message_text(
+                    f"❌ {result['error']}",
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=back_button("git_menu"),
+                )
+
+        # ── Push all ──
+        elif data == "push_all":
+            await query.edit_message_text("⏳ Pushing all repos...")
+            result = admin_ops.push_all_repos()
+            output = result.get("output", "") or result.get("error", "")
+            status = "✅" if result["ok"] else "❌"
+            await query.edit_message_text(
+                f"{status} Push all repos ({result.get('duration', 0):.1f}s)\n\n```\n{output[:3000]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=back_button("git_menu"),
+            )
+
+        # ── Chain status ──
+        elif data == "chain":
+            await query.edit_message_text("⏳ Checking chain indexer status...")
+            result = admin_ops.chain_status()
+            if result["ok"]:
+                await query.edit_message_text(
+                    result["output"][:3500],
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=InlineKeyboardMarkup(
+                        [
+                            [InlineKeyboardButton("🔄 Refresh", callback_data="chain"),
+                             InlineKeyboardButton("🐳 Docker", callback_data="docker")],
+                            [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                        ]
+                    ),
+                )
+            else:
+                await query.edit_message_text(
+                    f"❌ {result['error']}",
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=back_button("main"),
+                )
 
         # ── Docker ──
         elif data == "docker":
@@ -231,7 +341,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 reply_markup=back_button("logs_menu"),
             )
 
-        # ── Alerts ──
+        # ── Alerts / Health ──
         elif data == "alerts":
             checks = admin_ops.health_check()
             text = admin_ops.format_health(checks)
@@ -260,8 +370,12 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                          InlineKeyboardButton("📊 Health Check", callback_data="alerts")],
                         [InlineKeyboardButton("🐳 Docker PS", callback_data="docker_ps"),
                          InlineKeyboardButton("📦 Backup Status", callback_data="backup_status")],
-                        [InlineKeyboardButton("💻 Terminal", callback_data="term_enter")],
-                        [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                        [InlineKeyboardButton("💾 Disk", callback_data="disk"),
+                         InlineKeyboardButton("🧠 Memory", callback_data="mem")],
+                        [InlineKeyboardButton("📁 Git Status", callback_data="git_menu"),
+                         InlineKeyboardButton("📤 Push All", callback_data="push_all")],
+                        [InlineKeyboardButton("💻 Terminal", callback_data="term_enter"),
+                         InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                     ]
                 ),
             )

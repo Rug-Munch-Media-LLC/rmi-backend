@@ -1,7 +1,8 @@
 """
-admin_terminal — terminal mode stubs.
+admin_terminal — terminal mode for the RMI Admin Bot.
 
-Replace with real session management when wired to infrastructure.
+Manages terminal sessions: enter, execute, format, and exit.
+Commands are allowlist-gated for safety.
 """
 
 from __future__ import annotations
@@ -16,30 +17,11 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 # Commands allowed in terminal mode (base command only)
 _ALLOWED_COMMANDS: frozenset[str] = frozenset(
     {
-        "ls",
-        "pwd",
-        "cd",
-        "df",
-        "free",
-        "ps",
-        "docker",
-        "systemctl",
-        "git",
-        "journalctl",
-        "cat",
-        "head",
-        "tail",
-        "grep",
-        "uptime",
-        "who",
-        "w",
-        "last",
-        "netstat",
-        "ss",
-        "ip",
-        "ping",
-        "curl",
-        "docker-compose",
+        "ls", "pwd", "cd", "df", "free", "ps", "docker", "systemctl",
+        "git", "journalctl", "cat", "head", "tail", "grep", "uptime",
+        "who", "w", "last", "netstat", "ss", "ip", "ping", "curl",
+        "docker-compose", "du", "top", "htop", "lsof", "stat",
+        "find", "tree", "mkdir", "touch", "cp", "mv",
     }
 )
 
@@ -130,7 +112,7 @@ def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
             "error": f"Command not found: {parts[0]}",
             "duration": time.time() - t0,
         }
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError) as e:
         return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
 
 def format_prompt(session: dict[str, Any]) -> str:
@@ -143,11 +125,14 @@ def format_result(result: dict[str, Any], session: dict[str, Any]) -> str:
 def run_quick(cmd_name: str) -> dict[str, Any]:
     """Run a predefined quick command — no shell, allowlist-gated."""
     quick: dict[str, list[str]] = {
-        "df": ["df", "-h"],
+        "df": ["df", "-h", "--total"],
         "mem": ["free", "-h"],
         "ps": ["ps", "aux", "--sort=-%mem"],
-        "docker": ["docker", "ps", "--format", "table {{.Names}}\t{{.Status}}"],
+        "docker": ["docker", "ps", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"],
         "uptime": ["uptime"],
+        "disk": ["df", "-h", "/"],
+        "load": ["cat", "/proc/loadavg"],
+        "docker-all": ["docker", "ps", "-a", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"],
     }
     cmd_parts = quick.get(cmd_name)
     if cmd_parts is None:
@@ -168,14 +153,14 @@ def run_quick(cmd_name: str) -> dict[str, Any]:
             "error": r.stderr if r.returncode != 0 else "",
             "duration": time.time() - t0,
         }
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
 
 def quick_commands_keyboard() -> Any:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("💾 Disk", callback_data="term_quick_df"),
+                InlineKeyboardButton("💾 Disk All", callback_data="term_quick_df"),
                 InlineKeyboardButton("🧠 Memory", callback_data="term_quick_mem"),
             ],
             [
@@ -184,6 +169,11 @@ def quick_commands_keyboard() -> Any:
             ],
             [
                 InlineKeyboardButton("⏱ Uptime", callback_data="term_quick_uptime"),
+                InlineKeyboardButton("📊 Load", callback_data="term_quick_load"),
+            ],
+            [
+                InlineKeyboardButton("💾 Disk /", callback_data="term_quick_disk"),
+                InlineKeyboardButton("🐳 All Containers", callback_data="term_quick_docker-all"),
             ],
             [InlineKeyboardButton("⬅️ Back", callback_data="main")],
         ]
