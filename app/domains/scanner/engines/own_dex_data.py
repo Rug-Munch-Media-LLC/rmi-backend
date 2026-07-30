@@ -182,6 +182,8 @@ async def get_own_dex_data(
     Returns:
         Dict with pairs array matching DexScreener schema
     """
+    _start = time.monotonic()
+
     # Check process-level cache first
     cache_key = f"{token_address.lower()}:{chain}:{hours_24}"
     if cache_key in _DEX_CACHE:
@@ -203,7 +205,23 @@ async def get_own_dex_data(
             _DEX_CACHE[cache_key] = fallback
             if len(_DEX_CACHE) > _DEX_CACHE_MAX:
                 _DEX_CACHE.pop(next(iter(_DEX_CACHE)), None)
+            _elapsed_ms = (time.monotonic() - _start) * 1000
+            logger.info(
+                "own_dex_data_latency",
+                ms=round(_elapsed_ms, 1),
+                swaps=len(fallback.get("pairs", [])),
+                chain=chain,
+                source="fallback",
+            )
             return fallback
+        _elapsed_ms = (time.monotonic() - _start) * 1000
+        logger.info(
+            "own_dex_data_latency",
+            ms=round(_elapsed_ms, 1),
+            swaps=0,
+            chain=chain,
+            source="unavailable",
+        )
         return {
             "pairs": [],
             "source": "unavailable",
@@ -236,6 +254,14 @@ async def get_own_dex_data(
     if len(_DEX_CACHE) > _DEX_CACHE_MAX:
         _DEX_CACHE.pop(next(iter(_DEX_CACHE)), None)
 
+    _elapsed_ms = (time.monotonic() - _start) * 1000
+    logger.info(
+        "own_dex_data_latency",
+        ms=round(_elapsed_ms, 1),
+        swaps=len(pairs),
+        chain=chain,
+        source="own",
+    )
     return result
 
 
