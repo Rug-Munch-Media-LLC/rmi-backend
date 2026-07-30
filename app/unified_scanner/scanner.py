@@ -37,9 +37,7 @@ from app.unified_scanner.providers import (
 )
 
 
-async def scan_wallet(
-    wallet_address: str, chain: str = "solana", tier: str = "free"
-) -> dict[str, Any]:
+async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "free") -> dict[str, Any]:
     """Unified wallet scanner - SENTINEL + Helius/Moralis/Etherscan pool + Wallet Memory + Token Scanner."""
     import time
 
@@ -85,9 +83,7 @@ async def scan_wallet(
         etherscan = await _fetch_etherscan_wallet(wallet_address, chain)
         if etherscan and not onchain.get("wallet_age_days"):
             onchain["wallet_age_days"] = etherscan.get("wallet_age_days", 0)
-            onchain["data_sources"] = onchain.get("data_sources", []) + etherscan.get(
-                "data_sources", []
-            )
+            onchain["data_sources"] = onchain.get("data_sources", []) + etherscan.get("data_sources", [])
 
     if onchain:
         factors.wallet_age_days = onchain.get("wallet_age_days", 0)
@@ -104,23 +100,18 @@ async def scan_wallet(
     # ── DexScreener volume + labels (shared httpx client) ──
     try:
         client = await get_http_client()
-        resp = await client.get(
-            "https://api.dexscreener.com/latest/dex/search", params={"q": wallet_address}
-        )
+        resp = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": wallet_address})
         if resp.status_code == 200:
             pairs = resp.json().get("pairs", [])
             if pairs:
-                factors.total_volume_usd = sum(
-                    float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs
-                )
+                factors.total_volume_usd = sum(float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs)
                 factors.dex_swaps = len(pairs)
                 factors.token_launches_participated = sum(
                     1
                     for p in pairs
                     if p.get("pairCreatedAt")
                     and (
-                        datetime.now(UTC)
-                        - datetime.fromtimestamp(p.get("pairCreatedAt", 0) / 1000, tz=UTC)
+                        datetime.now(UTC) - datetime.fromtimestamp(p.get("pairCreatedAt", 0) / 1000, tz=UTC)
                     ).total_seconds()
                     / 3600
                     < 24
@@ -133,9 +124,7 @@ async def scan_wallet(
     sentinel_labels = await _fetch_sentinel_labels(wallet_address, chain)
     if sentinel_labels:
         factors.entity_label = sentinel_labels.get("category", "")
-        factors.is_labeled_scammer = (
-            factors.is_labeled_scammer or "scam" in str(sentinel_labels).lower()
-        )
+        factors.is_labeled_scammer = factors.is_labeled_scammer or "scam" in str(sentinel_labels).lower()
         factors.is_labeled_sanctioned = (
             factors.is_labeled_sanctioned
             or "sanction" in str(sentinel_labels).lower()
@@ -144,14 +133,10 @@ async def scan_wallet(
         factors.is_labeled_exchange = (
             "exchange" in str(sentinel_labels).lower() or "cex" in str(sentinel_labels).lower()
         )
-        factors.is_labeled_bot = (
-            "bot" in str(sentinel_labels).lower() or "mev" in str(sentinel_labels).lower()
-        )
+        factors.is_labeled_bot = "bot" in str(sentinel_labels).lower() or "mev" in str(sentinel_labels).lower()
         factors.is_labeled_whale = "whale" in str(sentinel_labels).lower()
         factors.is_labeled_insider = "insider" in str(sentinel_labels).lower()
-        factors.entity_confidence = max(
-            factors.entity_confidence, sentinel_labels.get("risk_score", 50)
-        )
+        factors.entity_confidence = max(factors.entity_confidence, sentinel_labels.get("risk_score", 50))
         data_sources.append("sentinel_labels")
 
     # ── FREE: External threat intelligence ──
@@ -180,9 +165,7 @@ async def scan_wallet(
         wallet_memory = await _fetch_wallet_memory(wallet_address, chain)
         if wallet_memory:
             factors.linked_wallets_count = len(wallet_memory.get("linked_wallets", []))
-            factors.cluster_size = wallet_memory.get(
-                "linked_wallets_count", factors.linked_wallets_count
-            )
+            factors.cluster_size = wallet_memory.get("linked_wallets_count", factors.linked_wallets_count)
             factors.cluster_id = wallet_memory.get("entity_id", "")
             factors.cross_chain_funding = bool(wallet_memory.get("cross_chain_presence"))
             scam_assoc = wallet_memory.get("scam_associations", [])
@@ -221,9 +204,7 @@ async def scan_wallet(
                 factors.cluster_size = max(factors.cluster_size, cluster.get("size", 0))
                 factors.cluster_shared_funding = cluster.get("shared_funding", False)
                 factors.known_cluster_type = cluster.get("type", "")
-                factors.linked_wallets_count = max(
-                    factors.linked_wallets_count, cluster.get("member_count", 0)
-                )
+                factors.linked_wallets_count = max(factors.linked_wallets_count, cluster.get("member_count", 0))
         except (ImportError, AttributeError):
             pass
 
@@ -261,9 +242,7 @@ async def scan_wallet(
     native_bal = onchain.get("sol_balance", onchain.get("native_balance", 0)) if onchain else 0
     basic_pnl = await _calculate_basic_pnl(wallet_address, chain, token_list, native_bal)
     if basic_pnl:
-        factors.current_balance_usd = max(
-            factors.current_balance_usd or 0, basic_pnl.get("estimated_value_usd", 0)
-        )
+        factors.current_balance_usd = max(factors.current_balance_usd or 0, basic_pnl.get("estimated_value_usd", 0))
         factors.realized_pnl_usd = factors.realized_pnl_usd or 0
         data_sources.append("jupiter_pnl")
 
@@ -416,6 +395,17 @@ async def scan_wallet(
 
     for src in data_sources:
         modules_run.append({"module": src, "status": "ok"})
+
+    # ── Record own-data coverage metrics ──
+    try:
+        from app.domains.scanner.metrics import record_token_scan_coverage
+
+        record_token_scan_coverage(data_sources, modules_run)
+    except ImportError:
+        pass
+    except Exception:
+        pass
+
     attempted_modules = [
         "helius_wallet",
         "moralis_wallet",
