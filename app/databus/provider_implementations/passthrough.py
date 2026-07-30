@@ -33,15 +33,46 @@ async def _passthrough_trending(**kwargs) -> dict | None:
 
 
 async def _passthrough_news(**kwargs) -> dict | None:
-    """News from our own 30-source aggregator."""
+    """News from our own backend — 200+ sources, quality-scored."""
     try:
         limit = kwargs.get("limit", 20)
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(f"http://localhost:8000/api/v1/news/combined?limit={limit}")
+            r = await c.get(f"http://localhost:8000/api/v1/news/feed?limit={limit}")
             if r.status_code == 200:
                 return r.json()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
+
+    # Fallback: try the domain POST endpoint
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            r = await c.post(
+                "http://localhost:8000/api/v1/news",
+                json={"limit": kwargs.get("limit", 20)},
+            )
+            if r.status_code == 200:
+                data = r.json()
+                items = data.get("items", [])
+                return {
+                    "articles": [
+                        {
+                            "id": a.get("news_id", ""),
+                            "title": a.get("title", ""),
+                            "url": a.get("url", ""),
+                            "source": a.get("source", "RMI News"),
+                            "published_at": str(a.get("published_at", "")),
+                            "description": a.get("summary", ""),
+                            "category": "news",
+                            "sentiment": "neutral",
+                        }
+                        for a in items
+                    ],
+                    "total": len(items),
+                    "source": "rmi_news_fallback",
+                    "free": True,
+                }
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("news fallback also failed")
     return None
 
 
