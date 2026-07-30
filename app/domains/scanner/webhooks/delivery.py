@@ -61,13 +61,14 @@ class WebhookDeliveryService:
 
             try:
                 async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+                    event_type_val = event.event_type if isinstance(event.event_type, str) else event.event_type.value
                     resp = await client.post(
                         subscription.url,
                         json=payload,
                         headers={
                             "Content-Type": "application/json",
                             "User-Agent": "RMI-Webhook/1.0",
-                            "X-Webhook-Event": event.event_type.value,
+                            "X-Webhook-Event": event_type_val,
                             "X-Webhook-ID": event.id,
                             "X-Delivery-Attempt": str(attempt),
                         },
@@ -144,9 +145,10 @@ class WebhookDeliveryService:
 
     def _build_payload(self, event: WebhookEvent) -> dict[str, Any]:
         """Build the JSON payload sent to the subscriber."""
+        event_type_str = event.event_type if isinstance(event.event_type, str) else event.event_type.value
         return {
             "event_id": event.id,
-            "event_type": event.event_type.value,
+            "event_type": event_type_str,
             "chain": event.chain,
             "triggered_at": event.triggered_at.isoformat(),
             "data": event.payload,

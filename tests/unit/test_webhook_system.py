@@ -550,7 +550,7 @@ class TestNewBlockProvider:
     @pytest.mark.parametrize(
         "hex_result,expected",
         [
-            ("0x10a4f2", 1091826),
+            ("0x10a4f2", 1090802),
             ("0x1", 1),
             ("0x0", 0),
         ],
