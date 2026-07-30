@@ -13,15 +13,15 @@ Architecture:
     ├── fetch_block_number()     → latest block via RPC
     ├── fetch_transfers(range)   → ERC-20 Transfer events (eth_getLogs)
     ├── fetch_block_timestamps() → batch block → timestamp mapping
-    ├── write_ndjson()           → /srv/data/chain-indexer/{chain}/{date}/events.jsonl
+    ├── write_ndjson()           → DATA_DIR/{chain}/{date}/events.jsonl
     ├── write_clickhouse()       → INSERT INTO wallet_memory.evm_transfers
     └── sync_loop()              → main: load state → fetch → persist → save state
 
 Constraints:
   - Rate-limits itself (round-robin across 10+ endpoints, respects router health)
-  - Hard disk cap: won't write if /srv/data/chain-indexer exceeds 10 GB
+  - Hard disk cap: won't write if DATA_DIR exceeds 10 GB
   - Batch size: 1000 blocks max per run
-  - State file: /srv/data/chain-indexer/state/lite_{chain}.json
+  - State file: DATA_DIR/state/lite_{chain}.json
   - Log: /var/log/lite-indexer.log (via structlog to file)
 
 Usage:
@@ -104,7 +104,7 @@ TOKEN1_SELECTOR = "0xd21220a7"
 # Max concurrent eth_call fallback requests for pool token resolution
 MAX_CONCURRENT_POOL_RESOLVE = 5
 
-CHAIN_INDEXER_DIR = Path("/srv/data/chain-indexer")
+CHAIN_INDEXER_DIR = Path(os.environ.get("CHAIN_INDEXER_DIR", "/var/lib/chain-indexer"))
 STATE_DIR = CHAIN_INDEXER_DIR / "state"
 
 # Pair cache template: STATE_DIR / "pair_tokens_{chain}.json"
@@ -148,6 +148,7 @@ MIN_FREE_DISK_BYTES = 1_000_000_000
 # ClickHouse target tables
 CH_TABLE = "wallet_memory.evm_transfers"
 CH_DEX_TABLE = "wallet_memory.dex_events"
+CH_DEPLOYER_TABLE = "wallet_memory.deployer_events"
 
 # ── Known eth_getLogs endpoints per chain ────────────────────────────
 # Many public RPCs block eth_getLogs (too resource-heavy).
@@ -284,6 +285,7 @@ _metrics: dict[str, int] = {
     "blocks_processed": 0,
     "transfers_written": 0,
     "dex_swaps_written": 0,
+    "deployers_written": 0,
     "rpc_errors": 0,
     "rpc_rate_limits": 0,
     "clickhouse_inserts": 0,
@@ -462,12 +464,16 @@ class LiteIndexer:
         self.batch_size = batch_size
         self.disk_cap = disk_cap
         self.dex_enabled = False
+        self.deployers_enabled = False
         self.start_from_head = start_from_head
 
         # Pair→(token0, token1) cache built from PairCreated/PoolCreated events
         # Persisted to disk so token resolution survives restarts
         self._pair_tokens: dict[str, tuple[str, str]] = {}
         self._load_pair_cache()
+
+        # Latest batch of pair creation events for deployer tracking
+        self._last_pair_events: list[dict[str, Any]] = []
 
         # Optional override blocks (for testing / backfill)
         self._override_from = from_block
@@ -1061,6 +1067,9 @@ class LiteIndexer:
             logger.debug("no_factories_for_chain", chain=self.chain)
             return
 
+        # Reset deployer event collection for this batch
+        self._last_pair_events = []
+
         client = await self._get_client()
         pairs_before = len(self._pair_tokens)
 
@@ -1126,6 +1135,23 @@ class LiteIndexer:
                                         pair_bytes = raw_data[24:64]
                                         pair = "0x" + pair_bytes.lower()
                                     self._pair_tokens[pair] = (token0, token1)
+
+                                    # Collect for deployer tracking
+                                    block_hex = log.get("blockNumber", "0x0")
+                                    try:
+                                        bn = int(block_hex, 16) if isinstance(block_hex, str) else int(block_hex)
+                                    except (ValueError, TypeError):
+                                        bn = 0
+                                    self._last_pair_events.append(
+                                        {
+                                            "factory": factory_addr,
+                                            "pair_address": pair,
+                                            "version": "v3" if is_v3 else "v2",
+                                            "blockNumber": bn,
+                                            "transactionHash": log.get("transactionHash", ""),
+                                            "blockTimestamp": "",
+                                        }
+                                    )
 
                                 logger.info(
                                     "factory_events_fetched",
@@ -1553,6 +1579,79 @@ class LiteIndexer:
             )
             return 0
 
+    # ── Deployer Events Writer (factory pool creations) ─────────────
+
+    async def _write_deployer_events(self, events: list[dict[str, Any]]) -> int:
+        """
+        Write pair/pool creation events to ClickHouse wallet_memory.deployer_events.
+
+        These track which factory deployed which pair/pool contract,
+        enabling deployer reputation scoring and token provenance.
+
+        Matches the existing table schema used by Subsquid deployer processor
+        but uses type='v2_pool' or 'v3_pool' to distinguish factory versions.
+        """
+        if not events:
+            return 0
+
+        client = self._get_ch_client()
+        if not client:
+            logger.warning("deployer_clickhouse_skipped", chain=self.chain)
+            return 0
+
+        now = datetime.now(UTC)
+        rows: list[tuple] = []
+
+        for e in events:
+            ts_str = e.get("blockTimestamp", "")
+            if ts_str:
+                try:
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    ts = now
+            else:
+                ts = now
+
+            version = e.get("version", "v2")
+            pool_type = f"{version}_pool"
+            factory = e.get("factory", "")
+
+            rows.append(
+                (
+                    factory,  # deployer
+                    e.get("pair_address", ""),  # token_address
+                    self.chain,  # chain
+                    e.get("blockNumber", 0),  # block_number
+                    ts,  # block_timestamp
+                    e.get("transactionHash", ""),  # tx_hash
+                    pool_type,  # type
+                    factory,  # factory
+                    now,  # ingested_at
+                    "lite_indexer",  # source
+                )
+            )
+
+        try:
+            client.execute(
+                f"INSERT INTO {CH_DEPLOYER_TABLE} "
+                "(deployer, token_address, chain, block_number, block_timestamp, "
+                "tx_hash, type, factory, ingested_at, source) VALUES",
+                rows,
+            )
+            logger.info("deployer_events_inserted", chain=self.chain, rows=len(rows))
+            _metrics["deployers_written"] += len(rows)
+            _metrics["clickhouse_inserts"] += 1
+            return len(rows)
+        except Exception as exc:
+            _metrics["clickhouse_errors"] += 1
+            logger.error(
+                "deployer_events_insert_failed",
+                chain=self.chain,
+                rows=len(rows),
+                error=str(exc)[:150],
+            )
+            return 0
+
     # ── Log Parser ──────────────────────────────────────────────────
 
     @staticmethod
@@ -1607,6 +1706,14 @@ class LiteIndexer:
                     value_str = str(value_hex)
             except (ValueError, TypeError):
                 value_str = "0"
+
+            # Skip NFT transfers (ERC721/ERC1155) — 4 topics means
+            # topic3 = tokenId, data is empty → value is 0.
+            # ERC20 transfers have 3 topics with value in data.
+            if value_str == "0" and len(topics) >= 4:
+                tx_hash = log.get("transactionHash", "0x0")
+                logger.debug("skipping_nft_transfer", tx_hash=tx_hash[:20], topics=len(topics))
+                continue
 
             # Parse block number (hex string)
             block_hex = log.get("blockNumber", "0x0")
@@ -1963,17 +2070,38 @@ class LiteIndexer:
             dex_events = await self.fetch_swap_events(from_block, to_block)
             summary["dex_events_fetched"] = len(dex_events)
 
-        if not events and not dex_events:
+        # 4a. Fetch pair created events for deployer tracking (if dex is disabled)
+        if self.deployers_enabled and not self.dex_enabled:
+            logger.info(
+                "deployer_pair_fetch_start",
+                chain=self.chain,
+                from_block=from_block,
+                to_block=to_block,
+            )
+            try:
+                await self.fetch_pair_created_events(from_block, to_block)
+            except Exception as exc:
+                logger.warning("deployer_pair_fetch_failed", chain=self.chain, error=str(exc)[:100])
+
+        if not events and not dex_events and not self.deployers_enabled:
             self.save_state(to_block, 0)
             summary["status"] = "no_events"
             summary["duration_seconds"] = time.monotonic() - start_time
             return summary
 
-        # 5. Enrich with timestamps (both transfer and dex events)
+        # 5. Enrich with timestamps
         if events:
             events = await self._enrich_timestamps(events)
         if dex_events:
             dex_events = await self._enrich_timestamps(dex_events)
+
+        # 5b. Write deployer events (from factory pair/pool creation events)
+        deployer_written = 0
+        if self.deployers_enabled and self._last_pair_events:
+            self._last_pair_events = await self._enrich_timestamps(self._last_pair_events)
+            deployer_written = await self._write_deployer_events(self._last_pair_events)
+            if deployer_written:
+                summary["deployer_events_written"] = deployer_written
 
         # 6. Write NDJSON
         bytes_written = 0
@@ -2008,7 +2136,7 @@ class LiteIndexer:
             _metrics["dex_swaps_written"] += dex_ch_inserted or len(dex_events)
 
         # 9. Save state
-        total_events = len(events) + len(dex_events)
+        total_events = len(events) + len(dex_events) + deployer_written
         self.save_state(to_block, total_events)
 
         summary["duration_seconds"] = round(time.monotonic() - start_time, 2)
@@ -2017,6 +2145,7 @@ class LiteIndexer:
             chain=self.chain,
             transfer_events=len(events),
             dex_events=len(dex_events),
+            deployer_events=deployer_written,
             ndjson=bool(bytes_written),
             dex_ndjson=bool(dex_bytes_written),
             clickhouse=bool(ch_inserted),
@@ -2095,6 +2224,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Enable DEX swap event indexing (V2 + V3)",
     )
     parser.add_argument(
+        "--deployers",
+        action="store_true",
+        help="Enable deployer tracking via factory PairCreated/PoolCreated events",
+    )
+    parser.add_argument(
         "--start-from-head",
         action="store_true",
         help="Start indexing from chain tip instead of backfilling from genesis. "
@@ -2107,6 +2241,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 async def main_daemon(
     chains: list[str],
     dex_enabled: bool = False,
+    deployers_enabled: bool = False,
     disk_cap: int = DISK_CAP_BYTES,
     start_from_head: bool = False,
 ) -> int:
@@ -2120,6 +2255,7 @@ async def main_daemon(
         "daemon_start",
         chains=chains,
         dex=dex_enabled,
+        deployers=deployers_enabled,
         disk_cap=disk_cap,
         start_from_head=start_from_head,
     )
@@ -2129,6 +2265,7 @@ async def main_daemon(
     for chain in chains:
         indexer = LiteIndexer(chain=chain, disk_cap=disk_cap, start_from_head=start_from_head)
         indexer.dex_enabled = dex_enabled
+        indexer.deployers_enabled = deployers_enabled
         indexers[chain] = indexer
 
     running = True
@@ -2211,6 +2348,7 @@ async def async_main(args: argparse.Namespace) -> int:
         return await main_daemon(
             chains,
             dex_enabled=args.dex,
+            deployers_enabled=args.deployers,
             disk_cap=args.disk_cap,
             start_from_head=args.start_from_head,
         )
@@ -2225,6 +2363,7 @@ async def async_main(args: argparse.Namespace) -> int:
         start_from_head=args.start_from_head,
     )
     indexer.dex_enabled = args.dex
+    indexer.deployers_enabled = args.deployers
 
     try:
         summary = await indexer.sync_loop()

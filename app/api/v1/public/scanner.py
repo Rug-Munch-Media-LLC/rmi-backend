@@ -133,14 +133,36 @@ async def _run_token_scan(scan_id: str, chain: str, address: str, depth: str) ->
     """Run the actual token scan in the background."""
     try:
         # Attempt real scanner integration
-        from app.scanners.token_scanner import scan_token as real_scan
+        from app.domains.scanner.service import scan_token as real_scan
 
-        result = await real_scan(chain=chain, address=address, depth=depth)
+        # Map depth → scanner tiers
+        depth_tiers: dict[str, list[str]] = {
+            "quick": ["free"],
+            "standard": ["free", "pro"],
+            "deep": ["free", "pro", "elite"],
+        }
+        tiers = depth_tiers.get(depth, ["free"])
+        scan_result = await real_scan(token_address=address, chain=chain, tiers=tiers)
+
+        # Convert domain ScanResult → API response format
+        safety = getattr(scan_result, "safety_score", 50)
+        risk_score = max(0, min(100, 100 - safety))
+        risk_tier: str = "unknown"
+        risk_flags: list[str] = getattr(scan_result, "risk_flags", [])
+        if risk_score >= 70:
+            risk_tier = "critical"
+        elif risk_score >= 40:
+            risk_tier = "medium"
+        elif safety >= 70:
+            risk_tier = "low"
+        else:
+            risk_tier = "caution"
+
         _scan_results[scan_id] = {
             "status": "completed",
-            "risk_score": result.get("risk_score", 50),
-            "risk_tier": result.get("risk_tier", "caution"),
-            "factors": result.get("factors", result.get("threats", [])),
+            "risk_score": risk_score,
+            "risk_tier": risk_tier,
+            "factors": risk_flags,
         }
     except ImportError:
         # Fallback: compute basic risk from on-chain data
